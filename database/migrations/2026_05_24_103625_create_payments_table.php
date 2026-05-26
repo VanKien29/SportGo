@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->char('id', 36)->primary();
+            $table->string('payment_code', 50)->unique()->comment('Mã thanh toán nội bộ của hệ thống.');
             $table->char('booking_id', 36)->comment('Booking được thanh toán.');
             $table->decimal('amount', 12, 2)->comment('Số tiền của lần thanh toán này.');
             $table->enum('payment_kind', ['full', 'deposit', 'partial'])->default('partial')->comment('Loại thanh toán.');
