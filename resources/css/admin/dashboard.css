@@ -1,0 +1,125 @@
+.dashboard {
+  max-width: 1200px;
+}
+
+/* Welcome Card */
+.welcome-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32px;
+  background: linear-gradient(135deg, var(--sg-dark), #1a2e3a);
+  border-radius: var(--sg-radius);
+  margin-bottom: 24px;
+  overflow: hidden;
+  position: relative;
+}
+.welcome-content {
+  position: relative;
+  z-index: 1;
+}
+.welcome-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+}
+.welcome-desc {
+  font-size: 14px;
+  color: rgba(255,255,255,.6);
+  max-width: 480px;
+  line-height: 1.6;
+}
+.welcome-icon {
+  color: rgba(34,197,94,.2);
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: var(--sg-white);
+  border-radius: var(--sg-radius);
+  border: 1px solid var(--sg-border);
+  transition: var(--sg-transition);
+}
+.stat-card:hover {
+  border-color: var(--sg-green);
+  box-shadow: var(--sg-shadow);
+}
+.stat-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stat-icon.users {
+  background: rgba(59,130,246,.1);
+  color: #3b82f6;
+}
+.stat-icon.venues {
+  background: rgba(34,197,94,.1);
+  color: var(--sg-green);
+}
+.stat-icon.bookings {
+  background: rgba(168,85,247,.1);
+  color: #a855f7;
+}
+.stat-icon.revenue {
+  background: rgba(245,158,11,.1);
+  color: #f59e0b;
+}
+.stat-number {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--sg-text);
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--sg-text-muted);
+  margin-top: 2px;
+}
+
+/* Placeholder */
+.placeholder-section {
+  text-align: center;
+  padding: 60px 24px;
+  background: var(--sg-white);
+  border-radius: var(--sg-radius);
+  border: 2px dashed var(--sg-border);
+}
+.placeholder-icon {
+  color: var(--sg-border);
+  margin-bottom: 16px;
+}
+.placeholder-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--sg-text);
+  margin-bottom: 8px;
+}
+.placeholder-section p {
+  font-size: 14px;
+  color: var(--sg-text-muted);
+}
+
+@media (max-width: 1024px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .welcome-icon { display: none; }
+  .welcome-card { padding: 24px; }
+  .welcome-title { font-size: 20px; }
+}
