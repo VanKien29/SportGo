@@ -1,0 +1,119 @@
+<?php
+
+namespace App\Http\Controllers\Api\Auth;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\Auth\RoleRedirectService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Laravel\Socialite\Facades\Socialite;
+
+class GoogleAuthController extends Controller
+{
+    public function __construct(private readonly RoleRedirectService $roleRedirectService)
+    {
+    }
+
+    public function redirect(): RedirectResponse
+    {
+        return Socialite::driver('google')->stateless()->redirect();
+    }
+
+    public function callback(Request $request): JsonResponse|RedirectResponse
+    {
+        $googleUser = Socialite::driver('google')->stateless()->user();
+
+        $user = User::query()
+            ->where('google_id', $googleUser->getId())
+            ->first();
+
+        if (! $user && $googleUser->getEmail()) {
+            $user = User::query()->where('email', $googleUser->getEmail())->first();
+        }
+
+        $isNewUser = false;
+
+        if ($user) {
+            $user->forceFill([
+                'google_id' => $user->google_id ?: $googleUser->getId(),
+                'email_verified_at' => $user->email_verified_at ?: now(),
+                'avatar_url' => $googleUser->getAvatar() ?: $user->avatar_url,
+                'status' => $user->status === 'pending_verify' ? 'active' : $user->status,
+            ])->save();
+        } else {
+            $isNewUser = true;
+            $user = User::query()->create([
+                'username' => $this->uniqueUsername($googleUser->getEmail(), $googleUser->getName()),
+                'full_name' => $googleUser->getName() ?: 'SportGo User',
+                'email' => $googleUser->getEmail(),
+                'google_id' => $googleUser->getId(),
+                'email_verified_at' => now(),
+                'phone' => null,
+                'password' => Hash::make(Str::random(32)),
+                'avatar_url' => $googleUser->getAvatar(),
+                'status' => 'active',
+                'verification_channel' => 'email',
+            ]);
+
+            $this->roleRedirectService->assignDefaultUserRole($user);
+        }
+
+        if ($user->status === 'locked') {
+            return $request->expectsJson()
+                ? response()->json([
+                    'message' => 'Tài khoản của bạn đang bị khóa.',
+                    'status_reason' => $user->status_reason,
+                    'lock_type' => $user->lock_type,
+                    'locked_until' => $user->locked_until,
+                ], 423)
+                : redirect('/login?google_error=locked');
+        }
+
+        if ($user->status !== 'active') {
+            return $request->expectsJson()
+                ? response()->json(['message' => 'Tài khoản không ở trạng thái hoạt động.'], 422)
+                : redirect('/login?google_error=inactive');
+        }
+
+        $token = $user->createToken('sportgo-google')->plainTextToken;
+        $payload = array_merge([
+            'message' => 'Đăng nhập Google thành công',
+        ], $this->roleRedirectService->payload($user, $token));
+
+        if ($request->expectsJson()) {
+            return response()->json($payload);
+        }
+
+        return redirect('/auth/google/callback?'.http_build_query([
+            'token' => $token,
+            'role_group' => $payload['role_group'],
+            'redirect_to' => $payload['redirect_to'],
+            'needs_password_setup' => $isNewUser ? '1' : '0',
+        ]));
+    }
+
+    private function uniqueUsername(?string $email, ?string $name): string
+    {
+        $base = $email ? Str::before($email, '@') : ($name ?: 'sportgo_user');
+        $base = Str::of($base)->lower()->replaceMatches('/[^a-z0-9_]+/', '_')->trim('_')->limit(40, '')->value() ?: 'sportgo_user';
+        $username = $base;
+        $suffix = 1;
+
+        while (User::query()->where('username', $username)->exists()) {
+            $username = Str::limit($base, 40, '').'_'.Str::lower(Str::random(5));
+            $suffix++;
+
+            if ($suffix > 10) {
+                $username = 'sportgo_'.Str::lower(Str::random(10));
+                break;
+            }
+        }
+
+        return $username;
+    }
+}
+
