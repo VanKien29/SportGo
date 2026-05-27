@@ -15,8 +15,6 @@
       <SidebarLayout
         brand-sub="Quản lý sân"
         dashboard-route="/owner/dashboard"
-        :cluster-name="clusterName"
-        :show-cluster-switch="!!clusterName"
       >
         <template #topbar-title>Thông tin cá nhân</template>
         <div class="profile-content">
@@ -39,7 +37,7 @@
 import SidebarLayout from '../components/SidebarLayout.vue';
 import PublicNavbar from '../components/PublicNavbar.vue';
 import ProfileCard from '../components/ProfileCard.vue';
-import { getAuth, getSelectedCluster } from '../stores/auth.js';
+import { getAuth } from '../stores/auth.js';
 
 export default {
   name: 'ProfileView',
@@ -53,13 +51,6 @@ export default {
     };
   },
 
-  computed: {
-    clusterName() {
-      if (this.role !== 'owner') return '';
-      return getSelectedCluster()?.name || '';
-    },
-  },
-
   created() {
     if (!this.user) {
       this.$router.replace({ name: 'login' });
@@ -71,8 +62,7 @@ export default {
       if (this.role === 'admin') {
         this.$router.push('/admin/dashboard');
       } else if (this.role === 'owner') {
-        const cluster = getSelectedCluster();
-        this.$router.push(cluster ? '/owner/dashboard' : '/owner/select-cluster');
+        this.$router.push('/owner/dashboard');
       } else {
         this.$router.push('/');
       }

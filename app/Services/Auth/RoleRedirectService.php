@@ -39,7 +39,7 @@ class RoleRedirectService
     {
         return match ($roleGroup) {
             'admin' => '/admin/dashboard',
-            'owner' => '/owner/select-cluster',
+            'owner' => '/owner/dashboard',
             default => '/',
         };
     }
@@ -76,10 +76,7 @@ class RoleRedirectService
 
     public function assignDefaultUserRole(User $user): void
     {
-        $role = Role::query()
-            ->whereIn('name', ['user', 'player'])
-            ->orderByRaw("CASE name WHEN 'user' THEN 0 WHEN 'player' THEN 1 ELSE 2 END")
-            ->first();
+        $role = Role::query()->where('name', 'user')->first();
 
         if (! $role) {
             return;

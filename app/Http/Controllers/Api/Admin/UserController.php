@@ -24,25 +24,7 @@ class UserController extends Controller
             ->with('roles:id,name,display_name')
             ->latest()
             ->get()
-            ->map(function (User $user): array {
-                $roles = $user->roles->pluck('name')->values()->all();
-
-                return [
-                    'id' => $user->id,
-                    'username' => $user->username,
-                    'full_name' => $user->full_name,
-                    'email' => $user->email,
-                    'phone' => $user->phone,
-                    'status' => $user->status,
-                    'roles' => $roles,
-                    'role_group' => $this->roleRedirectService->roleGroup($roles),
-                    'status_reason' => $user->status_reason,
-                    'lock_type' => $user->lock_type,
-                    'locked_at' => $user->locked_at,
-                    'locked_until' => $user->locked_until,
-                    'locked_by' => $user->locked_by,
-                ];
-            });
+            ->map(fn (User $user): array => $this->payload($user));
 
         return response()->json(['data' => $users]);
     }
@@ -53,6 +35,12 @@ class UserController extends Controller
             'lock_type' => ['required', Rule::in(['temporary', 'permanent', 'auto'])],
             'status_reason' => ['required', 'string', 'max:2000'],
             'locked_until' => ['nullable', 'date', 'after:now', 'required_if:lock_type,temporary'],
+        ], [
+            'lock_type.required' => 'Vui lòng chọn loại khóa.',
+            'lock_type.in' => 'Loại khóa không hợp lệ.',
+            'status_reason.required' => 'Vui lòng nhập lý do khóa.',
+            'locked_until.required_if' => 'Vui lòng nhập thời hạn khóa tạm thời.',
+            'locked_until.after' => 'Thời hạn khóa phải lớn hơn thời điểm hiện tại.',
         ]);
 
         /** @var User $actor */
@@ -61,7 +49,7 @@ class UserController extends Controller
 
         if ($actor->id === $user->id) {
             throw ValidationException::withMessages([
-                'user' => 'Không thể tự khóa chính tài khoản đang đăng nhập.',
+                'user' => 'Không thể tự khóa tài khoản đang đăng nhập.',
             ]);
         }
 

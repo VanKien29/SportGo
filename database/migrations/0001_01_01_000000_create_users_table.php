@@ -15,7 +15,7 @@ return new class extends Migration
             $table->char('id', 36)->primary()->comment('UUID định danh user, dùng làm khóa chính và tham chiếu từ các bảng quyền, booking, chat, bài viết.');
             $table->string('username', 50)->unique()->comment('Tên tài khoản dùng để đăng nhập, khác với họ tên hiển thị; phải unique.');
             $table->string('full_name', 255)->comment('Họ tên hiển thị trong hồ sơ, booking, chat, đánh giá.');
-            $table->string('phone', 20)->unique()->comment('Số điện thoại chính khi đăng ký và đăng nhập; mỗi số chỉ có một tài khoản.');
+            $table->string('phone', 20)->unique()->nullable()->comment('Số điện thoại chính khi đăng ký thường và đặt sân; Google login có thể chưa có phone.');
             $table->string('email', 255)->unique()->nullable()->comment('Email phụ nhưng vẫn dùng đăng nhập, nhận mã xác thực và reset mật khẩu; unique khi có giá trị.');
             $table->timestamp('email_verified_at')->nullable()->comment('Thời điểm email được xác thực; dùng để biết user đã xác thực email chưa.');
             $table->timestamp('phone_verified_at')->nullable()->comment('Thời điểm phone được xác thực; chuẩn bị cho phase SMS.');

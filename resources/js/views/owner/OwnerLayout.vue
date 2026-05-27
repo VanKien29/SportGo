@@ -1,18 +1,27 @@
 <template>
-  <SidebarLayout
-    brand-sub="Quản lý sân"
-    dashboard-route="/owner/dashboard"
-    :cluster-name="clusterName"
-    :show-cluster-switch="!!clusterName"
-  >
+  <SidebarLayout brand-sub="Quản lý sân" dashboard-route="/owner/dashboard">
     <template #topbar-title>
       <span>{{ currentTitle }}</span>
     </template>
-    <router-view @cluster-changed="refreshCluster" />
+    <router-view />
   </SidebarLayout>
 </template>
 
 <script>
-import OwnerLayoutLogic from '../../controllers/owner/OwnerLayout.js';
-export default OwnerLayoutLogic;
+import SidebarLayout from '../../components/SidebarLayout.vue';
+
+export default {
+  name: 'OwnerLayout',
+  components: { SidebarLayout },
+  computed: {
+    currentTitle() {
+      const map = {
+        'owner-dashboard': 'Dashboard',
+        'owner-profile': 'Thông tin cá nhân',
+      };
+
+      return map[this.$route.name] || 'Chủ sân';
+    },
+  },
+};
 </script>

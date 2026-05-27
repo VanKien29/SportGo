@@ -6,15 +6,15 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class EnsureAdminRole
+class EnsureOwnerRole
 {
     public function handle(Request $request, Closure $next): Response
     {
         $roles = $request->user()?->roles()->pluck('roles.name')->all() ?? [];
 
-        if (! array_intersect($roles, ['super_admin', 'admin', 'system_staff'])) {
+        if (! array_intersect($roles, ['venue_owner', 'venue_staff'])) {
             return response()->json([
-                'message' => 'Bạn không có quyền thực hiện thao tác này.',
+                'message' => 'Bạn không có quyền truy cập khu vực chủ sân.',
             ], 403);
         }
 
