@@ -14,6 +14,8 @@ use Laravel\Socialite\Facades\Socialite;
 
 class GoogleAuthController extends Controller
 {
+    private const ADMIN_ROLES = ['super_admin', 'admin', 'system_staff'];
+
     public function __construct(private readonly RoleRedirectService $roleRedirectService)
     {
     }
@@ -52,6 +54,12 @@ class GoogleAuthController extends Controller
             ]);
 
             $this->roleRedirectService->assignDefaultUserRole($user);
+        }
+
+        if ($this->isAdminUser($user)) {
+            return $request->expectsJson()
+                ? response()->json(['message' => 'Tài khoản quản trị vui lòng đăng nhập tại trang Admin.'], 422)
+                : redirect('/admin/login?admin_login_required=1');
         }
 
         if ($user->status === 'locked') {
@@ -97,6 +105,13 @@ class GoogleAuthController extends Controller
         }
 
         return $user;
+    }
+
+    private function isAdminUser(User $user): bool
+    {
+        $roles = $this->roleRedirectService->roles($user);
+
+        return (bool) array_intersect($roles, self::ADMIN_ROLES);
     }
 
     private function uniqueUsername(?string $email, ?string $name): string

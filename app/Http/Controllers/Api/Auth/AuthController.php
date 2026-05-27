@@ -15,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    private const ADMIN_ROLES = ['super_admin', 'admin', 'system_staff'];
+
     public function __construct(
         private readonly OtpService $otpService,
         private readonly RoleRedirectService $roleRedirectService,
@@ -113,6 +115,12 @@ class AuthController extends Controller
 
         if (! $user || ! Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages(['login' => 'Sai tài khoản hoặc mật khẩu.']);
+        }
+
+        if ($this->isAdminUser($user)) {
+            throw ValidationException::withMessages([
+                'login' => 'Tài khoản quản trị vui lòng đăng nhập tại trang Admin.',
+            ]);
         }
 
         if ($user->status === 'pending_verify') {
@@ -216,5 +224,12 @@ class AuthController extends Controller
             ->orWhere('email', $identifier)
             ->orWhere('phone', $identifier)
             ->first();
+    }
+
+    private function isAdminUser(User $user): bool
+    {
+        $roles = $this->roleRedirectService->roles($user);
+
+        return (bool) array_intersect($roles, self::ADMIN_ROLES);
     }
 }
