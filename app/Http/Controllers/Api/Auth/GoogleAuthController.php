@@ -26,15 +26,7 @@ class GoogleAuthController extends Controller
     public function callback(Request $request): JsonResponse|RedirectResponse
     {
         $googleUser = Socialite::driver('google')->stateless()->user();
-
-        $user = User::query()
-            ->where('google_id', $googleUser->getId())
-            ->first();
-
-        if (! $user && $googleUser->getEmail()) {
-            $user = User::query()->where('email', $googleUser->getEmail())->first();
-        }
-
+        $user = $this->findGoogleUser($googleUser->getId(), $googleUser->getEmail());
         $isNewUser = false;
 
         if ($user) {
@@ -96,24 +88,37 @@ class GoogleAuthController extends Controller
         ]));
     }
 
+    private function findGoogleUser(string $googleId, ?string $email): ?User
+    {
+        $user = User::query()->where('google_id', $googleId)->first();
+
+        if (! $user && $email) {
+            $user = User::query()->where('email', $email)->first();
+        }
+
+        return $user;
+    }
+
     private function uniqueUsername(?string $email, ?string $name): string
     {
         $base = $email ? Str::before($email, '@') : ($name ?: 'sportgo_user');
-        $base = Str::of($base)->lower()->replaceMatches('/[^a-z0-9_]+/', '_')->trim('_')->limit(40, '')->value() ?: 'sportgo_user';
+        $base = Str::of($base)
+            ->lower()
+            ->replaceMatches('/[^a-z0-9_]+/', '_')
+            ->trim('_')
+            ->limit(40, '')
+            ->value() ?: 'sportgo_user';
+
         $username = $base;
-        $suffix = 1;
 
-        while (User::query()->where('username', $username)->exists()) {
-            $username = Str::limit($base, 40, '').'_'.Str::lower(Str::random(5));
-            $suffix++;
-
-            if ($suffix > 10) {
-                $username = 'sportgo_'.Str::lower(Str::random(10));
-                break;
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            if (! User::query()->where('username', $username)->exists()) {
+                return $username;
             }
+
+            $username = Str::limit($base, 40, '').'_'.Str::lower(Str::random(5));
         }
 
-        return $username;
+        return 'sportgo_'.Str::lower(Str::random(10));
     }
 }
-

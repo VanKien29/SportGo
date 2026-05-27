@@ -172,10 +172,29 @@
   outline: none;
   background: transparent;
   font-size: 14px;
-  color: #fff;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #fff;
 }
 .input-wrapper input::placeholder {
   color: rgba(255,255,255,.25);
+}
+.input-wrapper input:-webkit-autofill,
+.input-wrapper input:-webkit-autofill:hover,
+.input-wrapper input:-webkit-autofill:focus,
+.input-wrapper input:-webkit-autofill:active {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #fff !important;
+  box-shadow: 0 0 0 1000px #222b34 inset !important;
+  -webkit-box-shadow: 0 0 0 1000px #222b34 inset !important;
+  border: 0 !important;
+  transition: background-color 9999s ease-out 0s;
+}
+.input-wrapper input:autofill {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: transparent !important;
 }
 .toggle-pw {
   padding: 4px;

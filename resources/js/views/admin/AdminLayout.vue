@@ -16,8 +16,23 @@
 </template>
 
 <script>
-import AdminLayoutLogic from '../../controllers/admin/AdminLayout.js';
-export default AdminLayoutLogic;
-</script>
-<style src="../../../css/admin/layout.css" scoped></style>
+import SidebarLayout from '../../components/SidebarLayout.vue';
 
+export default {
+  name: 'AdminLayout',
+  components: { SidebarLayout },
+  computed: {
+    currentTitle() {
+      const map = {
+        'admin-dashboard': 'Dashboard',
+        'admin-profile': 'Thông tin cá nhân',
+        'admin-users': 'Quản lý tài khoản',
+      };
+
+      return map[this.$route.name] || 'Admin';
+    },
+  },
+};
+</script>
+
+<style src="../../../css/admin/layout.css" scoped></style>

@@ -1,12 +1,32 @@
-﻿const AUTH_KEY = 'sportgo_auth';
-const SELECTED_CLUSTER_KEY = 'sportgo_selected_cluster';
+const OLD_AUTH_KEY = 'sportgo_auth';
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
+const ROLES_KEY = 'auth_roles';
+const ROLE_GROUP_KEY = 'auth_role_group';
+const REDIRECT_KEY = 'auth_redirect_to';
+const SELECTED_CLUSTER_KEY = 'selected_cluster';
 
 function readToken() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) return token;
+
   try {
-    return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null')?.token || null;
+    return JSON.parse(localStorage.getItem(OLD_AUTH_KEY) || 'null')?.token || null;
   } catch {
     return null;
   }
+}
+
+function clearAuthStorage() {
+  [
+    OLD_AUTH_KEY,
+    TOKEN_KEY,
+    USER_KEY,
+    ROLES_KEY,
+    ROLE_GROUP_KEY,
+    REDIRECT_KEY,
+    SELECTED_CLUSTER_KEY,
+  ].forEach((key) => localStorage.removeItem(key));
 }
 
 function extractError(data, fallback) {
@@ -29,8 +49,7 @@ export async function api(path, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (response.status === 401) {
-    localStorage.removeItem(AUTH_KEY);
-    localStorage.removeItem(SELECTED_CLUSTER_KEY);
+    clearAuthStorage();
     throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
   }
 
@@ -43,4 +62,3 @@ export async function api(path, options = {}) {
 
   return data;
 }
-

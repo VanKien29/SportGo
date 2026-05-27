@@ -11,7 +11,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -25,12 +24,14 @@ class AuthController extends Controller
     public function register(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'username' => ['required', 'string', 'max:50', Rule::unique('users', 'username')],
+            'username' => ['required', 'string', 'max:50'],
             'full_name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:20', Rule::unique('users', 'phone')],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            'phone' => ['required', 'string', 'max:20'],
+            'email' => ['required', 'email', 'max:255'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
+
+        $this->prepareRegisterAccount($data);
 
         $user = User::query()->create([
             'username' => $data['username'],
@@ -43,15 +44,35 @@ class AuthController extends Controller
         ]);
 
         $this->roleRedirectService->assignDefaultUserRole($user);
-
-        $otp = $this->otpService->generate();
-        $this->otpService->create($user, $user->email, 'register', $otp);
-        Mail::to($user->email)->send(new AuthOtpMail($user, $otp, 'register', OtpService::EXPIRE_MINUTES));
+        $this->sendRegisterOtp($user);
 
         return response()->json([
             'message' => 'Đăng ký thành công. Vui lòng kiểm tra email để lấy mã xác thực.',
             'email' => $user->email,
         ], 201);
+    }
+
+    public function resendRegisterOtp(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $user = User::query()->where('email', $data['email'])->first();
+
+        if (! $user) {
+            throw ValidationException::withMessages(['email' => 'Tài khoản không tồn tại.']);
+        }
+
+        if ($user->status !== 'pending_verify') {
+            throw ValidationException::withMessages(['email' => 'Tài khoản này đã được xác thực hoặc không hợp lệ.']);
+        }
+
+        $this->sendRegisterOtp($user);
+
+        return response()->json([
+            'message' => 'Đã gửi lại mã xác thực. Vui lòng kiểm tra email của bạn.',
+        ]);
     }
 
     public function verifyRegisterOtp(Request $request): JsonResponse
@@ -81,30 +102,25 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'username' => ['required', 'string'],
+            'login' => ['required', 'string'],
             'password' => ['required', 'string'],
         ], [
-            'username.required' => 'Vui lòng nhập tên tài khoản.',
+            'login.required' => 'Vui lòng nhập tài khoản.',
             'password.required' => 'Vui lòng nhập mật khẩu.',
         ]);
 
-        $user = User::query()->where('username', $data['username'])->first();
+        $user = $this->findUserByIdentifier($data['login']);
 
         if (! $user || ! Hash::check($data['password'], $user->password)) {
-            throw ValidationException::withMessages(['username' => 'Sai tài khoản hoặc mật khẩu.']);
+            throw ValidationException::withMessages(['login' => 'Sai tài khoản hoặc mật khẩu.']);
         }
 
         if ($user->status === 'pending_verify') {
-            throw ValidationException::withMessages(['username' => 'Tài khoản chưa xác thực email.']);
+            throw ValidationException::withMessages(['login' => 'Tài khoản chưa xác thực email.']);
         }
 
         if ($user->status === 'locked') {
-            return response()->json([
-                'message' => 'Tài khoản của bạn đang bị khóa.',
-                'status_reason' => $user->status_reason,
-                'lock_type' => $user->lock_type,
-                'locked_until' => $user->locked_until,
-            ], 423);
+            return $this->lockedUserResponse($user);
         }
 
         if ($user->status !== 'active') {
@@ -123,10 +139,14 @@ class AuthController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        if ($user->status === 'locked') {
+            $user->currentAccessToken()?->delete();
+
+            return $this->lockedUserResponse($user);
+        }
+
         return response()->json(array_merge([
-            'message' => $user->status === 'locked'
-                ? 'Tài khoản của bạn đang bị khóa.'
-                : 'Lấy thông tin tài khoản thành công.',
+            'message' => 'Lấy thông tin tài khoản thành công.',
         ], $this->roleRedirectService->payload($user)));
     }
 
@@ -139,4 +159,62 @@ class AuthController extends Controller
         ]);
     }
 
+    private function prepareRegisterAccount(array $data): void
+    {
+        $conflictingUsers = User::query()
+            ->where('username', $data['username'])
+            ->orWhere('phone', $data['phone'])
+            ->orWhere('email', $data['email'])
+            ->get();
+
+        $activeConflicts = $conflictingUsers->where('status', '!=', 'pending_verify');
+
+        if ($activeConflicts->isNotEmpty()) {
+            $errors = [];
+
+            if ($activeConflicts->contains('username', $data['username'])) {
+                $errors['username'] = 'Tên tài khoản đã tồn tại.';
+            }
+
+            if ($activeConflicts->contains('phone', $data['phone'])) {
+                $errors['phone'] = 'Số điện thoại đã được sử dụng.';
+            }
+
+            if ($activeConflicts->contains('email', $data['email'])) {
+                $errors['email'] = 'Email đã được sử dụng.';
+            }
+
+            throw ValidationException::withMessages($errors);
+        }
+
+        $conflictingUsers
+            ->where('status', 'pending_verify')
+            ->each(fn (User $pendingUser) => $pendingUser->delete());
+    }
+
+    private function sendRegisterOtp(User $user): void
+    {
+        $otp = $this->otpService->generate();
+        $this->otpService->create($user, $user->email, 'register', $otp);
+        Mail::to($user->email)->send(new AuthOtpMail($user, $otp, 'register', OtpService::EXPIRE_MINUTES));
+    }
+
+    private function lockedUserResponse(User $user): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Tài khoản của bạn đang bị khóa.',
+            'status_reason' => $user->status_reason,
+            'lock_type' => $user->lock_type,
+            'locked_until' => $user->locked_until,
+        ], 423);
+    }
+
+    private function findUserByIdentifier(string $identifier): ?User
+    {
+        return User::query()
+            ->where('username', $identifier)
+            ->orWhere('email', $identifier)
+            ->orWhere('phone', $identifier)
+            ->first();
+    }
 }

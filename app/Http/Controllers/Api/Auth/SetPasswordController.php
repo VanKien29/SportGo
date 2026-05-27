@@ -6,13 +6,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 
 class SetPasswordController extends Controller
 {
     public function store(Request $request): JsonResponse
     {
-        $request->validate([
+        $data = $request->validate([
             'password' => [
                 'required',
                 'string',
@@ -29,9 +28,9 @@ class SetPasswordController extends Controller
             'password.regex' => 'Mật khẩu phải có ít nhất 1 chữ hoa, 1 chữ số và 1 ký tự đặc biệt.',
         ]);
 
-        $user = $request->user();
-        $user->password = Hash::make($request->password);
-        $user->save();
+        $request->user()->forceFill([
+            'password' => Hash::make($data['password']),
+        ])->save();
 
         return response()->json([
             'message' => 'Mật khẩu đã được thiết lập thành công.',

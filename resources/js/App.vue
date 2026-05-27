@@ -1,6 +1,30 @@
 <template>
   <router-view />
+  <SetPasswordModal v-if="showSetPasswordModal" @done="showSetPasswordModal = false" />
 </template>
+
+<script>
+import SetPasswordModal from './components/SetPasswordModal.vue';
+import { needsPasswordSetup } from './stores/auth.js';
+
+export default {
+  name: 'App',
+  components: { SetPasswordModal },
+  data() {
+    return {
+      showSetPasswordModal: false,
+    };
+  },
+  mounted() {
+    this.showSetPasswordModal = needsPasswordSetup();
+  },
+  watch: {
+    $route() {
+      this.showSetPasswordModal = needsPasswordSetup();
+    },
+  },
+};
+</script>
 
 <style>
 :root {
