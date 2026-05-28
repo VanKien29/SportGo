@@ -1,4 +1,5 @@
 import { authService } from '../services/authService.js';
+import { adminAuthService } from '../services/adminAuthService.js';
 
 const OLD_AUTH_KEY = 'sportgo_auth';
 const TOKEN_KEY = 'auth_token';
@@ -105,8 +106,26 @@ export async function restoreAuth() {
   }
 }
 
+export async function restoreAdminAuth() {
+  const currentToken = getToken();
+  if (!currentToken) return null;
+
+  try {
+    const payload = await adminAuthService.me();
+    return saveAuth({ ...payload, token: currentToken });
+  } catch {
+    clearAuth();
+    return null;
+  }
+}
+
 export async function login(identifier, password) {
   const data = await authService.login(identifier, password);
+  return saveAuth(data);
+}
+
+export async function adminLogin(identifier, password) {
+  const data = await adminAuthService.login(identifier, password);
   return saveAuth(data);
 }
 
@@ -142,6 +161,28 @@ export async function logout() {
   } finally {
     clearAuth();
   }
+}
+
+export async function adminLogout() {
+  try {
+    if (getToken()) {
+      await adminAuthService.logout();
+    }
+  } finally {
+    clearAuth();
+  }
+}
+
+export function sendAdminForgotOtp(identifier) {
+  return adminAuthService.sendForgotOtp(identifier);
+}
+
+export function verifyAdminForgotOtp(identifier, otp) {
+  return adminAuthService.verifyForgotOtp(identifier, otp);
+}
+
+export function resetAdminPassword(identifier, otp, password, password_confirmation) {
+  return adminAuthService.resetPassword(identifier, otp, password, password_confirmation);
 }
 
 export async function consumeGoogleCallback(query) {

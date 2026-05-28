@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Api\Admin\Auth\AdminAuthController;
+use App\Http\Controllers\Api\Admin\Auth\AdminForgotPasswordController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
@@ -26,6 +28,18 @@ Route::prefix('auth')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/set-password', [SetPasswordController::class, 'store']);
+    });
+});
+
+Route::prefix('admin/auth')->group(function (): void {
+    Route::post('/login', [AdminAuthController::class, 'login']);
+    Route::post('/forgot-password/send-otp', [AdminForgotPasswordController::class, 'sendOtp']);
+    Route::post('/forgot-password/verify-otp', [AdminForgotPasswordController::class, 'verifyOtp']);
+    Route::post('/forgot-password/reset', [AdminForgotPasswordController::class, 'reset']);
+
+    Route::middleware(['auth:sanctum', EnsureAdminRole::class])->group(function (): void {
+        Route::get('/me', [AdminAuthController::class, 'me']);
+        Route::post('/logout', [AdminAuthController::class, 'logout']);
     });
 });
 
