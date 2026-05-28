@@ -4,14 +4,11 @@ namespace App\Http\Controllers\Api\Player;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
-use App\Models\Payment;
 use App\Models\SlotLock;
 use App\Services\BookingService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class BookingController extends Controller
 {
@@ -117,61 +114,4 @@ class BookingController extends Controller
         return response()->json($bookingArray);
     }
 
-    /**
-     * API giả lập thanh toán thành công để test luồng giữ sân 20 phút.
-     */
-    public function simulatePayment(string $id, Request $request)
-    {
-        $request->validate([
-            'method' => 'required|in:vnpay,momo,zalopay',
-        ]);
-
-        $booking = Booking::findOrFail($id);
-
-        if ($booking->customer_id !== auth()->id()) {
-            return response()->json([
-                'message' => 'Bạn không có quyền thực hiện giao dịch cho đơn đặt sân này.',
-            ], 403);
-        }
-
-        if ($booking->status !== 'pending_payment') {
-            return response()->json([
-                'message' => 'Đơn đặt sân này không ở trạng thái chờ thanh toán.',
-            ], 422);
-        }
-
-        try {
-            DB::transaction(function () use ($booking, $request) {
-                // 1. Cập nhật trạng thái Booking sang Confirmed
-                $booking->update([
-                    'status' => 'confirmed',
-                ]);
-
-                // 2. Xoá Slot Lock liên quan để mở khoá tạm thời
-                SlotLock::where('booking_id', $booking->id)->delete();
-
-                // 3. Tạo bản ghi thanh toán thành công (Payment)
-                Payment::create([
-                    'payment_code' => 'PM' . strtoupper(Str::random(10)),
-                    'booking_id' => $booking->id,
-                    'amount' => $booking->required_payment_amount,
-                    'payment_kind' => $booking->payment_option === 'full_payment' ? 'full' : 'deposit',
-                    'method' => $request->input('method'),
-                    'gateway_txn_id' => 'TXN_' . Str::random(12),
-                    'gateway_response' => ['status' => 'simulated_success', 'timestamp' => Carbon::now()->toIso8601String()],
-                    'status' => 'paid',
-                    'paid_at' => Carbon::now(),
-                ]);
-            });
-
-            return response()->json([
-                'message' => 'Thanh toán giả lập thành công.',
-                'booking' => $booking->fresh(['venueCourt.venueCluster']),
-            ]);
-        } catch (Exception $e) {
-            return response()->json([
-                'message' => 'Đã xảy ra lỗi trong quá trình thanh toán: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
 }

@@ -31,6 +31,10 @@
           </div>
         </div>
 
+        <div v-if="paymentNotice" class="payment-notice" :class="paymentNotice.type">
+          {{ paymentNotice.message }}
+        </div>
+
         <div class="detail-grid">
           <!-- Cột trái: Thông tin đơn -->
           <div class="info-section">
@@ -83,7 +87,7 @@
               <p class="timer-desc">Vui lòng thanh toán trước khi thời gian kết thúc để không bị hủy sân tự động.</p>
             </div>
 
-            <!-- Card giá trị và thanh toán giả lập -->
+            <!-- Card giá trị và thanh toán -->
             <div class="card price-card">
               <h3>Thông tin chi phí</h3>
               <div class="divider"></div>
@@ -103,24 +107,14 @@
                 </div>
               </div>
 
-              <!-- Giả lập cổng thanh toán -->
-              <div class="payment-sim-box" v-if="booking.status === 'pending_payment'">
+              <div class="vnpay-box" v-if="booking.status === 'pending_payment'">
                 <div class="divider"></div>
-                <h4>Giả lập Cổng Thanh Toán</h4>
-                <p class="sim-desc">Chọn phương thức để chạy giả lập thanh toán thành công:</p>
-
-                <div class="sim-buttons">
-                  <button class="btn-pay vnpay" @click="payWithSimulate('vnpay')" :disabled="paying">
-                    Thanh toán VNPay
-                  </button>
-                  <button class="btn-pay momo" @click="payWithSimulate('momo')" :disabled="paying">
-                    Thanh toán Momo
-                  </button>
-                  <button class="btn-pay zalopay" @click="payWithSimulate('zalopay')" :disabled="paying">
-                    Thanh toán ZaloPay
-                  </button>
-                </div>
-                <div class="error-msg text-center" v-if="payError">{{ payError }}</div>
+                <button class="btn-vnpay" type="button" @click="payWithVnpay" :disabled="paying || timeLeft <= 0">
+                  <span v-if="!paying">Thanh toán qua VNPAY</span>
+                  <span v-else>Đang tạo giao dịch...</span>
+                </button>
+                <p class="pay-hint">Bạn sẽ được chuyển sang cổng VNPAY để hoàn tất thanh toán.</p>
+                <div class="error-msg" v-if="payError">{{ payError }}</div>
               </div>
             </div>
           </div>
@@ -152,7 +146,8 @@ export default {
       booking: null,
       loading: true,
       paying: false,
-      payError: null,
+      payError: '',
+      paymentNotice: null,
       timeLeft: 0,
       timerInterval: null,
     };
@@ -211,6 +206,7 @@ export default {
     },
   },
   async mounted() {
+    this.applyPaymentNotice();
     await this.loadBooking();
   },
   beforeUnmount() {
@@ -256,18 +252,35 @@ export default {
         this.timerInterval = null;
       }
     },
-    async payWithSimulate(method) {
-      if (!this.booking || this.paying) return;
+    applyPaymentNotice() {
+      const status = this.$route.query.payment_status;
+      if (status === 'success') {
+        this.paymentNotice = {
+          type: 'success',
+          message: 'Thanh toán VNPAY thành công. Đơn đặt sân đã được xác nhận.',
+        };
+      } else if (status === 'failed') {
+        this.paymentNotice = {
+          type: 'failed',
+          message: 'Thanh toán VNPAY chưa thành công. Bạn có thể thử thanh toán lại nếu đơn còn thời gian giữ chỗ.',
+        };
+      }
+
+      if (status) {
+        this.$router.replace({ name: this.$route.name, params: this.$route.params, query: {} });
+      }
+    },
+    async payWithVnpay() {
+      if (!this.booking || this.paying || this.timeLeft <= 0) return;
+
       this.paying = true;
-      this.payError = null;
+      this.payError = '';
 
       try {
-        const res = await bookingService.simulatePayment(this.booking.id, method);
-        this.booking = res.booking;
-        this.clearTimer();
+        const res = await bookingService.createVnpayPayment(this.booking.id);
+        window.location.href = res.payment_url;
       } catch (err) {
-        this.payError = err.message || 'Thanh toán giả lập thất bại.';
-      } finally {
+        this.payError = err.message || 'Không thể tạo giao dịch VNPAY. Vui lòng thử lại.';
         this.paying = false;
       }
     },
@@ -367,6 +380,26 @@ export default {
   font-size: 14px;
   color: var(--sg-text-muted);
   margin-top: 4px;
+}
+
+.payment-notice {
+  padding: 14px 18px;
+  border-radius: var(--sg-radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--sg-border);
+}
+
+.payment-notice.success {
+  color: var(--sg-green-dark);
+  background: var(--sg-green-pale);
+  border-color: #bbf7d0;
+}
+
+.payment-notice.failed {
+  color: #991b1b;
+  background: #fef2f2;
+  border-color: #fecaca;
 }
 
 /* Detail Grid */
@@ -510,44 +543,37 @@ export default {
   font-weight: 800;
 }
 
-/* Sim Box */
-.payment-sim-box h4 {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--sg-dark);
-  margin-bottom: 6px;
+.vnpay-box {
+  margin-top: 18px;
 }
 
-.sim-desc {
-  font-size: 12px;
-  color: var(--sg-text-muted);
-  margin-bottom: 14px;
-}
-
-.sim-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.btn-pay {
+.btn-vnpay {
   width: 100%;
-  height: 40px;
+  min-height: 44px;
   border-radius: var(--sg-radius-sm);
+  background: #0066cc;
   color: #fff;
-  font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 800;
   transition: var(--sg-transition);
 }
 
-.btn-pay:hover {
-  transform: translateY(-1px);
+.btn-vnpay:hover:not(:disabled) {
   filter: brightness(1.05);
+  transform: translateY(-1px);
 }
 
-.btn-pay.vnpay { background: #0066cc; box-shadow: 0 4px 10px rgba(0,102,204,0.3); }
-.btn-pay.momo { background: #c01a75; box-shadow: 0 4px 10px rgba(192,26,117,0.3); }
-.btn-pay.zalopay { background: #00cc66; box-shadow: 0 4px 10px rgba(0,204,102,0.3); }
+.btn-vnpay:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.pay-hint {
+  margin-top: 10px;
+  color: var(--sg-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
 
 .error-msg {
   color: var(--sg-danger);
