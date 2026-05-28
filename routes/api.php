@@ -43,3 +43,13 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
     });
+
+Route::middleware('auth:sanctum')
+    ->group(function (): void {
+        Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);
+        Route::get('/bookings/check-availability', [\App\Http\Controllers\Api\Player\BookingController::class, 'checkAvailability']);
+        Route::post('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'store']);
+        Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
+        Route::post('/bookings/{id}/simulate-payment', [\App\Http\Controllers\Api\Player\BookingController::class, 'simulatePayment']);
+    });
+

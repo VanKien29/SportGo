@@ -15,6 +15,7 @@ class Payment extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'payment_code',
         'booking_id',
         'amount',
         'payment_kind',

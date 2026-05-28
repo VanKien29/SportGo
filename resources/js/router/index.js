@@ -11,6 +11,8 @@ import AdminDashboard from '../views/admin/AdminDashboard.vue';
 import AdminUsers from '../views/admin/AdminUsers.vue';
 import OwnerLayout from '../views/owner/OwnerLayout.vue';
 import OwnerDashboard from '../views/owner/OwnerDashboard.vue';
+import BookingForm from '../views/clients/booking/BookingForm.vue';
+import BookingDetail from '../views/clients/booking/BookingDetail.vue';
 
 const routes = [
   { path: '/', name: 'home', component: Home },
@@ -19,6 +21,8 @@ const routes = [
   { path: '/forgot-password', name: 'forgot-password', component: ForgotPassword },
   { path: '/auth/google/callback', name: 'google-callback', component: Login },
   { path: '/profile', name: 'profile', component: Profile, meta: { requiresAuth: true } },
+  { path: '/booking', name: 'booking-create', component: BookingForm, meta: { requiresAuth: true } },
+  { path: '/booking/:id', name: 'booking-detail', component: BookingDetail, meta: { requiresAuth: true } },
   { path: '/admin/profile', name: 'admin-profile', component: Profile, meta: { requiresAuth: true, role: 'admin' } },
   { path: '/owner/profile', name: 'owner-profile', component: Profile, meta: { requiresAuth: true, role: 'owner' } },
   {
