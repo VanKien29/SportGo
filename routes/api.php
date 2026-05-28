@@ -50,16 +50,25 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/users', [AdminUserController::class, 'index']);
         Route::patch('/users/{id}/lock', [AdminUserController::class, 'lock']);
         Route::patch('/users/{id}/unlock', [AdminUserController::class, 'unlock']);
+        
+        // Court Types CRUD
+        Route::apiResource('court-types', \App\Http\Controllers\Api\Admin\CourtTypeController::class);
     });
 
 Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
+        
+        // Venue Clusters & Venue Courts
+        Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);
+        Route::apiResource('venue-courts', \App\Http\Controllers\Api\Owner\VenueCourtController::class);
     });
 
 Route::middleware('auth:sanctum')
     ->group(function (): void {
+        Route::post('venue-clusters/resolve-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'resolveMapUrl']);
+        Route::get('/court-types', [\App\Http\Controllers\Api\Admin\CourtTypeController::class, 'index']); // Read-only: Owner cần xem danh sách loại sân
         Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);
         Route::get('/bookings/check-availability', [\App\Http\Controllers\Api\Player\BookingController::class, 'checkAvailability']);
         Route::post('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'store']);
