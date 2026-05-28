@@ -339,13 +339,18 @@ class BookingTest extends TestCase
     }
 
     /**
-     * Test API giả lập thanh toán thành công.
+     * Test API thanh toán VNPAY thành công.
      */
-    public function test_simulate_payment_success(): void
+    public function test_vnpay_payment_success(): void
     {
+        config()->set('services.vnpay.tmn_code', 'TESTCODE');
+        config()->set('services.vnpay.hash_secret', 'TESTSECRET');
+        config()->set('services.vnpay.payment_url', 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html');
+        config()->set('services.vnpay.return_url', 'http://localhost/api/payments/vnpay/return');
+
         // 1. Tạo đơn chờ thanh toán và khoá slot hợp lệ
         $booking = Booking::create([
-            'booking_code' => 'BKSIMULATE',
+            'booking_code' => 'BKVNPAY',
             'customer_id' => $this->player->id,
             'venue_court_id' => $this->court->id,
             'requested_venue_court_id' => $this->court->id,
@@ -375,17 +380,52 @@ class BookingTest extends TestCase
             'expires_at' => Carbon::now()->addMinutes(20),
         ]);
 
-        // 2. Gọi API giả lập thanh toán
+        // 2. Gọi API tạo URL thanh toán VNPAY
         $response = $this->actingAs($this->player, 'sanctum')
-            ->postJson("/api/bookings/{$booking->id}/simulate-payment", [
-                'method' => 'vnpay',
-            ]);
-
+            ->postJson("/api/bookings/{$booking->id}/payments/vnpay");
 
         $response->assertStatus(200)
-            ->assertJsonPath('booking.status', 'confirmed');
+            ->assertJsonStructure([
+                'payment_url',
+                'payment' => ['id', 'payment_code', 'booking_id', 'amount', 'method', 'status'],
+                'booking' => ['id', 'booking_code', 'status'],
+            ])
+            ->assertJsonPath('payment.status', 'pending')
+            ->assertJsonPath('payment.method', 'vnpay');
 
-        // 3. Kiểm tra DB: Slot lock bị xoá, đơn thành confirmed, tạo Payment paid
+        $payment = Payment::query()->where('booking_id', $booking->id)->firstOrFail();
+
+        // 3. Giả lập VNPAY redirect về return URL với chữ ký hợp lệ
+        $returnPayload = [
+            'vnp_Amount' => 10000000,
+            'vnp_BankCode' => 'NCB',
+            'vnp_BankTranNo' => 'VNPTEST123',
+            'vnp_CardType' => 'ATM',
+            'vnp_OrderInfo' => 'Thanh toan don dat san '.$booking->booking_code,
+            'vnp_PayDate' => now()->format('YmdHis'),
+            'vnp_ResponseCode' => '00',
+            'vnp_TmnCode' => 'TESTCODE',
+            'vnp_TransactionNo' => '14123456',
+            'vnp_TransactionStatus' => '00',
+            'vnp_TxnRef' => $payment->payment_code,
+        ];
+
+        ksort($returnPayload);
+        $returnPayload['vnp_SecureHash'] = hash_hmac(
+            'sha512',
+            collect($returnPayload)
+                ->map(fn ($value, $key) => urlencode((string) $key) . '=' . urlencode((string) $value))
+                ->implode('&'),
+            'TESTSECRET'
+        );
+
+        $response = $this->getJson('/api/payments/vnpay/return?'.http_build_query($returnPayload));
+
+        $response->assertStatus(200)
+            ->assertJsonPath('payment_status', 'success')
+            ->assertJsonPath('booking_id', $booking->id);
+
+        // 4. Kiểm tra DB: Slot lock bị xoá, đơn thành confirmed, Payment paid
         $this->assertDatabaseMissing('slot_locks', [
             'booking_id' => $booking->id,
         ]);

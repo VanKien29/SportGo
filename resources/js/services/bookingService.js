@@ -25,11 +25,10 @@ export const bookingService = {
     return api(`/api/bookings/${id}`);
   },
 
-  // Giả lập thanh toán thành công
-  simulatePayment(id, method) {
-    return api(`/api/bookings/${id}/simulate-payment`, {
+  // Tạo link thanh toán VNPAY cho đơn đặt sân
+  createVnpayPayment(id) {
+    return api(`/api/bookings/${id}/payments/vnpay`, {
       method: 'POST',
-      body: JSON.stringify({ method }),
     });
   },
 };
