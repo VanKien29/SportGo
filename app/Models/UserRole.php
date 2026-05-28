@@ -1,0 +1,43 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class UserRole extends Model
+{
+    use HasFactory;
+
+    public const UPDATED_AT = null;
+
+    protected $fillable = [
+        'user_id',
+        'role_id',
+        'scope_type',
+        'scope_id',
+        'granted_by',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'role_id' => 'integer',
+        ];
+    }
+
+    public function grantedBy()
+    {
+        return $this->belongsTo(User::class, 'granted_by');
+    }
+
+    public function role()
+    {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+}

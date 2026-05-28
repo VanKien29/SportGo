@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class CommunityPost extends Model
+{
+    use HasFactory, HasUuids;
+
+    public $incrementing = false;
+
+    protected $keyType = 'string';
+
+    protected $fillable = [
+        'author_id',
+        'content',
+        'status',
+        'reviewed_by',
+        'reviewed_at',
+        'status_reason',
+        'view_count',
+        'like_count',
+        'comment_count',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'reviewed_at' => 'datetime',
+            'view_count' => 'integer',
+            'like_count' => 'integer',
+            'comment_count' => 'integer',
+        ];
+    }
+
+    public function author()
+    {
+        return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function reviewedBy()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+}
