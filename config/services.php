@@ -46,6 +46,7 @@ return [
         'hash_secret' => env('VNPAY_HASH_SECRET'),
         'payment_url' => env('VNPAY_PAYMENT_URL', 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'),
         'return_url' => env('VNPAY_RETURN_URL', rtrim(env('APP_URL', 'http://localhost'), '/').'/api/payments/vnpay/return'),
+        'pending_ttl_minutes' => env('VNPAY_PENDING_TTL_MINUTES', 15),
     ],
 
 ];

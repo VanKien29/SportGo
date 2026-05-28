@@ -22,6 +22,11 @@ class VnpayPaymentService
             ->latest()
             ->first();
 
+        if ($payment && $this->isPendingStale($payment)) {
+            $this->markPendingPaymentAsStale($payment);
+            $payment = null;
+        }
+
         if (! $payment) {
             $payment = Payment::query()->create([
                 'payment_code' => 'PM' . Str::upper(Str::random(10)),
@@ -52,60 +57,17 @@ class VnpayPaymentService
 
     public function handleReturn(array $payload): array
     {
-        $secureHash = $payload['vnp_SecureHash'] ?? '';
-        $paymentCode = $payload['vnp_TxnRef'] ?? null;
-
-        $payment = $paymentCode
-            ? Payment::query()->where('payment_code', $paymentCode)->first()
-            : null;
+        $payment = $this->findPayment($payload);
 
         if (! $payment) {
             return ['found' => false];
         }
 
-        $statusBefore = $payment->status;
-        $isValidSignature = hash_equals($secureHash, $this->hashPayload($payload));
-        $responseCode = $payload['vnp_ResponseCode'] ?? null;
-        $transactionStatus = $payload['vnp_TransactionStatus'] ?? null;
-        $gatewayTxnId = $payload['vnp_TransactionNo'] ?? null;
-        $isPaid = $isValidSignature && $responseCode === '00' && $transactionStatus === '00';
-
-        DB::transaction(function () use ($payment, $payload, $statusBefore, $gatewayTxnId, $isValidSignature, $isPaid): void {
-            $payment->gateway_txn_id = $gatewayTxnId;
-            $payment->gateway_response = $payload;
-
-            if ($isPaid) {
-                $payment->status = 'paid';
-                $payment->paid_at = Carbon::now();
-                $payment->save();
-
-                $payment->booking()->update([
-                    'status' => 'confirmed',
-                ]);
-
-                SlotLock::query()
-                    ->where('booking_id', $payment->booking_id)
-                    ->delete();
-            } else {
-                $payment->status = 'failed';
-                $payment->save();
-            }
-
-            PaymentLog::query()->create([
-                'payment_id' => $payment->id,
-                'event_type' => 'vnpay_return',
-                'response_payload' => $payload,
-                'status_before' => $statusBefore,
-                'status_after' => $payment->status,
-                'gateway_txn_id' => $gatewayTxnId,
-                'error_code' => $isValidSignature ? ($payload['vnp_ResponseCode'] ?? null) : 'invalid_signature',
-                'error_message' => $isValidSignature ? null : 'VNPAY secure hash mismatch.',
-            ]);
-        });
+        $result = $this->applyGatewayPayload($payment, $payload, 'vnpay_return');
 
         return [
             'found' => true,
-            'paid' => $isPaid,
+            'paid' => $result['paid'],
             'booking_id' => $payment->booking_id,
             'payment' => $payment->fresh(),
         ];
@@ -150,6 +112,196 @@ class VnpayPaymentService
             $this->queryString($payload),
             (string) config('services.vnpay.hash_secret')
         );
+    }
+
+    private function applyGatewayPayload(Payment $payment, array $payload, string $eventType): array
+    {
+        $statusBefore = $payment->status;
+        $isValidSignature = $this->hasValidSignature($payload);
+        $isValidAmount = $this->amountMatches($payment, $payload);
+        $gatewayTxnId = $payload['vnp_TransactionNo'] ?? null;
+        $hasDuplicateGatewayTxn = $this->hasDuplicateGatewayTxn($payment, $gatewayTxnId);
+
+        // Điều kiện để xác định giao dịch đã được thanh toán thành công:
+        $isPaid = $isValidSignature
+            && $isValidAmount
+            && ! $hasDuplicateGatewayTxn
+            && ($payload['vnp_ResponseCode'] ?? null) === '00'
+            && ($payload['vnp_TransactionStatus'] ?? null) === '00';
+
+        DB::transaction(function () use ($payment, $payload, $eventType, $statusBefore, $gatewayTxnId, $isValidSignature, $isValidAmount, $hasDuplicateGatewayTxn, $isPaid): void {
+            // ghi log nếu callback trùng giao dịch đã thanh toán trước đó 
+            if ($payment->status === 'paid') {
+                PaymentLog::query()->create([
+                    'payment_id' => $payment->id,
+                    'event_type' => $eventType . '_duplicate',
+                    'response_payload' => $payload,
+                    'status_before' => $statusBefore,
+                    'status_after' => $payment->status,
+                    'gateway_txn_id' => $gatewayTxnId,
+                    'error_code' => 'duplicate_callback',
+                    'error_message' => 'VNPAY gọi lại giao dịch đã được xác nhận trước đó.',
+                ]);
+
+                return;
+            }
+
+            if ($payment->status !== 'paid') {
+                // chỉ cập nhật gateway_txn_id nếu callback này có mã giao dịch chưa từng xuất hiện trước đó
+                if (! $hasDuplicateGatewayTxn) {
+                    $payment->gateway_txn_id = $gatewayTxnId;
+                }
+
+                $payment->gateway_response = $payload;
+
+                if ($isPaid) {
+                    // Thanh toán thành công, cập nhật trạng thái thanh toán và đơn đặt sân.
+                    $payment->status = 'paid';
+                    $payment->paid_at = Carbon::now();
+                    $payment->save();
+
+                    $payment->booking()->update([
+                        'status' => 'confirmed',
+                    ]);
+
+                    SlotLock::query()
+                        ->where('booking_id', $payment->booking_id)
+                        ->delete();
+                } else {
+                    $payment->status = 'failed';
+                    $payment->save();
+                }
+            }
+
+            PaymentLog::query()->create([
+                'payment_id' => $payment->id,
+                'event_type' => $eventType,
+                'response_payload' => $payload,
+                'status_before' => $statusBefore,
+                'status_after' => $payment->fresh()->status,
+                'gateway_txn_id' => $gatewayTxnId,
+                'error_code' => $this->gatewayErrorCode($payload, $isValidSignature, $isValidAmount, $hasDuplicateGatewayTxn),
+                'error_message' => $this->gatewayErrorMessage($payload, $isValidSignature, $isValidAmount, $hasDuplicateGatewayTxn),
+            ]);
+        });
+
+        return [
+            'paid' => $payment->fresh()->status === 'paid',
+        ];
+    }
+
+    // tìm giao dịch thanh toán dựa trên mã giao dịch của VNPAY trả về
+    private function findPayment(array $payload): ?Payment
+    {
+        $paymentCode = $payload['vnp_TxnRef'] ?? null;
+
+        return $paymentCode
+            ? Payment::query()->where('payment_code', $paymentCode)->first()
+            : null;
+    }
+
+    // xác thực chữ ký số của VNPAY trả về có hợp lệ hay không
+    private function hasValidSignature(array $payload): bool
+    {
+        $secureHash = $payload['vnp_SecureHash'] ?? '';
+
+        return $secureHash !== '' && hash_equals($secureHash, $this->hashPayload($payload));
+    }
+
+    // xác thực số tiền trả về có khớp với số tiền giao dịch hay không
+    private function amountMatches(Payment $payment, array $payload): bool
+    {
+        if (! isset($payload['vnp_Amount'])) {
+            return false;
+        }
+
+        return (int) $payload['vnp_Amount'] === (int) round((float) $payment->amount * 100);
+    }
+
+    private function hasDuplicateGatewayTxn(Payment $payment, ?string $gatewayTxnId): bool
+    {
+        if (! $gatewayTxnId) {
+            return false;
+        }
+
+        return Payment::query()
+            ->where('gateway_txn_id', $gatewayTxnId)
+            ->whereKeyNot($payment->id)
+            ->exists();
+    }
+
+    private function isPendingStale(Payment $payment): bool
+    {
+        $ttl = (int) config('services.vnpay.pending_ttl_minutes', 15);
+
+        return $payment->status === 'pending'
+            && $payment->created_at
+            && $payment->created_at->lte(now()->subMinutes($ttl));
+    }
+
+    private function markPendingPaymentAsStale(Payment $payment): void
+    {
+        $statusBefore = $payment->status;
+
+        $payment->forceFill([
+            'status' => 'failed',
+            'gateway_response' => [
+                'reason' => 'stale_pending_payment',
+                'message' => 'Giao dịch VNPAY pending đã quá thời gian chờ.',
+            ],
+        ])->save();
+
+        PaymentLog::query()->create([
+            'payment_id' => $payment->id,
+            'event_type' => 'vnpay_pending_stale',
+            'status_before' => $statusBefore,
+            'status_after' => $payment->status,
+            'error_code' => 'stale_pending_payment',
+            'error_message' => 'Giao dịch VNPAY pending đã quá thời gian chờ, hệ thống tạo giao dịch mới.',
+        ]);
+    }
+
+    // xác định mã lỗi cụ thể
+    private function gatewayErrorCode(array $payload, bool $isValidSignature, bool $isValidAmount, bool $hasDuplicateGatewayTxn): ?string
+    {
+        if (! $isValidSignature) {
+            return 'invalid_signature';
+        }
+
+        if (! $isValidAmount) {
+            return 'invalid_amount';
+        }
+
+        if ($hasDuplicateGatewayTxn) {
+            return 'duplicate_gateway_txn_id';
+        }
+
+        return $payload['vnp_ResponseCode'] ?? null;
+    }
+
+    // xác định thông điệp lỗi cụ thể
+    private function gatewayErrorMessage(array $payload, bool $isValidSignature, bool $isValidAmount, bool $hasDuplicateGatewayTxn): ?string
+    {
+        if (! $isValidSignature) {
+            return 'Chữ ký VNPAY không hợp lệ.';
+        }
+
+        if (! $isValidAmount) {
+            return 'Số tiền VNPAY trả về không khớp với số tiền giao dịch.';
+        }
+
+        if ($hasDuplicateGatewayTxn) {
+            return 'Mã giao dịch VNPAY đã tồn tại ở giao dịch khác.';
+        }
+
+        return match ($payload['vnp_ResponseCode'] ?? null) {
+            '00' => null,
+            '11' => 'Giao dịch VNPAY đã hết hạn thanh toán.',
+            '24' => 'Người dùng đã hủy giao dịch VNPAY.',
+            default => isset($payload['vnp_ResponseCode'])
+                ? 'VNPAY trả về mã lỗi ' . $payload['vnp_ResponseCode'] . '.'
+                : 'VNPAY không trả về mã kết quả giao dịch.',
+        };
     }
 
     private function queryString(array $params): string
