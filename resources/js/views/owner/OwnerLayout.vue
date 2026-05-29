@@ -9,6 +9,13 @@
                 >
                     <span>Tổng quan</span>
                 </router-link>
+                <router-link
+                    to="/owner/venue-clusters"
+                    class="nav-item"
+                    active-class="nav-active"
+                >
+                    <span>Quản lý cụm sân</span>
+                </router-link>
                 <button class="nav-item nav-muted" type="button">
                     <span>Lịch sân</span>
                 </button>
