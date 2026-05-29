@@ -17,6 +17,7 @@ import OwnerDashboard from '../views/owner/OwnerDashboard.vue';
 import OwnerPricing from '../views/owner/OwnerPricing.vue';
 import BookingForm from '../views/clients/booking/BookingForm.vue';
 import BookingDetail from '../views/clients/booking/BookingDetail.vue';
+import VnpayReturn from '../views/clients/payment/VnpayReturn.vue';
 
 const routes = [
   { path: '/', name: 'home', component: Home },
@@ -27,6 +28,7 @@ const routes = [
   { path: '/profile', name: 'profile', component: Profile, meta: { requiresAuth: true } },
   { path: '/booking', name: 'booking-create', component: BookingForm, meta: { requiresAuth: true } },
   { path: '/booking/:id', name: 'booking-detail', component: BookingDetail, meta: { requiresAuth: true } },
+  { path: '/payment/vnpay/return', name: 'vnpay-return', component: VnpayReturn },
   { path: '/admin/profile', name: 'admin-profile', component: Profile, meta: { requiresAuth: true, role: 'admin' } },
   { path: '/admin/login', name: 'admin-login', component: AdminLogin, meta: { guestAdmin: true } },
   { path: '/admin/forgot-password', name: 'admin-forgot-password', component: AdminForgotPassword, meta: { guestAdmin: true } },
