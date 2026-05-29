@@ -31,9 +31,16 @@ export const bookingService = {
     return api(`/api/bookings/${id}`);
   },
 
-  // Tạo link thanh toán VNPAY cho đơn đặt sân
-  createVnpayPayment(id) {
-    return api(`/api/bookings/${id}/payments/vnpay`, {
+  // Tạo thông tin thanh toán SePay cho đơn đặt sân
+  createSepayPayment(id) {
+    return api(`/api/bookings/${id}/payments/sepay`, {
+      method: 'POST',
+    });
+  },
+
+  // Hủy thanh toán đang chờ và giải phóng đơn đặt sân
+  cancelPayment(id) {
+    return api(`/api/bookings/${id}/payments/cancel`, {
       method: 'POST',
     });
   },

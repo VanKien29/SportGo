@@ -33,7 +33,7 @@ class BookingService
             ->whereIn('status', self::BLOCKING_BOOKING_STATUSES)
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $startTime);
+                    ->where('end_time', '>', $startTime);
             })
             ->exists();
 
@@ -47,7 +47,7 @@ class BookingService
             ->where('expires_at', '>', Carbon::now())
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $startTime);
+                    ->where('end_time', '>', $startTime);
             })
             ->exists();
 
@@ -62,7 +62,7 @@ class BookingService
             ->where('expires_at', '>', Carbon::now())
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $startTime);
+                    ->where('end_time', '>', $startTime);
             })
             ->exists();
 
@@ -236,7 +236,7 @@ class BookingService
             ->unique('id')
             ->sortBy('name')
             ->values()
-            ->map(fn ($type) => [
+            ->map(fn($type) => [
                 'id' => $type->id,
                 'name' => $type->name,
             ]);
@@ -304,7 +304,7 @@ class BookingService
             ->first();
 
         return [
-            'hourly_rate' => (float) ($priceSlot?->price ?? 100000.00),
+            'hourly_rate' => (float) ($priceSlot?->price ?? 10000.00),
             'source' => $priceSlot ? 'price_slot' : 'default',
         ];
     }
@@ -316,7 +316,7 @@ class BookingService
             ->where('booking_date', $bookingDate)
             ->whereIn('status', self::BLOCKING_BOOKING_STATUSES)
             ->get(['id', 'venue_court_id', 'start_time', 'end_time', 'status'])
-            ->map(fn (Booking $booking) => [
+            ->map(fn(Booking $booking) => [
                 'venue_court_id' => $booking->venue_court_id,
                 'start_time' => $booking->start_time,
                 'end_time' => $booking->end_time,
@@ -336,7 +336,7 @@ class BookingService
             ->flatMap(function (SlotLock $lock) use ($courtIds) {
                 $targetCourtIds = $lock->lock_scope === 'cluster' ? $courtIds : collect([$lock->venue_court_id]);
 
-                return $targetCourtIds->map(fn ($courtId) => [
+                return $targetCourtIds->map(fn($courtId) => [
                     'venue_court_id' => $courtId,
                     'start_time' => $lock->start_time,
                     'end_time' => $lock->end_time,

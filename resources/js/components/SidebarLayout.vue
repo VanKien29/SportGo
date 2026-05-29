@@ -1,14 +1,6 @@
 <template>
   <div class="layout">
     <aside class="sidebar" :class="{ open: sidebarOpen }">
-      <div class="sidebar-brand">
-        <div class="brand-icon">SG</div>
-        <div class="brand-info">
-          <span class="brand-name">Sport<span>Go</span></span>
-          <span class="brand-sub">{{ brandSub }}</span>
-        </div>
-      </div>
-
       <nav class="sidebar-nav">
         <slot name="nav-items">
           <router-link :to="dashboardRoute" class="nav-item" active-class="nav-active">
@@ -18,7 +10,10 @@
       </nav>
 
       <div v-if="isOwner" class="sidebar-view-user">
-        <button class="view-user-btn" @click="viewAsUser">Xem trang người dùng</button>
+        <button class="view-user-btn" @click="viewAsUser">
+          <svg class="icon-btn" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          Xem trang người dùng
+        </button>
       </div>
 
       <div class="sidebar-user" @mouseenter="showDropdown = true" @mouseleave="scheduleHide">
@@ -28,7 +23,6 @@
             <div class="user-name">{{ user?.fullName || user?.full_name || user?.username }}</div>
             <div class="user-role">{{ roleLabel }}</div>
           </div>
-          <span class="chevron" :class="{ rotated: showDropdown }">⌄</span>
         </button>
 
         <transition name="dd">
@@ -150,129 +144,118 @@ export default {
 .sidebar {
   width: 260px;
   min-width: 260px;
-  background: var(--sg-dark);
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   position: fixed;
   inset: 0 auto 0 0;
   z-index: 200;
-  transition: transform .25s ease;
-}
-
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, .08);
-}
-
-.brand-icon {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #16a34a;
-  color: #fff;
-  font-weight: 900;
-  font-size: 12px;
-}
-
-.brand-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.brand-name {
-  font-size: 20px;
-  font-weight: 900;
-  color: #fff;
-}
-
-.brand-name span {
-  color: var(--sg-green);
-}
-
-.brand-sub {
-  margin-top: 2px;
-  color: rgba(255, 255, 255, .48);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .5px;
+  transition: transform .25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-right: 1px solid #e5e7eb;
 }
 
 .sidebar-nav {
   flex: 1;
-  padding: 16px 12px;
+  padding: 24px 16px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.nav-item {
+:deep(.nav-item) {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 4px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, .68);
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  color: rgba(0, 0, 0, 0.6) !important;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  text-decoration: none;
 }
 
-.nav-item:hover,
-.nav-active {
-  background: rgba(34, 197, 94, .16);
-  color: #bbf7d0;
+:deep(.nav-item:hover) {
+  background: rgba(0, 0, 0, 0.03) !important;
+  color: #000000 !important;
+}
+
+:deep(.nav-active) {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #000000 !important;
+  font-weight: 700;
+  border-left: 3px solid #000000;
+  padding-left: 13px;
 }
 
 .sidebar-view-user {
-  padding: 0 12px 8px;
+  padding: 0 16px 12px;
 }
 
 .view-user-btn {
   width: 100%;
-  padding: 9px 12px;
-  border-radius: 8px;
-  background: rgba(59, 130, 246, .12);
-  color: #bfdbfe;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #000000;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-user-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #000000;
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.icon-btn {
+  opacity: 0.8;
 }
 
 .sidebar-user {
   position: relative;
-  padding: 12px;
-  border-top: 1px solid rgba(255, 255, 255, .08);
+  padding: 16px;
+  border-top: 1px solid #e5e7eb;
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .user-trigger {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 10px;
   text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .user-trigger:hover {
-  background: rgba(255, 255, 255, .06);
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .user-avatar {
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--sg-green), var(--sg-green-dark));
-  color: #fff;
-  font-size: 13px;
-  font-weight: 800;
+  background: #000000;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .user-info {
@@ -284,35 +267,27 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: rgba(255, 255, 255, .92);
+  color: rgba(0, 0, 0, 0.8);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .user-role {
-  margin-top: 1px;
-  color: rgba(255, 255, 255, .45);
+  margin-top: 2px;
+  color: rgba(0, 0, 0, 0.4);
   font-size: 11px;
-}
-
-.chevron {
-  color: rgba(255, 255, 255, .45);
-  transition: transform .2s ease;
-}
-
-.chevron.rotated {
-  transform: rotate(180deg);
 }
 
 .user-dropdown {
   position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: calc(100% + 4px);
+  left: 16px;
+  right: 16px;
+  bottom: calc(100% + 8px);
   overflow: hidden;
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 18px 50px rgba(15, 23, 42, .24);
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   z-index: 250;
 }
 
@@ -320,21 +295,33 @@ export default {
   width: 100%;
   display: flex;
   padding: 12px 16px;
-  color: var(--sg-text);
+  color: rgba(0, 0, 0, 0.8);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
 }
 
 .dd-item:hover {
-  background: var(--sg-surface);
-  color: var(--sg-green-dark);
+  background: rgba(0, 0, 0, 0.03);
+  color: #000000;
 }
 
 .dd-logout {
-  color: var(--sg-danger);
-  border-top: 1px solid var(--sg-border);
+  color: rgba(0, 0, 0, 0.6);
+  border-top: 1px solid #e5e7eb;
 }
+
+.dd-logout:hover {
+  background: rgba(239, 68, 68, 0.05);
+  color: #ef4444;
+}
+
+
 
 .main-content {
   flex: 1;
