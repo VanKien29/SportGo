@@ -4,16 +4,21 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\BookingConfig;
+use App\Models\HolidayPrice;
 use App\Models\PriceSlot;
 use App\Models\SlotLock;
 use App\Models\VenueCourt;
+use App\Models\VenueCluster;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class BookingService
 {
+    private const BLOCKING_BOOKING_STATUSES = ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'];
+
     /**
      * Kiểm tra xem sân con có trống trong khung giờ yêu cầu không.
      */
@@ -25,7 +30,7 @@ class BookingService
         // 1. Kiểm tra xem có booking nào đã được xác nhận hoặc đang chờ duyệt/chờ thanh toán trùng giờ không
         $hasOverlapBooking = Booking::where('venue_court_id', $venueCourtId)
             ->where('booking_date', $bookingDate)
-            ->whereIn('status', ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'])
+            ->whereIn('status', self::BLOCKING_BOOKING_STATUSES)
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where('start_time', '<', $endTime)
                       ->where('end_time', '>', $startTime);
@@ -80,8 +85,12 @@ class BookingService
             $endTime = $data['end_time'];
             $paymentOption = $data['payment_option'];
 
-            $court = VenueCourt::findOrFail($venueCourtId);
+            $court = VenueCourt::query()->whereKey($venueCourtId)->lockForUpdate()->firstOrFail();
             $venueClusterId = $court->venue_cluster_id;
+
+            if ($court->status !== 'active') {
+                throw new Exception('Sân này hiện không hoạt động.');
+            }
 
             // 1. Kiểm tra tính trống của sân
             if (!$this->checkAvailability($venueCourtId, $bookingDate, $startTime, $endTime)) {
@@ -89,12 +98,12 @@ class BookingService
             }
 
             // 2. Tính toán thời lượng đặt sân (phút)
-            $start = Carbon::createFromFormat('H:i:s', $startTime);
-            $end = Carbon::createFromFormat('H:i:s', $endTime);
-            if ($end->lessThanOrEqualTo($start)) {
+            $startMinutes = $this->timeToMinutes($startTime);
+            $endMinutes = $this->timeToMinutes($endTime);
+            if ($endMinutes <= $startMinutes) {
                 throw new Exception('Giờ kết thúc phải lớn hơn giờ bắt đầu.');
             }
-            $durationMinutes = $start->diffInMinutes($end);
+            $durationMinutes = $endMinutes - $startMinutes;
 
             // 3. Kiểm tra cấu hình thời lượng từ BookingConfig
             $config = BookingConfig::find($venueClusterId);
@@ -123,21 +132,8 @@ class BookingService
                 throw new Exception('Hình thức không trả trước không được cụm sân này hỗ trợ.');
             }
 
-            // 5. Tính giá tiền đặt sân
-            $dayOfWeek = Carbon::parse($bookingDate)->dayOfWeekIso; // 1 (Thứ 2) - 7 (Chủ Nhật)
-            $priceSlot = PriceSlot::where('venue_cluster_id', $venueClusterId)
-                ->where('court_type_id', $court->court_type_id)
-                ->where('is_active', true)
-                ->where(function ($query) use ($dayOfWeek) {
-                    $query->whereJsonContains('apply_to_days', $dayOfWeek)
-                          ->orWhereJsonContains('apply_to_days', (string) $dayOfWeek);
-                })
-                ->where('start_time', '<=', $startTime)
-                ->where('end_time', '>=', $endTime)
-                ->first();
-
-            $hourlyRate = $priceSlot ? $priceSlot->price : 100000.00; // Giá mặc định nếu chưa cài PriceSlot
-            $totalPrice = ($durationMinutes / 60) * $hourlyRate;
+            // 5. Tính giá tiền đặt sân theo từng ô 30 phút để đúng khi booking đi qua nhiều khung giá.
+            $totalPrice = $this->calculateTotalPrice($court, $bookingDate, $startTime, $endTime, 'single');
 
             // 6. Tính số tiền tối thiểu cần thanh toán
             $requiredPaymentAmount = 0.00;
@@ -194,5 +190,204 @@ class BookingService
 
             return $booking;
         });
+    }
+
+    public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single'): array
+    {
+        $cluster = VenueCluster::query()->whereKey($venueClusterId)->where('status', 'active')->firstOrFail();
+
+        $courtsQuery = VenueCourt::query()
+            ->with('courtType:id,name')
+            ->where('venue_cluster_id', $cluster->id)
+            ->where('status', 'active')
+            ->orderBy('sort_order')
+            ->orderBy('name');
+
+        if ($courtTypeId) {
+            $courtsQuery->where('court_type_id', $courtTypeId);
+        }
+
+        $courts = $courtsQuery->get(['id', 'venue_cluster_id', 'court_type_id', 'name', 'status', 'sort_order']);
+        $courtIds = $courts->pluck('id');
+        $timeSlots = $this->buildTimeSlots();
+        $busyIntervals = $this->busyIntervals($cluster->id, $courtIds, $bookingDate);
+        $slotStatuses = [];
+
+        foreach ($courts as $court) {
+            foreach ($timeSlots as $slot) {
+                $isAvailable = ! $this->intervalsOverlapSlot($busyIntervals, $court->id, $slot['start_time'], $slot['end_time']);
+                $price = $this->resolveHourlyRate($cluster->id, $court->court_type_id, $bookingDate, $slot['start_time'], $slot['end_time'], $bookingType);
+
+                $slotStatuses[] = [
+                    'venue_court_id' => $court->id,
+                    'start_time' => $slot['start_time'],
+                    'end_time' => $slot['end_time'],
+                    'is_available' => $isAvailable,
+                    'hourly_rate' => $price['hourly_rate'],
+                    'price' => round($price['hourly_rate'] / 2, 2),
+                    'price_source' => $price['source'],
+                ];
+            }
+        }
+
+        $courtTypes = $courts
+            ->pluck('courtType')
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values()
+            ->map(fn ($type) => [
+                'id' => $type->id,
+                'name' => $type->name,
+            ]);
+
+        return [
+            'time_slots' => $timeSlots,
+            'courts' => $courts,
+            'court_types' => $courtTypes,
+            'busy_intervals' => $busyIntervals->values(),
+            'slot_statuses' => $slotStatuses,
+        ];
+    }
+
+    public function calculateTotalPrice(VenueCourt $court, string $bookingDate, string $startTime, string $endTime, string $bookingType = 'single'): float
+    {
+        $total = 0.0;
+
+        for ($minutes = $this->timeToMinutes($startTime); $minutes < $this->timeToMinutes($endTime); $minutes += 30) {
+            $slotStart = $this->minutesToTime($minutes);
+            $slotEnd = $this->minutesToTime(min($minutes + 30, $this->timeToMinutes($endTime)));
+            $durationHours = ($this->timeToMinutes($slotEnd) - $this->timeToMinutes($slotStart)) / 60;
+            $rate = $this->resolveHourlyRate($court->venue_cluster_id, $court->court_type_id, $bookingDate, $slotStart, $slotEnd, $bookingType)['hourly_rate'];
+            $total += $rate * $durationHours;
+        }
+
+        return round($total, 2);
+    }
+
+    public function resolveHourlyRate(string $venueClusterId, int $courtTypeId, string $bookingDate, string $startTime, string $endTime, string $bookingType = 'single'): array
+    {
+        $holidayPrice = HolidayPrice::query()
+            ->where('venue_cluster_id', $venueClusterId)
+            ->where('court_type_id', $courtTypeId)
+            ->where('holiday_date', $bookingDate)
+            ->whereIn('booking_type', ['all', $bookingType])
+            ->where('is_active', true)
+            ->where('start_time', '<=', $startTime)
+            ->where('end_time', '>=', $endTime)
+            ->orderByRaw("CASE WHEN booking_type = ? THEN 0 ELSE 1 END", [$bookingType])
+            ->first();
+
+        if ($holidayPrice) {
+            return [
+                'hourly_rate' => (float) $holidayPrice->price,
+                'source' => 'holiday_price',
+            ];
+        }
+
+        $dayOfWeek = Carbon::parse($bookingDate)->dayOfWeekIso;
+        $legacySunday = $dayOfWeek === 7 ? 0 : $dayOfWeek;
+        $priceSlot = PriceSlot::query()
+            ->where('venue_cluster_id', $venueClusterId)
+            ->where('court_type_id', $courtTypeId)
+            ->whereIn('booking_type', ['all', $bookingType])
+            ->where('is_active', true)
+            ->where(function ($query) use ($dayOfWeek, $legacySunday) {
+                $query->whereJsonContains('apply_to_days', $dayOfWeek)
+                    ->orWhereJsonContains('apply_to_days', (string) $dayOfWeek)
+                    ->orWhereJsonContains('apply_to_days', $legacySunday)
+                    ->orWhereJsonContains('apply_to_days', (string) $legacySunday);
+            })
+            ->where('start_time', '<=', $startTime)
+            ->where('end_time', '>=', $endTime)
+            ->orderByRaw("CASE WHEN booking_type = ? THEN 0 ELSE 1 END", [$bookingType])
+            ->first();
+
+        return [
+            'hourly_rate' => (float) ($priceSlot?->price ?? 100000.00),
+            'source' => $priceSlot ? 'price_slot' : 'default',
+        ];
+    }
+
+    private function busyIntervals(string $venueClusterId, Collection $courtIds, string $bookingDate): Collection
+    {
+        $bookings = Booking::query()
+            ->whereIn('venue_court_id', $courtIds)
+            ->where('booking_date', $bookingDate)
+            ->whereIn('status', self::BLOCKING_BOOKING_STATUSES)
+            ->get(['id', 'venue_court_id', 'start_time', 'end_time', 'status'])
+            ->map(fn (Booking $booking) => [
+                'venue_court_id' => $booking->venue_court_id,
+                'start_time' => $booking->start_time,
+                'end_time' => $booking->end_time,
+                'source' => 'booking',
+                'status' => $booking->status,
+            ]);
+
+        $slotLocks = SlotLock::query()
+            ->where('venue_cluster_id', $venueClusterId)
+            ->where('booking_date', $bookingDate)
+            ->where('expires_at', '>', Carbon::now())
+            ->where(function ($query) use ($courtIds) {
+                $query->where('lock_scope', 'cluster')
+                    ->orWhereIn('venue_court_id', $courtIds);
+            })
+            ->get(['venue_court_id', 'lock_scope', 'start_time', 'end_time', 'lock_type'])
+            ->flatMap(function (SlotLock $lock) use ($courtIds) {
+                $targetCourtIds = $lock->lock_scope === 'cluster' ? $courtIds : collect([$lock->venue_court_id]);
+
+                return $targetCourtIds->map(fn ($courtId) => [
+                    'venue_court_id' => $courtId,
+                    'start_time' => $lock->start_time,
+                    'end_time' => $lock->end_time,
+                    'source' => 'slot_lock',
+                    'status' => $lock->lock_type,
+                ]);
+            });
+
+        return $bookings->merge($slotLocks)->values();
+    }
+
+    private function intervalsOverlapSlot(Collection $intervals, string $venueCourtId, string $startTime, string $endTime): bool
+    {
+        $slotStart = $this->timeToMinutes($startTime);
+        $slotEnd = $this->timeToMinutes($endTime);
+
+        return $intervals->contains(function (array $interval) use ($venueCourtId, $slotStart, $slotEnd) {
+            return $interval['venue_court_id'] === $venueCourtId
+                && $this->timeToMinutes($interval['start_time']) < $slotEnd
+                && $this->timeToMinutes($interval['end_time']) > $slotStart;
+        });
+    }
+
+    private function buildTimeSlots(): array
+    {
+        $slots = [];
+
+        for ($minutes = 0; $minutes < 1440; $minutes += 30) {
+            $slots[] = [
+                'start_time' => $this->minutesToTime($minutes),
+                'end_time' => $this->minutesToTime($minutes + 30),
+                'label' => substr($this->minutesToTime($minutes), 0, 5),
+            ];
+        }
+
+        return $slots;
+    }
+
+    private function timeToMinutes(string $time): int
+    {
+        [$hour, $minute] = array_map('intval', explode(':', substr($time, 0, 5)));
+
+        return $hour * 60 + $minute;
+    }
+
+    private function minutesToTime(int $minutes): string
+    {
+        if ($minutes >= 1440) {
+            return '24:00:00';
+        }
+
+        return sprintf('%02d:%02d:00', intdiv($minutes, 60), $minutes % 60);
     }
 }

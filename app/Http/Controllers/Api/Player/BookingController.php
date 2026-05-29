@@ -12,6 +12,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class BookingController extends Controller
 {
@@ -41,12 +42,13 @@ class BookingController extends Controller
      */
     public function checkAvailability(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'venue_court_id' => 'required|exists:venue_courts,id',
             'booking_date' => 'required|date_format:Y-m-d',
-            'start_time' => 'required|date_format:H:i:s',
-            'end_time' => 'required|date_format:H:i:s|after:start_time',
+            'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
         ]);
+        $this->ensureValidTimeRange($validated['start_time'], $validated['end_time']);
 
         $available = $this->bookingService->checkAvailability(
             $request->input('venue_court_id'),
@@ -61,6 +63,26 @@ class BookingController extends Controller
     }
 
     /**
+     * API lấy lịch dạng interval để FE tự sinh bảng 30 phút, không lưu từng ô trong DB.
+     */
+    public function schedule(Request $request)
+    {
+        $validated = $request->validate([
+            'venue_cluster_id' => 'required|exists:venue_clusters,id',
+            'booking_date' => 'required|date_format:Y-m-d',
+            'court_type_id' => 'nullable|integer|exists:court_types,id',
+            'booking_type' => 'nullable|in:single,recurring',
+        ]);
+
+        return response()->json($this->bookingService->getAvailabilitySchedule(
+            $validated['venue_cluster_id'],
+            $validated['booking_date'],
+            isset($validated['court_type_id']) ? (int) $validated['court_type_id'] : null,
+            $validated['booking_type'] ?? 'single'
+        ));
+    }
+
+    /**
      * API đặt sân mới (Yêu cầu đăng nhập).
      */
     public function store(Request $request)
@@ -68,10 +90,11 @@ class BookingController extends Controller
         $validated = $request->validate([
             'venue_court_id' => 'required|exists:venue_courts,id',
             'booking_date' => 'required|date_format:Y-m-d|after_or_equal:today',
-            'start_time' => 'required|date_format:H:i:s',
-            'end_time' => 'required|date_format:H:i:s|after:start_time',
+            'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => 'required|in:full_payment,deposit,no_prepay',
         ]);
+        $this->ensureValidTimeRange($validated['start_time'], $validated['end_time']);
 
         try {
             $booking = $this->bookingService->createBooking($validated, auth()->id());
@@ -173,5 +196,21 @@ class BookingController extends Controller
                 'message' => 'Đã xảy ra lỗi trong quá trình thanh toán: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function ensureValidTimeRange(string $startTime, string $endTime): void
+    {
+        if ($this->timeToMinutes($endTime) <= $this->timeToMinutes($startTime)) {
+            throw ValidationException::withMessages([
+                'end_time' => 'Giờ kết thúc phải lớn hơn giờ bắt đầu.',
+            ]);
+        }
+    }
+
+    private function timeToMinutes(string $time): int
+    {
+        [$hour, $minute] = array_map('intval', explode(':', substr($time, 0, 5)));
+
+        return $hour * 60 + $minute;
     }
 }

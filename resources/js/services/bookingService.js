@@ -12,6 +12,12 @@ export const bookingService = {
     return api(`/api/bookings/check-availability?${query}`);
   },
 
+  // Lấy lịch ngày dạng interval để FE sinh bảng 30 phút
+  getSchedule(params) {
+    const query = new URLSearchParams(params).toString();
+    return api(`/api/bookings/schedule?${query}`);
+  },
+
   // Tạo đơn đặt sân mới
   createBooking(data) {
     return api('/api/bookings', {

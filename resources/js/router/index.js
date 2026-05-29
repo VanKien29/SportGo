@@ -14,6 +14,7 @@ import AdminProfile from '../views/admin/AdminProfile.vue';
 import AdminUsers from '../views/admin/AdminUsers.vue';
 import OwnerLayout from '../views/owner/OwnerLayout.vue';
 import OwnerDashboard from '../views/owner/OwnerDashboard.vue';
+import OwnerPricing from '../views/owner/OwnerPricing.vue';
 import BookingForm from '../views/clients/booking/BookingForm.vue';
 import BookingDetail from '../views/clients/booking/BookingDetail.vue';
 
@@ -47,6 +48,7 @@ const routes = [
     meta: { requiresAuth: true, role: 'owner' },
     children: [
       { path: 'dashboard', name: 'owner-dashboard', component: OwnerDashboard },
+      { path: 'pricing', name: 'owner-pricing', component: OwnerPricing },
       { path: '', redirect: { name: 'owner-dashboard' } },
     ],
   },

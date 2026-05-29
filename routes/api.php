@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\Auth\SetPasswordController;
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
+use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use Illuminate\Support\Facades\Route;
@@ -56,14 +57,19 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
+        Route::get('/pricing', [OwnerPricingController::class, 'index']);
+        Route::patch('/booking-configs/{venueClusterId}/duration', [OwnerPricingController::class, 'updateDuration']);
+        Route::post('/price-slots', [OwnerPricingController::class, 'storePriceSlot']);
+        Route::patch('/price-slots/{id}', [OwnerPricingController::class, 'updatePriceSlot']);
+        Route::delete('/price-slots/{id}', [OwnerPricingController::class, 'destroyPriceSlot']);
     });
 
 Route::middleware('auth:sanctum')
     ->group(function (): void {
         Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);
+        Route::get('/bookings/schedule', [\App\Http\Controllers\Api\Player\BookingController::class, 'schedule']);
         Route::get('/bookings/check-availability', [\App\Http\Controllers\Api\Player\BookingController::class, 'checkAvailability']);
         Route::post('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'store']);
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
         Route::post('/bookings/{id}/simulate-payment', [\App\Http\Controllers\Api\Player\BookingController::class, 'simulatePayment']);
     });
-
