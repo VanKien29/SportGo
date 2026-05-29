@@ -7,6 +7,9 @@
       <router-link to="/admin/users" class="nav-item" active-class="nav-active">
         <span>Quản lý tài khoản</span>
       </router-link>
+      <router-link to="/admin/court-types" class="nav-item" active-class="nav-active">
+        <span>Quản lý loại sân</span>
+      </router-link>
     </template>
     <template #topbar-title>
       <span>{{ currentTitle }}</span>
@@ -27,6 +30,7 @@ export default {
         'admin-dashboard': 'Dashboard',
         'admin-profile': 'Thông tin cá nhân',
         'admin-users': 'Quản lý tài khoản',
+        'admin-court-types': 'Quản lý loại sân',
       };
 
       return map[this.$route.name] || 'Admin';

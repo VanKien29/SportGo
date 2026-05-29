@@ -18,18 +18,22 @@ class VenueCourtsTableSeeder extends Seeder
 
         $clusters = VenueCluster::query()->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])->get()->keyBy('slug');
         $types = CourtType::query()->whereIn('name', [
-            'Cầu lông',
-            'Pickleball',
-            'Bóng đá 5 người',
-            'Bóng đá 7 người',
+            'Cầu lông (Sân tiêu chuẩn)',
+            'Pickleball (Sân tiêu chuẩn)',
+            'Bóng Đá (Sân 7)',
+            'Bóng Đá (Sân 11)',
+            'Bóng rổ (Sân tiêu chuẩn)',
+            'Bóng chuyền (Sân tiêu chuẩn)',
+            'Tennis (Sân tiêu chuẩn)',
         ])->pluck('id', 'name');
 
         $courts = [
-            ['sportgo-cau-giay', 'Cầu lông', 'Sân cầu lông A1', 1],
-            ['sportgo-cau-giay', 'Cầu lông', 'Sân cầu lông A2', 2],
-            ['sportgo-cau-giay', 'Pickleball', 'Sân pickleball P1', 3],
-            ['sportgo-my-dinh', 'Bóng đá 5 người', 'Sân bóng đá 5 người F1', 1],
-            ['sportgo-my-dinh', 'Bóng đá 7 người', 'Sân bóng đá 7 người F2', 2],
+            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A1', 1],
+            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A2', 2],
+            ['sportgo-cau-giay', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P1', 3],
+            ['sportgo-cau-giay', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P2', 4],
+            ['sportgo-my-dinh', 'Bóng Đá (Sân 7)', 'Sân bóng đá F1', 1],
+            ['sportgo-my-dinh', 'Bóng Đá (Sân 11)', 'Sân bóng đá F2', 2],
         ];
 
         foreach ($courts as [$clusterSlug, $courtTypeName, $courtName, $sortOrder]) {

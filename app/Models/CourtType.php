@@ -12,6 +12,7 @@ class CourtType extends Model
 
     protected $fillable = [
         'name',
+        'parent_id',
         'description',
         'player_count',
         'is_active',
@@ -20,8 +21,19 @@ class CourtType extends Model
     protected function casts(): array
     {
         return [
+            'parent_id' => 'integer',
             'player_count' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(CourtType::class, 'parent_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(CourtType::class, 'parent_id');
     }
 }

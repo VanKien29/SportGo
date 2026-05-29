@@ -40,6 +40,7 @@ const routes = [
       { path: 'dashboard', name: 'admin-dashboard', component: AdminDashboard },
       { path: 'profile', name: 'admin-profile', component: AdminProfile },
       { path: 'users', name: 'admin-users', component: AdminUsers },
+      { path: 'court-types', name: 'admin-court-types', component: () => import('../views/admin/AdminCourtTypes.vue') },
       { path: '', redirect: { name: 'admin-dashboard' } },
     ],
   },
@@ -49,6 +50,8 @@ const routes = [
     meta: { requiresAuth: true, role: 'owner' },
     children: [
       { path: 'dashboard', name: 'owner-dashboard', component: OwnerDashboard },
+      { path: 'venue-clusters', name: 'owner-venue-clusters', component: () => import('../views/owner/OwnerVenueClusters.vue') },
+      { path: 'venue-courts', name: 'owner-venue-courts', component: () => import('../views/owner/OwnerVenueCourts.vue') },
       { path: '', redirect: { name: 'owner-dashboard' } },
     ],
   },

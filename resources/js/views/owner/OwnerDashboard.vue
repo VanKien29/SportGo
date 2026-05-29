@@ -1,14 +1,5 @@
 <template>
   <div class="dashboard">
-    <div class="welcome-card">
-      <div class="welcome-content">
-        <h1 class="welcome-title">Dashboard Chủ sân</h1>
-        <p class="welcome-desc">
-          Trang quản lý chủ sân đang dùng dữ liệu thật từ API owner, không dùng cụm sân mock.
-        </p>
-      </div>
-    </div>
-
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-content">
