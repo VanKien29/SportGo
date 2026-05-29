@@ -28,7 +28,7 @@ class BookingService
             ->whereIn('status', ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'])
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $startTime);
+                    ->where('end_time', '>', $startTime);
             })
             ->exists();
 
@@ -42,7 +42,7 @@ class BookingService
             ->where('expires_at', '>', Carbon::now())
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $startTime);
+                    ->where('end_time', '>', $startTime);
             })
             ->exists();
 
@@ -57,7 +57,7 @@ class BookingService
             ->where('expires_at', '>', Carbon::now())
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $startTime);
+                    ->where('end_time', '>', $startTime);
             })
             ->exists();
 
@@ -130,13 +130,13 @@ class BookingService
                 ->where('is_active', true)
                 ->where(function ($query) use ($dayOfWeek) {
                     $query->whereJsonContains('apply_to_days', $dayOfWeek)
-                          ->orWhereJsonContains('apply_to_days', (string) $dayOfWeek);
+                        ->orWhereJsonContains('apply_to_days', (string) $dayOfWeek);
                 })
                 ->where('start_time', '<=', $startTime)
                 ->where('end_time', '>=', $endTime)
                 ->first();
 
-            $hourlyRate = $priceSlot ? $priceSlot->price : 100000.00; // Giá mặc định nếu chưa cài PriceSlot
+            $hourlyRate = $priceSlot;
             $totalPrice = ($durationMinutes / 60) * $hourlyRate;
 
             // 6. Tính số tiền tối thiểu cần thanh toán

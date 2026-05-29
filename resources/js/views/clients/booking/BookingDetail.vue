@@ -31,10 +31,6 @@
           </div>
         </div>
 
-        <div v-if="paymentNotice" class="payment-notice" :class="paymentNotice.type">
-          {{ paymentNotice.message }}
-        </div>
-
         <div class="detail-grid">
           <!-- Cột trái: Thông tin đơn -->
           <div class="info-section">
@@ -107,14 +103,52 @@
                 </div>
               </div>
 
-              <div class="vnpay-box" v-if="booking.status === 'pending_payment'">
+              <div class="sepay-box" v-if="booking.status === 'pending_payment'">
                 <div class="divider"></div>
-                <button class="btn-vnpay" type="button" @click="payWithVnpay" :disabled="paying || timeLeft <= 0">
-                  <span v-if="!paying">Thanh toán qua VNPAY</span>
-                  <span v-else>Đang tạo giao dịch...</span>
+                <button
+                  v-if="!sepayPayment"
+                  class="btn-sepay"
+                  type="button"
+                  :disabled="creatingSepay || timeLeft <= 0"
+                  @click="createSepayPayment"
+                >
+                  {{ creatingSepay ? 'Đang tạo QR...' : 'Tạo QR thanh toán SePay' }}
                 </button>
-                <p class="pay-hint">Bạn sẽ được chuyển sang cổng VNPAY để hoàn tất thanh toán.</p>
-                <div class="error-msg" v-if="payError">{{ payError }}</div>
+
+                <div v-if="sepayError" class="error-msg">{{ sepayError }}</div>
+
+                <div v-if="sepayPayment" class="sepay-panel">
+                  <div class="qr-wrap">
+                    <img :src="sepayPayment.qr_url" alt="QR thanh toán SePay" />
+                  </div>
+                  <div class="transfer-info">
+                    <div class="transfer-row">
+                      <span>Ngân hàng</span>
+                      <strong>{{ sepayPayment.payment_account?.bank_name || sepayPayment.payment_account?.bank_code || 'SePay' }}</strong>
+                    </div>
+                    <div class="transfer-row">
+                      <span>Số tài khoản</span>
+                      <strong>{{ sepayPayment.payment_account?.account_number || sepayPayment.payment_account?.account_number_masked }}</strong>
+                    </div>
+                    <div class="transfer-row">
+                      <span>Chủ tài khoản</span>
+                      <strong>{{ sepayPayment.payment_account?.account_holder_name || 'Đang cập nhật' }}</strong>
+                    </div>
+                    <div class="transfer-row">
+                      <span>Nội dung</span>
+                      <button class="copy-value" type="button" @click="copyText(sepayPayment.transfer_content)">
+                        {{ sepayPayment.transfer_content }}
+                      </button>
+                    </div>
+                    <div class="transfer-row">
+                      <span>Số tiền</span>
+                      <strong>{{ formatCurrency(sepayPayment.payment?.amount) }}</strong>
+                    </div>
+                  </div>
+                  <button class="btn-check" type="button" :disabled="checkingPayment" @click="refreshBookingStatus">
+                    {{ checkingPayment ? 'Đang kiểm tra...' : 'Kiểm tra thanh toán' }}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -145,11 +179,13 @@ export default {
     return {
       booking: null,
       loading: true,
-      paying: false,
-      payError: '',
-      paymentNotice: null,
+      creatingSepay: false,
+      checkingPayment: false,
+      sepayPayment: null,
+      sepayError: '',
       timeLeft: 0,
       timerInterval: null,
+      paymentPollInterval: null,
     };
   },
   computed: {
@@ -177,7 +213,7 @@ export default {
       if (!this.booking) return '';
       const map = {
         confirmed: 'Đơn của bạn đã được xác nhận. Hẹn gặp lại bạn tại sân chơi!',
-        pending_payment: 'Vui lòng thực hiện thanh toán trực tuyến để giữ chỗ.',
+        pending_payment: 'Vui lòng hoàn tất thanh toán để giữ chỗ.',
         pending_approval: 'Chủ sân đang kiểm tra thông tin cấu hình và duyệt đơn đặt của bạn.',
         expired: 'Bạn đã quá hạn thanh toán 20 phút. Sân đã được giải phóng.',
         cancelled: 'Đơn đặt sân này đã bị hủy bỏ bởi hệ thống hoặc người dùng.',
@@ -206,11 +242,11 @@ export default {
     },
   },
   async mounted() {
-    this.applyPaymentNotice();
     await this.loadBooking();
   },
   beforeUnmount() {
     this.clearTimer();
+    this.clearPaymentPolling();
   },
   methods: {
     async loadBooking() {
@@ -252,36 +288,60 @@ export default {
         this.timerInterval = null;
       }
     },
-    applyPaymentNotice() {
-      const status = this.$route.query.payment_status;
-      if (status === 'success') {
-        this.paymentNotice = {
-          type: 'success',
-          message: 'Thanh toán VNPAY thành công. Đơn đặt sân đã được xác nhận.',
-        };
-      } else if (status === 'failed') {
-        this.paymentNotice = {
-          type: 'failed',
-          message: 'Thanh toán VNPAY chưa thành công. Bạn có thể thử thanh toán lại nếu đơn còn thời gian giữ chỗ.',
-        };
-      }
+    async createSepayPayment() {
+      if (!this.booking || this.creatingSepay || this.timeLeft <= 0) return;
 
-      if (status) {
-        this.$router.replace({ name: this.$route.name, params: this.$route.params, query: {} });
-      }
-    },
-    async payWithVnpay() {
-      if (!this.booking || this.paying || this.timeLeft <= 0) return;
-
-      this.paying = true;
-      this.payError = '';
+      this.creatingSepay = true;
+      this.sepayError = '';
 
       try {
-        const res = await bookingService.createVnpayPayment(this.booking.id);
-        window.location.href = res.payment_url;
+        const res = await bookingService.createSepayPayment(this.booking.id);
+        this.sepayPayment = res;
+        this.startPaymentPolling();
       } catch (err) {
-        this.payError = err.message || 'Không thể tạo giao dịch VNPAY. Vui lòng thử lại.';
-        this.paying = false;
+        this.sepayError = err.message || 'Không thể tạo thông tin thanh toán SePay.';
+      } finally {
+        this.creatingSepay = false;
+      }
+    },
+    async refreshBookingStatus() {
+      if (!this.booking || this.checkingPayment) return;
+
+      this.checkingPayment = true;
+      try {
+        const res = await bookingService.getBooking(this.booking.id);
+        this.booking = res;
+        this.timeLeft = res.time_left_seconds || 0;
+
+        if (this.booking.status !== 'pending_payment') {
+          this.clearPaymentPolling();
+          this.clearTimer();
+        }
+      } catch (err) {
+        this.sepayError = err.message || 'Không thể kiểm tra trạng thái thanh toán.';
+      } finally {
+        this.checkingPayment = false;
+      }
+    },
+    startPaymentPolling() {
+      this.clearPaymentPolling();
+      this.paymentPollInterval = setInterval(() => {
+        this.refreshBookingStatus();
+      }, 5000);
+    },
+    clearPaymentPolling() {
+      if (this.paymentPollInterval) {
+        clearInterval(this.paymentPollInterval);
+        this.paymentPollInterval = null;
+      }
+    },
+    async copyText(text) {
+      if (!text) return;
+
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        this.sepayError = 'Không thể sao chép nội dung chuyển khoản.';
       }
     },
     formatDate(dateStr) {
@@ -380,26 +440,6 @@ export default {
   font-size: 14px;
   color: var(--sg-text-muted);
   margin-top: 4px;
-}
-
-.payment-notice {
-  padding: 14px 18px;
-  border-radius: var(--sg-radius-sm);
-  font-size: 14px;
-  font-weight: 600;
-  border: 1px solid var(--sg-border);
-}
-
-.payment-notice.success {
-  color: var(--sg-green-dark);
-  background: var(--sg-green-pale);
-  border-color: #bbf7d0;
-}
-
-.payment-notice.failed {
-  color: #991b1b;
-  background: #fef2f2;
-  border-color: #fecaca;
 }
 
 /* Detail Grid */
@@ -543,43 +583,91 @@ export default {
   font-weight: 800;
 }
 
-.vnpay-box {
+.sepay-box {
   margin-top: 18px;
 }
 
-.btn-vnpay {
+.btn-sepay,
+.btn-check {
   width: 100%;
   min-height: 44px;
   border-radius: var(--sg-radius-sm);
-  background: #0066cc;
+  background: var(--sg-green);
   color: #fff;
   font-size: 14px;
   font-weight: 800;
   transition: var(--sg-transition);
 }
 
-.btn-vnpay:hover:not(:disabled) {
+.btn-sepay:hover:not(:disabled),
+.btn-check:hover:not(:disabled) {
   filter: brightness(1.05);
   transform: translateY(-1px);
 }
 
-.btn-vnpay:disabled {
+.btn-sepay:disabled,
+.btn-check:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
 
-.pay-hint {
-  margin-top: 10px;
+.sepay-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.qr-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  border: 1px solid var(--sg-border);
+  border-radius: var(--sg-radius-sm);
+  background: #fff;
+}
+
+.qr-wrap img {
+  width: min(220px, 100%);
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+
+.transfer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.transfer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
   color: var(--sg-text-muted);
-  font-size: 12px;
-  line-height: 1.5;
+}
+
+.transfer-row strong {
+  color: var(--sg-dark);
+  text-align: right;
+  word-break: break-word;
+}
+
+.copy-value {
+  max-width: 60%;
+  color: var(--sg-green-dark);
+  font-weight: 900;
+  text-align: right;
+  word-break: break-word;
+  background: transparent;
+  text-decoration: underline;
 }
 
 .error-msg {
   color: var(--sg-danger);
   font-size: 13px;
   margin-top: 10px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .detail-empty {

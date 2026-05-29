@@ -5,14 +5,14 @@ namespace App\Http\Controllers\Api\Payment;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\SlotLock;
-use App\Services\Payments\VnpayPaymentService;
+use App\Services\Payments\SepayPaymentService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use RuntimeException;
 
-class VnpayPaymentController extends Controller
+class SepayPaymentController extends Controller
 {
-    public function __construct(private readonly VnpayPaymentService $vnpayPaymentService)
+    public function __construct(private readonly SepayPaymentService $sepayPaymentService)
     {
     }
 
@@ -49,38 +49,40 @@ class VnpayPaymentController extends Controller
             ], 422);
         }
 
-        $result = $this->vnpayPaymentService->createPaymentUrl($request, $booking);
+        try {
+            $result = $this->sepayPaymentService->createPayment($booking);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
 
         return response()->json([
-            'payment_url' => $result['payment_url'],
+            'message' => 'Đã tạo thông tin thanh toán SePay.',
             'payment' => $result['payment'],
-            'booking' => $booking,
+            'payment_account' => $result['payment_account'],
+            'system_bank_account' => $result['system_bank_account'],
+            'transfer_content' => $result['transfer_content'],
+            'qr_url' => $result['qr_url'],
         ]);
     }
 
-    public function callback(Request $request): JsonResponse|RedirectResponse
+    public function ipn(Request $request): JsonResponse
     {
-        $result = $this->vnpayPaymentService->handleReturn($request->query());
-
-        if (! $result['found']) {
+        if (! $this->sepayPaymentService->ipnIsAuthorized($request->header('Authorization'))) {
             return response()->json([
-                'message' => 'Không tìm thấy giao dịch thanh toán.',
-            ], 404);
+                'success' => false,
+                'message' => 'SePay IPN không hợp lệ.',
+            ], 401);
         }
 
-        $status = $result['paid'] ? 'success' : 'failed';
+        $result = $this->sepayPaymentService->handleIpn($request->all());
 
-        if ($request->expectsJson()) {
-            return response()->json([
-                'message' => $result['paid'] ? 'Thanh toán VNPAY thành công.' : 'Thanh toán VNPAY thất bại.',
-                'payment_status' => $status,
-                'booking_id' => $result['booking_id'],
-            ]);
-        }
-
-        return redirect(rtrim(config('app.url'), '/').'/payment/vnpay/return?'.http_build_query([
-            'booking_id' => $result['booking_id'],
-            'payment_status' => $status,
-        ]));
+        return response()->json([
+            'success' => true,
+            'processed' => $result['success'] ?? false,
+            'error_code' => $result['error_code'] ?? null,
+            'message' => $result['message'] ?? null,
+        ]);
     }
 }

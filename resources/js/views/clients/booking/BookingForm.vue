@@ -247,6 +247,7 @@ export default {
       isAvailable: false,
       submitting: false,
       submitError: null,
+      fetchedHourlyRate: 0,
 
       timeOptions: [
         '05:00:00', '05:30:00', '06:00:00', '06:30:00', '07:00:00', '07:30:00',
@@ -287,8 +288,8 @@ export default {
       return diff > 0 ? diff : 0;
     },
     hourlyRate() {
-      // Mock đơn giá mặc định hoặc lấy từ PriceSlot nếu có tích hợp sau này
-      return 100000;
+      // Đơn giá thực tế từ PriceSlot, được lấy qua API checkAvailability
+      return this.fetchedHourlyRate;
     },
     totalPrice() {
       return (this.durationMinutes / 60) * this.hourlyRate;
@@ -342,6 +343,7 @@ export default {
       this.selectedCourtId = '';
       this.isAvailable = false;
       this.availabilityChecked = false;
+      this.fetchedHourlyRate = 0;
       if (this.availableCourts.length > 0) {
         this.selectedCourtId = this.availableCourts[0].id;
         this.checkAvailability();
@@ -374,6 +376,7 @@ export default {
           end_time: this.endTime,
         });
         this.isAvailable = res.available;
+        this.fetchedHourlyRate = res.hourly_rate || 0;
 
         // Auto select allowed payment option if current becomes invalid
         if (this.isAvailable) {

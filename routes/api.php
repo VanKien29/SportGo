@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\Auth\SetPasswordController;
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
-use App\Http\Controllers\Api\Payment\VnpayPaymentController;
+use App\Http\Controllers\Api\Payment\SepayPaymentController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use Illuminate\Support\Facades\Route;
@@ -74,6 +74,7 @@ Route::middleware('auth:sanctum')
         Route::get('/bookings/check-availability', [\App\Http\Controllers\Api\Player\BookingController::class, 'checkAvailability']);
         Route::post('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'store']);
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
-        Route::post('/bookings/{id}/payments/vnpay', [VnpayPaymentController::class, 'create']);
+        Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
     });
-Route::get('/payments/vnpay/return', [VnpayPaymentController::class, 'callback']);
+
+Route::post('/sepay/ipn', [SepayPaymentController::class, 'ipn']);

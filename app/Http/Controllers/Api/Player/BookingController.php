@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\Player;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\PriceSlot;
 use App\Models\SlotLock;
+use App\Models\VenueCourt;
 use App\Services\BookingService;
 use Carbon\Carbon;
 use Exception;
@@ -52,8 +54,28 @@ class BookingController extends Controller
             $request->input('end_time')
         );
 
+        // Tra cứu đơn giá từ bảng price_slots
+        $court = VenueCourt::findOrFail($request->input('venue_court_id'));
+        $dayOfWeek = Carbon::parse($request->input('booking_date'))->dayOfWeekIso;
+        $startTime = $request->input('start_time');
+        $endTime = $request->input('end_time');
+
+        $priceSlot = PriceSlot::where('venue_cluster_id', $court->venue_cluster_id)
+            ->where('court_type_id', $court->court_type_id)
+            ->where('is_active', true)
+            ->where(function ($query) use ($dayOfWeek) {
+                $query->whereJsonContains('apply_to_days', $dayOfWeek)
+                    ->orWhereJsonContains('apply_to_days', (string) $dayOfWeek);
+            })
+            ->where('start_time', '<=', $startTime)
+            ->where('end_time', '>=', $endTime)
+            ->first();
+
+        $hourlyRate = $priceSlot ? (float) $priceSlot->price : 10000.00;
+
         return response()->json([
             'available' => $available,
+            'hourly_rate' => $hourlyRate,
         ]);
     }
 

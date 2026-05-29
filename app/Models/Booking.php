@@ -96,4 +96,14 @@ class Booking extends Model
     {
         return $this->belongsTo(VenueCourt::class, 'venue_court_id');
     }
+
+    public function venueCluster()
+    {
+        return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'booking_id');
+    }
 }
