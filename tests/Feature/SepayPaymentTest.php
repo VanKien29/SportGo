@@ -232,6 +232,82 @@ class SepayPaymentTest extends TestCase
         );
     }
 
+    public function test_player_can_cancel_pending_sepay_payment_and_release_slot_lock(): void
+    {
+        $booking = $this->createPendingPaymentBooking();
+
+        $this->actingAs($this->player, 'sanctum')
+            ->postJson("/api/bookings/{$booking->id}/payments/sepay")
+            ->assertStatus(200);
+
+        $payment = Payment::query()->where('booking_id', $booking->id)->firstOrFail();
+
+        $this->actingAs($this->player, 'sanctum')
+            ->postJson("/api/bookings/{$booking->id}/payments/cancel")
+            ->assertStatus(200)
+            ->assertJsonPath('booking.status', 'cancelled');
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'status' => 'failed',
+        ]);
+
+        $this->assertDatabaseHas('payment_logs', [
+            'payment_id' => $payment->id,
+            'event_type' => 'sepay_payment_cancelled',
+            'error_code' => 'customer_cancelled',
+        ]);
+
+        $this->assertDatabaseMissing('slot_locks', [
+            'booking_id' => $booking->id,
+        ]);
+    }
+
+    public function test_sepay_webhook_after_cancel_is_ignored_and_does_not_credit_wallet(): void
+    {
+        $booking = $this->createPendingPaymentBooking();
+
+        $this->actingAs($this->player, 'sanctum')
+            ->postJson("/api/bookings/{$booking->id}/payments/sepay")
+            ->assertStatus(200);
+
+        $payment = Payment::query()->where('booking_id', $booking->id)->firstOrFail();
+
+        $this->actingAs($this->player, 'sanctum')
+            ->postJson("/api/bookings/{$booking->id}/payments/cancel")
+            ->assertStatus(200);
+
+        $this->postJson('/api/sepay/ipn', [
+            'id' => 987655,
+            'gateway' => 'MBBank',
+            'transactionDate' => now()->format('Y-m-d H:i:s'),
+            'accountNumber' => '1234567890',
+            'code' => $payment->payment_code,
+            'content' => $payment->payment_code.' thanh toan dat san',
+            'transferType' => 'in',
+            'transferAmount' => 100000,
+            'referenceCode' => 'FT123457',
+        ])
+            ->assertStatus(200)
+            ->assertJsonPath('processed', false)
+            ->assertJsonPath('error_code', 'payment_not_pending');
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => 'cancelled',
+        ]);
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'status' => 'failed',
+            'gateway_txn_id' => null,
+        ]);
+
+        $this->assertDatabaseMissing('owner_wallets', [
+            'owner_id' => $this->owner->id,
+        ]);
+    }
+
     public function test_direct_payment_booking_does_not_create_system_payment_or_owner_balance(): void
     {
         $booking = Booking::create([

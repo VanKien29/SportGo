@@ -95,6 +95,17 @@ class SepayPaymentService
                 ];
             }
 
+            if ($payment->status !== 'pending') {
+                $this->logIpn($payment, $payload, $statusBefore, 'sepay_ipn_ignored', $gatewayTxnId, 'payment_not_pending', 'Payment không còn ở trạng thái chờ thanh toán.');
+
+                return [
+                    'success' => false,
+                    'error_code' => 'payment_not_pending',
+                    'message' => 'Payment không còn ở trạng thái chờ thanh toán.',
+                    'payment' => $payment,
+                ];
+            }
+
             $isDuplicateGatewayTxn = $this->isDuplicateGatewayTxn($payment, $gatewayTxnId);
             $errorCode = $this->ipnErrorCode($payment, $normalized, $isDuplicateGatewayTxn);
 
@@ -142,6 +153,61 @@ class SepayPaymentService
         });
 
         return $result;
+    }
+
+    public function cancelPendingPayment(Booking $booking, string $cancelledBy): array
+    {
+        return DB::transaction(function () use ($booking, $cancelledBy): array {
+            $booking = Booking::query()
+                ->whereKey($booking->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($booking->status !== 'pending_payment') {
+                throw new RuntimeException('Chỉ có thể hủy thanh toán khi đơn đang chờ thanh toán.');
+            }
+
+            $payments = Payment::query()
+                ->where('booking_id', $booking->id)
+                ->where('status', 'pending')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($payments as $payment) {
+                $statusBefore = $payment->status;
+                $gatewayResponse = is_array($payment->gateway_response) ? $payment->gateway_response : [];
+
+                $payment->gateway_response = array_merge($gatewayResponse, [
+                    'cancelled_by' => $cancelledBy,
+                    'cancelled_at' => now()->toIso8601String(),
+                ]);
+                $payment->status = 'failed';
+                $payment->save();
+
+                PaymentLog::query()->create([
+                    'payment_id' => $payment->id,
+                    'event_type' => 'sepay_payment_cancelled',
+                    'status_before' => $statusBefore,
+                    'status_after' => $payment->status,
+                    'error_code' => 'customer_cancelled',
+                    'error_message' => 'Khách hàng hủy thanh toán SePay.',
+                ]);
+            }
+
+            $booking->status = 'cancelled';
+            $booking->status_reason = 'Khách hàng hủy thanh toán SePay.';
+            $booking->cancelled_by = $cancelledBy;
+            $booking->cancelled_at = now();
+            $booking->save();
+
+            SlotLock::query()
+                ->where('booking_id', $booking->id)
+                ->delete();
+
+            return [
+                'booking' => $booking->fresh(['venueCourt.venueCluster', 'venueCourt.courtType']),
+            ];
+        });
     }
 
     public function ipnIsAuthorized(?string $authorization): bool

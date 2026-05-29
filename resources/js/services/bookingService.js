@@ -37,4 +37,11 @@ export const bookingService = {
       method: 'POST',
     });
   },
+
+  // Hủy thanh toán đang chờ và giải phóng đơn đặt sân
+  cancelPayment(id) {
+    return api(`/api/bookings/${id}/payments/cancel`, {
+      method: 'POST',
+    });
+  },
 };

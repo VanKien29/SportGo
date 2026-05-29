@@ -82,6 +82,7 @@ Route::middleware('auth:sanctum')
         Route::post('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'store']);
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
+        Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
     });
 
 Route::post('/sepay/ipn', [SepayPaymentController::class, 'ipn']);

@@ -67,6 +67,30 @@ class SepayPaymentController extends Controller
         ]);
     }
 
+    public function cancel(Request $request, string $bookingId): JsonResponse
+    {
+        $booking = Booking::query()->findOrFail($bookingId);
+
+        if ($booking->customer_id !== $request->user()?->id) {
+            return response()->json([
+                'message' => 'Bạn không có quyền hủy thanh toán đơn đặt sân này.',
+            ], 403);
+        }
+
+        try {
+            $result = $this->sepayPaymentService->cancelPendingPayment($booking, $request->user()->id);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Đã hủy thanh toán và hủy đơn đặt sân.',
+            'booking' => $result['booking'],
+        ]);
+    }
+
     public function ipn(Request $request): JsonResponse
     {
         if (! $this->sepayPaymentService->ipnIsAuthorized($request->header('Authorization'))) {

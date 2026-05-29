@@ -117,6 +117,16 @@
 
                 <div v-if="sepayError" class="error-msg">{{ sepayError }}</div>
 
+                <button
+                  v-if="!sepayPayment"
+                  class="btn-cancel-payment btn-cancel-standalone"
+                  type="button"
+                  :disabled="cancellingPayment"
+                  @click="cancelPayment"
+                >
+                  {{ cancellingPayment ? 'Đang hủy thanh toán...' : 'Hủy thanh toán' }}
+                </button>
+
                 <div v-if="sepayPayment" class="sepay-panel">
                   <div class="qr-wrap">
                     <img :src="sepayPayment.qr_url" alt="QR thanh toán SePay" />
@@ -145,8 +155,12 @@
                       <strong>{{ formatCurrency(sepayPayment.payment?.amount) }}</strong>
                     </div>
                   </div>
-                  <button class="btn-check" type="button" :disabled="checkingPayment" @click="refreshBookingStatus">
-                    {{ checkingPayment ? 'Đang kiểm tra...' : 'Kiểm tra thanh toán' }}
+                  <div class="payment-waiting">
+                    <span class="mini-spinner" aria-hidden="true"></span>
+                    <span>Đang chờ thanh toán. Hệ thống sẽ tự cập nhật khi nhận webhook SePay.</span>
+                  </div>
+                  <button class="btn-cancel-payment" type="button" :disabled="cancellingPayment" @click="cancelPayment">
+                    {{ cancellingPayment ? 'Đang hủy thanh toán...' : 'Hủy thanh toán' }}
                   </button>
                 </div>
               </div>
@@ -180,7 +194,7 @@ export default {
       booking: null,
       loading: true,
       creatingSepay: false,
-      checkingPayment: false,
+      cancellingPayment: false,
       sepayPayment: null,
       sepayError: '',
       timeLeft: 0,
@@ -190,8 +204,9 @@ export default {
   },
   computed: {
     formattedTimer() {
-      const minutes = Math.floor(this.timeLeft / 60);
-      const seconds = this.timeLeft % 60;
+      const totalSeconds = Math.max(0, Math.floor(Number(this.timeLeft) || 0));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
       return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     },
     statusClass() {
@@ -255,7 +270,7 @@ export default {
       try {
         const res = await bookingService.getBooking(id);
         this.booking = res;
-        this.timeLeft = res.time_left_seconds || 0;
+        this.timeLeft = this.normalizeTimeLeft(res.time_left_seconds);
 
         if (this.booking.status === 'pending_payment' && this.timeLeft > 0) {
           this.startTimer();
@@ -282,6 +297,9 @@ export default {
         }
       }, 1000);
     },
+    normalizeTimeLeft(value) {
+      return Math.max(0, Math.floor(Number(value) || 0));
+    },
     clearTimer() {
       if (this.timerInterval) {
         clearInterval(this.timerInterval);
@@ -305,22 +323,20 @@ export default {
       }
     },
     async refreshBookingStatus() {
-      if (!this.booking || this.checkingPayment) return;
+      if (!this.booking) return;
 
-      this.checkingPayment = true;
       try {
         const res = await bookingService.getBooking(this.booking.id);
         this.booking = res;
-        this.timeLeft = res.time_left_seconds || 0;
+        this.timeLeft = this.normalizeTimeLeft(res.time_left_seconds);
 
         if (this.booking.status !== 'pending_payment') {
           this.clearPaymentPolling();
           this.clearTimer();
+          this.sepayPayment = null;
         }
       } catch (err) {
         this.sepayError = err.message || 'Không thể kiểm tra trạng thái thanh toán.';
-      } finally {
-        this.checkingPayment = false;
       }
     },
     startPaymentPolling() {
@@ -328,6 +344,28 @@ export default {
       this.paymentPollInterval = setInterval(() => {
         this.refreshBookingStatus();
       }, 5000);
+    },
+    async cancelPayment() {
+      if (!this.booking || this.cancellingPayment) return;
+
+      const confirmed = window.confirm('Bạn chắc chắn muốn hủy thanh toán và hủy đơn đặt sân này?');
+      if (!confirmed) return;
+
+      this.cancellingPayment = true;
+      this.sepayError = '';
+
+      try {
+        const res = await bookingService.cancelPayment(this.booking.id);
+        this.booking = res.booking || this.booking;
+        this.timeLeft = 0;
+        this.sepayPayment = null;
+        this.clearTimer();
+        this.clearPaymentPolling();
+      } catch (err) {
+        this.sepayError = err.message || 'Không thể hủy thanh toán.';
+      } finally {
+        this.cancellingPayment = false;
+      }
     },
     clearPaymentPolling() {
       if (this.paymentPollInterval) {
@@ -588,25 +626,36 @@ export default {
 }
 
 .btn-sepay,
-.btn-check {
+.btn-cancel-payment {
   width: 100%;
   min-height: 44px;
   border-radius: var(--sg-radius-sm);
-  background: var(--sg-green);
   color: #fff;
   font-size: 14px;
   font-weight: 800;
   transition: var(--sg-transition);
 }
 
+.btn-sepay {
+  background: var(--sg-green);
+}
+
+.btn-cancel-payment {
+  background: var(--sg-danger);
+}
+
+.btn-cancel-standalone {
+  margin-top: 12px;
+}
+
 .btn-sepay:hover:not(:disabled),
-.btn-check:hover:not(:disabled) {
+.btn-cancel-payment:hover:not(:disabled) {
   filter: brightness(1.05);
   transform: translateY(-1px);
 }
 
 .btn-sepay:disabled,
-.btn-check:disabled {
+.btn-cancel-payment:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
@@ -661,6 +710,29 @@ export default {
   word-break: break-word;
   background: transparent;
   text-decoration: underline;
+}
+
+.payment-waiting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--sg-radius-sm);
+  background: var(--sg-green-pale);
+  color: var(--sg-green-dark);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.mini-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(22, 163, 74, 0.22);
+  border-top-color: var(--sg-green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex: 0 0 auto;
 }
 
 .error-msg {

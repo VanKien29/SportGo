@@ -149,7 +149,7 @@ class BookingController extends Controller
                 ->where('expires_at', '>', Carbon::now())
                 ->first();
             if ($lock) {
-                $timeLeftSeconds = max(0, Carbon::now()->diffInSeconds($lock->expires_at, false));
+                $timeLeftSeconds = (int) max(0, floor(Carbon::now()->diffInSeconds($lock->expires_at, false)));
             }
         }
 
