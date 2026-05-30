@@ -20,7 +20,17 @@ class CommunityPostComment extends Model
         'content',
         'parent_id',
         'status',
+        'reviewed_by',
+        'reviewed_at',
+        'status_reason',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'reviewed_at' => 'datetime',
+        ];
+    }
 
     public function parent()
     {
@@ -30,6 +40,11 @@ class CommunityPostComment extends Model
     public function post()
     {
         return $this->belongsTo(CommunityPost::class, 'post_id');
+    }
+
+    public function reviewedBy()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 
     public function user()

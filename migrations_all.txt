@@ -1,0 +1,2134 @@
+﻿<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('users', function (Blueprint $table) {
+            $table->char('id', 36)->primary()->comment('UUID Ä‘á»‹nh danh user, dĂ¹ng lĂ m khĂ³a chĂ­nh vĂ  tham chiáº¿u tá»« cĂ¡c báº£ng quyá»n, booking, chat, bĂ i viáº¿t.');
+            $table->string('username', 50)->unique()->comment('TĂªn tĂ i khoáº£n dĂ¹ng Ä‘á»ƒ Ä‘Äƒng nháº­p, khĂ¡c vá»›i há» tĂªn hiá»ƒn thá»‹; pháº£i unique.');
+            $table->string('full_name', 255)->comment('Há» tĂªn hiá»ƒn thá»‹ trong há»“ sÆ¡, booking, chat, Ä‘Ă¡nh giĂ¡.');
+            $table->string('phone', 20)->unique()->nullable()->comment('Sá»‘ Ä‘iá»‡n thoáº¡i chĂ­nh khi Ä‘Äƒng kĂ½ thÆ°á»ng vĂ  Ä‘áº·t sĂ¢n; Google login cĂ³ thá»ƒ chÆ°a cĂ³ phone.');
+            $table->string('email', 255)->unique()->nullable()->comment('Email phá»¥ nhÆ°ng váº«n dĂ¹ng Ä‘Äƒng nháº­p, nháº­n mĂ£ xĂ¡c thá»±c vĂ  reset máº­t kháº©u; unique khi cĂ³ giĂ¡ trá»‹.');
+            $table->timestamp('email_verified_at')->nullable()->comment('Thá»i Ä‘iá»ƒm email Ä‘Æ°á»£c xĂ¡c thá»±c; dĂ¹ng Ä‘á»ƒ biáº¿t user Ä‘Ă£ xĂ¡c thá»±c email chÆ°a.');
+            $table->timestamp('phone_verified_at')->nullable()->comment('Thá»i Ä‘iá»ƒm phone Ä‘Æ°á»£c xĂ¡c thá»±c; chuáº©n bá»‹ cho phase SMS.');
+            $table->string('password', 255)->comment('Máº­t kháº©u Ä‘Ă£ hash, khĂ´ng lÆ°u plain text.');
+            $table->string('avatar_url', 500)->nullable()->comment('ÄÆ°á»ng dáº«n avatar hiá»‡n táº¡i cá»§a user; file chi tiáº¿t cĂ³ thá»ƒ lÆ°u thĂªm trong media.');
+            $table->text('bio')->nullable()->comment('MĂ´ táº£ cĂ¡ nhĂ¢n do user tá»± nháº­p, thay cho cĂ¡c field chÆ¡i thá»ƒ thao mÆ¡ há»“ nhÆ° field vá»‹ trĂ­ Æ°a thĂ­ch cÅ©.');
+            $table->enum('status', ['pending_verify', 'active', 'locked', 'deactivated'])->default('pending_verify')->comment('Tráº¡ng thĂ¡i tĂ i khoáº£n: pending_verify chá» xĂ¡c thá»±c, active Ä‘Æ°á»£c dĂ¹ng, locked bá»‹ khĂ³a, deactivated ngá»«ng dĂ¹ng.');
+            $table->enum('verification_channel', ['email', 'sms'])->default('email')->comment('KĂªnh user chá»n Ä‘á»ƒ nháº­n mĂ£ xĂ¡c thá»±c: email hiá»‡n lĂ m trÆ°á»›c, sms Ä‘á»ƒ phase sau.');
+            $table->enum('lock_type', ['temporary', 'permanent', 'auto'])->nullable()->comment('Kiá»ƒu khĂ³a tĂ i khoáº£n: temporary theo thá»i háº¡n, permanent vÄ©nh viá»…n, auto do cáº¥u hĂ¬nh tá»± Ä‘á»™ng.');
+            $table->text('status_reason')->nullable()->comment('LĂ½ do khĂ³a/há»§y/ngá»«ng tĂ i khoáº£n Ä‘á»ƒ hiá»ƒn thá»‹ cho user vĂ  phá»¥c vá»¥ audit.');
+            $table->timestamp('locked_at')->nullable()->comment('Thá»i Ä‘iá»ƒm tĂ i khoáº£n bá»‹ khĂ³a.');
+            $table->timestamp('locked_until')->nullable()->comment('Thá»i Ä‘iá»ƒm háº¿t khĂ³a táº¡m thá»i; null khi khĂ´ng khĂ³a hoáº·c khĂ³a vÄ©nh viá»…n tĂ¹y lock_type.');
+            $table->char('locked_by', 36)->nullable()->comment('Admin/nhĂ¢n viĂªn khĂ³a tĂ i khoáº£n, trá» users.id.');
+            $table->string('remember_token', 100)->nullable()->comment('Token remember me máº·c Ä‘á»‹nh cá»§a Laravel.');
+            $table->timestamps();
+
+            $table->index('status', 'users_status_index');
+            $table->index('locked_until', 'users_locked_until_index');
+            $table->foreign('locked_by')->references('id')->on('users')->onDelete('set null');
+        });
+
+        Schema::create('password_reset_tokens', function (Blueprint $table) {
+            $table->string('email')->primary();
+            $table->string('token');
+            $table->timestamp('created_at')->nullable();
+        });
+
+        Schema::create('sessions', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->char('user_id', 36)->nullable()->index();
+            $table->string('ip_address', 45)->nullable();
+            $table->text('user_agent')->nullable();
+            $table->longText('payload');
+            $table->integer('last_activity')->index();
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('sessions');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('cache', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->mediumText('value');
+            $table->bigInteger('expiration')->index();
+        });
+
+        Schema::create('cache_locks', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->string('owner');
+            $table->bigInteger('expiration')->index();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('cache');
+        Schema::dropIfExists('cache_locks');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('jobs', function (Blueprint $table) {
+            $table->id();
+            $table->string('queue')->index();
+            $table->longText('payload');
+            $table->unsignedSmallInteger('attempts');
+            $table->unsignedInteger('reserved_at')->nullable();
+            $table->unsignedInteger('available_at');
+            $table->unsignedInteger('created_at');
+        });
+
+        Schema::create('job_batches', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->string('name');
+            $table->integer('total_jobs');
+            $table->integer('pending_jobs');
+            $table->integer('failed_jobs');
+            $table->longText('failed_job_ids');
+            $table->mediumText('options')->nullable();
+            $table->integer('cancelled_at')->nullable();
+            $table->integer('created_at');
+            $table->integer('finished_at')->nullable();
+        });
+
+        Schema::create('failed_jobs', function (Blueprint $table) {
+            $table->id();
+            $table->string('uuid')->unique();
+            $table->string('connection');
+            $table->string('queue');
+            $table->longText('payload');
+            $table->longText('exception');
+            $table->timestamp('failed_at')->useCurrent();
+
+            $table->index(['connection', 'queue', 'failed_at']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('jobs');
+        Schema::dropIfExists('job_batches');
+        Schema::dropIfExists('failed_jobs');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('audit_logs', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('actor_id', 36)->nullable()->comment('User thá»±c hiá»‡n hĂ nh Ä‘á»™ng nháº¡y cáº£m; nullable náº¿u do há»‡ thá»‘ng tá»± Ä‘á»™ng.');
+            $table->string('action', 100)->comment('MĂ£ hĂ nh Ä‘á»™ng nhÆ° user.locked, venue.locked, report.resolved.');
+            $table->string('entity_type', 100)->comment('Loáº¡i Ä‘á»‘i tÆ°á»£ng bá»‹ tĂ¡c Ä‘á»™ng; logical reference.');
+            $table->string('entity_id', 100)->comment('ID Ä‘á»‘i tÆ°á»£ng bá»‹ tĂ¡c Ä‘á»™ng; logical reference.');
+            $table->json('old_values')->nullable()->comment('JSON dá»¯ liá»‡u trÆ°á»›c khi thay Ä‘á»•i.');
+            $table->json('new_values')->nullable()->comment('JSON dá»¯ liá»‡u sau khi thay Ä‘á»•i.');
+            $table->string('context', 50)->nullable()->comment('Ngá»¯ cáº£nh thao tĂ¡c nhÆ° admin, moderation, payment.');
+            $table->string('ip_address', 45)->nullable()->comment('IP cá»§a ngÆ°á»i thá»±c hiá»‡n náº¿u cĂ³.');
+            $table->string('user_agent', 500)->nullable()->comment('User agent/thiáº¿t bá»‹ cá»§a ngÆ°á»i thá»±c hiá»‡n náº¿u cĂ³.');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm ghi audit log.');
+            $table->index(['entity_type', 'entity_id'], 'audit_logs_entity_type_entity_id_index');
+            $table->index('action', 'audit_logs_action_index');
+            $table->index('context', 'audit_logs_context_index');
+            $table->index('created_at', 'audit_logs_created_at_index');
+            $table->foreign('actor_id')->references('id')->on('users')->onDelete('set null');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('audit_logs');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('banners', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->string('title', 255)->comment('TiĂªu Ä‘á» banner Ä‘á»ƒ admin quáº£n lĂ½ vĂ  FE cĂ³ thá»ƒ hiá»ƒn thá»‹.');
+            $table->string('image_path', 1000)->comment('ÄÆ°á»ng dáº«n áº£nh banner Ä‘Ă£ upload; khĂ´ng lÆ°u binary.');
+            $table->string('link_url', 1000)->nullable()->comment('URL hoáº·c deep link khi user báº¥m banner.');
+            $table->string('position', 50)->comment('Vá»‹ trĂ­ hiá»ƒn thá»‹ banner nhÆ° home.');
+            $table->integer('sort_order')->default(0)->comment('Thá»© tá»± hiá»ƒn thá»‹ banner.');
+            $table->boolean('is_active')->default(true)->comment('Banner cĂ³ Ä‘ang báº­t hay khĂ´ng.');
+            $table->timestamp('starts_at')->nullable()->comment('Thá»i Ä‘iá»ƒm báº¯t Ä‘áº§u hiá»ƒn thá»‹ banner.');
+            $table->timestamp('ends_at')->nullable()->comment('Thá»i Ä‘iá»ƒm káº¿t thĂºc hiá»ƒn thá»‹ banner.');
+            $table->char('created_by', 36)->nullable()->comment('Admin táº¡o banner.');
+            $table->char('updated_by', 36)->nullable()->comment('Admin cáº­p nháº­t banner.');
+            $table->timestamps();
+            $table->index('position', 'banners_position_index');
+            $table->index('is_active', 'banners_is_active_index');
+            $table->index('sort_order', 'banners_sort_order_index');
+            $table->index('starts_at', 'banners_starts_at_index');
+            $table->index('ends_at', 'banners_ends_at_index');
+            $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('updated_by')->references('id')->on('users')->onDelete('set null');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('banners');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('venue_clusters', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('owner_id', 36)->comment('Chá»§ sĂ¢n sá»Ÿ há»¯u cá»¥m nĂ y, trá» users.id.');
+            $table->string('name', 255)->comment('TĂªn cá»¥m sĂ¢n hiá»ƒn thá»‹ cho user.');
+            $table->string('slug', 255)->unique()->comment('Äá»‹nh danh URL/SEO duy nháº¥t cá»§a cá»¥m sĂ¢n.');
+            $table->text('description')->nullable()->comment('MĂ´ táº£ cá»¥m sĂ¢n, tiá»‡n Ă­ch hoáº·c ghi chĂº.');
+            $table->string('phone_contact', 20)->nullable()->comment('Sá»‘ Ä‘iá»‡n thoáº¡i liĂªn há»‡ cá»§a cá»¥m sĂ¢n.');
+            $table->text('address')->comment('Äá»‹a chá»‰ sĂ¢n Ä‘á»ƒ hiá»ƒn thá»‹ vĂ  má»Ÿ Google Maps.');
+            $table->string('map_url', 1000)->nullable()->comment('Link Google Maps lÆ°u láº¡i tá»« form Ä‘Äƒng kĂ½/quáº£n lĂ½ sĂ¢n.');
+            $table->decimal('latitude', 10, 7)->comment('VÄ© Ä‘á»™ dĂ¹ng Ä‘á»ƒ tĂ¬m sĂ¢n gáº§n vá»‹ trĂ­ hiá»‡n táº¡i.');
+            $table->decimal('longitude', 10, 7)->comment('Kinh Ä‘á»™ dĂ¹ng Ä‘á»ƒ tĂ¬m sĂ¢n gáº§n vá»‹ trĂ­ hiá»‡n táº¡i.');
+            $table->json('amenities')->nullable()->comment('JSON danh sĂ¡ch tiá»‡n Ă­ch nhÆ° bĂ£i xe, Ä‘Ă¨n, phĂ²ng táº¯m.');
+            $table->enum('status', ['pending', 'active', 'locked'])->default('pending')->comment('Tráº¡ng thĂ¡i cá»¥m: pending chá» duyá»‡t, active hoáº¡t Ä‘á»™ng, locked bá»‹ khĂ³a.');
+            $table->text('status_reason')->nullable()->comment('LĂ½ do khĂ³a cá»¥m sĂ¢n Ä‘á»ƒ chá»§ sĂ¢n biáº¿t.');
+            $table->timestamp('locked_at')->nullable()->comment('Thá»i Ä‘iá»ƒm cá»¥m sĂ¢n bá»‹ khĂ³a.');
+            $table->timestamp('locked_until')->nullable()->comment('Thá»i Ä‘iá»ƒm háº¿t khĂ³a táº¡m thá»i cá»§a cá»¥m sĂ¢n.');
+            $table->char('locked_by', 36)->nullable()->comment('Admin/nhĂ¢n viĂªn khĂ³a cá»¥m sĂ¢n.');
+            $table->decimal('rating_avg', 3, 2)->default(0.00)->comment('Äiá»ƒm trung bĂ¬nh sĂ¢n, tĂ­nh tá»« reviews.');
+            $table->unsignedInteger('rating_count')->default(0)->comment('Sá»‘ lÆ°á»£t review sĂ¢n.');
+            $table->timestamps();
+            $table->index(['latitude', 'longitude'], 'venue_clusters_latitude_longitude_index');
+            $table->index(['status', 'rating_avg'], 'venue_clusters_status_rating_avg_index');
+            $table->index('name', 'venue_clusters_name_index');
+            $table->index('status', 'venue_clusters_status_index');
+            $table->index('rating_avg', 'venue_clusters_rating_avg_index');
+            $table->index('locked_until', 'venue_clusters_locked_until_index');
+            $table->foreign('locked_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('owner_id')->references('id')->on('users')->onDelete('restrict');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('venue_clusters');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('booking_configs', function (Blueprint $table) {
+            $table->char('venue_cluster_id', 36)->primary();
+            $table->unsignedInteger('min_duration_minutes')->default(30);
+            $table->unsignedInteger('max_duration_minutes')->nullable();
+            $table->unsignedInteger('slot_hold_minutes')->default(20);
+            $table->unsignedInteger('reminder_before_minutes')->default(30);
+            $table->boolean('allow_full_payment')->default(true);
+            $table->boolean('allow_deposit')->default(true);
+            $table->boolean('allow_no_prepay')->default(true);
+            $table->boolean('auto_approve_full_payment')->default(false);
+            $table->decimal('deposit_percent', 5, 2)->nullable();
+            $table->unsignedInteger('cancel_before_hours')->default(0);
+            $table->unsignedInteger('refund_percent')->default(0);
+            $table->timestamps();
+
+            $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('booking_configs');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('court_types', function (Blueprint $table) {
+            $table->id();
+            $table->string('name', 100)->unique()->comment('TĂªn loáº¡i sĂ¢n nhÆ° Badminton court, Football 7-a-side; admin quáº£n lĂ½.');
+            $table->text('description')->nullable()->comment('MĂ´ táº£ ngáº¯n loáº¡i sĂ¢n Ä‘á»ƒ admin/FE hiá»ƒn thá»‹.');
+            $table->unsignedInteger('player_count')->default(0)->comment('Sá»‘ ngÆ°á»i chÆ¡i tham kháº£o cho loáº¡i sĂ¢n.');
+            $table->boolean('is_active')->default(true)->comment('Loáº¡i sĂ¢n cĂ²n Ä‘Æ°á»£c chá»§ sĂ¢n chá»n hay khĂ´ng.');
+            $table->timestamps();
+            $table->softDeletes();
+            $table->index('is_active', 'court_types_is_active_index');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('court_types');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('venue_staff_assignments', function (Blueprint $table) {
+            $table->id();
+            $table->char('user_id', 36);
+            $table->char('venue_cluster_id', 36);
+            $table->enum('scope_type', ['all_cluster', 'court_type'])->default('all_cluster');
+            $table->unsignedBigInteger('court_type_id')->nullable();
+            $table->string('scope_key', 50)->default('all');
+            $table->char('assigned_by', 36)->nullable();
+            $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->timestamps();
+
+            $table->unique(['user_id', 'venue_cluster_id', 'scope_key'], 'venue_staff_assignments_unique');
+            $table->index('venue_cluster_id', 'venue_staff_assignments_venue_cluster_id_foreign');
+            $table->index('court_type_id', 'venue_staff_assignments_court_type_id_foreign');
+            $table->index('scope_type', 'venue_staff_assignments_scope_type_index');
+            $table->index('scope_key', 'venue_staff_assignments_scope_key_index');
+            $table->index('status', 'venue_staff_assignments_status_index');
+            $table->foreign('assigned_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('court_type_id')->references('id')->on('court_types')->onDelete('set null');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('venue_staff_assignments');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('venue_courts', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('venue_cluster_id', 36)->comment('Cá»¥m sĂ¢n chá»©a sĂ¢n con nĂ y.');
+            $table->unsignedBigInteger('court_type_id')->comment('Loáº¡i sĂ¢n cá»§a sĂ¢n con.');
+            $table->string('name', 100)->comment('TĂªn sĂ¢n con hiá»ƒn thá»‹ trong lá»‹ch Ä‘áº·t sĂ¢n.');
+            $table->enum('status', ['active', 'maintenance', 'inactive'])->default('active')->comment('Tráº¡ng thĂ¡i sĂ¢n con: active cho Ä‘áº·t, maintenance báº£o trĂ¬, inactive khĂ´ng hoáº¡t Ä‘á»™ng.');
+            $table->integer('sort_order')->default(0)->comment('Thá»© tá»± hiá»ƒn thá»‹ sĂ¢n con trong cá»¥m sĂ¢n.');
+            $table->timestamps();
+            $table->softDeletes();
+            $table->index(['venue_cluster_id', 'status'], 'venue_courts_venue_cluster_id_status_index');
+            $table->index('name', 'venue_courts_name_index');
+            $table->index('status', 'venue_courts_status_index');
+            $table->foreign('court_type_id')->references('id')->on('court_types')->onDelete('restrict');
+            $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('venue_courts');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('community_posts', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('author_id', 36)->comment('User táº¡o bĂ i Ä‘Äƒng tá»± do.');
+            $table->longText('content')->comment('Ná»™i dung bĂ i Ä‘Äƒng cá»™ng Ä‘á»“ng.');
+            $table->enum('status', ['pending_review', 'published', 'rejected', 'hidden'])->default('pending_review')->comment('Tráº¡ng thĂ¡i kiá»ƒm duyá»‡t bĂ i cá»™ng Ä‘á»“ng.');
+            $table->char('reviewed_by', 36)->nullable()->comment('Admin/nhĂ¢n viĂªn kiá»ƒm duyá»‡t bĂ i.');
+            $table->timestamp('reviewed_at')->nullable()->comment('Thá»i Ä‘iá»ƒm kiá»ƒm duyá»‡t bĂ i.');
+            $table->text('status_reason')->nullable()->comment('LĂ½ do tá»« chá»‘i hoáº·c áº©n bĂ i.');
+            $table->unsignedBigInteger('view_count')->default(0)->comment('Sá»‘ lÆ°á»£t xem bĂ i cá»™ng Ä‘á»“ng.');
+            $table->unsignedInteger('like_count')->default(0)->comment('Sá»‘ lÆ°á»£t thĂ­ch tá»•ng há»£p tá»« community_post_likes.');
+            $table->unsignedInteger('comment_count')->default(0)->comment('Sá»‘ bĂ¬nh luáº­n tá»•ng há»£p tá»« community_post_comments.');
+            $table->timestamps();
+            $table->index('status', 'community_posts_status_index');
+            $table->index(['status', 'created_at'], 'community_posts_status_created_at_index');
+            $table->foreign('author_id')->references('id')->on('users')->onDelete('restrict');
+            $table->foreign('reviewed_by')->references('id')->on('users')->onDelete('set null');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('community_posts');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('venue_court_approval_requests', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('venue_cluster_id', 36);
+            $table->unsignedBigInteger('court_type_id');
+            $table->string('name', 100);
+            $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending');
+            $table->char('requested_by', 36);
+            $table->char('reviewed_by', 36)->nullable();
+            $table->text('status_reason')->nullable();
+            $table->char('approved_venue_court_id', 36)->nullable();
+            $table->timestamp('reviewed_at')->nullable();
+            $table->timestamps();
+
+            $table->index('approved_venue_court_id', 'venue_court_approval_requests_approved_venue_court_id_index');
+            $table->index('status', 'venue_court_approval_requests_status_index');
+            $table->foreign('court_type_id')->references('id')->on('court_types')->onDelete('restrict');
+            $table->foreign('requested_by')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('reviewed_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('venue_court_approval_requests');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('conversations', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->enum('type', ['direct', 'player_post', 'venue_contact'])->comment('Loáº¡i chat: direct, player_post hoáº·c venue_contact.');
+            $table->string('reference_type', 100)->nullable()->comment('Loáº¡i Ä‘á»‘i tÆ°á»£ng chat gáº¯n vĂ o; logical reference.');
+            $table->string('reference_id', 100)->nullable()->comment('ID Ä‘á»‘i tÆ°á»£ng chat gáº¯n vĂ o.');
+            $table->string('title', 255)->nullable()->comment('TiĂªu Ä‘á» chat Ä‘á»ƒ hiá»ƒn thá»‹ trong danh sĂ¡ch.');
+            $table->char('created_by', 36)->nullable()->comment('User táº¡o conversation.');
+            $table->timestamp('last_message_at')->nullable()->comment('Thá»i Ä‘iá»ƒm tin nháº¯n cuá»‘i Ä‘á»ƒ sáº¯p xáº¿p danh sĂ¡ch chat.');
+            $table->timestamps();
+            $table->index('type', 'conversations_type_index');
+            $table->index(['reference_type', 'reference_id'], 'conversations_reference_type_reference_id_index');
+            $table->index('last_message_at', 'conversations_last_message_at_index');
+            $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('conversations');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('conversation_participants', function (Blueprint $table) {
+            $table->id();
+            $table->char('conversation_id', 36);
+            $table->char('user_id', 36);
+            $table->timestamp('last_read_at')->nullable();
+            $table->timestamp('joined_at')->useCurrent();
+
+            $table->unique(['conversation_id', 'user_id'], 'conversation_participants_conversation_id_user_id_unique');
+            $table->index('user_id', 'conversation_participants_user_id_index');
+            $table->foreign('conversation_id')->references('id')->on('conversations')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('conversation_participants');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('partner_applications', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('user_id', 36)->comment('User gá»­i há»“ sÆ¡ Ä‘Äƒng kĂ½ lĂ m chá»§ sĂ¢n.');
+            $table->string('business_name', 255)->comment('TĂªn Ä‘Æ¡n vá»‹/cĂ¡ nhĂ¢n kinh doanh sĂ¢n.');
+            $table->string('tax_code', 50)->nullable()->comment('MĂ£ sá»‘ thuáº¿ náº¿u cĂ³.');
+            $table->string('venue_name', 255)->comment('TĂªn cá»¥m sĂ¢n dá»± kiáº¿n táº¡o khi duyá»‡t há»“ sÆ¡.');
+            $table->text('venue_address')->comment('Äá»‹a chá»‰ cá»¥m sĂ¢n nháº­p trong form Ä‘Äƒng kĂ½.');
+            $table->string('venue_map_url', 1000)->nullable()->comment('Link Google Maps user dĂ¡n trong form.');
+            $table->decimal('venue_latitude', 10, 7)->comment('VÄ© Ä‘á»™ cá»¥m sĂ¢n.');
+            $table->decimal('venue_longitude', 10, 7)->comment('Kinh Ä‘á»™ cá»¥m sĂ¢n.');
+            $table->enum('status', ['pending', 'reviewing', 'approved', 'rejected', 'cancelled'])->default('pending')->comment('Tráº¡ng thĂ¡i há»“ sÆ¡.');
+            $table->char('reviewed_by', 36)->nullable()->comment('Admin/nhĂ¢n viĂªn duyá»‡t há»“ sÆ¡.');
+            $table->text('status_reason')->nullable()->comment('LĂ½ do tá»« chá»‘i/há»§y.');
+            $table->char('approved_venue_cluster_id', 36)->nullable()->comment('ID cá»¥m sĂ¢n Ä‘Æ°á»£c táº¡o sau khi duyá»‡t; logical.');
+            $table->timestamp('submitted_at')->useCurrent()->comment('Thá»i Ä‘iá»ƒm user gá»­i há»“ sÆ¡.');
+            $table->timestamp('reviewed_at')->nullable()->comment('Thá»i Ä‘iá»ƒm admin xá»­ lĂ½ há»“ sÆ¡.');
+            $table->timestamps();
+            $table->index(['user_id', 'status'], 'partner_applications_user_id_status_index');
+            $table->index('status', 'partner_applications_status_index');
+            $table->index('submitted_at', 'partner_applications_submitted_at_index');
+            $table->index('approved_venue_cluster_id', 'partner_applications_approved_venue_cluster_id_index');
+            $table->foreign('reviewed_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('partner_applications');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('partner_application_courts', function (Blueprint $table) {
+            $table->id();
+            $table->char('partner_application_id', 36);
+            $table->unsignedBigInteger('court_type_id');
+            $table->string('name', 100);
+            $table->integer('sort_order')->default(0);
+            $table->timestamps();
+
+            $table->foreign('court_type_id')->references('id')->on('court_types')->onDelete('restrict');
+            $table->foreign('partner_application_id')->references('id')->on('partner_applications')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('partner_application_courts');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('roles', function (Blueprint $table) {
+            $table->id();
+            $table->string('name', 50)->unique()->comment('MĂ£ role duy nháº¥t Ä‘á»ƒ xá»­ lĂ½ phĂ¢n quyá»n trong code.');
+            $table->string('display_name', 100)->comment('TĂªn role dá»… Ä‘á»c Ä‘á»ƒ hiá»ƒn thá»‹ trong mĂ n quáº£n trá»‹.');
+            $table->text('description')->nullable()->comment('MĂ´ táº£ role nĂ y Ä‘Æ°á»£c phĂ©p lĂ m gĂ¬.');
+            $table->boolean('is_system')->default(false)->comment('ÄĂ¡nh dáº¥u role há»‡ thá»‘ng máº·c Ä‘á»‹nh, khĂ´ng nĂªn sá»­a/xĂ³a tĂ¹y tiá»‡n.');
+            $table->timestamps();
+            $table->index('is_system', 'roles_is_system_index');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('roles');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('bookings', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->string('booking_code', 30)->unique()->comment('MĂ£ booking dá»… Ä‘á»c Ä‘á»ƒ user/chá»§ sĂ¢n tra cá»©u.');
+            $table->char('customer_id', 36)->nullable()->comment('User Ä‘áº·t online; nullable vĂ¬ booking táº¡i quáº§y khĂ´ng báº¯t buá»™c tĂ i khoáº£n.');
+            $table->char('venue_court_id', 36)->comment('SĂ¢n con thá»±c táº¿ Ä‘Æ°á»£c gĂ¡n cho buá»•i chÆ¡i.');
+            $table->char('requested_venue_court_id', 36)->nullable()->comment('SĂ¢n con khĂ¡ch yĂªu cáº§u ban Ä‘áº§u.');
+            $table->char('venue_cluster_id', 36)->comment('Cá»¥m sĂ¢n denormalized tá»« venue_courts Ä‘á»ƒ lá»c booking/dashboard nhanh.');
+            $table->date('booking_date')->comment('NgĂ y chÆ¡i.');
+            $table->time('start_time')->comment('Giá» báº¯t Ä‘áº§u booking.');
+            $table->time('end_time')->comment('Giá» káº¿t thĂºc booking.');
+            $table->integer('duration_minutes')->comment('Tá»•ng thá»i lÆ°á»£ng Ä‘áº·t sĂ¢n tĂ­nh báº±ng phĂºt.');
+            $table->decimal('total_price', 12, 2)->comment('Tá»•ng tiá»n booking trÆ°á»›c thanh toĂ¡n/hoĂ n tiá»n.');
+            $table->enum('payment_option', ['full_payment', 'deposit', 'no_prepay'])->comment('Kiá»ƒu thanh toĂ¡n user chá»n.');
+            $table->decimal('required_payment_amount', 12, 2)->comment('Sá»‘ tiá»n tá»‘i thiá»ƒu cáº§n thanh toĂ¡n.');
+            $table->enum('source', ['online', 'counter'])->comment('Nguá»“n booking: online hoáº·c counter.');
+            $table->enum('booking_type', ['single', 'recurring'])->comment('Kiá»ƒu booking: single=Ä‘áº·t láº»; recurring=Ä‘áº·t cá»‘ Ä‘á»‹nh.');
+            $table->string('recurring_group_code', 30)->nullable()->comment('MĂ£ nhĂ³m Ä‘Æ¡n Ä‘áº·t cá»‘ Ä‘á»‹nh.');
+            $table->date('recurring_start_date')->nullable()->comment('NgĂ y báº¯t Ä‘áº§u cá»§a rule Ä‘áº·t cá»‘ Ä‘á»‹nh.');
+            $table->date('recurring_end_date')->nullable()->comment('NgĂ y káº¿t thĂºc cá»§a rule Ä‘áº·t cá»‘ Ä‘á»‹nh.');
+            $table->enum('recurrence_type', ['daily', 'weekly', 'monthly'])->nullable()->comment('Kiá»ƒu láº·p cá»§a Ä‘Æ¡n cá»‘ Ä‘á»‹nh.');
+            $table->integer('recurrence_interval')->nullable()->comment('Khoáº£ng láº·p theo recurrence_type.');
+            $table->json('recurrence_days_of_week')->nullable();
+            $table->json('recurrence_days_of_month')->nullable();
+            $table->enum('status', ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed', 'cancelled', 'expired', 'rejected'])->comment('Tráº¡ng thĂ¡i booking.');
+            $table->string('walk_in_name', 255)->nullable()->comment('TĂªn khĂ¡ch táº¡i quáº§y khi customer_id null.');
+            $table->string('walk_in_phone', 20)->nullable()->comment('Sá»‘ Ä‘iá»‡n thoáº¡i khĂ¡ch táº¡i quáº§y.');
+            $table->text('status_reason')->nullable()->comment('LĂ½ do há»§y/tá»« chá»‘i/háº¿t hiá»‡u lá»±c booking.');
+            $table->char('cancelled_by', 36)->nullable()->comment('User/admin/chá»§ sĂ¢n thá»±c hiá»‡n há»§y booking.');
+            $table->timestamp('cancelled_at')->nullable()->comment('Thá»i Ä‘iá»ƒm booking bá»‹ há»§y.');
+            $table->char('created_by', 36)->nullable()->comment('NgÆ°á»i táº¡o booking.');
+            $table->char('court_changed_by', 36)->nullable()->comment('Chá»§ sĂ¢n/nhĂ¢n viĂªn Ä‘á»•i sĂ¢n.');
+            $table->timestamp('court_changed_at')->nullable()->comment('Thá»i Ä‘iá»ƒm Ä‘á»•i sĂ¢n con.');
+            $table->text('court_changed_reason')->nullable()->comment('LĂ½ do Ä‘á»•i sĂ¢n.');
+            $table->timestamp('reminder_sent_at')->nullable()->comment('Thá»i Ä‘iá»ƒm há»‡ thá»‘ng Ä‘Ă£ gá»­i nháº¯c lá»‹ch.');
+            $table->timestamps();
+            $table->index(['venue_court_id', 'booking_date', 'start_time', 'end_time'], 'bookings_availability_index');
+            $table->index(['customer_id', 'created_at'], 'bookings_customer_id_created_at_index');
+            $table->index(['venue_cluster_id', 'booking_date', 'status'], 'bookings_venue_cluster_id_booking_date_status_index');
+            $table->index(['venue_court_id', 'booking_date', 'status'], 'bookings_venue_court_id_booking_date_status_index');
+            $table->index(['booking_type', 'recurring_group_code'], 'bookings_type_group_index');
+            $table->index(['recurring_group_code', 'booking_date'], 'bookings_group_date_index');
+            $table->index(['requested_venue_court_id', 'booking_date'], 'bookings_requested_court_date_index');
+            $table->index('booking_date', 'bookings_booking_date_index');
+            $table->index('status', 'bookings_status_index');
+            $table->index('start_time', 'bookings_start_time_index');
+            $table->index('end_time', 'bookings_end_time_index');
+            $table->foreign('cancelled_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('court_changed_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('customer_id')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('requested_venue_court_id')->references('id')->on('venue_courts')->onDelete('set null');
+            $table->foreign('venue_court_id')->references('id')->on('venue_courts')->onDelete('restrict');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('bookings');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('community_post_comments', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('post_id', 36)->comment('BĂ i cá»™ng Ä‘á»“ng Ä‘Æ°á»£c bĂ¬nh luáº­n.');
+            $table->char('user_id', 36)->comment('User viáº¿t bĂ¬nh luáº­n.');
+            $table->longText('content')->comment('Ná»™i dung bĂ¬nh luáº­n.');
+            $table->char('parent_id', 36)->nullable()->comment('BĂ¬nh luáº­n cha náº¿u lĂ  tráº£ lá»i.');
+            $table->enum('status', ['visible', 'hidden'])->default('visible')->comment('Tráº¡ng thĂ¡i bĂ¬nh luáº­n.');
+            $table->timestamps();
+            $table->index(['post_id', 'status', 'created_at'], 'community_post_comments_post_id_status_created_at_index');
+            $table->foreign('parent_id')->references('id')->on('community_post_comments')->onDelete('set null');
+            $table->foreign('post_id')->references('id')->on('community_posts')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('community_post_comments');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('community_post_likes', function (Blueprint $table) {
+            $table->id();
+            $table->char('post_id', 36)->comment('BĂ i cá»™ng Ä‘á»“ng Ä‘Æ°á»£c thĂ­ch.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->char('user_id', 36)->comment('User báº¥m thĂ­ch.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm báº¥m thĂ­ch.; VD: 2026-06-15 18:00:00');
+            $table->unique(['post_id', 'user_id'], 'community_post_likes_post_id_user_id_unique');
+            $table->foreign('post_id')->references('id')->on('community_posts')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('community_post_likes');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('complaints', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->enum('complaint_type', ['venue', 'system'])->comment('Loáº¡i khiáº¿u náº¡i: venue vá»›i sĂ¢n hoáº·c system vá»›i há»‡ thá»‘ng.');
+            $table->char('booking_id', 36)->nullable()->comment('Booking liĂªn quan náº¿u khiáº¿u náº¡i phĂ¡t sinh tá»« booking.');
+            $table->char('venue_cluster_id', 36)->nullable()->comment('Cá»¥m sĂ¢n liĂªn quan náº¿u lĂ  khiáº¿u náº¡i vá»›i sĂ¢n.');
+            $table->char('customer_id', 36)->comment('User gá»­i khiáº¿u náº¡i.');
+            $table->text('content')->comment('Ná»™i dung khiáº¿u náº¡i.');
+            $table->enum('status', ['open', 'processing', 'resolved', 'rejected', 'closed'])->default('open')->comment('Tráº¡ng thĂ¡i khiáº¿u náº¡i.');
+            $table->char('assigned_to', 36)->nullable()->comment('NhĂ¢n viĂªn/admin Ä‘Æ°á»£c gĂ¡n xá»­ lĂ½ khiáº¿u náº¡i.');
+            $table->text('resolution_note')->nullable()->comment('Ghi chĂº giáº£i quyáº¿t khiáº¿u náº¡i.');
+            $table->char('resolved_by', 36)->nullable()->comment('NgÆ°á»i xá»­ lĂ½ xong khiáº¿u náº¡i.');
+            $table->timestamp('resolved_at')->nullable()->comment('Thá»i Ä‘iá»ƒm xá»­ lĂ½ xong.');
+            $table->timestamps();
+            $table->index('complaint_type', 'complaints_complaint_type_index');
+            $table->index('status', 'complaints_status_index');
+            $table->index(['status', 'created_at'], 'complaints_status_created_at_index');
+            $table->foreign('assigned_to')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('booking_id')->references('id')->on('bookings')->onDelete('set null');
+            $table->foreign('customer_id')->references('id')->on('users')->onDelete('restrict');
+            $table->foreign('resolved_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('set null');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('complaints');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('venue_posts', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('venue_cluster_id', 36);
+            $table->char('author_id', 36);
+            $table->longText('content');
+            $table->enum('status', ['pending_review', 'published', 'rejected', 'hidden'])->default('pending_review');
+            $table->char('reviewed_by', 36)->nullable();
+            $table->timestamp('reviewed_at')->nullable();
+            $table->text('status_reason')->nullable();
+            $table->unsignedBigInteger('view_count')->default(0);
+            $table->unsignedInteger('like_count')->default(0);
+            $table->unsignedInteger('comment_count')->default(0);
+            $table->timestamps();
+
+            $table->index(['venue_cluster_id', 'status'], 'venue_posts_venue_cluster_id_status_index');
+            $table->index('status', 'venue_posts_status_index');
+            $table->foreign('author_id')->references('id')->on('users')->onDelete('restrict');
+            $table->foreign('reviewed_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('venue_posts');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('favorite_venues', function (Blueprint $table) {
+            $table->id();
+            $table->char('user_id', 36)->comment('User yĂªu thĂ­ch cá»¥m sĂ¢n.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->char('venue_cluster_id', 36)->comment('Cá»¥m sĂ¢n Ä‘Æ°á»£c user yĂªu thĂ­ch.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm user thĂªm sĂ¢n vĂ o danh sĂ¡ch yĂªu thĂ­ch.; VD: 2026-06-15 18:00:00');
+            $table->unique(['user_id', 'venue_cluster_id'], 'favorite_venues_user_id_venue_cluster_id_unique');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('cascade');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('favorite_venues');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('payments', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->string('payment_code', 50)->unique()->comment('MĂ£ thanh toĂ¡n ná»™i bá»™ cá»§a há»‡ thá»‘ng.');
+            $table->char('booking_id', 36)->comment('Booking Ä‘Æ°á»£c thanh toĂ¡n.');
+            $table->decimal('amount', 12, 2)->comment('Sá»‘ tiá»n cá»§a láº§n thanh toĂ¡n nĂ y.');
+            $table->enum('payment_kind', ['full', 'deposit', 'partial'])->default('partial')->comment('Loáº¡i thanh toĂ¡n.');
+            $table->string('method', 50)->default('sepay')->comment('PhÆ°Æ¡ng thá»©c thanh toĂ¡n.');
+            $table->string('gateway_txn_id', 100)->unique()->nullable()->comment('MĂ£ giao dá»‹ch tá»« cá»•ng thanh toĂ¡n.');
+            $table->json('gateway_response')->nullable()->comment('JSON pháº£n há»“i tá»« gateway.');
+            $table->enum('status', ['pending', 'paid', 'failed', 'refunded'])->default('pending')->comment('Tráº¡ng thĂ¡i payment.');
+            $table->timestamp('paid_at')->nullable()->comment('Thá»i Ä‘iá»ƒm thanh toĂ¡n thĂ nh cĂ´ng.');
+            $table->timestamps();
+            $table->index(['booking_id', 'status'], 'payments_booking_id_status_index');
+            $table->index(['status', 'created_at'], 'payments_status_created_at_index');
+            $table->index('method', 'payments_method_index');
+            $table->index('status', 'payments_status_index');
+            $table->index('paid_at', 'payments_paid_at_index');
+            $table->foreign('booking_id')->references('id')->on('bookings')->onDelete('restrict');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('payments');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('holiday_prices', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('venue_cluster_id', 36)->comment('Cá»¥m sĂ¢n Ă¡p dá»¥ng giĂ¡ Ä‘áº·c biá»‡t.');
+            $table->unsignedBigInteger('court_type_id')->comment('Loáº¡i sĂ¢n Ă¡p dá»¥ng giĂ¡ Ä‘áº·c biá»‡t.');
+            $table->enum('date_type', ['holiday', 'special_date'])->default('holiday')->comment('Loáº¡i ngĂ y: holiday hoáº·c special_date.');
+            $table->enum('booking_type', ['all', 'single', 'recurring'])->default('all')->comment('Kiá»ƒu booking Ă¡p dá»¥ng giĂ¡.');
+            $table->date('holiday_date')->comment('NgĂ y cá»¥ thá»ƒ Ă¡p dá»¥ng giĂ¡ Ä‘áº·c biá»‡t.');
+            $table->time('start_time')->default('00:00:00')->comment('Giá» báº¯t Ä‘áº§u khung giĂ¡.');
+            $table->time('end_time')->default('23:59:59')->comment('Giá» káº¿t thĂºc khung giĂ¡.');
+            $table->decimal('price', 12, 2)->default(0.00)->comment('GiĂ¡ Ä‘áº·c biá»‡t.');
+            $table->string('note', 255)->nullable()->comment('Ghi chĂº lĂ½ do.');
+            $table->boolean('is_active')->default(true)->comment('GiĂ¡ ngĂ y lá»… cĂ²n Ä‘Æ°á»£c Ă¡p dá»¥ng hay khĂ´ng.');
+            $table->timestamps();
+            $table->unique(['venue_cluster_id', 'court_type_id', 'holiday_date', 'start_time', 'end_time', 'booking_type'], 'holiday_prices_unique');
+            $table->index(['venue_cluster_id', 'court_type_id', 'holiday_date', 'booking_type', 'is_active'], 'holiday_prices_lookup_index');
+            $table->index('date_type', 'holiday_prices_date_type_index');
+            $table->index('booking_type', 'holiday_prices_booking_type_index');
+            $table->index('start_time', 'holiday_prices_start_time_index');
+            $table->index('end_time', 'holiday_prices_end_time_index');
+            $table->index('is_active', 'holiday_prices_is_active_index');
+            $table->foreign('court_type_id')->references('id')->on('court_types')->onDelete('restrict');
+            $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('holiday_prices');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('media', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->string('mediable_type', 100)->comment('Loáº¡i Ä‘á»‘i tÆ°á»£ng sá»Ÿ há»¯u file; polymorphic.');
+            $table->string('mediable_id', 100)->comment('ID Ä‘á»‘i tÆ°á»£ng sá»Ÿ há»¯u file.');
+            $table->string('collection', 50)->default('default')->comment('NhĂ³m file theo nghiá»‡p vá»¥.');
+            $table->string('file_name', 255)->comment('TĂªn file hiá»ƒn thá»‹/gá»‘c.');
+            $table->string('file_path', 500)->comment('ÄÆ°á»ng dáº«n hoáº·c storage key.');
+            $table->string('mime_type', 100)->comment('Loáº¡i file Ä‘á»ƒ validate áº£nh/pdf.');
+            $table->unsignedBigInteger('file_size')->default(0)->comment('Dung lÆ°á»£ng file tĂ­nh báº±ng byte.');
+            $table->smallInteger('sort_order')->default(0)->comment('Thá»© tá»± hiá»ƒn thá»‹.');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm upload file.');
+            $table->index('collection', 'media_collection_index');
+            $table->index('mime_type', 'media_mime_type_index');
+            $table->index(['mediable_type', 'mediable_id', 'collection'], 'media_mediable_collection_index');
+            $table->index(['mediable_type', 'mediable_id'], 'media_mediable_type_mediable_id_index');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('media');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('messages', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('conversation_id', 36)->comment('Conversation chá»©a tin nháº¯n.');
+            $table->char('sender_id', 36)->nullable()->comment('User gá»­i tin nháº¯n; nullable cho tin nháº¯n há»‡ thá»‘ng.');
+            $table->text('content')->comment('Ná»™i dung tin nháº¯n.');
+            $table->boolean('is_system')->default(false)->comment('ÄĂ¡nh dáº¥u tin nháº¯n há»‡ thá»‘ng.');
+            $table->string('reference_type', 100)->nullable()->comment('Loáº¡i Ä‘á»‘i tÆ°á»£ng Ä‘Ă­nh kĂ¨m; logical reference.');
+            $table->string('reference_id', 100)->nullable()->comment('ID Ä‘á»‘i tÆ°á»£ng Ä‘Ă­nh kĂ¨m.');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm gá»­i tin nháº¯n.');
+            $table->index(['conversation_id', 'created_at'], 'messages_conversation_id_created_at_index');
+            $table->index(['reference_type', 'reference_id'], 'messages_reference_type_reference_id_index');
+            $table->index('created_at', 'messages_created_at_index');
+            $table->index('is_system', 'messages_is_system_index');
+            $table->foreign('conversation_id')->references('id')->on('conversations')->onDelete('cascade');
+            $table->foreign('sender_id')->references('id')->on('users')->onDelete('set null');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('messages');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('moderation_configs', function (Blueprint $table) {
+            $table->string('key', 100)->primary();
+            $table->text('value')->comment('GiĂ¡ trá»‹ cáº¥u hĂ¬nh lÆ°u dáº¡ng text.');
+            $table->enum('value_type', ['string', 'integer', 'float', 'boolean', 'json'])->default('string')->comment('Kiá»ƒu dá»¯ liá»‡u cá»§a value.');
+            $table->text('description')->nullable()->comment('MĂ´ táº£ cáº¥u hĂ¬nh.');
+            $table->char('updated_by', 36)->nullable()->comment('Admin/nhĂ¢n viĂªn cáº­p nháº­t cáº¥u hĂ¬nh.');
+            $table->timestamps();
+            $table->foreign('updated_by')->references('id')->on('users')->onDelete('set null');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('moderation_configs');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('notifications', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('user_id', 36)->comment('NgÆ°á»i nháº­n thĂ´ng bĂ¡o.');
+            $table->string('type', 50)->comment('Loáº¡i thĂ´ng bĂ¡o.');
+            $table->string('title', 255)->comment('TiĂªu Ä‘á» thĂ´ng bĂ¡o.');
+            $table->text('body')->nullable()->comment('Ná»™i dung ngáº¯n.');
+            $table->string('reference_type', 100)->nullable()->comment('Loáº¡i Ä‘á»‘i tÆ°á»£ng Ä‘iá»u hÆ°á»›ng; logical reference.');
+            $table->string('reference_id', 100)->nullable()->comment('ID Ä‘á»‘i tÆ°á»£ng Ä‘iá»u hÆ°á»›ng.');
+            $table->json('data')->nullable()->comment('JSON dá»¯ liá»‡u phá»¥.');
+            $table->boolean('is_read')->default(false)->comment('ÄĂ¡nh dáº¥u user Ä‘Ă£ Ä‘á»c.');
+            $table->timestamp('read_at')->nullable()->comment('Thá»i Ä‘iá»ƒm user Ä‘á»c.');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm táº¡o thĂ´ng bĂ¡o.');
+            $table->index('type', 'notifications_type_index');
+            $table->index('is_read', 'notifications_is_read_index');
+            $table->index('created_at', 'notifications_created_at_index');
+            $table->index(['reference_type', 'reference_id'], 'notifications_reference_type_reference_id_index');
+            $table->index(['user_id', 'is_read', 'created_at'], 'notifications_user_id_is_read_created_at_index');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('notifications');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('payment_logs', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('payment_id', 36)->comment('Payment mĂ  log nĂ y thuá»™c vá».');
+            $table->string('event_type', 50)->comment('Loáº¡i sá»± kiá»‡n.');
+            $table->json('request_payload')->nullable()->comment('JSON payload gá»­i Ä‘i.');
+            $table->json('response_payload')->nullable()->comment('JSON pháº£n há»“i tá»« gateway.');
+            $table->string('status_before', 20)->nullable()->comment('Tráº¡ng thĂ¡i payment trÆ°á»›c.');
+            $table->string('status_after', 20)->nullable()->comment('Tráº¡ng thĂ¡i payment sau.');
+            $table->string('gateway_txn_id', 100)->nullable()->comment('MĂ£ giao dá»‹ch gateway.');
+            $table->string('error_code', 100)->nullable()->comment('MĂ£ lá»—i náº¿u cĂ³.');
+            $table->text('error_message')->nullable()->comment('ThĂ´ng Ä‘iá»‡p lá»—i chi tiáº¿t.');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm ghi log.');
+            $table->index(['payment_id', 'created_at'], 'payment_logs_payment_id_created_at_index');
+            $table->index('event_type', 'payment_logs_event_type_index');
+            $table->index('gateway_txn_id', 'payment_logs_gateway_txn_id_index');
+            $table->index('error_code', 'payment_logs_error_code_index');
+            $table->index('created_at', 'payment_logs_created_at_index');
+            $table->foreign('payment_id')->references('id')->on('payments')->onDelete('restrict');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('payment_logs');
+    }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('permissions', function (Blueprint $table) {
+            $table->id();
+            $table->string('code', 100)->unique()->comment('MĂ£ quyá»n duy nháº¥t.');
+            $table->string('name', 255)->comment('TĂªn quyá»n dá»… Ä‘á»c.');
+            $table->string('group_name', 50)->comment('NhĂ³m quyá»n Ä‘á»ƒ FE gom theo module.');
+            $table->timestamp('created_at')->nullable();
+            $table->index('group_name', 'permissions_group_name_index');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('permissions'); }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('platform_fee_tiers', function (Blueprint $table) {
+            $table->id();
+            $table->string('name', 50)->unique()->comment('TĂªn báº­c phĂ­.');
+            $table->unsignedInteger('min_courts')->comment('Sá»‘ sĂ¢n con tá»‘i thiá»ƒu.');
+            $table->unsignedInteger('max_courts')->nullable()->comment('Sá»‘ sĂ¢n con tá»‘i Ä‘a; null = khĂ´ng giá»›i háº¡n.');
+            $table->decimal('price_per_court_month', 12, 2)->default(0.00)->comment('GiĂ¡/sĂ¢n/thĂ¡ng.');
+            $table->decimal('annual_discount_percent', 5, 2)->default(0.00)->comment('Pháº§n trÄƒm giáº£m khi Ä‘Ă³ng theo nÄƒm.');
+            $table->boolean('is_active')->default(true)->comment('Báº­c phĂ­ cĂ²n Ă¡p dá»¥ng.');
+            $table->timestamp('effective_from')->nullable()->comment('Thá»i Ä‘iá»ƒm báº¯t Ä‘áº§u hiá»‡u lá»±c.');
+            $table->timestamps();
+            $table->index('min_courts', 'platform_fee_tiers_min_courts_index');
+            $table->index('max_courts', 'platform_fee_tiers_max_courts_index');
+            $table->index('is_active', 'platform_fee_tiers_is_active_index');
+            $table->index('effective_from', 'platform_fee_tiers_effective_from_index');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('platform_fee_tiers'); }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('player_posts', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('booking_id', 36)->comment('Booking báº¯t buá»™c gáº¯n vá»›i bĂ i tuyá»ƒn.');
+            $table->char('author_id', 36)->comment('NgÆ°á»i táº¡o bĂ i tuyá»ƒn.');
+            $table->string('title', 255)->comment('TiĂªu Ä‘á» bĂ i tuyá»ƒn.');
+            $table->text('description')->nullable()->comment('Ná»™i dung mĂ´ táº£ buá»•i giao lÆ°u.');
+            $table->unsignedSmallInteger('needed_players')->default(1)->comment('Sá»‘ ngÆ°á»i cáº§n tuyá»ƒn thĂªm.');
+            $table->decimal('cost_per_player', 12, 2)->nullable()->comment('Chi phĂ­/ngÆ°á»i chá»‰ Ä‘á»ƒ hiá»ƒn thá»‹.');
+            $table->enum('status', ['open', 'full', 'closed', 'cancelled'])->default('open')->comment('Tráº¡ng thĂ¡i bĂ i tuyá»ƒn.');
+            $table->text('status_reason')->nullable()->comment('LĂ½ do Ä‘Ă³ng/há»§y.');
+            $table->timestamps();
+            $table->index(['author_id', 'created_at'], 'player_posts_author_id_created_at_index');
+            $table->index(['booking_id', 'status'], 'player_posts_booking_id_status_index');
+            $table->index('status', 'player_posts_status_index');
+            $table->index('title', 'player_posts_title_index');
+            $table->foreign('author_id')->references('id')->on('users')->onDelete('restrict');
+            $table->foreign('booking_id')->references('id')->on('bookings')->onDelete('cascade');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('player_posts'); }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('hashtags', function (Blueprint $table) {
+            $table->id();
+            $table->string('name', 100)->unique();
+            $table->string('slug', 100)->unique();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('hashtags');
+    }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('player_post_participants', function (Blueprint $table) {
+            $table->id();
+            $table->char('post_id', 36)->comment('BĂ i tuyá»ƒn mĂ  user muá»‘n tham gia.');
+            $table->char('user_id', 36)->comment('User quan tĂ¢m hoáº·c tham gia.');
+            $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending')->comment('Tráº¡ng thĂ¡i tham gia.');
+            $table->text('message')->nullable()->comment('Tin nháº¯n/ghi chĂº.');
+            $table->timestamp('responded_at')->nullable()->comment('Thá»i Ä‘iá»ƒm ngÆ°á»i táº¡o bĂ i pháº£n há»“i.');
+            $table->timestamps();
+            $table->unique(['post_id', 'user_id'], 'player_post_participants_post_id_user_id_unique');
+            $table->index('status', 'player_post_participants_status_index');
+            $table->index(['user_id', 'status'], 'player_post_participants_user_id_status_index');
+            $table->foreign('post_id')->references('id')->on('player_posts')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('player_post_participants'); }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('player_preferences', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('user_id', 36)->unique()->comment('User sá»Ÿ há»¯u há»“ sÆ¡ ngÆ°á»i chÆ¡i.');
+            $table->decimal('player_rating_avg', 3, 2)->default(0.00)->comment('Äiá»ƒm trung bĂ¬nh.');
+            $table->unsignedInteger('player_rating_count')->default(0)->comment('Sá»‘ lÆ°á»£t Ä‘Ă¡nh giĂ¡.');
+            $table->timestamps();
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('player_preferences'); }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('venue_platform_fee_ledgers', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('venue_cluster_id', 36);
+            $table->unsignedBigInteger('tier_id')->nullable();
+            $table->unsignedInteger('court_count');
+            $table->enum('billing_cycle', ['monthly', 'yearly'])->default('monthly');
+            $table->date('period_start');
+            $table->date('period_end');
+            $table->decimal('price_per_court_month', 12, 2)->default(0.00);
+            $table->decimal('discount_percent', 5, 2)->default(0.00);
+            $table->decimal('amount_due', 12, 2)->default(0.00);
+            $table->decimal('amount_paid', 12, 2)->default(0.00);
+            $table->enum('status', ['pending', 'paid', 'overdue', 'cancelled'])->default('pending');
+            $table->timestamp('paid_at')->nullable();
+            $table->timestamps();
+
+            $table->index('billing_cycle', 'venue_platform_fee_ledgers_billing_cycle_index');
+            $table->index('period_start', 'venue_platform_fee_ledgers_period_start_index');
+            $table->index('period_end', 'venue_platform_fee_ledgers_period_end_index');
+            $table->index('status', 'venue_platform_fee_ledgers_status_index');
+            $table->index(['venue_cluster_id', 'status'], 'venue_platform_fee_ledgers_venue_cluster_id_status_index');
+            $table->foreign('tier_id')->references('id')->on('platform_fee_tiers')->onDelete('set null');
+            $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('restrict');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('venue_platform_fee_ledgers');
+    }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('player_preferred_court_types', function (Blueprint $table) {
+            $table->id();
+            $table->char('user_id', 36)->comment('NgÆ°á»i chÆ¡i chá»n loáº¡i sĂ¢n yĂªu thĂ­ch.');
+            $table->unsignedBigInteger('court_type_id')->comment('Loáº¡i sĂ¢n Ä‘Æ°á»£c yĂªu thĂ­ch.');
+            $table->integer('sort_order')->default(0)->comment('Thá»© tá»± Æ°u tiĂªn.');
+            $table->timestamps();
+            $table->unique(['user_id', 'court_type_id'], 'player_preferred_court_types_user_id_court_type_id_unique');
+            $table->foreign('court_type_id')->references('id')->on('court_types')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('player_preferred_court_types'); }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('player_ratings', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('rater_id', 36)->comment('NgÆ°á»i Ä‘Ă¡nh giĂ¡.');
+            $table->char('rated_user_id', 36)->comment('NgÆ°á»i Ä‘Æ°á»£c Ä‘Ă¡nh giĂ¡.');
+            $table->char('post_id', 36)->nullable()->comment('BĂ i tuyá»ƒn lĂ m ngá»¯ cáº£nh Ä‘Ă¡nh giĂ¡.');
+            $table->unsignedTinyInteger('rating')->comment('Äiá»ƒm Ä‘Ă¡nh giĂ¡.');
+            $table->text('comment')->nullable()->comment('Nháº­n xĂ©t.');
+            $table->json('tags')->nullable()->comment('JSON nhĂ£n Ä‘Ă¡nh giĂ¡.');
+            $table->timestamps();
+            $table->unique(['rater_id', 'rated_user_id', 'post_id'], 'player_ratings_context_unique');
+            $table->index(['rated_user_id', 'created_at'], 'player_ratings_rated_user_id_created_at_index');
+            $table->foreign('post_id')->references('id')->on('player_posts')->onDelete('set null');
+            $table->foreign('rated_user_id')->references('id')->on('users')->onDelete('restrict');
+            $table->foreign('rater_id')->references('id')->on('users')->onDelete('restrict');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('player_ratings'); }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('post_hashtags', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('hashtag_id')->comment('Hashtag Ä‘Æ°á»£c gáº¯n.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->string('post_type', 50)->comment('Loáº¡i bĂ i viáº¿t Ä‘Æ°á»£c gáº¯n hashtag: system_posts, community_posts, venue_posts.; VD: booking_reminder');
+            $table->string('post_id', 100)->comment('ID bĂ i viáº¿t Ä‘Æ°á»£c gáº¯n hashtag; logical reference.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm gáº¯n hashtag vĂ o bĂ i.; VD: 2026-06-15 18:00:00');
+            $table->index(['post_type', 'post_id'], 'post_hashtags_post_type_post_id_index');
+            $table->unique(['hashtag_id', 'post_type', 'post_id'], 'post_hashtags_unique');
+            $table->foreign('hashtag_id')->references('id')->on('hashtags')->onDelete('cascade');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('post_hashtags');
+    }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('price_slots', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('venue_cluster_id', 36)->comment('Cá»¥m sĂ¢n Ă¡p dá»¥ng giĂ¡.');
+            $table->unsignedBigInteger('court_type_id')->comment('Loáº¡i sĂ¢n Ă¡p dá»¥ng giĂ¡.');
+            $table->enum('booking_type', ['all', 'single', 'recurring'])->default('all')->comment('Kiá»ƒu booking Ă¡p dá»¥ng giĂ¡.');
+            $table->time('start_time')->comment('Giá» báº¯t Ä‘áº§u khung giĂ¡.');
+            $table->time('end_time')->comment('Giá» káº¿t thĂºc khung giĂ¡.');
+            $table->decimal('price', 12, 2)->default(0.00)->comment('GiĂ¡ tiá»n.');
+            $table->json('apply_to_days')->nullable();
+            $table->boolean('is_active')->default(true)->comment('Khung giĂ¡ cĂ²n dĂ¹ng.');
+            $table->timestamps();
+            $table->index(['venue_cluster_id', 'court_type_id', 'booking_type', 'is_active'], 'price_slots_cluster_type_active_index');
+            $table->index('booking_type', 'price_slots_booking_type_index');
+            $table->index('start_time', 'price_slots_start_time_index');
+            $table->index('end_time', 'price_slots_end_time_index');
+            $table->index('is_active', 'price_slots_is_active_index');
+            $table->foreign('court_type_id')->references('id')->on('court_types')->onDelete('restrict');
+            $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('cascade');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('price_slots'); }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('refunds', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('payment_id', 36)->comment('Payment gá»‘c cáº§n hoĂ n tiá»n.');
+            $table->char('booking_id', 36)->comment('Booking liĂªn quan, denormalized.');
+            $table->decimal('amount', 12, 2)->comment('Sá»‘ tiá»n yĂªu cáº§u hoĂ n.');
+            $table->text('reason')->nullable()->comment('LĂ½ do yĂªu cáº§u hoĂ n.');
+            $table->enum('status', ['pending_confirmation', 'processing', 'completed', 'failed', 'rejected'])->default('pending_confirmation')->comment('Tráº¡ng thĂ¡i refund.');
+            $table->text('status_reason')->nullable()->comment('LĂ½ do tá»« chá»‘i/tháº¥t báº¡i.');
+            $table->char('processed_by', 36)->nullable()->comment('Admin xá»­ lĂ½ hoĂ n tiá»n.');
+            $table->timestamp('processed_at')->nullable()->comment('Thá»i Ä‘iá»ƒm xá»­ lĂ½.');
+            $table->timestamps();
+            $table->index(['booking_id', 'status'], 'refunds_booking_id_status_index');
+            $table->index(['status', 'created_at'], 'refunds_status_created_at_index');
+            $table->foreign('payment_id')->references('id')->on('payments')->onDelete('restrict');
+            $table->foreign('processed_by')->references('id')->on('users')->onDelete('set null');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('refunds'); }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('reports', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('reporter_id', 36)->comment('User gá»­i report.');
+            $table->string('reportable_type', 100)->comment('Loáº¡i Ä‘á»‘i tÆ°á»£ng bá»‹ report; logical reference.');
+            $table->string('reportable_id', 100)->comment('ID Ä‘á»‘i tÆ°á»£ng bá»‹ report.');
+            $table->enum('reason', ['spam', 'offensive', 'fake', 'harassment', 'other'])->comment('LĂ½ do report.');
+            $table->text('description')->nullable()->comment('MĂ´ táº£ chi tiáº¿t.');
+            $table->enum('status', ['pending', 'reviewing', 'resolved', 'dismissed'])->default('pending')->comment('Tráº¡ng thĂ¡i xá»­ lĂ½.');
+            $table->enum('action_taken', ['warning', 'content_hidden', 'content_deleted', 'account_locked', 'venue_locked'])->nullable()->comment('HĂ nh Ä‘á»™ng Ä‘Ă£ Ă¡p dá»¥ng.');
+            $table->text('action_note')->nullable()->comment('Ghi chĂº xá»­ lĂ½.');
+            $table->char('reviewed_by', 36)->nullable()->comment('NgÆ°á»i xá»­ lĂ½.');
+            $table->timestamp('reviewed_at')->nullable()->comment('Thá»i Ä‘iá»ƒm xá»­ lĂ½.');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm gá»­i report.');
+            $table->index(['reportable_type', 'reportable_id'], 'reports_reportable_type_reportable_id_index');
+            $table->unique(['reporter_id', 'reportable_type', 'reportable_id'], 'reports_reporter_target_unique');
+            $table->index('status', 'reports_status_index');
+            $table->index(['status', 'created_at'], 'reports_status_created_at_index');
+            $table->index('created_at', 'reports_created_at_index');
+            $table->foreign('reporter_id')->references('id')->on('users')->onDelete('restrict');
+            $table->foreign('reviewed_by')->references('id')->on('users')->onDelete('set null');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('reports'); }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('reviews', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('booking_id', 36)->unique()->comment('Booking Ä‘Æ°á»£c review; unique.');
+            $table->char('customer_id', 36)->comment('User Ä‘Ă£ Ä‘áº·t sĂ¢n, denormalized.');
+            $table->char('venue_cluster_id', 36)->comment('Cá»¥m sĂ¢n Ä‘Æ°á»£c review, denormalized.');
+            $table->unsignedTinyInteger('rating')->comment('Äiá»ƒm Ä‘Ă¡nh giĂ¡.');
+            $table->text('comment')->nullable()->comment('Ná»™i dung review.');
+            $table->text('reply_content')->nullable()->comment('Pháº£n há»“i cá»§a chá»§ sĂ¢n.');
+            $table->timestamp('replied_at')->nullable()->comment('Thá»i Ä‘iá»ƒm chá»§ sĂ¢n pháº£n há»“i.');
+            $table->boolean('is_visible')->default(true)->comment('Review cĂ³ hiá»ƒn thá»‹ cĂ´ng khai.');
+            $table->timestamps();
+            $table->index('customer_id', 'reviews_customer_id_index');
+            $table->index('venue_cluster_id', 'reviews_venue_cluster_id_index');
+            $table->index('is_visible', 'reviews_is_visible_index');
+            $table->index(['venue_cluster_id', 'is_visible', 'created_at'], 'reviews_venue_cluster_id_is_visible_created_at_index');
+            $table->foreign('booking_id')->references('id')->on('bookings')->onDelete('restrict');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('reviews'); }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('role_permissions', function (Blueprint $table) {
+            $table->unsignedBigInteger('role_id');
+            $table->unsignedBigInteger('permission_id');
+            $table->primary(['role_id', 'permission_id']);
+            $table->foreign('permission_id')->references('id')->on('permissions')->onDelete('cascade');
+            $table->foreign('role_id')->references('id')->on('roles')->onDelete('cascade');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('role_permissions');
+    }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('slot_locks', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('venue_cluster_id', 36)->comment('Cá»¥m sĂ¢n bá»‹ giá»¯/khĂ³a; denormalized.');
+            $table->char('venue_court_id', 36)->nullable()->comment('SĂ¢n con bá»‹ giá»¯/khĂ³a; nullable khi khĂ³a cáº£ cá»¥m.');
+            $table->enum('lock_scope', ['court', 'cluster'])->default('court')->comment('Pháº¡m vi khĂ³a.');
+            $table->date('booking_date')->comment('NgĂ y bá»‹ giá»¯/khĂ³a.');
+            $table->time('start_time')->comment('Giá» báº¯t Ä‘áº§u.');
+            $table->time('end_time')->comment('Giá» káº¿t thĂºc.');
+            $table->string('locked_by', 100)->comment('Äá»‹nh danh ngÆ°á»i/session táº¡o lock.');
+            $table->char('booking_id', 36)->nullable()->comment('Booking liĂªn quan.');
+            $table->enum('lock_type', ['auto', 'manual'])->default('auto')->comment('Loáº¡i lock.');
+            $table->timestamp('expires_at')->comment('Thá»i Ä‘iá»ƒm lock háº¿t háº¡n.');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm táº¡o lock.');
+            $table->index(['venue_court_id', 'booking_date', 'start_time', 'end_time'], 'slot_locks_court_time_index');
+            $table->index('venue_cluster_id', 'slot_locks_venue_cluster_id_index');
+            $table->index('booking_date', 'slot_locks_booking_date_index');
+            $table->index('start_time', 'slot_locks_start_time_index');
+            $table->index('end_time', 'slot_locks_end_time_index');
+            $table->index('lock_scope', 'slot_locks_lock_scope_index');
+            $table->index('locked_by', 'slot_locks_locked_by_index');
+            $table->index('expires_at', 'slot_locks_expires_at_index');
+            $table->foreign('booking_id')->references('id')->on('bookings')->onDelete('set null');
+            $table->foreign('venue_court_id')->references('id')->on('venue_courts')->onDelete('cascade');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('slot_locks'); }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('system_policies', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->string('key', 100)->comment('MĂ£ chĂ­nh sĂ¡ch.');
+            $table->unsignedInteger('version')->default(1)->comment('PhiĂªn báº£n chĂ­nh sĂ¡ch.');
+            $table->string('title', 255)->comment('TiĂªu Ä‘á» chĂ­nh sĂ¡ch.');
+            $table->longText('content')->comment('Ná»™i dung Ä‘áº§y Ä‘á»§.');
+            $table->enum('type', ['general', 'refund', 'booking', 'moderation'])->default('general')->comment('Loáº¡i chĂ­nh sĂ¡ch.');
+            $table->boolean('is_active')->default(true)->comment('ChĂ­nh sĂ¡ch Ä‘ang cĂ³ hiá»‡u lá»±c.');
+            $table->timestamp('effective_from')->nullable()->comment('Thá»i Ä‘iá»ƒm báº¯t Ä‘áº§u hiá»‡u lá»±c.');
+            $table->char('created_by', 36)->nullable()->comment('Admin táº¡o.');
+            $table->char('updated_by', 36)->nullable()->comment('Admin cáº­p nháº­t.');
+            $table->timestamps();
+            $table->unique(['key', 'version'], 'system_policies_key_version_unique');
+            $table->index('type', 'system_policies_type_index');
+            $table->index('is_active', 'system_policies_is_active_index');
+            $table->index('effective_from', 'system_policies_effective_from_index');
+            $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('updated_by')->references('id')->on('users')->onDelete('set null');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('system_policies'); }
+};
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('system_posts', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('author_id', 36)->nullable()->comment('Admin/nhĂ¢n viĂªn táº¡o bĂ i viáº¿t.');
+            $table->string('title', 255)->comment('TiĂªu Ä‘á» bĂ i viáº¿t.');
+            $table->string('slug', 255)->unique()->comment('Slug duy nháº¥t.');
+            $table->longText('content')->comment('Ná»™i dung bĂ i viáº¿t.');
+            $table->string('thumbnail_path', 1000)->nullable()->comment('ÄÆ°á»ng dáº«n áº£nh Ä‘áº¡i diá»‡n.');
+            $table->enum('status', ['draft', 'published', 'hidden'])->default('draft')->comment('Tráº¡ng thĂ¡i bĂ i viáº¿t.');
+            $table->timestamp('published_at')->nullable()->comment('Thá»i Ä‘iá»ƒm cĂ´ng khai.');
+            $table->unsignedBigInteger('view_count')->default(0)->comment('Sá»‘ lÆ°á»£t xem.');
+            $table->timestamps();
+            $table->index('status', 'system_posts_status_index');
+            $table->index('published_at', 'system_posts_published_at_index');
+            $table->foreign('author_id')->references('id')->on('users')->onDelete('set null');
+        });
+    }
+    public function down(): void { Schema::dropIfExists('system_posts'); }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('user_permission_revokes', function (Blueprint $table) {
+            $table->id();
+            $table->char('user_id', 36)->comment('User bá»‹ thu há»“i quyá»n, trá» users.id.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->unsignedBigInteger('permission_id')->comment('Quyá»n bá»‹ thu há»“i, trá» permissions.id.; VD: booking.manage');
+            $table->string('scope_type')->comment('Pháº¡m vi thu há»“i quyá»n: system hoáº·c venue. GiĂ¡ trá»‹ enum: system=há»‡ thá»‘ng; venue=theo cá»¥m sĂ¢n.; VD: booking_reminder');
+            $table->char('scope_id', 36)->comment('ID pháº¡m vi thu há»“i. Vá»›i system dĂ¹ng zero UUID; vá»›i venue lĂ  venue_clusters.id.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->char('revoked_by', 36)->nullable()->comment('NgÆ°á»i thá»±c hiá»‡n thu há»“i quyá»n, trá» users.id.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->string('reason', 255)->nullable()->comment('LĂ½ do thu há»“i quyá»n Ä‘á»ƒ admin xem láº¡i.; VD: Ná»™i dung máº«u dĂ¹ng Ä‘á»ƒ demo.');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm thu há»“i quyá»n.; VD: 2026-06-15 18:00:00');
+            $table->unique(['user_id', 'permission_id', 'scope_type', 'scope_id'], 'user_permission_revokes_scope_unique');
+            $table->foreign('permission_id')->references('id')->on('permissions')->onDelete('cascade');
+            $table->foreign('revoked_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('user_permission_revokes');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('user_policy_acceptances', function (Blueprint $table) {
+            $table->id();
+            $table->char('user_id', 36);
+            $table->char('system_policy_id', 36);
+            $table->string('policy_version', 50);
+            $table->timestamp('accepted_at')->useCurrent();
+
+            $table->unique(['user_id', 'system_policy_id', 'policy_version'], 'user_policy_acceptances_unique');
+            $table->foreign('system_policy_id')->references('id')->on('system_policies')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('user_policy_acceptances');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('user_roles', function (Blueprint $table) {
+            $table->id();
+            $table->char('user_id', 36)->comment('User nháº­n role, trá» users.id.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->unsignedBigInteger('role_id')->comment('Role Ä‘Æ°á»£c gĂ¡n, trá» roles.id.; VD: venue_owner');
+            $table->enum('scope_type', ['system', 'venue'])->default('system')->comment('Pháº¡m vi role: system lĂ  toĂ n há»‡ thá»‘ng, venue lĂ  trong má»™t cá»¥m sĂ¢n.');
+            $table->char('scope_id', 36)->default('00000000-0000-0000-0000-000000000000')->comment('ID pháº¡m vi. Vá»›i system dĂ¹ng zero UUID; vá»›i venue lĂ  venue_clusters.id.');
+            $table->char('granted_by', 36)->nullable()->comment('Admin/chá»§ sĂ¢n Ä‘Ă£ gĂ¡n role, trá» users.id.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm gĂ¡n role.; VD: 2026-06-15 18:00:00');
+            $table->unique(['user_id', 'role_id', 'scope_type', 'scope_id'], 'user_roles_scope_unique');
+            $table->foreign('granted_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('role_id')->references('id')->on('roles')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('user_roles');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('verification_codes', function (Blueprint $table) {
+            $table->id();
+            $table->char('user_id', 36)->nullable()->comment('User liĂªn quan náº¿u Ä‘Ă£ cĂ³ tĂ i khoáº£n; nullable cho reset hoáº·c pre-register.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->string('identifier', 255)->comment('Email hoáº·c phone nháº­n mĂ£.; VD: giĂ¡ trá»‹ máº«u');
+            $table->string('type')->comment('Má»¥c Ä‘Ă­ch mĂ£: register, reset_password, phone_verify, email_verify. GiĂ¡ trá»‹ enum: register=Ä‘Äƒng kĂ½; reset_password=Ä‘áº·t láº¡i máº­t kháº©u; phone_verify=xĂ¡c thá»±c phone; email_verify=xĂ¡c thá»±c email.; VD: booking_reminder');
+            $table->string('channel')->comment('KĂªnh gá»­i mĂ£: email hoáº·c sms. GiĂ¡ trá»‹ enum: email=email; sms=tin nháº¯n SMS.; VD: giĂ¡ trá»‹ máº«u');
+            $table->string('code', 255)->comment('MĂ£ xĂ¡c thá»±c Ä‘Ă£ sinh.; VD: SPORTGO_CODE_001');
+            $table->smallInteger('attempt_count')->comment('Sá»‘ láº§n user Ä‘Ă£ thá»­ nháº­p mĂ£.; VD: 60');
+            $table->smallInteger('max_attempts')->comment('Sá»‘ láº§n thá»­ tá»‘i Ä‘a trÆ°á»›c khi khĂ³a mĂ£.; VD: 60');
+            $table->boolean('is_used')->comment('ÄĂ¡nh dáº¥u mĂ£ Ä‘Ă£ Ä‘Æ°á»£c dĂ¹ng Ä‘á»ƒ trĂ¡nh dĂ¹ng láº¡i.; VD: true');
+            $table->timestamp('expires_at')->comment('Thá»i Ä‘iá»ƒm mĂ£ háº¿t háº¡n.; VD: 2026-06-15 18:00:00');
+            $table->timestamp('created_at')->nullable()->comment('Thá»i Ä‘iá»ƒm sinh mĂ£.; VD: 2026-06-15 18:00:00');
+            $table->index(['identifier', 'type', 'is_used'], 'verification_codes_lookup_index');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('verification_codes');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('personal_access_tokens', function (Blueprint $table) {
+            $table->id();
+            $table->morphs('tokenable');
+            $table->text('name');
+            $table->string('token', 64)->unique();
+            $table->text('abilities')->nullable();
+            $table->timestamp('last_used_at')->nullable();
+            $table->timestamp('expires_at')->nullable()->index();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('personal_access_tokens');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (Schema::hasTable('complaints')) {
+            Schema::table('complaints', function (Blueprint $table) {
+                if (Schema::hasColumn('complaints', 'resolution_note') && ! Schema::hasColumn('complaints', 'resolve_note')) {
+                    $table->renameColumn('resolution_note', 'resolve_note');
+                }
+
+                if (! Schema::hasColumn('complaints', 'status_reason')) {
+                    $table->text('status_reason')->nullable()->after('resolve_note');
+                }
+            });
+        }
+
+        if (DB::getDriverName() === 'mysql') {
+            $this->alignMysqlColumns();
+        }
+
+        $this->ensureIndex('bookings', 'bookings_venue_cluster_id_index', ['venue_cluster_id']);
+        $this->ensureIndex('slot_locks', 'slot_locks_booking_id_foreign', ['booking_id']);
+        $this->ensureIndex('user_roles', 'user_roles_scope_type_index', ['scope_type']);
+        $this->ensureIndex('user_roles', 'user_roles_scope_id_index', ['scope_id']);
+        $this->ensureIndex('user_permission_revokes', 'user_permission_revokes_scope_type_index', ['scope_type']);
+        $this->ensureIndex('user_permission_revokes', 'user_permission_revokes_scope_id_index', ['scope_id']);
+        $this->ensureIndex('verification_codes', 'verification_codes_identifier_index', ['identifier']);
+        $this->ensureIndex('verification_codes', 'verification_codes_type_index', ['type']);
+        $this->ensureIndex('verification_codes', 'verification_codes_is_used_index', ['is_used']);
+        $this->ensureIndex('verification_codes', 'verification_codes_expires_at_index', ['expires_at']);
+    }
+
+    public function down(): void
+    {
+        // Intentionally not reverting to the pre-design schema.
+    }
+
+    private function alignMysqlColumns(): void
+    {
+        if (Schema::hasTable('bookings')) {
+            Schema::table('bookings', function (Blueprint $table) {
+                $table->unsignedInteger('duration_minutes')->change();
+                $table->decimal('total_price', 12, 2)->default(0.00)->change();
+                $table->enum('payment_option', ['full_payment', 'deposit', 'no_prepay'])->default('no_prepay')->change();
+                $table->decimal('required_payment_amount', 12, 2)->default(0.00)->change();
+                $table->enum('source', ['online', 'counter'])->default('online')->change();
+                $table->enum('booking_type', ['single', 'recurring'])->default('single')->change();
+                $table->unsignedInteger('recurrence_interval')->nullable()->change();
+                $table->enum('status', ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed', 'cancelled', 'expired', 'rejected'])->default('pending_approval')->change();
+            });
+        }
+
+        if (Schema::hasTable('user_roles')) {
+            if (Schema::hasIndex('user_roles', 'user_roles_scope_id_unique')) {
+                Schema::table('user_roles', function (Blueprint $table) {
+                    $table->dropUnique('user_roles_scope_id_unique');
+                });
+            }
+
+            DB::table('user_roles')
+                ->whereNull('scope_id')
+                ->update(['scope_id' => '00000000-0000-0000-0000-000000000000']);
+
+            Schema::table('user_roles', function (Blueprint $table) {
+                $table->enum('scope_type', ['system', 'venue'])->default('system')->change();
+                $table->char('scope_id', 36)->default('00000000-0000-0000-0000-000000000000')->change();
+            });
+        }
+
+        if (Schema::hasTable('user_permission_revokes')) {
+            DB::table('user_permission_revokes')
+                ->whereNull('scope_id')
+                ->update(['scope_id' => '00000000-0000-0000-0000-000000000000']);
+
+            Schema::table('user_permission_revokes', function (Blueprint $table) {
+                $table->enum('scope_type', ['system', 'venue'])->default('system')->change();
+                $table->char('scope_id', 36)->default('00000000-0000-0000-0000-000000000000')->change();
+            });
+        }
+
+        if (Schema::hasTable('verification_codes')) {
+            Schema::table('verification_codes', function (Blueprint $table) {
+                $table->enum('type', ['register', 'reset_password', 'phone_verify', 'email_verify'])->change();
+                $table->enum('channel', ['email', 'sms'])->default('email')->change();
+                $table->unsignedSmallInteger('attempt_count')->default(0)->change();
+                $table->unsignedSmallInteger('max_attempts')->default(5)->change();
+                $table->boolean('is_used')->default(false)->change();
+            });
+        }
+    }
+
+    private function ensureIndex(string $tableName, string $indexName, array $columns): void
+    {
+        if (! Schema::hasTable($tableName) || Schema::hasIndex($tableName, $indexName)) {
+            return;
+        }
+
+        Schema::table($tableName, function (Blueprint $table) use ($columns, $indexName) {
+            $table->index($columns, $indexName);
+        });
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            if (! Schema::hasColumn('users', 'google_id')) {
+                $table->string('google_id', 255)->nullable()->unique()->after('email');
+            }
+        });
+
+        if (DB::getDriverName() === 'mysql' && Schema::hasColumn('users', 'phone')) {
+            DB::statement('ALTER TABLE users MODIFY phone VARCHAR(20) NULL');
+        }
+    }
+
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            if (Schema::hasColumn('users', 'google_id')) {
+                $table->dropUnique('users_google_id_unique');
+                $table->dropColumn('google_id');
+            }
+        });
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (DB::getDriverName() === 'mysql' && Schema::hasTable('personal_access_tokens')) {
+            DB::statement('ALTER TABLE personal_access_tokens MODIFY tokenable_id CHAR(36) NOT NULL');
+        }
+    }
+
+    public function down(): void
+    {
+        // Do not convert UUID token owners back to bigint.
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('court_types', function (Blueprint $table) {
+            $table->foreignId('parent_id')
+                ->nullable()
+                ->after('id')
+                ->comment('ID cá»§a loáº¡i sĂ¢n cha (Ä‘á»ƒ gom nhĂ³m theo bá»™ mĂ´n)')
+                ->constrained('court_types')
+                ->nullOnDelete();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('court_types', function (Blueprint $table) {
+            $table->dropForeign(['parent_id']);
+            $table->dropColumn('parent_id');
+        });
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('system_bank_accounts', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->string('name', 100)->default('TĂ i khoáº£n nháº­n tiá»n há»‡ thá»‘ng')->comment('TĂªn gá»£i nhá»› ná»™i bá»™.');
+            $table->string('bank_name', 100)->nullable()->comment('TĂªn ngĂ¢n hĂ ng hiá»ƒn thá»‹ cho ngÆ°á»i dĂ¹ng.');
+            $table->string('bank_code', 50)->comment('MĂ£ ngĂ¢n hĂ ng dĂ¹ng Ä‘á»ƒ táº¡o QR SePay.');
+            $table->string('account_number', 50)->comment('Sá»‘ tĂ i khoáº£n há»‡ thá»‘ng nháº­n tiá»n.');
+            $table->string('account_holder_name', 150)->comment('TĂªn chá»§ tĂ i khoáº£n há»‡ thá»‘ng.');
+            $table->enum('status', ['active', 'inactive'])->default('active')->comment('Tráº¡ng thĂ¡i sá»­ dá»¥ng.');
+            $table->boolean('is_default')->default(false)->comment('TĂ i khoáº£n nháº­n tiá»n máº·c Ä‘á»‹nh.');
+            $table->timestamps();
+
+            $table->unique(['bank_code', 'account_number'], 'system_bank_accounts_bank_account_unique');
+            $table->index(['status', 'is_default'], 'system_bank_accounts_status_default_index');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('system_bank_accounts');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('owner_wallets', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('owner_id', 36)->unique()->comment('Chá»§ sĂ¢n sá»Ÿ há»¯u vĂ­.');
+            $table->decimal('available_balance', 14, 2)->default(0.00)->comment('Sá»‘ dÆ° cĂ³ thá»ƒ rĂºt.');
+            $table->decimal('pending_withdrawal_balance', 14, 2)->default(0.00)->comment('Sá»‘ tiá»n Ä‘ang giá»¯ cho lá»‡nh rĂºt.');
+            $table->decimal('total_earned', 14, 2)->default(0.00)->comment('Tá»•ng tiá»n há»‡ thá»‘ng Ä‘Ă£ thu há»™.');
+            $table->decimal('total_withdrawn', 14, 2)->default(0.00)->comment('Tá»•ng tiá»n Ä‘Ă£ chi tráº£ cho chá»§ sĂ¢n.');
+            $table->timestamps();
+
+            $table->foreign('owner_id')->references('id')->on('users')->onDelete('restrict');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('owner_wallets');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('owner_wallet_ledgers', function (Blueprint $table) {
+            $table->char('id', 36)->primary();
+            $table->char('owner_wallet_id', 36)->comment('VĂ­ chá»§ sĂ¢n Ä‘Æ°á»£c ghi nháº­n.');
+            $table->char('owner_id', 36)->comment('Chá»§ sĂ¢n Ä‘Æ°á»£c hÆ°á»Ÿng tiá»n.');
+            $table->char('venue_cluster_id', 36)->nullable()->comment('Cá»¥m sĂ¢n phĂ¡t sinh doanh thu.');
+            $table->char('booking_id', 36)->nullable()->comment('Booking phĂ¡t sinh doanh thu.');
+            $table->char('payment_id', 36)->nullable()->comment('Payment phĂ¡t sinh dĂ²ng tiá»n.');
+            $table->enum('type', ['credit', 'debit', 'hold', 'release'])->comment('Loáº¡i biáº¿n Ä‘á»™ng sá»‘ dÆ°.');
+            $table->decimal('amount', 14, 2)->comment('Sá»‘ tiá»n biáº¿n Ä‘á»™ng.');
+            $table->decimal('balance_before', 14, 2)->comment('Sá»‘ dÆ° trÆ°á»›c biáº¿n Ä‘á»™ng.');
+            $table->decimal('balance_after', 14, 2)->comment('Sá»‘ dÆ° sau biáº¿n Ä‘á»™ng.');
+            $table->string('reference_code', 100)->nullable()->comment('MĂ£ tham chiáº¿u ná»™i bá»™/gateway.');
+            $table->text('description')->nullable()->comment('Ghi chĂº nghiá»‡p vá»¥.');
+            $table->json('metadata')->nullable()->comment('ThĂ´ng tin bá»• sung.');
+            $table->timestamps();
+
+            $table->index(['owner_id', 'created_at'], 'owner_wallet_ledgers_owner_created_at_index');
+            $table->index(['venue_cluster_id', 'created_at'], 'owner_wallet_ledgers_cluster_created_at_index');
+            $table->index('booking_id', 'owner_wallet_ledgers_booking_id_index');
+            $table->index('payment_id', 'owner_wallet_ledgers_payment_id_index');
+            $table->unique(['payment_id', 'type'], 'owner_wallet_ledgers_payment_type_unique');
+
+            $table->foreign('owner_wallet_id')->references('id')->on('owner_wallets')->onDelete('restrict');
+            $table->foreign('owner_id')->references('id')->on('users')->onDelete('restrict');
+            $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('set null');
+            $table->foreign('booking_id')->references('id')->on('bookings')->onDelete('set null');
+            $table->foreign('payment_id')->references('id')->on('payments')->onDelete('set null');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('owner_wallet_ledgers');
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('payments', function (Blueprint $table) {
+            $table->char('system_bank_account_id', 36)->nullable()->after('booking_id')->comment('TĂ i khoáº£n há»‡ thá»‘ng nháº­n tiá»n cho payment nĂ y.');
+            $table->index('system_bank_account_id', 'payments_system_bank_account_id_index');
+            $table->foreign('system_bank_account_id')->references('id')->on('system_bank_accounts')->onDelete('set null');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('payments', function (Blueprint $table) {
+            $table->dropForeign(['system_bank_account_id']);
+            $table->dropIndex('payments_system_bank_account_id_index');
+            $table->dropColumn('system_bank_account_id');
+        });
+    }
+};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (Schema::hasColumn('payments', 'venue_payment_account_id')) {
+            Schema::table('payments', function (Blueprint $table) {
+                $table->dropForeign(['venue_payment_account_id']);
+                $table->dropIndex('payments_venue_payment_account_id_index');
+                $table->dropColumn('venue_payment_account_id');
+            });
+        }
+
+        Schema::dropIfExists('venue_payment_accounts');
+
+        if (Schema::hasColumn('venue_clusters', 'sepay_company_xid')) {
+            Schema::table('venue_clusters', function (Blueprint $table) {
+                $table->dropIndex(['sepay_company_xid']);
+                $table->dropColumn('sepay_company_xid');
+            });
+        }
+    }
+
+    public function down(): void
+    {
+        //
+    }
+};

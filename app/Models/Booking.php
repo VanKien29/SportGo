@@ -17,8 +17,13 @@ class Booking extends Model
     protected $fillable = [
         'booking_code',
         'customer_id',
+        'venue_court_id',
+        'requested_venue_court_id',
         'venue_cluster_id',
         'booking_date',
+        'start_time',
+        'end_time',
+        'duration_minutes',
         'total_price',
         'payment_option',
         'required_payment_amount',
@@ -38,6 +43,9 @@ class Booking extends Model
         'cancelled_by',
         'cancelled_at',
         'created_by',
+        'court_changed_by',
+        'court_changed_at',
+        'court_changed_reason',
         'reminder_sent_at',
     ];
 
@@ -45,6 +53,7 @@ class Booking extends Model
     {
         return [
             'booking_date' => 'date',
+            'duration_minutes' => 'integer',
             'total_price' => 'decimal:2',
             'required_payment_amount' => 'decimal:2',
             'recurring_start_date' => 'date',
@@ -53,6 +62,7 @@ class Booking extends Model
             'recurrence_days_of_week' => 'array',
             'recurrence_days_of_month' => 'array',
             'cancelled_at' => 'datetime',
+            'court_changed_at' => 'datetime',
             'reminder_sent_at' => 'datetime',
         ];
     }
@@ -65,6 +75,11 @@ class Booking extends Model
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function courtChangedBy()
+    {
+        return $this->belongsTo(User::class, 'court_changed_by');
     }
 
     public function customer()
@@ -93,5 +108,15 @@ class Booking extends Model
     public function payments()
     {
         return $this->hasMany(Payment::class, 'booking_id');
+    }
+
+    public function requestedVenueCourt()
+    {
+        return $this->belongsTo(VenueCourt::class, 'requested_venue_court_id');
+    }
+
+    public function venueCourt()
+    {
+        return $this->belongsTo(VenueCourt::class, 'venue_court_id');
     }
 }
