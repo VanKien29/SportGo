@@ -46,6 +46,11 @@ class PartnerApplication extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function bankAccounts()
+    {
+        return $this->hasMany(OwnerBankAccount::class, 'partner_application_id');
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
