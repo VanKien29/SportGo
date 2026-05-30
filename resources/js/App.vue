@@ -1,6 +1,18 @@
 <template>
   <router-view />
+  <PolicyPopup />
 </template>
+
+<script>
+import PolicyPopup from './components/PolicyPopup.vue';
+
+export default {
+  name: 'App',
+  components: {
+    PolicyPopup,
+  },
+};
+</script>
 
 <style>
 :root {

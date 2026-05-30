@@ -1,10 +1,10 @@
 import { api } from './api.js';
 
 export const authService = {
-  login(login, password) {
+  login(username, password) {
     return api('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ login, password }),
+      body: JSON.stringify({ username, password }),
     });
   },
 

@@ -1,6 +1,7 @@
 import AdminLayout from '../views/admin/AdminLayout.vue';
 import AdminDashboard from '../views/admin/AdminDashboard.vue';
 import AdminUsers from '../views/admin/AdminUsers.vue';
+import PolicyManagement from '../views/admin/PolicyManagement.vue';
 
 export default [
   {
@@ -10,6 +11,7 @@ export default [
     children: [
       { path: 'dashboard', name: 'AdminDashboard', component: AdminDashboard },
       { path: 'users', name: 'AdminUsers', component: AdminUsers },
+      { path: 'policies', name: 'PolicyManagement', component: PolicyManagement },
     ],
   },
 ];

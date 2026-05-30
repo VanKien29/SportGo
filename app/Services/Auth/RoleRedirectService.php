@@ -15,7 +15,7 @@ class RoleRedirectService
     public function roles(User $user): array
     {
         return $user->roles()
-            ->pluck('roles.name')
+            ->pluck('name')
             ->filter()
             ->unique()
             ->values()

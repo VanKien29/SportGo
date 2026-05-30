@@ -13,15 +13,7 @@ export default {
     };
   },
   mounted() {
-    // Force clear autofilled values after browser may have injected them
-    this.$nextTick(() => {
-      setTimeout(() => {
-        if (this.$refs.usernameRef) this.$refs.usernameRef.value = '';
-        if (this.$refs.passwordRef) this.$refs.passwordRef.value = '';
-        this.username = '';
-        this.password = '';
-      }, 100);
-    });
+    // Để trống hoặc thực hiện logic khởi tạo cần thiết khác
   },
   methods: {
     async handleLogin() {
