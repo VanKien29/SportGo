@@ -16,7 +16,8 @@
           <span class="brand-text">Sport<span class="brand-accent">Go</span></span>
         </router-link>
         <div class="nav-links">
-          <router-link to="/" class="nav-link active-link">Trang chủ</router-link>
+          <router-link to="/" class="nav-link" exact-active-class="active-link">Trang chủ</router-link>
+          <router-link to="/booking" class="nav-link" active-class="active-link" v-if="user && user.role === 'user'">Lịch & Đặt sân</router-link>
         </div>
       </div>
 
@@ -93,7 +94,7 @@
 </template>
 
 <script>
-import { getAuth, getSelectedCluster, logout } from '../stores/auth.js';
+import { getAuth, logout } from '../stores/auth.js';
 
 export default {
   name: 'PublicNavbar',
@@ -134,8 +135,7 @@ export default {
       if (role === 'admin') {
         this.$router.push('/admin/dashboard');
       } else if (role === 'owner') {
-        const cluster = getSelectedCluster();
-        this.$router.push(cluster ? '/owner/dashboard' : '/owner/select-cluster');
+        this.$router.push('/owner/dashboard');
       }
     },
     async handleLogout() {

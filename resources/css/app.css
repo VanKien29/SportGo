@@ -10,3 +10,39 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+.login-page input,
+.modal-overlay input {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    caret-color: #fff;
+}
+
+.login-page input::selection,
+.modal-overlay input::selection {
+    color: #fff;
+    background: rgba(34, 197, 94, .35);
+}
+
+.login-page input:-webkit-autofill,
+.login-page input:-webkit-autofill:hover,
+.login-page input:-webkit-autofill:focus,
+.login-page input:-webkit-autofill:active,
+.modal-overlay input:-webkit-autofill,
+.modal-overlay input:-webkit-autofill:hover,
+.modal-overlay input:-webkit-autofill:focus,
+.modal-overlay input:-webkit-autofill:active {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    caret-color: #fff !important;
+    box-shadow: 0 0 0 1000px #222b34 inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #222b34 inset !important;
+    transition: background-color 9999s ease-out 0s;
+}
+
+.login-page input:autofill,
+.modal-overlay input:autofill {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    background: transparent !important;
+}

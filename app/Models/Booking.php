@@ -72,19 +72,42 @@ class Booking extends Model
         return $this->belongsTo(User::class, 'cancelled_by');
     }
 
-    public function courtChangedBy()
-    {
-        return $this->belongsTo(User::class, 'court_changed_by');
-    }
-
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function courtChangedBy()
+    {
+        return $this->belongsTo(User::class, 'court_changed_by');
+    }
+
     public function customer()
     {
         return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(BookingItem::class, 'booking_id')->orderBy('sort_order');
+    }
+
+    /**
+     * Tổng thời lượng (phút) = SUM(booking_items.duration_minutes)
+     */
+    public function totalDurationMinutes(): int
+    {
+        return (int) $this->items()->sum('duration_minutes');
+    }
+
+    public function venueCluster()
+    {
+        return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'booking_id');
     }
 
     public function requestedVenueCourt()

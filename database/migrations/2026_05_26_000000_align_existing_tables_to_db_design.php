@@ -46,7 +46,6 @@ return new class extends Migration
     {
         if (Schema::hasTable('bookings')) {
             Schema::table('bookings', function (Blueprint $table) {
-                $table->unsignedInteger('duration_minutes')->change();
                 $table->decimal('total_price', 12, 2)->default(0.00)->change();
                 $table->enum('payment_option', ['full_payment', 'deposit', 'no_prepay'])->default('no_prepay')->change();
                 $table->decimal('required_payment_amount', 12, 2)->default(0.00)->change();

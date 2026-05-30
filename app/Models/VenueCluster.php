@@ -56,4 +56,14 @@ class VenueCluster extends Model
     {
         return $this->belongsTo(User::class, 'owner_id');
     }
+
+    public function venueCourts()
+    {
+        return $this->hasMany(VenueCourt::class, 'venue_cluster_id');
+    }
+
+    public function bookingConfig()
+    {
+        return $this->hasOne(BookingConfig::class, 'venue_cluster_id');
+    }
 }

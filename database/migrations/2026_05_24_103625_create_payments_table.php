@@ -14,7 +14,7 @@ return new class extends Migration
             $table->char('booking_id', 36)->comment('Booking được thanh toán.');
             $table->decimal('amount', 12, 2)->comment('Số tiền của lần thanh toán này.');
             $table->enum('payment_kind', ['full', 'deposit', 'partial'])->default('partial')->comment('Loại thanh toán.');
-            $table->enum('method', ['vnpay', 'momo', 'zalopay'])->comment('Cổng thanh toán đã chốt.');
+            $table->string('method', 50)->default('sepay')->comment('Phương thức thanh toán.');
             $table->string('gateway_txn_id', 100)->unique()->nullable()->comment('Mã giao dịch từ cổng thanh toán.');
             $table->json('gateway_response')->nullable()->comment('JSON phản hồi từ gateway.');
             $table->enum('status', ['pending', 'paid', 'failed', 'refunded'])->default('pending')->comment('Trạng thái payment.');

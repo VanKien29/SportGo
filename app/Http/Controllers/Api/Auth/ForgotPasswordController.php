@@ -22,14 +22,14 @@ class ForgotPasswordController extends Controller
     {
         $data = $request->validate([
             'identifier' => ['required', 'string'],
+        ], [
+            'identifier.required' => 'Vui lòng nhập username, email hoặc số điện thoại.',
         ]);
 
         $user = $this->findUserByIdentifier($data['identifier']);
 
         if (! $user) {
-            return response()->json([
-                'message' => 'Nếu tài khoản tồn tại, mã OTP sẽ được gửi về email đăng ký.',
-            ]);
+            return $this->neutralOtpResponse();
         }
 
         if (! $user->email) {
@@ -42,9 +42,7 @@ class ForgotPasswordController extends Controller
         $this->otpService->create($user, $user->email, 'reset_password', $otp);
         Mail::to($user->email)->send(new AuthOtpMail($user, $otp, 'reset_password', OtpService::EXPIRE_MINUTES));
 
-        return response()->json([
-            'message' => 'Nếu tài khoản tồn tại, mã OTP sẽ được gửi về email đăng ký.',
-        ]);
+        return $this->neutralOtpResponse();
     }
 
     public function verifyOtp(Request $request): JsonResponse
@@ -57,7 +55,9 @@ class ForgotPasswordController extends Controller
         $user = $this->findUserByIdentifier($data['identifier']);
 
         if (! $user || ! $user->email) {
-            throw ValidationException::withMessages(['identifier' => 'Không tìm thấy tài khoản có email để reset mật khẩu.']);
+            throw ValidationException::withMessages([
+                'identifier' => 'Không tìm thấy tài khoản có email để reset mật khẩu.',
+            ]);
         }
 
         $this->otpService->verify($user->email, 'reset_password', $data['otp']);
@@ -79,7 +79,9 @@ class ForgotPasswordController extends Controller
         $user = $this->findUserByIdentifier($data['identifier']);
 
         if (! $user || ! $user->email) {
-            throw ValidationException::withMessages(['identifier' => 'Không tìm thấy tài khoản có email để reset mật khẩu.']);
+            throw ValidationException::withMessages([
+                'identifier' => 'Không tìm thấy tài khoản có email để reset mật khẩu.',
+            ]);
         }
 
         $this->otpService->verify($user->email, 'reset_password', $data['otp'], true);
@@ -92,6 +94,13 @@ class ForgotPasswordController extends Controller
 
         return response()->json([
             'message' => 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.',
+        ]);
+    }
+
+    private function neutralOtpResponse(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Nếu tài khoản tồn tại, mã OTP sẽ được gửi về email đăng ký.',
         ]);
     }
 

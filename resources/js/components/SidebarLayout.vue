@@ -1,128 +1,36 @@
 <template>
   <div class="layout">
-    <!-- Sidebar -->
     <aside class="sidebar" :class="{ open: sidebarOpen }">
-      <!-- Brand -->
-      <div class="sidebar-brand">
-        <div class="brand-icon">
-          <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="15" stroke="#22c55e" stroke-width="2"/>
-            <path d="M16 4C20 8 22 12 22 16C22 20 20 24 16 28" stroke="#22c55e" stroke-width="1.5" fill="none"/>
-            <path d="M16 4C12 8 10 12 10 16C10 20 12 24 16 28" stroke="#22c55e" stroke-width="1.5" fill="none"/>
-            <line x1="4" y1="12" x2="28" y2="12" stroke="#22c55e" stroke-width="1.5"/>
-            <line x1="4" y1="20" x2="28" y2="20" stroke="#22c55e" stroke-width="1.5"/>
-          </svg>
-        </div>
-        <div class="brand-info">
-          <span class="brand-name">Sport<span class="brand-accent">Go</span></span>
-          <span class="brand-sub">{{ brandSub }}</span>
-        </div>
-      </div>
-
-      <!-- Navigation -->
       <nav class="sidebar-nav">
         <slot name="nav-items">
           <router-link :to="dashboardRoute" class="nav-item" active-class="nav-active">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="7" height="7" rx="1"/>
-              <rect x="14" y="3" width="7" height="7" rx="1"/>
-              <rect x="3" y="14" width="7" height="7" rx="1"/>
-              <rect x="14" y="14" width="7" height="7" rx="1"/>
-            </svg>
             <span>Dashboard</span>
           </router-link>
         </slot>
       </nav>
 
-      <!-- Cluster info (owner only) — with quick-switch dropdown -->
-      <div v-if="clusterName" class="sidebar-cluster">
-        <div class="cluster-header">
-          <div class="cluster-badge">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-              <circle cx="12" cy="10" r="3"/>
-            </svg>
-            <span class="cluster-name">{{ clusterName }}</span>
-          </div>
-          <button class="cluster-switch-btn" @click="toggleClusterPicker" title="Đổi cụm sân">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="17 1 21 5 17 9"/>
-              <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
-              <polyline points="7 23 3 19 7 15"/>
-              <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
-            </svg>
-          </button>
-        </div>
-
-        <!-- Cluster quick-switch panel -->
-        <transition name="cluster-picker">
-          <div v-if="showClusterPicker" class="cluster-picker">
-            <div class="cluster-picker-title">Chọn cụm sân</div>
-            <button
-              v-for="c in clusters"
-              :key="c.id"
-              class="cluster-option"
-              :class="{ active: c.name === clusterName }"
-              @click="switchCluster(c)"
-            >
-              <div class="cluster-option-dot" :class="{ active: c.name === clusterName }"></div>
-              <div class="cluster-option-info">
-                <div class="cluster-option-name">{{ c.name }}</div>
-                <div class="cluster-option-sub">{{ c.courtCount }} sân</div>
-              </div>
-              <svg v-if="c.name === clusterName" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </button>
-          </div>
-        </transition>
-
-        <!-- Link to full select cluster page -->
-        <router-link to="/owner/select-cluster" class="cluster-switch-link" @click="showClusterPicker = false">
-          Xem tất cả cụm sân
-        </router-link>
-      </div>
-
-      <!-- View as user button (owner only) -->
       <div v-if="isOwner" class="sidebar-view-user">
         <button class="view-user-btn" @click="viewAsUser">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
+          <svg class="icon-btn" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
           Xem trang người dùng
         </button>
       </div>
 
-      <!-- User Section -->
       <div class="sidebar-user" @mouseenter="showDropdown = true" @mouseleave="scheduleHide">
         <button class="user-trigger" @click="toggleDropdown">
           <div class="user-avatar">{{ userInitial }}</div>
           <div class="user-info">
-            <div class="user-name">{{ user?.fullName }}</div>
+            <div class="user-name">{{ user?.fullName || user?.full_name || user?.username }}</div>
             <div class="user-role">{{ roleLabel }}</div>
           </div>
-          <svg class="chevron" :class="{ rotated: showDropdown }" width="16" height="16" viewBox="0 0 24 24"
-               fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
         </button>
 
         <transition name="dd">
           <div v-if="showDropdown" class="user-dropdown" @mouseenter="cancelHide" @mouseleave="scheduleHide">
             <router-link :to="profileRoute" class="dd-item" @click="showDropdown = false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-              </svg>
               Thông tin cá nhân
             </router-link>
             <button class="dd-item dd-logout" @click="handleLogout">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
               Đăng xuất
             </button>
           </div>
@@ -130,29 +38,13 @@
       </div>
     </aside>
 
-    <!-- Mobile overlay -->
-    <div v-if="sidebarOpen" class="overlay" @click="sidebarOpen = false"></div>
+    <div v-if="sidebarOpen && isMobile" class="overlay" @click="sidebarOpen = false"></div>
 
-    <!-- Main -->
     <main class="main-content">
       <header class="topbar">
-        <button class="hamburger" @click="sidebarOpen = !sidebarOpen">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
-          </svg>
-        </button>
+        <button class="hamburger" @click="sidebarOpen = !sidebarOpen">☰</button>
         <div class="topbar-title">
           <slot name="topbar-title"></slot>
-        </div>
-        <!-- Cluster quick info in topbar (owner only) -->
-        <div v-if="clusterName" class="topbar-cluster">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-            <circle cx="12" cy="10" r="3"/>
-          </svg>
-          <span>{{ clusterName }}</span>
         </div>
       </header>
       <div class="content-area">
@@ -163,29 +55,27 @@
 </template>
 
 <script>
-import { getAuth, logout, getSelectedCluster, selectCluster, getClusters } from '../stores/auth.js';
+import { adminLogout, getAuth, logout } from '../stores/auth.js';
 
 export default {
   name: 'SidebarLayout',
   props: {
     brandSub: { type: String, default: '' },
     dashboardRoute: { type: String, default: '/' },
-    clusterName: { type: String, default: '' },
-    showClusterSwitch: { type: Boolean, default: false },
   },
   data() {
     return {
       user: getAuth(),
       showDropdown: false,
       sidebarOpen: false,
+      isMobile: false,
       hideTimer: null,
-      showClusterPicker: false,
-      clusters: getClusters(),
     };
   },
   computed: {
     userInitial() {
-      return this.user?.fullName?.charAt(0)?.toUpperCase() || '?';
+      const name = this.user?.fullName || this.user?.full_name || this.user?.username || '?';
+      return name.charAt(0).toUpperCase();
     },
     roleLabel() {
       const map = { admin: 'Quản trị viên', owner: 'Chủ sân', user: 'Người dùng' };
@@ -202,6 +92,10 @@ export default {
     },
   },
   methods: {
+    updateViewport() {
+      this.isMobile = window.innerWidth <= 768;
+      if (!this.isMobile) this.sidebarOpen = false;
+    },
     toggleDropdown() {
       this.showDropdown = !this.showDropdown;
     },
@@ -211,22 +105,31 @@ export default {
     cancelHide() {
       if (this.hideTimer) clearTimeout(this.hideTimer);
     },
-    toggleClusterPicker() {
-      this.showClusterPicker = !this.showClusterPicker;
-    },
-    switchCluster(cluster) {
-      selectCluster(cluster);
-      this.showClusterPicker = false;
-      // Reload current page to reflect new cluster
-      this.$router.push('/owner/dashboard');
-    },
     viewAsUser() {
       this.sidebarOpen = false;
       this.$router.push('/');
     },
     async handleLogout() {
+      if (this.user?.role === 'admin') {
+        await adminLogout();
+        this.$router.push('/admin/login');
+        return;
+      }
+
       await logout();
       this.$router.push('/login');
+    },
+  },
+  mounted() {
+    this.updateViewport();
+    window.addEventListener('resize', this.updateViewport);
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.updateViewport);
+  },
+  watch: {
+    $route() {
+      this.sidebarOpen = false;
     },
   },
 };
@@ -238,424 +141,270 @@ export default {
   min-height: 100vh;
 }
 
-/* ── Sidebar ── */
 .sidebar {
   width: 260px;
   min-width: 260px;
-  background: var(--sg-dark);
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
+  inset: 0 auto 0 0;
   z-index: 200;
-  transition: transform .25s ease;
-}
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
-}
-.brand-info {
-  display: flex;
-  flex-direction: column;
-}
-.brand-name {
-  font-size: 20px;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: -.4px;
-}
-.brand-accent {
-  color: var(--sg-green);
-}
-.brand-sub {
-  font-size: 11px;
-  color: rgba(255,255,255,.45);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  margin-top: 2px;
+  transition: transform .25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-right: 1px solid #e5e7eb;
 }
 
-/* ── Nav ── */
 .sidebar-nav {
   flex: 1;
-  padding: 16px 12px;
+  padding: 24px 16px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.nav-item {
+
+:deep(.nav-item) {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
-  border-radius: var(--sg-radius-sm);
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(255,255,255,.6);
-  transition: var(--sg-transition);
-  margin-bottom: 4px;
-}
-.nav-item:hover {
-  background: rgba(255,255,255,.06);
-  color: rgba(255,255,255,.9);
-}
-.nav-active {
-  background: rgba(34,197,94,.15) !important;
-  color: var(--sg-green-light) !important;
-}
-
-/* ── Cluster Section ── */
-.sidebar-cluster {
   padding: 12px 16px;
-  border-top: 1px solid rgba(255,255,255,.08);
-}
-.cluster-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.cluster-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  padding: 8px 10px;
-  background: rgba(34,197,94,.1);
-  border-radius: var(--sg-radius-sm);
-  border: 1px solid rgba(34,197,94,.2);
-  min-width: 0;
-}
-.cluster-badge svg {
-  color: var(--sg-green);
-  min-width: 16px;
-}
-.cluster-name {
-  font-size: 12px;
+  border-radius: 10px;
+  color: rgba(0, 0, 0, 0.6) !important;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--sg-green-light);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cluster-switch-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  border-radius: var(--sg-radius-sm);
-  background: rgba(255,255,255,.07);
-  color: rgba(255,255,255,.5);
-  transition: var(--sg-transition);
-}
-.cluster-switch-btn:hover {
-  background: rgba(34,197,94,.2);
-  color: var(--sg-green-light);
-}
-.cluster-switch-link {
-  display: block;
-  text-align: center;
-  margin-top: 6px;
-  font-size: 11px;
-  color: rgba(255,255,255,.3);
-  transition: var(--sg-transition);
-}
-.cluster-switch-link:hover {
-  color: var(--sg-green-light);
+  transition: all 0.2s ease;
+  text-decoration: none;
 }
 
-/* Cluster Picker Dropdown */
-.cluster-picker {
-  background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: var(--sg-radius-sm);
-  overflow: hidden;
-  margin-top: 4px;
-  margin-bottom: 4px;
+:deep(.nav-item:hover) {
+  background: rgba(0, 0, 0, 0.03) !important;
+  color: #000000 !important;
 }
-.cluster-picker-title {
-  font-size: 10px;
+
+:deep(.nav-active) {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #000000 !important;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  color: rgba(255,255,255,.3);
-  padding: 8px 12px 4px;
-}
-.cluster-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 9px 12px;
-  text-align: left;
-  transition: var(--sg-transition);
-  border-top: 1px solid rgba(255,255,255,.04);
-}
-.cluster-option:hover {
-  background: rgba(255,255,255,.07);
-}
-.cluster-option.active {
-  background: rgba(34,197,94,.12);
-}
-.cluster-option-dot {
-  width: 8px;
-  height: 8px;
-  min-width: 8px;
-  border-radius: 50%;
-  background: rgba(255,255,255,.2);
-}
-.cluster-option-dot.active {
-  background: var(--sg-green);
-}
-.cluster-option-info {
-  flex: 1;
-  min-width: 0;
-}
-.cluster-option-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(255,255,255,.85);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cluster-option-sub {
-  font-size: 10px;
-  color: rgba(255,255,255,.35);
-  margin-top: 1px;
-}
-.cluster-option svg {
-  color: var(--sg-green);
-  min-width: 14px;
+  border-left: 3px solid #000000;
+  padding-left: 13px;
 }
 
-/* Cluster picker animation */
-.cluster-picker-enter-active, .cluster-picker-leave-active {
-  transition: opacity .15s ease, max-height .2s ease;
-  max-height: 200px;
-  overflow: hidden;
-}
-.cluster-picker-enter-from, .cluster-picker-leave-to {
-  opacity: 0;
-  max-height: 0;
-}
-
-/* ── View As User Button ── */
 .sidebar-view-user {
-  padding: 0 12px 8px;
+  padding: 0 16px 12px;
 }
+
 .view-user-btn {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #000000;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  padding: 9px 12px;
-  border-radius: var(--sg-radius-sm);
-  background: rgba(59,130,246,.1);
-  border: 1px solid rgba(59,130,246,.2);
-  color: #93c5fd;
-  font-size: 13px;
-  font-weight: 500;
-  transition: var(--sg-transition);
-  text-align: left;
-}
-.view-user-btn:hover {
-  background: rgba(59,130,246,.2);
-  color: #bfdbfe;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-/* ── User Section ── */
+.view-user-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #000000;
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.icon-btn {
+  opacity: 0.8;
+}
+
 .sidebar-user {
   position: relative;
-  padding: 12px;
-  border-top: 1px solid rgba(255,255,255,.08);
+  padding: 16px;
+  border-top: 1px solid #e5e7eb;
+  background: rgba(0, 0, 0, 0.02);
 }
+
 .user-trigger {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   width: 100%;
-  padding: 8px 10px;
-  border-radius: var(--sg-radius-sm);
-  transition: var(--sg-transition);
-  text-align: left;
-}
-.user-trigger:hover {
-  background: rgba(255,255,255,.06);
-}
-.user-avatar {
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--sg-green), var(--sg-green-dark));
-  color: #fff;
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 13px;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 10px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
+
+.user-trigger:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #000000;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .user-info {
   flex: 1;
   min-width: 0;
 }
+
 .user-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255,255,255,.9);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.user-role {
-  font-size: 11px;
-  color: rgba(255,255,255,.4);
-  margin-top: 1px;
-}
-.chevron {
-  color: rgba(255,255,255,.3);
-  transition: transform .2s ease;
-}
-.chevron.rotated {
-  transform: rotate(180deg);
+  color: rgba(0, 0, 0, 0.8);
+  font-size: 13px;
+  font-weight: 600;
 }
 
-/* ── User Dropdown ── */
+.user-role {
+  margin-top: 2px;
+  color: rgba(0, 0, 0, 0.4);
+  font-size: 11px;
+}
+
 .user-dropdown {
   position: absolute;
-  bottom: calc(100% + 4px);
-  left: 12px;
-  right: 12px;
-  background: var(--sg-white);
-  border-radius: var(--sg-radius);
-  box-shadow: var(--sg-shadow-xl);
+  left: 16px;
+  right: 16px;
+  bottom: calc(100% + 8px);
   overflow: hidden;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   z-index: 250;
 }
+
 .dd-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   width: 100%;
+  display: flex;
   padding: 12px 16px;
+  color: rgba(0, 0, 0, 0.8);
   font-size: 13px;
-  color: var(--sg-text);
-  transition: var(--sg-transition);
+  font-weight: 600;
   text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
 }
+
 .dd-item:hover {
-  background: var(--sg-surface);
-  color: var(--sg-green-dark);
+  background: rgba(0, 0, 0, 0.03);
+  color: #000000;
 }
+
 .dd-logout {
-  color: var(--sg-danger);
-  border-top: 1px solid var(--sg-border);
+  color: rgba(0, 0, 0, 0.6);
+  border-top: 1px solid #e5e7eb;
 }
+
 .dd-logout:hover {
-  background: #fef2f2;
-  color: var(--sg-danger);
+  background: rgba(239, 68, 68, 0.05);
+  color: #ef4444;
 }
 
-/* Dropdown transition */
-.dd-enter-active, .dd-leave-active {
-  transition: opacity .15s ease, transform .15s ease;
-}
-.dd-enter-from, .dd-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
 
-/* ── Main ── */
+
 .main-content {
   flex: 1;
-  margin-left: 260px;
   min-height: 100vh;
+  margin-left: 260px;
   display: flex;
   flex-direction: column;
 }
+
 .topbar {
   height: 60px;
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 0 24px;
-  background: var(--sg-white);
+  background: #fff;
   border-bottom: 1px solid var(--sg-border);
   position: sticky;
   top: 0;
   z-index: 50;
 }
+
 .hamburger {
   display: none;
   padding: 8px;
-  border-radius: var(--sg-radius-sm);
+  border-radius: 8px;
   color: var(--sg-text);
-  transition: var(--sg-transition);
 }
-.hamburger:hover {
-  background: var(--sg-surface);
-}
+
 .topbar-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--sg-text);
   flex: 1;
+  color: var(--sg-text);
+  font-size: 16px;
+  font-weight: 800;
 }
-.topbar-cluster {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  background: rgba(34,197,94,.08);
-  border: 1px solid rgba(34,197,94,.2);
-  border-radius: var(--sg-radius-full);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--sg-green-dark);
-}
+
 .content-area {
   flex: 1;
   padding: 24px;
 }
 
-/* ── Overlay (mobile) ── */
 .overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.5);
+  background: rgba(0, 0, 0, .5);
   z-index: 190;
 }
 
-/* ── Responsive ── */
+.dd-enter-active,
+.dd-leave-active {
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+.dd-enter-from,
+.dd-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
   }
+
   .sidebar.open {
     transform: translateX(0);
   }
+
   .overlay {
     display: block;
   }
+
   .main-content {
     margin-left: 0;
   }
+
   .hamburger {
     display: flex;
   }
+
   .content-area {
     padding: 16px;
-  }
-  .topbar-cluster {
-    display: none;
   }
 }
 </style>

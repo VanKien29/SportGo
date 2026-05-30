@@ -1,14 +1,14 @@
 import { authService } from '../services/authService.js';
+import { adminAuthService } from '../services/adminAuthService.js';
 
-const AUTH_KEY = 'sportgo_auth';
-const CLUSTER_KEY = 'sportgo_selected_cluster';
+const OLD_AUTH_KEY = 'sportgo_auth';
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
+const ROLES_KEY = 'auth_roles';
+const ROLE_GROUP_KEY = 'auth_role_group';
+const REDIRECT_KEY = 'auth_redirect_to';
 const PW_SETUP_KEY = 'sportgo_needs_pw_setup';
-
-const MOCK_CLUSTERS = [
-  { id: 'cluster-001', name: 'SportGo Cầu Giấy', address: '15 Duy Tân, Cầu Giấy, Hà Nội', courtCount: 8 },
-  { id: 'cluster-002', name: 'SportGo Mỹ Đình', address: '20 Lê Đức Thọ, Nam Từ Liêm, Hà Nội', courtCount: 12 },
-  { id: 'cluster-003', name: 'SportGo Hà Đông', address: '15 Quang Trung, Hà Đông, Hà Nội', courtCount: 6 },
-];
+const SELECTED_CLUSTER_KEY = 'selected_cluster';
 
 function normalizeAuth(payload, existingToken = null) {
   const user = payload.user || {};
@@ -31,37 +31,88 @@ function normalizeAuth(payload, existingToken = null) {
   };
 }
 
+function readJson(key, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function readOldAuth() {
+  return readJson(OLD_AUTH_KEY, null);
+}
+
 export function saveAuth(payload) {
-  const authData = normalizeAuth(payload, getAuth()?.token || null);
-  localStorage.setItem(AUTH_KEY, JSON.stringify(authData));
+  const authData = normalizeAuth(payload, getToken());
+
+  localStorage.setItem(TOKEN_KEY, authData.token || '');
+  localStorage.setItem(USER_KEY, JSON.stringify(authData.user || {}));
+  localStorage.setItem(ROLES_KEY, JSON.stringify(authData.roles || []));
+  localStorage.setItem(ROLE_GROUP_KEY, authData.role_group || 'user');
+  localStorage.setItem(REDIRECT_KEY, authData.redirect_to || '/');
+  localStorage.removeItem(OLD_AUTH_KEY);
+
   return authData;
 }
 
 export function clearAuth() {
-  localStorage.removeItem(AUTH_KEY);
-  localStorage.removeItem(CLUSTER_KEY);
+  [
+    OLD_AUTH_KEY,
+    TOKEN_KEY,
+    USER_KEY,
+    ROLES_KEY,
+    ROLE_GROUP_KEY,
+    REDIRECT_KEY,
+    SELECTED_CLUSTER_KEY,
+  ].forEach((key) => localStorage.removeItem(key));
 }
 
 export function getAuth() {
+  const oldAuth = readOldAuth();
+  if (oldAuth?.token) return oldAuth;
+
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+
+  const user = readJson(USER_KEY, {});
+  const roles = readJson(ROLES_KEY, []);
+  const roleGroup = localStorage.getItem(ROLE_GROUP_KEY) || 'user';
+
+  return normalizeAuth({
+    token,
+    user,
+    roles,
+    role_group: roleGroup,
+    redirect_to: localStorage.getItem(REDIRECT_KEY) || '/',
+  });
+}
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY) || readOldAuth()?.token || null;
+}
+
+export async function restoreAuth() {
+  const currentToken = getToken();
+  if (!currentToken) return null;
+
   try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const payload = await authService.me();
+    return saveAuth({ ...payload, token: currentToken });
   } catch {
+    clearAuth();
     return null;
   }
 }
 
-export function getToken() {
-  return getAuth()?.token || null;
-}
-
-export async function restoreAuth() {
-  const current = getAuth();
-  if (!current?.token) return null;
+export async function restoreAdminAuth() {
+  const currentToken = getToken();
+  if (!currentToken) return null;
 
   try {
-    const payload = await authService.me();
-    return saveAuth({ ...payload, token: current.token });
+    const payload = await adminAuthService.me();
+    return saveAuth({ ...payload, token: currentToken });
   } catch {
     clearAuth();
     return null;
@@ -73,12 +124,21 @@ export async function login(identifier, password) {
   return saveAuth(data);
 }
 
+export async function adminLogin(identifier, password) {
+  const data = await adminAuthService.login(identifier, password);
+  return saveAuth(data);
+}
+
 export function register(payload) {
   return authService.register(payload);
 }
 
 export function verifyRegisterOtp(email, otp) {
   return authService.verifyRegisterOtp(email, otp);
+}
+
+export function resendRegisterOtp(email) {
+  return authService.resendRegisterOtp(email);
 }
 
 export function sendForgotOtp(identifier) {
@@ -103,13 +163,37 @@ export async function logout() {
   }
 }
 
+export async function adminLogout() {
+  try {
+    if (getToken()) {
+      await adminAuthService.logout();
+    }
+  } finally {
+    clearAuth();
+  }
+}
+
+export function sendAdminForgotOtp(identifier) {
+  return adminAuthService.sendForgotOtp(identifier);
+}
+
+export function verifyAdminForgotOtp(identifier, otp) {
+  return adminAuthService.verifyForgotOtp(identifier, otp);
+}
+
+export function resetAdminPassword(identifier, otp, password, password_confirmation) {
+  return adminAuthService.resetPassword(identifier, otp, password, password_confirmation);
+}
+
 export async function consumeGoogleCallback(query) {
   if (!query.token) return null;
+
   if (query.needs_password_setup === '1') {
     localStorage.setItem(PW_SETUP_KEY, '1');
   } else {
     localStorage.removeItem(PW_SETUP_KEY);
   }
+
   saveAuth({
     token: query.token,
     user: {},
@@ -117,6 +201,7 @@ export async function consumeGoogleCallback(query) {
     role_group: query.role_group || 'user',
     redirect_to: query.redirect_to || '/',
   });
+
   return restoreAuth();
 }
 
@@ -135,21 +220,3 @@ export function clearPasswordSetupFlag() {
 export function setPassword(password, password_confirmation) {
   return authService.setPassword(password, password_confirmation);
 }
-
-export function getSelectedCluster() {
-  try {
-    const raw = localStorage.getItem(CLUSTER_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function selectCluster(cluster) {
-  localStorage.setItem(CLUSTER_KEY, JSON.stringify(cluster));
-}
-
-export function getClusters() {
-  return MOCK_CLUSTERS;
-}
-

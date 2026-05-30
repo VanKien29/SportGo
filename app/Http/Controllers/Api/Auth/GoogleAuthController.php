@@ -14,6 +14,8 @@ use Laravel\Socialite\Facades\Socialite;
 
 class GoogleAuthController extends Controller
 {
+    private const ADMIN_ROLES = ['super_admin', 'admin', 'system_staff'];
+
     public function __construct(private readonly RoleRedirectService $roleRedirectService)
     {
     }
@@ -26,15 +28,7 @@ class GoogleAuthController extends Controller
     public function callback(Request $request): JsonResponse|RedirectResponse
     {
         $googleUser = Socialite::driver('google')->stateless()->user();
-
-        $user = User::query()
-            ->where('google_id', $googleUser->getId())
-            ->first();
-
-        if (! $user && $googleUser->getEmail()) {
-            $user = User::query()->where('email', $googleUser->getEmail())->first();
-        }
-
+        $user = $this->findGoogleUser($googleUser->getId(), $googleUser->getEmail());
         $isNewUser = false;
 
         if ($user) {
@@ -60,6 +54,12 @@ class GoogleAuthController extends Controller
             ]);
 
             $this->roleRedirectService->assignDefaultUserRole($user);
+        }
+
+        if ($this->isAdminUser($user)) {
+            return $request->expectsJson()
+                ? response()->json(['message' => 'Tài khoản quản trị vui lòng đăng nhập tại trang Admin.'], 422)
+                : redirect('/admin/login?admin_login_required=1');
         }
 
         if ($user->status === 'locked') {
@@ -96,24 +96,44 @@ class GoogleAuthController extends Controller
         ]));
     }
 
+    private function findGoogleUser(string $googleId, ?string $email): ?User
+    {
+        $user = User::query()->where('google_id', $googleId)->first();
+
+        if (! $user && $email) {
+            $user = User::query()->where('email', $email)->first();
+        }
+
+        return $user;
+    }
+
+    private function isAdminUser(User $user): bool
+    {
+        $roles = $this->roleRedirectService->roles($user);
+
+        return (bool) array_intersect($roles, self::ADMIN_ROLES);
+    }
+
     private function uniqueUsername(?string $email, ?string $name): string
     {
         $base = $email ? Str::before($email, '@') : ($name ?: 'sportgo_user');
-        $base = Str::of($base)->lower()->replaceMatches('/[^a-z0-9_]+/', '_')->trim('_')->limit(40, '')->value() ?: 'sportgo_user';
+        $base = Str::of($base)
+            ->lower()
+            ->replaceMatches('/[^a-z0-9_]+/', '_')
+            ->trim('_')
+            ->limit(40, '')
+            ->value() ?: 'sportgo_user';
+
         $username = $base;
-        $suffix = 1;
 
-        while (User::query()->where('username', $username)->exists()) {
-            $username = Str::limit($base, 40, '').'_'.Str::lower(Str::random(5));
-            $suffix++;
-
-            if ($suffix > 10) {
-                $username = 'sportgo_'.Str::lower(Str::random(10));
-                break;
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            if (! User::query()->where('username', $username)->exists()) {
+                return $username;
             }
+
+            $username = Str::limit($base, 40, '').'_'.Str::lower(Str::random(5));
         }
 
-        return $username;
+        return 'sportgo_'.Str::lower(Str::random(10));
     }
 }
-

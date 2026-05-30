@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+
+    'sepay' => [
+        'webhook_api_key' => env('SEPAY_WEBHOOK_API_KEY'),
+        'qr_base_url' => env('SEPAY_QR_BASE_URL', 'https://qr.sepay.vn/img'),
+    ],
+
 ];

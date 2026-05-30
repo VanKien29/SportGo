@@ -10,10 +10,9 @@ class EnsureAdminRole
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
-        $roles = $user?->roles()->pluck('roles.name')->all() ?? [];
+        $roles = $request->user()?->roles()->pluck('roles.name')->all() ?? [];
 
-        if (! array_intersect($roles, ['admin', 'super_admin', 'system_staff'])) {
+        if (! array_intersect($roles, ['super_admin', 'admin', 'system_staff'])) {
             return response()->json([
                 'message' => 'Bạn không có quyền thực hiện thao tác này.',
             ], 403);

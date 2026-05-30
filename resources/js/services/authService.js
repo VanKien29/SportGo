@@ -22,6 +22,13 @@ export const authService = {
     });
   },
 
+  resendRegisterOtp(email) {
+    return api('/api/auth/register/resend-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
   sendForgotOtp(identifier) {
     return api('/api/auth/forgot-password/send-otp', {
       method: 'POST',

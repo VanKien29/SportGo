@@ -2,24 +2,98 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $this->callIfTablesExist(RolesTableSeeder::class, ['roles']);
+        $this->callIfTablesExist(PermissionsTableSeeder::class, ['permissions']);
+        $this->callIfTablesExist(RolePermissionsTableSeeder::class, ['roles', 'permissions', 'role_permissions']);
+        $this->callIfTablesExist(UsersTableSeeder::class, ['users']);
+        $this->callIfTablesExist(UserRolesTableSeeder::class, ['users', 'roles', 'user_roles']);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->callIfTablesExist(CourtTypesTableSeeder::class, ['court_types']);
+        $this->callIfTablesExist(VenueClustersTableSeeder::class, ['users', 'venue_clusters']);
+        $this->callIfTablesExist(VenueCourtsTableSeeder::class, ['court_types', 'venue_clusters', 'venue_courts']);
+        $this->callIfTablesExist(BookingConfigsTableSeeder::class, ['venue_clusters', 'booking_configs']);
+        $this->callIfTablesExist(VenueStaffAssignmentsTableSeeder::class, [
+            'users',
+            'court_types',
+            'venue_clusters',
+            'venue_staff_assignments',
         ]);
+
+        $this->callIfTablesExist(PriceSlotsTableSeeder::class, ['court_types', 'venue_clusters', 'price_slots']);
+        $this->callIfTablesExist(HolidayPricesTableSeeder::class, ['court_types', 'venue_clusters', 'holiday_prices']);
+        $this->callIfTablesExist(PlatformFeeTiersTableSeeder::class, ['platform_fee_tiers']);
+        $this->callIfTablesExist(SystemBankAccountSeeder::class, ['system_bank_accounts']);
+
+        $this->callIfTablesExist(SystemPoliciesTableSeeder::class, ['users', 'system_policies']);
+        $this->callIfTablesExist(HashtagsTableSeeder::class, ['hashtags']);
+        $this->callIfTablesExist(SystemPostsTableSeeder::class, ['users', 'system_posts']);
+        $this->callIfTablesExist(BannersTableSeeder::class, ['users', 'banners']);
+        $this->callIfTablesExist(ModerationConfigsTableSeeder::class, ['users', 'moderation_configs']);
+
+        $this->callIfTablesExist(PartnerApplicationsTableSeeder::class, ['users', 'partner_applications']);
+        $this->callIfTablesExist(PartnerApplicationCourtsTableSeeder::class, [
+            'partner_applications',
+            'partner_application_courts',
+            'court_types',
+        ]);
+        $this->callIfTablesExist(OwnerBankAccountsTableSeeder::class, [
+            'users',
+            'partner_applications',
+            'owner_bank_accounts',
+        ]);
+        $this->callIfTablesExist(OwnerWalletsTableSeeder::class, ['users', 'owner_wallets']);
+
+        $this->callIfTablesExist(BookingsTableSeeder::class, ['users', 'venue_clusters', 'bookings']);
+        $this->callIfTablesExist(BookingItemsTableSeeder::class, ['bookings', 'booking_items', 'venue_courts']);
+        $this->callIfTablesExist(PaymentsTableSeeder::class, ['bookings', 'payments']);
+        $this->callIfTablesExist(PaymentLogsTableSeeder::class, ['payments', 'payment_logs']);
+        $this->callIfTablesExist(RefundsTableSeeder::class, ['payments', 'refunds']);
+        $this->callIfTablesExist(OwnerWalletLedgersTableSeeder::class, [
+            'owner_wallets',
+            'owner_wallet_ledgers',
+        ]);
+        $this->callIfTablesExist(OwnerWithdrawalRequestsTableSeeder::class, [
+            'owner_wallets',
+            'owner_bank_accounts',
+            'owner_withdrawal_requests',
+        ]);
+        $this->callIfTablesExist(VenuePlatformFeeLedgersTableSeeder::class, [
+            'venue_clusters',
+            'venue_courts',
+            'platform_fee_tiers',
+            'venue_platform_fee_ledgers',
+        ]);
+
+        $this->callIfTablesExist(CommunityPostsTableSeeder::class, ['users', 'community_posts']);
+        $this->callIfTablesExist(CommunityPostCommentsTableSeeder::class, [
+            'users',
+            'community_posts',
+            'community_post_comments',
+        ]);
+        $this->callIfTablesExist(VenuePostsTableSeeder::class, ['users', 'venue_clusters', 'venue_posts']);
+        $this->callIfTablesExist(ReportsTableSeeder::class, ['users', 'reports']);
+        $this->callIfTablesExist(ComplaintsTableSeeder::class, ['users', 'bookings', 'complaints']);
+        $this->callIfTablesExist(InternalReceiptsTableSeeder::class, ['internal_receipts']);
+        $this->callIfTablesExist(MediaTableSeeder::class, ['media']);
+        $this->callIfTablesExist(AuditLogsTableSeeder::class, ['audit_logs']);
+        $this->callIfTablesExist(NotificationsTableSeeder::class, ['users', 'notifications']);
+    }
+
+    private function callIfTablesExist(string $seeder, array $tables): void
+    {
+        foreach ($tables as $table) {
+            if (! Schema::hasTable($table)) {
+                return;
+            }
+        }
+
+        $this->call($seeder);
     }
 }
