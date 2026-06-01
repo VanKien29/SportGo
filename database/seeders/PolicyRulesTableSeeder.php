@@ -31,37 +31,13 @@ class PolicyRulesTableSeeder extends Seeder
                 'actions' => [
                     ['refund', 'booking.cancel', 'Áp dụng khi khách hoặc sân hủy booking.'],
                     ['refund', 'refund.request', 'Áp dụng khi khách gửi yêu cầu hoàn tiền.'],
-                    ['refund', 'refund.owner_confirm', 'Áp dụng khi chủ sân xác nhận hoàn tiền.'],
+                    ['refund', 'refund.owner_confirm', 'Áp dụng khi chủ sân xác nhận yêu cầu hoàn tiền.'],
                     ['refund', 'refund.admin_confirm', 'Áp dụng khi admin xác nhận hoàn tiền hoàn tất.'],
                 ],
                 'rules' => [
-                    [
-                        'action_code' => 'booking.cancel',
-                        'rule_code' => 'cancel_before_24h_refund_100',
-                        'rule_name' => 'Hủy trước 24 giờ hoàn 100%',
-                        'rule_type' => 'refund_time_window',
-                        'condition_json' => ['hours_before_start' => ['gte' => 24]],
-                        'result_json' => ['refund_percent' => 100, 'requires_admin_review' => false],
-                        'priority' => 300,
-                    ],
-                    [
-                        'action_code' => 'booking.cancel',
-                        'rule_code' => 'cancel_before_6h_refund_50',
-                        'rule_name' => 'Hủy trước 6 giờ hoàn 50%',
-                        'rule_type' => 'refund_time_window',
-                        'condition_json' => ['hours_before_start' => ['gte' => 6, 'lt' => 24]],
-                        'result_json' => ['refund_percent' => 50, 'requires_admin_review' => false],
-                        'priority' => 200,
-                    ],
-                    [
-                        'action_code' => 'booking.cancel',
-                        'rule_code' => 'cancel_under_6h_no_auto_refund',
-                        'rule_name' => 'Hủy dưới 6 giờ không tự động hoàn',
-                        'rule_type' => 'refund_time_window',
-                        'condition_json' => ['hours_before_start' => ['lt' => 6]],
-                        'result_json' => ['refund_percent' => 0, 'requires_admin_review' => true],
-                        'priority' => 100,
-                    ],
+                    ['booking.cancel', 'cancel_before_24h_refund_100', 'Hủy trước 24 giờ hoàn 100%', 'refund_time_window', ['hours_before_start' => ['gte' => 24]], ['refund_percent' => 100, 'requires_admin_review' => false], 300],
+                    ['booking.cancel', 'cancel_before_6h_refund_50', 'Hủy trước 6 giờ hoàn 50%', 'refund_time_window', ['hours_before_start' => ['gte' => 6, 'lt' => 24]], ['refund_percent' => 50, 'requires_admin_review' => false], 200],
+                    ['booking.cancel', 'cancel_under_6h_no_auto_refund', 'Hủy dưới 6 giờ không tự động hoàn', 'refund_time_window', ['hours_before_start' => ['lt' => 6]], ['refund_percent' => 0, 'requires_admin_review' => true], 100],
                 ],
             ],
             [
@@ -73,21 +49,13 @@ class PolicyRulesTableSeeder extends Seeder
                 'is_overridable' => false,
                 'priority' => 90,
                 'actions' => [
-                    ['moderation', 'complaint.create', 'Áp dụng khi user tạo khiếu nại.'],
+                    ['moderation', 'complaint.create', 'Áp dụng khi người dùng tạo khiếu nại.'],
                     ['moderation', 'complaint.resolve', 'Áp dụng khi admin xử lý khiếu nại.'],
-                    ['moderation', 'report.create', 'Áp dụng khi user gửi report.'],
-                    ['moderation', 'report.resolve', 'Áp dụng khi admin xử lý report.'],
+                    ['moderation', 'report.create', 'Áp dụng khi người dùng gửi báo cáo vi phạm.'],
+                    ['moderation', 'report.resolve', 'Áp dụng khi admin xử lý báo cáo vi phạm.'],
                 ],
                 'rules' => [
-                    [
-                        'action_code' => 'report.resolve',
-                        'rule_code' => 'monthly_reports_auto_lock_suggestion',
-                        'rule_name' => 'Gợi ý khóa tài khoản khi đạt ngưỡng report',
-                        'rule_type' => 'report_threshold',
-                        'condition_json' => ['report_count_in_month' => ['gte' => 10], 'unique_reporters' => ['gte' => 3]],
-                        'result_json' => ['suggested_action' => 'account.temporary_lock', 'lock_days' => 7],
-                        'priority' => 100,
-                    ],
+                    ['report.resolve', 'monthly_reports_auto_lock_suggestion', 'Gợi ý khóa tài khoản khi đạt ngưỡng report', 'report_threshold', ['report_count' => ['gte' => 10], 'unique_reporters' => ['gte' => 3], 'window_days' => 30], ['action' => 'temporary_lock', 'lock_days' => 7], 100],
                 ],
             ],
             [
@@ -99,42 +67,27 @@ class PolicyRulesTableSeeder extends Seeder
                 'is_overridable' => false,
                 'priority' => 95,
                 'actions' => [
-                    ['account', 'account.lock', 'Áp dụng khi admin hoặc system khóa tài khoản.'],
+                    ['account', 'account.lock', 'Áp dụng khi admin hoặc hệ thống khóa tài khoản.'],
+                    ['account', 'account.unlock', 'Áp dụng khi mở khóa tài khoản.'],
                 ],
                 'rules' => [
-                    [
-                        'action_code' => 'account.lock',
-                        'rule_code' => 'account_lock_requires_reason',
-                        'rule_name' => 'Khóa tài khoản phải có lý do',
-                        'rule_type' => 'required_reason',
-                        'condition_json' => ['reason_required' => true],
-                        'result_json' => ['allow_without_reason' => false],
-                        'priority' => 100,
-                    ],
+                    ['account.lock', 'account_lock_requires_reason', 'Khóa tài khoản phải có lý do', 'account_lock_manual', ['reason_required' => true], ['allow_without_reason' => false], 100],
                 ],
             ],
             [
                 'key' => 'venue_fee_policy',
-                'title' => 'Chính sách khóa cụm sân do quá hạn phí duy trì',
+                'title' => 'Chính sách phí duy trì cụm sân',
                 'type' => 'general',
                 'policy_type' => 'platform_fee',
-                'content' => 'Quy định khung về xử lý cụm sân quá hạn phí duy trì.',
+                'content' => 'Quy định khung về xử lý cụm sân quá hạn phí duy trì nền tảng.',
                 'is_overridable' => false,
                 'priority' => 100,
                 'actions' => [
-                    ['venue', 'venue.lock', 'Áp dụng khi admin/system khóa cụm sân.'],
+                    ['venue', 'venue.lock', 'Áp dụng khi admin/hệ thống khóa cụm sân.'],
                     ['venue', 'venue.lock_due_fee', 'Áp dụng khi cụm sân quá hạn phí duy trì.'],
                 ],
                 'rules' => [
-                    [
-                        'action_code' => 'venue.lock_due_fee',
-                        'rule_code' => 'platform_fee_overdue_lock_suggestion',
-                        'rule_name' => 'Gợi ý khóa cụm sân khi quá hạn phí duy trì',
-                        'rule_type' => 'platform_fee_overdue',
-                        'condition_json' => ['overdue_days' => ['gte' => 1], 'amount_due_remaining' => ['gt' => 0]],
-                        'result_json' => ['suggested_action' => 'venue.lock', 'reason' => 'Quá hạn phí duy trì nền tảng'],
-                        'priority' => 100,
-                    ],
+                    ['venue.lock_due_fee', 'platform_fee_overdue_lock_suggestion', 'Gợi ý khóa cụm sân khi quá hạn phí duy trì', 'platform_fee_overdue', ['overdue_days' => ['gte' => 1], 'amount_due_remaining' => ['gt' => 0]], ['action' => 'lock_venue', 'reason' => 'Quá hạn phí duy trì nền tảng'], 100],
                 ],
             ],
             [
@@ -149,15 +102,7 @@ class PolicyRulesTableSeeder extends Seeder
                     ['auth', 'first_login.accept_policy', 'Áp dụng khi user cần chấp nhận điều khoản.'],
                 ],
                 'rules' => [
-                    [
-                        'action_code' => 'first_login.accept_policy',
-                        'rule_code' => 'first_login_accept_required',
-                        'rule_name' => 'Bắt buộc chấp nhận điều khoản lần đầu',
-                        'rule_type' => 'policy_acceptance_required',
-                        'condition_json' => ['accepted_latest_version' => false],
-                        'result_json' => ['must_accept' => true],
-                        'priority' => 100,
-                    ],
+                    ['first_login.accept_policy', 'first_login_accept_required', 'Bắt buộc chấp nhận điều khoản lần đầu', 'first_login_accept_required', ['accepted_latest_version' => false], ['must_accept' => true], 100],
                 ],
             ],
         ];
@@ -208,6 +153,22 @@ class PolicyRulesTableSeeder extends Seeder
             $payload['status'] = 'active';
         }
 
+        if (Schema::hasColumn('system_policies', 'published_at')) {
+            $payload['published_at'] = now();
+        }
+
+        if (Schema::hasColumn('system_policies', 'published_by')) {
+            $payload['published_by'] = $adminId;
+        }
+
+        if (Schema::hasColumn('system_policies', 'require_reaccept')) {
+            $payload['require_reaccept'] = $policy['key'] === 'terms_of_service';
+        }
+
+        if (Schema::hasColumn('system_policies', 'change_summary')) {
+            $payload['change_summary'] = 'Dữ liệu mẫu chuẩn tiếng Việt cho module chính sách.';
+        }
+
         if ($existingId) {
             unset($payload['id'], $payload['created_at']);
             DB::table('system_policies')->where('id', $id)->update($payload);
@@ -246,24 +207,38 @@ class PolicyRulesTableSeeder extends Seeder
 
     private function upsertRule(string $policyId, array $rule): void
     {
+        [$actionCode, $ruleCode, $ruleName, $ruleType, $condition, $result, $priority] = $rule;
+
         $existingId = DB::table('policy_rules')
             ->where('system_policy_id', $policyId)
-            ->where('action_code', $rule['action_code'])
-            ->where('rule_code', $rule['rule_code'])
+            ->where('action_code', $actionCode)
+            ->where('rule_code', $ruleCode)
             ->value('id');
 
         $payload = [
             'system_policy_id' => $policyId,
-            'action_code' => $rule['action_code'],
-            'rule_code' => $rule['rule_code'],
-            'rule_name' => $rule['rule_name'],
-            'rule_type' => $rule['rule_type'],
-            'condition_json' => json_encode($rule['condition_json'], JSON_UNESCAPED_UNICODE),
-            'result_json' => json_encode($rule['result_json'], JSON_UNESCAPED_UNICODE),
-            'priority' => $rule['priority'],
+            'action_code' => $actionCode,
+            'rule_code' => $ruleCode,
+            'rule_name' => $ruleName,
+            'rule_type' => $ruleType,
+            'condition_json' => json_encode($condition, JSON_UNESCAPED_UNICODE),
+            'result_json' => json_encode($result, JSON_UNESCAPED_UNICODE),
+            'priority' => $priority,
             'is_active' => true,
             'updated_at' => now(),
         ];
+
+        foreach ($this->ruleDefaults($ruleType) as $column => $value) {
+            if (Schema::hasColumn('policy_rules', $column)) {
+                $payload[$column] = is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : $value;
+            }
+        }
+
+        foreach (['created_by', 'updated_by'] as $column) {
+            if (Schema::hasColumn('policy_rules', $column)) {
+                $payload[$column] = DB::table('system_policies')->where('id', $policyId)->value('updated_by');
+            }
+        }
 
         if ($existingId) {
             DB::table('policy_rules')->where('id', $existingId)->update($payload);
@@ -273,5 +248,42 @@ class PolicyRulesTableSeeder extends Seeder
         $payload['id'] = (string) Str::uuid();
         $payload['created_at'] = now();
         DB::table('policy_rules')->insert($payload);
+    }
+
+    private function ruleDefaults(string $ruleType): array
+    {
+        return match ($ruleType) {
+            'refund_time_window' => [
+                'decision_key' => 'refund_percent',
+                'conflict_group' => 'booking_cancel_refund',
+                'constraint_json' => ['refund_percent' => ['min' => 0, 'max' => 100]],
+                'allowed_override_json' => ['refund_percent' => ['min' => 0, 'max' => 100]],
+            ],
+            'report_threshold' => [
+                'decision_key' => 'moderation_action',
+                'conflict_group' => 'report_auto_lock',
+                'constraint_json' => ['lock_days' => ['min' => 1, 'max' => 30]],
+                'allowed_override_json' => null,
+            ],
+            'account_lock_manual' => [
+                'decision_key' => 'account_lock_requirement',
+                'conflict_group' => 'manual_account_lock',
+                'constraint_json' => null,
+                'allowed_override_json' => null,
+            ],
+            'platform_fee_overdue' => [
+                'decision_key' => 'venue_fee_action',
+                'conflict_group' => 'platform_fee_overdue',
+                'constraint_json' => null,
+                'allowed_override_json' => null,
+            ],
+            'first_login_accept_required' => [
+                'decision_key' => 'must_accept_policy',
+                'conflict_group' => 'policy_acceptance',
+                'constraint_json' => null,
+                'allowed_override_json' => null,
+            ],
+            default => [],
+        };
     }
 }

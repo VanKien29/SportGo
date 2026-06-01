@@ -1,4 +1,4 @@
-﻿# Báo Cáo Thiết Kế Database Dự Án SportGo
+# Báo Cáo Thiết Kế Database Dự Án SportGo
 
 Báo cáo này được tự động trích xuất và tổng hợp từ các file migration hiện tại của dự án. Không bao gồm các giả định ngoài code.
 
@@ -69,6 +69,25 @@ Báo cáo này được tự động trích xuất và tổng hợp từ các fi
 | 59 | jobs | Laravel | Hàng đợi công việc | Quản lý background jobs (Queue) | Không FK |
 | 60 | job_batches | Laravel | Lô công việc | Quản lý batch jobs | Không FK |
 | 61 | failed_jobs | Laravel | Job thất bại | Lưu các queue job chạy lỗi | Không FK |
+| 62 | booking_items | Booking | Chi tiết sân/khung giờ trong booking | Lưu từng sân con và khung giờ cụ thể trong một booking (hỗ trợ đặt nhiều sân/slot) | bookings.id, venue_courts.id |
+| 63 | owner_bank_accounts | Payment | Tài khoản nhận tiền chủ sân | Lưu TKNH của chủ sân dùng nhận tiền rút/đối soát | users.owner_id, partner_applications.id |
+| 64 | owner_withdrawal_requests | Payment | Yêu cầu rút tiền chủ sân | Quản lý yêu cầu rút tiền từ ví chủ sân | users.owner_id, owner_wallets.id, owner_bank_accounts.id |
+| 65 | internal_receipts | Payment | Phiếu thu/chi nội bộ | Phiếu nội bộ cho phí nền tảng, rút tiền, hoàn tiền | users.issued_to_user_id, users.issued_by |
+| 66 | policy_action_bindings | Policy | Liên kết chính sách với action | Map chính sách hệ thống với module/action nghiệp vụ | system_policies.id |
+| 67 | policy_rules | Policy | Luật chính sách hệ thống | Lưu rule có cấu trúc để backend evaluate | system_policies.id |
+| 68 | venue_policy_rules | Policy | Luật chính sách riêng sân | Lưu rule riêng của sân khi chính sách cho phép override | venue_clusters.id, policy_rules.id |
+| 69 | policy_evaluation_logs | Policy | Log áp dụng chính sách | Ghi nhận mỗi lần hệ thống evaluate rule | system_policies.id, policy_rules.id, venue_policy_rules.id |
+| 70 | ai_conversations | AI | Cuộc trò chuyện AI | Lưu lịch sử trò chuyện AI của user | users.user_id |
+| 71 | ai_messages | AI | Tin nhắn AI | Lưu message user/assistant/system trong cuộc trò chuyện AI | ai_conversations.id |
+| 72 | ai_feedbacks | AI | Đánh giá AI | Lưu feedback của user cho câu trả lời AI | ai_messages.id, users.user_id |
+| 73 | user_wallets | Payment | Ví người dùng | Quản lý ví nội bộ của user (thanh toán, nhận hoàn tiền) | users.user_id |
+| 74 | user_wallet_ledgers | Payment | Sổ quỹ ví người dùng | Ghi nhận biến động số dư ví user | user_wallets.id |
+| 75 | user_payout_accounts | Payment | Tài khoản nhận tiền user | TKNH user dùng nhận tiền khi rút ví hoặc refund | users.user_id |
+| 76 | user_withdrawal_requests | Payment | Yêu cầu rút tiền user | Quản lý yêu cầu rút tiền từ ví user | user_wallets.id, user_payout_accounts.id |
+| 77 | vouchers | Voucher | Mã giảm giá | Lưu voucher hệ thống và voucher sân | users.created_by |
+| 78 | voucher_scopes | Voucher | Phạm vi voucher | Giới hạn phạm vi áp dụng voucher (cụm sân, loại sân, loại booking) | vouchers.id |
+| 79 | voucher_usages | Voucher | Lịch sử dùng voucher | Ghi nhận voucher đã áp dụng cho booking/payment nào | vouchers.id, users.user_id, bookings.id |
+| 80 | backup_jobs | System | Job sao lưu dữ liệu | Lưu metadata và trạng thái các lần backup database | users.created_by |
 
 ==================================================
 ## PHẦN 2. CHI TIẾT CÁC BẢNG
@@ -1027,11 +1046,577 @@ Các bảng này được Laravel tự động sinh ra hoặc sử dụng cho co
 3. **cache & cache_locks**: Bảng dùng làm Database Driver cho tính năng Cache của Laravel, bao gồm tính năng khóa (Atomic Locks).
 4. **jobs, job_batches, failed_jobs**: Bảng Queue lưu trữ hàng đợi công việc nền (Background Jobs) như gửi Email, thông báo chậm, dọn dẹp data cũ.
 
+### MODULE: BOOKING (BỔ SUNG)
+
+## Tên bảng: booking_items
+
+### 1. Mục đích bảng
+Lưu trữ từng sân con và khung giờ cụ thể trong một booking, phục vụ luồng đặt nhiều sân/nhiều slot trong cùng một đơn.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID item | 40000000-... |
+| 2 | booking_id | char(36) | Không | - | FK | Đơn đặt sân cha | 50000000-... |
+| 3 | venue_court_id | char(36) | Không | - | FK | Sân con thực tế được gán | 30000000-... |
+| 4 | requested_venue_court_id | char(36) | Có | null | FK | Sân con khách yêu cầu ban đầu | null |
+| 5 | start_time | time | Không | - | Index | Giờ bắt đầu | 18:00:00 |
+| 6 | end_time | time | Không | - | Index | Giờ kết thúc | 20:00:00 |
+| 7 | duration_minutes | unsigned int | Không | - | - | Thời lượng phút | 120 |
+| 8 | unit_price | decimal(12,2) | Không | 0.00 | - | Đơn giá/giờ tại thời điểm đặt | 100000.00 |
+| 9 | subtotal | decimal(12,2) | Không | 0.00 | - | Thành tiền | 200000.00 |
+| 10 | court_changed_by | char(36) | Có | null | FK | Người đổi sân | null |
+| 11 | court_changed_at | timestamp | Có | null | - | Thời điểm đổi sân | null |
+| 12 | court_changed_reason | text | Có | null | - | Lý do đổi sân | null |
+| 13 | sort_order | unsigned int | Không | 0 | - | Thứ tự hiển thị | 1 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: booking_id -> bookings.id (cascade), venue_court_id -> venue_courts.id (restrict), requested_venue_court_id -> venue_courts.id (set null), court_changed_by -> users.id (set null)
+- Index: [booking_id, sort_order], [venue_court_id, start_time, end_time]
+
+### 4. Quan hệ với bảng khác
+- Thuộc bookings, venue_courts.
+- Liên kết tới slot_locks qua slot_locks.booking_item_id.
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "id": "40000000-0000-0000-0000-000000000001",
+  "booking_id": "50000000-0000-0000-0000-000000000001",
+  "venue_court_id": "30000000-0000-0000-0000-000000000001",
+  "start_time": "18:00:00",
+  "end_time": "20:00:00",
+  "subtotal": 200000.00
+}
+```
+
+**Lưu ý**: Migration cũng bổ sung `booking_item_id` (char(36), nullable, FK -> booking_items.id set null) vào bảng `slot_locks`.
+
+---
+
+### MODULE: PAYMENT (BỔ SUNG)
+
+## Tên bảng: owner_bank_accounts
+
+### 1. Mục đích bảng
+Lưu thông tin tài khoản ngân hàng của chủ sân dùng để nhận tiền rút và đối soát.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | ID tài khoản | 60000000-... |
+| 2 | owner_id | char(36) | Không | - | FK | Chủ sân sở hữu | 10000000-... |
+| 3 | partner_application_id | char(36) | Có | null | FK | Hồ sơ đăng ký đã cung cấp TK này | null |
+| 4 | bank_name | varchar(100) | Không | - | - | Tên ngân hàng | Vietcombank |
+| 5 | bank_code | varchar(50) | Không | - | - | Mã ngân hàng | VCB |
+| 6 | account_number | varchar(50) | Không | - | - | Số tài khoản | 1234567890 |
+| 7 | account_holder_name | varchar(150) | Không | - | - | Tên chủ TK | Nguyễn Văn A |
+| 8 | branch_name | varchar(150) | Có | null | - | Chi nhánh | Chi nhánh HN |
+| 9 | status | enum | Không | pending | Index | Trạng thái xác minh (pending, active, rejected, inactive) | active |
+| 10 | is_default | boolean | Không | false | Index | TK nhận tiền mặc định | true |
+| 11 | verified_by | char(36) | Có | null | FK | Admin xác minh | null |
+| 12 | verified_at | timestamp | Có | null | - | Thời điểm xác minh | null |
+| 13 | rejected_reason | text | Có | null | - | Lý do từ chối | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: [owner_id, bank_code, account_number]
+- FK: owner_id -> users.id (restrict), partner_application_id -> partner_applications.id (set null), verified_by -> users.id (set null)
+- Index: [owner_id, status], [status, is_default], partner_application_id
+
+## Tên bảng: owner_withdrawal_requests
+
+### 1. Mục đích bảng
+Quản lý yêu cầu rút tiền từ ví chủ sân.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | ID yêu cầu | 70000000-... |
+| 2 | request_code | varchar(30) | Không | - | Unique | Mã yêu cầu rút tiền | WDR-001 |
+| 3 | owner_id | char(36) | Không | - | FK | Chủ sân yêu cầu | 10000000-... |
+| 4 | owner_wallet_id | char(36) | Không | - | FK | Ví owner bị giữ tiền | 80000000-... |
+| 5 | owner_bank_account_id | char(36) | Không | - | FK | TK nhận tiền owner chọn | 60000000-... |
+| 6 | amount | decimal(14,2) | Không | - | - | Số tiền yêu cầu rút | 5000000.00 |
+| 7 | status | enum | Không | pending | Index | pending, reviewing, approved, rejected, completed, cancelled | pending |
+| 8 | owner_note | text | Có | null | - | Ghi chú owner | null |
+| 9 | reviewed_by | char(36) | Có | null | FK | Admin duyệt/từ chối | null |
+| 10 | reviewed_at | timestamp | Có | null | - | Thời điểm duyệt | null |
+| 11 | review_note | text | Có | null | - | Ghi chú nội bộ | null |
+| 12 | status_reason | text | Có | null | - | Lý do từ chối/hủy | null |
+| 13 | completed_by | char(36) | Có | null | FK | Admin xác nhận đã chuyển tiền | null |
+| 14 | completed_at | timestamp | Có | null | - | Thời điểm hoàn tất | null |
+| 15 | transfer_reference | varchar(100) | Có | null | - | Mã giao dịch chuyển khoản thực tế | null |
+| 16 | metadata | json | Có | null | - | Dữ liệu phụ | null |
+| 17 | requested_at | timestamp | Không | CURRENT | - | Thời điểm gửi yêu cầu | 2026-06-01 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: request_code
+- FK: owner_id -> users.id (restrict), owner_wallet_id -> owner_wallets.id (restrict), owner_bank_account_id -> owner_bank_accounts.id (restrict), reviewed_by -> users.id (set null), completed_by -> users.id (set null)
+- Index: [owner_id, status], [status, requested_at], owner_wallet_id, owner_bank_account_id
+
+## Tên bảng: internal_receipts
+
+### 1. Mục đích bảng
+Lưu phiếu thu/chi nội bộ cho các nghiệp vụ tài chính (phí nền tảng, rút tiền, hoàn tiền, thanh toán).
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | ID phiếu | 80000000-... |
+| 2 | receipt_code | varchar(40) | Không | - | Unique | Mã phiếu nội bộ | REC-001 |
+| 3 | receipt_type | enum | Không | - | Index | platform_fee, withdrawal, refund, payment | withdrawal |
+| 4 | receiptable_type | varchar(100) | Không | - | Index | Loại đối tượng phát sinh phiếu | App\Models\OwnerWithdrawalRequest |
+| 5 | receiptable_id | varchar(100) | Không | - | Index | ID đối tượng | 70000000-... |
+| 6 | issued_to_user_id | char(36) | Có | null | FK | User nhận phiếu | null |
+| 7 | issued_by | char(36) | Có | null | FK | Admin tạo phiếu | null |
+| 8 | title | varchar(255) | Không | - | - | Tiêu đề phiếu | Phiếu chi rút tiền |
+| 9 | amount | decimal(14,2) | Không | 0.00 | - | Số tiền trên phiếu | 5000000.00 |
+| 10 | currency | varchar(10) | Không | VND | - | Đơn vị tiền tệ | VND |
+| 11 | status | enum | Không | issued | Index | draft, issued, cancelled | issued |
+| 12 | issued_at | timestamp | Có | null | Index | Thời điểm phát hành | 2026-06-01 |
+| 13 | cancelled_at | timestamp | Có | null | - | Thời điểm hủy | null |
+| 14 | cancel_reason | text | Có | null | - | Lý do hủy | null |
+| 15 | file_path | varchar(500) | Có | null | - | Đường dẫn file PDF/HTML | null |
+| 16 | metadata | json | Có | null | - | Dữ liệu phụ render phiếu | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: receipt_code
+- FK: issued_to_user_id -> users.id (set null), issued_by -> users.id (set null)
+- Index: [receiptable_type, receiptable_id], [receipt_type, status], issued_at
+
+---
+
+### MODULE: POLICY
+
+## Tên bảng: policy_action_bindings
+
+### 1. Mục đích bảng
+Map chính sách hệ thống với module/action nghiệp vụ (VD: `booking.cancel`, `refund.request`).
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | system_policy_id | char(36) | Không | - | FK | Chính sách được bind | ... |
+| 3 | module | varchar(50) | Không | - | Index | Module nghiệp vụ | booking |
+| 4 | action_code | varchar(100) | Không | - | Index | Mã action | booking.cancel |
+| 5 | description | text | Có | null | - | Mô tả binding | null |
+| 6 | is_active | boolean | Không | true | Index | Binding có hiệu lực | 1 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: [system_policy_id, action_code]
+- FK: system_policy_id -> system_policies.id (cascade)
+- Index: [module, action_code], is_active
+
+## Tên bảng: policy_rules
+
+### 1. Mục đích bảng
+Lưu rule hệ thống có cấu trúc JSON để backend evaluate theo từng action.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | system_policy_id | char(36) | Không | - | FK | Chính sách sở hữu rule | ... |
+| 3 | action_code | varchar(100) | Không | - | Index | Action mà rule áp dụng | booking.cancel |
+| 4 | rule_code | varchar(100) | Không | - | Unique (với policy_id) | Mã rule duy nhất trong policy | cancel_before_24h |
+| 5 | rule_name | varchar(255) | Không | - | - | Tên rule dễ đọc | Hủy trước 24 giờ |
+| 6 | rule_type | varchar(50) | Không | - | Index | Loại evaluator | threshold |
+| 7 | decision_key | varchar(100) | Có | null | Index | Key quyết định output | refund_percent |
+| 8 | conflict_group | varchar(100) | Có | null | Index | Nhóm xung đột rule | booking_cancel |
+| 9 | condition_json | json | Có | null | - | Điều kiện evaluate | {"min_hours_before": 24} |
+| 10 | result_json | json | Có | null | - | Kết quả khi match | {"refund_percent": 100} |
+| 11 | constraint_json | json | Có | null | - | Ràng buộc bổ sung | null |
+| 12 | allowed_override_json | json | Có | null | - | Phạm vi cho phép sân override | null |
+| 13 | priority | int | Không | 0 | Index | Độ ưu tiên | 10 |
+| 14 | is_active | boolean | Không | true | Index | Rule có hiệu lực | 1 |
+| 15 | created_by | char(36) | Có | null | FK | Admin tạo rule | null |
+| 16 | updated_by | char(36) | Có | null | FK | Admin cập nhật rule | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: [system_policy_id, rule_code]
+- FK: system_policy_id -> system_policies.id (cascade), created_by -> users.id (set null), updated_by -> users.id (set null)
+- Index: [action_code, is_active], [rule_type, priority], [action_code, rule_type, is_active, priority], [action_code, decision_key, conflict_group]
+
+## Tên bảng: venue_policy_rules
+
+### 1. Mục đích bảng
+Lưu rule riêng của sân, chỉ dùng khi chính sách hệ thống cho phép override (`is_overridable = true`).
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | venue_cluster_id | char(36) | Không | - | FK | Cụm sân cấu hình rule | 20000000-... |
+| 3 | base_policy_rule_id | char(36) | Có | null | FK | Rule hệ thống được override | null |
+| 4 | action_code | varchar(100) | Không | - | Index | Action áp dụng | booking.cancel |
+| 5 | rule_code | varchar(100) | Không | - | - | Mã rule sân | cancel_custom |
+| 6 | rule_name | varchar(255) | Không | - | - | Tên rule sân | Hủy trước 12 giờ |
+| 7 | rule_type | varchar(50) | Không | - | - | Loại evaluator | threshold |
+| 8 | condition_json | json | Có | null | - | Điều kiện do owner cấu hình | {"min_hours_before": 12} |
+| 9 | result_json | json | Có | null | - | Kết quả khi match | {"refund_percent": 80} |
+| 10 | status | enum | Không | draft | Index | draft, active, inactive, rejected | active |
+| 11 | approved_by | char(36) | Có | null | FK | Admin duyệt | null |
+| 12 | approved_at | timestamp | Có | null | - | Thời điểm duyệt | null |
+| 13 | rejected_reason | text | Có | null | - | Lý do từ chối | null |
+| 14 | created_by | char(36) | Có | null | FK | Owner/nhân viên tạo | null |
+| 15 | updated_by | char(36) | Có | null | FK | Người cập nhật | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: venue_cluster_id -> venue_clusters.id (cascade), base_policy_rule_id -> policy_rules.id (set null), approved_by -> users.id (set null), created_by -> users.id (set null), updated_by -> users.id (set null)
+- Index: [venue_cluster_id, status], [action_code, status], base_policy_rule_id
+
+## Tên bảng: policy_evaluation_logs
+
+### 1. Mục đích bảng
+Ghi nhận mỗi lần hệ thống evaluate rule, lưu input, output, actor, entity liên quan.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | system_policy_id | char(36) | Có | null | FK | Chính sách đã evaluate | ... |
+| 3 | policy_rule_id | char(36) | Có | null | FK | Rule hệ thống đã evaluate | ... |
+| 4 | venue_policy_rule_id | char(36) | Có | null | FK | Rule sân đã evaluate | null |
+| 5 | action_code | varchar(100) | Không | - | Index | Action được evaluate | booking.cancel |
+| 6 | entity_type | varchar(100) | Không | - | Index | Loại đối tượng | booking |
+| 7 | entity_id | varchar(100) | Không | - | Index | ID đối tượng | 50000000-... |
+| 8 | input_data | json | Có | null | - | Dữ liệu đầu vào | {"hours_before": 30} |
+| 9 | result_data | json | Có | null | - | Kết quả evaluate | {"allow": true, "refund_percent": 100} |
+| 10 | policy_version_snapshot | json | Có | null | - | Snapshot version policy | null |
+| 11 | rule_snapshot | json | Có | null | - | Snapshot rule tại thời điểm evaluate | null |
+| 12 | evaluated_by_type | enum | Không | system | Index | Loại actor | system |
+| 13 | evaluated_by_id | char(36) | Có | null | FK | User kích hoạt | null |
+| 14 | created_at | timestamp | Có | null | Index | Thời điểm evaluate | 2026-06-01 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: system_policy_id -> system_policies.id (set null), policy_rule_id -> policy_rules.id (set null), venue_policy_rule_id -> venue_policy_rules.id (set null), evaluated_by_id -> users.id (set null)
+- Index: [action_code, created_at], [entity_type, entity_id], system_policy_id, policy_rule_id, venue_policy_rule_id, [evaluated_by_type, created_at], [action_code, entity_type, entity_id, created_at]
+
+---
+
+### MODULE: AI
+
+## Tên bảng: ai_conversations
+
+### 1. Mục đích bảng
+Lưu cuộc trò chuyện AI của user.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | user_id | char(36) | Không | - | FK | User sở hữu | 10000000-... |
+| 3 | title | varchar(255) | Có | null | - | Tiêu đề | Hỏi về đặt sân |
+| 4 | status | enum | Không | active | Index | active, archived, deleted | active |
+| 5 | deleted_at | timestamp | Có | null | Index | Soft delete | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: user_id -> users.id (cascade)
+- Index: [user_id, status], deleted_at
+
+## Tên bảng: ai_messages
+
+### 1. Mục đích bảng
+Lưu message user/assistant/system trong cuộc trò chuyện AI.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | ai_conversation_id | char(36) | Không | - | FK | Cuộc trò chuyện chứa message | ... |
+| 3 | role | enum | Không | - | Index | user, assistant, system | user |
+| 4 | content | longText | Không | - | - | Nội dung message | Sân nào gần nhất? |
+| 5 | metadata | json | Có | null | - | Dữ liệu phụ (token, model) | null |
+| 6 | deleted_at | timestamp | Có | null | Index | Soft delete | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: ai_conversation_id -> ai_conversations.id (cascade)
+- Index: [ai_conversation_id, created_at], role, deleted_at
+
+## Tên bảng: ai_feedbacks
+
+### 1. Mục đích bảng
+Lưu feedback của user cho message AI (đánh giá chất lượng câu trả lời).
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | ai_message_id | char(36) | Không | - | FK | Message được đánh giá | ... |
+| 3 | user_id | char(36) | Không | - | FK | User gửi feedback | 10000000-... |
+| 4 | rating | tinyInteger | Có | null | Index | Điểm đánh giá (1-5) | 4 |
+| 5 | comment | text | Có | null | - | Góp ý | Trả lời chính xác |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: [ai_message_id, user_id]
+- FK: ai_message_id -> ai_messages.id (cascade), user_id -> users.id (cascade)
+- Index: rating
+
+---
+
+### MODULE: USER WALLET
+
+## Tên bảng: user_wallets
+
+### 1. Mục đích bảng
+Quản lý ví nội bộ của user, dùng để thanh toán booking hoặc nhận tiền hoàn.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | user_id | char(36) | Không | - | Unique, FK | User sở hữu ví (1 user 1 ví) | 10000000-... |
+| 3 | balance | decimal(14,2) | Không | 0.00 | - | Số dư có thể sử dụng | 500000.00 |
+| 4 | locked_balance | decimal(14,2) | Không | 0.00 | - | Số dư đang bị giữ/chờ xử lý | 0.00 |
+| 5 | status | enum | Không | active | Index | active, locked, suspended | active |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: user_id
+- FK: user_id -> users.id (restrict)
+- Index: status
+
+## Tên bảng: user_wallet_ledgers
+
+### 1. Mục đích bảng
+Ghi nhận biến động số dư ví user (nguyên tắc kế toán kép: balance_before, balance_after).
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | user_wallet_id | char(36) | Không | - | FK | Ví được ghi biến động | ... |
+| 3 | transaction_code | varchar(50) | Không | - | Unique | Mã giao dịch nội bộ | UWLT-001 |
+| 4 | type | enum | Không | - | Index | deposit, payment, refund, withdrawal, adjustment | payment |
+| 5 | direction | enum | Không | - | - | credit hoặc debit | debit |
+| 6 | amount | decimal(14,2) | Không | - | - | Số tiền biến động | 100000.00 |
+| 7 | balance_before | decimal(14,2) | Không | - | - | Số dư trước | 500000.00 |
+| 8 | balance_after | decimal(14,2) | Không | - | - | Số dư sau | 400000.00 |
+| 9 | reference_type | varchar(100) | Có | null | Index | Loại tham chiếu (booking, payment, refund) | payment |
+| 10 | reference_id | varchar(100) | Có | null | Index | ID tham chiếu | 70000000-... |
+| 11 | status | enum | Không | completed | Index | pending, completed, failed, cancelled | completed |
+| 12 | note | text | Có | null | - | Ghi chú | Thanh toán booking |
+| 13 | created_by | char(36) | Có | null | FK | User/admin tạo | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: transaction_code
+- FK: user_wallet_id -> user_wallets.id (restrict), created_by -> users.id (set null)
+- Index: [user_wallet_id, created_at], [reference_type, reference_id], [type, status]
+
+## Tên bảng: user_payout_accounts
+
+### 1. Mục đích bảng
+TKNH user dùng nhận tiền khi rút ví hoặc refund.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | user_id | char(36) | Không | - | FK | User sở hữu | 10000000-... |
+| 3 | bank_name | varchar(100) | Không | - | - | Tên ngân hàng | Techcombank |
+| 4 | bank_account_number | varchar(50) | Không | - | - | Số tài khoản | 9876543210 |
+| 5 | bank_account_holder | varchar(150) | Không | - | - | Tên chủ TK | Trần Thị B |
+| 6 | bank_branch | varchar(150) | Có | null | - | Chi nhánh | null |
+| 7 | is_default | boolean | Không | false | Index | TK mặc định | true |
+| 8 | status | enum | Không | active | Index | active, inactive | active |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: [user_id, bank_account_number]
+- FK: user_id -> users.id (restrict)
+- Index: [user_id, status], [status, is_default]
+
+## Tên bảng: user_withdrawal_requests
+
+### 1. Mục đích bảng
+Quản lý yêu cầu rút tiền từ ví user.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | user_wallet_id | char(36) | Không | - | FK | Ví user bị giữ/trừ tiền | ... |
+| 3 | user_id | char(36) | Không | - | FK | User yêu cầu rút tiền | 10000000-... |
+| 4 | payout_account_id | char(36) | Không | - | FK | TK nhận tiền user chọn | ... |
+| 5 | amount | decimal(14,2) | Không | - | - | Số tiền yêu cầu rút | 200000.00 |
+| 6 | status | enum | Không | pending | Index | pending, approved, rejected, paid, cancelled | pending |
+| 7 | rejected_reason | text | Có | null | - | Lý do từ chối | null |
+| 8 | approved_by | char(36) | Có | null | FK | Admin duyệt | null |
+| 9 | paid_by | char(36) | Có | null | FK | Admin xác nhận chi trả | null |
+| 10 | requested_at | timestamp | Không | CURRENT | - | Thời điểm gửi yêu cầu | 2026-06-01 |
+| 11 | approved_at | timestamp | Có | null | - | Thời điểm duyệt | null |
+| 12 | paid_at | timestamp | Có | null | - | Thời điểm chi trả | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: user_wallet_id -> user_wallets.id (restrict), user_id -> users.id (restrict), payout_account_id -> user_payout_accounts.id (restrict), approved_by -> users.id (set null), paid_by -> users.id (set null)
+- Index: [user_id, status], [status, requested_at]
+
+---
+
+### MODULE: VOUCHER
+
+## Tên bảng: vouchers
+
+### 1. Mục đích bảng
+Lưu voucher hệ thống và voucher sân.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | code | varchar(50) | Không | - | Unique | Mã voucher user nhập | SPORTGO10 |
+| 3 | name | varchar(255) | Không | - | - | Tên hiển thị | Giảm 10% lần đầu |
+| 4 | description | text | Có | null | - | Mô tả | null |
+| 5 | owner_type | enum | Không | - | Index | system hoặc venue | system |
+| 6 | owner_id | char(36) | Có | null | Index | ID owner/cụm sân (nếu venue) | null |
+| 7 | funded_by | enum | Không | - | Index | system hoặc venue (bên chịu tiền giảm) | system |
+| 8 | stacking_rule | enum | Không | exclusive | - | exclusive, allow_with_system, allow_with_venue | exclusive |
+| 9 | discount_type | enum | Không | - | - | percent hoặc fixed | percent |
+| 10 | discount_value | decimal(12,2) | Không | - | - | Giá trị giảm | 10.00 |
+| 11 | max_discount_amount | decimal(12,2) | Có | null | - | Mức giảm tối đa | 50000.00 |
+| 12 | min_order_amount | decimal(12,2) | Không | 0.00 | - | Giá trị đơn tối thiểu | 100000.00 |
+| 13 | total_quantity | unsigned int | Có | null | - | Tổng số lượt phát hành | 1000 |
+| 14 | used_quantity | unsigned int | Không | 0 | - | Số lượt đã dùng | 50 |
+| 15 | per_user_limit | unsigned int | Có | null | - | Số lượt tối đa mỗi user | 1 |
+| 16 | valid_from | dateTime | Có | null | Index | Bắt đầu hiệu lực | 2026-06-01 |
+| 17 | valid_to | dateTime | Có | null | Index | Hết hiệu lực | 2026-12-31 |
+| 18 | status | enum | Không | draft | Index | draft, active, inactive, expired | active |
+| 19 | created_by | char(36) | Có | null | FK | Admin/owner tạo | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: code
+- FK: created_by -> users.id (set null)
+- Index: [owner_type, owner_id], [status, valid_from, valid_to], funded_by
+
+## Tên bảng: voucher_scopes
+
+### 1. Mục đích bảng
+Giới hạn phạm vi áp dụng voucher (cụm sân, loại sân, loại booking).
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | voucher_id | char(36) | Không | - | FK | Voucher được giới hạn | ... |
+| 3 | scope_type | enum | Không | - | Index | all, venue_cluster, court_type, booking_type | all |
+| 4 | scope_id | varchar(100) | Có | null | Index | ID phạm vi (nullable khi all) | null |
+| 5 | scope_key | varchar(120) | Không | __all__ | Unique (với voucher_id, scope_type) | Khóa ổn định unique | __all__ |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: [voucher_id, scope_type, scope_key]
+- FK: voucher_id -> vouchers.id (cascade)
+- Index: [scope_type, scope_id]
+
+## Tên bảng: voucher_usages
+
+### 1. Mục đích bảng
+Ghi nhận voucher đã áp dụng cho booking/payment nào.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | voucher_id | char(36) | Không | - | FK | Voucher đã dùng | ... |
+| 3 | user_id | char(36) | Không | - | FK | User dùng | 10000000-... |
+| 4 | booking_id | char(36) | Không | - | FK, Index | Booking áp dụng | 50000000-... |
+| 5 | payment_id | char(36) | Có | null | FK | Payment liên quan | null |
+| 6 | discount_amount | decimal(12,2) | Không | 0.00 | - | Số tiền giảm thực tế | 50000.00 |
+| 7 | used_at | timestamp | Có | null | - | Thời điểm áp dụng | 2026-06-01 |
+| 8 | status | enum | Không | applied | Index | applied, cancelled, refunded | applied |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: [voucher_id, user_id, booking_id]
+- FK: voucher_id -> vouchers.id (restrict), user_id -> users.id (restrict), booking_id -> bookings.id (restrict), payment_id -> payments.id (set null)
+- Index: [voucher_id, status], [user_id, voucher_id], booking_id
+
+**Lưu ý**: Migration cũng bổ sung các field snapshot discount vào bảng `bookings`: `original_amount`, `discount_amount`, `system_discount_amount`, `venue_discount_amount`, `final_amount`, `voucher_id` (FK -> vouchers.id), `voucher_code_snapshot`.
+
+---
+
+### MODULE: SYSTEM (BỔ SUNG)
+
+## Tên bảng: backup_jobs
+
+### 1. Mục đích bảng
+Lưu metadata và trạng thái các lần backup database.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID | ... |
+| 2 | backup_code | varchar(50) | Không | - | Unique | Mã backup tra cứu | BKP-001 |
+| 3 | file_name | varchar(255) | Có | null | - | Tên file backup | sportgo_20260601.sql.gz |
+| 4 | file_path | varchar(1000) | Có | null | - | Đường dẫn file | /backups/sportgo_20260601.sql.gz |
+| 5 | disk | varchar(100) | Có | null | - | Storage disk | local |
+| 6 | size_bytes | unsigned bigint | Có | null | - | Dung lượng file | 104857600 |
+| 7 | checksum | varchar(128) | Có | null | - | Checksum kiểm tra | sha256:abc... |
+| 8 | type | enum | Không | manual | Index | manual hoặc auto | manual |
+| 9 | status | enum | Không | pending | Index | pending, running, completed, failed | completed |
+| 10 | created_by | char(36) | Có | null | FK | Admin tạo backup | null |
+| 11 | started_at | timestamp | Có | null | - | Thời điểm bắt đầu | 2026-06-01 |
+| 12 | completed_at | timestamp | Có | null | Index | Thời điểm hoàn tất | 2026-06-01 |
+| 13 | error_message | text | Có | null | - | Lỗi nếu thất bại | null |
+| 14 | retention_days | unsigned int | Có | null | - | Số ngày giữ file | 30 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: backup_code
+- FK: created_by -> users.id (set null)
+- Index: [type, status], created_at, completed_at
+
 ---
 **Ghi chú cuối báo cáo:**
-- Báo cáo này phản ánh 100% nguyên trạng từ file migration.
+- Báo cáo này phản ánh 100% nguyên trạng từ file migration (tổng cộng 80 bảng).
 - Một số bảng như `payments` có field `system_bank_account_id` đã được update và loại bỏ cổng thanh toán qua BankHub để thay thế hoàn toàn bởi cấu hình mới (`2026_05_29_000003...` và `2026_05_29_000004...`).
 - Các liên kết như `mediable_type` / `reference_type` đều là *Liên kết logic đa hình (Polymorphic)* được validate ở mức Service của Laravel chứ không có khóa ngoại (Foreign Key) cứng trên MySQL.
+- Bảng `slot_locks` có thêm field `booking_item_id` (FK -> booking_items.id) từ migration 2026-05-30.
+- Bảng `bookings` có thêm các field snapshot discount (original_amount, discount_amount, system_discount_amount, venue_discount_amount, final_amount, voucher_id, voucher_code_snapshot) từ migration 2026-06-01.
+- Bảng `payments` có thêm wallet_amount, gateway_amount, user_wallet_id, user_wallet_ledger_id từ migration 2026-06-01. Method enum mở rộng: sepay, bank_transfer, cash, wallet, mixed, vnpay, momo, zalopay.
+- Bảng `refunds` có thêm customer_id, refund_destination, user_wallet_id, user_wallet_ledger_id, user_payout_account_id, owner_wallet_ledger_id, owner_confirmed_by/at/note, admin_confirmed_by/at, gateway_refund_txn_id từ migration 2026-06-01.
+- Bảng `owner_wallet_ledgers` có thêm direction, status, reference_type, reference_id, transaction_code, note từ migration 2026-06-01.
+- Bảng `community_post_comments` có thêm moderation fields từ migration 2026-05-30.
+- Bảng `system_policies` có thêm policy_type, is_overridable, priority, status, effective_to, published_at, published_by, replaced_policy_id, require_reaccept, change_summary.
+- Bảng `policy_rules` có thêm decision_key, conflict_group, constraint_json, allowed_override_json, created_by, updated_by.
+- Bảng `venue_policy_rules` có thêm updated_by.
+- Bảng `policy_evaluation_logs` có thêm policy_version_snapshot, rule_snapshot.
+- Bảng `user_policy_acceptances` có thêm ip_address, user_agent.
+- Bảng `audit_logs` có thêm actor_type, module, metadata, reason, policy_id, policy_rule_id, policy_evaluation_log_id, request_id, severity.
 
 ==================================================
 ## PHẦN BỔ SUNG. THIẾT KẾ CHỨC NĂNG ADMIN THEO DB HIỆN TẠI
@@ -1519,3 +2104,30 @@ Các FK trên dùng `onDelete set null` để không cascade mất dữ liệu t
 - Audit log không phải backup; backup thật nằm ở file ngoài DB và metadata trong `backup_jobs`.
 - AI chỉ lưu lịch sử trò chuyện, không có quyền thao tác nghiệp vụ.
 - Khi xung đột rule, service sau này phải ưu tiên rule hệ thống trước rule sân.
+
+## Cập nhật 01/06/2026 - Admin Policy và Role Permission
+
+### Migration bổ sung
+
+Migration `2026_06_01_000008_extend_policy_management_fields.php` bổ sung các field còn thiếu cho module Admin Policy Management:
+
+- `system_policies`: `effective_to`, `published_at`, `published_by`, `replaced_policy_id`, `require_reaccept`, `change_summary`.
+- `policy_rules`: `decision_key`, `conflict_group`, `constraint_json`, `allowed_override_json`, `created_by`, `updated_by`.
+- `venue_policy_rules`: `updated_by`.
+- `policy_evaluation_logs`: `policy_version_snapshot`, `rule_snapshot`.
+- `user_policy_acceptances`: `ip_address`, `user_agent`.
+
+### Ràng buộc và index bổ sung
+
+- `system_policies.published_by` tham chiếu `users.id`.
+- `system_policies.replaced_policy_id` tham chiếu version chính sách cũ trong `system_policies.id`.
+- `policy_rules.created_by`, `policy_rules.updated_by` tham chiếu `users.id`.
+- `venue_policy_rules.updated_by` tham chiếu `users.id`.
+- Thêm index lookup cho publish/conflict rule: `policy_rules(action_code, rule_type, is_active, priority)` và `policy_rules(action_code, decision_key, conflict_group)`.
+- Thêm index tra cứu log áp dụng policy: `policy_evaluation_logs(action_code, entity_type, entity_id, created_at)`.
+
+### Module backend/UI dùng các bảng hiện có
+
+- Admin Policy Management dùng `system_policies`, `policy_action_bindings`, `policy_rules`, `venue_policy_rules`, `policy_evaluation_logs`, `notifications`, `audit_logs`.
+- Admin Role Permission Management dùng `roles`, `permissions`, `role_permissions`, `user_roles`, `audit_logs`.
+- Permission seed bổ sung: `policy.view`, `policy.create`, `policy.update`, `policy.publish`, `policy.rule.manage`, `role.create`, `role.update`, `role.delete`, `role.permission.manage`.

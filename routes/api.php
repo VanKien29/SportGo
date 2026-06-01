@@ -55,6 +55,31 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
 
         // Court Types CRUD
         Route::apiResource('court-types', \App\Http\Controllers\Api\Admin\CourtTypeController::class);
+
+        Route::get('/permissions', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'permissions']);
+        Route::get('/roles/{id}/users', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'users']);
+        Route::get('/roles', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'index']);
+        Route::post('/roles', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'store']);
+        Route::get('/roles/{id}', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'show']);
+        Route::put('/roles/{id}', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'update']);
+        Route::delete('/roles/{id}', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'destroy']);
+        Route::put('/roles/{id}/permissions', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'updatePermissions']);
+
+        Route::get('/policies/action-codes', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'actionCodes']);
+        Route::get('/policies/rule-templates', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'ruleTemplates']);
+        Route::get('/policies', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'index']);
+        Route::post('/policies', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'store']);
+        Route::get('/policies/{id}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'show']);
+        Route::put('/policies/{id}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'update']);
+        Route::post('/policies/{id}/clone-version', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'cloneVersion']);
+        Route::post('/policies/{id}/publish', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'publish']);
+        Route::patch('/policies/{id}/status', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateStatus']);
+        Route::post('/policies/{id}/bindings', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'storeBinding']);
+        Route::delete('/policies/{id}/bindings/{bindingId}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'destroyBinding']);
+        Route::post('/policies/{id}/rules', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'storeRule']);
+        Route::put('/policies/{id}/rules/{ruleId}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateRule']);
+        Route::patch('/policies/{id}/rules/{ruleId}/toggle', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'toggleRule']);
+        Route::get('/policies/{id}/evaluation-logs', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'evaluationLogs']);
     });
 
 Route::middleware(['auth:sanctum', EnsureOwnerRole::class])

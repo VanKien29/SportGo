@@ -17,6 +17,10 @@ import AdminLayout from "../views/admin/AdminLayout.vue";
 import AdminDashboard from "../views/admin/AdminDashboard.vue";
 import AdminProfile from "../views/admin/AdminProfile.vue";
 import AdminUsers from "../views/admin/AdminUsers.vue";
+import AdminPolicies from "../views/admin/AdminPolicies.vue";
+import AdminPolicyDetail from "../views/admin/AdminPolicyDetail.vue";
+import AdminRoles from "../views/admin/AdminRoles.vue";
+import AdminRoleDetail from "../views/admin/AdminRoleDetail.vue";
 import OwnerLayout from "../views/owner/OwnerLayout.vue";
 import OwnerDashboard from "../views/owner/OwnerDashboard.vue";
 import OwnerPricing from "../views/owner/OwnerPricing.vue";
@@ -56,12 +60,6 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
-        path: "/admin/profile",
-        name: "admin-profile",
-        component: Profile,
-        meta: { requiresAuth: true, role: "admin" },
-    },
-    {
         path: "/admin/login",
         name: "admin-login",
         component: AdminLogin,
@@ -91,6 +89,10 @@ const routes = [
             },
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
+            { path: "policies", name: "admin-policies", component: AdminPolicies },
+            { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
+            { path: "roles", name: "admin-roles", component: AdminRoles },
+            { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail },
             {
                 path: "court-types",
                 name: "admin-court-types",
