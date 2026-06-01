@@ -1,13 +1,6 @@
 <template>
   <div class="pricing-page">
-    <section class="pricing-header">
-      <div>
-        <h1>Cấu Hình Giá Đặt Sân</h1>
-        <p>
-          Thiết lập lịch giá theo khung giờ, ngày trong tuần và cấu hình thời lượng booking cho từng cụm sân.
-        </p>
-      </div>
-
+    <div class="header-actions">
       <label class="cluster-select">
         <span>Cụm sân</span>
         <select v-model="selectedClusterId" :disabled="isLoading || clusters.length === 0">
@@ -16,7 +9,7 @@
           </option>
         </select>
       </label>
-    </section>
+    </div>
 
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="notice" class="alert alert-success">{{ notice }}</div>

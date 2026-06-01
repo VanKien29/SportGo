@@ -1,12 +1,8 @@
 <template>
   <div class="policies-page">
-    <section class="page-head">
-      <div>
-        <h1>Quản lý chính sách</h1>
-        <p>Tạo và cập nhật các chính sách hệ thống đang có hiệu lực cho người dùng.</p>
-      </div>
+    <div class="header-actions">
       <button class="primary-btn" type="button" @click="openCreate">Thêm chính sách</button>
-    </section>
+    </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="notice" class="alert success">{{ notice }}</div>
@@ -243,7 +239,6 @@ export default {
   margin: 0 auto;
 }
 
-.page-head,
 .table-card,
 .state-card,
 .modal-panel,
@@ -254,24 +249,17 @@ export default {
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
-.page-head {
+.header-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 18px;
-  align-items: end;
-  padding: 20px;
+  align-items: center;
 }
 
-.page-head h1,
 .modal-panel h2 {
   margin: 0;
   color: #0f172a;
   font-weight: 900;
-}
-
-.page-head p {
-  margin: 6px 0 0;
-  color: #64748b;
 }
 
 .alert {
@@ -449,7 +437,6 @@ textarea {
 }
 
 @media (max-width: 760px) {
-  .page-head,
   .form-grid {
     display: grid;
     grid-template-columns: 1fr;

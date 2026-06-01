@@ -1,12 +1,6 @@
 <template>
     <div class="court-types-container">
-        <div class="card header-card">
-            <div class="header-content">
-                <h2>Danh mục loại sân</h2>
-                <p class="subtitle">
-                    Quản lý các loại sân thể thao được hỗ trợ trên hệ thống
-                </p>
-            </div>
+        <div class="header-actions">
             <button class="btn btn-primary" @click="openCreateModal">
                 <span class="plus-icon">+</span> Thêm loại sân mới
             </button>
@@ -374,25 +368,11 @@ export default {
     padding: 24px;
 }
 
-.header-card {
+.header-actions {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
-    flex-wrap: wrap;
     gap: 16px;
-}
-
-.header-content h2 {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--sg-text);
-    margin: 0;
-}
-
-.subtitle {
-    margin-top: 4px;
-    color: rgba(15, 23, 42, 0.5);
-    font-size: 14px;
 }
 
 .btn {
