@@ -32,6 +32,12 @@ class DatabaseSeeder extends Seeder
         $this->callIfTablesExist(SystemBankAccountSeeder::class, ['system_bank_accounts']);
 
         $this->callIfTablesExist(SystemPoliciesTableSeeder::class, ['users', 'system_policies']);
+        $this->callIfTablesExist(PolicyRulesTableSeeder::class, [
+            'users',
+            'system_policies',
+            'policy_action_bindings',
+            'policy_rules',
+        ]);
         $this->callIfTablesExist(HashtagsTableSeeder::class, ['hashtags']);
         $this->callIfTablesExist(SystemPostsTableSeeder::class, ['users', 'system_posts']);
         $this->callIfTablesExist(BannersTableSeeder::class, ['users', 'banners']);
@@ -49,6 +55,12 @@ class DatabaseSeeder extends Seeder
             'owner_bank_accounts',
         ]);
         $this->callIfTablesExist(OwnerWalletsTableSeeder::class, ['users', 'owner_wallets']);
+        $this->callIfTablesExist(UserWalletsTableSeeder::class, [
+            'users',
+            'user_wallets',
+            'user_wallet_ledgers',
+            'user_payout_accounts',
+        ]);
 
         $this->callIfTablesExist(BookingsTableSeeder::class, ['users', 'venue_clusters', 'bookings']);
         $this->callIfTablesExist(BookingItemsTableSeeder::class, ['bookings', 'booking_items', 'venue_courts']);
@@ -69,6 +81,11 @@ class DatabaseSeeder extends Seeder
             'venue_courts',
             'platform_fee_tiers',
             'venue_platform_fee_ledgers',
+        ]);
+        $this->callIfTablesExist(VouchersTableSeeder::class, [
+            'users',
+            'vouchers',
+            'voucher_scopes',
         ]);
 
         $this->callIfTablesExist(CommunityPostsTableSeeder::class, ['users', 'community_posts']);
