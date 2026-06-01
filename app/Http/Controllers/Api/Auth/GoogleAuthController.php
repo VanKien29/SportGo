@@ -58,8 +58,8 @@ class GoogleAuthController extends Controller
 
         if ($this->isAdminUser($user)) {
             return $request->expectsJson()
-                ? response()->json(['message' => 'Tài khoản quản trị vui lòng đăng nhập tại trang Admin.'], 422)
-                : redirect('/admin/login?admin_login_required=1');
+                ? response()->json(['message' => 'Tài khoản không hợp lệ.'], 422)
+                : redirect('/login?google_error=invalid_account');
         }
 
         if ($user->status === 'locked') {
