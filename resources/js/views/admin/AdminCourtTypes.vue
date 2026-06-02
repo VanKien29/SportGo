@@ -80,11 +80,11 @@
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th style="width: 29%;">Tên bộ môn / Loại sân</th>
-                                <th class="text-center" style="width: 22%;">Số người chơi tiêu chuẩn</th>
-                                <th style="width: 25%;">Mô tả</th>
-                                <th class="status-header" style="width: 110px;">Trạng thái</th>
-                                <th class="text-center actions-header" style="width: 180px;">Thao tác</th>
+                                <th style="width: 28%;">Tên bộ môn / Loại sân</th>
+                                <th class="text-center player-count-header" style="width: 18%;">Số người chơi tiêu chuẩn</th>
+                                <th class="description-header" style="width: 28%;">Mô tả</th>
+                                <th class="status-header" style="width: 11%;">Trạng thái</th>
+                                <th class="text-center actions-header" style="width: 15%;">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -116,8 +116,8 @@
                                             </span>
                                         </div>
                                     </td>
-                                    <td class="text-center text-muted">-</td>
-                                    <td>
+                                    <td class="text-center text-muted player-count-cell">-</td>
+                                    <td class="description-cell">
                                         <div class="description-text text-muted text-truncate" :title="parent.description">
                                             {{ parent.description || "Chưa có mô tả" }}
                                         </div>
@@ -163,8 +163,8 @@
                                             <span class="name-text">{{ child.name }}</span>
                                         </div>
                                     </td>
-                                    <td class="text-center">{{ child.player_count }} người</td>
-                                    <td>
+                                    <td class="text-center player-count-cell">{{ child.player_count }} người</td>
+                                    <td class="description-cell">
                                         <div class="description-text text-muted text-truncate" :title="child.description">
                                             {{ child.description || "Chưa có mô tả" }}
                                         </div>
@@ -761,6 +761,11 @@ export default {
                 child.parent_id = oldParentId;
                 alert("Lỗi khi chuyển danh mục: " + (err.message || err));
             }
+        },
+        checkMobileView() {
+            if (window.innerWidth <= 768) {
+                this.currentView = 'split';
+            }
         }
     },
     created() {
@@ -768,9 +773,12 @@ export default {
     },
     mounted() {
         document.addEventListener("click", this.handleClickOutside);
+        this.checkMobileView();
+        window.addEventListener("resize", this.checkMobileView);
     },
     beforeUnmount() {
         document.removeEventListener("click", this.handleClickOutside);
+        window.removeEventListener("resize", this.checkMobileView);
     }
 };
 </script>
@@ -865,11 +873,15 @@ export default {
 .table-card {
     padding: 0;
     overflow: hidden;
+    width: 100%;
+    max-width: 100%;
 }
 
 .table-responsive {
     width: 100%;
+    max-width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .data-table {
@@ -1195,18 +1207,33 @@ export default {
 /* Định nghĩa độ rộng cột Thao tác và căn chỉnh các nút bấm */
 .actions-header,
 .actions-cell {
-    width: 180px !important;
+    width: 15% !important;
     min-width: 180px !important;
-    max-width: 180px !important;
+    max-width: 200px !important;
     text-align: center;
 }
 
 .status-header,
 .status-cell {
-    width: 110px !important;
-    min-width: 110px !important;
-    max-width: 110px !important;
+    width: 11% !important;
+    min-width: 115px !important;
+    max-width: 130px !important;
     text-align: center;
+}
+
+.parent-name-cell,
+.child-name-cell {
+    min-width: 200px;
+}
+
+.player-count-header,
+.player-count-cell {
+    min-width: 140px;
+}
+
+.description-header,
+.description-cell {
+    min-width: 180px;
 }
 
 .status-dot-wrapper {
@@ -1876,7 +1903,7 @@ export default {
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
     .kanban-view-container {
         column-count: 1;
     }
@@ -2156,5 +2183,146 @@ export default {
 
 .option-text {
     flex-grow: 1;
+}
+
+/* ==========================================
+   RESPONSIVE DESIGN (MOBILE & TABLET)
+   ========================================== */
+
+@media (max-width: 1024px) {
+    /* Container chính */
+    .court-types-container {
+        gap: 16px;
+        padding: 0 4px;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    /* Header Actions Bar & View Switcher */
+    .header-actions-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .view-switcher {
+        width: 100%;
+        display: flex;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .view-switcher::-webkit-scrollbar {
+        display: none;
+    }
+
+    .btn-switch {
+        flex: 1;
+        justify-content: center;
+        white-space: nowrap;
+        padding: 8px 10px;
+        font-size: 12.5px;
+    }
+
+    .header-actions-bar .btn-primary {
+        width: 100%;
+        justify-content: center;
+        padding: 12px 18px;
+    }
+
+    /* 1. Table View */
+    .data-table {
+        min-width: 820px; /* Ngăn chặn co bóp cột, cho phép cuộn ngang mượt */
+    }
+
+    /* 2. Split View (Chuyển sang dạng dọc trên Mobile) */
+    .split-view-container {
+        flex-direction: column;
+        gap: 16px;
+        min-height: auto;
+    }
+
+    .split-left-sidebar {
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+        padding: 12px;
+    }
+
+    .sidebar-list {
+        max-height: 160px; /* Giới hạn chiều cao để không chiếm quá nhiều chỗ */
+        overflow-y: auto;
+    }
+
+    .split-right-content {
+        padding: 16px;
+    }
+
+    .children-cards-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+    }
+
+    /* 3. Nested Cards View */
+    .cards-view-container {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+}
+
+@media (max-width: 576px) {
+    /* Tối ưu hóa modal trên mobile để tránh bị tràn chiều cao */
+    .modal-backdrop {
+        padding: 10px;
+    }
+
+    .modal {
+        max-height: 95vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-header,
+    .modal-footer {
+        padding: 14px 16px;
+    }
+
+    .modal-header h3 {
+        font-size: 16px;
+    }
+
+    .modal-body {
+        padding: 16px;
+        overflow-y: auto;
+        max-height: calc(95vh - 120px);
+        gap: 12px;
+    }
+
+    /* Card view con trong Cards View */
+    .child-inline-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .child-inline-left {
+        max-width: 100%;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .child-inline-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Ẩn hoàn toàn thanh chuyển đổi chế độ xem trên điện thoại */
+    .view-switcher {
+        display: none !important;
+    }
 }
 </style>
