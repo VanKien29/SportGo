@@ -206,7 +206,7 @@ export default {
       this.modalError = null;
       this.form = {
         name: '',
-        court_type_id: this.courtTypes.length > 0 ? this.courtTypes[0].id : '',
+        court_type_id: '',
         status: 'active',
         sort_order: this.courts.length + 1,
       };
