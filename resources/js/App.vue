@@ -1,26 +1,71 @@
 <template>
   <router-view />
-  <SetPasswordModal v-if="showSetPasswordModal" @done="showSetPasswordModal = false" />
+  <SetPasswordModal v-if="showSetPasswordModal" @done="handlePasswordSetupDone" />
+  <PolicyAcceptanceModal
+    v-else-if="requiredPolicies.length"
+    :policies="requiredPolicies"
+    @accepted="handlePoliciesAccepted"
+  />
 </template>
 
 <script>
+import PolicyAcceptanceModal from './components/PolicyAcceptanceModal.vue';
 import SetPasswordModal from './components/SetPasswordModal.vue';
-import { needsPasswordSetup } from './stores/auth.js';
+import { getAuth, needsPasswordSetup } from './stores/auth.js';
+import { policyService } from './services/policies.js';
 
 export default {
   name: 'App',
-  components: { SetPasswordModal },
+  components: { PolicyAcceptanceModal, SetPasswordModal },
   data() {
     return {
       showSetPasswordModal: false,
+      requiredPolicies: [],
+      checkingPolicies: false,
     };
   },
   mounted() {
     this.showSetPasswordModal = needsPasswordSetup();
+    this.checkRequiredPolicies();
   },
   watch: {
     $route() {
       this.showSetPasswordModal = needsPasswordSetup();
+      this.checkRequiredPolicies();
+    },
+  },
+  methods: {
+    shouldCheckPolicies() {
+      const auth = getAuth();
+      if (!auth?.token) return false;
+      if (auth.role_group === 'admin') return false;
+      if (this.$route.path.startsWith('/admin')) return false;
+      return true;
+    },
+    async checkRequiredPolicies() {
+      if (this.checkingPolicies) return;
+      if (!this.shouldCheckPolicies()) {
+        this.requiredPolicies = [];
+        return;
+      }
+
+      this.checkingPolicies = true;
+
+      try {
+        const response = await policyService.required();
+        this.requiredPolicies = response.data || response.policies || [];
+      } catch {
+        this.requiredPolicies = [];
+      } finally {
+        this.checkingPolicies = false;
+      }
+    },
+    handlePasswordSetupDone() {
+      this.showSetPasswordModal = false;
+      this.checkRequiredPolicies();
+    },
+    handlePoliciesAccepted() {
+      this.requiredPolicies = [];
     },
   },
 };

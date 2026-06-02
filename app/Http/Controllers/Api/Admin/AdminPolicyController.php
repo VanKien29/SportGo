@@ -358,6 +358,8 @@ class AdminPolicyController extends Controller
         $this->authorizePermission($request, 'policy.rule.manage');
 
         $policy = SystemPolicy::query()->findOrFail($id);
+        $this->ensurePolicyDraftForRuleChange($policy);
+
         $data = $request->validate([
             'module' => ['required', 'string', 'max:50'],
             'action_code' => ['required', 'string', 'max:100'],
@@ -390,6 +392,8 @@ class AdminPolicyController extends Controller
         $this->authorizePermission($request, 'policy.rule.manage');
 
         $policy = SystemPolicy::query()->findOrFail($id);
+        $this->ensurePolicyDraftForRuleChange($policy);
+
         $binding = PolicyActionBinding::query()
             ->where('system_policy_id', $policy->id)
             ->findOrFail($bindingId);
@@ -409,6 +413,8 @@ class AdminPolicyController extends Controller
         $this->authorizePermission($request, 'policy.rule.manage');
 
         $policy = SystemPolicy::query()->findOrFail($id);
+        $this->ensurePolicyDraftForRuleChange($policy);
+
         $data = $this->ruleData($request, $policy);
 
         $rule = $policy->rules()->create([
@@ -434,12 +440,7 @@ class AdminPolicyController extends Controller
 
         $policy = SystemPolicy::query()->findOrFail($id);
         $rule = PolicyRule::query()->where('system_policy_id', $policy->id)->findOrFail($ruleId);
-
-        if ($policy->status === 'active') {
-            throw ValidationException::withMessages([
-                'rule' => 'Không được sửa quy tắc của chính sách đang áp dụng. Hãy tạo phiên bản mới.',
-            ]);
-        }
+        $this->ensurePolicyDraftForRuleChange($policy);
 
         $data = $this->ruleData($request, $policy, $rule);
         $oldValues = $rule->toArray();
@@ -465,6 +466,8 @@ class AdminPolicyController extends Controller
         $this->authorizePermission($request, 'policy.rule.manage');
 
         $policy = SystemPolicy::query()->findOrFail($id);
+        $this->ensurePolicyDraftForRuleChange($policy);
+
         $rule = PolicyRule::query()->where('system_policy_id', $policy->id)->findOrFail($ruleId);
         $oldValues = $rule->toArray();
 
@@ -590,6 +593,7 @@ class AdminPolicyController extends Controller
 
         $this->ensureRuleCompatible($policy, $data['rule_type']);
         $this->ensureActionCompatible($policy, $data['action_code']);
+        $this->ensureRuleActionPairCompatible($data['rule_type'], $data['action_code']);
 
         return $data;
     }
@@ -748,7 +752,7 @@ class AdminPolicyController extends Controller
         $policyType = $policy->policy_type ?: $policy->type ?: 'general';
         $allowed = $this->allowedActionCodes($policyType);
 
-        if ($policyType !== 'general' && ! in_array($actionCode, $allowed, true)) {
+        if (! in_array($actionCode, $allowed, true)) {
             throw ValidationException::withMessages([
                 'action_code' => 'Thao tác này không phù hợp với loại chính sách ' . $this->policyTypeLabel($policyType) . '.',
             ]);
@@ -760,11 +764,39 @@ class AdminPolicyController extends Controller
         $policyType = $policy->policy_type ?: $policy->type ?: 'general';
         $allowed = $this->allowedRuleTypes($policyType);
 
-        if ($policyType !== 'general' && ! in_array($ruleType, $allowed, true)) {
+        if (! in_array($ruleType, $allowed, true)) {
             throw ValidationException::withMessages([
                 'rule_type' => 'Loại quy tắc này không phù hợp với chính sách ' . $this->policyTypeLabel($policyType) . '.',
             ]);
         }
+    }
+
+    private function ensureRuleActionPairCompatible(string $ruleType, string $actionCode): void
+    {
+        $template = $this->ruleTemplateOptions()[$ruleType] ?? null;
+
+        if (! $template) {
+            throw ValidationException::withMessages([
+                'rule_type' => 'Loại quy tắc này chưa được hệ thống hỗ trợ.',
+            ]);
+        }
+
+        if (! in_array($actionCode, $template['action_codes'] ?? [], true)) {
+            throw ValidationException::withMessages([
+                'action_code' => 'Thao tác áp dụng không phù hợp với loại quy tắc đã chọn.',
+            ]);
+        }
+    }
+
+    private function ensurePolicyDraftForRuleChange(SystemPolicy $policy): void
+    {
+        if ($policy->status !== 'active') {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'policy' => 'Không được sửa quy tắc hoặc thao tác của chính sách đang áp dụng. Hãy tạo phiên bản mới.',
+        ]);
     }
 
     private function allowedActionCodes(string $policyType): array
@@ -1026,7 +1058,7 @@ class AdminPolicyController extends Controller
         return 'Dữ liệu kỹ thuật';
     }
 
-    private function formatAuditValue(mixed $value): string
+    private function formatSimpleAuditValue(mixed $value): string
     {
         if (is_null($value)) return 'trống';
         if (is_bool($value)) return $value ? 'Có' : 'Không';
@@ -1193,6 +1225,10 @@ class AdminPolicyController extends Controller
     private function assertPolicyConfigurationCompatible(SystemPolicy $policy): void
     {
         $policyType = $policy->policy_type ?: $policy->type;
+        $activeActionCodes = $policy->actionBindings
+            ->where('is_active', true)
+            ->pluck('action_code')
+            ->all();
 
         foreach ($policy->actionBindings->where('is_active', true) as $binding) {
             $this->ensureActionCompatible($policy, $binding->action_code);
@@ -1201,6 +1237,13 @@ class AdminPolicyController extends Controller
         foreach ($policy->rules->where('is_active', true) as $rule) {
             $this->ensureRuleCompatible($policy, $rule->rule_type);
             $this->ensureActionCompatible($policy, $rule->action_code);
+            $this->ensureRuleActionPairCompatible($rule->rule_type, $rule->action_code);
+
+            if (! in_array($rule->action_code, $activeActionCodes, true)) {
+                throw ValidationException::withMessages([
+                    'action_bindings' => 'Quy tắc "' . $rule->rule_name . '" đang dùng thao tác chưa được bật trong chính sách.',
+                ]);
+            }
 
             if (! in_array($rule->rule_type, $this->allowedRuleTypes($policyType), true)) {
                 throw ValidationException::withMessages([
