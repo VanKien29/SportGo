@@ -23,6 +23,7 @@ if (!$user) {
         'username' => 'admin_test',
         'full_name' => 'Admin Test',
         'email' => 'admin@test.com',
+        'phone' => '0123456789',
         'password' => bcrypt('123456'),
     ]);
     

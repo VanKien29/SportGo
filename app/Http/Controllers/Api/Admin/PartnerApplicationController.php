@@ -140,7 +140,13 @@ class PartnerApplicationController extends Controller
             ]);
 
             // 2. Tạo sân con ban đầu
-            // TODO: Implement court creation based on court_type_id
+            \App\Models\VenueCourt::create([
+                'venue_cluster_id' => $venueCluster->id,
+                'court_type_id' => $request->court_type_id,
+                'name' => $request->initial_court_name,
+                'status' => 'active',
+                'sort_order' => 1,
+            ]);
 
             // 3. Gán role chủ sân cho user
             $user = User::findOrFail($application->user_id);
@@ -150,7 +156,16 @@ class PartnerApplicationController extends Controller
             }
 
             // 4. Lưu tài khoản nhân tiền
-            // TODO: Implement bank account storage
+            \App\Models\OwnerBankAccount::create([
+                'owner_id' => $application->user_id,
+                'partner_application_id' => $application->id,
+                'bank_name' => $request->bank_name,
+                'bank_code' => 'N/A', // or blank
+                'account_number' => $request->bank_account_number,
+                'account_holder_name' => $request->bank_account_name,
+                'status' => 'verified',
+                'is_default' => true,
+            ]);
 
             // 5. Cập nhật trạng thái đơn
             $application->update([

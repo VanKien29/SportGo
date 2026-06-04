@@ -246,7 +246,8 @@ export default {
 
         let data;
         if (this.isEditing) {
-          data = await apiFormData(`/api/admin/banners/${this.form.id}`, formData, { method: 'PATCH' });
+          formData.append('_method', 'PATCH');
+          data = await apiFormData(`/api/admin/banners/${this.form.id}`, formData, { method: 'POST' });
         } else {
           data = await apiFormData('/api/admin/banners', formData);
         }

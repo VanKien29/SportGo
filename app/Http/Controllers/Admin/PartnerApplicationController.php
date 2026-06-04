@@ -92,7 +92,14 @@ class PartnerApplicationController extends Controller
                 'owner_id' => $application->user_id,
             ]);
 
-            // 2. TODO: Tạo sân con ban đầu (nếu có model Court)
+            // 2. Tạo sân con ban đầu
+            \App\Models\VenueCourt::create([
+                'venue_cluster_id' => $venueCluster->id,
+                'court_type_id' => $validated['court_type_id'],
+                'name' => $validated['initial_court_name'],
+                'status' => 'active',
+                'sort_order' => 1,
+            ]);
 
             // 3. Gán role chủ sân cho user
             $venueOwnerRole = Role::where('name', 'venue_owner')->first();
@@ -100,7 +107,17 @@ class PartnerApplicationController extends Controller
                 $application->user->roles()->syncWithoutDetaching([$venueOwnerRole->id]);
             }
 
-            // 4. TODO: Lưu tài khoản ngân hàng (nếu có model)
+            // 4. Lưu tài khoản ngân hàng
+            \App\Models\OwnerBankAccount::create([
+                'owner_id' => $application->user_id,
+                'partner_application_id' => $application->id,
+                'bank_name' => $validated['bank_name'],
+                'bank_code' => 'N/A',
+                'account_number' => $validated['bank_account_number'],
+                'account_holder_name' => $validated['bank_account_name'],
+                'status' => 'verified',
+                'is_default' => true,
+            ]);
 
             // 5. Cập nhật trạng thái đơn
             $application->update([
