@@ -111,6 +111,36 @@ const routes = [
                 component: () =>
                     import("../views/admin/AdminVenueClusterDetail.vue"),
             },
+            {
+                path: "platform-fee-tiers",
+                name: "admin-platform-fee-tiers",
+                component: () =>
+                    import("../views/admin/AdminPlatformFeeTiers.vue"),
+            },
+            {
+                path: "platform-fee-ledgers",
+                name: "admin-platform-fee-ledgers",
+                component: () =>
+                    import("../views/admin/AdminPlatformFeeLedgers.vue"),
+            },
+            {
+                path: "platform-fee-ledgers/:id",
+                name: "admin-platform-fee-ledger-detail",
+                component: () =>
+                    import("../views/admin/AdminPlatformFeeLedgerDetail.vue"),
+            },
+            {
+                path: "venues/:id/platform-fees",
+                name: "admin-venue-platform-fees",
+                component: () =>
+                    import("../views/admin/AdminVenuePlatformFees.vue"),
+            },
+            {
+                path: "settings/platform-fee",
+                name: "admin-platform-fee-settings",
+                component: () =>
+                    import("../views/admin/AdminPlatformFeeSettings.vue"),
+            },
             { path: "", redirect: { name: "admin-dashboard" } },
         ],
     },

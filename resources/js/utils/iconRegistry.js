@@ -171,6 +171,7 @@ export const ICON_ALIASES = {
   venue: 'building',
   finance: 'banknote',
   payment: 'creditCard',
+  receipt: 'creditCard',
   notification: 'bell',
   warning: 'alert',
   publish: 'rocket',
