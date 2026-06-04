@@ -10,7 +10,7 @@ export function generatePlatformFeeReceipt(ledger) {
     owner_id: venue?.owner?.id || null,
     amount: ledger.amount_paid,
     issued_at: new Date().toISOString(),
-    content: `Phieu thu phi duy tri nen tang cho ${venue?.name || ledger.venue_cluster_id}`,
+    content: `Phiếu thu phí duy trì nền tảng cho ${venue?.name || ledger.venue_cluster_id}`,
   };
 
   platformFeeStore.state.receipts.unshift(receipt);

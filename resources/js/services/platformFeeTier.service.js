@@ -42,30 +42,30 @@ export function validateTier(payload, existingTiers = getTiers()) {
   const errors = {};
   const editingId = payload.id || null;
 
-  if (!tier.name) addFieldError(errors, 'name', 'Vui long nhap ten bac phi.');
+  if (!tier.name) addFieldError(errors, 'name', 'Vui lòng nhập tên bậc phí.');
   if (tier.name && existingTiers.some((item) => item.id !== editingId && item.is_active && item.name.trim().toLowerCase() === tier.name.toLowerCase())) {
-    addFieldError(errors, 'name', 'Ten bac phi dang trung voi bac active khac.');
+    addFieldError(errors, 'name', 'Tên bậc phí đang trùng với bậc đang dùng khác.');
   }
 
-  if (!Number.isInteger(tier.min_courts)) addFieldError(errors, 'min_courts', 'Vui long nhap so san toi thieu.');
+  if (!Number.isInteger(tier.min_courts)) addFieldError(errors, 'min_courts', 'Vui lòng nhập số sân tối thiểu.');
   if (Number.isInteger(tier.min_courts) && tier.min_courts < 1) {
-    addFieldError(errors, 'min_courts', 'So san toi thieu phai lon hon hoac bang 1.');
+    addFieldError(errors, 'min_courts', 'Số sân tối thiểu phải lớn hơn hoặc bằng 1.');
   }
 
   if (tier.max_courts !== null && !Number.isInteger(tier.max_courts)) {
-    addFieldError(errors, 'max_courts', 'So san toi da phai la so nguyen.');
+    addFieldError(errors, 'max_courts', 'Số sân tối đa phải là số nguyên.');
   }
   if (Number.isInteger(tier.max_courts) && tier.max_courts < tier.min_courts) {
-    addFieldError(errors, 'max_courts', 'So san toi da phai lon hon hoac bang so san toi thieu.');
+    addFieldError(errors, 'max_courts', 'Số sân tối đa phải lớn hơn hoặc bằng số sân tối thiểu.');
   }
 
   if (!Number.isFinite(tier.price_per_court_month) || tier.price_per_court_month <= 0) {
-    addFieldError(errors, 'price_per_court_month', 'Gia/san/thang phai lon hon 0.');
+    addFieldError(errors, 'price_per_court_month', 'Giá/sân/tháng phải lớn hơn 0.');
   }
 
   discountFields().forEach((field) => {
     if (!Number.isFinite(tier[field]) || tier[field] < 0 || tier[field] > 100) {
-      addFieldError(errors, field, 'Giam gia phai nam trong khoang 0 - 100%.');
+      addFieldError(errors, field, 'Giảm giá phải nằm trong khoảng 0 - 100%.');
     }
   });
 
@@ -73,7 +73,7 @@ export function validateTier(payload, existingTiers = getTiers()) {
   if (!editingId) proposed.push({ ...tier, id: '__new__' });
   const unlimitedActive = proposed.filter((item) => item.is_active && item.max_courts === null);
   if (tier.is_active && unlimitedActive.length > 1) {
-    addFieldError(errors, 'max_courts', 'Chi duoc co mot bac khong gioi han.');
+    addFieldError(errors, 'max_courts', 'Chỉ được có một bậc không giới hạn.');
   }
 
   const coverage = validateTierCoverage(proposed);
@@ -97,7 +97,7 @@ export function validateTierCoverage(tiers) {
   const overlappingRanges = [];
 
   if (activeTiers.length === 0) {
-    errors.push('Chua co bac phi active nao.');
+    errors.push('Chưa có bậc phí đang dùng nào.');
     missingRanges.push({ from: 1, to: null });
     return { isValid: false, errors, warnings, missingRanges, overlappingRanges };
   }
@@ -107,24 +107,24 @@ export function validateTierCoverage(tiers) {
 
   activeTiers.forEach((tier, index) => {
     if (hasUnlimited) {
-      errors.push('Bac khong gioi han phai la bac cuoi.');
+      errors.push('Bậc không giới hạn phải là bậc cuối.');
       overlappingRanges.push({ from: tier.min_courts, to: tier.max_courts });
       return;
     }
 
     if (index === 0 && tier.min_courts !== 1) {
-      errors.push('Bac active dau tien phai bat dau tu 1 san.');
+      errors.push('Bậc đang dùng đầu tiên phải bắt đầu từ 1 sân.');
       missingRanges.push({ from: 1, to: tier.min_courts - 1 });
     }
 
     if (tier.min_courts < expectedMin) {
       const previous = activeTiers[index - 1];
-      errors.push(`Khoang ${tier.min_courts} - ${tier.max_courts || 'khong gioi han'} bi trung voi khoang ${previous?.min_courts} - ${previous?.max_courts || 'khong gioi han'}.`);
+      errors.push(`Khoảng ${tier.min_courts} - ${tier.max_courts || 'không giới hạn'} bị trùng với khoảng ${previous?.min_courts} - ${previous?.max_courts || 'không giới hạn'}.`);
       overlappingRanges.push({ from: tier.min_courts, to: Math.min(tier.max_courts || expectedMin, expectedMin - 1) });
     }
 
     if (tier.min_courts > expectedMin) {
-      errors.push(`Thieu bac phi cho cum co ${expectedMin} san.`);
+      errors.push(`Thiếu bậc phí cho cụm có ${expectedMin} sân.`);
       missingRanges.push({ from: expectedMin, to: tier.min_courts - 1 });
     }
 
@@ -137,7 +137,7 @@ export function validateTierCoverage(tiers) {
   });
 
   if (!hasUnlimited) {
-    errors.push('Thieu bac phi khong gioi han cho cac cum lon hon.');
+    errors.push('Thiếu bậc phí không giới hạn cho các cụm lớn hơn.');
     missingRanges.push({ from: expectedMin, to: null });
   }
 
@@ -164,7 +164,7 @@ export function getTierUsageCount(tierId) {
 
 export function createTier(payload) {
   const validation = validateTier(payload);
-  if (!validation.isValid) return Promise.reject(Object.assign(new Error('Du lieu bac phi chua hop le.'), { validation }));
+  if (!validation.isValid) return Promise.reject(Object.assign(new Error('Dữ liệu bậc phí chưa hợp lệ.'), { validation }));
 
   const now = new Date().toISOString();
   const tier = {
@@ -181,11 +181,11 @@ export function createTier(payload) {
 
 export function updateTier(id, payload) {
   const index = platformFeeStore.state.tiers.findIndex((tier) => tier.id === id);
-  if (index === -1) return Promise.reject(new Error('Khong tim thay bac phi.'));
+  if (index === -1) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
 
   const oldTier = cloneValue(platformFeeStore.state.tiers[index]);
   const validation = validateTier({ ...oldTier, ...payload, id });
-  if (!validation.isValid) return Promise.reject(Object.assign(new Error('Du lieu bac phi chua hop le.'), { validation }));
+  if (!validation.isValid) return Promise.reject(Object.assign(new Error('Dữ liệu bậc phí chưa hợp lệ.'), { validation }));
 
   const updated = { ...oldTier, ...validation.normalized, id, updated_at: new Date().toISOString() };
   platformFeeStore.state.tiers.splice(index, 1, updated);
@@ -194,9 +194,9 @@ export function updateTier(id, payload) {
   return Promise.resolve(cloneValue(updated));
 }
 
-export function deactivateTier(id, reason = 'Ngung su dung') {
+export function deactivateTier(id, reason = 'Ngừng sử dụng') {
   const tier = platformFeeStore.state.tiers.find((item) => item.id === id);
-  if (!tier) return Promise.reject(new Error('Khong tim thay bac phi.'));
+  if (!tier) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
 
   const oldTier = cloneValue(tier);
   tier.is_active = false;
@@ -205,7 +205,7 @@ export function deactivateTier(id, reason = 'Ngung su dung') {
   const coverage = validateTierCoverage(platformFeeStore.state.tiers);
   if (!coverage.isValid) {
     Object.assign(tier, oldTier);
-    return Promise.reject(Object.assign(new Error('Ngung dung bac phi se lam thieu coverage.'), { coverage }));
+    return Promise.reject(Object.assign(new Error('Ngừng dùng bậc phí sẽ làm thiếu khoảng áp dụng.'), { coverage }));
   }
 
   platformFeeStore.save();
@@ -215,7 +215,7 @@ export function deactivateTier(id, reason = 'Ngung su dung') {
 
 export function reactivateTier(id) {
   const tier = platformFeeStore.state.tiers.find((item) => item.id === id);
-  if (!tier) return Promise.reject(new Error('Khong tim thay bac phi.'));
+  if (!tier) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
 
   const oldTier = cloneValue(tier);
   tier.is_active = true;
@@ -223,7 +223,7 @@ export function reactivateTier(id) {
   const coverage = validateTierCoverage(platformFeeStore.state.tiers);
   if (!coverage.isValid) {
     Object.assign(tier, oldTier);
-    return Promise.reject(Object.assign(new Error('Kich hoat lai bac phi se lam coverage chua hop le.'), { coverage }));
+    return Promise.reject(Object.assign(new Error('Kích hoạt lại bậc phí sẽ làm khoảng áp dụng chưa hợp lệ.'), { coverage }));
   }
 
   platformFeeStore.save();
@@ -233,10 +233,10 @@ export function reactivateTier(id) {
 
 export function deleteTier(id) {
   const usageCount = getTierUsageCount(id);
-  if (usageCount > 0) return deactivateTier(id, 'Da co ledger su dung nen chi ngung dung.');
+  if (usageCount > 0) return deactivateTier(id, 'Đã có ledger sử dụng nên chỉ ngừng dùng.');
 
   const index = platformFeeStore.state.tiers.findIndex((tier) => tier.id === id);
-  if (index === -1) return Promise.reject(new Error('Khong tim thay bac phi.'));
+  if (index === -1) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
   const oldTier = platformFeeStore.state.tiers[index];
   platformFeeStore.state.tiers.splice(index, 1);
   platformFeeStore.save();
@@ -252,7 +252,7 @@ export function findTierForCourtCount(courtCount) {
     return {
       tier: null,
       matches,
-      error: `Chua co bac phi phu hop cho cum co ${count} san. Vui long cau hinh bac phi truoc.`,
+      error: `Chưa có bậc phí phù hợp cho cụm có ${count} sân. Vui lòng cấu hình bậc phí trước.`,
     };
   }
 
@@ -260,7 +260,7 @@ export function findTierForCourtCount(courtCount) {
     return {
       tier: null,
       matches,
-      error: `Co nhieu bac phi cung ap dung cho ${count} san. Vui long kiem tra lai cau hinh.`,
+      error: `Có nhiều bậc phí cùng áp dụng cho ${count} sân. Vui lòng kiểm tra lại cấu hình.`,
     };
   }
 
@@ -269,8 +269,8 @@ export function findTierForCourtCount(courtCount) {
 
 export function calculatePlatformFee({ court_count, period_months, tier }) {
   const months = Number.parseInt(period_months, 10);
-  if (!ALLOWED_PERIOD_MONTHS.includes(months)) throw new Error('Ky dong phi khong hop le.');
-  if (!tier) throw new Error('Chua co bac phi de tinh phi.');
+  if (!ALLOWED_PERIOD_MONTHS.includes(months)) throw new Error('Kỳ đóng phí không hợp lệ.');
+  if (!tier) throw new Error('Chưa có bậc phí để tính phí.');
 
   const field = months === 1
     ? 'discount_1_month'
@@ -281,8 +281,8 @@ export function calculatePlatformFee({ court_count, period_months, tier }) {
   const amountDue = Math.max(0, Math.round(baseAmount - discountAmount));
   const warnings = [];
 
-  if (discountPercent > 50) warnings.push('Muc giam gia cao, vui long kiem tra lai.');
-  if (discountPercent === 100 || amountDue === 0) warnings.push('Giam gia 100%, so tien phai dong bang 0.');
+  if (discountPercent > 50) warnings.push('Mức giảm giá cao, vui lòng kiểm tra lại.');
+  if (discountPercent === 100 || amountDue === 0) warnings.push('Giảm giá 100%, số tiền phải đóng bằng 0.');
 
   return {
     court_count: Number(court_count),

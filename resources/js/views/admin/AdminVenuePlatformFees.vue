@@ -1,54 +1,63 @@
 <template>
   <section class="venue-fees">
-    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-venue-clusters' })">Quay lai cum san</button>
+    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-venue-clusters' })">Quay lại cụm sân</button>
 
-    <div v-if="!venue" class="panel empty">Khong tim thay cum san.</div>
+    <div v-if="!venue" class="panel empty">Không tìm thấy cụm sân.</div>
     <template v-else>
       <header class="panel page-head">
         <div>
-          <p class="eyebrow">Phi duy tri theo cum san</p>
+          <p class="eyebrow">Phí duy trì theo cụm sân</p>
           <h2>{{ venue.name }}</h2>
-          <p>{{ venue.owner.full_name }} - {{ venue.court_count }} san hien tai</p>
+          <p>{{ venue.owner.full_name }} - {{ venue.court_count }} sân hiện tại</p>
         </div>
-        <span class="badge" :class="venue.status">{{ venue.status === 'locked' ? 'Da khoa' : 'Hoat dong' }}</span>
+        <span class="status-dot" :class="venue.status" :title="venue.status === 'locked' ? 'Đã khóa' : 'Hoạt động'" :aria-label="venue.status === 'locked' ? 'Đã khóa' : 'Hoạt động'"></span>
       </header>
 
       <div v-if="snapshotChanged" class="notice">
-        So san cua cum da thay doi. Cac ky phi da tao giu nguyen snapshot cu. Ky phi tiep theo se dung so san moi.
+        Số sân của cụm đã thay đổi. Các kỳ phí đã tạo giữ nguyên snapshot cũ. Kỳ phí tiếp theo sẽ dùng số sân mới.
       </div>
 
       <section class="panel">
-        <h3>Preview phi theo ky</h3>
+        <h3>Xem trước phí theo kỳ</h3>
         <div class="preview-grid">
           <div v-for="month in periods" :key="month" class="preview-card">
-            <span>{{ month }} thang</span>
+            <span>{{ month }} tháng</span>
             <strong>{{ previewFor(month).error || money(previewFor(month).fee.amount_due) }}</strong>
             <small>{{ previewFor(month).tier?.name || '' }}</small>
-            <button class="btn primary" type="button" :disabled="Boolean(previewFor(month).error)" @click="createFor(month)">Tao ky phi</button>
+            <button class="btn primary icon-text" type="button" :disabled="Boolean(previewFor(month).error)" @click="createFor(month)">
+              <AppIcon name="plus" size="18" />
+              <span>Tạo kỳ phí</span>
+            </button>
           </div>
         </div>
       </section>
 
       <section class="panel">
         <div class="panel-head">
-          <h3>Ledger cua cum san</h3>
+          <h3>Ledger của cụm sân</h3>
           <div class="actions">
-            <button class="btn danger" type="button" :disabled="!canLock" @click="lockVenue">Khoa cum</button>
-            <button class="btn secondary" type="button" :disabled="!canUnlock" @click="unlockVenue">Mo khoa</button>
+            <button class="btn danger icon-text" type="button" :disabled="!canLock" @click="lockVenue">
+              <AppIcon name="lock" size="18" />
+              <span>Khóa cụm</span>
+            </button>
+            <button class="btn secondary icon-text" type="button" :disabled="!canUnlock" @click="unlockVenue">
+              <AppIcon name="unlock" size="18" />
+              <span>Mở khóa</span>
+            </button>
           </div>
         </div>
-        <div v-if="ledgers.length === 0" class="empty compact">Chua co ky phi. Hay tao ky phi moi.</div>
+        <div v-if="ledgers.length === 0" class="empty compact">Chưa có kỳ phí. Hãy tạo kỳ phí mới.</div>
         <table v-else>
           <thead>
             <tr>
-              <th>Ma</th>
-              <th>Ky</th>
-              <th>So san snapshot</th>
-              <th>Bac phi</th>
-              <th>Han thanh toan</th>
-              <th>Con thieu</th>
-              <th>Status</th>
-              <th>Email gan nhat</th>
+              <th>Mã</th>
+              <th>Kỳ</th>
+              <th>Số sân snapshot</th>
+              <th>Bậc phí</th>
+              <th>Hạn thanh toán</th>
+              <th>Còn thiếu</th>
+              <th>Trạng thái</th>
+              <th>Email gần nhất</th>
             </tr>
           </thead>
           <tbody>
@@ -59,7 +68,7 @@
               <td>{{ ledger.tier_name }}</td>
               <td>{{ date(ledger.due_date) }}</td>
               <td>{{ money(ledger.remaining_amount) }}</td>
-              <td><span class="badge" :class="ledger.status">{{ ledger.status }}</span></td>
+              <td><span class="status-dot" :class="ledger.status" :title="statusLabel(ledger.status)" :aria-label="statusLabel(ledger.status)"></span></td>
               <td>{{ latestEmail(ledger) }}</td>
             </tr>
           </tbody>
@@ -79,9 +88,11 @@ import {
   lockVenueForOverdueLedger,
   unlockVenueAfterPayment,
 } from '../../services/platformFeeLedger.service.js';
+import AppIcon from '../../components/AppIcon.vue';
 
 export default {
   name: 'AdminVenuePlatformFees',
+  components: { AppIcon },
   data() {
     return {
       venue: null,
@@ -125,7 +136,7 @@ export default {
           period_months: month,
           period_start: new Date().toISOString().slice(0, 10),
         });
-        this.showMessage('Da tao ky phi moi.');
+        this.showMessage('Đã tạo kỳ phí mới.');
         await this.loadData();
       } catch (error) {
         this.showMessage(error.message, 'error');
@@ -133,14 +144,14 @@ export default {
     },
     async lockVenue() {
       const ledger = this.ledgers.find((item) => item.status === 'overdue');
-      const reason = prompt('Nhap ly do khoa:', 'Qua han phi duy tri he thong');
+      const reason = prompt('Nhập lý do khóa:', 'Quá hạn phí duy trì hệ thống');
       if (!ledger || !reason) return;
-      await this.run(() => lockVenueForOverdueLedger(ledger.id, reason), 'Da khoa cum san.');
+      await this.run(() => lockVenueForOverdueLedger(ledger.id, reason), 'Đã khóa cụm sân.');
     },
     async unlockVenue() {
       const ledger = this.ledgers.find((item) => item.status === 'paid');
       if (!ledger) return;
-      await this.run(() => unlockVenueAfterPayment(ledger.id), 'Da mo khoa cum san.');
+      await this.run(() => unlockVenueAfterPayment(ledger.id), 'Đã mở khóa cụm sân.');
     },
     async run(action, message) {
       try {
@@ -153,7 +164,20 @@ export default {
     },
     latestEmail(ledger) {
       const log = ledger.email_logs?.[0];
-      return log ? `${log.type} - ${log.status}` : 'Chua gui';
+      return log ? `${this.reminderLabel(log.type)} - ${this.emailStatusLabel(log.status)}` : 'Chưa gửi';
+    },
+    statusLabel(status) {
+      return { pending: 'Chờ thanh toán', paid: 'Đã thanh toán', overdue: 'Quá hạn', cancelled: 'Đã hủy', active: 'Hoạt động', locked: 'Đã khóa' }[status] || status;
+    },
+    reminderLabel(type) {
+      return {
+        due_soon_7_days: 'Nhắc trước hạn 7 ngày',
+        due_today: 'Nhắc đúng hạn',
+        overdue_3_days: 'Cảnh báo quá hạn 3 ngày',
+      }[type] || type;
+    },
+    emailStatusLabel(status) {
+      return { sent: 'đã gửi', failed: 'lỗi', queued: 'đang chờ' }[status] || status;
     },
     money(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
@@ -173,7 +197,7 @@ export default {
 <style scoped>
 .venue-fees { display: flex; flex-direction: column; gap: 16px; }
 .panel, .preview-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
-.page-head, .panel-head, .actions { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
+.page-head, .panel-head, .actions, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
 .eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; font-weight: 900; text-transform: uppercase; }
 h2, h3, p { margin: 0; }
 .notice { padding: 12px 14px; border-radius: 8px; background: #fef3c7; color: #92400e; font-weight: 800; }
@@ -185,11 +209,29 @@ h2, h3, p { margin: 0; }
 .btn.secondary { background: #e2e8f0; color: #334155; }
 .btn.danger { background: #dc2626; color: #fff; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
-.badge { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 900; }
-.badge.active, .badge.paid { background: #dcfce7; color: #166534; }
-.badge.locked, .badge.overdue { background: #fee2e2; color: #991b1b; }
-.badge.pending { background: #fef3c7; color: #92400e; }
-.badge.cancelled { background: #f1f5f9; color: #475569; }
+.icon-text { align-items: center; justify-content: center; }
+.status-dot {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px #fef3c7;
+}
+.status-dot.active,
+.status-dot.paid {
+  background: #10b981;
+  box-shadow: 0 0 0 3px #d1fae5;
+}
+.status-dot.locked,
+.status-dot.overdue {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px #fee2e2;
+}
+.status-dot.cancelled {
+  background: #94a3b8;
+  box-shadow: 0 0 0 3px #e2e8f0;
+}
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 11px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
 th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: uppercase; }

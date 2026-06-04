@@ -26,8 +26,8 @@ export function notifyOwnerPlatformFeeCreated(ledger) {
   const venue = findVenue(ledger.venue_cluster_id);
   return addOwnerNotification(
     ledger.venue_cluster_id,
-    'Ky phi duy tri moi',
-    `Ky phi cua cum san ${venue?.name || ''} da duoc tao va dang cho thanh toan.`,
+    'Kỳ phí duy trì mới',
+    `Kỳ phí của cụm sân ${venue?.name || ''} đã được tạo và đang chờ thanh toán.`,
   );
 }
 
@@ -35,8 +35,8 @@ export function notifyOwnerPlatformFeePaid(ledger) {
   const venue = findVenue(ledger.venue_cluster_id);
   return addOwnerNotification(
     ledger.venue_cluster_id,
-    'Da ghi nhan thanh toan phi duy tri',
-    `Ky phi cua cum san ${venue?.name || ''} da duoc xac nhan thanh toan.`,
+    'Đã ghi nhận thanh toán phí duy trì',
+    `Kỳ phí của cụm sân ${venue?.name || ''} đã được xác nhận thanh toán.`,
   );
 }
 
@@ -44,24 +44,24 @@ export function notifyOwnerPlatformFeeOverdue(ledger) {
   const venue = findVenue(ledger.venue_cluster_id);
   return addOwnerNotification(
     ledger.venue_cluster_id,
-    'Phi duy tri da qua han',
-    `Ky phi cua cum san ${venue?.name || ''} da qua han thanh toan.`,
+    'Phí duy trì đã quá hạn',
+    `Kỳ phí của cụm sân ${venue?.name || ''} đã quá hạn thanh toán.`,
   );
 }
 
 export function notifyOwnerVenueLocked(venue) {
   return addOwnerNotification(
     venue.id,
-    'Cum san da bi khoa',
-    `Cum san ${venue.name} da bi khoa do qua han phi duy tri he thong.`,
+    'Cụm sân đã bị khóa',
+    `Cụm sân ${venue.name} đã bị khóa do quá hạn phí duy trì hệ thống.`,
   );
 }
 
 export function notifyOwnerVenueUnlocked(venue) {
   return addOwnerNotification(
     venue.id,
-    'Cum san da duoc mo khoa',
-    `Cum san ${venue.name} da duoc mo khoa sau khi xu ly phi duy tri.`,
+    'Cụm sân đã được mở khóa',
+    `Cụm sân ${venue.name} đã được mở khóa sau khi xử lý phí duy trì.`,
   );
 }
 
@@ -69,8 +69,8 @@ export function notifyOwnerFeeDueSoon(ledger) {
   const venue = findVenue(ledger.venue_cluster_id);
   return addOwnerNotification(
     ledger.venue_cluster_id,
-    'Phi duy tri sap den han',
-    `Ky phi cua cum san ${venue?.name || ''} se den han sau 7 ngay.`,
+    'Phí duy trì sắp đến hạn',
+    `Kỳ phí của cụm sân ${venue?.name || ''} sẽ đến hạn sau 7 ngày.`,
   );
 }
 
@@ -78,8 +78,8 @@ export function notifyOwnerFeeDueToday(ledger) {
   const venue = findVenue(ledger.venue_cluster_id);
   return addOwnerNotification(
     ledger.venue_cluster_id,
-    'Hom nay la han dong phi duy tri',
-    `Vui long thanh toan ky phi cua cum san ${venue?.name || ''} trong hom nay.`,
+    'Hôm nay là hạn đóng phí duy trì',
+    `Vui lòng thanh toán kỳ phí của cụm sân ${venue?.name || ''} trong hôm nay.`,
   );
 }
 
@@ -87,8 +87,8 @@ export function notifyOwnerFeeOverdueThreeDays(ledger) {
   const venue = findVenue(ledger.venue_cluster_id);
   return addOwnerNotification(
     ledger.venue_cluster_id,
-    'Phi duy tri da qua han 3 ngay',
-    `Cum san ${venue?.name || ''} co the bi khoa neu ky phi chua duoc xu ly.`,
+    'Phí duy trì đã quá hạn 3 ngày',
+    `Cụm sân ${venue?.name || ''} có thể bị khóa nếu kỳ phí chưa được xử lý.`,
   );
 }
 

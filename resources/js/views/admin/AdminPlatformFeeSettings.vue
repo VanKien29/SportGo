@@ -1,27 +1,27 @@
 <template>
   <section class="settings-page">
     <header class="panel">
-      <p class="eyebrow">Cai dat phi duy tri</p>
-      <h2>Cau hinh xu ly phi duy tri he thong</h2>
-      <p>Cac gia tri nay duoc luu trong shared mock store frontend.</p>
+      <p class="eyebrow">Cài đặt phí duy trì</p>
+      <h2>Cấu hình xử lý phí duy trì hệ thống</h2>
+      <p>Các giá trị này được lưu trong shared mock store frontend.</p>
     </header>
 
     <form class="panel form" @submit.prevent="saveSettings">
       <label>
-        So ngay mac dinh truoc han thanh toan
+        Số ngày mặc định trước hạn thanh toán
         <input v-model.number="settings.default_due_days" type="number" min="0" />
       </label>
       <label class="check-row">
         <input v-model="settings.auto_mark_overdue" type="checkbox" />
-        <span>Tu dong chuyen pending sang overdue khi chay kiem tra nhac phi</span>
+        <span>Tự động chuyển chờ thanh toán sang quá hạn khi chạy kiểm tra nhắc phí</span>
       </label>
       <label>
-        Ly do khoa cum san mac dinh
+        Lý do khóa cụm sân mặc định
         <textarea v-model.trim="settings.lock_reason" rows="3"></textarea>
       </label>
       <div class="actions">
-        <button class="btn primary" type="submit">Luu cai dat</button>
-        <button class="btn secondary" type="button" @click="reset">Khoi phuc mac dinh</button>
+        <button class="btn primary" type="submit">Lưu cài đặt</button>
+        <button class="btn secondary" type="button" @click="reset">Khôi phục mặc định</button>
       </div>
     </form>
 
@@ -44,13 +44,13 @@ export default {
     saveSettings() {
       platformFeeStore.state.settings = { ...this.settings };
       platformFeeStore.save();
-      this.show('Da luu cai dat phi duy tri.');
+      this.show('Đã lưu cài đặt phí duy trì.');
     },
     reset() {
       this.settings = {
         default_due_days: 7,
         auto_mark_overdue: true,
-        lock_reason: 'Qua han phi duy tri he thong',
+        lock_reason: 'Quá hạn phí duy trì hệ thống',
       };
       this.saveSettings();
     },

@@ -93,7 +93,7 @@ export function sendPlatformFeeReminderEmail(ledger, reminderType) {
 
   if (!venue?.owner?.email) {
     log.status = 'failed';
-    log.error_reason = 'Owner khong co email.';
+    log.error_reason = 'Owner không có email.';
     log.sent_at = new Date().toISOString();
     platformFeeStore.save();
     addAuditLog('platform_fee_reminder.email_failed', 'venue_platform_fee_ledger', ledger.id, null, log, 'platform_fee_reminder');
@@ -118,7 +118,7 @@ export function processPlatformFeeReminders(today = new Date()) {
   const results = [];
   platformFeeStore.state.ledgers.forEach((ledger) => {
     if (ledger.status === 'pending' && diffDays(ledger.due_date, today) < 0 && platformFeeStore.state.settings.auto_mark_overdue) {
-      markLedgerOverdue(ledger.id, 'Tu dong chuyen qua han theo ngay den han.');
+      markLedgerOverdue(ledger.id, 'Tự động chuyển quá hạn theo ngày đến hạn.');
     }
 
     const freshLedger = findLedger(ledger.id);
@@ -142,21 +142,21 @@ export function getEmailLogsByLedgerId(ledgerId) {
 
 export function reminderSubject(type) {
   return {
-    due_soon_7_days: 'Phi duy tri sap den han',
-    due_today: 'Hom nay la han dong phi duy tri',
-    overdue_3_days: 'Phi duy tri da qua han 3 ngay',
-  }[type] || 'Thong bao phi duy tri';
+    due_soon_7_days: 'Phí duy trì sắp đến hạn',
+    due_today: 'Hôm nay là hạn đóng phí duy trì',
+    overdue_3_days: 'Phí duy trì đã quá hạn 3 ngày',
+  }[type] || 'Thông báo phí duy trì';
 }
 
 export function reminderContent(ledger, type) {
   const venue = findVenue(ledger.venue_cluster_id);
   const remaining = getRemainingAmount(ledger).toLocaleString('vi-VN');
   const line = {
-    due_soon_7_days: 'se den han sau 7 ngay',
-    due_today: 'den han trong hom nay',
-    overdue_3_days: 'da qua han 3 ngay va co the bi khoa',
-  }[type] || 'can xu ly';
-  return `Ky phi duy tri cua cum san ${venue?.name || ''} ${line}. So tien con lai: ${remaining} VND.`;
+    due_soon_7_days: 'sẽ đến hạn sau 7 ngày',
+    due_today: 'đến hạn trong hôm nay',
+    overdue_3_days: 'đã quá hạn 3 ngày và có thể bị khóa',
+  }[type] || 'cần xử lý';
+  return `Kỳ phí duy trì của cụm sân ${venue?.name || ''} ${line}. Số tiền còn lại: ${remaining} VND.`;
 }
 
 export const platformFeeReminderService = {

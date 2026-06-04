@@ -2,13 +2,19 @@
   <section class="ledger-page">
     <header class="page-head">
       <div>
-        <p class="eyebrow">So phi duy tri</p>
-        <h2>Quan ly phi duy tri he thong</h2>
-        <p>Xem, tao, theo doi, xac nhan thanh toan, danh dau qua han va khoa/mo khoa cum san.</p>
+        <p class="eyebrow">Sổ phí duy trì</p>
+        <h2>Quản lý phí duy trì hệ thống</h2>
+        <p>Xem, tạo, theo dõi, xác nhận thanh toán, đánh dấu quá hạn và khóa/mở khóa cụm sân.</p>
       </div>
       <div class="head-actions">
-        <button class="btn secondary" type="button" @click="runReminderCheck">Chay kiem tra nhac phi</button>
-        <button class="btn primary" type="button" @click="openCreate">Tao ky phi</button>
+        <button class="btn secondary icon-text" type="button" @click="runReminderCheck">
+          <AppIcon name="bell" size="18" />
+          <span>Chạy kiểm tra nhắc phí</span>
+        </button>
+        <button class="btn primary icon-text" type="button" @click="openCreate">
+          <AppIcon name="plus" size="18" />
+          <span>Tạo kỳ phí</span>
+        </button>
       </div>
     </header>
 
@@ -16,77 +22,77 @@
 
     <section class="panel filter-grid">
       <select v-model="filters.venue_cluster_id" @change="loadLedgers">
-        <option value="">Tat ca cum san</option>
+        <option value="">Tất cả cụm sân</option>
         <option v-for="venue in venues" :key="venue.id" :value="venue.id">{{ venue.name }}</option>
       </select>
       <select v-model="filters.owner_id" @change="loadLedgers">
-        <option value="">Tat ca owner</option>
+        <option value="">Tất cả owner</option>
         <option v-for="owner in owners" :key="owner.id" :value="owner.id">{{ owner.full_name }}</option>
       </select>
       <select v-model="filters.status" @change="loadLedgers">
-        <option value="">Tat ca status</option>
-        <option value="pending">Cho thanh toan</option>
-        <option value="paid">Da thanh toan</option>
-        <option value="overdue">Qua han</option>
-        <option value="cancelled">Da huy</option>
+        <option value="">Tất cả trạng thái</option>
+        <option value="pending">Chờ thanh toán</option>
+        <option value="paid">Đã thanh toán</option>
+        <option value="overdue">Quá hạn</option>
+        <option value="cancelled">Đã hủy</option>
       </select>
       <select v-model="filters.period_months" @change="loadLedgers">
-        <option value="">Tat ca ky dong</option>
-        <option v-for="month in periods" :key="month" :value="month">{{ month }} thang</option>
+        <option value="">Tất cả kỳ đóng</option>
+        <option v-for="month in periods" :key="month" :value="month">{{ month }} tháng</option>
       </select>
       <input v-model="filters.period_start" type="date" @change="loadLedgers" />
       <input v-model="filters.period_end" type="date" @change="loadLedgers" />
       <input v-model="filters.due_date" type="date" @change="loadLedgers" />
       <select v-model="filters.email_status" @change="loadLedgers">
-        <option value="">Tat ca email</option>
-        <option value="due_soon_7_days">Da gui nhac truoc han</option>
-        <option value="due_today">Da gui nhac dung han</option>
-        <option value="overdue_3_days">Da gui canh bao qua han 3 ngay</option>
-        <option value="not_sent">Chua gui nhac phi</option>
-        <option value="failed">Gui email loi</option>
+        <option value="">Tất cả email</option>
+        <option value="due_soon_7_days">Đã gửi nhắc trước hạn</option>
+        <option value="due_today">Đã gửi nhắc đúng hạn</option>
+        <option value="overdue_3_days">Đã gửi cảnh báo quá hạn 3 ngày</option>
+        <option value="not_sent">Chưa gửi nhắc phí</option>
+        <option value="failed">Gửi email lỗi</option>
       </select>
       <label class="check-row">
         <input v-model="filters.overdue_only" type="checkbox" @change="loadLedgers" />
-        <span>Chi xem qua han</span>
+        <span>Chỉ xem quá hạn</span>
       </label>
-      <input v-model.trim="filters.keyword" placeholder="Tim ma ky phi, cum san, owner" @input="loadLedgers" />
+      <input v-model.trim="filters.keyword" placeholder="Tìm mã kỳ phí, cụm sân, owner" @input="loadLedgers" />
     </section>
 
     <section class="kpi-grid">
       <router-link class="kpi-card" to="/admin/platform-fee-ledgers?status=pending">
-        <strong>{{ metrics.pending }}</strong><span>Pending</span>
+        <strong>{{ metrics.pending }}</strong><span>Chờ thanh toán</span>
       </router-link>
       <router-link class="kpi-card danger" to="/admin/platform-fee-ledgers?status=overdue">
-        <strong>{{ metrics.overdue }}</strong><span>Overdue</span>
+        <strong>{{ metrics.overdue }}</strong><span>Quá hạn</span>
       </router-link>
-      <article class="kpi-card"><strong>{{ money(metrics.pending_amount) }}</strong><span>Cho thanh toan</span></article>
-      <article class="kpi-card danger"><strong>{{ money(metrics.overdue_amount) }}</strong><span>Qua han</span></article>
+      <article class="kpi-card"><strong>{{ money(metrics.pending_amount) }}</strong><span>Chờ thanh toán</span></article>
+      <article class="kpi-card danger"><strong>{{ money(metrics.overdue_amount) }}</strong><span>Quá hạn</span></article>
     </section>
 
     <section class="panel">
-      <div v-if="loading" class="empty">Dang tai danh sach ky phi...</div>
-      <div v-else-if="ledgers.length === 0" class="empty">Chua co ky phi. Hay tao ky phi moi.</div>
+      <div v-if="loading" class="empty">Đang tải danh sách kỳ phí...</div>
+      <div v-else-if="ledgers.length === 0" class="empty">Chưa có kỳ phí. Hãy tạo kỳ phí mới.</div>
       <div v-else class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Ma ky phi</th>
-              <th>Cum san</th>
-              <th>Chu san</th>
-              <th>So san</th>
-              <th>Bac phi snapshot</th>
-              <th>Ky dong</th>
-              <th>Thoi gian ky phi</th>
-              <th>Han thanh toan</th>
+              <th>Mã kỳ phí</th>
+              <th>Cụm sân</th>
+              <th>Chủ sân</th>
+              <th>Số sân</th>
+              <th>Bậc phí snapshot</th>
+              <th>Kỳ đóng</th>
+              <th>Thời gian kỳ phí</th>
+              <th>Hạn thanh toán</th>
               <th>Gia snapshot</th>
-              <th>Giam</th>
-              <th>Phai dong</th>
-              <th>Da dong</th>
-              <th>Con thieu</th>
-              <th>Trang thai</th>
-              <th>Ngay thanh toan</th>
+              <th>Giảm</th>
+              <th>Phải đóng</th>
+              <th>Đã đóng</th>
+              <th>Còn thiếu</th>
+              <th>Trạng thái</th>
+              <th>Ngày thanh toán</th>
               <th>Email</th>
-              <th>Hanh dong</th>
+              <th class="actions-header">Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -96,7 +102,7 @@
               <td>{{ ledger.owner?.full_name || '-' }}</td>
               <td>{{ ledger.court_count }}</td>
               <td>{{ ledger.tier_name }}</td>
-              <td>{{ ledger.period_months }} thang</td>
+              <td>{{ ledger.period_months }} tháng</td>
               <td>{{ date(ledger.period_start) }} - {{ date(ledger.period_end) }}</td>
               <td :class="{ overdue: ledger.status === 'overdue' }">{{ date(ledger.due_date) }}</td>
               <td>{{ money(ledger.price_per_court_month) }}</td>
@@ -104,17 +110,31 @@
               <td>{{ money(ledger.amount_due) }}</td>
               <td>{{ money(ledger.amount_paid) }}</td>
               <td>{{ money(ledger.remaining_amount) }}</td>
-              <td><span class="badge" :class="ledger.status">{{ statusLabel(ledger.status) }}</span></td>
+              <td>
+                <span class="status-dot" :class="ledger.status" :title="statusLabel(ledger.status)" :aria-label="statusLabel(ledger.status)"></span>
+              </td>
               <td>{{ ledger.paid_at ? date(ledger.paid_at) : '-' }}</td>
               <td>{{ emailSummary(ledger) }}</td>
               <td>
                 <div class="actions">
-                  <button type="button" @click="$router.push({ name: 'admin-platform-fee-ledger-detail', params: { id: ledger.id } })">Xem</button>
-                  <button type="button" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="openPay(ledger)">Thanh toan</button>
-                  <button type="button" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="markOverdue(ledger)">Qua han</button>
-                  <button type="button" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="openCancel(ledger)">Huy</button>
-                  <button type="button" :disabled="ledger.status !== 'overdue'" @click="openLock(ledger)">Khoa cum</button>
-                  <button type="button" :disabled="ledger.status !== 'paid'" @click="unlockVenue(ledger)">Mo khoa</button>
+                  <button class="icon-btn" type="button" title="Xem chi tiết" aria-label="Xem chi tiết" @click="$router.push({ name: 'admin-platform-fee-ledger-detail', params: { id: ledger.id } })">
+                    <AppIcon name="eye" size="18" />
+                  </button>
+                  <button class="icon-btn" type="button" title="Xác nhận thanh toán" aria-label="Xác nhận thanh toán" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="openPay(ledger)">
+                    <AppIcon name="creditCard" size="18" />
+                  </button>
+                  <button class="icon-btn warning" type="button" title="Đánh dấu quá hạn" aria-label="Đánh dấu quá hạn" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="markOverdue(ledger)">
+                    <AppIcon name="clock" size="18" />
+                  </button>
+                  <button class="icon-btn danger" type="button" title="Hủy kỳ phí" aria-label="Hủy kỳ phí" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="openCancel(ledger)">
+                    <AppIcon name="trash" size="18" />
+                  </button>
+                  <button class="icon-btn danger" type="button" title="Khóa cụm sân" aria-label="Khóa cụm sân" :disabled="ledger.status !== 'overdue'" @click="openLock(ledger)">
+                    <AppIcon name="lock" size="18" />
+                  </button>
+                  <button class="icon-btn success" type="button" title="Mở khóa cụm sân" aria-label="Mở khóa cụm sân" :disabled="ledger.status !== 'paid'" @click="unlockVenue(ledger)">
+                    <AppIcon name="unlock" size="18" />
+                  </button>
                 </div>
               </td>
             </tr>
@@ -126,43 +146,48 @@
     <div v-if="showCreate" class="modal-backdrop" @click.self="closeCreate">
       <form class="modal" @submit.prevent="createNewLedger">
         <header class="modal-head">
-          <h3>Tao ky phi duy tri</h3>
-          <button type="button" @click="closeCreate">Dong</button>
+          <h3>Tạo kỳ phí duy trì</h3>
+          <button class="icon-close" type="button" title="Đóng" aria-label="Đóng" @click="closeCreate">
+            <AppIcon name="x" size="18" />
+          </button>
         </header>
         <div class="form-grid">
           <label>
-            Cum san *
+            Cụm sân *
             <select v-model="form.venue_cluster_id" required @change="refreshPreview">
-              <option value="">Chon cum san</option>
-              <option v-for="venue in venues" :key="venue.id" :value="venue.id">{{ venue.name }} - {{ venue.court_count }} san</option>
+              <option value="">Chọn cụm sân</option>
+              <option v-for="venue in venues" :key="venue.id" :value="venue.id">{{ venue.name }} - {{ venue.court_count }} sân</option>
             </select>
           </label>
           <label>
-            Ky dong *
+            Kỳ đóng *
             <select v-model.number="form.period_months" @change="refreshPreview">
-              <option v-for="month in periods" :key="month" :value="month">{{ month }} thang</option>
+              <option v-for="month in periods" :key="month" :value="month">{{ month }} tháng</option>
             </select>
           </label>
           <label>
-            Ngay bat dau *
+            Ngày bắt đầu *
             <input v-model="form.period_start" type="date" required @change="refreshPreview" />
           </label>
           <label>
-            Han thanh toan
+            Hạn thanh toán
             <input v-model="form.due_date" type="date" @change="refreshPreview" />
           </label>
         </div>
         <div v-if="previewError" class="alert error">{{ previewError }}</div>
         <div v-if="previewResult" class="preview-grid">
-          <div><span>So san snapshot</span><strong>{{ previewResult.court_count }}</strong></div>
-          <div><span>Bac phi</span><strong>{{ previewResult.tier.name }}</strong></div>
-          <div><span>Ky phi</span><strong>{{ date(previewResult.period_start) }} - {{ date(previewResult.period_end) }}</strong></div>
-          <div><span>Tong phai dong</span><strong>{{ money(previewResult.fee.amount_due) }}</strong></div>
+          <div><span>Số sân snapshot</span><strong>{{ previewResult.court_count }}</strong></div>
+          <div><span>Bậc phí</span><strong>{{ previewResult.tier.name }}</strong></div>
+          <div><span>Kỳ phí</span><strong>{{ date(previewResult.period_start) }} - {{ date(previewResult.period_end) }}</strong></div>
+          <div><span>Tổng phải đóng</span><strong>{{ money(previewResult.fee.amount_due) }}</strong></div>
         </div>
         <div v-for="warning in previewWarnings" :key="warning" class="alert warning">{{ warning }}</div>
         <footer class="modal-actions">
-          <button class="btn secondary" type="button" @click="closeCreate">Huy</button>
-          <button class="btn primary" type="submit" :disabled="!previewResult || Boolean(previewError)">Tao ky phi</button>
+          <button class="btn secondary" type="button" @click="closeCreate">Hủy</button>
+          <button class="btn primary icon-text" type="submit" :disabled="!previewResult || Boolean(previewError)">
+            <AppIcon name="plus" size="18" />
+            <span>Tạo kỳ phí</span>
+          </button>
         </footer>
       </form>
     </div>
@@ -171,21 +196,26 @@
       <form class="modal small" @submit.prevent="submitDialog">
         <header class="modal-head">
           <h3>{{ dialogTitle }}</h3>
-          <button type="button" @click="closeDialog">Dong</button>
+          <button class="icon-close" type="button" title="Đóng" aria-label="Đóng" @click="closeDialog">
+            <AppIcon name="x" size="18" />
+          </button>
         </header>
         <div class="form-grid one">
           <label v-if="dialog.type === 'pay'">
-            So tien thanh toan *
+            Số tiền thanh toán *
             <input v-model.number="dialog.amount" type="number" min="1" required />
           </label>
           <label v-if="dialog.type !== 'pay'">
-            Ly do *
+            Lý do *
             <textarea v-model.trim="dialog.reason" rows="4" required></textarea>
           </label>
         </div>
         <footer class="modal-actions">
-          <button class="btn secondary" type="button" @click="closeDialog">Huy</button>
-          <button class="btn primary" type="submit">Xac nhan</button>
+          <button class="btn secondary" type="button" @click="closeDialog">Hủy</button>
+          <button class="btn primary icon-text" type="submit">
+            <AppIcon name="check" size="18" />
+            <span>Xác nhận</span>
+          </button>
         </footer>
       </form>
     </div>
@@ -194,6 +224,7 @@
 
 <script>
 import { platformFeeStore } from '../../stores/platformFee.store.js';
+import AppIcon from '../../components/AppIcon.vue';
 import {
   calculateLedgerPreview,
   cancelLedger,
@@ -229,6 +260,7 @@ function today() {
 
 export default {
   name: 'AdminPlatformFeeLedgers',
+  components: { AppIcon },
   data() {
     return {
       ledgers: [],
@@ -257,10 +289,10 @@ export default {
     },
     dialogTitle() {
       return {
-        pay: 'Xac nhan thanh toan',
-        cancel: 'Huy ky phi',
-        lock: 'Khoa cum san vi qua han',
-      }[this.dialog.type] || 'Xac nhan';
+        pay: 'Xác nhận thanh toán',
+        cancel: 'Hủy kỳ phí',
+        lock: 'Khóa cụm sân vì quá hạn',
+      }[this.dialog.type] || 'Xác nhận';
     },
   },
   watch: {
@@ -301,7 +333,7 @@ export default {
     async createNewLedger() {
       try {
         await createLedger(this.form);
-        this.showMessage('Da tao ky phi pending.');
+        this.showMessage('Đã tạo kỳ phí chờ thanh toán.');
         this.closeCreate();
         await this.loadLedgers();
       } catch (error) {
@@ -316,7 +348,7 @@ export default {
       this.dialog = { type: 'cancel', ledger, amount: 0, reason: '' };
     },
     openLock(ledger) {
-      this.dialog = { type: 'lock', ledger, amount: 0, reason: 'Qua han phi duy tri he thong' };
+      this.dialog = { type: 'lock', ledger, amount: 0, reason: 'Quá hạn phí duy trì hệ thống' };
     },
     closeDialog() {
       this.dialog = { type: '', ledger: null, amount: 0, reason: '' };
@@ -326,7 +358,7 @@ export default {
         if (this.dialog.type === 'pay') await confirmLedgerPayment(this.dialog.ledger.id, { amount: this.dialog.amount });
         if (this.dialog.type === 'cancel') await cancelLedger(this.dialog.ledger.id, this.dialog.reason);
         if (this.dialog.type === 'lock') await lockVenueForOverdueLedger(this.dialog.ledger.id, this.dialog.reason);
-        this.showMessage('Thao tac thanh cong.');
+        this.showMessage('Thao tác thành công.');
         this.closeDialog();
         await this.loadLedgers();
       } catch (error) {
@@ -334,11 +366,11 @@ export default {
       }
     },
     async markOverdue(ledger) {
-      const reason = prompt('Nhap ly do danh dau qua han:', 'Qua han thanh toan');
+      const reason = prompt('Nhập lý do đánh dấu quá hạn:', 'Quá hạn thanh toán');
       if (!reason) return;
       try {
         await markLedgerOverdue(ledger.id, reason);
-        this.showMessage('Da danh dau qua han.');
+        this.showMessage('Đã đánh dấu quá hạn.');
         await this.loadLedgers();
       } catch (error) {
         this.showMessage(error.message, 'error');
@@ -347,7 +379,7 @@ export default {
     async unlockVenue(ledger) {
       try {
         await unlockVenueAfterPayment(ledger.id);
-        this.showMessage('Da mo khoa cum san.');
+        this.showMessage('Đã mở khóa cụm sân.');
         await this.loadLedgers();
       } catch (error) {
         this.showMessage(error.message, 'error');
@@ -355,17 +387,17 @@ export default {
     },
     async runReminderCheck() {
       const logs = await processPlatformFeeReminders(new Date());
-      this.showMessage(logs.length ? `Da xu ly ${logs.length} email nhac phi.` : 'Khong co email nhac phi can gui hom nay.');
+      this.showMessage(logs.length ? `Đã xử lý ${logs.length} email nhắc phí.` : 'Không có email nhắc phí cần gửi hôm nay.');
       await this.loadLedgers();
     },
     emailSummary(ledger) {
       const logs = ledger.email_logs || [];
-      if (!logs.length) return 'Chua gui';
-      if (logs.some((log) => log.status === 'failed')) return 'Co loi';
-      return `${logs.filter((log) => log.status === 'sent').length} da gui`;
+      if (!logs.length) return 'Chưa gửi';
+      if (logs.some((log) => log.status === 'failed')) return 'Có lỗi';
+      return `${logs.filter((log) => log.status === 'sent').length} đã gửi`;
     },
     statusLabel(status) {
-      return { pending: 'Cho thanh toan', paid: 'Da thanh toan', overdue: 'Qua han', cancelled: 'Da huy' }[status] || status;
+      return { pending: 'Chờ thanh toán', paid: 'Đã thanh toán', overdue: 'Quá hạn', cancelled: 'Đã hủy' }[status] || status;
     },
     money(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
@@ -387,7 +419,7 @@ export default {
 
 <style scoped>
 .ledger-page { display: flex; flex-direction: column; gap: 18px; }
-.page-head, .head-actions, .actions, .modal-head, .modal-actions { display: flex; gap: 12px; }
+.page-head, .head-actions, .actions, .modal-head, .modal-actions, .icon-text { display: flex; gap: 12px; }
 .page-head { justify-content: space-between; align-items: flex-start; }
 .eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; font-weight: 900; text-transform: uppercase; }
 h2, h3, p { margin: 0; }
@@ -406,19 +438,41 @@ input, select, textarea { width: 100%; border: 1px solid #cbd5e1; border-radius:
 table { width: 100%; min-width: 1680px; border-collapse: collapse; }
 th, td { padding: 11px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
 th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: uppercase; }
+.actions-header { text-align: center; }
 .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 .overdue { color: #b91c1c; font-weight: 900; }
-.badge { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 900; }
-.badge.pending { background: #fef3c7; color: #92400e; }
-.badge.paid { background: #dcfce7; color: #166534; }
-.badge.overdue { background: #fee2e2; color: #991b1b; }
-.badge.cancelled { background: #f1f5f9; color: #475569; }
-.actions { flex-wrap: wrap; min-width: 260px; }
-.actions button { border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; padding: 6px 8px; font-weight: 800; cursor: pointer; }
-.actions button:disabled { opacity: .45; cursor: not-allowed; }
+.status-dot {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px #fef3c7;
+}
+.status-dot.paid { background: #10b981; box-shadow: 0 0 0 3px #d1fae5; }
+.status-dot.overdue { background: #ef4444; box-shadow: 0 0 0 3px #fee2e2; }
+.status-dot.cancelled { background: #94a3b8; box-shadow: 0 0 0 3px #e2e8f0; }
+.actions { flex-wrap: wrap; justify-content: center; min-width: 244px; }
+.icon-btn, .icon-close {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+}
+.icon-btn { width: 34px; height: 34px; }
+.icon-btn:hover:not(:disabled) { background: #eef2f7; }
+.icon-btn.success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.icon-btn.warning { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.icon-btn.danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.icon-btn:disabled { opacity: .45; cursor: not-allowed; }
+.icon-close { width: 32px; height: 32px; }
 .btn { border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 900; cursor: pointer; }
 .btn.primary { background: #16a34a; color: #fff; }
 .btn.secondary { background: #e2e8f0; color: #334155; }
+.icon-text { align-items: center; justify-content: center; }
 .empty { padding: 36px; text-align: center; color: #64748b; }
 .toast { border-radius: 8px; padding: 11px 13px; font-weight: 800; }
 .toast.success { background: #ecfdf5; color: #047857; }

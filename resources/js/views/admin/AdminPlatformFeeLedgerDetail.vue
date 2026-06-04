@@ -1,79 +1,94 @@
 <template>
   <section class="detail-page">
-    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-platform-fee-ledgers' })">Quay lai danh sach</button>
+    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-platform-fee-ledgers' })">Quay lại danh sách</button>
 
-    <div v-if="!ledger" class="panel empty">Khong tim thay ky phi.</div>
+    <div v-if="!ledger" class="panel empty">Không tìm thấy kỳ phí.</div>
     <template v-else>
       <header class="panel page-head">
         <div>
-          <p class="eyebrow">Chi tiet ky phi</p>
+          <p class="eyebrow">Chi tiết kỳ phí</p>
           <h2>{{ ledger.code }}</h2>
           <p>{{ ledger.venue?.name }} - {{ ledger.owner?.full_name }}</p>
         </div>
-        <span class="badge" :class="ledger.status">{{ statusLabel(ledger.status) }}</span>
+        <span class="status-dot" :class="ledger.status" :title="statusLabel(ledger.status)" :aria-label="statusLabel(ledger.status)"></span>
       </header>
 
       <section class="grid">
-        <div class="panel metric"><span>So tien phai dong</span><strong>{{ money(ledger.amount_due) }}</strong></div>
-        <div class="panel metric"><span>Da dong</span><strong>{{ money(ledger.amount_paid) }}</strong></div>
-        <div class="panel metric"><span>Con thieu</span><strong>{{ money(ledger.remaining_amount) }}</strong></div>
-        <div class="panel metric"><span>Han thanh toan</span><strong>{{ date(ledger.due_date) }}</strong></div>
+        <div class="panel metric"><span>Số tiền phải đóng</span><strong>{{ money(ledger.amount_due) }}</strong></div>
+        <div class="panel metric"><span>Đã đóng</span><strong>{{ money(ledger.amount_paid) }}</strong></div>
+        <div class="panel metric"><span>Còn thiếu</span><strong>{{ money(ledger.remaining_amount) }}</strong></div>
+        <div class="panel metric"><span>Hạn thanh toán</span><strong>{{ date(ledger.due_date) }}</strong></div>
       </section>
 
       <section class="panel">
-        <h3>Snapshot ky phi</h3>
+        <h3>Snapshot kỳ phí</h3>
         <div class="info-grid">
-          <div><span>Cum san</span><strong>{{ ledger.venue?.name }}</strong></div>
-          <div><span>Chu san</span><strong>{{ ledger.owner?.full_name }}</strong></div>
-          <div><span>So san snapshot</span><strong>{{ ledger.court_count }}</strong></div>
-          <div><span>Bac phi snapshot</span><strong>{{ ledger.tier_name }}</strong></div>
-          <div><span>Ky dong</span><strong>{{ ledger.period_months }} thang</strong></div>
-          <div><span>Thoi gian ky phi</span><strong>{{ date(ledger.period_start) }} - {{ date(ledger.period_end) }}</strong></div>
-          <div><span>Gia/san/thang snapshot</span><strong>{{ money(ledger.price_per_court_month) }}</strong></div>
-          <div><span>Giam gia snapshot</span><strong>{{ percent(ledger.discount_percent) }}</strong></div>
-          <div><span>Tong truoc giam</span><strong>{{ money(ledger.base_amount) }}</strong></div>
-          <div><span>So tien giam</span><strong>{{ money(ledger.discount_amount) }}</strong></div>
-          <div><span>Ngay thanh toan</span><strong>{{ ledger.paid_at ? date(ledger.paid_at) : '-' }}</strong></div>
-          <div><span>Ly do huy</span><strong>{{ ledger.cancelled_reason || '-' }}</strong></div>
+          <div><span>Cụm sân</span><strong>{{ ledger.venue?.name }}</strong></div>
+          <div><span>Chủ sân</span><strong>{{ ledger.owner?.full_name }}</strong></div>
+          <div><span>Số sân snapshot</span><strong>{{ ledger.court_count }}</strong></div>
+          <div><span>Bậc phí snapshot</span><strong>{{ ledger.tier_name }}</strong></div>
+          <div><span>Kỳ đóng</span><strong>{{ ledger.period_months }} tháng</strong></div>
+          <div><span>Thời gian kỳ phí</span><strong>{{ date(ledger.period_start) }} - {{ date(ledger.period_end) }}</strong></div>
+          <div><span>Giá/sân/tháng snapshot</span><strong>{{ money(ledger.price_per_court_month) }}</strong></div>
+          <div><span>Giảm giá snapshot</span><strong>{{ percent(ledger.discount_percent) }}</strong></div>
+          <div><span>Tổng trước giảm</span><strong>{{ money(ledger.base_amount) }}</strong></div>
+          <div><span>Số tiền giảm</span><strong>{{ money(ledger.discount_amount) }}</strong></div>
+          <div><span>Ngày thanh toán</span><strong>{{ ledger.paid_at ? date(ledger.paid_at) : '-' }}</strong></div>
+          <div><span>Lý do hủy</span><strong>{{ ledger.cancelled_reason || '-' }}</strong></div>
         </div>
       </section>
 
       <section class="panel">
-        <h3>Hanh dong</h3>
+        <h3>Hành động</h3>
         <div class="actions">
-          <button class="btn primary" type="button" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="payFull">Xac nhan thanh toan du</button>
-          <button class="btn secondary" type="button" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="markOverdueNow">Danh dau qua han</button>
-          <button class="btn danger" type="button" :disabled="ledger.status !== 'overdue'" @click="lockVenue">Khoa cum san</button>
-          <button class="btn secondary" type="button" :disabled="ledger.status !== 'paid'" @click="unlockVenue">Mo khoa sau thanh toan</button>
+          <button class="btn primary icon-text" type="button" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="payFull">
+            <AppIcon name="creditCard" size="18" />
+            <span>Xác nhận thanh toán đủ</span>
+          </button>
+          <button class="btn secondary icon-text" type="button" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="markOverdueNow">
+            <AppIcon name="clock" size="18" />
+            <span>Đánh dấu quá hạn</span>
+          </button>
+          <button class="btn danger icon-text" type="button" :disabled="ledger.status !== 'overdue'" @click="lockVenue">
+            <AppIcon name="lock" size="18" />
+            <span>Khóa cụm sân</span>
+          </button>
+          <button class="btn secondary icon-text" type="button" :disabled="ledger.status !== 'paid'" @click="unlockVenue">
+            <AppIcon name="unlock" size="18" />
+            <span>Mở khóa sau thanh toán</span>
+          </button>
         </div>
       </section>
 
       <section class="panel">
-        <h3>Phieu thu</h3>
+        <h3>Phiếu thu</h3>
         <div v-if="ledger.receipt" class="receipt">
           <strong>{{ ledger.receipt.code }}</strong>
           <span>{{ money(ledger.receipt.amount) }} - {{ date(ledger.receipt.issued_at) }}</span>
           <p>{{ ledger.receipt.content }}</p>
         </div>
-        <div v-else class="empty compact">Chua co phieu thu.</div>
+        <div v-else class="empty compact">Chưa có phiếu thu.</div>
       </section>
 
       <section class="panel">
         <div class="panel-head">
-          <h3>Lich su email nhac thanh toan</h3>
-          <button class="btn secondary" type="button" @click="sendCurrentReminder">Gui nhac phi theo ngay hien tai</button>
+          <h3>Lịch sử email nhắc thanh toán</h3>
+          <button class="btn secondary icon-text" type="button" @click="sendCurrentReminder">
+            <AppIcon name="bell" size="18" />
+            <span>Gửi nhắc phí theo ngày hiện tại</span>
+          </button>
         </div>
-        <div v-if="emailLogs.length === 0" class="empty compact">Chua co email nhac phi nao duoc gui.</div>
+        <div v-if="emailLogs.length === 0" class="empty compact">Chưa có email nhắc phí nào được gửi.</div>
         <table v-else>
           <thead>
             <tr>
-              <th>Loai email</th>
-              <th>Email nhan</th>
-              <th>Tieu de</th>
-              <th>Trang thai</th>
-              <th>Thoi gian gui</th>
-              <th>Ly do loi</th>
-              <th>Noi dung</th>
+              <th>Loại email</th>
+              <th>Email nhận</th>
+              <th>Tiêu đề</th>
+              <th>Trạng thái</th>
+              <th>Thời gian gửi</th>
+              <th>Lý do lỗi</th>
+              <th>Nội dung</th>
             </tr>
           </thead>
           <tbody>
@@ -94,8 +109,10 @@
     <div v-if="selectedEmail" class="modal-backdrop" @click.self="selectedEmail = null">
       <div class="modal">
         <header class="modal-head">
-          <h3>Noi dung email</h3>
-          <button type="button" @click="selectedEmail = null">Dong</button>
+          <h3>Nội dung email</h3>
+          <button class="icon-close" type="button" title="Đóng" aria-label="Đóng" @click="selectedEmail = null">
+            <AppIcon name="x" size="18" />
+          </button>
         </header>
         <p>{{ selectedEmail.content }}</p>
       </div>
@@ -118,9 +135,11 @@ import {
   getReminderTypeForDate,
   sendPlatformFeeReminderEmail,
 } from '../../services/platformFeeReminder.service.js';
+import AppIcon from '../../components/AppIcon.vue';
 
 export default {
   name: 'AdminPlatformFeeLedgerDetail',
+  components: { AppIcon },
   data() {
     return {
       ledger: null,
@@ -139,28 +158,28 @@ export default {
       this.emailLogs = await getEmailLogsByLedgerId(this.$route.params.id);
     },
     async payFull() {
-      await this.run(() => confirmLedgerPayment(this.ledger.id, { amount: this.ledger.remaining_amount }), 'Da xac nhan thanh toan du.');
+      await this.run(() => confirmLedgerPayment(this.ledger.id, { amount: this.ledger.remaining_amount }), 'Đã xác nhận thanh toán đủ.');
     },
     async markOverdueNow() {
-      const reason = prompt('Nhap ly do qua han:', 'Qua han thanh toan');
+      const reason = prompt('Nhập lý do quá hạn:', 'Quá hạn thanh toán');
       if (!reason) return;
-      await this.run(() => markLedgerOverdue(this.ledger.id, reason), 'Da danh dau qua han.');
+      await this.run(() => markLedgerOverdue(this.ledger.id, reason), 'Đã đánh dấu quá hạn.');
     },
     async lockVenue() {
-      const reason = prompt('Nhap ly do khoa cum san:', 'Qua han phi duy tri he thong');
+      const reason = prompt('Nhập lý do khóa cụm sân:', 'Quá hạn phí duy trì hệ thống');
       if (!reason) return;
-      await this.run(() => lockVenueForOverdueLedger(this.ledger.id, reason), 'Da khoa cum san.');
+      await this.run(() => lockVenueForOverdueLedger(this.ledger.id, reason), 'Đã khóa cụm sân.');
     },
     async unlockVenue() {
-      await this.run(() => unlockVenueAfterPayment(this.ledger.id), 'Da mo khoa cum san.');
+      await this.run(() => unlockVenueAfterPayment(this.ledger.id), 'Đã mở khóa cụm sân.');
     },
     async sendCurrentReminder() {
       const type = getReminderTypeForDate(this.ledger, new Date());
       if (!type) {
-        this.showMessage('Hom nay khong dung moc gui email cho ky phi nay.', 'error');
+        this.showMessage('Hôm nay không đúng mốc gửi email cho kỳ phí này.', 'error');
         return;
       }
-      await this.run(() => sendPlatformFeeReminderEmail(this.ledger, type), 'Da xu ly email nhac phi.');
+      await this.run(() => sendPlatformFeeReminderEmail(this.ledger, type), 'Đã xử lý email nhắc phí.');
     },
     async run(action, success) {
       try {
@@ -172,13 +191,13 @@ export default {
       }
     },
     statusLabel(status) {
-      return { pending: 'Cho thanh toan', paid: 'Da thanh toan', overdue: 'Qua han', cancelled: 'Da huy' }[status] || status;
+      return { pending: 'Chờ thanh toán', paid: 'Đã thanh toán', overdue: 'Quá hạn', cancelled: 'Đã hủy' }[status] || status;
     },
     reminderLabel(type) {
       return {
-        due_soon_7_days: 'Nhac truoc han 7 ngay',
-        due_today: 'Nhac dung ngay den han',
-        overdue_3_days: 'Canh bao qua han 3 ngay',
+        due_soon_7_days: 'Nhắc trước hạn 7 ngày',
+        due_today: 'Nhắc đúng ngày đến hạn',
+        overdue_3_days: 'Cảnh báo quá hạn 3 ngày',
       }[type] || type;
     },
     money(value) {
@@ -202,7 +221,7 @@ export default {
 <style scoped>
 .detail-page { display: flex; flex-direction: column; gap: 16px; }
 .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
-.page-head, .panel-head, .actions, .modal-head { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
+.page-head, .panel-head, .actions, .modal-head, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
 .eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; font-weight: 900; text-transform: uppercase; }
 h2, h3, p { margin: 0; }
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -210,17 +229,25 @@ h2, h3, p { margin: 0; }
 .metric strong { display: block; font-size: 22px; }
 .info-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .info-grid div, .receipt { background: #f8fafc; border-radius: 8px; padding: 12px; }
-.badge, .email-chip { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 900; }
-.badge.pending { background: #fef3c7; color: #92400e; }
-.badge.paid { background: #dcfce7; color: #166534; }
-.badge.overdue { background: #fee2e2; color: #991b1b; }
-.badge.cancelled { background: #f1f5f9; color: #475569; }
+.status-dot {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px #fef3c7;
+}
+.status-dot.paid { background: #10b981; box-shadow: 0 0 0 3px #d1fae5; }
+.status-dot.overdue { background: #ef4444; box-shadow: 0 0 0 3px #fee2e2; }
+.status-dot.cancelled { background: #94a3b8; box-shadow: 0 0 0 3px #e2e8f0; }
+.email-chip { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 900; }
 .email-chip { background: #e0f2fe; color: #075985; }
 .btn { border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 900; cursor: pointer; }
 .btn.primary { background: #16a34a; color: #fff; }
 .btn.secondary { background: #e2e8f0; color: #334155; }
 .btn.danger { background: #dc2626; color: #fff; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
+.icon-text { align-items: center; justify-content: center; }
 .link-btn { border: 0; background: transparent; color: #047857; font-weight: 900; cursor: pointer; width: fit-content; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 11px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
@@ -232,7 +259,17 @@ th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: upper
 .toast.error { background: #fef2f2; color: #991b1b; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: 20px; background: rgba(15,23,42,.55); }
 .modal { width: min(560px, calc(100vw - 32px)); background: #fff; border-radius: 8px; padding: 18px; }
-.modal-head button { border: 0; background: transparent; font-weight: 900; cursor: pointer; }
+.icon-close {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+}
 @media (max-width: 900px) {
   .grid, .info-grid { grid-template-columns: 1fr 1fr; }
   .page-head, .panel-head { flex-direction: column; }

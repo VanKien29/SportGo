@@ -111,19 +111,19 @@ export function checkLedgerPeriodOverlap(venueClusterId, periodStart, periodEnd)
   return {
     hasOverlap: overlaps.length > 0,
     overlaps: cloneValue(overlaps),
-    warnings: cancelledOverlaps.length ? ['Ky phi da huy trung thoi gian, co the tao lai neu can.'] : [],
+    warnings: cancelledOverlaps.length ? ['Kỳ phí đã hủy trùng thời gian, có thể tạo lại nếu cần.'] : [],
   };
 }
 
 export function calculateLedgerPreview(payload) {
   const venue = findVenue(payload.venue_cluster_id);
-  if (!venue) return { isValid: false, error: 'Khong tim thay cum san.', warnings: [] };
+  if (!venue) return { isValid: false, error: 'Không tìm thấy cụm sân.', warnings: [] };
 
   const coverage = validateTierCoverage(platformFeeStore.state.tiers);
   if (!coverage.isValid) {
     return {
       isValid: false,
-      error: 'Cau hinh bac phi hien chua hop le, vui long sua truoc khi tao ky phi.',
+      error: 'Cấu hình bậc phí hiện chưa hợp lệ, vui lòng sửa trước khi tạo kỳ phí.',
       coverage,
       warnings: [],
     };
@@ -143,7 +143,7 @@ export function calculateLedgerPreview(payload) {
   if (overlap.hasOverlap) {
     return {
       isValid: false,
-      error: 'Da co ky phi trung thoi gian cho cum san nay.',
+      error: 'Đã có kỳ phí trùng thời gian cho cụm sân này.',
       venue,
       tier: found.tier,
       fee,
@@ -209,12 +209,12 @@ export function createLedger(payload) {
 
 export function confirmLedgerPayment(id, payload = {}) {
   const ledger = findLedger(id);
-  if (!ledger) return Promise.reject(new Error('Khong tim thay ky phi.'));
-  if (ledger.status === 'cancelled') return Promise.reject(new Error('Ky phi da huy khong the thanh toan.'));
+  if (!ledger) return Promise.reject(new Error('Không tìm thấy kỳ phí.'));
+  if (ledger.status === 'cancelled') return Promise.reject(new Error('Kỳ phí đã hủy không thể thanh toán.'));
 
   const oldLedger = cloneValue(ledger);
   const amount = Number(payload.amount || remainingAmount(ledger));
-  if (!Number.isFinite(amount) || amount <= 0) return Promise.reject(new Error('So tien thanh toan phai lon hon 0.'));
+  if (!Number.isFinite(amount) || amount <= 0) return Promise.reject(new Error('Số tiền thanh toán phải lớn hơn 0.'));
 
   ledger.amount_paid = Math.min(Number(ledger.amount_due), Number(ledger.amount_paid || 0) + amount);
   ledger.updated_at = new Date().toISOString();
@@ -234,10 +234,10 @@ export function confirmLedgerPayment(id, payload = {}) {
   return Promise.resolve(decorateLedger(ledger));
 }
 
-export function markLedgerOverdue(id, reason = 'Qua han thanh toan') {
+export function markLedgerOverdue(id, reason = 'Quá hạn thanh toán') {
   const ledger = findLedger(id);
-  if (!ledger) return Promise.reject(new Error('Khong tim thay ky phi.'));
-  if (ledger.status === 'paid' || ledger.status === 'cancelled') return Promise.reject(new Error('Ky phi da ket thuc khong the danh dau qua han.'));
+  if (!ledger) return Promise.reject(new Error('Không tìm thấy kỳ phí.'));
+  if (ledger.status === 'paid' || ledger.status === 'cancelled') return Promise.reject(new Error('Kỳ phí đã kết thúc không thể đánh dấu quá hạn.'));
 
   const oldLedger = cloneValue(ledger);
   ledger.status = 'overdue';
@@ -251,10 +251,10 @@ export function markLedgerOverdue(id, reason = 'Qua han thanh toan') {
 }
 
 export function cancelLedger(id, reason) {
-  if (!String(reason || '').trim()) return Promise.reject(new Error('Vui long nhap ly do huy ky phi.'));
+  if (!String(reason || '').trim()) return Promise.reject(new Error('Vui lòng nhập lý do hủy kỳ phí.'));
   const ledger = findLedger(id);
-  if (!ledger) return Promise.reject(new Error('Khong tim thay ky phi.'));
-  if (ledger.status === 'paid') return Promise.reject(new Error('Ky phi da thanh toan khong duoc huy.'));
+  if (!ledger) return Promise.reject(new Error('Không tìm thấy kỳ phí.'));
+  if (ledger.status === 'paid') return Promise.reject(new Error('Kỳ phí đã thanh toán không được hủy.'));
 
   const oldLedger = cloneValue(ledger);
   ledger.status = 'cancelled';
@@ -267,12 +267,12 @@ export function cancelLedger(id, reason) {
 
 export function lockVenueForOverdueLedger(id, reason = platformFeeStore.state.settings.lock_reason) {
   const ledger = findLedger(id);
-  if (!ledger) return Promise.reject(new Error('Khong tim thay ky phi.'));
-  if (ledger.status !== 'overdue') return Promise.reject(new Error('Chi khoa cum khi ky phi da qua han.'));
-  if (!String(reason || '').trim()) return Promise.reject(new Error('Vui long nhap ly do khoa cum san.'));
+  if (!ledger) return Promise.reject(new Error('Không tìm thấy kỳ phí.'));
+  if (ledger.status !== 'overdue') return Promise.reject(new Error('Chỉ khóa cụm khi kỳ phí đã quá hạn.'));
+  if (!String(reason || '').trim()) return Promise.reject(new Error('Vui lòng nhập lý do khóa cụm sân.'));
 
   const venue = findVenue(ledger.venue_cluster_id);
-  if (!venue) return Promise.reject(new Error('Khong tim thay cum san.'));
+  if (!venue) return Promise.reject(new Error('Không tìm thấy cụm sân.'));
 
   const oldVenue = cloneValue(venue);
   venue.status = 'locked';
@@ -287,11 +287,11 @@ export function lockVenueForOverdueLedger(id, reason = platformFeeStore.state.se
 
 export function unlockVenueAfterPayment(id) {
   const ledger = findLedger(id);
-  if (!ledger) return Promise.reject(new Error('Khong tim thay ky phi.'));
-  if (ledger.status !== 'paid') return Promise.reject(new Error('Chi mo khoa sau khi ky phi da thanh toan du.'));
+  if (!ledger) return Promise.reject(new Error('Không tìm thấy kỳ phí.'));
+  if (ledger.status !== 'paid') return Promise.reject(new Error('Chỉ mở khóa sau khi kỳ phí đã thanh toán đủ.'));
 
   const venue = findVenue(ledger.venue_cluster_id);
-  if (!venue) return Promise.reject(new Error('Khong tim thay cum san.'));
+  if (!venue) return Promise.reject(new Error('Không tìm thấy cụm sân.'));
 
   const oldVenue = cloneValue(venue);
   venue.status = 'active';
