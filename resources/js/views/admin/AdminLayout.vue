@@ -25,6 +25,9 @@
         <AppIcon name="layers" size="18" />
         <span>Quản lý loại sân</span>
       </router-link>
+      <router-link to="/admin/venue-clusters" class="nav-item" active-class="nav-active">
+        <span>Quản lý cụm sân</span>
+      </router-link>
     </template>
 
     <template #topbar-title>
@@ -53,6 +56,8 @@ export default {
         'admin-policies': 'Quản lý chính sách',
         'admin-policy-detail': 'Chi tiết chính sách',
         'admin-court-types': 'Quản lý loại sân',
+        'admin-venue-clusters': 'Quản lý cụm sân',
+        'admin-venue-cluster-detail': 'Chi tiết cụm sân',
       };
 
       return map[this.$route.name] || 'Admin';

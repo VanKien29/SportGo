@@ -96,7 +96,20 @@ const routes = [
             {
                 path: "court-types",
                 name: "admin-court-types",
-                component: () => import("../views/admin/AdminCourtTypes.vue"),
+                component: () =>
+                    import("../views/admin/AdminCourtTypes.vue"),
+            },
+            {
+                path: "venue-clusters",
+                name: "admin-venue-clusters",
+                component: () =>
+                    import("../views/admin/AdminVenueClusters.vue"),
+            },
+            {
+                path: "venue-clusters/:id",
+                name: "admin-venue-cluster-detail",
+                component: () =>
+                    import("../views/admin/AdminVenueClusterDetail.vue"),
             },
             { path: "", redirect: { name: "admin-dashboard" } },
         ],
