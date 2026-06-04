@@ -44,3 +44,37 @@ export async function api(path, options = {}) {
   return data;
 }
 
+/** Gửi FormData (upload file) với Bearer token từ sportgo_auth */
+export async function apiFormData(path, formData, options = {}) {
+  const headers = {
+    Accept: 'application/json',
+    ...(options.headers || {}),
+  };
+
+  const token = readToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(path, {
+    method: options.method || 'POST',
+    headers,
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (response.status === 401) {
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(SELECTED_CLUSTER_KEY);
+    throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+  }
+
+  if (!response.ok) {
+    const error = new Error(extractError(data, 'Có lỗi xảy ra. Vui lòng thử lại.'));
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}
+

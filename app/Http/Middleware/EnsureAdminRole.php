@@ -11,7 +11,14 @@ class EnsureAdminRole
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        $roles = $user?->roles()->pluck('roles.name')->all() ?? [];
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Vui lòng đăng nhập.',
+            ], 401);
+        }
+
+        $roles = $user->roles()->pluck('roles.name')->all();
 
         if (! array_intersect($roles, ['admin', 'super_admin', 'system_staff'])) {
             return response()->json([

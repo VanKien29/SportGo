@@ -2,12 +2,16 @@
   <div class="home">
     <PublicNavbar />
 
-    <!-- Hero Section -->
+    <div class="home-banner-wrap">
+      <HomeBannerCarousel position="homepage_top" variant="featured" />
+    </div>
+
     <section class="hero">
       <div class="hero-bg">
         <div class="hero-pattern"></div>
         <div class="hero-gradient"></div>
       </div>
+
       <div class="hero-content">
         <div class="hero-badge">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -33,7 +37,6 @@
           </router-link>
         </div>
 
-        <!-- Stats -->
         <div class="hero-stats">
           <div class="stat">
             <span class="stat-number">500+</span>
@@ -53,7 +56,9 @@
       </div>
     </section>
 
-    <!-- Features -->
+    <HomeBannerCarousel position="homepage_middle" />
+    <HomeBannerCarousel position="homepage_bottom" />
+
     <section class="features">
       <div class="features-inner">
         <div class="feature-card">
@@ -97,11 +102,12 @@
 
 <script>
 import PublicNavbar from '../components/PublicNavbar.vue';
+import HomeBannerCarousel from '../components/HomeBannerCarousel.vue';
 import { getAuth } from '../stores/auth.js';
 
 export default {
   name: 'HomeView',
-  components: { PublicNavbar },
+  components: { PublicNavbar, HomeBannerCarousel },
   data() {
     return { user: getAuth() };
   },
@@ -114,20 +120,27 @@ export default {
   background: var(--sg-white);
 }
 
-/* ── Hero ── */
+.home-banner-wrap {
+  padding: 64px 24px 0;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
 .hero {
   position: relative;
   min-height: 600px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 120px 24px 80px;
+  padding: 48px 24px 80px;
   overflow: hidden;
 }
+
 .hero-bg {
   position: absolute;
   inset: 0;
 }
+
 .hero-pattern {
   position: absolute;
   inset: 0;
@@ -136,17 +149,20 @@ export default {
     radial-gradient(circle at 80% 20%, rgba(34,197,94,.06) 0%, transparent 40%),
     radial-gradient(circle at 60% 80%, rgba(34,197,94,.04) 0%, transparent 40%);
 }
+
 .hero-gradient {
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, rgba(255,255,255,.8) 0%, rgba(248,250,252,1) 100%);
 }
+
 .hero-content {
   position: relative;
   z-index: 1;
   text-align: center;
   max-width: 700px;
 }
+
 .hero-badge {
   display: inline-flex;
   align-items: center;
@@ -159,6 +175,7 @@ export default {
   font-weight: 600;
   margin-bottom: 24px;
 }
+
 .hero-title {
   font-size: 52px;
   font-weight: 800;
@@ -167,12 +184,14 @@ export default {
   letter-spacing: -1px;
   margin-bottom: 20px;
 }
+
 .hero-accent {
   background: linear-gradient(135deg, var(--sg-green), var(--sg-green-dark));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
 .hero-desc {
   font-size: 17px;
   line-height: 1.7;
@@ -180,9 +199,11 @@ export default {
   max-width: 540px;
   margin: 0 auto 36px;
 }
+
 .hero-actions {
   margin-bottom: 48px;
 }
+
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -196,45 +217,49 @@ export default {
   transition: var(--sg-transition);
   box-shadow: 0 4px 14px rgba(34,197,94,.3);
 }
+
 .btn-primary:hover {
   background: var(--sg-green-dark);
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(34,197,94,.4);
 }
 
-/* Stats */
 .hero-stats {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 32px;
 }
+
 .stat {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
+
 .stat-number {
   font-size: 28px;
   font-weight: 800;
   color: var(--sg-dark);
 }
+
 .stat-label {
   font-size: 13px;
   color: var(--sg-text-muted);
   margin-top: 4px;
 }
+
 .stat-divider {
   width: 1px;
   height: 40px;
   background: var(--sg-border);
 }
 
-/* ── Features ── */
 .features {
   padding: 60px 24px 80px;
   background: var(--sg-surface);
 }
+
 .features-inner {
   max-width: 1080px;
   margin: 0 auto;
@@ -242,6 +267,7 @@ export default {
   grid-template-columns: repeat(3, 1fr);
   gap: 24px;
 }
+
 .feature-card {
   padding: 32px;
   background: var(--sg-white);
@@ -249,11 +275,13 @@ export default {
   border: 1px solid var(--sg-border);
   transition: var(--sg-transition);
 }
+
 .feature-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--sg-shadow-lg);
   border-color: var(--sg-green);
 }
+
 .feature-icon {
   width: 48px;
   height: 48px;
@@ -265,12 +293,14 @@ export default {
   justify-content: center;
   margin-bottom: 20px;
 }
+
 .feature-card h3 {
   font-size: 17px;
   font-weight: 700;
   color: var(--sg-dark);
   margin-bottom: 10px;
 }
+
 .feature-card p {
   font-size: 14px;
   line-height: 1.7;
@@ -278,16 +308,49 @@ export default {
 }
 
 @media (max-width: 768px) {
-  .hero { min-height: auto; padding: 100px 20px 60px; }
-  .hero-title { font-size: 32px; }
-  .hero-desc { font-size: 15px; }
-  .hero-stats { gap: 20px; }
-  .stat-number { font-size: 22px; }
-  .features-inner { grid-template-columns: 1fr; }
+  .home-banner-wrap {
+    padding: 64px 16px 0;
+  }
+
+  .hero {
+    min-height: auto;
+    padding: 48px 20px 60px;
+  }
+
+  .hero-title {
+    font-size: 32px;
+  }
+
+  .hero-desc {
+    font-size: 15px;
+  }
+
+  .hero-stats {
+    gap: 20px;
+  }
+
+  .stat-number {
+    font-size: 22px;
+  }
+
+  .features-inner {
+    grid-template-columns: 1fr;
+  }
 }
+
 @media (max-width: 480px) {
-  .hero-title { font-size: 28px; }
-  .hero-stats { flex-direction: column; gap: 16px; }
-  .stat-divider { width: 40px; height: 1px; }
+  .hero-title {
+    font-size: 28px;
+  }
+
+  .hero-stats {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .stat-divider {
+    width: 40px;
+    height: 1px;
+  }
 }
 </style>

@@ -27,6 +27,8 @@ class Banner extends Model
         'updated_by',
     ];
 
+    protected $appends = ['image_url'];
+
     protected function casts(): array
     {
         return [
@@ -35,6 +37,15 @@ class Banner extends Model
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
         ];
+    }
+
+    public function getImageUrlAttribute(): ?string
+    {
+        if (! $this->image_path) {
+            return null;
+        }
+
+        return '/storage/' . ltrim($this->image_path, '/');
     }
 
     public function createdBy()

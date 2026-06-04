@@ -13,7 +13,7 @@ class SystemPolicyController extends Controller
 {
     /**
      * Hiển thị danh sách các chính sách hệ thống.
-     */
+     */ 
     public function index()
     {
         $policies = SystemPolicy::with(['createdBy', 'updatedBy'])
