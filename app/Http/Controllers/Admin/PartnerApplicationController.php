@@ -107,17 +107,19 @@ class PartnerApplicationController extends Controller
                 $application->user->roles()->syncWithoutDetaching([$venueOwnerRole->id]);
             }
 
-            // 4. Lưu tài khoản ngân hàng
-            \App\Models\OwnerBankAccount::create([
-                'owner_id' => $application->user_id,
-                'partner_application_id' => $application->id,
-                'bank_name' => $validated['bank_name'],
-                'bank_code' => 'N/A',
-                'account_number' => $validated['bank_account_number'],
-                'account_holder_name' => $validated['bank_account_name'],
-                'status' => 'verified',
-                'is_default' => true,
-            ]);
+            // 4. Lưu tài khoản ngân hàng (nếu bảng tồn tại)
+            if (class_exists(\App\Models\OwnerBankAccount::class)) {
+                \App\Models\OwnerBankAccount::create([
+                    'owner_id' => $application->user_id,
+                    'partner_application_id' => $application->id,
+                    'bank_name' => $validated['bank_name'],
+                    'bank_code' => 'N/A',
+                    'account_number' => $validated['bank_account_number'],
+                    'account_holder_name' => $validated['bank_account_name'],
+                    'status' => 'verified',
+                    'is_default' => true,
+                ]);
+            }
 
             // 5. Cập nhật trạng thái đơn
             $application->update([
