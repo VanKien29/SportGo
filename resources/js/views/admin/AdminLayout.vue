@@ -25,6 +25,17 @@
         <AppIcon name="layers" size="18" />
         <span>Quản lý loại sân</span>
       </router-link>
+      <div class="nav-group">Kiểm duyệt & hỗ trợ</div>
+      <router-link to="/admin/reports" class="nav-item" active-class="nav-active">
+        <AppIcon name="messageWarning" size="18" />
+        <span>Xử lý báo cáo</span>
+      </router-link>
+      <router-link to="/admin/complaints" class="nav-item" active-class="nav-active">
+        <AppIcon name="shieldCheck" size="18" />
+        <span>Xử lý khiếu nại</span>
+      </router-link>
+
+      <div class="nav-group">Quản lý cụm sân</div>
       <router-link to="/admin/venue-clusters" class="nav-item" active-class="nav-active">
         <span>Quản lý cụm sân</span>
       </router-link>
@@ -67,6 +78,8 @@ export default {
         'admin-role-detail': 'Chi tiết nhóm quyền',
         'admin-policies': 'Quản lý chính sách',
         'admin-policy-detail': 'Chi tiết chính sách',
+        'admin-reports': 'Xử lý báo cáo',
+        'admin-complaints': 'Xử lý khiếu nại',
         'admin-court-types': 'Quản lý loại sân',
         'admin-venue-clusters': 'Quản lý cụm sân',
         'admin-venue-cluster-detail': 'Chi tiết cụm sân',

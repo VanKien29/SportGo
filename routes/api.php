@@ -54,6 +54,16 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/users/{id}/lock', [AdminUserController::class, 'lock']);
         Route::patch('/users/{id}/unlock', [AdminUserController::class, 'unlock']);
 
+        Route::get('/reports', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'index']);
+        Route::get('/reports/{id}', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'show']);
+        Route::patch('/reports/{id}/review', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'review']);
+        Route::patch('/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'resolve']);
+
+        Route::get('/complaints', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'index']);
+        Route::get('/complaints/{id}', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'show']);
+        Route::patch('/complaints/{id}/assign', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'assign']);
+        Route::patch('/complaints/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'resolve']);
+
         // Court Types CRUD
         Route::apiResource('court-types', \App\Http\Controllers\Api\Admin\CourtTypeController::class);
 

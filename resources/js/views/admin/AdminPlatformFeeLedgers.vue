@@ -2,14 +2,12 @@
   <section class="ledger-page">
     <header class="page-head">
       <div>
-        <p class="eyebrow">Sổ phí duy trì</p>
-        <h2>Quản lý phí duy trì hệ thống</h2>
-        <p>Xem, tạo, theo dõi, xác nhận thanh toán, đánh dấu quá hạn và khóa/mở khóa cụm sân.</p>
+        <h2>Kỳ phí duy trì</h2>
       </div>
       <div class="head-actions">
         <button class="btn secondary icon-text" type="button" @click="runReminderCheck">
           <AppIcon name="bell" size="18" />
-          <span>Chạy kiểm tra nhắc phí</span>
+          <span>Kiểm tra nhắc phí</span>
         </button>
         <button class="btn primary icon-text" type="button" @click="openCreate">
           <AppIcon name="plus" size="18" />
@@ -55,91 +53,104 @@
         <input v-model="filters.overdue_only" type="checkbox" @change="loadLedgers" />
         <span>Chỉ xem quá hạn</span>
       </label>
-      <input v-model.trim="filters.keyword" placeholder="Tìm mã kỳ phí, cụm sân, owner" @input="loadLedgers" />
+      <input class="keyword-filter" v-model.trim="filters.keyword" placeholder="Tìm mã kỳ phí, cụm sân, chủ sân" @input="loadLedgers" />
     </section>
 
     <section class="kpi-grid">
       <router-link class="kpi-card" to="/admin/platform-fee-ledgers?status=pending">
-        <strong>{{ metrics.pending }}</strong><span>Chờ thanh toán</span>
+        <strong>{{ metrics.pending }}</strong><span>Kỳ chờ thanh toán</span>
       </router-link>
       <router-link class="kpi-card danger" to="/admin/platform-fee-ledgers?status=overdue">
-        <strong>{{ metrics.overdue }}</strong><span>Quá hạn</span>
+        <strong>{{ metrics.overdue }}</strong><span>Kỳ quá hạn</span>
       </router-link>
-      <article class="kpi-card"><strong>{{ money(metrics.pending_amount) }}</strong><span>Chờ thanh toán</span></article>
-      <article class="kpi-card danger"><strong>{{ money(metrics.overdue_amount) }}</strong><span>Quá hạn</span></article>
+      <article class="kpi-card"><strong>{{ money(metrics.pending_amount) }}</strong><span>Tiền chờ thu</span></article>
+      <article class="kpi-card danger"><strong>{{ money(metrics.overdue_amount) }}</strong><span>Tiền quá hạn</span></article>
     </section>
 
-    <section class="panel">
+    <section class="ledger-list">
       <div v-if="loading" class="empty">Đang tải danh sách kỳ phí...</div>
       <div v-else-if="ledgers.length === 0" class="empty">Chưa có kỳ phí. Hãy tạo kỳ phí mới.</div>
-      <div v-else class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Mã kỳ phí</th>
-              <th>Cụm sân</th>
-              <th>Chủ sân</th>
-              <th>Số sân</th>
-              <th>Bậc phí snapshot</th>
-              <th>Kỳ đóng</th>
-              <th>Thời gian kỳ phí</th>
-              <th>Hạn thanh toán</th>
-              <th>Gia snapshot</th>
-              <th>Giảm</th>
-              <th>Phải đóng</th>
-              <th>Đã đóng</th>
-              <th>Còn thiếu</th>
-              <th>Trạng thái</th>
-              <th>Ngày thanh toán</th>
-              <th>Email</th>
-              <th class="actions-header">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="ledger in ledgers" :key="ledger.id">
-              <td class="mono">{{ ledger.code }}</td>
-              <td>{{ ledger.venue?.name || '-' }}</td>
-              <td>{{ ledger.owner?.full_name || '-' }}</td>
-              <td>{{ ledger.court_count }}</td>
-              <td>{{ ledger.tier_name }}</td>
-              <td>{{ ledger.period_months }} tháng</td>
-              <td>{{ date(ledger.period_start) }} - {{ date(ledger.period_end) }}</td>
-              <td :class="{ overdue: ledger.status === 'overdue' }">{{ date(ledger.due_date) }}</td>
-              <td>{{ money(ledger.price_per_court_month) }}</td>
-              <td>{{ percent(ledger.discount_percent) }}</td>
-              <td>{{ money(ledger.amount_due) }}</td>
-              <td>{{ money(ledger.amount_paid) }}</td>
-              <td>{{ money(ledger.remaining_amount) }}</td>
-              <td>
-                <span class="status-dot" :class="ledger.status" :title="statusLabel(ledger.status)" :aria-label="statusLabel(ledger.status)"></span>
-              </td>
-              <td>{{ ledger.paid_at ? date(ledger.paid_at) : '-' }}</td>
-              <td>{{ emailSummary(ledger) }}</td>
-              <td>
-                <div class="actions">
-                  <button class="icon-btn" type="button" title="Xem chi tiết" aria-label="Xem chi tiết" @click="$router.push({ name: 'admin-platform-fee-ledger-detail', params: { id: ledger.id } })">
-                    <AppIcon name="eye" size="18" />
-                  </button>
-                  <button class="icon-btn" type="button" title="Xác nhận thanh toán" aria-label="Xác nhận thanh toán" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="openPay(ledger)">
-                    <AppIcon name="creditCard" size="18" />
-                  </button>
-                  <button class="icon-btn warning" type="button" title="Đánh dấu quá hạn" aria-label="Đánh dấu quá hạn" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="markOverdue(ledger)">
-                    <AppIcon name="clock" size="18" />
-                  </button>
-                  <button class="icon-btn danger" type="button" title="Hủy kỳ phí" aria-label="Hủy kỳ phí" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="openCancel(ledger)">
-                    <AppIcon name="trash" size="18" />
-                  </button>
-                  <button class="icon-btn danger" type="button" title="Khóa cụm sân" aria-label="Khóa cụm sân" :disabled="ledger.status !== 'overdue'" @click="openLock(ledger)">
-                    <AppIcon name="lock" size="18" />
-                  </button>
-                  <button class="icon-btn success" type="button" title="Mở khóa cụm sân" aria-label="Mở khóa cụm sân" :disabled="ledger.status !== 'paid'" @click="unlockVenue(ledger)">
-                    <AppIcon name="unlock" size="18" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else class="ledger-cards">
+        <article v-for="ledger in ledgers" :key="ledger.id" class="ledger-card">
+          <header class="ledger-card-head">
+            <div class="ledger-identity">
+              <strong class="mono">{{ ledger.code }}</strong>
+              <span class="identity-separator"></span>
+              <strong class="truncate" :title="ledger.venue?.name || '-'">{{ ledger.venue?.name || '-' }}</strong>
+              <span class="owner-name truncate" :title="ledger.owner?.full_name || '-'">{{ ledger.owner?.full_name || '-' }}</span>
+            </div>
+
+            <div class="card-controls">
+              <span class="status-badge" :class="ledger.status">
+                <span class="status-dot"></span>
+                {{ statusLabel(ledger.status) }}
+              </span>
+              <div class="actions">
+                <button class="icon-btn" type="button" title="Xem chi tiết" aria-label="Xem chi tiết" @click="$router.push({ name: 'admin-platform-fee-ledger-detail', params: { id: ledger.id } })">
+                  <AppIcon name="eye" size="17" />
+                </button>
+                <button class="icon-btn" type="button" title="Xác nhận thanh toán" aria-label="Xác nhận thanh toán" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="openPay(ledger)">
+                  <AppIcon name="creditCard" size="17" />
+                </button>
+                <button class="icon-btn warning" type="button" title="Đánh dấu quá hạn" aria-label="Đánh dấu quá hạn" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="markOverdue(ledger)">
+                  <AppIcon name="clock" size="17" />
+                </button>
+                <button class="icon-btn danger" type="button" title="Hủy kỳ phí" aria-label="Hủy kỳ phí" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="openCancel(ledger)">
+                  <AppIcon name="trash" size="17" />
+                </button>
+                <button class="icon-btn danger" type="button" title="Khóa cụm sân" aria-label="Khóa cụm sân" :disabled="ledger.status !== 'overdue'" @click="openLock(ledger)">
+                  <AppIcon name="lock" size="17" />
+                </button>
+                <button class="icon-btn success" type="button" title="Mở khóa" aria-label="Mở khóa cụm sân" :disabled="ledger.status !== 'paid'" @click="unlockVenue(ledger)">
+                  <AppIcon name="unlock" size="17" />
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <div class="ledger-facts">
+            <div class="fact">
+              <span>Số sân</span>
+              <strong>{{ ledger.court_count }}</strong>
+            </div>
+            <div class="fact">
+              <span>Bậc phí</span>
+              <strong class="truncate" :title="ledger.tier_name">{{ ledger.tier_name }}</strong>
+            </div>
+            <div class="fact">
+              <span>Kỳ đóng</span>
+              <strong>{{ ledger.period_months }} tháng</strong>
+            </div>
+            <div class="fact period-fact">
+              <span>Thời gian kỳ phí</span>
+              <strong>{{ date(ledger.period_start) }} – {{ date(ledger.period_end) }}</strong>
+            </div>
+            <div class="fact">
+              <span>Hạn thanh toán</span>
+              <strong :class="{ overdue: ledger.status === 'overdue' }">{{ date(ledger.due_date) }}</strong>
+            </div>
+            <div class="fact">
+              <span>Giá / sân / tháng</span>
+              <strong>{{ money(ledger.price_per_court_month) }}</strong>
+            </div>
+            <div class="fact">
+              <span>Giảm</span>
+              <strong>{{ percent(ledger.discount_percent) }}</strong>
+            </div>
+            <div class="fact amount-fact">
+              <span>Phải đóng</span>
+              <strong>{{ money(ledger.amount_due) }}</strong>
+            </div>
+            <div class="fact">
+              <span>Đã đóng</span>
+              <strong>{{ money(ledger.amount_paid) }}</strong>
+            </div>
+            <div class="fact amount-fact" :class="{ danger: Number(ledger.remaining_amount) > 0 && ledger.status === 'overdue' }">
+              <span>Còn thiếu</span>
+              <strong>{{ money(ledger.remaining_amount) }}</strong>
+            </div>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -418,84 +429,160 @@ export default {
 </script>
 
 <style scoped>
-.ledger-page { display: flex; flex-direction: column; gap: 18px; }
-.page-head, .head-actions, .actions, .modal-head, .modal-actions, .icon-text { display: flex; gap: 12px; }
-.page-head { justify-content: space-between; align-items: flex-start; }
-.eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+.ledger-page { display: flex; min-width: 0; flex-direction: column; gap: 16px; }
+.page-head, .head-actions, .actions, .modal-head, .modal-actions, .icon-text { display: flex; gap: 8px; }
+.page-head { justify-content: space-between; align-items: center; }
+.head-actions { flex-wrap: wrap; }
 h2, h3, p { margin: 0; }
-.panel, .kpi-card, .modal { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
+.panel, .kpi-card, .modal, .ledger-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
 .panel { padding: 16px; }
-.filter-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; align-items: center; }
-input, select, textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; font: inherit; }
-.check-row { flex-direction: row; align-items: center; font-weight: 800; color: #334155; }
+.filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; align-items: center; }
+input, select, textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 14px; }
+.check-row { flex-direction: row; align-items: center; font-weight: 700; color: #334155; gap: 6px; }
 .check-row input { width: auto; }
+.keyword-filter { grid-column: span 3; }
 .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.kpi-card { padding: 16px; text-decoration: none; color: #0f172a; }
-.kpi-card strong { display: block; font-size: 24px; }
-.kpi-card span { color: #64748b; }
+.kpi-card { padding: 14px 16px; text-decoration: none; color: #0f172a; }
+.kpi-card strong { display: block; font-size: 22px; font-weight: 900; }
+.kpi-card span { color: #64748b; font-size: 13px; }
 .kpi-card.danger strong { color: #b91c1c; }
-.table-wrap { overflow-x: auto; }
-table { width: 100%; min-width: 1680px; border-collapse: collapse; }
-th, td { padding: 11px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
-th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: uppercase; }
-.actions-header { text-align: center; }
-.mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.ledger-list { min-width: 0; }
+.ledger-cards { display: grid; gap: 10px; }
+.ledger-card { min-width: 0; overflow: hidden; }
+.ledger-card-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+.ledger-identity, .card-controls { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.ledger-identity { flex: 1; }
+.identity-separator { width: 1px; height: 18px; flex: 0 0 auto; background: #cbd5e1; }
+.owner-name { color: #64748b; }
+.card-controls { flex: 0 0 auto; }
+.truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; }
 .overdue { color: #b91c1c; font-weight: 900; }
+.ledger-facts {
+  display: grid;
+  grid-template-columns: .55fr 1fr .75fr 1.55fr 1fr 1.15fr .55fr 1fr 1fr 1fr;
+  min-width: 0;
+}
+.fact {
+  min-width: 0;
+  padding: 12px 10px;
+  border-right: 1px solid #eef2f7;
+}
+.fact:last-child { border-right: 0; }
+.fact span {
+  display: block;
+  margin-bottom: 5px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.fact strong {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.fact.amount-fact strong { font-size: 14px; }
+.fact.danger strong { color: #b91c1c; }
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.status-badge.paid { background: #ecfdf5; color: #047857; }
+.status-badge.overdue { background: #fef2f2; color: #b91c1c; }
+.status-badge.cancelled { background: #f1f5f9; color: #64748b; }
 .status-dot {
-  display: inline-grid;
-  width: 14px;
-  height: 14px;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: #f59e0b;
-  box-shadow: 0 0 0 3px #fef3c7;
 }
-.status-dot.paid { background: #10b981; box-shadow: 0 0 0 3px #d1fae5; }
-.status-dot.overdue { background: #ef4444; box-shadow: 0 0 0 3px #fee2e2; }
-.status-dot.cancelled { background: #94a3b8; box-shadow: 0 0 0 3px #e2e8f0; }
-.actions { flex-wrap: wrap; justify-content: center; min-width: 244px; }
+.status-badge.paid .status-dot { background: #10b981; }
+.status-badge.overdue .status-dot { background: #ef4444; }
+.status-badge.cancelled .status-dot { background: #94a3b8; }
+.actions { flex-wrap: nowrap; justify-content: center; }
 .icon-btn, .icon-close {
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #dbe3ea;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #f8fafc;
   color: #334155;
   cursor: pointer;
+  flex-shrink: 0;
 }
-.icon-btn { width: 34px; height: 34px; }
+.icon-btn { width: 28px; height: 28px; }
 .icon-btn:hover:not(:disabled) { background: #eef2f7; }
 .icon-btn.success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
 .icon-btn.warning { background: #fef3c7; color: #92400e; border-color: #fde68a; }
 .icon-btn.danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 .icon-btn:disabled { opacity: .45; cursor: not-allowed; }
-.icon-close { width: 32px; height: 32px; }
-.btn { border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 900; cursor: pointer; }
+.icon-close { width: 30px; height: 30px; }
+.btn { border: 0; border-radius: 8px; padding: 9px 14px; font-weight: 700; cursor: pointer; font-size: 14px; }
 .btn.primary { background: #16a34a; color: #fff; }
 .btn.secondary { background: #e2e8f0; color: #334155; }
 .icon-text { align-items: center; justify-content: center; }
 .empty { padding: 36px; text-align: center; color: #64748b; }
-.toast { border-radius: 8px; padding: 11px 13px; font-weight: 800; }
+.toast { border-radius: 8px; padding: 10px 13px; font-weight: 700; }
 .toast.success { background: #ecfdf5; color: #047857; }
 .toast.error, .alert.error { background: #fef2f2; color: #991b1b; }
-.alert { border-radius: 8px; padding: 10px 12px; margin: 10px 18px 0; font-weight: 800; }
+.alert { border-radius: 8px; padding: 10px 12px; margin: 10px 18px 0; font-weight: 700; }
 .alert.warning { background: #fef3c7; color: #92400e; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: 20px; background: rgba(15,23,42,.55); }
 .modal { width: min(820px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; }
 .modal.small { width: min(520px, calc(100vw - 32px)); }
-.modal-head { justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; }
-.modal-head button { border: 0; background: transparent; font-weight: 900; cursor: pointer; }
-.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 18px 22px; }
+.modal-head { justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; }
+.modal-head button { border: 0; background: transparent; cursor: pointer; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 16px 20px; }
 .form-grid.one { grid-template-columns: 1fr; }
-label { display: flex; flex-direction: column; gap: 6px; font-weight: 800; color: #334155; }
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; color: #334155; font-size: 14px; }
 .preview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 0 18px 10px; }
 .preview-grid div { background: #f8fafc; border-radius: 8px; padding: 12px; }
 .preview-grid span { display: block; color: #64748b; font-size: 12px; }
-.modal-actions { justify-content: flex-end; padding: 16px 22px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+.modal-actions { justify-content: flex-end; padding: 14px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+@media (max-width: 1400px) {
+  .ledger-facts { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .fact:nth-child(5n) { border-right: 0; }
+  .fact:nth-child(n+6) { border-top: 1px solid #eef2f7; }
+}
 @media (max-width: 1000px) {
   .page-head { flex-direction: column; }
+  .page-head { align-items: flex-start; }
   .filter-grid, .kpi-grid, .preview-grid, .form-grid { grid-template-columns: 1fr 1fr; }
+  .keyword-filter { grid-column: span 1; }
+  .ledger-card-head { align-items: flex-start; }
+  .ledger-identity { flex-wrap: wrap; }
 }
 @media (max-width: 640px) {
   .filter-grid, .kpi-grid, .preview-grid, .form-grid { grid-template-columns: 1fr; }
+  .ledger-card-head, .card-controls { align-items: stretch; flex-direction: column; }
+  .ledger-identity { flex-wrap: nowrap; }
+  .card-controls { width: 100%; }
+  .actions { justify-content: flex-start; }
+  .ledger-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fact, .fact:nth-child(5n) { border-right: 1px solid #eef2f7; border-top: 1px solid #eef2f7; }
+  .fact:nth-child(2n) { border-right: 0; }
 }
 </style>

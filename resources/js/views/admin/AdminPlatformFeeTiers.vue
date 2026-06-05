@@ -2,14 +2,12 @@
   <section class="pf-page">
     <header class="page-head">
       <div>
-        <p class="eyebrow">Phí duy trì nền tảng</p>
-        <h2>Cấu hình bậc phí nền tảng</h2>
-        <p>Quản lý bậc phí dựa trên số lượng sân con và chu kỳ đóng phí.</p>
+        <h2>Bậc phí nền tảng</h2>
       </div>
       <div class="head-actions">
         <button class="btn secondary icon-text" type="button" @click="checkCoverage">
           <AppIcon name="check" size="18" />
-          <span>Kiểm tra khoảng bậc phí</span>
+          <span>Kiểm tra khoảng phí</span>
         </button>
         <button class="btn primary icon-text" type="button" @click="openCreate">
           <AppIcon name="plus" size="18" />
@@ -17,14 +15,6 @@
         </button>
       </div>
     </header>
-
-    <div class="notice-card">
-      Phí nền tảng tính theo số lượng sân con và chu kỳ đóng phí, không tính theo phần trăm doanh thu booking.
-    </div>
-
-    <div class="info-grid">
-      <article v-for="item in businessNotes" :key="item" class="info-card">{{ item }}</article>
-    </div>
 
     <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
 
@@ -37,13 +27,13 @@
       </select>
       <button class="btn secondary icon-text" type="button" @click="resetStore">
         <AppIcon name="refresh" size="18" />
-        <span>Khôi phục dữ liệu mẫu</span>
+        <span>Khôi phục mẫu</span>
       </button>
     </section>
 
     <section class="panel">
       <div class="panel-title">
-        <strong>Danh sách bậc phí</strong>
+        <strong>Các bậc phí</strong>
         <span>{{ filteredTiers.length }} bậc phí</span>
       </div>
       <div v-if="filteredTiers.length === 0" class="empty">Chưa có bậc phí. Hãy tạo bậc phí đầu tiên.</div>
@@ -52,16 +42,11 @@
           <thead>
             <tr>
               <th>Tên bậc</th>
-              <th>Khoảng số sân</th>
+              <th>Khoảng sân</th>
               <th>Giá / sân / tháng</th>
-              <th>1 tháng</th>
-              <th>3 tháng</th>
-              <th>6 tháng</th>
-              <th>9 tháng</th>
-              <th>12 tháng</th>
+              <th>Chiết khấu theo kỳ</th>
               <th>Trạng thái</th>
-              <th>Ledger dùng</th>
-              <th>Cập nhật</th>
+              <th>Ledger</th>
               <th class="actions-header">Thao tác</th>
             </tr>
           </thead>
@@ -69,15 +54,19 @@
             <tr v-for="tier in filteredTiers" :key="tier.id">
               <td>
                 <strong>{{ tier.name }}</strong>
-                <small>{{ tier.note || 'Không có ghi chú' }}</small>
+                <small v-if="tier.note">{{ tier.note }}</small>
               </td>
-              <td>{{ rangeLabel(tier) }}</td>
-              <td>{{ money(tier.price_per_court_month) }}</td>
-              <td>{{ percent(tier.discount_1_month) }}</td>
-              <td>{{ percent(tier.discount_3_months) }}</td>
-              <td>{{ percent(tier.discount_6_months) }}</td>
-              <td>{{ percent(tier.discount_9_months) }}</td>
-              <td>{{ percent(tier.discount_12_months) }}</td>
+              <td class="nowrap">{{ rangeLabel(tier) }}</td>
+              <td class="nowrap">{{ money(tier.price_per_court_month) }}</td>
+              <td>
+                <div class="discount-list">
+                  <span>1T: {{ percent(tier.discount_1_month) }}</span>
+                  <span>3T: {{ percent(tier.discount_3_months) }}</span>
+                  <span>6T: {{ percent(tier.discount_6_months) }}</span>
+                  <span>9T: {{ percent(tier.discount_9_months) }}</span>
+                  <span>12T: {{ percent(tier.discount_12_months) }}</span>
+                </div>
+              </td>
               <td>
                 <span
                   class="status-dot"
@@ -87,7 +76,6 @@
                 ></span>
               </td>
               <td>{{ usageCount(tier.id) }}</td>
-              <td>{{ date(tier.updated_at) }}</td>
               <td>
                 <div class="actions">
                   <button class="icon-btn" type="button" title="Xem chi tiết" aria-label="Xem chi tiết" @click="viewTier(tier)">
@@ -105,10 +93,10 @@
                   >
                     <AppIcon :name="tier.is_active ? 'archive' : 'refresh'" size="18" />
                   </button>
-                  <button class="icon-btn" type="button" title="Nhân bản bậc phí" aria-label="Nhân bản bậc phí" @click="cloneTier(tier)">
+                  <button class="icon-btn" type="button" title="Nhân bản" aria-label="Nhân bản bậc phí" @click="cloneTier(tier)">
                     <AppIcon name="copy" size="18" />
                   </button>
-                  <button class="icon-btn danger" type="button" title="Ngừng dùng" aria-label="Ngừng dùng" @click="removeTier(tier)">
+                  <button class="icon-btn danger" type="button" title="Xóa bậc phí" aria-label="Xóa bậc phí" @click="removeTier(tier)">
                     <AppIcon name="trash" size="18" />
                   </button>
                 </div>
@@ -122,7 +110,6 @@
     <section class="panel preview-panel">
       <div class="panel-title">
         <strong>Xem trước tính phí</strong>
-        <span>Sử dụng đúng hàm calculatePlatformFee()</span>
       </div>
       <div class="preview-form">
         <label>
@@ -294,13 +281,6 @@ export default {
       toast: '',
       toastType: 'success',
       periods: [1, 3, 6, 9, 12],
-      businessNotes: [
-        'Phí tính theo số sân con',
-        'Không tính theo doanh thu booking',
-        'Ledger đã tạo giữ nguyên snapshot',
-        'Quá hạn có thể khóa cụm sân',
-        'Email nhắc phí gửi theo ngày đến hạn',
-      ],
       discountFields: [
         { key: 'discount_1_month', label: 'Giảm kỳ 1 tháng (%)' },
         { key: 'discount_3_months', label: 'Giảm kỳ 3 tháng (%)' },
@@ -345,9 +325,13 @@ export default {
     },
     async saveTier() {
       try {
-        if (this.editingId) await updateTier(this.editingId, this.form);
-        else await createTier(this.form);
-        this.showMessage('Đã lưu bậc phí.');
+        const saved = this.editingId
+          ? await updateTier(this.editingId, this.form)
+          : await createTier(this.form);
+        const adjustmentMessage = saved.range_adjustments?.length
+          ? ` ${saved.range_adjustments.join(' ')}`
+          : '';
+        this.showMessage(`Đã lưu bậc phí.${adjustmentMessage}`);
         this.closeModal();
         this.loadTiers();
         this.runPreview();
@@ -462,90 +446,89 @@ export default {
 </script>
 
 <style scoped>
-.pf-page { display: flex; flex-direction: column; gap: 18px; }
-.page-head, .head-actions, .panel-title, .filter-panel, .actions, .preview-form, .modal-head, .modal-actions, .icon-text { display: flex; gap: 12px; }
-.page-head { justify-content: space-between; align-items: flex-start; }
+.pf-page { display: flex; min-width: 0; flex-direction: column; gap: 16px; }
+.page-head, .head-actions, .panel-title, .filter-panel, .actions, .preview-form, .modal-head, .modal-actions, .icon-text { display: flex; gap: 8px; }
+.page-head { justify-content: space-between; align-items: center; }
 .head-actions, .modal-actions { align-items: center; }
-.eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; font-weight: 900; text-transform: uppercase; }
 h2, h3, p { margin: 0; }
-.panel, .notice-card, .info-card, .modal { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
+.panel, .modal { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
 .panel { padding: 16px; }
-.notice-card { padding: 14px 16px; background: #fff7ed; color: #9a3412; font-weight: 800; }
-.info-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.info-card { padding: 12px; color: #334155; font-weight: 800; }
-.filter-panel { align-items: center; }
-input, select, textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; font: inherit; }
-.filter-panel input { max-width: 360px; }
-.filter-panel select { max-width: 220px; }
+.filter-panel { align-items: center; flex-wrap: wrap; }
+input, select, textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font: inherit; }
+.filter-panel input { max-width: 300px; }
+.filter-panel select { max-width: 200px; }
 .panel-title { justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.panel-title span, small { color: #64748b; }
-.table-wrap { overflow-x: auto; }
-table { width: 100%; min-width: 1180px; border-collapse: collapse; }
-th, td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
-th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: uppercase; }
+.panel-title span { color: #64748b; font-size: 14px; }
+small { color: #64748b; font-size: 12px; }
+.table-wrap { width: 100%; max-width: 100%; overflow-x: auto; }
+table { width: 100%; min-width: 680px; border-collapse: collapse; }
+th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: middle; }
+th { background: #f8fafc; color: #475569; font-size: 11px; text-transform: uppercase; white-space: nowrap; }
 .actions-header { text-align: center; }
-td strong, td small { display: block; }
+td strong { display: block; font-size: 14px; }
+td small { display: block; margin-top: 2px; }
+.nowrap { white-space: nowrap; }
+.discount-list { display: flex; flex-direction: column; gap: 2px; }
+.discount-list span { font-size: 12px; color: #475569; white-space: nowrap; }
 .status-dot {
-  display: inline-grid;
-  width: 14px;
-  height: 14px;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
   border-radius: 999px;
   background: #10b981;
   box-shadow: 0 0 0 3px #d1fae5;
+  vertical-align: middle;
 }
 .status-dot.inactive {
   background: #94a3b8;
   box-shadow: 0 0 0 3px #e2e8f0;
 }
-.actions { flex-wrap: wrap; justify-content: center; min-width: 176px; }
+.actions { flex-wrap: nowrap; justify-content: center; }
 .icon-btn, .icon-close {
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #dbe3ea;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #f8fafc;
   color: #334155;
   cursor: pointer;
+  flex-shrink: 0;
 }
-.icon-btn {
-  width: 34px;
-  height: 34px;
-}
+.icon-btn { width: 30px; height: 30px; }
 .icon-btn:hover:not(:disabled) { background: #eef2f7; }
 .icon-btn.danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 .icon-btn:disabled { cursor: not-allowed; opacity: .45; }
-.icon-close {
-  width: 32px;
-  height: 32px;
-}
-.btn { border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 900; cursor: pointer; }
+.icon-close { width: 30px; height: 30px; }
+.btn { border: 0; border-radius: 8px; padding: 9px 14px; font-weight: 700; cursor: pointer; font-size: 14px; }
 .btn.primary { background: #16a34a; color: #fff; }
 .btn.secondary { background: #e2e8f0; color: #334155; }
 .icon-text { align-items: center; justify-content: center; }
-.preview-form { display: grid; grid-template-columns: 1.5fr 1fr 1fr auto; align-items: end; }
-label { display: flex; flex-direction: column; gap: 6px; font-weight: 800; color: #334155; }
+.preview-form { display: grid; grid-template-columns: 1.5fr 1fr 1fr auto; align-items: end; gap: 12px; }
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; color: #334155; font-size: 14px; }
 .preview-result, .detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
 .preview-result div, .detail-grid div { background: #f8fafc; border-radius: 8px; padding: 12px; }
 .preview-result span, .detail-grid span { display: block; color: #64748b; font-size: 12px; }
-.alert { border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-weight: 800; }
+.alert { border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-weight: 700; }
 .alert.error, .toast.error { background: #fef2f2; color: #991b1b; }
 .alert.warning { background: #fef3c7; color: #92400e; }
 .toast.success { background: #ecfdf5; color: #047857; }
-.toast { border-radius: 8px; padding: 11px 13px; font-weight: 800; }
+.toast { border-radius: 8px; padding: 10px 13px; font-weight: 700; }
 .empty { padding: 36px; text-align: center; color: #64748b; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: 20px; background: rgba(15,23,42,.55); }
 .modal { width: min(840px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; }
-.modal-head { justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; }
-.modal-head button { border: 0; background: transparent; font-weight: 900; cursor: pointer; }
-.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 18px 22px; }
+.modal-head { justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; }
+.modal-head button { border: 0; background: transparent; cursor: pointer; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 16px 20px; }
 .full { grid-column: 1 / -1; }
 .check-row { flex-direction: row; align-items: center; }
 .check-row input { width: auto; }
-.field-error { color: #b91c1c; font-weight: 800; }
-.modal-actions { justify-content: flex-end; padding: 16px 22px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+.field-error { color: #b91c1c; font-size: 12px; }
+.modal-actions { justify-content: flex-end; padding: 14px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
 @media (max-width: 900px) {
   .page-head { flex-direction: column; }
-  .info-grid, .preview-result, .detail-grid { grid-template-columns: 1fr 1fr; }
+  .page-head { align-items: flex-start; }
+  .preview-result, .detail-grid { grid-template-columns: 1fr 1fr; }
   .preview-form, .form-grid { grid-template-columns: 1fr; }
 }
 </style>

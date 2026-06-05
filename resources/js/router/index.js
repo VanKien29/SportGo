@@ -91,6 +91,16 @@ const routes = [
             { path: "users", name: "admin-users", component: AdminUsers },
             { path: "policies", name: "admin-policies", component: AdminPolicies },
             { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
+            {
+                path: "reports",
+                name: "admin-reports",
+                component: () => import("../views/admin/AdminReports.vue"),
+            },
+            {
+                path: "complaints",
+                name: "admin-complaints",
+                component: () => import("../views/admin/AdminComplaints.vue"),
+            },
             { path: "roles", name: "admin-roles", component: AdminRoles },
             { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail },
             {
