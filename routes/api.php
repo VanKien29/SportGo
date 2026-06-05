@@ -3,8 +3,10 @@
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\Admin\Auth\AdminAuthController;
 use App\Http\Controllers\Api\Admin\Auth\AdminForgotPasswordController;
+use App\Http\Controllers\Api\Admin\BannerController as AdminBannerController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FinanceOperationController as AdminFinanceOperationController;
+use App\Http\Controllers\Api\Admin\PartnerApplicationController as AdminPartnerApplicationController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
@@ -17,6 +19,8 @@ use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
 
 Route::prefix('auth')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register']);
@@ -69,6 +73,17 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/finance/withdrawals/{id}/payout-qr', [AdminFinanceOperationController::class, 'withdrawalPayoutQr']);
         Route::post('/finance/withdrawals/{id}/payout-check', [AdminFinanceOperationController::class, 'checkWithdrawalPayout']);
         Route::post('/finance/withdrawals/export', [AdminFinanceOperationController::class, 'exportWithdrawals']);
+
+        Route::get('/partner-applications', [AdminPartnerApplicationController::class, 'index']);
+        Route::get('/partner-applications/{id}', [AdminPartnerApplicationController::class, 'show']);
+        Route::post('/partner-applications/{id}/approve', [AdminPartnerApplicationController::class, 'approve']);
+        Route::post('/partner-applications/{id}/reject', [AdminPartnerApplicationController::class, 'reject']);
+
+        Route::get('/banners', [AdminBannerController::class, 'index']);
+        Route::post('/banners', [AdminBannerController::class, 'store']);
+        Route::post('/banners/reorder', [AdminBannerController::class, 'reorder']);
+        Route::patch('/banners/{id}', [AdminBannerController::class, 'update']);
+        Route::delete('/banners/{id}', [AdminBannerController::class, 'destroy']);
 
         // Court Types CRUD
         Route::apiResource('court-types', \App\Http\Controllers\Api\Admin\CourtTypeController::class);

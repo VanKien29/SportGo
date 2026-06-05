@@ -49,6 +49,24 @@
                 <span>Hoàn tiền & rút tiền</span>
             </router-link>
 
+            <div class="nav-group">Đối tác & nội dung</div>
+            <router-link
+                to="/admin/partner-applications"
+                class="nav-item"
+                active-class="nav-active"
+            >
+                <AppIcon name="fileText" size="18" />
+                <span>Quản lý đơn đăng kí</span>
+            </router-link>
+            <router-link
+                to="/admin/banners"
+                class="nav-item"
+                active-class="nav-active"
+            >
+                <AppIcon name="image" size="18" />
+                <span>Quản lý banner</span>
+            </router-link>
+
             <div class="nav-group">Cấu hình hệ thống</div>
             <router-link
                 to="/admin/policies"
@@ -122,6 +140,8 @@ export default {
                 "admin-users": "Quản lý tài khoản",
                 "admin-payments": "Theo dõi thanh toán booking",
                 "admin-finance-operations": "Hoàn tiền và rút tiền",
+                "admin-partner-applications": "Quản lý đơn đăng kí",
+                "admin-banners": "Quản lý banner",
                 "admin-roles": "Quản lý nhóm quyền",
                 "admin-role-detail": "Chi tiết nhóm quyền",
                 "admin-policies": "Quản lý chính sách",
