@@ -66,4 +66,14 @@ class VenueCluster extends Model
     {
         return $this->hasOne(BookingConfig::class, 'venue_cluster_id');
     }
+
+    public function latestPlatformFeeLedger()
+    {
+        return $this->hasOne(VenuePlatformFeeLedger::class, 'venue_cluster_id')->latestOfMany('period_start');
+    }
+
+    public function media()
+    {
+        return $this->morphMany(Media::class, 'mediable');
+    }
 }

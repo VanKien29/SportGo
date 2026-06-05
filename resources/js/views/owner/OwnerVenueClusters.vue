@@ -183,6 +183,44 @@
                                 <span>{{ item }}</span>
                             </label>
                         </div>
+
+
+                    </div>
+
+                    <div class="form-group">
+                        <label>Hình ảnh cụm sân (Album/Gallery)</label>
+                        
+                        <!-- Hiển thị lưới ảnh hiện tại -->
+                        <div class="owner-gallery-grid" v-if="imagesList.length > 0">
+                            <div v-for="img in imagesList" :key="img.id" class="owner-gallery-item">
+                                <img :src="imageUrl(img.file_path)" alt="Hình ảnh cụm sân" class="owner-gallery-img" />
+                                <button type="button" class="btn-delete-img" @click="handleDeleteImage(img.id)" title="Xóa hình ảnh này">×</button>
+                            </div>
+                        </div>
+                        <div v-else class="owner-gallery-empty">
+                            Chưa có hình ảnh nào được tải lên cho cụm sân này.
+                        </div>
+
+                        <!-- Khung upload ảnh mới -->
+                        <div class="owner-upload-zone">
+                            <input
+                                type="file"
+                                id="owner-image-upload"
+                                accept="image/*"
+                                multiple
+                                class="hidden-file-input"
+                                @change="handleImageUpload"
+                                :disabled="uploadingImage"
+                            />
+                            <label for="owner-image-upload" class="upload-label-zone">
+                                <span v-if="uploadingImage" class="upload-status-text">
+                                    <div class="spinner-sm"></div> Đang tải lên ảnh...
+                                </span>
+                                <span v-else class="upload-status-text">
+                                    📸 Nhấp vào đây để tải lên ảnh mới (jpeg, png, webp, tối đa 5MB)
+                                </span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -216,6 +254,7 @@
 
 <script>
 import { venueClusterService } from "../../services/venueClusters";
+import { amenityService } from "../../services/amenityService";
 
 export default {
     name: "OwnerVenueClusters",
@@ -230,14 +269,9 @@ export default {
             updateError: null,
             resolvingMap: false,
             mapExtractMsg: null,
-            availableAmenities: [
-                "Wifi",
-                "Gửi xe",
-                "Căng tin",
-                "Tắm nóng lạnh",
-                "Cho thuê vợt",
-                "Nước uống free",
-            ],
+            availableAmenities: [],
+            imagesList: [],
+            uploadingImage: false,
             form: {
                 name: "",
                 phone_contact: "",
@@ -250,6 +284,7 @@ export default {
             },
         };
     },
+
     methods: {
         async handleExtractCoordinates() {
             if (!this.form.map_url) {
@@ -372,6 +407,9 @@ export default {
             this.selectedCluster = cluster;
             this.updateSuccess = false;
             this.updateError = null;
+            this.imagesList = (cluster.media || []).filter(
+                (img) => img.file_path && !img.file_path.includes("default-home.jpg")
+            );
             this.form = {
                 name: cluster.name,
                 phone_contact: cluster.phone_contact || "",
@@ -411,9 +449,66 @@ export default {
                 this.updating = false;
             }
         },
+        imageUrl(path) {
+            if (!path || path.includes("default-home.jpg")) return "";
+            if (/^https?:\/\//.test(path)) return path;
+            return `/storage/${path}`;
+        },
+        async handleImageUpload(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+
+            this.uploadingImage = true;
+            this.updateError = null;
+            
+            try {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    // Validate kích thước 5MB
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert(`File ${file.name} vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.`);
+                        continue;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append("image", file);
+                    
+                    const res = await venueClusterService.uploadMedia(this.selectedCluster.id, formData);
+                    this.imagesList.push(res.data);
+                }
+                // Đồng bộ lại media vào selectedCluster
+                this.selectedCluster.media = [...this.imagesList];
+            } catch (err) {
+                this.updateError = err.message || "Tải lên hình ảnh thất bại.";
+            } finally {
+                this.uploadingImage = false;
+                e.target.value = ""; // Clear input file
+            }
+        },
+        async handleDeleteImage(mediaId) {
+            if (!confirm("Bạn có chắc chắn muốn xóa hình ảnh này khỏi album?")) return;
+
+            this.updateError = null;
+            try {
+                await venueClusterService.deleteMedia(this.selectedCluster.id, mediaId);
+                this.imagesList = this.imagesList.filter((img) => img.id !== mediaId);
+                this.selectedCluster.media = [...this.imagesList];
+            } catch (err) {
+                this.updateError = err.message || "Xóa hình ảnh thất bại.";
+            }
+        },
+        async fetchAvailableAmenities() {
+            try {
+                const res = await amenityService.getAll(true); // Chỉ lấy active
+                this.availableAmenities = (res.data || []).map(a => a.name);
+            } catch (err) {
+                console.error("Lỗi khi tải danh sách tiện ích:", err.message);
+            }
+        },
     },
     created() {
         this.fetchClusters();
+        this.fetchAvailableAmenities();
     },
 };
 </script>
@@ -709,5 +804,95 @@ export default {
     to {
         transform: rotate(360deg);
     }
+}
+
+/* Owner Image Gallery & Upload Zone */
+.owner-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.owner-gallery-item {
+    position: relative;
+    aspect-ratio: 4/3;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--sg-border);
+    background: #f8fafc;
+}
+.owner-gallery-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.btn-delete-img {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(220, 38, 38, 0.85);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    transition: background 0.18s;
+}
+.btn-delete-img:hover {
+    background: rgb(220, 38, 38);
+}
+.owner-gallery-empty {
+    padding: 18px;
+    background: #f8fafc;
+    border: 1px dashed var(--sg-border);
+    border-radius: 8px;
+    text-align: center;
+    color: rgba(15, 23, 42, 0.45);
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+.owner-upload-zone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+.owner-upload-zone:hover {
+    border-color: #000000;
+    background-color: #f8fafc;
+}
+.hidden-file-input {
+    display: none;
+}
+.upload-label-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    cursor: pointer;
+    width: 100%;
+    min-height: 60px;
+}
+.upload-status-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.spinner-sm {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-top-color: #000000;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
 }
 </style>

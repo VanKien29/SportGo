@@ -98,6 +98,12 @@ const routes = [
                     import("../views/admin/AdminCourtTypes.vue"),
             },
             {
+                path: "amenities",
+                name: "admin-amenities",
+                component: () =>
+                    import("../views/admin/AdminAmenities.vue"),
+            },
+            {
                 path: "venue-clusters",
                 name: "admin-venue-clusters",
                 component: () =>

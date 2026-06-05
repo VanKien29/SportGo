@@ -10,6 +10,9 @@
       <router-link to="/admin/court-types" class="nav-item" active-class="nav-active">
         <span>Quản lý loại sân</span>
       </router-link>
+      <router-link to="/admin/amenities" class="nav-item" active-class="nav-active">
+        <span>Quản lý tiện ích</span>
+      </router-link>
       <router-link to="/admin/venue-clusters" class="nav-item" active-class="nav-active">
         <span>Quản lý cụm sân</span>
       </router-link>
@@ -34,6 +37,7 @@ export default {
         'admin-profile': 'Thông tin cá nhân',
         'admin-users': 'Quản lý tài khoản',
         'admin-court-types': 'Quản lý loại sân',
+        'admin-amenities': 'Quản lý tiện ích',
         'admin-venue-clusters': 'Quản lý cụm sân',
         'admin-venue-cluster-detail': 'Chi tiết cụm sân',
       };
