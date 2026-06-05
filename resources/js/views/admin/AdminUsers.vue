@@ -1,11 +1,14 @@
-﻿<template>
+<template>
   <section class="admin-users">
     <div class="toolbar">
       <div>
         <h2>Quản lý tài khoản</h2>
         <p>Khóa, mở khóa và kiểm tra trạng thái đăng nhập người dùng.</p>
       </div>
-      <button class="btn secondary" :disabled="loading" @click="loadUsers">Tải lại</button>
+      <div class="toolbar-actions">
+        <button class="btn sg-primary" @click="openCreateModal">Thêm nhân viên mới</button>
+        <button class="btn secondary" :disabled="loading" @click="loadUsers">Tải lại</button>
+      </div>
     </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -46,18 +49,24 @@
             <td>{{ user.status_reason || '-' }}</td>
             <td>{{ formatDate(user.locked_until) }}</td>
             <td>
-              <button v-if="user.status === 'locked'" class="btn secondary" @click="unlockUser(user)">
-                Mở khóa
-              </button>
-              <button v-else class="btn danger" @click="openLockModal(user)">
-                Khóa
-              </button>
+              <div class="action-buttons">
+                <button class="btn btn-sm secondary" @click="openRolesModal(user)">
+                  Gán vai trò
+                </button>
+                <button v-if="user.status === 'locked'" class="btn btn-sm secondary" @click="unlockUser(user)">
+                  Mở khóa
+                </button>
+                <button v-else class="btn btn-sm danger" @click="openLockModal(user)">
+                  Khóa
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
+    <!-- Modal Khóa tài khoản -->
     <div v-if="lockTarget" class="modal-backdrop" @click.self="closeLockModal">
       <form class="modal" @submit.prevent="lockUser">
         <h3>Khóa tài khoản</h3>
@@ -88,11 +97,83 @@
         </div>
       </form>
     </div>
+
+    <!-- Modal Thêm nhân viên mới -->
+    <div v-if="showCreateModal" class="modal-backdrop" @click.self="closeCreateModal">
+      <form class="modal" @submit.prevent="createStaff">
+        <h3>Thêm nhân viên mới</h3>
+        <p class="muted">Tạo tài khoản mới và gán vai trò hệ thống.</p>
+
+        <label>
+          Tên đăng nhập (username) *
+          <input v-model="createForm.username" type="text" required placeholder="Nhập tên đăng nhập" />
+        </label>
+
+        <label>
+          Họ và tên *
+          <input v-model="createForm.full_name" type="text" required placeholder="Nhập họ và tên" />
+        </label>
+
+        <label>
+          Email *
+          <input v-model="createForm.email" type="email" required placeholder="Nhập email" />
+        </label>
+
+        <label>
+          Số điện thoại *
+          <input v-model="createForm.phone" type="text" required placeholder="Nhập số điện thoại" />
+        </label>
+
+        <label>
+          Mật khẩu *
+          <input v-model="createForm.password" type="password" required placeholder="Nhập mật khẩu (tối thiểu 8 ký tự)" minlength="8" />
+        </label>
+
+        <div class="roles-selection">
+          <span class="label-title">Vai trò gán *</span>
+          <div class="roles-checkboxes">
+            <label v-for="role in availableRoles" :key="role.id" class="checkbox-inline">
+              <input type="checkbox" :value="role.id" v-model="createForm.roles" />
+              <span>{{ role.display_name || role.name }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" @click="closeCreateModal">Hủy</button>
+          <button type="submit" class="btn sg-primary" :disabled="saving">Tạo tài khoản</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Modal Gán vai trò -->
+    <div v-if="showRolesModal" class="modal-backdrop" @click.self="closeRolesModal">
+      <form class="modal" @submit.prevent="saveUserRoles">
+        <h3>Gán vai trò người dùng</h3>
+        <p class="muted" v-if="rolesTarget">{{ rolesTarget.full_name }} - {{ rolesTarget.username }}</p>
+
+        <div class="roles-selection">
+          <span class="label-title">Vai trò hệ thống</span>
+          <div class="roles-checkboxes">
+            <label v-for="role in availableRoles" :key="role.id" class="checkbox-inline">
+              <input type="checkbox" :value="role.id" v-model="rolesForm.roles" />
+              <span>{{ role.display_name || role.name }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" @click="closeRolesModal">Hủy</button>
+          <button type="submit" class="btn sg-primary" :disabled="saving">Lưu thay đổi</button>
+        </div>
+      </form>
+    </div>
   </section>
 </template>
 
 <script>
 import { adminUserService } from '../../services/adminUserService.js';
+import { api } from '../../services/api.js';
 
 export default {
   name: 'AdminUsers',
@@ -109,10 +190,26 @@ export default {
         status_reason: '',
         locked_until: '',
       },
+      availableRoles: [],
+      showCreateModal: false,
+      showRolesModal: false,
+      rolesTarget: null,
+      createForm: {
+        username: '',
+        full_name: '',
+        email: '',
+        phone: '',
+        password: '',
+        roles: [],
+      },
+      rolesForm: {
+        roles: [],
+      },
     };
   },
   mounted() {
     this.loadUsers();
+    this.loadAvailableRoles();
   },
   methods: {
     async loadUsers() {
@@ -125,6 +222,80 @@ export default {
         this.error = error.message || 'Không tải được danh sách tài khoản.';
       } finally {
         this.loading = false;
+      }
+    },
+    async loadAvailableRoles() {
+      try {
+        const response = await api('/api/admin/permissions/roles');
+        this.availableRoles = response.data || response || [];
+      } catch (error) {
+        console.error('Không tải được danh sách vai trò:', error);
+      }
+    },
+    openCreateModal() {
+      this.createForm = {
+        username: '',
+        full_name: '',
+        email: '',
+        phone: '',
+        password: '',
+        roles: [],
+      };
+      this.error = '';
+      this.success = '';
+      this.showCreateModal = true;
+    },
+    closeCreateModal() {
+      this.showCreateModal = false;
+    },
+    async createStaff() {
+      this.saving = true;
+      this.error = '';
+      this.success = '';
+      try {
+        const response = await adminUserService.create(this.createForm);
+        this.success = response.message || 'Tạo tài khoản nhân viên thành công!';
+        this.closeCreateModal();
+        await this.loadUsers();
+      } catch (error) {
+        this.error = error.message || 'Tạo tài khoản thất bại.';
+      } finally {
+        this.saving = false;
+      }
+    },
+    openRolesModal(user) {
+      this.rolesTarget = user;
+      const selectedRoleIds = [];
+      const userRoleNames = user.roles || [];
+      for (const roleName of userRoleNames) {
+        const found = this.availableRoles.find(r => r.name === roleName);
+        if (found) {
+          selectedRoleIds.push(found.id);
+        }
+      }
+      this.rolesForm.roles = selectedRoleIds;
+      this.error = '';
+      this.success = '';
+      this.showRolesModal = true;
+    },
+    closeRolesModal() {
+      this.showRolesModal = false;
+      this.rolesTarget = null;
+    },
+    async saveUserRoles() {
+      if (!this.rolesTarget) return;
+      this.saving = true;
+      this.error = '';
+      this.success = '';
+      try {
+        const response = await adminUserService.assignRoles(this.rolesTarget.id, this.rolesForm.roles);
+        this.success = response.message || 'Cập nhật vai trò thành công!';
+        this.closeRolesModal();
+        await this.loadUsers();
+      } catch (error) {
+        this.error = error.message || 'Cập nhật vai trò thất bại.';
+      } finally {
+        this.saving = false;
       }
     },
     openLockModal(user) {
@@ -315,6 +486,55 @@ th {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+.toolbar-actions {
+  display: flex;
+  gap: 10px;
+}
+.action-buttons {
+  display: flex;
+  gap: 6px;
+}
+.roles-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.roles-selection .label-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+.roles-checkboxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid var(--sg-border);
+  border-radius: 8px;
+  padding: 10px;
+}
+.checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  cursor: pointer;
+}
+.checkbox-inline input {
+  margin: 0;
+}
+.btn.btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.btn.sg-primary {
+  background: #2196f3;
+  color: white;
+}
+.btn.sg-primary:hover:not(:disabled) {
+  background: #1976d2;
 }
 </style>
 

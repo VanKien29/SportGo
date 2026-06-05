@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Auth\RoleRedirectService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -109,7 +110,95 @@ class UserController extends Controller
         ]);
     }
 
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'username' => ['required', 'string', 'max:50', Rule::unique('users', 'username')],
+            'full_name' => ['required', 'string', 'max:255'],
+            'phone' => ['required', 'string', 'max:20', Rule::unique('users', 'phone')],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            'password' => ['required', 'string', 'min:8'],
+            'roles' => ['nullable', 'array'],
+            'roles.*' => ['exists:roles,id'],
+        ], [
+            'username.unique' => 'Tên tài khoản này đã tồn tại.',
+            'phone.unique' => 'Số điện thoại này đã tồn tại.',
+            'email.unique' => 'Địa chỉ email này đã tồn tại.',
+        ]);
+
+        /** @var User $actor */
+        $actor = $request->user();
+
+        $user = User::query()->create([
+            'username' => $data['username'],
+            'full_name' => $data['full_name'],
+            'phone' => $data['phone'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+            'status' => 'active',
+        ]);
+
+        if (!empty($data['roles'])) {
+            $syncData = [];
+            foreach ($data['roles'] as $roleId) {
+                $syncData[$roleId] = [
+                    'scope_type' => 'system',
+                    'scope_id' => '00000000-0000-0000-0000-000000000000',
+                    'granted_by' => $actor?->id,
+                ];
+            }
+            $user->roles()->sync($syncData);
+        }
+
+        $this->audit($request, $actor, 'user.created', $user, [], $this->lockSnapshot($user));
+
+        return response()->json([
+            'message' => 'Tạo tài khoản nhân viên thành công.',
+            'user' => $this->payload($user->fresh('roles')),
+        ], 201);
+    }
+
+    public function assignRoles(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'roles' => ['nullable', 'array'],
+            'roles.*' => ['exists:roles,id'],
+        ]);
+
+        /** @var User $actor */
+        $actor = $request->user();
+        $user = User::query()->findOrFail($id);
+
+        if ($actor->id === $user->id) {
+            throw ValidationException::withMessages([
+                'user' => 'Không thể tự chỉnh sửa vai trò của tài khoản đang đăng nhập.',
+            ]);
+        }
+
+        $oldRoles = $user->roles->pluck('id')->all();
+
+        $syncData = [];
+        if (!empty($data['roles'])) {
+            foreach ($data['roles'] as $roleId) {
+                $syncData[$roleId] = [
+                    'scope_type' => 'system',
+                    'scope_id' => '00000000-0000-0000-0000-000000000000',
+                    'granted_by' => $actor?->id,
+                ];
+            }
+        }
+        $user->roles()->sync($syncData);
+
+        $this->audit($request, $actor, 'user.roles_updated', $user, ['roles' => $oldRoles], ['roles' => $data['roles'] ?? []]);
+
+        return response()->json([
+            'message' => 'Cập nhật vai trò thành công.',
+            'user' => $this->payload($user->fresh('roles')),
+        ]);
+    }
+
     private function payload(User $user): array
+
     {
         $roles = $user->roles->pluck('name')->values()->all();
 

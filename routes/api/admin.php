@@ -13,8 +13,10 @@ Route::get('/dashboard', [DashboardController::class, 'index']);
 
 Route::prefix('users')->group(function (): void {
     Route::get('/', [UserController::class, 'index']);
+    Route::post('/', [UserController::class, 'store']);
     Route::patch('/{id}/lock', [UserController::class, 'lock']);
     Route::patch('/{id}/unlock', [UserController::class, 'unlock']);
+    Route::put('/{id}/roles', [UserController::class, 'assignRoles']);
 });
 
 Route::apiResource('system-policies', SystemPolicyController::class);

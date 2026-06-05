@@ -99,12 +99,23 @@ class AuthController extends Controller
         }
 
         if ($user->status === 'locked') {
-            return response()->json([
-                'message' => 'Tài khoản của bạn đang bị khóa.',
-                'status_reason' => $user->status_reason,
-                'lock_type' => $user->lock_type,
-                'locked_until' => $user->locked_until,
-            ], 423);
+            if ($user->lock_type === 'temporary' && $user->locked_until && $user->locked_until->isPast()) {
+                $user->forceFill([
+                    'status' => 'active',
+                    'lock_type' => null,
+                    'status_reason' => null,
+                    'locked_at' => null,
+                    'locked_until' => null,
+                    'locked_by' => null,
+                ])->save();
+            } else {
+                return response()->json([
+                    'message' => 'Tài khoản của bạn đang bị khóa.',
+                    'status_reason' => $user->status_reason,
+                    'lock_type' => $user->lock_type,
+                    'locked_until' => $user->locked_until,
+                ], 423);
+            }
         }
 
         if ($user->status !== 'active') {

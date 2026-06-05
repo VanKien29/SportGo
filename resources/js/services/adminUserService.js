@@ -17,4 +17,18 @@ export const adminUserService = {
       method: 'PATCH',
     });
   },
+
+  create(payload) {
+    return api('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  assignRoles(id, roleIds) {
+    return api(`/api/admin/users/${id}/roles`, {
+      method: 'PUT',
+      body: JSON.stringify({ roles: roleIds }),
+    });
+  },
 };
