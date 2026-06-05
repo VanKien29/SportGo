@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Payment;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\SlotLock;
+use App\Services\Finance\SepayPayoutService;
 use App\Services\Payments\SepayPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,7 +13,10 @@ use RuntimeException;
 
 class SepayPaymentController extends Controller
 {
-    public function __construct(private readonly SepayPaymentService $sepayPaymentService) {}
+    public function __construct(
+        private readonly SepayPaymentService $sepayPaymentService,
+        private readonly SepayPayoutService $sepayPayoutService,
+    ) {}
 
     public function create(Request $request, string $bookingId): JsonResponse
     {
@@ -99,6 +103,10 @@ class SepayPaymentController extends Controller
         }
 
         $result = $this->sepayPaymentService->handleIpn($request->all());
+
+        if (($result['error_code'] ?? null) === 'payment_not_found') {
+            $result = $this->sepayPayoutService->handleIpn($request->all());
+        }
 
         return response()->json([
             'success' => true,

@@ -12,6 +12,25 @@ class MBBankBulkTransferExportService
      */
     public function build(Collection $withdrawals): string
     {
+        return $this->buildRows($withdrawals->values()->map(function (OwnerWithdrawalRequest $withdrawal): array {
+            $bankAccount = $withdrawal->bankAccount;
+
+            return [
+                'account_number' => (string) $bankAccount?->account_number,
+                'account_holder_name' => (string) $bankAccount?->account_holder_name,
+                'bank_code' => (string) $bankAccount?->bank_code,
+                'bank_name' => (string) $bankAccount?->bank_name,
+                'amount' => (int) $withdrawal->amount,
+                'content' => $withdrawal->request_code,
+            ];
+        }));
+    }
+
+    /**
+     * @param  Collection<int, array{account_number: string, account_holder_name: string, bank_code?: string, bank_name: string, amount: int|float, content: string}>  $rows
+     */
+    public function buildRows(Collection $rows): string
+    {
         $entries = [
             '[Content_Types].xml' => $this->contentTypesXml(),
             '_rels/.rels' => $this->rootRelsXml(),
@@ -20,7 +39,7 @@ class MBBankBulkTransferExportService
             'xl/workbook.xml' => $this->workbookXml(),
             'xl/_rels/workbook.xml.rels' => $this->workbookRelsXml(),
             'xl/styles.xml' => $this->stylesXml(),
-            'xl/worksheets/sheet1.xml' => $this->transactionsSheetXml($withdrawals),
+            'xl/worksheets/sheet1.xml' => $this->transactionsSheetXml($rows),
             'xl/worksheets/sheet2.xml' => $this->bankSuggestionSheetXml(),
             'xl/worksheets/sheet3.xml' => $this->emptySheetXml(),
         ];
@@ -28,20 +47,22 @@ class MBBankBulkTransferExportService
         return $this->zipStored($entries);
     }
 
-    private function transactionsSheetXml(Collection $withdrawals): string
+    /**
+     * @param  Collection<int, array{account_number: string, account_holder_name: string, bank_code?: string, bank_name: string, amount: int|float, content: string}>  $rowsData
+     */
+    private function transactionsSheetXml(Collection $rowsData): string
     {
         $rows = [];
         $rowIndex = 3;
 
-        foreach ($withdrawals->values() as $index => $withdrawal) {
-            $bankAccount = $withdrawal->bankAccount;
+        foreach ($rowsData->values() as $index => $row) {
             $rows[] = '<row r="'.$rowIndex.'" spans="1:6">'
                 .$this->numberCell('A'.$rowIndex, $index + 1)
-                .$this->inlineCell('B'.$rowIndex, (string) $bankAccount?->account_number, 2)
-                .$this->inlineCell('C'.$rowIndex, (string) $bankAccount?->account_holder_name, 2)
-                .$this->inlineCell('D'.$rowIndex, $this->bankNameForTemplate((string) $bankAccount?->bank_code, (string) $bankAccount?->bank_name), 2)
-                .$this->numberCell('E'.$rowIndex, (int) $withdrawal->amount, 4)
-                .$this->inlineCell('F'.$rowIndex, $withdrawal->request_code, 2)
+                .$this->inlineCell('B'.$rowIndex, $row['account_number'], 2)
+                .$this->inlineCell('C'.$rowIndex, $row['account_holder_name'], 2)
+                .$this->inlineCell('D'.$rowIndex, $this->bankNameForTemplate((string) ($row['bank_code'] ?? ''), $row['bank_name']), 2)
+                .$this->numberCell('E'.$rowIndex, (int) $row['amount'], 4)
+                .$this->inlineCell('F'.$rowIndex, $row['content'], 2)
                 .'</row>';
             $rowIndex++;
         }
@@ -115,6 +136,7 @@ class MBBankBulkTransferExportService
 
     private function bankNameForTemplate(string $bankCode, string $fallback): string
     {
+        $normalizedFallback = strtoupper($fallback);
         $map = [
             'ABBANK' => 'An Bình (ABBANK)',
             'ACB' => 'Á Châu (ACB)',
@@ -137,7 +159,30 @@ class MBBankBulkTransferExportService
             'VPB' => 'Việt Nam Thịnh Vượng (VPB)',
         ];
 
-        return $map[strtoupper($bankCode)] ?? $fallback;
+        foreach ($map as $code => $name) {
+            if (strtoupper($bankCode) === $code || str_contains($normalizedFallback, $code)) {
+                return $name;
+            }
+        }
+
+        $nameMap = [
+            'TECHCOMBANK' => 'Kỹ Thương (TCB)',
+            'TPBANK' => 'Tiên Phong (TPB)',
+            'MB BANK' => 'Quân đội (MB)',
+            'MBBANK' => 'Quân đội (MB)',
+            'VIETCOMBANK' => 'Ngoại thương Việt Nam (VCB)',
+            'BIDV' => 'Đầu tư và phát triển (BIDV)',
+            'VIETINBANK' => 'Công Thương Việt Nam (VIETINBANK)',
+            'VPBANK' => 'Việt Nam Thịnh Vượng (VPB)',
+        ];
+
+        foreach ($nameMap as $needle => $name) {
+            if (str_contains($normalizedFallback, $needle)) {
+                return $name;
+            }
+        }
+
+        return $fallback;
     }
 
     /**

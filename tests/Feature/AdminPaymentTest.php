@@ -17,17 +17,11 @@ use Tests\TestCase;
 class AdminPaymentTest extends TestCase
 {
     use RefreshDatabase;
-
     private User $finance;
-
     private User $owner;
-
     private User $customer;
-
     private VenueCluster $cluster;
-
     private Booking $booking;
-
     private Payment $payment;
 
     protected function setUp(): void
@@ -133,6 +127,27 @@ class AdminPaymentTest extends TestCase
             ->getJson("/api/admin/payments/{$this->payment->id}")
             ->assertOk()
             ->assertJsonPath('data.logs.0.event_type', 'test_payment_created');
+    }
+
+    public function test_payment_list_supports_detailed_filters(): void
+    {
+        $this->payment->update([
+            'amount' => 75000,
+            'status' => 'paid',
+            'paid_at' => '2026-06-05 10:00:00',
+        ]);
+        $this->booking->update(['status' => 'confirmed']);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->getJson('/api/admin/payments?booking_status=confirmed&venue_cluster_id=' . $this->cluster->id . '&customer_id=' . $this->customer->id . '&amount_min=70000&amount_max=80000&paid_from=2026-06-05&paid_to=2026-06-05')
+            ->assertOk()
+            ->assertJsonPath('summary.total', 1)
+            ->assertJsonPath('data.0.payment_code', 'PMADMINPAY01');
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->getJson('/api/admin/payments?amount_min=80001')
+            ->assertOk()
+            ->assertJsonPath('summary.total', 0);
     }
 
     public function test_finance_operator_can_login_to_admin_area(): void
@@ -279,7 +294,7 @@ class AdminPaymentTest extends TestCase
             'username' => $username,
             'full_name' => $username,
             'email' => $email,
-            'phone' => '09'.random_int(10000000, 99999999),
+            'phone' => '09' . random_int(10000000, 99999999),
             'password' => bcrypt('password'),
             'status' => 'active',
         ]);

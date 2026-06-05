@@ -56,6 +56,22 @@
         <option value="mixed">Kết hợp</option>
         <option value="cash">Tiền mặt</option>
       </select>
+      <select v-model="filters.paid_range">
+        <option value="">Ngày thanh toán</option>
+        <option value="today">Hôm nay</option>
+        <option value="yesterday">Hôm qua</option>
+        <option value="last_3_days">3 ngày gần đây</option>
+        <option value="last_7_days">7 ngày gần đây</option>
+        <option value="last_30_days">30 ngày gần đây</option>
+        <option value="this_month">Tháng này</option>
+        <option value="last_month">Tháng trước</option>
+        <option value="custom">Tùy chỉnh</option>
+      </select>
+      <div v-if="filters.paid_range === 'custom'" class="date-range-fields" aria-label="Khoảng ngày thanh toán tùy chỉnh">
+        <input v-model="filters.paid_from" type="date" title="Thanh toán từ ngày" />
+        <span>đến</span>
+        <input v-model="filters.paid_to" type="date" title="Thanh toán đến ngày" />
+      </div>
       <button class="primary-btn" type="submit">
         <AppIcon name="filter" size="16" />
         Lọc
@@ -250,7 +266,15 @@ export default {
       payments: [],
       summary: { total: 0, pending: 0, paid: 0, failed: 0, refunded: 0, collected_amount: 0 },
       meta: { current_page: 1, last_page: 1, total: 0 },
-      filters: { keyword: '', status: '', payment_kind: '', method: '' },
+      filters: {
+        keyword: '',
+        status: '',
+        payment_kind: '',
+        method: '',
+        paid_range: '',
+        paid_from: '',
+        paid_to: '',
+      },
       loading: false,
       error: '',
       success: '',
@@ -277,7 +301,7 @@ export default {
       this.loading = true;
       this.error = '';
       try {
-        const response = await adminPaymentService.list({ ...this.filters, page });
+        const response = await adminPaymentService.list(this.paymentFilterParams(page));
         this.payments = response.data || [];
         this.summary = response.summary || this.summary;
         this.meta = response.meta || this.meta;
@@ -291,11 +315,91 @@ export default {
       this.loadPayments(1);
     },
     resetFilters() {
-      this.filters = { keyword: '', status: '', payment_kind: '', method: '' };
+      this.filters = {
+        keyword: '',
+        status: '',
+        payment_kind: '',
+        method: '',
+        paid_range: '',
+        paid_from: '',
+        paid_to: '',
+      };
       this.loadPayments(1);
     },
     changePage(page) {
       this.loadPayments(page);
+    },
+    paymentFilterParams(page) {
+      const params = { ...this.filters, page };
+      delete params.paid_range;
+
+      if (this.filters.paid_range === 'custom') {
+        if (!params.paid_from) delete params.paid_from;
+        if (!params.paid_to) delete params.paid_to;
+        return params;
+      }
+
+      delete params.paid_from;
+      delete params.paid_to;
+      const range = this.resolveDateRange(this.filters.paid_range);
+
+      if (range) {
+        params.paid_from = range.from;
+        params.paid_to = range.to;
+      }
+
+      return params;
+    },
+    resolveDateRange(value) {
+      const today = new Date();
+      const from = new Date(today);
+      const to = new Date(today);
+
+      if (value === 'today') {
+        return { from: this.dateInputValue(from), to: this.dateInputValue(to) };
+      }
+
+      if (value === 'yesterday') {
+        from.setDate(from.getDate() - 1);
+        to.setDate(to.getDate() - 1);
+        return { from: this.dateInputValue(from), to: this.dateInputValue(to) };
+      }
+
+      if (value === 'last_3_days') {
+        from.setDate(from.getDate() - 3);
+        return { from: this.dateInputValue(from), to: this.dateInputValue(to) };
+      }
+
+      if (value === 'last_7_days') {
+        from.setDate(from.getDate() - 7);
+        return { from: this.dateInputValue(from), to: this.dateInputValue(to) };
+      }
+
+      if (value === 'last_30_days') {
+        from.setDate(from.getDate() - 30);
+        return { from: this.dateInputValue(from), to: this.dateInputValue(to) };
+      }
+
+      if (value === 'this_month') {
+        from.setDate(1);
+        return { from: this.dateInputValue(from), to: this.dateInputValue(to) };
+      }
+
+      if (value === 'last_month') {
+        const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const lastDayLastMonth = new Date(firstDayThisMonth);
+        lastDayLastMonth.setDate(0);
+        const firstDayLastMonth = new Date(lastDayLastMonth.getFullYear(), lastDayLastMonth.getMonth(), 1);
+        return { from: this.dateInputValue(firstDayLastMonth), to: this.dateInputValue(lastDayLastMonth) };
+      }
+
+      return null;
+    },
+    dateInputValue(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     },
     async openDetail(id) {
       this.detailOpen = true;
@@ -396,10 +500,12 @@ export default {
 .summary-item:last-child { border-right: 0; }
 .summary-item span, .sub-line, .detail-facts span, .ledger-row small { display: block; color: #64748b; font-size: 12px; }
 .summary-item strong { display: block; margin-top: 7px; font-size: 20px; color: #0f172a; }
-.filters { gap: 8px; flex-wrap: wrap; }
+.filters { gap: 8px; flex-wrap: wrap; align-items: stretch; }
 .filters select, .filters input, .action-modal select, .action-modal input, .action-modal textarea { border: 1px solid #dbe2ea; border-radius: 7px; background: #fff; color: #0f172a; padding: 9px 10px; font: inherit; }
 .search-field { display: flex; align-items: center; gap: 8px; min-width: 290px; border: 1px solid #dbe2ea; border-radius: 7px; padding: 0 10px; background: #fff; }
 .search-field input { flex: 1; border: 0; padding-inline: 0; outline: 0; }
+.date-range-fields { display: inline-flex; align-items: center; gap: 8px; padding: 0 8px; border: 1px solid #dbe2ea; border-radius: 7px; background: #f8fafc; color: #64748b; }
+.date-range-fields input { width: 142px; border-color: transparent; background: #fff; }
 .primary-btn, .secondary-btn, .icon-command, .icon-only { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 7px; font-weight: 700; cursor: pointer; }
 .primary-btn { border: 1px solid #16a34a; background: #16a34a; color: #fff; padding: 9px 12px; }
 .primary-btn.danger { border-color: #dc2626; background: #dc2626; }

@@ -35,6 +35,8 @@ class Refund extends Model
         'admin_confirmed_by',
         'admin_confirmed_at',
         'gateway_refund_txn_id',
+        'payout_transfer_code',
+        'payout_qr_created_at',
     ];
 
     protected function casts(): array
@@ -44,6 +46,7 @@ class Refund extends Model
             'owner_confirmed_at' => 'datetime',
             'processed_at' => 'datetime',
             'admin_confirmed_at' => 'datetime',
+            'payout_qr_created_at' => 'datetime',
         ];
     }
 

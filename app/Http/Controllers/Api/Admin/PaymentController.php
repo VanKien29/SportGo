@@ -29,8 +29,16 @@ class PaymentController extends Controller
             'status' => ['nullable', Rule::in(['pending', 'paid', 'failed', 'refunded'])],
             'payment_kind' => ['nullable', Rule::in(['full', 'deposit', 'partial'])],
             'method' => ['nullable', 'string', 'max:50'],
+            'booking_status' => ['nullable', Rule::in(['pending_approval', 'pending_payment', 'confirmed', 'cancelled', 'completed', 'expired'])],
+            'booking_source' => ['nullable', 'string', 'max:50'],
+            'venue_cluster_id' => ['nullable', 'uuid'],
+            'customer_id' => ['nullable', 'uuid'],
+            'amount_min' => ['nullable', 'numeric', 'min:0'],
+            'amount_max' => ['nullable', 'numeric', 'min:0', 'gte:amount_min'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'paid_from' => ['nullable', 'date'],
+            'paid_to' => ['nullable', 'date', 'after_or_equal:paid_from'],
             'per_page' => ['nullable', 'integer', 'min:10', 'max:100'],
         ]);
 
@@ -57,7 +65,7 @@ class PaymentController extends Controller
         $payments = $query
             ->latest('payments.created_at')
             ->paginate((int) ($data['per_page'] ?? 20))
-            ->through(fn (Payment $payment): array => $this->paymentPayload($payment));
+            ->through(fn(Payment $payment): array => $this->paymentPayload($payment));
 
         return response()->json([
             'data' => $payments->items(),
@@ -89,7 +97,7 @@ class PaymentController extends Controller
         return response()->json([
             'data' => [
                 'payment' => $this->paymentPayload($payment),
-                'logs' => $payment->logs->map(fn ($log): array => [
+                'logs' => $payment->logs->map(fn($log): array => [
                     'id' => $log->id,
                     'event_type' => $log->event_type,
                     'request_payload' => $log->request_payload,
@@ -101,7 +109,7 @@ class PaymentController extends Controller
                     'error_message' => $log->error_message,
                     'created_at' => $log->created_at,
                 ])->values(),
-                'owner_wallet_ledgers' => $payment->ownerWalletLedgers->map(fn ($ledger): array => [
+                'owner_wallet_ledgers' => $payment->ownerWalletLedgers->map(fn($ledger): array => [
                     'id' => $ledger->id,
                     'type' => $ledger->type,
                     'direction' => $ledger->direction,
@@ -200,26 +208,34 @@ class PaymentController extends Controller
     {
         $query
             ->when($data['keyword'] ?? null, function ($query, string $keyword): void {
-                $keyword = '%'.$keyword.'%';
+                $keyword = '%' . $keyword . '%';
                 $query->where(function ($inner) use ($keyword): void {
                     $inner->where('payments.payment_code', 'like', $keyword)
                         ->orWhere('payments.gateway_txn_id', 'like', $keyword)
-                        ->orWhereHas('booking', fn ($booking) => $booking
+                        ->orWhereHas('booking', fn($booking) => $booking
                             ->where('booking_code', 'like', $keyword)
                             ->orWhere('walk_in_name', 'like', $keyword)
                             ->orWhere('walk_in_phone', 'like', $keyword))
-                        ->orWhereHas('booking.customer', fn ($customer) => $customer
+                        ->orWhereHas('booking.customer', fn($customer) => $customer
                             ->where('username', 'like', $keyword)
                             ->orWhere('full_name', 'like', $keyword)
                             ->orWhere('email', 'like', $keyword))
-                        ->orWhereHas('booking.venueCluster', fn ($cluster) => $cluster->where('name', 'like', $keyword));
+                        ->orWhereHas('booking.venueCluster', fn($cluster) => $cluster->where('name', 'like', $keyword));
                 });
             })
-            ->when($data['status'] ?? null, fn ($query, string $status) => $query->where('payments.status', $status))
-            ->when($data['payment_kind'] ?? null, fn ($query, string $kind) => $query->where('payments.payment_kind', $kind))
-            ->when($data['method'] ?? null, fn ($query, string $method) => $query->where('payments.method', $method))
-            ->when($data['date_from'] ?? null, fn ($query, string $date) => $query->whereDate('payments.created_at', '>=', $date))
-            ->when($data['date_to'] ?? null, fn ($query, string $date) => $query->whereDate('payments.created_at', '<=', $date));
+            ->when($data['status'] ?? null, fn($query, string $status) => $query->where('payments.status', $status))
+            ->when($data['payment_kind'] ?? null, fn($query, string $kind) => $query->where('payments.payment_kind', $kind))
+            ->when($data['method'] ?? null, fn($query, string $method) => $query->where('payments.method', $method))
+            ->when($data['amount_min'] ?? null, fn($query, $amount) => $query->where('payments.amount', '>=', $amount))
+            ->when($data['amount_max'] ?? null, fn($query, $amount) => $query->where('payments.amount', '<=', $amount))
+            ->when($data['booking_status'] ?? null, fn($query, string $status) => $query->whereHas('booking', fn($booking) => $booking->where('status', $status)))
+            ->when($data['booking_source'] ?? null, fn($query, string $source) => $query->whereHas('booking', fn($booking) => $booking->where('source', $source)))
+            ->when($data['venue_cluster_id'] ?? null, fn($query, string $id) => $query->whereHas('booking', fn($booking) => $booking->where('venue_cluster_id', $id)))
+            ->when($data['customer_id'] ?? null, fn($query, string $id) => $query->whereHas('booking', fn($booking) => $booking->where('customer_id', $id)))
+            ->when($data['date_from'] ?? null, fn($query, string $date) => $query->whereDate('payments.created_at', '>=', $date))
+            ->when($data['date_to'] ?? null, fn($query, string $date) => $query->whereDate('payments.created_at', '<=', $date))
+            ->when($data['paid_from'] ?? null, fn($query, string $date) => $query->whereDate('payments.paid_at', '>=', $date))
+            ->when($data['paid_to'] ?? null, fn($query, string $date) => $query->whereDate('payments.paid_at', '<=', $date));
     }
 
     private function paymentPayload(Payment $payment): array

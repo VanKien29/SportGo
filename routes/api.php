@@ -12,7 +12,6 @@ use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\Auth\SetPasswordController;
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
 use App\Http\Controllers\Api\Payment\SepayPaymentController;
-use App\Http\Controllers\Api\Payment\BankWithdrawalCallbackController;
 use App\Http\Controllers\Api\PolicyAcceptanceController;
 use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
 use App\Http\Middleware\EnsureAdminRole;
@@ -62,8 +61,13 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/payments/{id}/status', [AdminPaymentController::class, 'updateStatus']);
         Route::get('/finance/refunds', [AdminFinanceOperationController::class, 'refunds']);
         Route::patch('/finance/refunds/{id}/status', [AdminFinanceOperationController::class, 'updateRefund']);
+        Route::post('/finance/refunds/{id}/payout-qr', [AdminFinanceOperationController::class, 'refundPayoutQr']);
+        Route::post('/finance/refunds/{id}/payout-check', [AdminFinanceOperationController::class, 'checkRefundPayout']);
+        Route::post('/finance/refunds/export', [AdminFinanceOperationController::class, 'exportRefunds']);
         Route::get('/finance/withdrawals', [AdminFinanceOperationController::class, 'withdrawals']);
         Route::patch('/finance/withdrawals/{id}/status', [AdminFinanceOperationController::class, 'updateWithdrawal']);
+        Route::post('/finance/withdrawals/{id}/payout-qr', [AdminFinanceOperationController::class, 'withdrawalPayoutQr']);
+        Route::post('/finance/withdrawals/{id}/payout-check', [AdminFinanceOperationController::class, 'checkWithdrawalPayout']);
         Route::post('/finance/withdrawals/export', [AdminFinanceOperationController::class, 'exportWithdrawals']);
 
         // Court Types CRUD
@@ -134,4 +138,3 @@ Route::middleware('auth:sanctum')
     });
 
 Route::post('/sepay/ipn', [SepayPaymentController::class, 'ipn']);
-Route::post('/callback/bank/withdraw', BankWithdrawalCallbackController::class);
