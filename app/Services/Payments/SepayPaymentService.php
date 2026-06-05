@@ -3,18 +3,19 @@
 namespace App\Services\Payments;
 
 use App\Models\Booking;
-use App\Models\OwnerWallet;
-use App\Models\OwnerWalletLedger;
 use App\Models\Payment;
 use App\Models\PaymentLog;
 use App\Models\SlotLock;
 use App\Models\SystemBankAccount;
+use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 class SepayPaymentService
 {
+    public function __construct(private readonly OwnerWalletService $ownerWalletService) {}
+
     public function createPayment(Booking $booking): array
     {
         $account = $this->resolveSystemBankAccount();
@@ -32,13 +33,17 @@ class SepayPaymentService
                 'booking_id' => $booking->id,
                 'system_bank_account_id' => $account->id,
                 'amount' => $booking->required_payment_amount,
+                'wallet_amount' => 0,
+                'gateway_amount' => $booking->required_payment_amount,
                 'payment_kind' => $booking->payment_option === 'full_payment' ? 'full' : 'deposit',
                 'method' => 'sepay',
                 'status' => 'pending',
             ]);
-        } elseif (! $payment->system_bank_account_id) {
+        } else {
             $payment->update([
-                'system_bank_account_id' => $account->id,
+                'system_bank_account_id' => $payment->system_bank_account_id ?: $account->id,
+                'wallet_amount' => 0,
+                'gateway_amount' => $payment->amount,
             ]);
         }
 
@@ -87,6 +92,7 @@ class SepayPaymentService
             $gatewayTxnId = $normalized['transaction_id'];
 
             if ($payment->status === 'paid') {
+                $this->ownerWalletService->creditBookingPayment($payment, $normalized);
                 $this->logIpn($payment, $payload, $statusBefore, 'sepay_ipn_duplicate', $gatewayTxnId, 'duplicate_callback', 'SePay gửi lại webhook cho payment đã thanh toán.');
 
                 return [
@@ -117,6 +123,8 @@ class SepayPaymentService
 
             if ($errorCode === null) {
                 $payment->status = 'paid';
+                $payment->wallet_amount = 0;
+                $payment->gateway_amount = $payment->amount;
                 $payment->paid_at = now();
                 $payment->save();
 
@@ -128,7 +136,7 @@ class SepayPaymentService
                     ->where('booking_id', $payment->booking_id)
                     ->delete();
 
-                $this->creditOwnerWallet($payment->fresh(['booking.venueCluster']), $normalized);
+                $this->ownerWalletService->creditBookingPayment($payment, $normalized);
             } else {
                 $payment->status = 'failed';
                 $payment->save();
@@ -346,70 +354,6 @@ class SepayPaymentService
         }
 
         return $payload['account_number'] === $account->account_number;
-    }
-
-    private function creditOwnerWallet(Payment $payment, array $payload): void
-    {
-        $booking = $payment->booking;
-
-        if (! $booking || $booking->payment_option === 'no_prepay') {
-            return;
-        }
-
-        $cluster = $booking->venueCluster;
-
-        if (! $cluster || ! $cluster->owner_id) {
-            return;
-        }
-
-        if (OwnerWalletLedger::query()
-            ->where('payment_id', $payment->id)
-            ->where('type', 'credit')
-            ->exists()) {
-            return;
-        }
-
-        $wallet = OwnerWallet::query()->firstOrCreate(
-            ['owner_id' => $cluster->owner_id],
-            [
-                'available_balance' => 0,
-                'pending_withdrawal_balance' => 0,
-                'total_earned' => 0,
-                'total_withdrawn' => 0,
-            ],
-        );
-
-        $wallet = OwnerWallet::query()
-            ->whereKey($wallet->id)
-            ->lockForUpdate()
-            ->firstOrFail();
-
-        $amount = (float) $payment->amount;
-        $balanceBefore = (float) $wallet->available_balance;
-        $balanceAfter = $balanceBefore + $amount;
-
-        $wallet->available_balance = $balanceAfter;
-        $wallet->total_earned = (float) $wallet->total_earned + $amount;
-        $wallet->save();
-
-        OwnerWalletLedger::query()->create([
-            'owner_wallet_id' => $wallet->id,
-            'owner_id' => $cluster->owner_id,
-            'venue_cluster_id' => $cluster->id,
-            'booking_id' => $booking->id,
-            'payment_id' => $payment->id,
-            'type' => 'credit',
-            'amount' => $amount,
-            'balance_before' => $balanceBefore,
-            'balance_after' => $balanceAfter,
-            'reference_code' => $payload['transaction_id'] ?: $payment->payment_code,
-            'description' => 'Hệ thống thu hộ thanh toán booking '.$booking->booking_code.'.',
-            'metadata' => [
-                'gateway' => $payload['gateway'],
-                'account_number' => $payload['account_number'],
-                'reference_code' => $payload['reference_code'],
-            ],
-        ]);
     }
 
     private function logIpn(

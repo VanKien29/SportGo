@@ -29,6 +29,8 @@ class OwnerWithdrawalRequest extends Model
         'completed_by',
         'completed_at',
         'transfer_reference',
+        'payout_transfer_code',
+        'payout_qr_created_at',
         'metadata',
         'requested_at',
     ];
@@ -40,6 +42,7 @@ class OwnerWithdrawalRequest extends Model
             'metadata' => 'array',
             'reviewed_at' => 'datetime',
             'completed_at' => 'datetime',
+            'payout_qr_created_at' => 'datetime',
             'requested_at' => 'datetime',
         ];
     }
@@ -67,5 +70,10 @@ class OwnerWithdrawalRequest extends Model
     public function wallet()
     {
         return $this->belongsTo(OwnerWallet::class, 'owner_wallet_id');
+    }
+
+    public function receipt()
+    {
+        return $this->morphOne(InternalReceipt::class, 'receiptable');
     }
 }

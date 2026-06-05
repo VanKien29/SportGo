@@ -89,6 +89,26 @@ const routes = [
             },
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
+            {
+                path: "payments",
+                name: "admin-payments",
+                component: () => import("../views/admin/AdminPayments.vue"),
+            },
+            {
+                path: "finance-operations",
+                name: "admin-finance-operations",
+                component: () => import("../views/admin/AdminFinanceOperations.vue"),
+            },
+            {
+                path: "partner-applications",
+                name: "admin-partner-applications",
+                component: () => import("../views/admin/AdminPartnerApplications.vue"),
+            },
+            {
+                path: "banners",
+                name: "admin-banners",
+                component: () => import("../views/admin/AdminBanners.vue"),
+            },
             { path: "policies", name: "admin-policies", component: AdminPolicies },
             { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
             { path: "roles", name: "admin-roles", component: AdminRoles },

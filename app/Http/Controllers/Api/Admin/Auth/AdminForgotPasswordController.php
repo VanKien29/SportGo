@@ -15,13 +15,10 @@ use Illuminate\Validation\ValidationException;
 
 class AdminForgotPasswordController extends Controller
 {
-    private const ADMIN_ROLES = ['super_admin', 'admin', 'system_staff'];
-
     public function __construct(
         private readonly OtpService $otpService,
         private readonly RoleRedirectService $roleRedirectService,
-    ) {
-    }
+    ) {}
 
     public function sendOtp(Request $request): JsonResponse
     {
@@ -121,8 +118,6 @@ class AdminForgotPasswordController extends Controller
             return null;
         }
 
-        $roles = $this->roleRedirectService->roles($user);
-
-        return array_intersect($roles, self::ADMIN_ROLES) ? $user : null;
+        return $this->roleRedirectService->isAdminAreaUser($user) ? $user : null;
     }
 }
