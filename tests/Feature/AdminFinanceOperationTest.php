@@ -409,6 +409,12 @@ class AdminFinanceOperationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('completed', true);
 
+        $this->actingAs($this->finance, 'sanctum')
+            ->postJson("/api/admin/finance/withdrawals/{$withdrawal->id}/payout-check")
+            ->assertOk()
+            ->assertJsonPath('completed', true)
+            ->assertJsonPath('message', 'Yêu cầu rút tiền đã hoàn tất trước đó.');
+
         $this->assertDatabaseHas('owner_withdrawal_requests', [
             'id' => $withdrawal->id,
             'status' => 'completed',
