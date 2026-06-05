@@ -43,6 +43,8 @@ return [
 
     'sepay' => [
         'webhook_api_key' => env('SEPAY_WEBHOOK_API_KEY'),
+        'api_token' => env('SEPAY_API_TOKEN'),
+        'api_base_url' => env('SEPAY_API_BASE_URL', 'https://userapi.sepay.vn/v2'),
         'qr_base_url' => env('SEPAY_QR_BASE_URL', 'https://qr.sepay.vn/img'),
     ],
 
