@@ -17,6 +17,10 @@ import AdminLayout from "../views/admin/AdminLayout.vue";
 import AdminDashboard from "../views/admin/AdminDashboard.vue";
 import AdminProfile from "../views/admin/AdminProfile.vue";
 import AdminUsers from "../views/admin/AdminUsers.vue";
+import AdminPolicies from "../views/admin/AdminPolicies.vue";
+import AdminPolicyDetail from "../views/admin/AdminPolicyDetail.vue";
+import AdminRoles from "../views/admin/AdminRoles.vue";
+import AdminRoleDetail from "../views/admin/AdminRoleDetail.vue";
 import OwnerLayout from "../views/owner/OwnerLayout.vue";
 import OwnerDashboard from "../views/owner/OwnerDashboard.vue";
 import OwnerPricing from "../views/owner/OwnerPricing.vue";
@@ -56,12 +60,6 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
-        path: "/admin/profile",
-        name: "admin-profile",
-        component: Profile,
-        meta: { requiresAuth: true, role: "admin" },
-    },
-    {
         path: "/admin/login",
         name: "admin-login",
         component: AdminLogin,
@@ -92,6 +90,40 @@ const routes = [
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
             {
+                path: "payments",
+                name: "admin-payments",
+                component: () => import("../views/admin/AdminPayments.vue"),
+            },
+            {
+                path: "finance-operations",
+                name: "admin-finance-operations",
+                component: () => import("../views/admin/AdminFinanceOperations.vue"),
+            },
+            {
+                path: "partner-applications",
+                name: "admin-partner-applications",
+                component: () => import("../views/admin/AdminPartnerApplications.vue"),
+            },
+            {
+                path: "banners",
+                name: "admin-banners",
+                component: () => import("../views/admin/AdminBanners.vue"),
+            },
+            { path: "policies", name: "admin-policies", component: AdminPolicies },
+            { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
+            {
+                path: "reports",
+                name: "admin-reports",
+                component: () => import("../views/admin/AdminReports.vue"),
+            },
+            {
+                path: "complaints",
+                name: "admin-complaints",
+                component: () => import("../views/admin/AdminComplaints.vue"),
+            },
+            { path: "roles", name: "admin-roles", component: AdminRoles },
+            { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail },
+            {
                 path: "court-types",
                 name: "admin-court-types",
                 component: () =>
@@ -114,6 +146,36 @@ const routes = [
                 name: "admin-venue-cluster-detail",
                 component: () =>
                     import("../views/admin/AdminVenueClusterDetail.vue"),
+            },
+            {
+                path: "platform-fee-tiers",
+                name: "admin-platform-fee-tiers",
+                component: () =>
+                    import("../views/admin/AdminPlatformFeeTiers.vue"),
+            },
+            {
+                path: "platform-fee-ledgers",
+                name: "admin-platform-fee-ledgers",
+                component: () =>
+                    import("../views/admin/AdminPlatformFeeLedgers.vue"),
+            },
+            {
+                path: "platform-fee-ledgers/:id",
+                name: "admin-platform-fee-ledger-detail",
+                component: () =>
+                    import("../views/admin/AdminPlatformFeeLedgerDetail.vue"),
+            },
+            {
+                path: "venues/:id/platform-fees",
+                name: "admin-venue-platform-fees",
+                component: () =>
+                    import("../views/admin/AdminVenuePlatformFees.vue"),
+            },
+            {
+                path: "settings/platform-fee",
+                name: "admin-platform-fee-settings",
+                component: () =>
+                    import("../views/admin/AdminPlatformFeeSettings.vue"),
             },
             { path: "", redirect: { name: "admin-dashboard" } },
         ],

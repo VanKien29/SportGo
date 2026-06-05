@@ -21,11 +21,17 @@ class OwnerWalletLedger extends Model
         'booking_id',
         'payment_id',
         'type',
+        'direction',
         'amount',
         'balance_before',
         'balance_after',
+        'status',
         'reference_code',
+        'reference_type',
+        'reference_id',
+        'transaction_code',
         'description',
+        'note',
         'metadata',
     ];
 

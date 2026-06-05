@@ -24,6 +24,11 @@ class UserRolesTableSeeder extends Seeder
             'superadmin' => 'super_admin',
             'admin' => 'admin',
             'systemstaff' => 'system_staff',
+            'moderator' => 'content_moderator',
+            'venue_manager' => 'venue_manager',
+            'finance' => 'finance_operator',
+            'policy_manager' => 'policy_manager',
+            'staff_manager' => 'staff_manager',
             'owner' => 'venue_owner',
             'venuestaff' => 'venue_staff',
             'user' => 'user',
@@ -44,9 +49,7 @@ class UserRolesTableSeeder extends Seeder
                     'scope_type' => 'system',
                     'scope_id' => self::ZERO_UUID,
                 ],
-                [
-                    'granted_by' => null,
-                ]
+                ['granted_by' => null]
             );
         }
     }

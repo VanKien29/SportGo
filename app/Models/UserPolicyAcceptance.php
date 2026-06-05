@@ -16,6 +16,8 @@ class UserPolicyAcceptance extends Model
         'system_policy_id',
         'policy_version',
         'accepted_at',
+        'ip_address',
+        'user_agent',
     ];
 
     protected function casts(): array
