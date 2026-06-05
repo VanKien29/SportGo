@@ -93,6 +93,13 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::put('/policies/{id}/rules/{ruleId}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateRule']);
         Route::patch('/policies/{id}/rules/{ruleId}/toggle', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'toggleRule']);
         Route::get('/policies/{id}/evaluation-logs', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'evaluationLogs']);
+        // Venue Cluster management
+        Route::get('/venue-clusters', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'index']);
+        Route::get('/venue-clusters/{id}', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'show']);
+        Route::patch('/venue-clusters/{id}/lock', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'lock']);
+        Route::patch('/venue-clusters/{id}/unlock', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'unlock']);
+        Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveRequest']);
+        Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectRequest']);
     });
 
 Route::middleware(['auth:sanctum', EnsureOwnerRole::class])

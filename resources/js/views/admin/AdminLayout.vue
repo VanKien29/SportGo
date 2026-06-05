@@ -35,6 +35,21 @@
         <AppIcon name="layers" size="18" />
         <span>Quản lý loại sân</span>
       </router-link>
+      <router-link to="/admin/venue-clusters" class="nav-item" active-class="nav-active">
+        <span>Quản lý cụm sân</span>
+      </router-link>
+      <router-link to="/admin/platform-fee-tiers" class="nav-item" active-class="nav-active">
+        <AppIcon name="layers" size="18" />
+        <span>Bậc phí nền tảng</span>
+      </router-link>
+      <router-link to="/admin/platform-fee-ledgers" class="nav-item" active-class="nav-active">
+        <AppIcon name="receipt" size="18" />
+        <span>Phí duy trì</span>
+      </router-link>
+      <router-link to="/admin/settings/platform-fee" class="nav-item" active-class="nav-active">
+        <AppIcon name="settings" size="18" />
+        <span>Cài đặt phí</span>
+      </router-link>
     </template>
 
     <template #topbar-title>
@@ -65,6 +80,13 @@ export default {
         'admin-policies': 'Quản lý chính sách',
         'admin-policy-detail': 'Chi tiết chính sách',
         'admin-court-types': 'Quản lý loại sân',
+        'admin-venue-clusters': 'Quản lý cụm sân',
+        'admin-venue-cluster-detail': 'Chi tiết cụm sân',
+        'admin-platform-fee-tiers': 'Cấu hình bậc phí nền tảng',
+        'admin-platform-fee-ledgers': 'Quản lý phí duy trì hệ thống',
+        'admin-platform-fee-ledger-detail': 'Chi tiết kỳ phí duy trì',
+        'admin-venue-platform-fees': 'Phí duy trì cụm sân',
+        'admin-platform-fee-settings': 'Cài đặt phí duy trì',
       };
 
       return map[this.$route.name] || 'Admin';

@@ -1,13 +1,6 @@
 <template>
     <div class="venue-clusters-container">
-        <div class="card header-card">
-            <div class="header-content">
-                <h2>Quản lý cụm sân</h2>
-                <p class="subtitle">
-                    Xem và chỉnh sửa thông tin các cụm sân thể thao của bạn
-                </p>
-            </div>
-        </div>
+
 
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -442,22 +435,7 @@ export default {
     padding: 24px;
 }
 
-.header-card {
-    padding: 20px 24px;
-}
 
-.header-content h2 {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--sg-text);
-    margin: 0;
-}
-
-.subtitle {
-    margin-top: 4px;
-    color: rgba(15, 23, 42, 0.5);
-    font-size: 14px;
-}
 
 .clusters-grid {
     display: grid;

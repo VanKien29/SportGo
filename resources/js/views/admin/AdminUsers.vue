@@ -1,10 +1,6 @@
-﻿<template>
+<template>
   <section class="admin-users">
-    <div class="toolbar">
-      <div>
-        <h2>Quản lý tài khoản</h2>
-        <p>Khóa, mở khóa và kiểm tra trạng thái đăng nhập người dùng.</p>
-      </div>
+    <div class="header-actions">
       <button class="btn secondary" :disabled="loading" @click="loadUsers">Tải lại</button>
     </div>
 
@@ -297,17 +293,12 @@ export default {
   flex-direction: column;
   gap: 18px;
 }
-.toolbar {
+.header-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
   align-items: center;
 }
-.toolbar h2 {
-  font-size: 22px;
-  margin: 0 0 4px;
-}
-.toolbar p,
 .muted {
   color: var(--sg-text-muted);
   font-size: 13px;

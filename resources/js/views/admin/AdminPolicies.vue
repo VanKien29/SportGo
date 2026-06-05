@@ -444,7 +444,7 @@ export default {
 
 .page-head {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 18px;
   align-items: flex-start;
 }
