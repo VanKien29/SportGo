@@ -12,11 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class AdminAuthController extends Controller
 {
-    private const ADMIN_ROLES = ['super_admin', 'admin', 'system_staff'];
-
-    public function __construct(private readonly RoleRedirectService $roleRedirectService)
-    {
-    }
+    public function __construct(private readonly RoleRedirectService $roleRedirectService) {}
 
     public function login(Request $request): JsonResponse
     {
@@ -111,8 +107,6 @@ class AdminAuthController extends Controller
 
     private function isAdminUser(User $user): bool
     {
-        $roles = $this->roleRedirectService->roles($user);
-
-        return (bool) array_intersect($roles, self::ADMIN_ROLES);
+        return $this->roleRedirectService->isAdminAreaUser($user);
     }
 }

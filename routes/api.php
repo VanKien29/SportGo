@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\Admin\Auth\AdminAuthController;
 use App\Http\Controllers\Api\Admin\Auth\AdminForgotPasswordController;
+use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
+use App\Http\Controllers\Api\Admin\FinanceOperationController as AdminFinanceOperationController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
@@ -10,6 +12,7 @@ use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\Auth\SetPasswordController;
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
 use App\Http\Controllers\Api\Payment\SepayPaymentController;
+use App\Http\Controllers\Api\Payment\BankWithdrawalCallbackController;
 use App\Http\Controllers\Api\PolicyAcceptanceController;
 use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
 use App\Http\Middleware\EnsureAdminRole;
@@ -53,6 +56,15 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/users', [AdminUserController::class, 'index']);
         Route::patch('/users/{id}/lock', [AdminUserController::class, 'lock']);
         Route::patch('/users/{id}/unlock', [AdminUserController::class, 'unlock']);
+        Route::get('/payments', [AdminPaymentController::class, 'index']);
+        Route::get('/payments/{id}', [AdminPaymentController::class, 'show']);
+        Route::post('/payments/{id}/retry', [AdminPaymentController::class, 'retry']);
+        Route::patch('/payments/{id}/status', [AdminPaymentController::class, 'updateStatus']);
+        Route::get('/finance/refunds', [AdminFinanceOperationController::class, 'refunds']);
+        Route::patch('/finance/refunds/{id}/status', [AdminFinanceOperationController::class, 'updateRefund']);
+        Route::get('/finance/withdrawals', [AdminFinanceOperationController::class, 'withdrawals']);
+        Route::patch('/finance/withdrawals/{id}/status', [AdminFinanceOperationController::class, 'updateWithdrawal']);
+        Route::post('/finance/withdrawals/export', [AdminFinanceOperationController::class, 'exportWithdrawals']);
 
         // Court Types CRUD
         Route::apiResource('court-types', \App\Http\Controllers\Api\Admin\CourtTypeController::class);
@@ -115,3 +127,4 @@ Route::middleware('auth:sanctum')
     });
 
 Route::post('/sepay/ipn', [SepayPaymentController::class, 'ipn']);
+Route::post('/callback/bank/withdraw', BankWithdrawalCallbackController::class);

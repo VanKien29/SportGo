@@ -46,4 +46,8 @@ return [
         'qr_base_url' => env('SEPAY_QR_BASE_URL', 'https://qr.sepay.vn/img'),
     ],
 
+    'mbbank' => [
+        'withdraw_callback_api_key' => env('MBBANK_WITHDRAW_CALLBACK_API_KEY'),
+    ],
+
 ];

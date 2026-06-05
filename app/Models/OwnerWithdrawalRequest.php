@@ -68,4 +68,9 @@ class OwnerWithdrawalRequest extends Model
     {
         return $this->belongsTo(OwnerWallet::class, 'owner_wallet_id');
     }
+
+    public function receipt()
+    {
+        return $this->morphOne(InternalReceipt::class, 'receiptable');
+    }
 }

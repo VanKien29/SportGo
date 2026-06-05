@@ -16,6 +16,16 @@
         <span>Nhóm quyền</span>
       </router-link>
 
+      <div class="nav-group">Tài chính</div>
+      <router-link to="/admin/payments" class="nav-item" active-class="nav-active">
+        <AppIcon name="creditCard" size="18" />
+        <span>Thanh toán booking</span>
+      </router-link>
+      <router-link to="/admin/finance-operations" class="nav-item" active-class="nav-active">
+        <AppIcon name="banknote" size="18" />
+        <span>Hoàn tiền & rút tiền</span>
+      </router-link>
+
       <div class="nav-group">Cấu hình hệ thống</div>
       <router-link to="/admin/policies" class="nav-item" active-class="nav-active">
         <AppIcon name="fileText" size="18" />
@@ -48,6 +58,8 @@ export default {
         'admin-dashboard': 'Dashboard',
         'admin-profile': 'Thông tin cá nhân',
         'admin-users': 'Quản lý tài khoản',
+        'admin-payments': 'Theo dõi thanh toán booking',
+        'admin-finance-operations': 'Hoàn tiền và rút tiền',
         'admin-roles': 'Quản lý nhóm quyền',
         'admin-role-detail': 'Chi tiết nhóm quyền',
         'admin-policies': 'Quản lý chính sách',

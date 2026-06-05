@@ -62,3 +62,33 @@ export async function api(path, options = {}) {
 
   return data;
 }
+
+export async function apiDownload(path, options = {}) {
+  const headers = {
+    Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/octet-stream',
+    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(options.headers || {}),
+  };
+
+  const token = readToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(path, { ...options, headers });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(extractError(data, 'Không thể tải file.'));
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filename = disposition.match(/filename="?([^"]+)"?/i)?.[1] || 'export.xlsx';
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

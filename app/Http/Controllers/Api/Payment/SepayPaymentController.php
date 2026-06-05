@@ -12,9 +12,7 @@ use RuntimeException;
 
 class SepayPaymentController extends Controller
 {
-    public function __construct(private readonly SepayPaymentService $sepayPaymentService)
-    {
-    }
+    public function __construct(private readonly SepayPaymentService $sepayPaymentService) {}
 
     public function create(Request $request, string $bookingId): JsonResponse
     {
