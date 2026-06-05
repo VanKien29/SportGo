@@ -109,6 +109,11 @@ const routes = [
                 name: "admin-banners",
                 component: () => import("../views/admin/AdminBanners.vue"),
             },
+            {
+                path: "moderation",
+                name: "admin-moderation",
+                component: () => import("../views/admin/AdminContentModeration.vue"),
+            },
             { path: "policies", name: "admin-policies", component: AdminPolicies },
             { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
             { path: "roles", name: "admin-roles", component: AdminRoles },

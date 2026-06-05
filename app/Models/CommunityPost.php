@@ -45,4 +45,15 @@ class CommunityPost extends Model
     {
         return $this->belongsTo(User::class, 'reviewed_by');
     }
+
+    public function media()
+    {
+        return $this->morphMany(Media::class, 'mediable');
+    }
+
+    public function hashtags()
+    {
+        return $this->belongsToMany(Hashtag::class, 'post_hashtags', 'post_id', 'hashtag_id')
+            ->where('post_hashtags.post_type', 'community_posts');
+    }
 }

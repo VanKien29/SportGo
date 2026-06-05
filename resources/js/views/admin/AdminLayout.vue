@@ -66,6 +66,14 @@
                 <AppIcon name="image" size="18" />
                 <span>Quản lý banner</span>
             </router-link>
+            <router-link
+                to="/admin/moderation"
+                class="nav-item"
+                active-class="nav-active"
+            >
+                <AppIcon name="messageWarning" size="18" />
+                <span>Kiểm duyệt nội dung</span>
+            </router-link>
 
             <div class="nav-group">Cấu hình hệ thống</div>
             <router-link
@@ -142,6 +150,7 @@ export default {
                 "admin-finance-operations": "Hoàn tiền và rút tiền",
                 "admin-partner-applications": "Quản lý đơn đăng kí",
                 "admin-banners": "Quản lý banner",
+                "admin-moderation": "Kiểm duyệt nội dung",
                 "admin-roles": "Quản lý nhóm quyền",
                 "admin-role-detail": "Chi tiết nhóm quyền",
                 "admin-policies": "Quản lý chính sách",
