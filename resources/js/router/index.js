@@ -99,6 +99,16 @@ const routes = [
                 name: "admin-finance-operations",
                 component: () => import("../views/admin/AdminFinanceOperations.vue"),
             },
+            {
+                path: "partner-applications",
+                name: "admin-partner-applications",
+                component: () => import("../views/admin/AdminPartnerApplications.vue"),
+            },
+            {
+                path: "banners",
+                name: "admin-banners",
+                component: () => import("../views/admin/AdminBanners.vue"),
+            },
             { path: "policies", name: "admin-policies", component: AdminPolicies },
             { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
             { path: "roles", name: "admin-roles", component: AdminRoles },

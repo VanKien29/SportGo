@@ -63,6 +63,38 @@ export async function api(path, options = {}) {
   return data;
 }
 
+export async function apiFormData(path, formData, options = {}) {
+  const headers = {
+    Accept: 'application/json',
+    ...(options.headers || {}),
+  };
+
+  const token = readToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(path, {
+    method: options.method || 'POST',
+    ...options,
+    headers,
+    body: formData,
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (response.status === 401) {
+    clearAuthStorage();
+    throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+  }
+
+  if (!response.ok) {
+    const error = new Error(extractError(data, 'Có lỗi xảy ra. Vui lòng thử lại.'));
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}
+
 export async function apiDownload(path, options = {}) {
   const headers = {
     Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/octet-stream',

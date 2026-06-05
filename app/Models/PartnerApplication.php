@@ -46,9 +46,19 @@ class PartnerApplication extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function approvedVenueCluster()
+    {
+        return $this->belongsTo(VenueCluster::class, 'approved_venue_cluster_id');
+    }
+
     public function bankAccounts()
     {
         return $this->hasMany(OwnerBankAccount::class, 'partner_application_id');
+    }
+
+    public function courts()
+    {
+        return $this->hasMany(PartnerApplicationCourt::class, 'partner_application_id');
     }
 
     public function user()

@@ -46,6 +46,11 @@ export const ICON_REGISTRY = {
     ['path', { d: 'm3 12 9 5 9-5' }],
     ['path', { d: 'm3 17 9 5 9-5' }],
   ],
+  image: [
+    ['rect', { x: 3, y: 3, width: 18, height: 18, rx: 2 }],
+    ['circle', { cx: 8.5, cy: 8.5, r: 1.5 }],
+    ['path', { d: 'm21 15-5-5L5 21' }],
+  ],
   building: [
     ['rect', { x: 4, y: 2, width: 16, height: 20, rx: 2 }],
     ['path', { d: 'M9 22v-4h6v4' }],
@@ -187,6 +192,7 @@ export const NAV_ICON_MAP = {
   roles: 'shieldCheck',
   policies: 'fileText',
   courtTypes: 'layers',
+  banners: 'image',
   venue: 'building',
   booking: 'calendar',
   finance: 'banknote',
