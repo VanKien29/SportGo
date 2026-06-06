@@ -49,24 +49,6 @@
                 <span>Hoàn tiền & rút tiền</span>
             </router-link>
 
-            <div class="nav-group">Đối tác & nội dung</div>
-            <router-link
-                to="/admin/partner-applications"
-                class="nav-item"
-                active-class="nav-active"
-            >
-                <AppIcon name="fileText" size="18" />
-                <span>Quản lý đơn đăng kí</span>
-            </router-link>
-            <router-link
-                to="/admin/banners"
-                class="nav-item"
-                active-class="nav-active"
-            >
-                <AppIcon name="image" size="18" />
-                <span>Quản lý banner</span>
-            </router-link>
-
             <div class="nav-group">Cấu hình hệ thống</div>
             <router-link
                 to="/admin/policies"
@@ -85,35 +67,66 @@
                 <span>Quản lý loại sân</span>
             </router-link>
             <router-link
+                to="/admin/amenities"
+                class="nav-item"
+                active-class="nav-active"
+            >
+                <AppIcon name="star" size="18" />
+                <span>Quản lý tiện ích</span>
+            </router-link>
+
+            <div class="nav-group">Kiểm duyệt & hỗ trợ</div>
+            <router-link
+                to="/admin/reports"
+                class="nav-item"
+                active-class="nav-active"
+            >
+                <AppIcon name="messageWarning" size="18" />
+                <span>Xử lý báo cáo</span>
+            </router-link>
+            <router-link
+                to="/admin/complaints"
+                class="nav-item"
+                active-class="nav-active"
+            >
+                <AppIcon name="shieldCheck" size="18" />
+                <span>Xử lý khiếu nại</span>
+            </router-link>
+
+            <div class="nav-group">Quản lý cụm sân</div>
+            <router-link
                 to="/admin/venue-clusters"
                 class="nav-item"
                 active-class="nav-active"
             >
+                <AppIcon name="layers" size="18" />
                 <span>Quản lý cụm sân</span>
             </router-link>
             <router-link
                 to="/admin/platform-fee-tiers"
                 class="nav-item"
-                active-class="nav-active"
+                :class="{ 'nav-active': platformFeeSectionActive }"
             >
                 <AppIcon name="layers" size="18" />
                 <span>Bậc phí nền tảng</span>
             </router-link>
+
+            <div class="nav-group">Đối tác & nội dung</div>
             <router-link
-                to="/admin/platform-fee-ledgers"
+                to="/admin/partner-applications"
                 class="nav-item"
                 active-class="nav-active"
             >
-                <AppIcon name="receipt" size="18" />
-                <span>Phí duy trì</span>
+                <AppIcon name="fileText" size="18" />
+                <span>Quản lý đơn đăng kí</span>
             </router-link>
             <router-link
-                to="/admin/settings/platform-fee"
+                to="/admin/banners"
                 class="nav-item"
                 active-class="nav-active"
             >
-                <AppIcon name="settings" size="18" />
-                <span>Cài đặt phí</span>
+                <AppIcon name="image" size="18" />
+                <span>Quản lý banner</span>
             </router-link>
         </template>
 
@@ -133,6 +146,12 @@ export default {
     name: "AdminLayout",
     components: { AppIcon, SidebarLayout },
     computed: {
+        platformFeeSectionActive() {
+            return (
+                String(this.$route.name || "").includes("platform-fee") ||
+                this.$route.query.source === "platform_fee"
+            );
+        },
         currentTitle() {
             const map = {
                 "admin-dashboard": "Dashboard",
@@ -145,11 +164,16 @@ export default {
                 "admin-roles": "Quản lý nhóm quyền",
                 "admin-role-detail": "Chi tiết nhóm quyền",
                 "admin-policies": "Quản lý chính sách",
+                "admin-platform-fee-policies": "Chính sách phí nền tảng",
                 "admin-policy-detail": "Chi tiết chính sách",
+                "admin-reports": "Xử lý báo cáo",
+                "admin-complaints": "Xử lý khiếu nại",
                 "admin-court-types": "Quản lý loại sân",
+                "admin-amenities": "Quản lý tiện ích",
                 "admin-venue-clusters": "Quản lý cụm sân",
                 "admin-venue-cluster-detail": "Chi tiết cụm sân",
                 "admin-platform-fee-tiers": "Cấu hình bậc phí nền tảng",
+                "admin-platform-fee-ledgers": "Quản lý phí duy trì hệ thống",
                 "admin-platform-fee-ledger-detail": "Chi tiết kỳ phí duy trì",
                 "admin-venue-platform-fees": "Phí duy trì cụm sân",
                 "admin-platform-fee-settings": "Cài đặt phí duy trì",

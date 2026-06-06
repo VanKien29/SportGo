@@ -110,7 +110,22 @@ const routes = [
                 component: () => import("../views/admin/AdminBanners.vue"),
             },
             { path: "policies", name: "admin-policies", component: AdminPolicies },
+            {
+                path: "platform-fee-policies",
+                name: "admin-platform-fee-policies",
+                component: AdminPolicies,
+            },
             { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
+            {
+                path: "reports",
+                name: "admin-reports",
+                component: () => import("../views/admin/AdminReports.vue"),
+            },
+            {
+                path: "complaints",
+                name: "admin-complaints",
+                component: () => import("../views/admin/AdminComplaints.vue"),
+            },
             { path: "roles", name: "admin-roles", component: AdminRoles },
             { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail },
             {
@@ -118,6 +133,12 @@ const routes = [
                 name: "admin-court-types",
                 component: () =>
                     import("../views/admin/AdminCourtTypes.vue"),
+            },
+            {
+                path: "amenities",
+                name: "admin-amenities",
+                component: () =>
+                    import("../views/admin/AdminAmenities.vue"),
             },
             {
                 path: "venue-clusters",
