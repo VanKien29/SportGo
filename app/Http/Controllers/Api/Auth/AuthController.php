@@ -119,7 +119,7 @@ class AuthController extends Controller
 
         if ($this->isAdminUser($user)) {
             throw ValidationException::withMessages([
-                'login' => 'Tài khoản quản trị vui lòng đăng nhập tại trang Admin.',
+                'login' => 'Sai tài khoản hoặc mật khẩu.',
             ]);
         }
 

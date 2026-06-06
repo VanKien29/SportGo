@@ -53,6 +53,8 @@
       </div>
     </section>
 
+    <HomeBannerCarousel position="home" />
+
     <!-- Features -->
     <section class="features">
       <div class="features-inner">
@@ -96,12 +98,13 @@
 </template>
 
 <script>
+import HomeBannerCarousel from '../components/HomeBannerCarousel.vue';
 import PublicNavbar from '../components/PublicNavbar.vue';
 import { getAuth } from '../stores/auth.js';
 
 export default {
   name: 'HomeView',
-  components: { PublicNavbar },
+  components: { HomeBannerCarousel, PublicNavbar },
   data() {
     return { user: getAuth() };
   },

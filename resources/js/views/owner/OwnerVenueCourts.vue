@@ -79,16 +79,39 @@
               />
             </div>
 
-            <div v-if="!editingId" class="form-group">
-              <label for="court-type">Loại sân <span class="required">*</span></label>
-              <select id="court-type" v-model="form.court_type_id" class="form-control" required>
-                <option value="" disabled>-- Chọn loại sân --</option>
-                <optgroup v-for="group in groupedCourtTypes" :key="group.id" :label="group.name">
-                  <option v-for="child in group.children" :key="child.id" :value="child.id">
-                    {{ child.name }} ({{ child.player_count }} người)
-                  </option>
-                </optgroup>
-              </select>
+            <div class="form-group">
+              <label>Loại sân <span class="required">*</span></label>
+              <div class="custom-select-wrapper">
+                <div 
+                  class="custom-select-trigger" 
+                  :class="{ active: showTypeDropdown }" 
+                  @click.stop="showTypeDropdown = !showTypeDropdown"
+                >
+                  <span v-if="selectedCourtType">
+                    <span class="parent-name">{{ getParentTypeName(selectedCourtType) }}</span>
+                    <span class="separator">/</span>
+                    <span class="child-name">{{ selectedCourtType.name }} ({{ selectedCourtType.player_count }} người)</span>
+                  </span>
+                  <span v-else class="placeholder">-- Chọn loại sân --</span>
+                  <span class="arrow">&#9662;</span>
+                </div>
+                <div v-if="showTypeDropdown" class="custom-options-container">
+                  <div v-for="group in groupedCourtTypes" :key="group.id" class="custom-optgroup">
+                    <div class="custom-optgroup-label">{{ group.name }}</div>
+                    <div 
+                      v-for="child in group.children" 
+                      :key="child.id" 
+                      class="custom-option"
+                      :class="{ selected: form.court_type_id === child.id }"
+                      @click="selectCourtType(child)"
+                    >
+                      <span class="option-text">{{ child.name }}</span>
+                      <span class="option-details">({{ child.player_count }} người)</span>
+                      <span v-if="form.court_type_id === child.id" class="check-mark">&#10003;</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div v-if="editingId" class="form-group">
@@ -147,9 +170,13 @@ export default {
         status: 'active',
         sort_order: 1,
       },
+      showTypeDropdown: false,
     };
   },
   computed: {
+    selectedCourtType() {
+      return this.courtTypes.find(t => t.id === this.form.court_type_id);
+    },
     groupedCourtTypes() {
       // Tìm các danh mục cha (parent_id là null)
       const parents = this.courtTypes.filter(t => !t.parent_id);
@@ -204,9 +231,10 @@ export default {
     openCreateModal() {
       this.editingId = null;
       this.modalError = null;
+      this.showTypeDropdown = false;
       this.form = {
         name: '',
-        court_type_id: this.courtTypes.length > 0 ? this.courtTypes[0].id : '',
+        court_type_id: '',
         status: 'active',
         sort_order: this.courts.length + 1,
       };
@@ -215,6 +243,7 @@ export default {
     openEditModal(court) {
       this.editingId = court.id;
       this.modalError = null;
+      this.showTypeDropdown = false;
       this.form = {
         name: court.name,
         court_type_id: court.court_type_id,
@@ -227,14 +256,21 @@ export default {
       this.showModal = false;
       this.editingId = null;
       this.modalError = null;
+      this.showTypeDropdown = false;
     },
     async handleSubmit() {
       this.submitting = true;
       this.modalError = null;
+      if (!this.form.court_type_id) {
+        this.modalError = 'Vui lòng chọn loại sân.';
+        this.submitting = false;
+        return;
+      }
       try {
         if (this.editingId) {
           await venueClusterService.updateCourt(this.editingId, {
             name: this.form.name,
+            court_type_id: this.form.court_type_id,
             status: this.form.status,
             sort_order: this.form.sort_order,
           });
@@ -254,6 +290,21 @@ export default {
         this.submitting = false;
       }
     },
+    getParentTypeName(child) {
+      if (!child.parent_id) return '';
+      const parent = this.courtTypes.find(t => t.id === child.parent_id);
+      return parent ? parent.name : '';
+    },
+    selectCourtType(child) {
+      this.form.court_type_id = child.id;
+      this.showTypeDropdown = false;
+    },
+    handleOutsideClick(e) {
+      const el = this.$el.querySelector('.custom-select-wrapper');
+      if (el && !el.contains(e.target)) {
+        this.showTypeDropdown = false;
+      }
+    },
     async confirmDelete(court) {
       if (confirm(`Bạn có chắc chắn muốn xóa sân "${court.name}" không?`)) {
         try {
@@ -264,6 +315,12 @@ export default {
         }
       }
     },
+  },
+  mounted() {
+    document.addEventListener('click', this.handleOutsideClick);
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.handleOutsideClick);
   },
   created() {
     this.initData();
@@ -593,5 +650,138 @@ export default {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Custom Select Dropdown Styling */
+.custom-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid var(--sg-border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--sg-text);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.custom-select-trigger:hover {
+  border-color: #000000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.custom-select-trigger.active {
+  border-color: #000000;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+}
+
+.custom-select-trigger .parent-name {
+  color: rgba(15, 23, 42, 0.4);
+  font-weight: 500;
+}
+
+.custom-select-trigger .separator {
+  margin: 0 6px;
+  color: rgba(15, 23, 42, 0.2);
+}
+
+.custom-select-trigger .child-name {
+  font-weight: 700;
+  color: var(--sg-text);
+}
+
+.custom-select-trigger .placeholder {
+  color: rgba(15, 23, 42, 0.4);
+}
+
+.custom-select-trigger .arrow {
+  font-size: 10px;
+  color: rgba(15, 23, 42, 0.5);
+  transition: transform 0.2s ease;
+}
+
+.custom-select-trigger.active .arrow {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Container */
+.custom-options-container {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid var(--sg-border);
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  max-height: 250px;
+  overflow-y: auto;
+  opacity: 0;
+  transform: translateY(-8px);
+  animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideDown {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Optgroup Styling */
+.custom-optgroup-label {
+  padding: 10px 14px 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(15, 23, 42, 0.4);
+  background: rgba(15, 23, 42, 0.02);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.02);
+}
+
+/* Option Styling */
+.custom-option {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--sg-text);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.custom-option:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.custom-option.selected {
+  background: rgba(0, 0, 0, 0.05);
+  font-weight: 700;
+}
+
+.custom-option .option-text {
+  font-weight: 600;
+}
+
+.custom-option .option-details {
+  margin-left: 6px;
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.4);
+}
+
+.custom-option .check-mark {
+  margin-left: auto;
+  color: #000000;
+  font-weight: 900;
 }
 </style>

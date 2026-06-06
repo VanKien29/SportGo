@@ -23,7 +23,7 @@ class VenueClusterController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $cluster = VenueCluster::query()
-            ->with(['venueCourts.courtType'])
+            ->with(['venueCourts.courtType', 'media'])
             ->where('owner_id', $request->user()->id)
             ->findOrFail($id);
 
@@ -109,5 +109,59 @@ class VenueClusterController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Lỗi kết nối khi phân giải link map: ' . $e->getMessage()], 500);
         }
+    }
+
+    public function uploadMedia(Request $request, string $id): JsonResponse
+    {
+        $cluster = VenueCluster::findOrFail($id);
+
+        if ($cluster->owner_id !== $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền upload ảnh cho cụm sân này.'], 403);
+        }
+
+        $request->validate([
+            'image' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'], // tối đa 5MB
+        ]);
+
+        $path = $request->file('image')->store('clusters', 'public');
+
+        $media = \App\Models\Media::create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'mediable_type' => VenueCluster::class,
+            'mediable_id' => $cluster->id,
+            'collection' => 'gallery',
+            'file_name' => $request->file('image')->getClientOriginalName(),
+            'file_path' => $path,
+            'mime_type' => $request->file('image')->getClientMimeType(),
+            'file_size' => $request->file('image')->getSize(),
+        ]);
+
+        return response()->json([
+            'message' => 'Tải lên hình ảnh thành công.',
+            'data' => $media,
+        ]);
+    }
+
+    public function deleteMedia(Request $request, string $clusterId, string $mediaId): JsonResponse
+    {
+        $cluster = VenueCluster::findOrFail($clusterId);
+
+        if ($cluster->owner_id !== $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền xóa ảnh của cụm sân này.'], 403);
+        }
+
+        $media = \App\Models\Media::where('mediable_type', VenueCluster::class)
+            ->where('mediable_id', $clusterId)
+            ->findOrFail($mediaId);
+
+        // Xóa file vật lý
+        \Illuminate\Support\Facades\Storage::disk('public')->delete($media->file_path);
+
+        // Xóa bản ghi DB
+        $media->delete();
+
+        return response()->json([
+            'message' => 'Xóa hình ảnh thành công.',
+        ]);
     }
 }

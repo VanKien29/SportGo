@@ -22,4 +22,15 @@ class Role extends Model
             'is_system' => 'boolean',
         ];
     }
+
+    public function permissions()
+    {
+        return $this->belongsToMany(Permission::class, 'role_permissions');
+    }
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'user_roles')
+            ->withPivot(['scope_type', 'scope_id', 'granted_by']);
+    }
 }

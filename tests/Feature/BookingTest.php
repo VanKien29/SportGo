@@ -24,10 +24,13 @@ class BookingTest extends TestCase
     private VenueCourt $court;
     private VenueCluster $cluster;
     private CourtType $courtType;
+    private string $bookingDate;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->bookingDate = now()->addWeek()->toDateString();
 
         // 1. Tạo vai trò người chơi
         $role = Role::create([
@@ -112,7 +115,7 @@ class BookingTest extends TestCase
         $response = $this->actingAs($this->player, 'sanctum')
             ->getJson("/api/bookings/check-availability?" . http_build_query([
                 'venue_court_id' => $this->court->id,
-                'booking_date' => '2026-06-01',
+                'booking_date' => $this->bookingDate,
                 'start_time' => '08:00:00',
                 'end_time' => '09:00:00',
             ]));
@@ -135,7 +138,7 @@ class BookingTest extends TestCase
             'venue_court_id' => $this->court->id,
             'requested_venue_court_id' => $this->court->id,
             'venue_cluster_id' => $this->cluster->id,
-            'booking_date' => '2026-06-01',
+            'booking_date' => $this->bookingDate,
             'start_time' => '08:00:00',
             'end_time' => '09:30:00',
             'duration_minutes' => 90,
@@ -151,7 +154,7 @@ class BookingTest extends TestCase
         $response1 = $this->actingAs($this->player, 'sanctum')
             ->getJson("/api/bookings/check-availability?" . http_build_query([
                 'venue_court_id' => $this->court->id,
-                'booking_date' => '2026-06-01',
+                'booking_date' => $this->bookingDate,
                 'start_time' => '08:30:00',
                 'end_time' => '09:00:00',
             ]));
@@ -169,7 +172,7 @@ class BookingTest extends TestCase
             'venue_cluster_id' => $this->cluster->id,
             'venue_court_id' => $this->court->id,
             'lock_scope' => 'court',
-            'booking_date' => '2026-06-01',
+            'booking_date' => $this->bookingDate,
             'start_time' => '14:00:00',
             'end_time' => '15:00:00',
             'locked_by' => $this->player->id,
@@ -180,7 +183,7 @@ class BookingTest extends TestCase
         $response = $this->actingAs($this->player, 'sanctum')
             ->getJson("/api/bookings/check-availability?" . http_build_query([
                 'venue_court_id' => $this->court->id,
-                'booking_date' => '2026-06-01',
+                'booking_date' => $this->bookingDate,
                 'start_time' => '14:30:00',
                 'end_time' => '15:30:00',
             ]));
@@ -196,7 +199,7 @@ class BookingTest extends TestCase
         $response = $this->actingAs($this->player, 'sanctum')
             ->postJson('/api/bookings', [
                 'venue_court_id' => $this->court->id,
-                'booking_date' => '2026-06-01',
+                'booking_date' => $this->bookingDate,
                 'start_time' => '10:00:00',
                 'end_time' => '11:00:00',
                 'payment_option' => 'no_prepay',
@@ -229,7 +232,7 @@ class BookingTest extends TestCase
         $response = $this->actingAs($this->player, 'sanctum')
             ->postJson('/api/bookings', [
                 'venue_court_id' => $this->court->id,
-                'booking_date' => '2026-06-01',
+                'booking_date' => $this->bookingDate,
                 'start_time' => '10:00:00',
                 'end_time' => '11:00:00',
                 'payment_option' => 'deposit',
@@ -262,7 +265,7 @@ class BookingTest extends TestCase
         $this->actingAs($this->player, 'sanctum')
             ->postJson('/api/bookings', [
                 'venue_court_id' => $this->court->id,
-                'booking_date' => '2026-06-01',
+                'booking_date' => $this->bookingDate,
                 'start_time' => '10:00:00',
                 'end_time' => '11:00:00',
                 'payment_option' => 'no_prepay',
@@ -272,7 +275,7 @@ class BookingTest extends TestCase
         $response = $this->actingAs($this->player, 'sanctum')
             ->postJson('/api/bookings', [
                 'venue_court_id' => $this->court->id,
-                'booking_date' => '2026-06-01',
+                'booking_date' => $this->bookingDate,
                 'start_time' => '10:30:00',
                 'end_time' => '11:30:00',
                 'payment_option' => 'no_prepay',
@@ -296,7 +299,7 @@ class BookingTest extends TestCase
             'venue_court_id' => $this->court->id,
             'requested_venue_court_id' => $this->court->id,
             'venue_cluster_id' => $this->cluster->id,
-            'booking_date' => '2026-06-01',
+            'booking_date' => $this->bookingDate,
             'start_time' => '10:00:00',
             'end_time' => '11:00:00',
             'duration_minutes' => 60,
@@ -312,7 +315,7 @@ class BookingTest extends TestCase
             'venue_cluster_id' => $this->cluster->id,
             'venue_court_id' => $this->court->id,
             'lock_scope' => 'court',
-            'booking_date' => '2026-06-01',
+            'booking_date' => $this->bookingDate,
             'start_time' => '10:00:00',
             'end_time' => '11:00:00',
             'locked_by' => $this->player->id,

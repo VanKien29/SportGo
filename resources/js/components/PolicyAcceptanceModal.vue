@@ -13,15 +13,18 @@
             <h3>{{ policy.title }}</h3>
             <span>v{{ policy.version }}</span>
           </div>
-          <p class="policy-meta">{{ typeLabel(policy.type) }} · Hiệu lực {{ formatDate(policy.effective_from) }}</p>
+          <p class="policy-meta">{{ typeLabel(policy) }} - Hiệu lực {{ formatDate(policy.effective_from) }}</p>
+          <p v-if="policy.change_summary" class="policy-summary">{{ policy.change_summary }}</p>
           <div class="policy-content">{{ policy.content }}</div>
         </article>
       </div>
 
-      <p v-if="!scrolledToBottom" class="scroll-hint">↓ Cuộn xuống để đọc hết các chính sách trước khi xác nhận</p>
+      <p v-if="!scrolledToBottom" class="scroll-hint">
+        Cuộn xuống để đọc hết các chính sách trước khi xác nhận.
+      </p>
 
       <label class="agree-row" :class="{ disabled: !scrolledToBottom }">
-        <input v-model="agreed" type="checkbox" :disabled="!scrolledToBottom" />
+        <input v-model="agreed" type="checkbox" :disabled="!scrolledToBottom || submitting" />
         <span>Tôi đã đọc và đồng ý với các chính sách trên.</span>
       </label>
 
@@ -55,32 +58,31 @@ export default {
     };
   },
   mounted() {
-    this.$nextTick(() => {
-      const el = this.$refs.policyList;
-      if (el) {
-        // Nếu nội dung không cần scroll (ít chính sách) thì cho phép luôn
-        if (el.scrollHeight <= el.clientHeight + 10) {
-          this.scrolledToBottom = true;
-        }
-      }
-    });
+    this.$nextTick(this.allowIfNoScroll);
   },
   methods: {
+    allowIfNoScroll() {
+      const el = this.$refs.policyList;
+      if (el && el.scrollHeight <= el.clientHeight + 10) {
+        this.scrolledToBottom = true;
+      }
+    },
     onScroll() {
       const el = this.$refs.policyList;
       if (!el) return;
-      // Cho phép sai số 8px để dễ trigger hơn trên mobile
       if (el.scrollTop + el.clientHeight >= el.scrollHeight - 8) {
         this.scrolledToBottom = true;
       }
     },
     async acceptAll() {
-      if (!this.agreed) return;
+      if (!this.agreed || this.submitting) return;
       this.submitting = true;
       this.error = '';
 
       try {
-        await Promise.all(this.policies.map((policy) => policyService.accept(policy.id)));
+        for (const policy of this.policies) {
+          await policyService.accept(policy.id);
+        }
         this.$emit('accepted');
       } catch (error) {
         this.error = error.message || 'Không thể lưu xác nhận chính sách.';
@@ -88,13 +90,19 @@ export default {
         this.submitting = false;
       }
     },
-    typeLabel(type) {
+    typeLabel(policy) {
+      if (policy.policy_type_label) return policy.policy_type_label;
+
+      const type = policy.policy_type || policy.type;
       return {
         general: 'Chung',
-        refund: 'Hoàn tiền',
+        refund: 'Hủy lịch và hoàn tiền',
         booking: 'Đặt sân',
-        moderation: 'Kiểm duyệt',
-      }[type] || type;
+        moderation: 'Kiểm duyệt và báo cáo',
+        account: 'Tài khoản',
+        platform_fee: 'Phí duy trì cụm sân',
+        terms: 'Điều khoản sử dụng',
+      }[type] || 'Chính sách';
     },
     formatDate(value) {
       if (!value) return 'ngay lập tức';
@@ -147,11 +155,17 @@ export default {
 }
 
 .policy-header p,
-.policy-meta {
+.policy-meta,
+.policy-summary {
   margin: 0;
   color: #64748b;
   font-size: 14px;
   line-height: 1.5;
+}
+
+.policy-summary {
+  color: #334155;
+  font-weight: 700;
 }
 
 .policy-list {
@@ -185,6 +199,7 @@ export default {
 }
 
 .policy-item-head span {
+  flex: 0 0 auto;
   padding: 4px 8px;
   border-radius: 999px;
   background: #dcfce7;
@@ -205,19 +220,13 @@ export default {
 .scroll-hint {
   margin: 0;
   padding: 8px 12px;
+  border: 1px solid #fde68a;
   border-radius: 8px;
   background: #fefce8;
-  border: 1px solid #fde68a;
   color: #92400e;
   font-size: 13px;
   font-weight: 700;
   text-align: center;
-  animation: pulse-hint 2s ease-in-out infinite;
-}
-
-@keyframes pulse-hint {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.65; }
 }
 
 .agree-row {
@@ -227,11 +236,10 @@ export default {
   color: #0f172a;
   font-size: 14px;
   font-weight: 800;
-  transition: opacity 0.3s;
 }
 
 .agree-row.disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -264,5 +272,16 @@ export default {
 .accept-btn:disabled {
   opacity: .58;
   cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .policy-backdrop {
+    padding: 12px;
+  }
+
+  .policy-modal {
+    max-height: calc(100vh - 24px);
+    padding: 18px;
+  }
 }
 </style>

@@ -24,9 +24,13 @@ class SepayPaymentTest extends TestCase
     use RefreshDatabase;
 
     private User $player;
+
     private User $owner;
+
     private VenueCluster $cluster;
+
     private VenueCourt $court;
+
     private SystemBankAccount $systemBankAccount;
 
     protected function setUp(): void
@@ -126,6 +130,8 @@ class SepayPaymentTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonPath('payment.method', 'sepay')
             ->assertJsonPath('payment.system_bank_account_id', $this->systemBankAccount->id)
+            ->assertJsonPath('payment.wallet_amount', '0.00')
+            ->assertJsonPath('payment.gateway_amount', '100000.00')
             ->assertJsonPath('payment_account.account_number', '1234567890')
             ->assertJsonPath('transfer_content', $response->json('payment.payment_code'));
 
@@ -163,6 +169,8 @@ class SepayPaymentTest extends TestCase
             'id' => $payment->id,
             'status' => 'paid',
             'gateway_txn_id' => '987654',
+            'wallet_amount' => 0.00,
+            'gateway_amount' => 100000.00,
         ]);
 
         $this->assertDatabaseHas('bookings', [
@@ -185,8 +193,20 @@ class SepayPaymentTest extends TestCase
             'booking_id' => $booking->id,
             'payment_id' => $payment->id,
             'type' => 'credit',
+            'direction' => 'credit',
             'amount' => 100000.00,
+            'status' => 'completed',
+            'reference_type' => 'payment',
+            'reference_id' => $payment->id,
         ]);
+
+        $ledger = OwnerWalletLedger::query()
+            ->where('payment_id', $payment->id)
+            ->where('type', 'credit')
+            ->firstOrFail();
+
+        $this->assertNotNull($ledger->transaction_code);
+        $this->assertSame('booking_payment', $ledger->metadata['source']);
 
         $this->assertDatabaseMissing('slot_locks', [
             'booking_id' => $booking->id,
@@ -215,6 +235,52 @@ class SepayPaymentTest extends TestCase
         ];
 
         $this->postJson('/api/sepay/ipn', $payload)->assertJsonPath('processed', true);
+        $this->postJson('/api/sepay/ipn', $payload)->assertJsonPath('processed', true);
+
+        $this->assertDatabaseHas('owner_wallets', [
+            'owner_id' => $this->owner->id,
+            'available_balance' => 100000.00,
+            'total_earned' => 100000.00,
+        ]);
+
+        $this->assertEquals(
+            1,
+            OwnerWalletLedger::query()
+                ->where('payment_id', $payment->id)
+                ->where('type', 'credit')
+                ->count(),
+        );
+    }
+
+    public function test_duplicate_webhook_repairs_missing_owner_wallet_ledger(): void
+    {
+        $booking = $this->createPendingPaymentBooking();
+
+        $this->actingAs($this->player, 'sanctum')
+            ->postJson("/api/bookings/{$booking->id}/payments/sepay")
+            ->assertStatus(200);
+
+        $payment = Payment::query()->where('booking_id', $booking->id)->firstOrFail();
+        $payload = [
+            'id' => 987654,
+            'gateway' => 'MBBank',
+            'transactionDate' => now()->format('Y-m-d H:i:s'),
+            'accountNumber' => '1234567890',
+            'code' => $payment->payment_code,
+            'content' => $payment->payment_code.' thanh toan dat san',
+            'transferType' => 'in',
+            'transferAmount' => 100000,
+            'referenceCode' => 'FT123456',
+        ];
+
+        $this->postJson('/api/sepay/ipn', $payload)->assertJsonPath('processed', true);
+
+        OwnerWalletLedger::query()->where('payment_id', $payment->id)->delete();
+        OwnerWallet::query()->where('owner_id', $this->owner->id)->update([
+            'available_balance' => 0,
+            'total_earned' => 0,
+        ]);
+
         $this->postJson('/api/sepay/ipn', $payload)->assertJsonPath('processed', true);
 
         $this->assertDatabaseHas('owner_wallets', [

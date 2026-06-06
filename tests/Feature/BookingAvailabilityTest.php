@@ -20,10 +20,13 @@ class BookingAvailabilityTest extends TestCase
     private VenueCluster $cluster;
     private CourtType $courtType;
     private VenueCourt $court;
+    private string $bookingDate;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->bookingDate = now()->addWeek()->toDateString();
 
         $this->player = User::create([
             'username' => 'booking_player',
@@ -109,7 +112,7 @@ class BookingAvailabilityTest extends TestCase
             'venue_court_id' => $this->court->id,
             'requested_venue_court_id' => $this->court->id,
             'venue_cluster_id' => $this->cluster->id,
-            'booking_date' => '2026-06-01',
+            'booking_date' => $this->bookingDate,
             'start_time' => '08:00:00',
             'end_time' => '09:00:00',
             'duration_minutes' => 60,
@@ -124,7 +127,7 @@ class BookingAvailabilityTest extends TestCase
         $response = $this->actingAs($this->player, 'sanctum')
             ->getJson('/api/bookings/schedule?' . http_build_query([
                 'venue_cluster_id' => $this->cluster->id,
-                'booking_date' => '2026-06-01',
+                'booking_date' => $this->bookingDate,
             ]));
 
         $response->assertOk()
@@ -155,7 +158,7 @@ class BookingAvailabilityTest extends TestCase
             'venue_court_id' => $this->court->id,
             'requested_venue_court_id' => $this->court->id,
             'venue_cluster_id' => $this->cluster->id,
-            'booking_date' => '2026-06-01',
+            'booking_date' => $this->bookingDate,
             'start_time' => '10:00:00',
             'end_time' => '11:00:00',
             'duration_minutes' => 60,
@@ -170,7 +173,7 @@ class BookingAvailabilityTest extends TestCase
         $response = $this->actingAs($this->player, 'sanctum')
             ->postJson('/api/bookings', [
                 'venue_court_id' => $this->court->id,
-                'booking_date' => '2026-06-01',
+                'booking_date' => $this->bookingDate,
                 'start_time' => '10:30:00',
                 'end_time' => '11:30:00',
                 'payment_option' => 'no_prepay',

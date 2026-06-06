@@ -18,12 +18,21 @@ class AuditLog extends Model
 
     protected $fillable = [
         'actor_id',
+        'actor_type',
+        'module',
         'action',
         'entity_type',
         'entity_id',
         'old_values',
         'new_values',
         'context',
+        'metadata',
+        'reason',
+        'policy_id',
+        'policy_rule_id',
+        'policy_evaluation_log_id',
+        'request_id',
+        'severity',
         'ip_address',
         'user_agent',
     ];
@@ -33,6 +42,7 @@ class AuditLog extends Model
         return [
             'old_values' => 'array',
             'new_values' => 'array',
+            'metadata' => 'array',
         ];
     }
 

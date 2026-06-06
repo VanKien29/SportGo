@@ -19,6 +19,10 @@ class Payment extends Model
         'booking_id',
         'system_bank_account_id',
         'amount',
+        'wallet_amount',
+        'gateway_amount',
+        'user_wallet_id',
+        'user_wallet_ledger_id',
         'payment_kind',
         'method',
         'gateway_txn_id',
@@ -31,6 +35,8 @@ class Payment extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'wallet_amount' => 'decimal:2',
+            'gateway_amount' => 'decimal:2',
             'gateway_response' => 'array',
             'paid_at' => 'datetime',
         ];
@@ -39,6 +45,16 @@ class Payment extends Model
     public function booking()
     {
         return $this->belongsTo(Booking::class, 'booking_id');
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(PaymentLog::class, 'payment_id')->latest('created_at');
+    }
+
+    public function ownerWalletLedgers()
+    {
+        return $this->hasMany(OwnerWalletLedger::class, 'payment_id');
     }
 
     public function systemBankAccount()
