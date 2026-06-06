@@ -48,6 +48,7 @@
                 <AppIcon name="banknote" size="18" />
                 <span>Hoàn tiền & rút tiền</span>
             </router-link>
+
             <div class="nav-group">Cấu hình hệ thống</div>
             <router-link
                 to="/admin/policies"
@@ -73,6 +74,24 @@
                 <AppIcon name="star" size="18" />
                 <span>Quản lý tiện ích</span>
             </router-link>
+            <router-link
+                to="/admin/amenities"
+                class="nav-item"
+                active-class="nav-active"
+            >
+                <AppIcon name="star" size="18" />
+                <span>Quản lý tiện ích</span>
+            </router-link>
+
+            <div class="nav-group">Kiểm duyệt & hỗ trợ</div>
+            <router-link
+                to="/admin/reports"
+                class="nav-item"
+                active-class="nav-active"
+            >
+                <AppIcon name="messageWarning" size="18" />
+                <span>Xử lý báo cáo</span>
+            </router-link>
             <div class="nav-group">Kiểm duyệt & hỗ trợ</div>
             <router-link
                 to="/admin/reports"
@@ -83,6 +102,10 @@
                 <span>Xử lý báo cáo</span>
             </router-link>
             <router-link
+                to="/admin/complaints"
+                class="nav-item"
+                active-class="nav-active"
+            >
                 to="/admin/complaints"
                 class="nav-item"
                 active-class="nav-active"
@@ -103,26 +126,28 @@
             <router-link
                 to="/admin/platform-fee-tiers"
                 class="nav-item"
-                active-class="nav-active"
+                :class="{ 'nav-active': platformFeeSectionActive }"
             >
                 <AppIcon name="layers" size="18" />
                 <span>Bậc phí nền tảng</span>
             </router-link>
+
+            <div class="nav-group">Đối tác & nội dung</div>
             <router-link
-                to="/admin/platform-fee-ledgers"
+                to="/admin/partner-applications"
                 class="nav-item"
                 active-class="nav-active"
             >
-                <AppIcon name="receipt" size="18" />
-                <span>Phí duy trì</span>
+                <AppIcon name="fileText" size="18" />
+                <span>Quản lý đơn đăng kí</span>
             </router-link>
             <router-link
-                to="/admin/settings/platform-fee"
+                to="/admin/banners"
                 class="nav-item"
                 active-class="nav-active"
             >
-                <AppIcon name="settings" size="18" />
-                <span>Cài đặt phí</span>
+                <AppIcon name="image" size="18" />
+                <span>Quản lý banner</span>
             </router-link>
             <div class="nav-group">Đối tác & nội dung</div>
             <router-link
@@ -159,6 +184,12 @@ export default {
     name: "AdminLayout",
     components: { AppIcon, SidebarLayout },
     computed: {
+        platformFeeSectionActive() {
+            return (
+                String(this.$route.name || "").includes("platform-fee") ||
+                this.$route.query.source === "platform_fee"
+            );
+        },
         currentTitle() {
             const map = {
                 "admin-dashboard": "Dashboard",
@@ -171,6 +202,7 @@ export default {
                 "admin-roles": "Quản lý nhóm quyền",
                 "admin-role-detail": "Chi tiết nhóm quyền",
                 "admin-policies": "Quản lý chính sách",
+                "admin-platform-fee-policies": "Chính sách phí nền tảng",
                 "admin-policy-detail": "Chi tiết chính sách",
                 "admin-reports": "Xử lý báo cáo",
                 "admin-complaints": "Xử lý khiếu nại",

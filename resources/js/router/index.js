@@ -110,6 +110,11 @@ const routes = [
                 component: () => import("../views/admin/AdminBanners.vue"),
             },
             { path: "policies", name: "admin-policies", component: AdminPolicies },
+            {
+                path: "platform-fee-policies",
+                name: "admin-platform-fee-policies",
+                component: AdminPolicies,
+            },
             { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
             {
                 path: "reports",
