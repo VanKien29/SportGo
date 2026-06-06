@@ -37,10 +37,11 @@ function discountFields() {
   return ['discount_1_month', 'discount_3_months', 'discount_6_months', 'discount_9_months', 'discount_12_months'];
 }
 
-export function validateTier(payload, existingTiers = getTiers()) {
+export function validateTier(payload, existingTiers = getTiers(), options = {}) {
   const tier = normalizeTier(payload);
   const errors = {};
   const editingId = payload.id || null;
+  const skipCoverage = Boolean(options.skipCoverage);
 
   if (!tier.name) addFieldError(errors, 'name', 'Vui lòng nhập tên bậc phí.');
   if (tier.name && existingTiers.some((item) => item.id !== editingId && item.is_active && item.name.trim().toLowerCase() === tier.name.toLowerCase())) {
@@ -72,12 +73,12 @@ export function validateTier(payload, existingTiers = getTiers()) {
   const proposed = existingTiers.map((item) => (item.id === editingId ? { ...item, ...tier, id: editingId } : item));
   if (!editingId) proposed.push({ ...tier, id: '__new__' });
   const unlimitedActive = proposed.filter((item) => item.is_active && item.max_courts === null);
-  if (tier.is_active && unlimitedActive.length > 1) {
+  if (tier.is_active && unlimitedActive.length > 1 && !skipCoverage) {
     addFieldError(errors, 'max_courts', 'Chỉ được có một bậc không giới hạn.');
   }
 
   const coverage = validateTierCoverage(proposed);
-  if (tier.is_active && !coverage.isValid) errors._coverage = coverage.errors;
+  if (tier.is_active && !coverage.isValid && !skipCoverage) errors._coverage = coverage.errors;
 
   return {
     isValid: Object.keys(errors).length === 0,
@@ -85,6 +86,70 @@ export function validateTier(payload, existingTiers = getTiers()) {
     normalized: tier,
     coverage,
   };
+}
+
+export function autoAdjustTierRanges(tiers, editedId) {
+  const adjusted = cloneValue(tiers);
+  const adjustments = [];
+  const editedIndex = adjusted.findIndex((tier) => tier.id === editedId);
+
+  if (editedIndex === -1 || !adjusted[editedIndex].is_active) {
+    return { tiers: adjusted, adjustments };
+  }
+
+  const now = new Date().toISOString();
+  const edited = adjusted[editedIndex];
+
+  const previousActive = adjusted
+    .slice(0, editedIndex)
+    .filter((tier) => tier.is_active)
+    .at(-1);
+
+  if (previousActive?.max_courts !== null && previousActive?.max_courts !== undefined) {
+    const nextMin = previousActive.max_courts + 1;
+    if (edited.min_courts !== nextMin) {
+      adjustments.push(`${edited.name}: tự chuyển số sân tối thiểu từ ${edited.min_courts} sang ${nextMin}.`);
+      edited.min_courts = nextMin;
+      edited.updated_at = now;
+    }
+  }
+
+  if (edited.max_courts === null) {
+    adjusted.slice(editedIndex + 1).forEach((tier) => {
+      if (!tier.is_active) return;
+      tier.is_active = false;
+      tier.inactive_reason = `Tự ngưng dùng vì ${edited.name} đã là bậc không giới hạn.`;
+      tier.updated_at = now;
+      adjustments.push(`${tier.name}: tự ngưng dùng vì bậc trước đã bao phủ từ ${edited.min_courts} sân trở lên.`);
+    });
+    return { tiers: adjusted, adjustments };
+  }
+
+  let expectedMin = edited.max_courts + 1;
+
+  for (let index = editedIndex + 1; index < adjusted.length; index += 1) {
+    const tier = adjusted[index];
+    if (!tier.is_active) continue;
+
+    if (tier.max_courts !== null && tier.max_courts < expectedMin) {
+      tier.is_active = false;
+      tier.inactive_reason = 'Tự ngưng dùng vì khoảng sân đã được bậc trước bao phủ.';
+      tier.updated_at = now;
+      adjustments.push(`${tier.name}: tự ngưng dùng vì khoảng ${tier.min_courts} - ${tier.max_courts} đã bị bậc trước bao phủ.`);
+      continue;
+    }
+
+    if (tier.min_courts !== expectedMin) {
+      adjustments.push(`${tier.name}: tự chuyển số sân tối thiểu từ ${tier.min_courts} sang ${expectedMin}.`);
+      tier.min_courts = expectedMin;
+      tier.updated_at = now;
+    }
+
+    if (tier.max_courts === null) break;
+    expectedMin = tier.max_courts + 1;
+  }
+
+  return { tiers: adjusted, adjustments };
 }
 
 export function validateTierCoverage(tiers) {
@@ -183,15 +248,28 @@ export function updateTier(id, payload) {
   const index = platformFeeStore.state.tiers.findIndex((tier) => tier.id === id);
   if (index === -1) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
 
+  const oldTiers = cloneValue(platformFeeStore.state.tiers);
   const oldTier = cloneValue(platformFeeStore.state.tiers[index]);
-  const validation = validateTier({ ...oldTier, ...payload, id });
+  const validation = validateTier({ ...oldTier, ...payload, id }, platformFeeStore.state.tiers, { skipCoverage: true });
   if (!validation.isValid) return Promise.reject(Object.assign(new Error('Dữ liệu bậc phí chưa hợp lệ.'), { validation }));
 
   const updated = { ...oldTier, ...validation.normalized, id, updated_at: new Date().toISOString() };
-  platformFeeStore.state.tiers.splice(index, 1, updated);
+  const proposed = cloneValue(platformFeeStore.state.tiers);
+  proposed.splice(index, 1, updated);
+  const adjusted = autoAdjustTierRanges(proposed, id);
+  const coverage = validateTierCoverage(adjusted.tiers);
+
+  if (updated.is_active && !coverage.isValid) {
+    return Promise.reject(Object.assign(new Error('Cấu hình bậc phí sau khi tự căn chỉnh vẫn chưa hợp lệ.'), {
+      validation: { isValid: false, errors: { _coverage: coverage.errors }, normalized: updated, coverage },
+    }));
+  }
+
+  platformFeeStore.state.tiers = adjusted.tiers;
   platformFeeStore.save();
-  addAuditLog('platform_fee_tier.updated', 'platform_fee_tier', id, oldTier, updated, 'platform_fee_tier');
-  return Promise.resolve(cloneValue(updated));
+  const finalTier = platformFeeStore.state.tiers.find((tier) => tier.id === id);
+  addAuditLog('platform_fee_tier.updated', 'platform_fee_tier', id, oldTiers, platformFeeStore.state.tiers, 'platform_fee_tier');
+  return Promise.resolve({ ...cloneValue(finalTier), range_adjustments: adjusted.adjustments });
 }
 
 export function deactivateTier(id, reason = 'Ngừng sử dụng') {
@@ -306,6 +384,7 @@ export const platformFeeTierService = {
   deleteTier,
   validateTier,
   validateTierCoverage,
+  autoAdjustTierRanges,
   findTierForCourtCount,
   calculatePlatformFee,
   getTierUsageCount,

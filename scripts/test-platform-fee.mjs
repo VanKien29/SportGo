@@ -3,6 +3,8 @@ import { platformFeeStore } from '../resources/js/stores/platformFee.store.js';
 import {
   calculatePlatformFee,
   findTierForCourtCount,
+  getTiers,
+  updateTier,
   validateTier,
   validateTierCoverage,
 } from '../resources/js/services/platformFeeTier.service.js';
@@ -190,6 +192,40 @@ await runCase('N. Email nhac dong phi', async () => {
   const overdue = await createLedger({ venue_cluster_id: 'venue-beta', period_months: 1, period_start: '2027-08-01', due_date: '2027-08-15' });
   logs = await processPlatformFeeReminders('2027-08-18');
   assert.ok(logs.some((log) => log.ledger_id === overdue.id && log.type === 'overdue_3_days'));
+});
+
+await runCase('O. Tu can lai khoang bac phi sau khi sua bac truoc', async () => {
+  const saved = await updateTier('tier-small', { max_courts: 5 });
+  const tiers = getTiers();
+  const small = tiers.find((tier) => tier.id === 'tier-small');
+  const medium = tiers.find((tier) => tier.id === 'tier-medium');
+  const large = tiers.find((tier) => tier.id === 'tier-large');
+
+  assert.equal(saved.max_courts, 5);
+  assert.equal(small.min_courts, 1);
+  assert.equal(small.max_courts, 5);
+  assert.equal(medium.min_courts, 6);
+  assert.equal(medium.max_courts, 7);
+  assert.equal(medium.is_active, true);
+  assert.equal(large.min_courts, 8);
+  assert.equal(large.is_active, true);
+  assert.ok(saved.range_adjustments.some((message) => message.includes(medium.name)));
+  assert.equal(validateTierCoverage(tiers).isValid, true);
+});
+
+await runCase('P. Tu vo hieu hoa bac sau khi bac truoc khong gioi han', async () => {
+  const saved = await updateTier('tier-medium', { max_courts: '' });
+  const tiers = getTiers();
+  const medium = tiers.find((tier) => tier.id === 'tier-medium');
+  const large = tiers.find((tier) => tier.id === 'tier-large');
+
+  assert.equal(saved.max_courts, null);
+  assert.equal(medium.min_courts, 4);
+  assert.equal(medium.max_courts, null);
+  assert.equal(large.is_active, false);
+  assert.ok(large.inactive_reason);
+  assert.ok(saved.range_adjustments.some((message) => message.includes(large.name)));
+  assert.equal(validateTierCoverage(tiers).isValid, true);
 });
 
 const failed = results.filter((result) => result.status === 'FAIL');
