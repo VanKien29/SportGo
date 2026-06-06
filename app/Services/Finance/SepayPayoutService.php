@@ -36,13 +36,13 @@ class SepayPayoutService
             'amount' => (int) round((float) $refund->amount),
             'qr_url' => $this->qrUrl(
                 (string) $refund->payoutAccount->bank_account_number,
-                (string) $refund->payoutAccount->bank_name,
+                $this->bankCodeForQr((string) $refund->payoutAccount->bank_name),
                 (int) round((float) $refund->amount),
                 $code,
             ),
             'recipient' => [
                 'bank_name' => $refund->payoutAccount->bank_name,
-                'bank_code' => null,
+                'bank_code' => $this->bankCodeForQr((string) $refund->payoutAccount->bank_name),
                 'account_number' => $refund->payoutAccount->bank_account_number,
                 'account_holder' => $refund->payoutAccount->bank_account_holder,
             ],
@@ -71,13 +71,13 @@ class SepayPayoutService
             'amount' => (int) round((float) $withdrawal->amount),
             'qr_url' => $this->qrUrl(
                 (string) $withdrawal->bankAccount->account_number,
-                (string) ($withdrawal->bankAccount->bank_code ?: $withdrawal->bankAccount->bank_name),
+                $this->bankCodeForQr((string) ($withdrawal->bankAccount->bank_code ?: $withdrawal->bankAccount->bank_name)),
                 (int) round((float) $withdrawal->amount),
                 $code,
             ),
             'recipient' => [
                 'bank_name' => $withdrawal->bankAccount->bank_name,
-                'bank_code' => $withdrawal->bankAccount->bank_code,
+                'bank_code' => $this->bankCodeForQr((string) ($withdrawal->bankAccount->bank_code ?: $withdrawal->bankAccount->bank_name)),
                 'account_number' => $withdrawal->bankAccount->account_number,
                 'account_holder' => $withdrawal->bankAccount->account_holder_name,
             ],
@@ -87,6 +87,18 @@ class SepayPayoutService
 
     public function checkRefund(Refund $refund, ?string $actorId): array
     {
+        if ($refund->status === 'completed') {
+            return [
+                'completed' => true,
+                'message' => 'Yêu cầu hoàn tiền đã hoàn tất trước đó.',
+                'data' => $refund->fresh(),
+            ];
+        }
+
+        if ($refund->status !== 'processing') {
+            throw new RuntimeException('Chỉ kiểm tra SePay cho yêu cầu hoàn tiền đang xử lý.');
+        }
+
         $qr = $this->refundQr($refund);
         $transaction = $this->findOutboundTransaction($qr['transfer_code'], $qr['amount']);
 
@@ -103,6 +115,18 @@ class SepayPayoutService
 
     public function checkWithdrawal(OwnerWithdrawalRequest $withdrawal, ?string $actorId): array
     {
+        if ($withdrawal->status === 'completed') {
+            return [
+                'completed' => true,
+                'message' => 'Yêu cầu rút tiền đã hoàn tất trước đó.',
+                'data' => $withdrawal->fresh(),
+            ];
+        }
+
+        if ($withdrawal->status !== 'approved') {
+            throw new RuntimeException('Yêu cầu rút tiền chưa được duyệt nên chưa thể kiểm tra SePay.');
+        }
+
         $qr = $this->withdrawalQr($withdrawal);
         $transaction = $this->findOutboundTransaction($qr['transfer_code'], $qr['amount']);
 
@@ -301,6 +325,47 @@ class SepayPayoutService
             'des' => $content,
             'template' => 'compact',
         ]);
+    }
+
+    private function bankCodeForQr(string $value): string
+    {
+        $normalized = Str::upper(trim($value));
+        $normalized = str_replace([' ', '-', '_', '.'], '', $normalized);
+
+        $map = [
+            'ABBANK' => 'ABBANK',
+            'ACB' => 'ACB',
+            'AGRIBANK' => 'AGRIBANK',
+            'BIDV' => 'BIDV',
+            'EIB' => 'EIB',
+            'EXIMBANK' => 'EIB',
+            'HDBANK' => 'HDB',
+            'HDB' => 'HDB',
+            'MB' => 'MB',
+            'MBBANK' => 'MB',
+            'MSB' => 'MSB',
+            'NCB' => 'NCB',
+            'OCB' => 'OCB',
+            'SACOMBANK' => 'STB',
+            'STB' => 'STB',
+            'SHB' => 'SHB',
+            'TCB' => 'TCB',
+            'TECHCOMBANK' => 'TCB',
+            'TPB' => 'TPB',
+            'TPBANK' => 'TPB',
+            'VCB' => 'VCB',
+            'VIETCOMBANK' => 'VCB',
+            'VIB' => 'VIB',
+            'VIETINBANK' => 'VIETINBANK',
+            'VPB' => 'VPB',
+            'VPBANK' => 'VPB',
+        ];
+
+        if (isset($map[$normalized])) {
+            return $map[$normalized];
+        }
+
+        throw new RuntimeException('Tài khoản nhận tiền chưa có mã ngân hàng hợp lệ để tạo QR.');
     }
 
     private function normalizeTransaction(array $payload): array

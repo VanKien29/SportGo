@@ -59,14 +59,14 @@ class UserWalletsTableSeeder extends Seeder
     {
         $existingId = DB::table('user_payout_accounts')
             ->where('user_id', $userId)
-            ->where('bank_account_number', '190000000006')
+            ->where('bank_account_number', '29206999999999')
             ->value('id');
 
         $payload = [
             'user_id' => $userId,
-            'bank_name' => 'Ngân hàng demo',
-            'bank_account_number' => '190000000006',
-            'bank_account_holder' => 'NGUOI DUNG SPORTGO',
+            'bank_name' => 'Techcombank',
+            'bank_account_number' => '29206999999999',
+            'bank_account_holder' => 'NGUYEN VAN KIEN',
             'bank_branch' => 'Hà Nội',
             'is_default' => true,
             'status' => 'active',

@@ -81,7 +81,7 @@
                         <thead>
                             <tr>
                                 <th style="width: 28%;">Tên bộ môn / Loại sân</th>
-                                <th class="text-center player-count-header" style="width: 18%;">Số người chơi tiêu chuẩn</th>
+                                <th class="text-center player-count-header" style="width: 18%;">Số người chơi</th>
                                 <th class="description-header" style="width: 28%;">Mô tả</th>
                                 <th class="status-header" style="width: 11%;">Trạng thái</th>
                                 <th class="text-center actions-header" style="width: 15%;">Thao tác</th>

@@ -67,14 +67,14 @@ class DatabaseSeeder extends Seeder
         $this->callIfTablesExist(PaymentsTableSeeder::class, ['bookings', 'payments']);
         $this->callIfTablesExist(PaymentLogsTableSeeder::class, ['payments', 'payment_logs']);
         $this->callIfTablesExist(RefundsTableSeeder::class, ['payments', 'refunds']);
-        $this->callIfTablesExist(OwnerWalletLedgersTableSeeder::class, [
-            'owner_wallets',
-            'owner_wallet_ledgers',
-        ]);
         $this->callIfTablesExist(OwnerWithdrawalRequestsTableSeeder::class, [
             'owner_wallets',
             'owner_bank_accounts',
             'owner_withdrawal_requests',
+        ]);
+        $this->callIfTablesExist(OwnerWalletLedgersTableSeeder::class, [
+            'owner_wallets',
+            'owner_wallet_ledgers',
         ]);
         $this->callIfTablesExist(VenuePlatformFeeLedgersTableSeeder::class, [
             'venue_clusters',
