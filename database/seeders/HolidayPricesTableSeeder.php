@@ -16,12 +16,17 @@ class HolidayPricesTableSeeder extends Seeder
             return;
         }
 
-        $clusters = VenueCluster::query()->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])->get()->keyBy('slug');
-        $types = CourtType::query()->whereIn('name', ['Cầu lông', 'Bóng đá 5 người'])->pluck('id', 'name');
+        $clusters = VenueCluster::query()
+            ->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])
+            ->get()
+            ->keyBy('slug');
+        $types = CourtType::query()
+            ->whereIn('name', ['Cầu lông (Sân tiêu chuẩn)', 'Bóng Đá (Sân 7)'])
+            ->pluck('id', 'name');
 
         $prices = [
-            ['sportgo-cau-giay', 'Cầu lông', '2026-01-01', 144000],
-            ['sportgo-my-dinh', 'Bóng đá 5 người', '2026-01-01', 600000],
+            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', '2026-01-01', 144000],
+            ['sportgo-my-dinh', 'Bóng Đá (Sân 7)', '2026-01-01', 600000],
         ];
 
         foreach ($prices as [$clusterSlug, $courtTypeName, $date, $price]) {
@@ -46,7 +51,7 @@ class HolidayPricesTableSeeder extends Seeder
                     'price' => $price,
                     'note' => 'Giá mẫu ngày lễ 01/01, cao hơn giá thường khoảng 20%.',
                     'is_active' => true,
-                ]
+                ],
             );
         }
     }

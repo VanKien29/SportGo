@@ -106,7 +106,7 @@ class OwnerWalletLedgersTableSeeder extends Seeder
                     'description' => $description,
                     'note' => $description,
                     'metadata' => ['source' => 'seed', 'request_code' => $referenceCode],
-                ]
+                ],
             );
         }
     }
