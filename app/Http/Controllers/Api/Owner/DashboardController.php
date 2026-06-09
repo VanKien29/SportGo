@@ -12,12 +12,24 @@ class DashboardController extends Controller
     public function index(Request $request): JsonResponse
     {
         $clusterIds = $this->visibleClusterIds($request->user()->id);
+        $selectedClusterId = $request->query('venue_cluster_id');
+
+        if ($selectedClusterId) {
+            if (! $clusterIds->contains($selectedClusterId)) {
+                return response()->json([
+                    'message' => 'Bạn không có quyền xem dữ liệu của cụm sân này.',
+                ], 403);
+            }
+
+            $clusterIds = collect([$selectedClusterId]);
+        }
 
         if ($clusterIds->isEmpty()) {
             return response()->json([
                 'bookings' => 0,
                 'revenue' => 0,
                 'rating' => 0,
+                'venue_cluster_id' => null,
             ]);
         }
 
@@ -39,6 +51,7 @@ class DashboardController extends Controller
             'bookings' => $bookingsCount,
             'revenue' => (float) $revenue,
             'rating' => round((float) $rating, 2),
+            'venue_cluster_id' => $selectedClusterId,
         ]);
     }
 

@@ -29,6 +29,14 @@ class VenuePolicyRule extends Model
         'rejected_reason',
         'created_by',
         'updated_by',
+        'submitted_by',
+        'submitted_at',
+        'reviewed_by',
+        'reviewed_at',
+        'reject_reason',
+        'effective_from',
+        'effective_to',
+        'constraint_check_result',
     ];
 
     protected function casts(): array
@@ -37,6 +45,11 @@ class VenuePolicyRule extends Model
             'condition_json' => 'array',
             'result_json' => 'array',
             'approved_at' => 'datetime',
+            'submitted_at' => 'datetime',
+            'reviewed_at' => 'datetime',
+            'effective_from' => 'datetime',
+            'effective_to' => 'datetime',
+            'constraint_check_result' => 'array',
         ];
     }
 
@@ -48,5 +61,15 @@ class VenuePolicyRule extends Model
     public function venueCluster()
     {
         return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
+    }
+
+    public function reviewedBy()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function submittedBy()
+    {
+        return $this->belongsTo(User::class, 'submitted_by');
     }
 }

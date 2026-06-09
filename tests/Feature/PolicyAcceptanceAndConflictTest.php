@@ -224,8 +224,8 @@ class PolicyAcceptanceAndConflictTest extends TestCase
 
         $this->actingAs($this->admin, 'sanctum')
             ->postJson("/api/admin/policies/{$policy->id}/rules", $this->rulePayload([
-                'action_code' => 'booking.cancel',
-                'rule_type' => 'first_login_accept_required',
+                'action_code' => 'booking.cancel_by_customer',
+                'rule_type' => 'terms_acceptance_required',
             ]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['action_code']);
@@ -235,18 +235,18 @@ class PolicyAcceptanceAndConflictTest extends TestCase
     {
         $policy = $this->createPolicy([
             'key' => 'booking_policy_without_binding',
-            'policy_type' => 'booking',
+            'policy_type' => 'booking_cancellation',
             'status' => 'draft',
             'is_active' => false,
         ]);
 
         $this->createRule($policy, [
-            'action_code' => 'booking.create',
-            'rule_type' => 'booking_auto_cancel_unpaid',
-            'decision_key' => 'booking_auto_cancel_minutes',
-            'conflict_group' => 'booking_auto_cancel',
-            'condition_json' => ['unpaid_minutes' => ['gte' => 15]],
-            'result_json' => ['action' => 'cancel_booking'],
+            'action_code' => 'booking.cancel_by_customer',
+            'rule_type' => 'cancel_before_hours',
+            'decision_key' => 'cancel_allowed',
+            'conflict_group' => 'booking_cancel_window',
+            'condition_json' => ['hours_before_start' => ['gte' => 6]],
+            'result_json' => ['allow_cancel' => true],
         ]);
 
         $this->actingAs($this->admin, 'sanctum')
@@ -264,24 +264,24 @@ class PolicyAcceptanceAndConflictTest extends TestCase
             'is_active' => false,
         ]);
 
-        $this->createBinding($policy, 'booking.cancel', 'booking');
+        $this->createBinding($policy, 'refund.request', 'refund');
         $this->createRule($policy, [
             'rule_code' => 'refund_1',
             'rule_name' => 'Hoàn 50%',
-            'action_code' => 'booking.cancel',
-            'rule_type' => 'refund_by_cancel_time',
+            'action_code' => 'refund.request',
+            'rule_type' => 'refund_percent_by_cancel_time',
             'decision_key' => 'refund_percent',
-            'conflict_group' => 'refund_percent',
+            'conflict_group' => 'refund_percent_minimum',
             'condition_json' => ['hours_before_start' => ['gte' => 24]],
             'result_json' => ['refund_percent' => 50],
         ]);
         $this->createRule($policy, [
             'rule_code' => 'refund_2',
             'rule_name' => 'Hoàn 80%',
-            'action_code' => 'booking.cancel',
-            'rule_type' => 'refund_by_cancel_time',
+            'action_code' => 'refund.request',
+            'rule_type' => 'refund_percent_by_cancel_time',
             'decision_key' => 'refund_percent',
-            'conflict_group' => 'refund_percent',
+            'conflict_group' => 'refund_percent_minimum',
             'condition_json' => ['hours_before_start' => ['gte' => 24]],
             'result_json' => ['refund_percent' => 80],
         ]);
@@ -302,12 +302,12 @@ class PolicyAcceptanceAndConflictTest extends TestCase
             'is_active' => true,
             'effective_from' => now()->subDay(),
         ]);
-        $this->createBinding($oldPolicy, 'booking.cancel', 'booking');
+        $this->createBinding($oldPolicy, 'refund.request', 'refund');
         $this->createRule($oldPolicy, [
-            'action_code' => 'booking.cancel',
-            'rule_type' => 'refund_by_cancel_time',
+            'action_code' => 'refund.request',
+            'rule_type' => 'refund_percent_by_cancel_time',
             'decision_key' => 'refund_percent',
-            'conflict_group' => 'refund_percent',
+            'conflict_group' => 'refund_percent_minimum',
             'condition_json' => ['hours_before_start' => ['gte' => 24]],
             'result_json' => ['refund_percent' => 50],
         ]);
@@ -320,12 +320,12 @@ class PolicyAcceptanceAndConflictTest extends TestCase
             'is_active' => false,
             'replaced_policy_id' => $oldPolicy->id,
         ]);
-        $this->createBinding($newPolicy, 'booking.cancel', 'booking');
+        $this->createBinding($newPolicy, 'refund.request', 'refund');
         $this->createRule($newPolicy, [
-            'action_code' => 'booking.cancel',
-            'rule_type' => 'refund_by_cancel_time',
+            'action_code' => 'refund.request',
+            'rule_type' => 'refund_percent_by_cancel_time',
             'decision_key' => 'refund_percent',
-            'conflict_group' => 'refund_percent',
+            'conflict_group' => 'refund_percent_minimum',
             'condition_json' => ['hours_before_start' => ['gte' => 24]],
             'result_json' => ['refund_percent' => 80],
         ]);
@@ -346,6 +346,63 @@ class PolicyAcceptanceAndConflictTest extends TestCase
             'status' => 'active',
             'is_active' => true,
         ]);
+    }
+
+    public function test_admin_can_delete_draft_policy_along_with_restricted_dependencies(): void
+    {
+        $policy = $this->createPolicy([
+            'key' => 'delete_draft_policy',
+            'policy_type' => 'terms',
+            'status' => 'draft',
+            'is_active' => false,
+        ]);
+
+        // Create status histories
+        \App\Models\PolicyStatusHistory::create([
+            'system_policy_id' => $policy->id,
+            'old_status' => null,
+            'new_status' => 'draft',
+            'changed_by' => $this->admin->id,
+            'actor_type' => 'admin',
+            'reason' => 'Created draft policy',
+        ]);
+
+        // Create override constraints
+        \App\Models\PolicyOverrideConstraint::create([
+            'system_policy_id' => $policy->id,
+            'rule_code' => 'rule_1',
+            'constraint_key' => 'min_cancel_hours',
+            'constraint_name' => 'Min cancel hours',
+            'comparison_direction' => 'exact_only',
+            'message_vi' => 'Không được sửa quy tắc',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->deleteJson("/api/admin/policies/{$policy->id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'Đã xóa bản nháp chính sách.');
+
+        $this->assertDatabaseMissing('system_policies', ['id' => $policy->id]);
+        $this->assertDatabaseMissing('policy_status_histories', ['system_policy_id' => $policy->id]);
+        $this->assertDatabaseMissing('policy_override_constraints', ['system_policy_id' => $policy->id]);
+    }
+
+    public function test_admin_cannot_delete_non_draft_policy(): void
+    {
+        $policy = $this->createPolicy([
+            'key' => 'delete_active_policy',
+            'policy_type' => 'terms',
+            'status' => 'active',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->deleteJson("/api/admin/policies/{$policy->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['policy']);
+
+        $this->assertDatabaseHas('system_policies', ['id' => $policy->id]);
     }
 
     private function createPolicy(array $attributes = []): SystemPolicy
@@ -389,11 +446,11 @@ class PolicyAcceptanceAndConflictTest extends TestCase
             'action_code' => $attributes['action_code'] ?? 'first_login.accept_policy',
             'rule_code' => $attributes['rule_code'] ?? 'rule_' . uniqid(),
             'rule_name' => $attributes['rule_name'] ?? 'Quy tắc kiểm thử',
-            'rule_type' => $attributes['rule_type'] ?? 'first_login_accept_required',
-            'decision_key' => $attributes['decision_key'] ?? 'require_reaccept',
+            'rule_type' => $attributes['rule_type'] ?? 'terms_acceptance_required',
+            'decision_key' => $attributes['decision_key'] ?? 'must_accept_terms',
             'conflict_group' => $attributes['conflict_group'] ?? 'terms_acceptance',
-            'condition_json' => $attributes['condition_json'] ?? ['first_login_after_publish' => true],
-            'result_json' => $attributes['result_json'] ?? ['require_reaccept' => true],
+            'condition_json' => $attributes['condition_json'] ?? ['active_policy_version_not_accepted' => true],
+            'result_json' => $attributes['result_json'] ?? ['must_accept' => true],
             'priority' => $attributes['priority'] ?? 0,
             'is_active' => $attributes['is_active'] ?? true,
             'created_by' => $this->admin->id,
@@ -407,11 +464,11 @@ class PolicyAcceptanceAndConflictTest extends TestCase
             'action_code' => $overrides['action_code'] ?? 'first_login.accept_policy',
             'rule_code' => $overrides['rule_code'] ?? 'rule_' . uniqid(),
             'rule_name' => $overrides['rule_name'] ?? 'Quy tắc kiểm thử',
-            'rule_type' => $overrides['rule_type'] ?? 'first_login_accept_required',
-            'decision_key' => $overrides['decision_key'] ?? 'require_reaccept',
+            'rule_type' => $overrides['rule_type'] ?? 'terms_acceptance_required',
+            'decision_key' => $overrides['decision_key'] ?? 'must_accept_terms',
             'conflict_group' => $overrides['conflict_group'] ?? 'terms_acceptance',
-            'condition_json' => $overrides['condition_json'] ?? ['first_login_after_publish' => true],
-            'result_json' => $overrides['result_json'] ?? ['require_reaccept' => true],
+            'condition_json' => $overrides['condition_json'] ?? ['active_policy_version_not_accepted' => true],
+            'result_json' => $overrides['result_json'] ?? ['must_accept' => true],
             'priority' => $overrides['priority'] ?? 0,
             'is_active' => $overrides['is_active'] ?? true,
         ];
