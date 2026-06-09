@@ -12,6 +12,9 @@ class PartnerApplicationCourt extends Model
     protected $fillable = [
         'partner_application_id',
         'court_type_id',
+        'court_type_name_snapshot',
+        'expected_court_count',
+        'note',
         'name',
         'sort_order',
     ];
@@ -20,6 +23,7 @@ class PartnerApplicationCourt extends Model
     {
         return [
             'court_type_id' => 'integer',
+            'expected_court_count' => 'integer',
             'sort_order' => 'integer',
         ];
     }

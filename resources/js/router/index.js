@@ -17,6 +17,8 @@ import AdminLayout from "../views/admin/AdminLayout.vue";
 import AdminDashboard from "../views/admin/AdminDashboard.vue";
 import AdminProfile from "../views/admin/AdminProfile.vue";
 import AdminUsers from "../views/admin/AdminUsers.vue";
+import AdminUserDetail from "../views/admin/AdminUserDetail.vue";
+import AdminVouchers from "../views/admin/AdminVouchers.vue";
 import AdminPolicies from "../views/admin/AdminPolicies.vue";
 import AdminPolicyDetail from "../views/admin/AdminPolicyDetail.vue";
 import AdminRoles from "../views/admin/AdminRoles.vue";
@@ -24,6 +26,9 @@ import AdminRoleDetail from "../views/admin/AdminRoleDetail.vue";
 import OwnerLayout from "../views/owner/OwnerLayout.vue";
 import OwnerDashboard from "../views/owner/OwnerDashboard.vue";
 import OwnerPricing from "../views/owner/OwnerPricing.vue";
+import OwnerStaff from "../views/owner/OwnerStaff.vue";
+import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
+import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
 
@@ -89,6 +94,8 @@ const routes = [
             },
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
+            { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail },
+            { path: "vouchers", name: "admin-vouchers", component: AdminVouchers },
             {
                 path: "payments",
                 name: "admin-payments",
@@ -207,6 +214,9 @@ const routes = [
                 component: () => import("../views/owner/OwnerVenueCourts.vue"),
             },
             { path: "pricing", name: "owner-pricing", component: OwnerPricing },
+            { path: "staff", name: "owner-staff", component: OwnerStaff },
+            { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
+            { path: "policies", name: "owner-policies", component: OwnerPolicies },
             { path: "", redirect: { name: "owner-dashboard" } },
         ],
     },

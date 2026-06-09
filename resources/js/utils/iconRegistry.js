@@ -166,6 +166,23 @@ export const ICON_REGISTRY = {
     ['circle', { cx: 12, cy: 12, r: 10 }],
     ['path', { d: 'M12 6v6l4 2' }],
   ],
+  power: [
+    ['path', { d: 'M18.36 6.64a9 9 0 1 1-12.73 0' }],
+    ['line', { x1: 12, y1: 2, x2: 12, y2: 12 }],
+  ],
+  'arrow-left': [
+    ['path', { d: 'm12 19-7-7 7-7' }],
+    ['path', { d: 'M19 12H5' }],
+  ],
+  'pause-circle': [
+    ['circle', { cx: 12, cy: 12, r: 10 }],
+    ['line', { x1: 10, y1: 15, x2: 10, y2: 9 }],
+    ['line', { x1: 14, y1: 15, x2: 14, y2: 9 }],
+  ],
+  tag: [
+    ['path', { d: 'M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z' }],
+    ['circle', { cx: 7.5, cy: 7.5, r: 1.5 }],
+  ],
 };
 
 export const ICON_ALIASES = {
@@ -184,6 +201,9 @@ export const ICON_ALIASES = {
   delete: 'trash',
   view: 'eye',
   clone: 'copy',
+  stop: 'power',
+  back: 'arrow-left',
+  arrowLeft: 'arrow-left',
 };
 
 export const NAV_ICON_MAP = {

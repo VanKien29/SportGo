@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\VenuePolicyRule;
 use App\Services\Admin\AdminAuditService;
 use App\Services\Admin\PolicyConflictService;
+use App\Support\PolicyUiText;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -194,6 +195,37 @@ class AdminPolicyController extends Controller
         return response()->json([
             'message' => 'Đã cập nhật chính sách.',
             'data' => $this->policyPayload($policy->fresh()),
+        ]);
+    }
+
+    public function destroy(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'policy.update');
+
+        $policy = SystemPolicy::query()->with(['rules', 'actionBindings'])->findOrFail($id);
+
+        if ($policy->status !== 'draft') {
+            throw ValidationException::withMessages([
+                'policy' => 'Chỉ có thể xóa chính sách ở trạng thái bản nháp.',
+            ]);
+        }
+
+        DB::transaction(function () use ($request, $policy): void {
+            $this->audit->log($request, 'policy', 'policy.deleted', 'system_policies', $policy->id, $policy->toArray(), [], [
+                'policy_id' => $policy->id,
+                'policy_key' => $policy->key,
+                'policy_title' => $policy->title,
+            ]);
+
+            $policy->rules()->delete();
+            $policy->actionBindings()->delete();
+            $policy->statusHistories()->delete();
+            $policy->overrideConstraints()->delete();
+            $policy->delete();
+        });
+
+        return response()->json([
+            'message' => 'Đã xóa bản nháp chính sách.',
         ]);
     }
 
@@ -550,7 +582,7 @@ class AdminPolicyController extends Controller
             ],
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
-            'policy_type' => ['required', Rule::in(['general', 'refund', 'booking', 'moderation', 'account', 'platform_fee', 'terms'])],
+            'policy_type' => ['required', Rule::in(array_keys(PolicyUiText::policyTypeLabels()))],
             'is_overridable' => ['boolean'],
             'require_reaccept' => ['boolean'],
             'priority' => ['integer', 'min:0', 'max:9999'],
@@ -594,6 +626,7 @@ class AdminPolicyController extends Controller
         $this->ensureRuleCompatible($policy, $data['rule_type']);
         $this->ensureActionCompatible($policy, $data['action_code']);
         $this->ensureRuleActionPairCompatible($data['rule_type'], $data['action_code']);
+        $this->validateRulePayload($data);
 
         return $data;
     }
@@ -618,8 +651,10 @@ class AdminPolicyController extends Controller
             'type' => $policy->type,
             'policy_type' => $policyType,
             'policy_type_label' => $this->policyTypeLabel($policyType),
+            'policy_type_label_vi' => $this->policyTypeLabel($policyType),
             'status' => $policy->status,
             'status_label' => $this->statusLabel($policy->status),
+            'status_label_vi' => $this->statusLabel($policy->status),
             'is_active' => (bool) $policy->is_active,
             'is_overridable' => (bool) $policy->is_overridable,
             'priority' => (int) $policy->priority,
@@ -629,6 +664,7 @@ class AdminPolicyController extends Controller
             'require_reaccept' => (bool) $policy->require_reaccept,
             'change_summary' => $policy->change_summary,
             'business_summary' => $this->policyBusinessSummary($policy),
+            'business_summary_vi' => $this->policyBusinessSummary($policy),
             'can_edit_content' => $policy->status !== 'active',
             'action_bindings_count' => (int) ($policy->action_bindings_count ?? ($policy->relationLoaded('actionBindings') ? $policy->actionBindings->count() : 0)),
             'rules_count' => (int) ($policy->rules_count ?? ($policy->relationLoaded('rules') ? $policy->rules->count() : 0)),
@@ -652,6 +688,7 @@ class AdminPolicyController extends Controller
             'module_label' => $this->moduleLabel($binding->module),
             'action_code' => $binding->action_code,
             'action_label' => $this->actionLabel($binding->action_code),
+            'action_label_vi' => $this->actionLabel($binding->action_code),
             'description' => $binding->description,
             'is_active' => (bool) $binding->is_active,
             'created_at' => $binding->created_at,
@@ -666,17 +703,24 @@ class AdminPolicyController extends Controller
             'system_policy_id' => $rule->system_policy_id,
             'action_code' => $rule->action_code,
             'action_label' => $this->actionLabel($rule->action_code),
+            'action_label_vi' => $this->actionLabel($rule->action_code),
             'rule_code' => $rule->rule_code,
             'rule_name' => $rule->rule_name,
+            'rule_label_vi' => $this->ruleTypeLabel($rule->rule_type),
             'rule_type' => $rule->rule_type,
             'rule_type_label' => $this->ruleTypeLabel($rule->rule_type),
+            'policy_type' => $rule->relationLoaded('policy') ? ($rule->policy?->policy_type ?: $rule->policy?->type) : null,
+            'policy_type_label' => $rule->relationLoaded('policy') ? $this->policyTypeLabel($rule->policy?->policy_type ?: $rule->policy?->type) : null,
             'decision_key' => $rule->decision_key,
             'conflict_group' => $rule->conflict_group,
             'condition_json' => $rule->condition_json,
             'result_json' => $rule->result_json,
+            'condition_summary_vi' => PolicyUiText::conditionSummary($rule->rule_type, $rule->condition_json ?: []),
+            'result_summary_vi' => PolicyUiText::resultSummary($rule->rule_type, $rule->result_json ?: []),
             'constraint_json' => $rule->constraint_json,
             'allowed_override_json' => $rule->allowed_override_json,
             'business_summary' => $this->ruleBusinessSummary($rule),
+            'business_summary_vi' => $this->ruleBusinessSummary($rule),
             'technical_detail' => [
                 'action_code' => $rule->action_code,
                 'rule_type' => $rule->rule_type,
@@ -730,7 +774,7 @@ class AdminPolicyController extends Controller
     {
         return match ($policyType) {
             'refund' => 'refund',
-            'booking' => 'booking',
+            'booking', 'booking_cancellation' => 'booking',
             'moderation', 'account' => 'moderation',
             default => 'general',
         };
@@ -788,6 +832,90 @@ class AdminPolicyController extends Controller
         }
     }
 
+    private function validateRulePayload(array $data): void
+    {
+        $condition = $data['condition_json'] ?? [];
+        $result = $data['result_json'] ?? [];
+        $errors = [];
+
+        $positive = function (mixed $value): bool {
+            if (is_array($value)) {
+                $value = $value['gte'] ?? $value['gt'] ?? $value['value'] ?? null;
+            }
+
+            return is_numeric($value) && (float) $value > 0;
+        };
+
+        $percent = function (mixed $value): bool {
+            return is_numeric($value) && (float) $value >= 0 && (float) $value <= 100;
+        };
+
+        switch ($data['rule_type']) {
+            case 'cancel_before_hours':
+                if (! $positive($condition['hours_before_start'] ?? null)) {
+                    $errors['condition_json.hours_before_start'] = 'Số giờ trước giờ chơi phải lớn hơn 0.';
+                }
+                break;
+
+            case 'refund_percent_by_cancel_time':
+                if (! $positive($condition['hours_before_start'] ?? null)) {
+                    $errors['condition_json.hours_before_start'] = 'Số giờ trước giờ chơi phải lớn hơn 0.';
+                }
+                if (! $percent($result['refund_percent'] ?? null)) {
+                    $errors['result_json.refund_percent'] = 'Phần trăm hoàn tiền phải nằm trong khoảng 0 đến 100.';
+                }
+                break;
+
+            case 'owner_confirm_required_before_admin_transfer':
+                if (($result['owner_confirm_required'] ?? null) !== true) {
+                    $errors['result_json.owner_confirm_required'] = 'Rule hoàn tiền phải bắt buộc chủ sân xác nhận.';
+                }
+                if (($result['admin_can_complete_without_owner'] ?? null) !== false) {
+                    $errors['result_json.admin_can_complete_without_owner'] = 'Admin không được hoàn tất nếu chủ sân chưa xác nhận.';
+                }
+                break;
+
+            case 'platform_fee_overdue_warning':
+                if (! $positive($condition['days_before_due'] ?? $condition['overdue_days'] ?? null)) {
+                    $errors['condition_json.days_before_due'] = 'Số ngày nhắc phí phải lớn hơn 0.';
+                }
+                break;
+
+            case 'platform_fee_overdue_lock':
+                if (! $positive($condition['overdue_days'] ?? null)) {
+                    $errors['condition_json.overdue_days'] = 'Số ngày quá hạn phải lớn hơn 0.';
+                }
+                break;
+
+            case 'report_threshold_requires_review':
+                foreach (['report_count', 'unique_reporters'] as $field) {
+                    if (! $positive($condition[$field] ?? null)) {
+                        $errors['condition_json.' . $field] = 'Ngưỡng báo cáo phải lớn hơn 0.';
+                    }
+                }
+                if (! $positive($condition['window_days'] ?? null)) {
+                    $errors['condition_json.window_days'] = 'Số ngày theo dõi báo cáo phải lớn hơn 0.';
+                }
+                break;
+
+            case 'contract_signing_required':
+                if (($condition['owner_signed'] ?? null) !== true || ($condition['sportgo_signed'] ?? null) !== true) {
+                    $errors['condition_json.signatures'] = 'Hợp đồng có hiệu lực phải yêu cầu đủ chữ ký chủ sân và SportGo.';
+                }
+                break;
+
+            case 'partner_termination_transition_30_days':
+                if (! $positive($result['transition_days'] ?? null)) {
+                    $errors['result_json.transition_days'] = 'Số ngày chuyển tiếp phải lớn hơn 0.';
+                }
+                break;
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
     private function ensurePolicyDraftForRuleChange(SystemPolicy $policy): void
     {
         if ($policy->status !== 'active') {
@@ -801,6 +929,10 @@ class AdminPolicyController extends Controller
 
     private function allowedActionCodes(string $policyType): array
     {
+        if ($policyType === 'general') {
+            return collect($this->actionOptions())->pluck('action_code')->all();
+        }
+
         return collect($this->actionOptions())
             ->filter(fn (array $item): bool => in_array($policyType, $item['policy_types'], true))
             ->pluck('action_code')
@@ -809,6 +941,10 @@ class AdminPolicyController extends Controller
 
     private function allowedRuleTypes(string $policyType): array
     {
+        if ($policyType === 'general') {
+            return array_keys($this->ruleTemplateOptions());
+        }
+
         return collect($this->ruleTemplateOptions())
             ->filter(fn (array $item): bool => in_array($policyType, $item['policy_types'], true))
             ->keys()
@@ -817,174 +953,32 @@ class AdminPolicyController extends Controller
 
     private function actionOptions(): array
     {
-        return [
-            ['module' => 'booking', 'module_label' => 'Đặt sân', 'action_code' => 'booking.cancel', 'action_label' => 'Hủy lịch đặt sân', 'description' => 'Áp dụng khi khách hoặc sân hủy booking.', 'policy_types' => ['general', 'booking', 'refund']],
-            ['module' => 'booking', 'module_label' => 'Đặt sân', 'action_code' => 'booking.create', 'action_label' => 'Tạo lịch đặt sân', 'description' => 'Áp dụng khi tạo booking mới.', 'policy_types' => ['general', 'booking']],
-            ['module' => 'booking', 'module_label' => 'Đặt sân', 'action_code' => 'booking.confirm', 'action_label' => 'Xác nhận lịch đặt sân', 'description' => 'Áp dụng khi xác nhận booking.', 'policy_types' => ['general', 'booking']],
-            ['module' => 'refund', 'module_label' => 'Hoàn tiền', 'action_code' => 'refund.request', 'action_label' => 'Khách yêu cầu hoàn tiền', 'description' => 'Áp dụng khi khách gửi yêu cầu hoàn tiền.', 'policy_types' => ['general', 'refund']],
-            ['module' => 'refund', 'module_label' => 'Hoàn tiền', 'action_code' => 'refund.owner_confirm', 'action_label' => 'Chủ sân xác nhận hoàn tiền', 'description' => 'Áp dụng khi chủ sân xác nhận yêu cầu hoàn.', 'policy_types' => ['general', 'refund']],
-            ['module' => 'refund', 'module_label' => 'Hoàn tiền', 'action_code' => 'refund.admin_confirm', 'action_label' => 'Admin xác nhận hoàn tiền', 'description' => 'Áp dụng khi admin xác nhận hoàn tiền hoàn tất.', 'policy_types' => ['general', 'refund']],
-            ['module' => 'report', 'module_label' => 'Báo cáo vi phạm', 'action_code' => 'report.create', 'action_label' => 'Người dùng báo cáo vi phạm', 'description' => 'Áp dụng khi tạo báo cáo vi phạm.', 'policy_types' => ['general', 'moderation']],
-            ['module' => 'report', 'module_label' => 'Báo cáo vi phạm', 'action_code' => 'report.resolve', 'action_label' => 'Xử lý báo cáo vi phạm', 'description' => 'Áp dụng khi admin xử lý báo cáo vi phạm.', 'policy_types' => ['general', 'moderation']],
-            ['module' => 'complaint', 'module_label' => 'Khiếu nại', 'action_code' => 'complaint.create', 'action_label' => 'Tạo khiếu nại', 'description' => 'Áp dụng khi người dùng tạo khiếu nại.', 'policy_types' => ['general', 'moderation']],
-            ['module' => 'complaint', 'module_label' => 'Khiếu nại', 'action_code' => 'complaint.resolve', 'action_label' => 'Xử lý khiếu nại', 'description' => 'Áp dụng khi admin xử lý khiếu nại.', 'policy_types' => ['general', 'moderation']],
-            ['module' => 'account', 'module_label' => 'Tài khoản', 'action_code' => 'account.lock', 'action_label' => 'Khóa tài khoản', 'description' => 'Áp dụng khi khóa tài khoản.', 'policy_types' => ['general', 'account', 'moderation']],
-            ['module' => 'account', 'module_label' => 'Tài khoản', 'action_code' => 'account.unlock', 'action_label' => 'Mở khóa tài khoản', 'description' => 'Áp dụng khi mở khóa tài khoản.', 'policy_types' => ['general', 'account']],
-            ['module' => 'venue', 'module_label' => 'Cụm sân', 'action_code' => 'venue.lock', 'action_label' => 'Khóa cụm sân', 'description' => 'Áp dụng khi khóa cụm sân.', 'policy_types' => ['general', 'platform_fee']],
-            ['module' => 'venue', 'module_label' => 'Cụm sân', 'action_code' => 'venue.lock_due_fee', 'action_label' => 'Khóa cụm sân do quá hạn phí', 'description' => 'Áp dụng khi cụm sân quá hạn phí duy trì.', 'policy_types' => ['general', 'platform_fee']],
-            ['module' => 'auth', 'module_label' => 'Xác thực', 'action_code' => 'first_login.accept_policy', 'action_label' => 'Bắt buộc đồng ý điều khoản', 'description' => 'Áp dụng khi user cần đọc và đồng ý chính sách.', 'policy_types' => ['general', 'terms']],
-        ];
+        return PolicyUiText::actionOptions();
     }
 
     private function ruleTemplateOptions(): array
     {
-        return [
-            'refund_by_cancel_time' => [
-                'rule_type' => 'refund_by_cancel_time',
-                'label' => 'Hoàn tiền theo thời điểm hủy',
-                'rule_type_label' => 'Hoàn tiền theo thời điểm hủy',
-                'description' => 'Xác định phần trăm hoàn tiền theo số giờ khách hủy trước giờ bắt đầu.',
-                'decision_key' => 'refund_percent',
-                'conflict_group' => 'refund_percent',
-                'condition_json' => ['hours_before_start' => ['gte' => 24]],
-                'result_json' => ['refund_percent' => 80, 'requires_owner_confirm' => true, 'requires_admin_confirm' => false],
-                'policy_types' => ['general', 'refund'],
-                'action_codes' => ['booking.cancel', 'refund.request'],
-            ],
-            'refund_time_window' => [
-                'rule_type' => 'refund_time_window',
-                'label' => 'Hoàn tiền theo khung thời gian',
-                'rule_type_label' => 'Hoàn tiền theo khung thời gian',
-                'description' => 'Dùng cho các mốc hoàn tiền khác nhau trong cùng chính sách hoàn hủy.',
-                'decision_key' => 'refund_percent',
-                'conflict_group' => 'refund_percent',
-                'condition_json' => ['hours_before_start' => ['gte' => 12]],
-                'result_json' => ['refund_percent' => 50, 'requires_owner_confirm' => true, 'requires_admin_confirm' => true],
-                'policy_types' => ['general', 'refund'],
-                'action_codes' => ['booking.cancel', 'refund.request'],
-            ],
-            'report_auto_lock' => [
-                'rule_type' => 'report_auto_lock',
-                'label' => 'Gợi ý khóa tài khoản theo số báo cáo',
-                'rule_type_label' => 'Gợi ý khóa tài khoản theo số báo cáo',
-                'description' => 'Tự đề xuất cảnh báo hoặc khóa tài khoản khi có nhiều báo cáo hợp lệ.',
-                'decision_key' => 'moderation_action',
-                'conflict_group' => 'report_auto_lock',
-                'condition_json' => ['report_count' => ['gte' => 10], 'unique_reporters' => ['gte' => 3], 'window_days' => 30],
-                'result_json' => ['action' => 'temporary_lock', 'lock_days' => 7],
-                'policy_types' => ['general', 'moderation'],
-                'action_codes' => ['report.create', 'report.resolve', 'account.lock'],
-            ],
-            'report_threshold' => [
-                'rule_type' => 'report_threshold',
-                'label' => 'Ngưỡng xử lý báo cáo vi phạm',
-                'rule_type_label' => 'Ngưỡng xử lý báo cáo vi phạm',
-                'description' => 'Xác định ngưỡng report để hệ thống nhắc admin xử lý.',
-                'decision_key' => 'report_review_required',
-                'conflict_group' => 'report_threshold',
-                'condition_json' => ['report_count' => ['gte' => 5], 'unique_reporters' => ['gte' => 2], 'window_days' => 14],
-                'result_json' => ['action' => 'require_admin_review'],
-                'policy_types' => ['general', 'moderation'],
-                'action_codes' => ['report.create', 'report.resolve', 'complaint.resolve'],
-            ],
-            'platform_fee_overdue' => [
-                'rule_type' => 'platform_fee_overdue',
-                'label' => 'Xử lý cụm sân quá hạn phí duy trì',
-                'rule_type_label' => 'Xử lý cụm sân quá hạn phí duy trì',
-                'description' => 'Khóa hoặc nhắc phí khi cụm sân quá hạn thanh toán phí duy trì.',
-                'decision_key' => 'venue_fee_action',
-                'conflict_group' => 'platform_fee_overdue',
-                'condition_json' => ['overdue_days' => ['gte' => 7]],
-                'result_json' => ['action' => 'lock_venue', 'reason' => 'Quá hạn phí duy trì nền tảng'],
-                'policy_types' => ['general', 'platform_fee'],
-                'action_codes' => ['venue.lock', 'venue.lock_due_fee'],
-            ],
-            'account_lock_manual' => [
-                'rule_type' => 'account_lock_manual',
-                'label' => 'Khóa tài khoản thủ công',
-                'rule_type_label' => 'Khóa tài khoản thủ công',
-                'description' => 'Bắt buộc admin nhập lý do khi khóa tài khoản.',
-                'decision_key' => 'account_lock_reason_required',
-                'conflict_group' => 'account_lock_manual',
-                'condition_json' => ['manual_action' => true],
-                'result_json' => ['requires_reason' => true, 'requires_audit_log' => true],
-                'policy_types' => ['general', 'account', 'moderation'],
-                'action_codes' => ['account.lock'],
-            ],
-            'first_login_accept_required' => [
-                'rule_type' => 'first_login_accept_required',
-                'label' => 'Bắt buộc đồng ý chính sách',
-                'rule_type_label' => 'Bắt buộc đồng ý chính sách',
-                'description' => 'Yêu cầu người dùng đồng ý phiên bản chính sách mới nhất khi đăng nhập.',
-                'decision_key' => 'require_reaccept',
-                'conflict_group' => 'terms_acceptance',
-                'condition_json' => ['first_login_after_publish' => true],
-                'result_json' => ['require_reaccept' => true],
-                'policy_types' => ['general', 'terms'],
-                'action_codes' => ['first_login.accept_policy'],
-            ],
-            'booking_auto_cancel_unpaid' => [
-                'rule_type' => 'booking_auto_cancel_unpaid',
-                'label' => 'Tự hủy booking chưa thanh toán',
-                'rule_type_label' => 'Tự hủy booking chưa thanh toán',
-                'description' => 'Tự hủy booking nếu quá thời gian giữ chỗ nhưng chưa thanh toán.',
-                'decision_key' => 'booking_auto_cancel_minutes',
-                'conflict_group' => 'booking_auto_cancel',
-                'condition_json' => ['unpaid_minutes' => ['gte' => 15]],
-                'result_json' => ['action' => 'cancel_booking'],
-                'policy_types' => ['general', 'booking'],
-                'action_codes' => ['booking.create', 'booking.confirm'],
-            ],
-        ];
+        return PolicyUiText::ruleTemplateOptions();
     }
 
     private function policyTypeLabel(?string $type): string
     {
-        return [
-            'general' => 'Chung',
-            'refund' => 'Hủy lịch và hoàn tiền',
-            'booking' => 'Đặt sân',
-            'moderation' => 'Kiểm duyệt và báo cáo',
-            'account' => 'Tài khoản',
-            'platform_fee' => 'Phí duy trì cụm sân',
-            'terms' => 'Điều khoản sử dụng',
-        ][$type] ?? ($type ?: 'Không xác định');
+        return PolicyUiText::policyTypeLabel($type);
     }
 
     private function statusLabel(?string $status): string
     {
-        return [
-            'draft' => 'Bản nháp',
-            'active' => 'Đang áp dụng',
-            'inactive' => 'Tạm ngưng',
-            'archived' => 'Đã lưu trữ',
-        ][$status] ?? ($status ?: 'Không xác định');
+        return PolicyUiText::statusLabel($status);
     }
 
     private function moduleLabel(?string $module): string
     {
-        return [
-            'auth' => 'Xác thực',
-            'booking' => 'Đặt sân',
-            'refund' => 'Hoàn tiền',
-            'complaint' => 'Khiếu nại',
-            'report' => 'Báo cáo vi phạm',
-            'account' => 'Tài khoản',
-            'venue' => 'Cụm sân',
-        ][$module] ?? ($module ?: 'Khác');
+        return PolicyUiText::moduleLabel($module);
     }
 
     private function actionLabel(?string $code): string
     {
-        if (! $code) {
-            return 'Không xác định';
-        }
-        foreach ($this->actionOptions() as $option) {
-            if ($option['action_code'] === $code) {
-                return $option['action_label'];
-            }
-        }
-        return str_replace(['.', '_'], [' / ', ' '], $code);
+        return PolicyUiText::actionLabel($code);
     }
 
     private function ruleTypeLabel(?string $type): string
@@ -992,53 +986,19 @@ class AdminPolicyController extends Controller
         if (! $type) {
             return 'Không xác định';
         }
+
         $template = $this->ruleTemplateOptions()[$type] ?? null;
-        return $template['rule_type_label'] ?? str_replace('_', ' ', $type);
+        return $template['rule_type_label'] ?? $template['label'] ?? $type;
     }
 
     private function policyBusinessSummary(SystemPolicy $policy): string
     {
-        $type = $this->policyTypeLabel($policy->policy_type ?: $policy->type);
-        $status = $this->statusLabel($policy->status);
-        $summary = $type . ', ' . $status . ', phiên bản ' . $policy->version . '.';
-        if ($policy->require_reaccept) {
-            $summary .= ' Người dùng cần đồng ý lại khi chính sách được áp dụng.';
-        }
-        if ($policy->is_overridable) {
-            $summary .= ' Chủ sân có thể cấu hình ghi đè nếu module hỗ trợ.';
-        }
-        return $summary;
+        return PolicyUiText::policyBusinessSummary($policy);
     }
 
     private function ruleBusinessSummary(PolicyRule $rule): string
     {
-        $condition = $rule->condition_json ?: [];
-        $result = $rule->result_json ?: [];
-        return match ($rule->rule_type) {
-            'refund_by_cancel_time', 'refund_time_window' => sprintf(
-                'Nếu khách hủy trước ít nhất %s giờ, hệ thống hoàn %s%% tiền%s%s.',
-                $this->ruleConditionValue($condition, 'hours_before_start'),
-                $this->safeScalar($result['refund_percent'] ?? '?'),
-                ($result['requires_owner_confirm'] ?? false) ? ', cần chủ sân xác nhận' : '',
-                ($result['requires_admin_confirm'] ?? false) ? ', cần admin xác nhận' : ''
-            ),
-            'report_auto_lock', 'report_threshold' => sprintf(
-                'Nếu có ít nhất %s báo cáo từ %s người khác nhau trong %s ngày, hệ thống thực hiện: %s.',
-                $this->ruleConditionValue($condition, 'report_count'),
-                $this->ruleConditionValue($condition, 'unique_reporters'),
-                $this->safeScalar($condition['window_days'] ?? '?'),
-                $this->resultActionLabel($result['action'] ?? null)
-            ),
-            'platform_fee_overdue' => sprintf(
-                'Nếu cụm sân quá hạn phí %s ngày, hệ thống thực hiện: %s.',
-                $this->ruleConditionValue($condition, 'overdue_days'),
-                $this->resultActionLabel($result['action'] ?? null)
-            ),
-            'account_lock_manual' => 'Admin phải nhập lý do khi khóa tài khoản thủ công.',
-            'first_login_accept_required' => 'Người dùng phải đồng ý phiên bản chính sách mới nhất trước khi tiếp tục sử dụng.',
-            'booking_auto_cancel_unpaid' => sprintf('Booking chưa thanh toán sẽ tự hủy sau %s phút.', $this->ruleConditionValue($condition, 'unpaid_minutes')),
-            default => $rule->rule_name ?: $this->ruleTypeLabel($rule->rule_type),
-        };
+        return PolicyUiText::ruleBusinessSummary($rule);
     }
 
     private function ruleConditionValue(array $condition, string $field): string
@@ -1068,16 +1028,7 @@ class AdminPolicyController extends Controller
 
     private function resultActionLabel(mixed $action): string
     {
-        if (! is_scalar($action) && $action !== null) return 'xử lý theo cấu hình';
-        return [
-            'warning' => 'gửi cảnh báo',
-            'temporary_lock' => 'khóa tài khoản tạm thời',
-            'permanent_lock' => 'khóa tài khoản vĩnh viễn',
-            'require_admin_review' => 'yêu cầu admin kiểm tra',
-            'lock_venue' => 'khóa cụm sân',
-            'notify' => 'gửi thông báo nhắc nhở',
-            'cancel_booking' => 'hủy booking',
-        ][$action] ?? ($action ?: 'xử lý theo cấu hình');
+        return PolicyUiText::resultActionLabel($action);
     }
 
     private function evaluationHumanResult(PolicyEvaluationLog $log): string

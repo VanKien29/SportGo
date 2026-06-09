@@ -12,8 +12,17 @@ class VenueClusterController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $clusters = VenueCluster::query()
+        $ownedClusterIds = VenueCluster::query()
             ->where('owner_id', $request->user()->id)
+            ->pluck('id');
+
+        $assignedClusterIds = \Illuminate\Support\Facades\DB::table('venue_staff_assignments')
+            ->where('user_id', $request->user()->id)
+            ->where('status', 'active')
+            ->pluck('venue_cluster_id');
+
+        $clusters = VenueCluster::query()
+            ->whereIn('id', $ownedClusterIds->merge($assignedClusterIds)->unique()->values())
             ->latest()
             ->get();
 
