@@ -440,6 +440,21 @@ class AdminPolicyController extends Controller
         return response()->json(['message' => 'Đã tắt thao tác áp dụng chính sách.']);
     }
 
+    public function showRule(Request $request, string $id, string $ruleId): JsonResponse
+    {
+        $this->authorizePermission($request, 'policy.view');
+
+        $policy = SystemPolicy::query()->findOrFail($id);
+        $rule = PolicyRule::query()
+            ->with('policy:id,policy_type,type,title')
+            ->where('system_policy_id', $policy->id)
+            ->findOrFail($ruleId);
+
+        return response()->json([
+            'data' => $this->rulePayload($rule),
+        ]);
+    }
+
     public function storeRule(Request $request, string $id): JsonResponse
     {
         $this->authorizePermission($request, 'policy.rule.manage');

@@ -101,6 +101,7 @@ export default {
         'admin-payments': 'Theo dõi thanh toán booking',
         'admin-finance-operations': 'Hoàn tiền và rút tiền',
         'admin-vouchers': 'Voucher hệ thống',
+        'admin-voucher-detail': 'Chi tiết voucher hệ thống',
         'admin-partner-applications': 'Quản lý đơn đăng ký',
         'admin-banners': 'Quản lý banner',
         'admin-roles': 'Quản lý nhóm quyền',

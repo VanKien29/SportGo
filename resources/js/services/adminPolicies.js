@@ -78,6 +78,10 @@ export const adminPolicyService = {
     });
   },
 
+  showRule(id, ruleId) {
+    return api(`/api/admin/policies/${id}/rules/${ruleId}`);
+  },
+
   toggleRule(id, ruleId) {
     return api(`/api/admin/policies/${id}/rules/${ruleId}/toggle`, { method: 'PATCH' });
   },

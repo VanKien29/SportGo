@@ -65,9 +65,11 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/users/{id}/lock', [AdminUserController::class, 'lock']);
         Route::patch('/users/{id}/unlock', [AdminUserController::class, 'unlock']);
         Route::get('/vouchers', [AdminVoucherController::class, 'index']);
+        Route::get('/vouchers/{id}', [AdminVoucherController::class, 'show']);
         Route::post('/vouchers', [AdminVoucherController::class, 'store']);
         Route::put('/vouchers/{id}', [AdminVoucherController::class, 'update']);
         Route::patch('/vouchers/{id}/deactivate', [AdminVoucherController::class, 'deactivate']);
+        Route::patch('/vouchers/{id}/activate', [AdminVoucherController::class, 'activate']);
         Route::get('/payments', [AdminPaymentController::class, 'index']);
         Route::get('/payments/{id}', [AdminPaymentController::class, 'show']);
         Route::post('/payments/{id}/retry', [AdminPaymentController::class, 'retry']);
@@ -129,6 +131,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/policies/{id}/status', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateStatus']);
         Route::post('/policies/{id}/bindings', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'storeBinding']);
         Route::delete('/policies/{id}/bindings/{bindingId}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'destroyBinding']);
+        Route::get('/policies/{id}/rules/{ruleId}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'showRule']);
         Route::post('/policies/{id}/rules', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'storeRule']);
         Route::put('/policies/{id}/rules/{ruleId}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateRule']);
         Route::patch('/policies/{id}/rules/{ruleId}/toggle', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'toggleRule']);
@@ -158,6 +161,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
         Route::put('/staff/{id}', [OwnerStaffController::class, 'update']);
         Route::patch('/staff/{id}/deactivate', [OwnerStaffController::class, 'deactivate']);
         Route::get('/vouchers', [OwnerVoucherController::class, 'index']);
+        Route::get('/vouchers/{id}', [OwnerVoucherController::class, 'show']);
         Route::post('/vouchers', [OwnerVoucherController::class, 'store']);
         Route::put('/vouchers/{id}', [OwnerVoucherController::class, 'update']);
         Route::patch('/vouchers/{id}/deactivate', [OwnerVoucherController::class, 'deactivate']);

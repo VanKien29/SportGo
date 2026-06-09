@@ -234,7 +234,8 @@ class PolicyUiText
             return 'Không xác định';
         }
 
-        return self::statusLabels()[strtolower($status)] ?? self::statusLabels()[$status] ?? $status;
+        $normalized = strtolower($status);
+        return self::statusLabels()[$normalized] ?? self::statusLabels()[$status] ?? $status;
     }
 
     public static function actionLabel(?string $code): string
@@ -281,7 +282,7 @@ class PolicyUiText
 
         $summary = [
             'terms' => 'Quy định người dùng và chủ sân cần đọc, hiểu và xác nhận trước khi sử dụng SportGo.',
-            'booking_cancellation' => 'Quy định khi nào khách hoặc chủ sân được hủy booking và hủy trong trường hợp nào có thể phát sinh hoàn tiền.',
+            'booking_cancellation' => 'Quy định khi nào khách hoặc chủ sân được hủy booking và trường hợp nào có thể phát sinh hoàn tiền.',
             'refund' => 'Quy định cách tính tiền hoàn và thứ tự xác nhận: khách gửi yêu cầu, chủ sân xác nhận, admin hoàn tất.',
             'platform_fee' => 'Quy định nhắc phí, giới hạn quyền và khóa cụm sân khi chủ sân quá hạn phí nền tảng.',
             'venue_policy' => 'Quy định phạm vi chủ sân được cấu hình chính sách riêng và các giới hạn không được vượt khung hệ thống.',
@@ -310,7 +311,7 @@ class PolicyUiText
         return match ($ruleType) {
             'terms_acceptance_required' => 'Nếu người dùng/chủ sân chưa chấp nhận phiên bản chính sách đang áp dụng, hệ thống yêu cầu xác nhận trước khi tiếp tục sử dụng.',
             'cancel_before_hours' => sprintf(
-                'Nếu booking còn ít nhất %s giờ trước giờ chơi và đang ở trạng thái hợp lệ, hệ thống cho phép hủy và có thể tạo yêu cầu hoàn tiền nếu đã thanh toán.',
+                'Khách chỉ được hủy booking trước giờ chơi tối thiểu %s giờ và booking phải ở trạng thái hợp lệ.',
                 self::conditionValue($condition, 'hours_before_start')
             ),
             'refund_percent_by_cancel_time' => sprintf(

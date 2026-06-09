@@ -74,6 +74,7 @@ class UserController extends Controller
 
         return response()->json([
             'data' => $paginatedUsers->items(),
+            'summary' => $this->accountSummary(),
             'meta' => [
                 'current_page' => $paginatedUsers->currentPage(),
                 'last_page' => $paginatedUsers->lastPage(),
@@ -81,6 +82,17 @@ class UserController extends Controller
                 'total' => $paginatedUsers->total(),
             ],
         ]);
+    }
+
+    private function accountSummary(): array
+    {
+        return [
+            'total' => User::query()->count(),
+            'active' => User::query()->where('status', 'active')->count(),
+            'warning' => count($this->warningUserIds()),
+            'locked' => User::query()->where('status', 'locked')->count(),
+            'pending_verify' => User::query()->where('status', 'pending_verify')->count(),
+        ];
     }
 
     public function show(string $id): JsonResponse
