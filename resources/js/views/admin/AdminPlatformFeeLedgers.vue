@@ -1,5 +1,7 @@
 <template>
     <section class="ledger-page">
+        <PlatformFeeSubnav />
+
         <header class="page-head">
             <div>
                 <p class="eyebrow">Sổ phí duy trì</p>
@@ -450,6 +452,7 @@
 <script>
 import { platformFeeStore } from "../../stores/platformFee.store.js";
 import AppIcon from "../../components/AppIcon.vue";
+import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
 import {
     calculateLedgerPreview,
     cancelLedger,
@@ -485,7 +488,7 @@ function today() {
 
 export default {
     name: "AdminPlatformFeeLedgers",
-    components: { AppIcon },
+    components: { AppIcon, PlatformFeeSubnav },
     data() {
         return {
             ledgers: [],

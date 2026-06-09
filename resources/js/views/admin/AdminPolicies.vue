@@ -1,10 +1,16 @@
 <template>
   <section class="admin-page">
+    <PlatformFeeSubnav v-if="isPlatformFeeScope" />
+
     <header class="page-head">
       <div>
-        <p class="eyebrow">Chính sách vận hành</p>
-        <h2>Quản lý chính sách</h2>
-        <p>Quản lý văn bản chính sách, phiên bản và quy tắc áp dụng.</p>
+        <p class="eyebrow">{{ isPlatformFeeScope ? 'Bậc phí nền tảng' : 'Chính sách vận hành' }}</p>
+        <h2>{{ isPlatformFeeScope ? 'Chính sách áp dụng' : 'Quản lý chính sách' }}</h2>
+        <p>
+          {{ isPlatformFeeScope
+            ? 'Các chính sách phí duy trì được lấy từ hệ thống quản lý chính sách chung.'
+            : 'Quản lý văn bản chính sách, phiên bản và quy tắc áp dụng.' }}
+        </p>
       </div>
       <button class="btn primary" type="button" @click="openCreateModal">
         <AppIcon name="plus" size="18" />
@@ -48,7 +54,7 @@
             @keyup.enter="loadPolicies"
           />
         </label>
-        <select v-model="filters.policy_type" @change="loadPolicies">
+        <select v-if="!isPlatformFeeScope" v-model="filters.policy_type" @change="loadPolicies">
           <option value="">Tất cả loại chính sách</option>
           <option v-for="type in policyTypes" :key="type.value" :value="type.value">
             {{ type.label }}
@@ -243,6 +249,7 @@
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import ConfirmModal from '../../components/ConfirmModal.vue';
+import PlatformFeeSubnav from '../../components/PlatformFeeSubnav.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import { adminPolicyService } from '../../services/adminPolicies.js';
 import { STATUS_ICON_MAP } from '../../utils/iconRegistry.js';
@@ -266,13 +273,19 @@ const STATUS_LABELS = {
 
 export default {
   name: 'AdminPolicies',
-  components: { ActionIconButton, AppIcon, ConfirmModal, TableActionGroup },
+  components: { ActionIconButton, AppIcon, ConfirmModal, PlatformFeeSubnav, TableActionGroup },
   data() {
+    const platformFeeScope = this.$route.name === 'admin-platform-fee-policies';
     return {
       policies: [],
       summary: {},
-      filters: { keyword: '', policy_type: '', status: '', require_reaccept: '' },
-      form: this.defaultForm(),
+      filters: {
+        keyword: '',
+        policy_type: platformFeeScope ? 'platform_fee' : '',
+        status: '',
+        require_reaccept: '',
+      },
+      form: this.defaultForm(platformFeeScope),
       loading: false,
       saving: false,
       showModal: false,
@@ -287,6 +300,9 @@ export default {
     };
   },
   computed: {
+    isPlatformFeeScope() {
+      return this.$route.name === 'admin-platform-fee-policies';
+    },
     sortedPolicies() {
       return [...this.policies].sort((a, b) => {
         const left = this.sortValue(a, this.sortKey);
@@ -300,13 +316,13 @@ export default {
     this.loadPolicies();
   },
   methods: {
-    defaultForm() {
+    defaultForm(platformFeeScope = this.isPlatformFeeScope) {
       return {
         key: '',
         version: 1,
         title: '',
         content: '',
-        policy_type: 'general',
+        policy_type: platformFeeScope ? 'platform_fee' : 'general',
         priority: 0,
         is_overridable: false,
         require_reaccept: false,
@@ -327,7 +343,12 @@ export default {
       }
     },
     resetFilters() {
-      this.filters = { keyword: '', policy_type: '', status: '', require_reaccept: '' };
+      this.filters = {
+        keyword: '',
+        policy_type: this.isPlatformFeeScope ? 'platform_fee' : '',
+        status: '',
+        require_reaccept: '',
+      };
       this.loadPolicies();
     },
     sortBy(key) {
@@ -347,7 +368,14 @@ export default {
       return policy[key] || '';
     },
     goDetail(policy, tab = 'document') {
-      this.$router.push({ name: 'admin-policy-detail', params: { id: policy.id }, query: { tab } });
+      this.$router.push({
+        name: 'admin-policy-detail',
+        params: { id: policy.id },
+        query: {
+          tab,
+          ...(this.isPlatformFeeScope ? { source: 'platform_fee' } : {}),
+        },
+      });
     },
     openCreateModal() {
       this.form = this.defaultForm();

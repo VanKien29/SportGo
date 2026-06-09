@@ -1,6 +1,6 @@
 <template>
   <section class="admin-page">
-    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-policies' })">
+    <button class="link-btn" type="button" @click="backToPolicies">
       ← Quay lại danh sách chính sách
     </button>
 
@@ -516,6 +516,13 @@ export default {
     this.loadAll();
   },
   methods: {
+    backToPolicies() {
+      this.$router.push({
+        name: this.$route.query.source === 'platform_fee'
+          ? 'admin-platform-fee-policies'
+          : 'admin-policies',
+      });
+    },
     getActionLabel,
     getAuditActionLabel,
     getModuleMeta,

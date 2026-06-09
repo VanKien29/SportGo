@@ -42,7 +42,7 @@ class PaymentLogsTableSeeder extends Seeder
                     'status_after' => $after,
                     'error_code' => $errorCode,
                     'error_message' => null,
-                ]
+                ],
             );
         }
     }

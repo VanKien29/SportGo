@@ -1,5 +1,7 @@
 <template>
     <section class="settings-page">
+        <PlatformFeeSubnav />
+
         <header class="panel">
             <p class="eyebrow">Cài đặt phí duy trì</p>
         </header>
@@ -41,9 +43,11 @@
 
 <script>
 import { platformFeeStore } from "../../stores/platformFee.store.js";
+import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
 
 export default {
     name: "AdminPlatformFeeSettings",
+    components: { PlatformFeeSubnav },
     data() {
         return {
             settings: { ...platformFeeStore.state.settings },
