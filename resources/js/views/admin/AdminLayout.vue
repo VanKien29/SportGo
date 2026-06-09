@@ -74,14 +74,6 @@
                 <AppIcon name="star" size="18" />
                 <span>Quản lý tiện ích</span>
             </router-link>
-            <router-link
-                to="/admin/amenities"
-                class="nav-item"
-                active-class="nav-active"
-            >
-                <AppIcon name="star" size="18" />
-                <span>Quản lý tiện ích</span>
-            </router-link>
 
             <div class="nav-group">Kiểm duyệt & hỗ trợ</div>
             <router-link
@@ -92,20 +84,7 @@
                 <AppIcon name="messageWarning" size="18" />
                 <span>Xử lý báo cáo</span>
             </router-link>
-            <div class="nav-group">Kiểm duyệt & hỗ trợ</div>
             <router-link
-                to="/admin/reports"
-                class="nav-item"
-                active-class="nav-active"
-            >
-                <AppIcon name="messageWarning" size="18" />
-                <span>Xử lý báo cáo</span>
-            </router-link>
-            <router-link
-                to="/admin/complaints"
-                class="nav-item"
-                active-class="nav-active"
-            >
                 to="/admin/complaints"
                 class="nav-item"
                 active-class="nav-active"
@@ -132,23 +111,6 @@
                 <span>Bậc phí nền tảng</span>
             </router-link>
 
-            <div class="nav-group">Đối tác & nội dung</div>
-            <router-link
-                to="/admin/partner-applications"
-                class="nav-item"
-                active-class="nav-active"
-            >
-                <AppIcon name="fileText" size="18" />
-                <span>Quản lý đơn đăng kí</span>
-            </router-link>
-            <router-link
-                to="/admin/banners"
-                class="nav-item"
-                active-class="nav-active"
-            >
-                <AppIcon name="image" size="18" />
-                <span>Quản lý banner</span>
-            </router-link>
             <div class="nav-group">Đối tác & nội dung</div>
             <router-link
                 to="/admin/partner-applications"

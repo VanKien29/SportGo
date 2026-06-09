@@ -271,19 +271,19 @@
           <div class="form-grid">
             <label class="field">
               <span>Tên tài khoản</span>
-              <input v-model.trim="approveForm.bank_account_name" type="text" maxlength="150" />
+              <input v-model.trim="approveForm.bank_account_name" type="text" maxlength="150" disabled />
             </label>
             <label class="field">
               <span>Số tài khoản</span>
-              <input v-model.trim="approveForm.bank_account_number" type="text" maxlength="50" />
+              <input v-model.trim="approveForm.bank_account_number" type="text" maxlength="50" disabled />
             </label>
             <label class="field">
               <span>Ngân hàng</span>
-              <input v-model.trim="approveForm.bank_name" type="text" maxlength="100" />
+              <input v-model.trim="approveForm.bank_name" type="text" maxlength="100" disabled />
             </label>
             <label class="field">
               <span>Mã ngân hàng</span>
-              <input v-model.trim="approveForm.bank_code" type="text" maxlength="50" />
+              <input v-model.trim="approveForm.bank_code" type="text" maxlength="50" disabled />
             </label>
           </div>
 
@@ -606,6 +606,14 @@ export default {
   font-weight: 500;
   background: #fff;
   color: var(--sg-text);
+}
+
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
 .field input,

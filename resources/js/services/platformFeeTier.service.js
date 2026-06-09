@@ -164,14 +164,14 @@ export function validateTier(payload, existingTiers = getTiers(), options = {}) 
     }
   }
 
-  const coverage = validateTierCoverage(proposedRebalancedTiers(proposed));
-  if (tier.is_active && !coverage.isValid) errors._coverage = coverage.errors;
+  const rebalancedCoverage = validateTierCoverage(proposedRebalancedTiers(proposed));
+  if (tier.is_active && !rebalancedCoverage.isValid) errors._coverage = rebalancedCoverage.errors;
 
   return {
     isValid: Object.keys(errors).length === 0,
     errors,
     normalized: tier,
-    coverage,
+    coverage: rebalancedCoverage,
   };
 }
 
