@@ -108,7 +108,17 @@
               </span>
               <span class="sub-line">{{ formatDate(refund.owner_confirmation?.confirmed_at) }}</span>
             </td>
-            <td><strong>{{ formatCurrency(refund.amount) }}</strong><span class="sub-line">{{ refund.reason || '-' }}</span></td>
+            <td>
+              <strong>{{ formatCurrency(refund.amount) }}</strong>
+              <span class="sub-line">{{ refund.reason || '-' }}</span>
+              <span
+                v-if="refund.policy_evaluation?.summary"
+                class="policy-line"
+                :class="{ warning: refund.policy_evaluation.compliant === false, muted: refund.policy_evaluation.evaluated === false }"
+              >
+                {{ refund.policy_evaluation.summary }}
+              </span>
+            </td>
             <td><span class="status-pill" :class="refund.status">{{ statusLabel(refund.status) }}</span><span class="sub-line">{{ refund.status_reason || formatDate(refund.processed_at) }}</span></td>
             <td><button v-if="refund.receipt" class="code-link" type="button" @click="openReceipt(refund.receipt)">{{ refund.receipt.receipt_code }}</button><span v-else>-</span></td>
             <td>
@@ -599,6 +609,9 @@ th { background: #f8fafc; color: #334155; font-weight: 800; }
 .status-pill.processing, .status-pill.approved { background: #dbeafe; color: #1e40af; }
 .status-pill.completed { background: #dcfce7; color: #166534; }
 .status-pill.failed, .status-pill.rejected, .status-pill.cancelled { background: #fee2e2; color: #991b1b; }
+.policy-line { display: block; margin-top: 5px; color: #15803d; font-size: 12px; font-weight: 700; }
+.policy-line.warning { color: #b91c1c; }
+.policy-line.muted { color: #64748b; font-weight: 600; }
 .code-link { border: 0; padding: 0; background: transparent; color: #15803d; font-weight: 800; text-decoration: underline; cursor: pointer; }
 .row-actions { gap: 8px; justify-content: flex-end; }
 .pagination { justify-content: flex-end; gap: 12px; color: #64748b; font-size: 13px; }
