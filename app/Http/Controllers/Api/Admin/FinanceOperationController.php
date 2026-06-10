@@ -11,6 +11,7 @@ use App\Services\Finance\AdminRefundService;
 use App\Services\Finance\AdminWithdrawalService;
 use App\Services\Finance\MBBankBulkTransferExportService;
 use App\Services\Finance\SepayPayoutService;
+use App\Services\Policies\RefundPolicyEvaluator;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,7 @@ class FinanceOperationController extends Controller
         private readonly AdminAuditService $audit,
         private readonly MBBankBulkTransferExportService $mbBulkExport,
         private readonly SepayPayoutService $sepayPayouts,
+        private readonly RefundPolicyEvaluator $refundPolicies,
     ) {}
 
     public function refunds(Request $request): JsonResponse
@@ -51,8 +53,8 @@ class FinanceOperationController extends Controller
 
         $query = Refund::query()
             ->with([
-                'payment:id,payment_code,booking_id,method,payment_kind,status,gateway_txn_id',
-                'booking:id,booking_code,customer_id,venue_cluster_id,total_price,status',
+                'payment:id,payment_code,booking_id,amount,method,payment_kind,status,gateway_txn_id',
+                'booking:id,booking_code,customer_id,venue_cluster_id,total_price,status,booking_date,start_time,end_time,cancelled_at',
                 'booking.customer:id,username,full_name,email,phone',
                 'booking.venueCluster:id,name,owner_id',
                 'payoutAccount:id,user_id,bank_name,bank_account_number,bank_account_holder,bank_branch,status',
@@ -444,7 +446,8 @@ class FinanceOperationController extends Controller
     private function loadRefund(string $id): Refund
     {
         return Refund::query()->with([
-            'payment:id,payment_code,booking_id,method,payment_kind,status,gateway_txn_id',
+            'payment:id,payment_code,booking_id,amount,method,payment_kind,status,gateway_txn_id',
+            'booking:id,booking_code,customer_id,venue_cluster_id,total_price,status,booking_date,start_time,end_time,cancelled_at',
             'booking.customer:id,username,full_name,email,phone',
             'booking.venueCluster:id,name,owner_id',
             'payoutAccount',
@@ -501,6 +504,7 @@ class FinanceOperationController extends Controller
             'processed_at' => $refund->processed_at,
             'created_at' => $refund->created_at,
             'receipt' => $this->receiptPayload($refund->receipt),
+            'policy_evaluation' => $this->refundPolicies->evaluate($refund),
             'can_pay_by_qr' => $refund->status === 'processing'
                 && $refund->refund_destination === 'bank_account'
                 && $refund->payoutAccount?->status === 'active'
