@@ -13,6 +13,8 @@ use App\Models\User;
 use App\Models\VenuePolicyRule;
 use App\Services\Admin\AdminAuditService;
 use App\Services\Admin\PolicyConflictService;
+use App\Services\Policies\ModerationReportPolicyService;
+use App\Services\Policies\RefundCancellationPolicyService;
 use App\Support\PolicyUiText;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
@@ -26,7 +28,9 @@ class AdminPolicyController extends Controller
 {
     public function __construct(
         private readonly AdminAuditService $audit,
-        private readonly PolicyConflictService $conflicts
+        private readonly PolicyConflictService $conflicts,
+        private readonly RefundCancellationPolicyService $refundPolicies,
+        private readonly ModerationReportPolicyService $reportPolicies
     ) {
     }
 
@@ -59,6 +63,7 @@ class AdminPolicyController extends Controller
                 'active' => $policies->where('status', 'active')->count(),
                 'draft' => $policies->where('status', 'draft')->count(),
                 'archived' => $policies->where('status', 'archived')->count(),
+                'overridable' => $policies->where('is_overridable', true)->count(),
             ],
         ]);
     }
@@ -132,6 +137,9 @@ class AdminPolicyController extends Controller
                 'rules' => $policy->rules
                     ->map(fn (PolicyRule $rule): array => $this->rulePayload($rule))
                     ->values(),
+                'cancellation_configuration' => $this->cancellationConfigurationPayload($policy),
+                'refund_configuration' => $this->refundConfigurationPayload($policy),
+                'report_configuration' => $this->reportConfigurationPayload($policy),
                 'venue_rules' => $venueRules,
                 'evaluation_logs' => $evaluationLogs
                     ->map(fn (PolicyEvaluationLog $log): array => $this->evaluationPayload($log, $policy))
@@ -641,6 +649,42 @@ class AdminPolicyController extends Controller
         $this->ensureRuleCompatible($policy, $data['rule_type']);
         $this->ensureActionCompatible($policy, $data['action_code']);
         $this->ensureRuleActionPairCompatible($data['rule_type'], $data['action_code']);
+
+        if ($data['rule_type'] === RefundCancellationPolicyService::CANCELLATION_RULE_TYPE && isset($data['result_json']['tiers'])) {
+            $tiers = $this->refundPolicies->validateSystemCancellationTiers($data['result_json']['tiers']);
+            $data['condition_json'] = ['uses_tier_table' => true];
+            $data['result_json'] = [
+                ...($data['result_json'] ?? []),
+                'tiers' => $tiers,
+                'summary_vi' => $this->refundPolicies->cancellationSummary($tiers),
+            ];
+        }
+
+        if ($data['rule_type'] === RefundCancellationPolicyService::REFUND_RULE_TYPE && isset($data['result_json']['tiers'])) {
+            $tiers = $this->refundPolicies->validateSystemTiers($data['result_json']['tiers']);
+            $data['condition_json'] = ['uses_tier_table' => true];
+            $data['result_json'] = [
+                ...($data['result_json'] ?? []),
+                'tiers' => $tiers,
+                'refund_percent' => $tiers[0]['refund_percent'] ?? null,
+                'requires_owner_confirm' => $data['result_json']['requires_owner_confirm'] ?? true,
+                'requires_admin_confirm' => $data['result_json']['requires_admin_confirm'] ?? true,
+                'summary_vi' => $this->refundPolicies->summary($tiers),
+            ];
+        }
+
+        if ($data['rule_type'] === ModerationReportPolicyService::RULE_TYPE) {
+            $config = $this->reportPolicies->validateConfig([
+                'target_type' => $data['condition_json']['target_type'] ?? 'content',
+                'minimum_reports' => $data['condition_json']['report_count']['gte'] ?? $data['condition_json']['report_count'] ?? 5,
+                'minimum_unique_reporters' => $data['condition_json']['unique_reporters']['gte'] ?? $data['condition_json']['unique_reporters'] ?? 2,
+                'window_days' => $data['condition_json']['window_days'] ?? 14,
+                'actions' => $data['result_json']['actions'] ?? [$data['result_json']['action'] ?? 'pending_review'],
+            ]);
+            $data['condition_json'] = $this->reportPolicies->conditionJson($config);
+            $data['result_json'] = $this->reportPolicies->resultJson($config);
+        }
+
         $this->validateRulePayload($data);
 
         return $data;
@@ -711,8 +755,112 @@ class AdminPolicyController extends Controller
         ];
     }
 
+    private function cancellationConfigurationPayload(SystemPolicy $policy): ?array
+    {
+        $policyType = $policy->policy_type ?: $policy->type;
+        if ($policyType !== 'booking_cancellation') {
+            return null;
+        }
+
+        $rules = $policy->relationLoaded('rules') ? $policy->rules : $policy->rules()->get();
+        $rule = $rules->firstWhere('rule_type', RefundCancellationPolicyService::CANCELLATION_RULE_TYPE);
+
+        if (! $rule) {
+            $tiers = $this->refundPolicies->defaultCancellationTiers();
+
+            return [
+                'is_supported' => true,
+                'has_rule' => false,
+                'summary' => 'Chưa có bảng mốc hủy booking cho chính sách này.',
+                'tiers' => $this->refundPolicies->normalizeCancellationTiers($tiers),
+                'can_edit' => $policy->status !== 'active',
+            ];
+        }
+
+        $tiers = $this->refundPolicies->cancellationTiersFromRule($rule);
+
+        return [
+            'is_supported' => true,
+            'has_rule' => true,
+            'rule_id' => $rule->id,
+            'rule_name' => $rule->rule_name,
+            'status_label' => $rule->is_active ? 'Đang bật' : 'Đang tắt',
+            'summary' => $this->refundPolicies->cancellationSummary($tiers),
+            'tiers' => $tiers,
+            'can_edit' => $policy->status !== 'active',
+        ];
+    }
+
+    private function refundConfigurationPayload(SystemPolicy $policy): ?array
+    {
+        $policyType = $policy->policy_type ?: $policy->type;
+        if ($policyType !== 'refund') {
+            return null;
+        }
+
+        $rules = $policy->relationLoaded('rules') ? $policy->rules : $policy->rules()->get();
+        $rule = $rules->firstWhere('rule_type', RefundCancellationPolicyService::RULE_TYPE);
+
+        if (! $rule) {
+            return [
+                'is_supported' => true,
+                'has_rule' => false,
+                'summary' => 'Chưa có bảng mốc hoàn tiền cho chính sách này.',
+                'tiers' => $this->refundPolicies->normalizeTiers($this->refundPolicies->defaultTiers()),
+                'can_edit' => $policy->status !== 'active',
+                'requires_owner_confirm' => true,
+                'requires_admin_confirm' => true,
+            ];
+        }
+
+        $tiers = $this->refundPolicies->tiersFromRule($rule);
+
+        return [
+            'is_supported' => true,
+            'has_rule' => true,
+            'rule_id' => $rule->id,
+            'rule_code' => $rule->rule_code,
+            'rule_name' => $rule->rule_name,
+            'status_label' => $rule->is_active ? 'Đang bật' : 'Đang tắt',
+            'summary' => $this->refundPolicies->summary($tiers),
+            'tiers' => $tiers,
+            'can_edit' => $policy->status !== 'active',
+            'requires_owner_confirm' => (bool) ($rule->result_json['requires_owner_confirm'] ?? true),
+            'requires_admin_confirm' => (bool) ($rule->result_json['requires_admin_confirm'] ?? true),
+        ];
+    }
+
+    private function reportConfigurationPayload(SystemPolicy $policy): ?array
+    {
+        $policyType = $policy->policy_type ?: $policy->type;
+        if ($policyType !== 'moderation') {
+            return null;
+        }
+
+        $rules = $policy->relationLoaded('rules') ? $policy->rules : $policy->rules()->get();
+        $rule = $rules->firstWhere('rule_type', ModerationReportPolicyService::RULE_TYPE);
+
+        return $this->reportPolicies->payload($rule, $policy->status !== 'active');
+    }
+
     private function rulePayload(PolicyRule $rule): array
     {
+        $cancellationTiers = $rule->rule_type === RefundCancellationPolicyService::CANCELLATION_RULE_TYPE
+            ? $this->refundPolicies->cancellationTiersFromRule($rule)
+            : null;
+        $refundTiers = $rule->rule_type === RefundCancellationPolicyService::RULE_TYPE
+            ? $this->refundPolicies->tiersFromRule($rule)
+            : null;
+        $reportConfig = $rule->rule_type === ModerationReportPolicyService::RULE_TYPE
+            ? $this->reportPolicies->payload($rule, true)
+            : null;
+        $businessSummary = match (true) {
+            (bool) $cancellationTiers => $this->refundPolicies->cancellationSummary($cancellationTiers),
+            (bool) $refundTiers => $this->refundPolicies->summary($refundTiers),
+            (bool) $reportConfig => $reportConfig['summary'],
+            default => $this->ruleBusinessSummary($rule),
+        };
+
         return [
             'id' => $rule->id,
             'system_policy_id' => $rule->system_policy_id,
@@ -730,12 +878,23 @@ class AdminPolicyController extends Controller
             'conflict_group' => $rule->conflict_group,
             'condition_json' => $rule->condition_json,
             'result_json' => $rule->result_json,
-            'condition_summary_vi' => PolicyUiText::conditionSummary($rule->rule_type, $rule->condition_json ?: []),
-            'result_summary_vi' => PolicyUiText::resultSummary($rule->rule_type, $rule->result_json ?: []),
+            'condition_summary_vi' => $reportConfig['summary'] ?? PolicyUiText::conditionSummary($rule->rule_type, $rule->condition_json ?: []),
+            'result_summary_vi' => $businessSummary,
             'constraint_json' => $rule->constraint_json,
             'allowed_override_json' => $rule->allowed_override_json,
-            'business_summary' => $this->ruleBusinessSummary($rule),
-            'business_summary_vi' => $this->ruleBusinessSummary($rule),
+            'business_summary' => $businessSummary,
+            'business_summary_vi' => $businessSummary,
+            'configuration_type' => match (true) {
+                (bool) $cancellationTiers => 'cancellation_tier_table',
+                (bool) $refundTiers => 'refund_tier_table',
+                (bool) $reportConfig => 'report_threshold',
+                default => 'rule',
+            },
+            'cancellation_tiers' => $cancellationTiers,
+            'cancellation_tier_summary' => $cancellationTiers ? $this->refundPolicies->cancellationSummary($cancellationTiers) : null,
+            'refund_tiers' => $refundTiers,
+            'refund_tier_summary' => $refundTiers ? $this->refundPolicies->summary($refundTiers) : null,
+            'report_configuration' => $reportConfig,
             'technical_detail' => [
                 'action_code' => $rule->action_code,
                 'rule_type' => $rule->rule_type,
@@ -867,12 +1026,20 @@ class AdminPolicyController extends Controller
 
         switch ($data['rule_type']) {
             case 'cancel_before_hours':
+                if (isset($result['tiers']) && is_array($result['tiers'])) {
+                    $this->refundPolicies->validateSystemCancellationTiers($result['tiers']);
+                    break;
+                }
                 if (! $positive($condition['hours_before_start'] ?? null)) {
                     $errors['condition_json.hours_before_start'] = 'Số giờ trước giờ chơi phải lớn hơn 0.';
                 }
                 break;
 
             case 'refund_percent_by_cancel_time':
+                if (isset($result['tiers']) && is_array($result['tiers'])) {
+                    $this->refundPolicies->validateSystemTiers($result['tiers']);
+                    break;
+                }
                 if (! $positive($condition['hours_before_start'] ?? null)) {
                     $errors['condition_json.hours_before_start'] = 'Số giờ trước giờ chơi phải lớn hơn 0.';
                 }
@@ -903,6 +1070,13 @@ class AdminPolicyController extends Controller
                 break;
 
             case 'report_threshold_requires_review':
+                $this->reportPolicies->validateConfig([
+                    'target_type' => $condition['target_type'] ?? 'content',
+                    'minimum_reports' => $condition['report_count']['gte'] ?? $condition['report_count'] ?? null,
+                    'minimum_unique_reporters' => $condition['unique_reporters']['gte'] ?? $condition['unique_reporters'] ?? null,
+                    'window_days' => $condition['window_days'] ?? null,
+                    'actions' => $result['actions'] ?? [$result['action'] ?? null],
+                ]);
                 foreach (['report_count', 'unique_reporters'] as $field) {
                     if (! $positive($condition[$field] ?? null)) {
                         $errors['condition_json.' . $field] = 'Ngưỡng báo cáo phải lớn hơn 0.';

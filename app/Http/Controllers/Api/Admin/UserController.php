@@ -104,8 +104,17 @@ class UserController extends Controller
         return response()->json([
             'data' => [
                 'profile' => $this->payload($user),
+                'status_summary' => $this->statusSummary($user),
+                'role_summary' => [
+                    'roles' => $this->roleDetails($user),
+                    'primary_role_label' => $this->primaryRoleLabel($user->roles->pluck('name')->all()),
+                ],
                 'roles' => $this->roleDetails($user),
                 'permission_revokes' => $this->permissionRevokes($user->id),
+                'permission_summary' => [
+                    'revoked_count' => count($this->permissionRevokes($user->id)),
+                    'revokes' => $this->permissionRevokes($user->id),
+                ],
                 'warning_summary' => $this->warningSummary($user->id),
                 'reports_summary' => $this->reportSummary($user->id),
                 'complaints_summary' => $this->complaintSummary($user->id),
@@ -238,7 +247,10 @@ class UserController extends Controller
             'complaints_count_recent' => $complaints,
             'warning_count' => $warningCount,
             'warning_summary' => $this->warningLevelText($reports, $complaints),
+            'warning_level' => $this->warningLevelText($reports, $complaints)['level'],
+            'warning_label' => $this->warningLevelText($reports, $complaints)['label'],
             'wallet_balance' => $extras['wallet_balance'] ?? ($this->walletSummary($user->id)['balance'] ?? 0),
+            'wallet_balance_formatted' => $this->money($extras['wallet_balance'] ?? ($this->walletSummary($user->id)['balance'] ?? 0)),
             'actions_allowed' => [
                 'view_detail' => true,
                 'lock' => $user->status !== 'locked',
@@ -340,6 +352,20 @@ class UserController extends Controller
         ])->values()->all();
     }
 
+    private function statusSummary(User $user): array
+    {
+        return [
+            'status' => $user->status,
+            'status_label' => $this->statusLabel($user->status),
+            'reason' => $user->status_reason,
+            'lock_type' => $user->lock_type,
+            'lock_type_label' => $this->lockTypeLabel($user->lock_type),
+            'locked_at' => $user->locked_at,
+            'locked_until' => $user->locked_until,
+            'locked_by_name' => $user->relationLoaded('lockedBy') ? ($user->lockedBy?->full_name ?: $user->lockedBy?->username) : null,
+        ];
+    }
+
     private function permissionRevokes(string $userId): array
     {
         if (! Schema::hasTable('user_permission_revokes')) {
@@ -438,12 +464,12 @@ class UserController extends Controller
     private function walletSummary(string $userId): array
     {
         if (! Schema::hasTable('user_wallets')) {
-            return ['balance' => 0, 'locked_balance' => 0, 'status' => 'none', 'status_label' => 'Chưa có ví', 'ledgers' => []];
+            return ['balance' => 0, 'locked_balance' => 0, 'balance_formatted' => $this->money(0), 'locked_balance_formatted' => $this->money(0), 'status' => 'none', 'status_label' => 'Chưa có ví', 'ledgers' => []];
         }
 
         $wallet = DB::table('user_wallets')->where('user_id', $userId)->first();
         if (! $wallet) {
-            return ['balance' => 0, 'locked_balance' => 0, 'status' => 'none', 'status_label' => 'Chưa có ví', 'ledgers' => []];
+            return ['balance' => 0, 'locked_balance' => 0, 'balance_formatted' => $this->money(0), 'locked_balance_formatted' => $this->money(0), 'status' => 'none', 'status_label' => 'Chưa có ví', 'ledgers' => []];
         }
 
         $ledgers = Schema::hasTable('user_wallet_ledgers')
@@ -453,6 +479,8 @@ class UserController extends Controller
         return [
             'balance' => (float) $wallet->balance,
             'locked_balance' => (float) $wallet->locked_balance,
+            'balance_formatted' => $this->money($wallet->balance),
+            'locked_balance_formatted' => $this->money($wallet->locked_balance),
             'status' => $wallet->status,
             'status_label' => $this->walletStatusLabel($wallet->status ?? null),
             'ledgers' => $ledgers->map(fn ($ledger) => [
@@ -462,7 +490,9 @@ class UserController extends Controller
                 'type_label' => $this->walletLedgerTypeLabel($ledger->type ?? null),
                 'direction' => $ledger->direction ?? null,
                 'amount' => (float) ($ledger->amount ?? 0),
+                'amount_formatted' => $this->money($ledger->amount ?? 0),
                 'balance_after' => (float) ($ledger->balance_after ?? 0),
+                'balance_after_formatted' => $this->money($ledger->balance_after ?? 0),
                 'status' => $ledger->status ?? null,
                 'status_label' => $this->walletStatusLabel($ledger->status ?? null),
                 'created_at' => $ledger->created_at ?? null,
@@ -483,6 +513,7 @@ class UserController extends Controller
             'completed' => (clone $base)->where('status', 'completed')->count(),
             'cancelled' => (clone $base)->where('status', 'cancelled')->count(),
             'paid_total' => (float) (clone $base)->whereIn('status', ['confirmed', 'checked_in', 'completed'])->sum('total_price'),
+            'paid_total_formatted' => $this->money((clone $base)->whereIn('status', ['confirmed', 'checked_in', 'completed'])->sum('total_price')),
         ];
     }
 
@@ -515,6 +546,7 @@ class UserController extends Controller
                 'booking_code' => $booking->booking_code,
                 'booking_date' => $booking->booking_date,
                 'total_price' => (float) $booking->total_price,
+                'total_price_formatted' => $this->money($booking->total_price),
                 'status' => $booking->status,
                 'status_label' => $this->bookingStatusLabel($booking->status),
                 'payment_option' => $booking->payment_option,
@@ -704,6 +736,20 @@ class UserController extends Controller
             'withdrawal' => 'Rút tiền',
             'adjustment' => 'Điều chỉnh',
         ][$type] ?? ($type ?: 'Biến động');
+    }
+
+    private function lockTypeLabel(?string $type): string
+    {
+        return [
+            'temporary' => 'Khóa tạm thời',
+            'permanent' => 'Khóa vĩnh viễn',
+            'auto' => 'Khóa tự động',
+        ][$type] ?? ($type ?: 'Không áp dụng');
+    }
+
+    private function money(mixed $value): string
+    {
+        return number_format((float) $value, 0, ',', '.') . ' đ';
     }
 
     private function bookingStatusLabel(?string $status): string

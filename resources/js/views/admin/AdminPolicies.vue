@@ -7,7 +7,7 @@
         <p class="eyebrow">{{ isPlatformFeeScope ? 'Chính sách phí nền tảng' : 'Quản lý chính sách' }}</p>
         <h2>{{ isPlatformFeeScope ? 'Chính sách áp dụng cho phí nền tảng' : 'Quản lý chính sách' }}</h2>
         <p>
-          Quản lý văn bản chính sách và các quy tắc xử lý tự động. Mã kỹ thuật chỉ hiển thị như thông tin phụ.
+          Quản lý văn bản chính sách và cấu hình xử lý theo nghiệp vụ.
         </p>
       </div>
       <button class="btn primary" type="button" @click="openCreateModal">
@@ -33,8 +33,8 @@
         <span>Bản nháp</span>
       </article>
       <article class="stat-card">
-        <strong>{{ policiesNeedAttention }}</strong>
-        <span>Cần rà soát</span>
+        <strong>{{ summary.overridable || 0 }}</strong>
+        <span>Cho sân cấu hình riêng</span>
       </article>
     </div>
 
@@ -43,7 +43,7 @@
         <AppIcon name="search" size="18" />
         <input
           v-model.trim="filters.keyword"
-          placeholder="Tìm theo tên chính sách hoặc mã kỹ thuật"
+          placeholder="Tìm theo tên chính sách"
           @keyup.enter="loadPolicies"
         />
       </label>
@@ -101,7 +101,6 @@
             <tr v-for="policy in policies" :key="policy.id">
               <td class="main-cell">
                 <strong>{{ policy.title }}</strong>
-                <span>Mã kỹ thuật: {{ policy.key || 'chưa có' }}</span>
               </td>
               <td>{{ policyTypeLabel(policy) }}</td>
               <td>v{{ policy.version || 1 }}</td>
@@ -125,7 +124,7 @@
                   <button class="icon-action" type="button" title="Xem tổng quan" @click="goDetail(policy, 'overview')">
                     <AppIcon name="eye" size="16" />
                   </button>
-                  <button class="icon-action" type="button" title="Xem quy tắc" @click="goDetail(policy, 'rules')">
+                  <button class="icon-action" type="button" title="Xem cấu hình xử lý" @click="goDetail(policy, 'config')">
                     <AppIcon name="sliders" size="16" />
                   </button>
                   <button class="icon-action" type="button" title="Tạo phiên bản mới" @click="clonePolicy(policy)">
@@ -141,7 +140,16 @@
                     <AppIcon name="check" size="16" />
                   </button>
                   <button
-                    v-else
+                    v-if="policy.status === 'draft'"
+                    class="icon-action danger"
+                    type="button"
+                    title="Xóa bản nháp"
+                    @click="openDeleteConfirm(policy)"
+                  >
+                    <AppIcon name="trash" size="16" />
+                  </button>
+                  <button
+                    v-if="policy.status === 'active'"
                     class="icon-action danger"
                     type="button"
                     title="Ngưng áp dụng"
@@ -173,10 +181,6 @@
 
         <div class="form-body">
           <div class="form-grid">
-            <label>
-              Mã chính sách
-              <input v-model.trim="form.key" required placeholder="vd: refund_policy" />
-            </label>
             <label>
               Phiên bản
               <input v-model.number="form.version" type="number" min="1" required />
@@ -246,6 +250,16 @@
       type="danger"
       @confirm="archivePolicy"
     />
+
+    <ConfirmModal
+      v-model="confirmDelete.show"
+      title="Xóa bản nháp"
+      :message="`Xóa bản nháp ${confirmDelete.policy?.title || ''}?`"
+      consequence="Bản nháp và cấu hình xử lý của bản nháp sẽ bị xóa."
+      confirm-text="Xóa bản nháp"
+      type="danger"
+      @confirm="deletePolicy"
+    />
   </section>
 </template>
 
@@ -279,6 +293,7 @@ export default {
       success: '',
       confirmPublish: { show: false, policy: null },
       confirmArchive: { show: false, policy: null },
+      confirmDelete: { show: false, policy: null },
       policyTypes: Object.entries(POLICY_TYPE_LABELS)
         .filter(([value]) => !['general', 'booking', 'account'].includes(value))
         .map(([value, label]) => ({ value, label })),
@@ -287,9 +302,6 @@ export default {
   computed: {
     isPlatformFeeScope() {
       return this.$route.name === 'admin-platform-fee-policies';
-    },
-    policiesNeedAttention() {
-      return this.policies.filter((policy) => ['draft', 'pending_review', 'rejected'].includes(policy.status)).length;
     },
   },
   mounted() {
@@ -354,7 +366,10 @@ export default {
       this.saving = true;
       this.modalError = '';
       try {
-        const response = await adminPolicyService.create(this.form);
+        const response = await adminPolicyService.create({
+          ...this.form,
+          key: this.form.key || this.buildPolicyKey(this.form),
+        });
         this.success = response.message || 'Đã tạo chính sách.';
         this.closeModal();
         await this.loadPolicies();
@@ -365,11 +380,24 @@ export default {
         this.saving = false;
       }
     },
+    buildPolicyKey(form) {
+      const base = String(form.title || form.policy_type || 'policy')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 48);
+      return `${form.policy_type}_${base || 'policy'}_${Date.now().toString(36)}`;
+    },
     openPublishConfirm(policy) {
       this.confirmPublish = { show: true, policy };
     },
     openArchiveConfirm(policy) {
       this.confirmArchive = { show: true, policy };
+    },
+    openDeleteConfirm(policy) {
+      this.confirmDelete = { show: true, policy };
     },
     async publishPolicy() {
       const policy = this.confirmPublish.policy;
@@ -383,6 +411,11 @@ export default {
     },
     async clonePolicy(policy) {
       await this.runAction(() => adminPolicyService.cloneVersion(policy.id), 'Đã tạo phiên bản mới.');
+    },
+    async deletePolicy() {
+      const policy = this.confirmDelete.policy;
+      if (!policy) return;
+      await this.runAction(() => adminPolicyService.delete(policy.id), 'Đã xóa bản nháp.');
     },
     async runAction(action, fallbackMessage) {
       this.error = '';

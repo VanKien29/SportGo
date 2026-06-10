@@ -5,12 +5,17 @@ namespace Database\Seeders;
 use App\Models\PolicyRule;
 use App\Models\SystemPolicy;
 use App\Models\User;
+use App\Services\Policies\RefundCancellationPolicyService;
 use App\Support\PolicyUiText;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Schema;
 
 class PolicyRulesTableSeeder extends Seeder
 {
+    public function __construct(private readonly RefundCancellationPolicyService $refundPolicies)
+    {
+    }
+
     public function run(): void
     {
         if (! Schema::hasTable('system_policies') || ! Schema::hasTable('policy_rules')) {
@@ -58,23 +63,24 @@ class PolicyRulesTableSeeder extends Seeder
             ],
             'booking_cancellation' => [
                 $this->fromTemplate($templates['cancel_before_hours'], 100, [
-                    'rule_name' => 'Booking chỉ được hủy khi còn đủ thời gian và ở trạng thái hợp lệ',
-                    'condition_json' => [
-                        'hours_before_start' => ['gte' => 6],
-                        'booking_status' => ['pending_approval', 'pending_payment', 'confirmed'],
-                    ],
-                    'result_json' => [
-                        'allow_cancel' => true,
+                    'rule_name' => 'Bảng mốc thời gian được hủy booking',
+                    'condition_json' => ['uses_tier_table' => true],
+                    'result_json' => $this->refundPolicies->cancellationResultJson($this->refundPolicies->defaultCancellationTiers(), [
                         'disallow_statuses' => ['checked_in', 'completed'],
                         'owner_cancel_requires_reason' => true,
                         'may_create_refund_request' => true,
-                    ],
+                    ]),
+                    'constraint_json' => ['tiers' => ['venue_cannot_be_less_favorable_than_system' => true]],
+                    'allowed_override_json' => ['tiers' => ['allow_cancel' => 'venue_can_keep_or_be_more_favorable_to_customer']],
                 ]),
             ],
             'refund' => [
                 $this->fromTemplate($templates['refund_percent_by_cancel_time'], 100, [
-                    'constraint_json' => ['refund_percent' => ['min' => 80, 'max' => 100]],
-                    'allowed_override_json' => ['refund_percent' => ['min' => 80, 'max' => 100]],
+                    'rule_name' => 'Bảng mốc hoàn tiền theo thời gian hủy hợp lệ',
+                    'condition_json' => ['uses_tier_table' => true],
+                    'result_json' => $this->refundPolicies->resultJson($this->refundPolicies->defaultTiers()),
+                    'constraint_json' => ['tiers' => ['venue_refund_percent_must_be_at_least_system_percent' => true]],
+                    'allowed_override_json' => ['tiers' => ['refund_percent' => 'venue_can_be_more_favorable_to_customer']],
                 ]),
                 $this->fromTemplate($templates['owner_confirm_required_before_admin_transfer'], 110, [
                     'constraint_json' => ['owner_confirm_required' => ['exact' => true]],
@@ -99,7 +105,20 @@ class PolicyRulesTableSeeder extends Seeder
                 $this->fromTemplate($templates['venue_policy_override_limit'], 100),
             ],
             'moderation' => [
-                $this->fromTemplate($templates['report_threshold_requires_review'], 90),
+                $this->fromTemplate($templates['report_threshold_requires_review'], 90, [
+                    'rule_name' => 'Ngưỡng báo cáo đưa nội dung vào chờ kiểm duyệt',
+                    'condition_json' => [
+                        'target_type' => 'content',
+                        'report_count' => ['gte' => 5],
+                        'unique_reporters' => ['gte' => 2],
+                        'window_days' => 14,
+                    ],
+                    'result_json' => [
+                        'actions' => ['pending_review', 'notify_admin'],
+                        'action' => 'pending_review',
+                        'summary_vi' => 'Nếu nội dung nhận từ 5 báo cáo hợp lệ bởi ít nhất 2 người khác nhau trong 14 ngày, hệ thống chuyển nội dung sang chờ kiểm duyệt và thông báo admin.',
+                    ],
+                ]),
             ],
             'partner_contract' => [
                 $this->fromTemplate($templates['partner_application_approve_requires_contract'], 90),

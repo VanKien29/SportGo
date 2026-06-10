@@ -23,6 +23,12 @@ export const ownerPolicyService = {
       body: JSON.stringify(payloadWithCluster(payload)),
     });
   },
+  resetRule(id, payload = {}) {
+    return api(`/api/owner/venue-policies/rules/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify(payloadWithCluster(payload)),
+    });
+  },
   createNotice(payload) {
     return api('/api/owner/venue-policies/notices', {
       method: 'POST',

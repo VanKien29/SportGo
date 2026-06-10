@@ -33,10 +33,19 @@
         <div class="avatar">{{ initials(profile.full_name || profile.username) }}</div>
         <div class="summary-main">
           <strong>{{ profile.full_name || 'Chưa cập nhật tên' }}</strong>
-          <span>{{ profile.primary_role_label || 'Chưa gán vai trò' }}</span>
+          <span>@{{ profile.username || '-' }} · {{ profile.email || profile.phone || 'Chưa có liên hệ' }}</span>
         </div>
         <span class="badge" :class="statusTone(profile.status)">{{ profile.status_label || statusLabel(profile.status) }}</span>
+        <span class="badge neutral">{{ profile.primary_role_label || 'Chưa gán vai trò' }}</span>
         <span class="badge" :class="warningTone(detail.warning_summary?.level)">{{ detail.warning_summary?.label || 'Bình thường' }}</span>
+      </section>
+
+      <section class="quick-stats">
+        <Metric label="Số dư ví" :value="wallet.balance_formatted || money(wallet.balance)" />
+        <Metric label="Tổng booking" :value="bookingSummary.total || 0" />
+        <Metric label="Số report" :value="detail.reports_summary?.total || 0" />
+        <Metric label="Mức cảnh báo" :value="detail.warning_summary?.label || 'Bình thường'" />
+        <Metric label="Hoạt động gần nhất" :value="dateTime(profile.updated_at)" />
       </section>
 
       <nav class="tabs" aria-label="Tab chi tiết tài khoản">
@@ -72,6 +81,13 @@
       <section v-if="activeTab === 'warnings'" class="panel">
         <h3>Cảnh báo & báo cáo</h3>
         <p class="notice">{{ detail.warning_summary?.message || 'Tài khoản chưa có dấu hiệu rủi ro đáng chú ý.' }}</p>
+        <div class="risk-meter">
+          <div>
+            <strong>{{ detail.warning_summary?.label || 'Bình thường' }}</strong>
+            <span>{{ riskProgress }}% ngưỡng theo dõi</span>
+          </div>
+          <div class="progress"><i :style="{ width: `${riskProgress}%` }"></i></div>
+        </div>
         <div class="metric-row">
           <Metric label="Report 7 ngày" :value="detail.warning_summary?.reports_7_days || 0" />
           <Metric label="Report 14 ngày" :value="detail.warning_summary?.reports_14_days || 0" />
@@ -331,6 +347,11 @@ export default {
     recentComplaints() {
       return this.detail?.complaints_summary?.recent || [];
     },
+    riskProgress() {
+      const reports = Number(this.detail?.warning_summary?.reports_14_days || 0);
+      const complaints = Number(this.detail?.warning_summary?.complaints_open || 0);
+      return Math.min(100, Math.round(((reports + complaints) / 5) * 100));
+    },
   },
   mounted() {
     this.loadDetail();
@@ -456,11 +477,12 @@ export default {
 .page-head h2 { margin: 6px 0; }
 .page-head p, .muted, small { margin: 0; color: #64748b; }
 .back-link { display: inline-flex; align-items: center; gap: 6px; color: #15803d; font-weight: 900; text-decoration: none; }
-.summary-card, .panel, .state-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; }
-.summary-card { justify-content: flex-start; }
+.summary-card, .panel, .state-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; }
+.summary-card { justify-content: flex-start; border-left: 4px solid #16a34a; }
 .summary-main { display: grid; gap: 4px; margin-right: auto; }
 .summary-main span { color: #64748b; }
-.avatar { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; background: #16a34a; color: #fff; font-weight: 900; }
+.avatar { width: 60px; height: 60px; border-radius: 14px; display: grid; place-items: center; background: #0f172a; color: #bbf7d0; font-weight: 900; font-size: 20px; }
+.quick-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .tabs, .metric-row, .segmented { display: flex; gap: 8px; flex-wrap: wrap; }
 .tabs button, .segmented button { border: 1px solid #dbe3ef; background: #fff; border-radius: 8px; padding: 10px 14px; font-weight: 800; cursor: pointer; color: #334155; }
 .tabs button.active, .segmented button.active { background: #dcfce7; border-color: #22c55e; color: #166534; }
@@ -471,6 +493,10 @@ export default {
 :deep(.info-item span), .metric span { color: #64748b; font-size: 13px; }
 .metric strong { font-size: 20px; }
 .notice { margin: 0; padding: 12px; border-radius: 10px; background: #f0fdf4; color: #166534; font-weight: 800; }
+.risk-meter { display: grid; gap: 8px; padding: 14px; border-radius: 10px; background: #fffbeb; border: 1px solid #fde68a; }
+.risk-meter div:first-child { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: #92400e; }
+.progress { height: 10px; border-radius: 999px; overflow: hidden; background: #fde68a; }
+.progress i { display: block; height: 100%; border-radius: inherit; background: #f97316; transition: width .2s ease; }
 .two-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .list-box { display: grid; gap: 10px; }
 .list-box article { display: grid; gap: 6px; padding: 12px; background: #f8fafc; border-radius: 10px; }
@@ -495,7 +521,7 @@ pre { max-height: 260px; overflow: auto; background: #0f172a; color: #e2e8f0; bo
 .badge.success { background: #dcfce7; color: #166534; }
 .badge.danger { background: #fee2e2; color: #991b1b; }
 .badge.warning { background: #fef3c7; color: #92400e; }
-.badge.muted { background: #f1f5f9; color: #475569; }
+.badge.muted, .badge.neutral { background: #f1f5f9; color: #475569; }
 .alert { border-radius: 10px; padding: 12px 14px; font-weight: 800; }
 .alert.error { background: #fef2f2; color: #991b1b; }
 .alert.success { background: #f0fdf4; color: #166534; }
@@ -510,6 +536,6 @@ pre { max-height: 260px; overflow: auto; background: #0f172a; color: #e2e8f0; bo
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 900px) {
   .page-head, .summary-card { display: grid; }
-  .info-grid, .two-columns, .change-grid { grid-template-columns: 1fr; }
+  .info-grid, .two-columns, .change-grid, .quick-stats { grid-template-columns: 1fr; }
 }
 </style>

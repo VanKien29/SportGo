@@ -167,6 +167,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
         Route::patch('/vouchers/{id}/deactivate', [OwnerVoucherController::class, 'deactivate']);
         Route::get('/venue-policies', [OwnerVenuePolicyController::class, 'index']);
         Route::post('/venue-policies/rules', [OwnerVenuePolicyController::class, 'storeRule']);
+        Route::delete('/venue-policies/rules/{id}', [OwnerVenuePolicyController::class, 'destroyRule']);
         Route::post('/venue-policies/notices', [OwnerVenuePolicyController::class, 'storeNotice']);
         Route::put('/venue-policies/notices/{id}', [OwnerVenuePolicyController::class, 'updateNotice']);
         Route::get('/pricing', [OwnerPricingController::class, 'index']);
