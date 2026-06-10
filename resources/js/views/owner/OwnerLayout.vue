@@ -47,6 +47,14 @@
           <AppIcon name="messageWarning" size="18" />
           <span>Bài đăng & Thông báo</span>
         </router-link>
+        <router-link to="/owner/bookings" class="nav-item" active-class="nav-active">
+          <AppIcon name="calendar" size="18" />
+          <span>Lịch booking</span>
+        </router-link>
+        <router-link to="/owner/matchmaking" class="nav-item" active-class="nav-active">
+          <AppIcon name="tag" size="18" />
+          <span>Giao lưu tại sân</span>
+        </router-link>
       </div>
     </template>
 
@@ -90,6 +98,9 @@ export default {
         'owner-vouchers': 'Voucher của sân',
         'owner-policies': 'Chính sách sân',
         'owner-posts': 'Bài đăng & Thông báo',
+        'owner-bookings': 'Lịch booking',
+        'owner-counter-booking': 'Tạo booking tại quầy',
+        'owner-matchmaking': 'Giao lưu tại sân',
       };
 
       return map[this.$route.name] || 'Chủ sân';

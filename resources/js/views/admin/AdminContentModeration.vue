@@ -37,6 +37,14 @@
           </select>
         </label>
 
+        <div v-if="activeTab !== 'reports'" class="auto-approve-wrapper">
+          <label class="switch">
+            <input type="checkbox" v-model="autoApproveEnabled" @change="toggleAutoApprove" />
+            <span class="slider"></span>
+          </label>
+          <span class="switch-label">Tự động duyệt (5s)</span>
+        </div>
+
         <button class="btn ghost btn-refresh" type="button" @click="refresh">
           <AppIcon name="refresh" size="16" />
           <span>Làm mới</span>
@@ -520,6 +528,8 @@ export default {
         img: '',
       },
       mousedownWasOnBackdrop: false,
+      autoApproveEnabled: false,
+      autoApproveInterval: null,
     };
   },
   computed: {
@@ -532,6 +542,9 @@ export default {
   },
   mounted() {
     this.loadData();
+  },
+  beforeUnmount() {
+    this.stopAutoApprove();
   },
   methods: {
     handleBackdropMousedown(event) {
@@ -567,6 +580,10 @@ export default {
     },
     changeTab(tabValue) {
       this.activeTab = tabValue;
+      if (tabValue === 'reports') {
+        this.autoApproveEnabled = false;
+        this.stopAutoApprove();
+      }
       this.clearAlerts();
       this.filters.search = '';
       this.filters.reason = '';
@@ -635,8 +652,39 @@ export default {
         await this.loadData(this.pagination.current_page);
       } catch (err) {
         this.error = err.message || 'Duyệt bài viết thất bại.';
+        if (this.autoApproveEnabled) {
+          this.autoApproveEnabled = false;
+          this.stopAutoApprove();
+        }
       } finally {
         this.savingAction = false;
+      }
+    },
+    toggleAutoApprove() {
+      if (this.autoApproveEnabled) {
+        this.startAutoApprove();
+      } else {
+        this.stopAutoApprove();
+      }
+    },
+    startAutoApprove() {
+      this.stopAutoApprove();
+      this.autoApproveInterval = setInterval(async () => {
+        if (this.loading || this.savingAction || this.activeTab === 'reports') {
+          return;
+        }
+        if (this.items.length > 0) {
+          const firstItem = this.items[0];
+          await this.approvePostDirect(firstItem);
+        } else {
+          await this.loadData(1);
+        }
+      }, 5000);
+    },
+    stopAutoApprove() {
+      if (this.autoApproveInterval) {
+        clearInterval(this.autoApproveInterval);
+        this.autoApproveInterval = null;
       }
     },
 
@@ -1436,5 +1484,71 @@ th {
   object-fit: contain;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   border-radius: 4px;
+}
+
+/* AUTO APPROVE TOGGLE */
+.auto-approve-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: .4s;
+  border-radius: 22px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #10b981;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #10b981;
+}
+
+input:checked + .slider:before {
+  transform: translateX(18px);
+}
+
+.switch-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
 }
 </style>

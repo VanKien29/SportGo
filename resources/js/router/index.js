@@ -227,6 +227,21 @@ const routes = [
                 name: "owner-posts",
                 component: () => import("../views/owner/OwnerPosts.vue"),
             },
+            {
+                path: "bookings",
+                name: "owner-bookings",
+                component: () => import("../views/owner/OwnerBookings.vue"),
+            },
+            {
+                path: "counter-booking",
+                name: "owner-counter-booking",
+                component: () => import("../views/owner/OwnerCounterBooking.vue"),
+            },
+            {
+                path: "matchmaking",
+                name: "owner-matchmaking",
+                component: () => import("../views/owner/OwnerMatchmaking.vue"),
+            },
             { path: "", redirect: { name: "owner-dashboard" } },
         ],
     },

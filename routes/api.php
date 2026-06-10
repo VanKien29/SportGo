@@ -179,6 +179,19 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
         Route::post('/price-slots', [OwnerPricingController::class, 'storePriceSlot']);
         Route::patch('/price-slots/{id}', [OwnerPricingController::class, 'updatePriceSlot']);
         Route::delete('/price-slots/{id}', [OwnerPricingController::class, 'destroyPriceSlot']);
+
+        // Booking Management
+        Route::get('/bookings', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'index']);
+        Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'show']);
+        Route::post('/bookings/counter', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'storeCounter']);
+        Route::post('/bookings/recurring', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'storeRecurring']);
+        Route::patch('/bookings/{id}/status', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'updateStatus']);
+        Route::patch('/bookings/{id}/court', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'changeCourt']);
+
+        // Matchmaking Posts (Giao lưu tại sân)
+        Route::get('/matchmaking-posts', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'index']);
+        Route::patch('/matchmaking-posts/{id}/hide', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'hide']);
+        Route::post('/matchmaking-posts/{id}/report', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'report']);
     });
 
 Route::middleware('auth:sanctum')

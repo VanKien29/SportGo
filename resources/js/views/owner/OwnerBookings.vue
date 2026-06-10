@@ -154,6 +154,27 @@ export default {
   },
   async created() {
     await this.loadClusters();
+
+    const query = this.$route.query;
+    if (query.venue_cluster_id) {
+      this.filters.venue_cluster_id = query.venue_cluster_id;
+      try {
+        const response = await venueClusterService.getCourts(query.venue_cluster_id);
+        this.courts = response.data || [];
+      } catch (err) {
+        console.error('Không thể tải danh sách sân con cho cụm:', err);
+      }
+    }
+    if (query.booking_date) {
+      this.filters.booking_date = query.booking_date;
+    }
+    if (query.venue_court_id) {
+      this.filters.venue_court_id = query.venue_court_id;
+    }
+    if (query.status) {
+      this.filters.status = query.status;
+    }
+
     await this.loadBookings();
   },
   methods: {
