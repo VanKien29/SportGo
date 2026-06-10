@@ -2,13 +2,18 @@
 
 namespace App\Services\Policies;
 
+use App\Models\AuditLog;
 use App\Models\Booking;
+use App\Models\Payment;
 use App\Models\PolicyEvaluationLog;
 use App\Models\PolicyRule;
+use App\Models\Refund;
+use App\Models\RefundStatusHistory;
 use App\Models\SystemPolicy;
 use App\Models\User;
 use App\Models\VenuePolicyRule;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
@@ -86,6 +91,56 @@ class RefundCancellationPolicyService
                 'to_hours' => 1,
                 'refund_percent' => 0,
                 'allow_cancel' => true,
+            ],
+        ];
+    }
+
+    public function defaultCancelRefundTiers(): array
+    {
+        return [
+            [
+                'key' => 'from_24',
+                'label' => 'Từ 24 giờ trở lên',
+                'from_hours' => 24,
+                'to_hours' => null,
+                'allow_cancel' => true,
+                'refund_percent' => 100,
+                'require_owner_confirm' => true,
+                'require_admin_confirm' => true,
+                'customer_message' => 'Bạn có thể hủy booking và được hoàn 100% số tiền đã thanh toán.',
+            ],
+            [
+                'key' => 'from_6_to_24',
+                'label' => 'Từ 6 đến dưới 24 giờ',
+                'from_hours' => 6,
+                'to_hours' => 24,
+                'allow_cancel' => true,
+                'refund_percent' => 80,
+                'require_owner_confirm' => true,
+                'require_admin_confirm' => true,
+                'customer_message' => 'Bạn có thể hủy booking và được hoàn 80% số tiền đã thanh toán.',
+            ],
+            [
+                'key' => 'from_1_to_6',
+                'label' => 'Từ 1 đến dưới 6 giờ',
+                'from_hours' => 1,
+                'to_hours' => 6,
+                'allow_cancel' => true,
+                'refund_percent' => 50,
+                'require_owner_confirm' => true,
+                'require_admin_confirm' => true,
+                'customer_message' => 'Bạn có thể hủy booking và được hoàn 50% số tiền đã thanh toán.',
+            ],
+            [
+                'key' => 'under_1',
+                'label' => 'Dưới 1 giờ',
+                'from_hours' => 0,
+                'to_hours' => 1,
+                'allow_cancel' => true,
+                'refund_percent' => 0,
+                'require_owner_confirm' => true,
+                'require_admin_confirm' => true,
+                'customer_message' => 'Bạn có thể hủy booking nhưng không được hoàn tiền.',
             ],
         ];
     }
@@ -243,6 +298,184 @@ class RefundCancellationPolicyService
             ->all();
     }
 
+    public function cancelRefundTiersFromRule(?PolicyRule $rule): array
+    {
+        if (! $rule) {
+            return $this->normalizeCancelRefundTiers($this->defaultCancelRefundTiers());
+        }
+
+        $result = $rule->result_json ?: [];
+        if (isset($result['cancel_refund_tiers']) && is_array($result['cancel_refund_tiers'])) {
+            return $this->normalizeCancelRefundTiers($result['cancel_refund_tiers']);
+        }
+
+        if (isset($result['tiers']) && is_array($result['tiers'])) {
+            return $this->normalizeCancelRefundTiers($result['tiers']);
+        }
+
+        return $this->normalizeCancelRefundTiers($this->defaultCancelRefundTiers());
+    }
+
+    public function cancelRefundTiersFromVenueRule(?VenuePolicyRule $venueRule, array $systemTiers): array
+    {
+        if (! $venueRule) {
+            return $this->normalizeCancelRefundTiers($systemTiers);
+        }
+
+        $result = $venueRule->result_json ?: [];
+        if (isset($result['cancel_refund_tiers']) && is_array($result['cancel_refund_tiers'])) {
+            return $this->normalizeCancelRefundTiers($result['cancel_refund_tiers'], $systemTiers);
+        }
+
+        if (isset($result['tiers']) && is_array($result['tiers'])) {
+            return $this->normalizeCancelRefundTiers($result['tiers'], $systemTiers);
+        }
+
+        return $this->normalizeCancelRefundTiers($systemTiers);
+    }
+
+    public function normalizeCancelRefundTiers(array $tiers, ?array $fallback = null): array
+    {
+        $fallbackByKey = collect($fallback ?: $this->defaultCancelRefundTiers())
+            ->keyBy(fn (array $tier): string => (string) ($tier['key'] ?? $this->rangeKey($tier)));
+        $inputByKey = collect($tiers)
+            ->keyBy(fn (array $tier): string => (string) ($tier['key'] ?? $this->rangeKey($tier)));
+
+        $normalized = collect($tiers)
+            ->map(function (array $tier, int $index) use ($fallbackByKey, $inputByKey): array {
+                $key = (string) ($tier['key'] ?? $this->rangeKey($tier) ?: 'tier_' . $index);
+                $fallback = $fallbackByKey->get($key, $tier);
+                $input = $inputByKey->get($key, $tier);
+                $from = $this->nullableFloat($input['from_hours'] ?? $fallback['from_hours'] ?? 0);
+                $to = $this->nullableFloat($input['to_hours'] ?? $fallback['to_hours'] ?? null);
+                $allowCancel = array_key_exists('allow_cancel', $input)
+                    ? (bool) $input['allow_cancel']
+                    : (bool) ($fallback['allow_cancel'] ?? true);
+                $refundPercent = $allowCancel
+                    ? round((float) ($input['refund_percent'] ?? $fallback['refund_percent'] ?? 0), 2)
+                    : 0.0;
+
+                $shape = [
+                    'key' => $key,
+                    'label' => trim((string) ($input['label'] ?? $fallback['label'] ?? $this->rangeLabel($from, $to))),
+                    'from_hours' => $from,
+                    'to_hours' => $to,
+                    'allow_cancel' => $allowCancel,
+                    'refund_percent' => $refundPercent,
+                    'require_owner_confirm' => array_key_exists('require_owner_confirm', $input)
+                        ? (bool) $input['require_owner_confirm']
+                        : (bool) ($fallback['require_owner_confirm'] ?? true),
+                    'require_admin_confirm' => array_key_exists('require_admin_confirm', $input)
+                        ? (bool) $input['require_admin_confirm']
+                        : (bool) ($fallback['require_admin_confirm'] ?? true),
+                    'customer_message' => trim((string) ($input['customer_message'] ?? $fallback['customer_message'] ?? '')),
+                ];
+
+                return [
+                    ...$shape,
+                    'condition_label' => $this->rangeConditionLabel($shape),
+                    'result_label' => $this->cancelRefundResultLabel($shape),
+                    'business_sentence' => $this->cancelRefundSentence($shape),
+                ];
+            })
+            ->sortByDesc(fn (array $tier): float => (float) $tier['from_hours'])
+            ->values()
+            ->all();
+
+        return $normalized;
+    }
+
+    public function validateSystemCancelRefundTiers(array $tiers): array
+    {
+        $normalized = $this->normalizeCancelRefundTiers($tiers);
+        $this->assertBusinessTimeTable($normalized);
+        $this->assertCancelRefundTierValues($normalized);
+
+        return $normalized;
+    }
+
+    public function validateVenueCancelRefundTiers(array $venueTiers, array $systemTiers): array
+    {
+        $normalizedSystem = $this->validateSystemCancelRefundTiers($systemTiers);
+        $normalizedVenue = $this->normalizeCancelRefundTiers($venueTiers, $normalizedSystem);
+        $this->assertBusinessTimeTable($normalizedVenue);
+        $this->assertCancelRefundTierValues($normalizedVenue);
+
+        $systemByKey = collect($normalizedSystem)->keyBy('key');
+        $errors = [];
+        foreach ($normalizedVenue as $index => $venueTier) {
+            $systemTier = $systemByKey->get($venueTier['key']);
+            if (! $systemTier) {
+                $errors["tiers.{$index}.key"] = 'Sân chỉ được chỉnh các mốc do hệ thống cung cấp.';
+                continue;
+            }
+
+            if ((float) $venueTier['from_hours'] !== (float) $systemTier['from_hours']
+                || $this->nullableFloat($venueTier['to_hours']) !== $this->nullableFloat($systemTier['to_hours'])) {
+                $errors["tiers.{$index}.from_hours"] = "Mốc {$systemTier['label']}: sân không được đổi khoảng giờ của chính sách hệ thống.";
+            }
+
+            if (($systemTier['allow_cancel'] ?? true) && ! ($venueTier['allow_cancel'] ?? true)) {
+                $errors["tiers.{$index}.allow_cancel"] = "Mốc {$systemTier['label']}: sân không được chặn hủy khi chính sách hệ thống đang cho phép hủy.";
+            }
+
+            if (! ($systemTier['allow_cancel'] ?? true) && ($venueTier['allow_cancel'] ?? true)) {
+                $errors["tiers.{$index}.allow_cancel"] = "Mốc {$systemTier['label']}: sân không được cho hủy khi chính sách hệ thống không cho hủy.";
+            }
+
+            if ((float) $venueTier['refund_percent'] < (float) $systemTier['refund_percent']) {
+                $errors["tiers.{$index}.refund_percent"] = "Mốc {$systemTier['label']}: mức hoàn của sân không được thấp hơn {$systemTier['refund_percent']}% theo chính sách hệ thống.";
+            }
+
+            if (($systemTier['require_owner_confirm'] ?? false) && ! ($venueTier['require_owner_confirm'] ?? false)) {
+                $errors["tiers.{$index}.require_owner_confirm"] = "Mốc {$systemTier['label']}: sân không được bỏ bước chủ sân xác nhận hoàn tiền.";
+            }
+
+            if (($systemTier['require_admin_confirm'] ?? false) && ! ($venueTier['require_admin_confirm'] ?? false)) {
+                $errors["tiers.{$index}.require_admin_confirm"] = "Mốc {$systemTier['label']}: sân không được bỏ bước admin xác nhận hoàn tất.";
+            }
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return $normalizedVenue;
+    }
+
+    public function cancelRefundPayload(array $systemTiers, ?array $venueTiers = null): array
+    {
+        $system = $this->normalizeCancelRefundTiers($systemTiers);
+        $venue = $venueTiers ? $this->normalizeCancelRefundTiers($venueTiers, $system) : null;
+
+        return [
+            'system_tiers' => $system,
+            'venue_tiers' => $venue,
+            'system_summary' => $this->cancelRefundSummary($system),
+            'venue_summary' => $venue ? $this->cancelRefundSummary($venue) : 'Sân đang dùng mặc định hệ thống.',
+            'limits' => $this->cancelRefundLimits($system),
+        ];
+    }
+
+    public function cancelRefundSummary(array $tiers): string
+    {
+        return collect($this->normalizeCancelRefundTiers($tiers))
+            ->map(fn (array $tier): string => $tier['business_sentence'])
+            ->implode(' ');
+    }
+
+    public function cancelRefundResultJson(array $tiers, array $extra = []): array
+    {
+        $normalized = $this->validateSystemCancelRefundTiers($tiers);
+
+        return [
+            ...$extra,
+            'cancel_refund_tiers' => $normalized,
+            'tiers' => $normalized,
+            'summary_vi' => $this->cancelRefundSummary($normalized),
+        ];
+    }
+
     public function validateSystemCancellationTiers(array $tiers): array
     {
         $normalized = $this->normalizeCancellationTiers($tiers);
@@ -370,11 +603,10 @@ class RefundCancellationPolicyService
 
         $cancellationPolicy = $this->activePolicy('booking_cancellation', self::CANCELLATION_RULE_TYPE);
         $cancellationRule = $cancellationPolicy?->rules->first();
-        $systemCancellationTiers = $this->cancellationTiersFromRule($cancellationRule);
+        $systemCombinedTiers = $this->cancelRefundTiersFromRule($cancellationRule);
         $venueCancellationRule = $cancellationRule ? $this->activeVenueRule($booking, $cancellationRule) : null;
-        $effectiveCancellationTiers = $this->cancellationTiersFromVenueRule($venueCancellationRule, $systemCancellationTiers);
-        $matchedCancellationTier = $this->matchTier($effectiveCancellationTiers, $hoursBefore);
-        $allowCancel = (bool) ($matchedCancellationTier['allow_cancel'] ?? false);
+        $effectiveCombinedTiers = $this->cancelRefundTiersFromVenueRule($venueCancellationRule, $systemCombinedTiers);
+        $matchedCombinedTier = $this->matchTier($effectiveCombinedTiers, $hoursBefore);
 
         $refundPolicy = $this->activePolicy('refund', self::REFUND_RULE_TYPE);
         $refundRule = $refundPolicy?->rules->first();
@@ -382,24 +614,82 @@ class RefundCancellationPolicyService
         $venueRefundRule = $refundRule ? $this->activeVenueRule($booking, $refundRule) : null;
         $effectiveRefundTiers = $this->tiersFromVenueRule($venueRefundRule, $systemRefundTiers);
         $matchedRefundTier = $this->matchTier($effectiveRefundTiers, $hoursBefore);
-        $refundPercent = $allowCancel ? (float) ($matchedRefundTier['refund_percent'] ?? 0) : 0.0;
+
+        $allowCancel = (bool) ($matchedCombinedTier['allow_cancel'] ?? false);
+        $refundPercent = $allowCancel
+            ? (float) ($matchedCombinedTier['refund_percent'] ?? $matchedRefundTier['refund_percent'] ?? 0)
+            : 0.0;
+        $paidAmount = $this->paidAmount($booking);
+        $refundAmount = $booking->payment_option === 'no_prepay'
+            ? 0.0
+            : round($paidAmount * ($refundPercent / 100), 2);
 
         $result = [
             'hours_before' => round($hoursBefore, 2),
             'allow_cancel' => $allowCancel,
-            'cancellation_tier' => $matchedCancellationTier,
+            'cancellation_tier' => $matchedCombinedTier,
             'refund_tier' => $matchedRefundTier,
             'refund_percent' => $refundPercent,
-            'refund_amount' => round(((float) $booking->total_price) * ($refundPercent / 100), 2),
-            'requires_owner_confirm' => (bool) ($refundRule?->result_json['requires_owner_confirm'] ?? true),
-            'requires_admin_confirm' => (bool) ($refundRule?->result_json['requires_admin_confirm'] ?? true),
-            'summary' => $this->evaluationSummary($matchedCancellationTier, $matchedRefundTier, $allowCancel, $refundPercent),
+            'paid_amount' => $paidAmount,
+            'refund_amount' => $refundAmount,
+            'requires_owner_confirm' => (bool) ($matchedCombinedTier['require_owner_confirm'] ?? $refundRule?->result_json['requires_owner_confirm'] ?? true),
+            'requires_admin_confirm' => (bool) ($matchedCombinedTier['require_admin_confirm'] ?? $refundRule?->result_json['requires_admin_confirm'] ?? true),
+            'customer_message' => $matchedCombinedTier['customer_message'] ?? null,
+            'summary' => $this->evaluationSummary($matchedCombinedTier, $matchedRefundTier, $allowCancel, $refundPercent),
         ];
 
         $this->logEvaluation($booking, $actor, $cancelAt, $result, $cancellationPolicy, $cancellationRule, $venueCancellationRule);
         $this->logEvaluation($booking, $actor, $cancelAt, $result, $refundPolicy, $refundRule, $venueRefundRule);
 
         return $result;
+    }
+
+    public function cancelBooking(Booking $booking, User $actor, ?Carbon $cancelAt = null, ?string $reason = null): array
+    {
+        return DB::transaction(function () use ($booking, $actor, $cancelAt, $reason): array {
+            $booking = Booking::query()
+                ->with('payments')
+                ->whereKey($booking->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($booking->customer_id !== $actor->id) {
+                throw ValidationException::withMessages([
+                    'booking' => 'Bạn không có quyền hủy booking này.',
+                ]);
+            }
+
+            if (in_array($booking->status, ['checked_in', 'completed', 'cancelled', 'expired', 'rejected'], true)) {
+                throw ValidationException::withMessages([
+                    'booking' => 'Booking này không còn ở trạng thái có thể hủy.',
+                ]);
+            }
+
+            $result = $this->evaluateBookingCancellation($booking, $actor, $cancelAt);
+
+            if (! ($result['allow_cancel'] ?? false)) {
+                throw ValidationException::withMessages([
+                    'booking' => 'Booking này không được hủy vì đã quá thời hạn hủy theo chính sách.',
+                ]);
+            }
+
+            $oldBooking = $booking->toArray();
+            $booking->forceFill([
+                'status' => 'cancelled',
+                'status_reason' => $reason ?: ($result['customer_message'] ?: 'Khách hủy booking theo chính sách.'),
+                'cancelled_by' => $actor->id,
+                'cancelled_at' => now(),
+            ])->save();
+
+            $refunds = $this->createRefundRequests($booking, $result, $actor, $reason);
+            $this->auditCancellation($booking->fresh(), $actor, $oldBooking, $result, $refunds, $reason);
+
+            return [
+                'booking' => $booking->fresh(['venueCourt.venueCluster', 'venueCourt.courtType', 'payments']),
+                'policy_result' => $result,
+                'refunds' => $refunds,
+            ];
+        });
     }
 
     public function matchTier(array $tiers, float $hoursBefore): ?array
@@ -463,6 +753,139 @@ class RefundCancellationPolicyService
             ->first();
     }
 
+    private function paidAmount(Booking $booking): float
+    {
+        if ($booking->payment_option === 'no_prepay') {
+            return 0.0;
+        }
+
+        return (float) Payment::query()
+            ->where('booking_id', $booking->id)
+            ->where('status', 'paid')
+            ->sum('amount');
+    }
+
+    private function createRefundRequests(Booking $booking, array $result, User $actor, ?string $reason): array
+    {
+        $refundAmount = (float) ($result['refund_amount'] ?? 0);
+        if ($refundAmount <= 0 || ! Schema::hasTable('refunds')) {
+            return [];
+        }
+
+        $created = [];
+        $status = ($result['requires_owner_confirm'] ?? true)
+            ? 'pending_owner_confirmation'
+            : (($result['requires_admin_confirm'] ?? true) ? 'admin_processing' : 'processing');
+
+        $payments = Payment::query()
+            ->where('booking_id', $booking->id)
+            ->where('status', 'paid')
+            ->orderBy('paid_at')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($payments as $payment) {
+            $paymentRefundAmount = round(((float) $payment->amount) * ((float) ($result['refund_percent'] ?? 0) / 100), 2);
+            if ($paymentRefundAmount <= 0) {
+                continue;
+            }
+
+            $walletAmount = min((float) ($payment->wallet_amount ?? 0), (float) $payment->amount);
+            $gatewayAmount = max(0, (float) ($payment->gateway_amount ?? 0));
+
+            if ($walletAmount > 0 && $paymentRefundAmount > 0) {
+                $walletRefund = min($paymentRefundAmount, round($walletAmount * ((float) ($result['refund_percent'] ?? 0) / 100), 2));
+                if ($walletRefund > 0) {
+                    $created[] = $this->createRefundRow($booking, $payment, $walletRefund, 'user_wallet', $status, $result, $actor, $reason);
+                    $paymentRefundAmount -= $walletRefund;
+                }
+            }
+
+            if ($paymentRefundAmount > 0 || ($gatewayAmount > 0 && (float) ($payment->wallet_amount ?? 0) <= 0)) {
+                $destination = ($payment->method === 'wallet' && $gatewayAmount <= 0) ? 'user_wallet' : 'original_payment';
+                $created[] = $this->createRefundRow($booking, $payment, round($paymentRefundAmount, 2), $destination, $status, $result, $actor, $reason);
+            }
+        }
+
+        return collect($created)
+            ->filter()
+            ->map(fn (Refund $refund): array => $refund->fresh()->toArray())
+            ->values()
+            ->all();
+    }
+
+    private function createRefundRow(
+        Booking $booking,
+        Payment $payment,
+        float $amount,
+        string $destination,
+        string $status,
+        array $result,
+        User $actor,
+        ?string $reason
+    ): ?Refund {
+        if ($amount <= 0) {
+            return null;
+        }
+
+        $refund = Refund::query()->create([
+            'payment_id' => $payment->id,
+            'booking_id' => $booking->id,
+            'customer_id' => $booking->customer_id,
+            'amount' => $amount,
+            'refund_destination' => $destination,
+            'user_wallet_id' => $destination === 'user_wallet' ? $payment->user_wallet_id : null,
+            'policy_id' => $result['cancellation_tier']['policy_id'] ?? null,
+            'reason' => $reason ?: ($result['summary'] ?? 'Khách hủy booking theo chính sách.'),
+            'status' => $status,
+            'status_reason' => $result['summary'] ?? null,
+        ]);
+
+        if (Schema::hasTable('refund_status_histories')) {
+            RefundStatusHistory::query()->create([
+                'refund_id' => $refund->id,
+                'old_status' => null,
+                'new_status' => $status,
+                'changed_by' => $actor->id,
+                'actor_type' => 'user',
+                'reason' => $reason ?: 'Tạo yêu cầu hoàn tiền khi khách hủy booking.',
+                'metadata' => [
+                    'refund_percent' => $result['refund_percent'] ?? null,
+                    'paid_amount' => $result['paid_amount'] ?? null,
+                    'destination' => $destination,
+                ],
+                'created_at' => now(),
+            ]);
+        }
+
+        return $refund;
+    }
+
+    private function auditCancellation(Booking $booking, User $actor, array $oldBooking, array $result, array $refunds, ?string $reason): void
+    {
+        if (! Schema::hasTable('audit_logs')) {
+            return;
+        }
+
+        AuditLog::query()->create([
+            'actor_id' => $actor->id,
+            'actor_type' => 'user',
+            'module' => 'booking',
+            'action' => 'booking.cancelled_by_customer',
+            'entity_type' => 'bookings',
+            'entity_id' => $booking->id,
+            'old_values' => $oldBooking,
+            'new_values' => $booking->toArray(),
+            'metadata' => [
+                'policy_result' => $result,
+                'refund_ids' => collect($refunds)->pluck('id')->all(),
+            ],
+            'reason' => $reason ?: ($result['summary'] ?? null),
+            'context' => 'customer',
+            'severity' => 'info',
+        ]);
+    }
+
     private function logEvaluation(
         Booking $booking,
         ?User $actor,
@@ -518,6 +941,78 @@ class RefundCancellationPolicyService
         }
     }
 
+    private function assertBusinessTimeTable(array $tiers): void
+    {
+        if (count($tiers) < 2) {
+            throw ValidationException::withMessages([
+                'tiers' => 'Bảng mốc hủy & hoàn phải có ít nhất 2 mốc thời gian và phủ đủ từ 0 giờ đến vô hạn.',
+            ]);
+        }
+
+        $ascending = collect($tiers)
+            ->sortBy(fn (array $tier): float => (float) ($tier['from_hours'] ?? 0))
+            ->values();
+
+        if ((float) ($ascending[0]['from_hours'] ?? -1) !== 0.0) {
+            throw ValidationException::withMessages([
+                'tiers.0.from_hours' => 'Bảng mốc phải bắt đầu từ 0 giờ để không hở khoảng dưới cùng.',
+            ]);
+        }
+
+        foreach ($ascending as $index => $tier) {
+            $from = $this->nullableFloat($tier['from_hours'] ?? null);
+            $to = $this->nullableFloat($tier['to_hours'] ?? null);
+
+            if ($from === null || $from < 0) {
+                throw ValidationException::withMessages([
+                    "tiers.{$index}.from_hours" => 'Giờ bắt đầu mốc phải lớn hơn hoặc bằng 0.',
+                ]);
+            }
+
+            if ($to !== null && $to <= $from) {
+                throw ValidationException::withMessages([
+                    "tiers.{$index}.to_hours" => 'Giờ kết thúc mốc phải lớn hơn giờ bắt đầu.',
+                ]);
+            }
+
+            $next = $ascending[$index + 1] ?? null;
+            if ($next) {
+                if ($to === null || (float) $to !== (float) $next['from_hours']) {
+                    throw ValidationException::withMessages([
+                        "tiers.{$index}.to_hours" => 'Các mốc thời gian phải liền nhau, không được chồng hoặc hở khoảng.',
+                    ]);
+                }
+            } elseif ($to !== null) {
+                throw ValidationException::withMessages([
+                    "tiers.{$index}.to_hours" => 'Mốc cao nhất phải phủ đến vô hạn giờ trước giờ chơi.',
+                ]);
+            }
+        }
+    }
+
+    private function assertCancelRefundTierValues(array $tiers): void
+    {
+        $errors = [];
+        foreach ($tiers as $index => $tier) {
+            $percent = $tier['refund_percent'] ?? null;
+            if (! is_numeric($percent) || (float) $percent < 0 || (float) $percent > 100) {
+                $errors["tiers.{$index}.refund_percent"] = 'Tỷ lệ hoàn phải nằm trong khoảng 0 đến 100%.';
+            }
+
+            if (! ($tier['allow_cancel'] ?? true) && (float) ($tier['refund_percent'] ?? 0) !== 0.0) {
+                $errors["tiers.{$index}.refund_percent"] = 'Nếu không cho hủy thì tỷ lệ hoàn bắt buộc bằng 0%.';
+            }
+
+            if (mb_strlen((string) ($tier['customer_message'] ?? '')) > 500) {
+                $errors["tiers.{$index}.customer_message"] = 'Nội dung hiển thị cho khách không được vượt quá 500 ký tự.';
+            }
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
     private function assertPercentRanges(array $tiers): void
     {
         $errors = [];
@@ -556,6 +1051,24 @@ class RefundCancellationPolicyService
                 'label' => $tier['label'],
                 'min_allowed_refund_percent' => (float) $tier['refund_percent'],
                 'summary' => "Mốc {$tier['label']}: mức hoàn không được thấp hơn {$tier['refund_percent']}%.",
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function cancelRefundLimits(array $systemTiers): array
+    {
+        return collect($this->normalizeCancelRefundTiers($systemTiers))
+            ->map(fn (array $tier): array => [
+                'key' => $tier['key'],
+                'label' => $tier['label'],
+                'from_hours' => $tier['from_hours'],
+                'to_hours' => $tier['to_hours'],
+                'allow_cancel' => (bool) $tier['allow_cancel'],
+                'min_allowed_refund_percent' => (float) $tier['refund_percent'],
+                'require_owner_confirm' => (bool) $tier['require_owner_confirm'],
+                'require_admin_confirm' => (bool) $tier['require_admin_confirm'],
+                'summary' => "Mốc {$tier['label']}: sân phải giữ khoảng giờ này, không được hoàn thấp hơn {$tier['refund_percent']}% và không được chặn hủy nếu hệ thống cho hủy.",
             ])
             ->values()
             ->all();
@@ -607,6 +1120,89 @@ class RefundCancellationPolicyService
         $refundLabel = $refundTier['label'] ?? $cancellationTier['label'];
 
         return "{$cancellationTier['condition_label']}: cho hủy. Mốc hoàn tiền {$refundLabel}: {$refundText}.";
+    }
+
+    private function nullableFloat(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return is_numeric($value) ? (float) $value : null;
+    }
+
+    private function rangeKey(array $tier): string
+    {
+        $from = $this->nullableFloat($tier['from_hours'] ?? null) ?? 0.0;
+        $to = $this->nullableFloat($tier['to_hours'] ?? null);
+
+        return 'from_' . $this->numberKey($from) . '_to_' . ($to === null ? 'up' : $this->numberKey($to));
+    }
+
+    private function rangeLabel(?float $from, ?float $to): string
+    {
+        $from ??= 0.0;
+
+        if ($from <= 0.0 && $to !== null) {
+            return 'Duoi ' . $this->hourText($to);
+        }
+
+        if ($to === null) {
+            return 'Tu ' . $this->hourText($from) . ' tro len';
+        }
+
+        return 'Tu ' . $this->hourText($from) . ' den duoi ' . $this->hourText($to);
+    }
+
+    private function rangeConditionLabel(array $tier): string
+    {
+        $from = $this->nullableFloat($tier['from_hours'] ?? null) ?? 0.0;
+        $to = $this->nullableFloat($tier['to_hours'] ?? null);
+
+        if ($from <= 0.0 && $to !== null) {
+            return 'Khach huy truoc gio choi duoi ' . $this->hourText($to);
+        }
+
+        if ($to === null) {
+            return 'Khach huy truoc gio choi tu ' . $this->hourText($from) . ' tro len';
+        }
+
+        return 'Khach huy truoc gio choi tu ' . $this->hourText($from) . ' den duoi ' . $this->hourText($to);
+    }
+
+    private function cancelRefundResultLabel(array $tier): string
+    {
+        if (! (bool) ($tier['allow_cancel'] ?? true)) {
+            return 'Khong cho huy';
+        }
+
+        $refundPercent = (float) ($tier['refund_percent'] ?? 0);
+
+        return $refundPercent > 0
+            ? 'Hoan ' . $this->formatNumber($refundPercent) . '% tren so tien da thanh toan'
+            : 'Cho huy nhung khong hoan';
+    }
+
+    private function cancelRefundSentence(array $tier): string
+    {
+        return $this->rangeConditionLabel($tier) . ': ' . mb_strtolower($this->cancelRefundResultLabel($tier)) . '.';
+    }
+
+    private function hourText(float|int $hours): string
+    {
+        return $this->formatNumber((float) $hours) . ' gio';
+    }
+
+    private function numberKey(float $value): string
+    {
+        $normalized = $this->formatNumber($value);
+
+        return str_replace('.', '_', $normalized === '' ? '0' : $normalized);
+    }
+
+    private function formatNumber(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
     }
 
     private function conditionHours(array $condition): ?int

@@ -103,10 +103,15 @@ class AdminRefundService
     {
         $allowed = [
             'pending_confirmation' => ['processing', 'rejected'],
+            'pending_owner_confirmation' => ['owner_confirmed', 'owner_rejected', 'rejected'],
+            'owner_confirmed' => ['admin_processing', 'processing', 'completed', 'rejected'],
+            'owner_rejected' => ['rejected'],
+            'admin_processing' => ['completed', 'failed', 'rejected'],
             'processing' => ['completed', 'rejected'],
             'failed' => ['processing', 'rejected'],
             'completed' => [],
             'rejected' => [],
+            'cancelled' => [],
         ];
 
         if (! in_array($to, $allowed[$from] ?? [], true)) {

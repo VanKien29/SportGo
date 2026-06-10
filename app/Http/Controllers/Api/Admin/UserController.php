@@ -347,8 +347,7 @@ class UserController extends Controller
             'id' => $role->id,
             'name' => $role->name,
             'label' => $role->display_name ?: $this->roleLabel($role->name),
-            'scope_type' => $role->pivot?->scope_type,
-            'scope_id' => $role->pivot?->scope_id,
+            'scope_label' => $this->scopeLabel($role->pivot?->scope_type, $role->pivot?->scope_id),
         ])->values()->all();
     }
 
@@ -373,16 +372,15 @@ class UserController extends Controller
         }
 
         return UserPermissionRevoke::query()
-            ->with(['permission:id,name,display_name', 'revokedBy:id,username,full_name'])
+            ->with(['permission:id,name,code', 'revokedBy:id,username,full_name'])
             ->where('user_id', $userId)
             ->latest('created_at')
             ->limit(20)
             ->get()
             ->map(fn (UserPermissionRevoke $revoke): array => [
                 'id' => $revoke->id,
-                'permission' => $revoke->permission?->display_name ?: $revoke->permission?->name,
-                'scope_type' => $revoke->scope_type,
-                'scope_id' => $revoke->scope_id,
+                'permission' => $revoke->permission?->name ?: $this->permissionLabel($revoke->permission?->code),
+                'scope_label' => $this->scopeLabel($revoke->scope_type, $revoke->scope_id),
                 'reason' => $revoke->reason,
                 'revoked_by_name' => $revoke->revokedBy?->full_name ?: $revoke->revokedBy?->username,
                 'created_at' => $revoke->created_at,
@@ -625,6 +623,47 @@ class UserController extends Controller
         return (string) $value;
     }
 
+    private function scopeLabel(?string $scopeType, ?string $scopeId): string
+    {
+        $zeroUuid = '00000000-0000-0000-0000-000000000000';
+        if (! $scopeType || $scopeType === 'system' || ! $scopeId || $scopeId === $zeroUuid) {
+            return 'Toàn hệ thống';
+        }
+
+        return match ($scopeType) {
+            'venue', 'venue_cluster' => 'Cụm sân: ' . ($this->lookupName('venue_clusters', $scopeId) ?: 'không xác định'),
+            'court_type' => 'Loại sân: ' . ($this->lookupName('court_types', $scopeId) ?: 'không xác định'),
+            'court', 'venue_court' => 'Sân con: ' . ($this->lookupName('venue_courts', $scopeId) ?: 'không xác định'),
+            default => 'Phạm vi nghiệp vụ',
+        };
+    }
+
+    private function lookupName(string $table, string $id): ?string
+    {
+        if (! Schema::hasTable($table)) {
+            return null;
+        }
+
+        return DB::table($table)->where('id', $id)->value('name');
+    }
+
+    private function permissionLabel(?string $code): string
+    {
+        if (! $code) {
+            return 'Quyền không xác định';
+        }
+
+        return [
+            'policy.view' => 'Xem chính sách',
+            'policy.create' => 'Tạo chính sách',
+            'policy.update' => 'Cập nhật chính sách',
+            'policy.publish' => 'Áp dụng chính sách',
+            'policy.rule.manage' => 'Cấu hình xử lý chính sách',
+            'user.view' => 'Xem người dùng',
+            'user.lock' => 'Khóa/mở tài khoản',
+        ][$code] ?? str_replace(['.', '_'], ' ', $code);
+    }
+
     private function statusLabel(?string $status): string
     {
         return [
@@ -814,7 +853,7 @@ class UserController extends Controller
 
         AuditLog::query()->create([
             'actor_id' => $actor->id,
-            'actor_type' => User::class,
+            'actor_type' => $this->adminActorType($actor),
             'module' => 'admin_users',
             'action' => $action,
             'entity_type' => 'users',
@@ -826,5 +865,10 @@ class UserController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 500),
         ]);
+    }
+
+    private function adminActorType(User $actor): string
+    {
+        return $this->hasRole($actor, 'super_admin') ? 'super_admin' : 'admin';
     }
 }

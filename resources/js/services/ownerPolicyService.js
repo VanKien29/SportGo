@@ -14,6 +14,9 @@ function payloadWithCluster(payload = {}) {
 }
 
 export const ownerPolicyService = {
+  clusters() {
+    return api('/api/owner/venue-clusters');
+  },
   list() {
     return api(withCluster('/api/owner/venue-policies'));
   },

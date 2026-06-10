@@ -47,6 +47,7 @@ class VenuePolicyController extends Controller
                     'policy_type' => $policy->policy_type,
                     'policy_type_label' => PolicyUiText::policyTypeLabel($policy->policy_type),
                     'business_summary' => PolicyUiText::policyBusinessSummary($policy),
+                    'cancel_refund_configuration' => $this->policyCancelRefundConfiguration($policy, $venueRules),
                     'cancellation_configuration' => $this->policyCancellationConfiguration($policy, $venueRules),
                     'refund_configuration' => $this->policyRefundConfiguration($policy, $venueRules),
                     'rules' => $policy->rules->map(function (PolicyRule $rule) use ($policy, $venueRules): array {
@@ -89,8 +90,14 @@ class VenuePolicyController extends Controller
             'base_policy_rule_id' => ['required', 'string', 'exists:policy_rules,id'],
             'tiers' => ['nullable', 'array'],
             'tiers.*.key' => ['nullable', 'string'],
+            'tiers.*.label' => ['nullable', 'string', 'max:120'],
+            'tiers.*.from_hours' => ['nullable', 'numeric', 'min:0'],
+            'tiers.*.to_hours' => ['nullable', 'numeric', 'min:0'],
             'tiers.*.refund_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'tiers.*.allow_cancel' => ['nullable', 'boolean'],
+            'tiers.*.require_owner_confirm' => ['nullable', 'boolean'],
+            'tiers.*.require_admin_confirm' => ['nullable', 'boolean'],
+            'tiers.*.customer_message' => ['nullable', 'string', 'max:500'],
             'refund_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'hours_before_start' => ['nullable', 'integer', 'min:1'],
             'status' => ['required', Rule::in(['draft', 'pending_review', 'active'])],
@@ -120,18 +127,17 @@ class VenuePolicyController extends Controller
         }
 
         if ($baseRule->rule_type === RefundCancellationPolicyService::CANCELLATION_RULE_TYPE) {
-            $systemTiers = $this->refundPolicies->cancellationTiersFromRule($baseRule);
-            $venueTiers = $this->refundPolicies->validateVenueCancellationTiers($data['tiers'] ?? $systemTiers, $systemTiers);
-            $condition = ['uses_tier_table' => true];
-            $result = [
-                'tiers' => $venueTiers,
-                'summary_vi' => $this->refundPolicies->cancellationSummary($venueTiers),
-            ];
+            $systemTiers = $this->refundPolicies->cancelRefundTiersFromRule($baseRule);
+            $venueTiers = $this->refundPolicies->validateVenueCancelRefundTiers($data['tiers'] ?? $systemTiers, $systemTiers);
+            $condition = ['uses_cancel_refund_tier_table' => true];
+            $result = $this->refundPolicies->cancelRefundResultJson($venueTiers, [
+                'refund_basis' => 'paid_amount',
+            ]);
             $constraintResult = [
                 'passed' => true,
-                'message' => 'Cấu hình hủy booking nằm trong khung hệ thống.',
-                'system_summary' => $this->refundPolicies->cancellationSummary($systemTiers),
-                'venue_summary' => $this->refundPolicies->cancellationSummary($venueTiers),
+                'message' => 'Cấu hình hủy & hoàn booking nằm trong khung hệ thống.',
+                'system_summary' => $this->refundPolicies->cancelRefundSummary($systemTiers),
+                'venue_summary' => $this->refundPolicies->cancelRefundSummary($venueTiers),
             ];
         } else {
             $systemTiers = $this->refundPolicies->tiersFromRule($baseRule);
@@ -411,6 +417,34 @@ class VenuePolicyController extends Controller
         ];
     }
 
+    private function policyCancelRefundConfiguration(SystemPolicy $policy, $venueRules): ?array
+    {
+        if (($policy->policy_type ?: $policy->type) !== 'booking_cancellation') {
+            return null;
+        }
+
+        $rule = $policy->rules->firstWhere('rule_type', RefundCancellationPolicyService::CANCELLATION_RULE_TYPE);
+        if (! $rule) {
+            return null;
+        }
+
+        $venueRule = $venueRules
+            ->where('base_policy_rule_id', $rule->id)
+            ->where('rule_type', '!=', 'customer_notice')
+            ->where('status', '!=', 'inactive')
+            ->first();
+        $systemTiers = $this->refundPolicies->cancelRefundTiersFromRule($rule);
+        $venueTiers = $venueRule ? $this->refundPolicies->cancelRefundTiersFromVenueRule($venueRule, $systemTiers) : null;
+
+        return [
+            'base_rule_id' => $rule->id,
+            'venue_rule_id' => $venueRule?->id,
+            'status' => $venueRule ? 'custom' : 'system_default',
+            'status_label' => $venueRule ? 'Đã cấu hình riêng' : 'Đang dùng mặc định hệ thống',
+            ...$this->refundPolicies->cancelRefundPayload($systemTiers, $venueTiers),
+        ];
+    }
+
     private function policyCancellationConfiguration(SystemPolicy $policy, $venueRules): ?array
     {
         $rule = $policy->rules->firstWhere('rule_type', RefundCancellationPolicyService::CANCELLATION_RULE_TYPE);
@@ -477,10 +511,10 @@ class VenuePolicyController extends Controller
         $ruleType = $rule->rule_type;
         $baseRule = $rule->relationLoaded('baseRule') ? $rule->baseRule : null;
         $systemCancellationTiers = $ruleType === RefundCancellationPolicyService::CANCELLATION_RULE_TYPE
-            ? $this->refundPolicies->cancellationTiersFromRule($baseRule)
+            ? $this->refundPolicies->cancelRefundTiersFromRule($baseRule)
             : null;
         $venueCancellationTiers = $systemCancellationTiers
-            ? $this->refundPolicies->cancellationTiersFromVenueRule($rule, $systemCancellationTiers)
+            ? $this->refundPolicies->cancelRefundTiersFromVenueRule($rule, $systemCancellationTiers)
             : null;
         $systemTiers = $ruleType === RefundCancellationPolicyService::REFUND_RULE_TYPE
             ? $this->refundPolicies->tiersFromRule($baseRule)
@@ -490,7 +524,7 @@ class VenuePolicyController extends Controller
             : null;
         $summary = match (true) {
             $ruleType === 'customer_notice' => 'Quy định này chỉ hiển thị cho khách đọc, không tác động đến booking/refund/payment.',
-            (bool) $venueCancellationTiers => $this->refundPolicies->cancellationSummary($venueCancellationTiers),
+            (bool) $venueCancellationTiers => $this->refundPolicies->cancelRefundSummary($venueCancellationTiers),
             (bool) $venueTiers => $this->refundPolicies->summary($venueTiers),
             default => PolicyUiText::ruleSummary($ruleType, $rule->condition_json ?: [], $rule->result_json ?: []),
         };
@@ -514,8 +548,10 @@ class VenuePolicyController extends Controller
             'status_label' => PolicyUiText::statusLabel($rule->status),
             'condition_json' => $rule->condition_json,
             'result_json' => $rule->result_json,
+            'cancel_refund_tiers' => $venueCancellationTiers,
+            'cancel_refund_tier_summary' => $venueCancellationTiers ? $this->refundPolicies->cancelRefundSummary($venueCancellationTiers) : null,
             'cancellation_tiers' => $venueCancellationTiers,
-            'cancellation_tier_summary' => $venueCancellationTiers ? $this->refundPolicies->cancellationSummary($venueCancellationTiers) : null,
+            'cancellation_tier_summary' => $venueCancellationTiers ? $this->refundPolicies->cancelRefundSummary($venueCancellationTiers) : null,
             'refund_tiers' => $venueTiers,
             'refund_tier_summary' => $venueTiers ? $this->refundPolicies->summary($venueTiers) : null,
             'constraint_check_result' => $rule->constraint_check_result,

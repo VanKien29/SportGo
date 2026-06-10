@@ -197,6 +197,7 @@
           <article v-for="revoke in detail.permission_revokes || []" :key="revoke.id">
             <strong>{{ revoke.permission || 'Quyền đã thu hồi' }}</strong>
             <span>{{ revoke.reason || 'Không có lý do.' }}</span>
+            <span>Phạm vi: {{ revoke.scope_label || 'Toàn hệ thống' }}</span>
             <small>{{ revoke.revoked_by_name || 'Hệ thống' }} · {{ dateTime(revoke.created_at) }}</small>
           </article>
           <p v-if="!(detail.permission_revokes || []).length" class="muted">Chưa có quyền bị thu hồi.</p>
@@ -225,11 +226,6 @@
                 </p>
               </div>
             </div>
-
-            <details>
-              <summary>Xem dữ liệu kỹ thuật</summary>
-              <pre>{{ formatJson({ old: log.technical_old_values || log.old_values, new: log.technical_new_values || log.new_values }) }}</pre>
-            </details>
           </article>
           <p v-if="!(detail.audit_logs || []).length" class="muted">Chưa có audit log.</p>
         </div>
@@ -417,9 +413,7 @@ export default {
       return Array.isArray(values) && values.length ? values.join(', ') : '-';
     },
     scopeText(role) {
-      if (!role.scope_type || role.scope_type === 'global') return 'Toàn hệ thống';
-      if (role.scope_type === 'venue') return `Cụm sân ${role.scope_id || ''}`;
-      return `${role.scope_type}: ${role.scope_id || '-'}`;
+      return role.scope_label || 'Toàn hệ thống';
     },
     statusLabel(status) {
       return {
@@ -462,9 +456,6 @@ export default {
     inputDate(value) {
       const date = new Date(value);
       return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    },
-    formatJson(value) {
-      return JSON.stringify(value || {}, null, 2);
     },
   },
 };

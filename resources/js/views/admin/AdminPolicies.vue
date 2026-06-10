@@ -61,8 +61,6 @@
         <option value="active">Đang áp dụng</option>
         <option value="inactive">Ngưng áp dụng</option>
         <option value="archived">Lưu trữ</option>
-        <option value="pending_review">Chờ duyệt</option>
-        <option value="rejected">Bị từ chối</option>
       </select>
 
       <select v-model="filters.require_reaccept" @change="loadPolicies">

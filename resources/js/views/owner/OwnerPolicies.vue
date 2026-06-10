@@ -8,10 +8,18 @@
       </div>
       <div class="cluster-chip" :class="clusterTone">
         <AppIcon name="building" size="18" />
-        <div>
+        <div v-if="ownerClusters.length <= 1">
           <span>Cụm sân đang chọn</span>
           <strong>{{ venueCluster?.name || 'Chưa chọn cụm sân' }}</strong>
         </div>
+        <label v-else class="cluster-select">
+          <span>Cụm sân đang chọn</span>
+          <select v-model="selectedClusterId" :disabled="loading" @change="changeCluster">
+            <option v-for="cluster in ownerClusters" :key="cluster.id" :value="cluster.id">
+              {{ cluster.name }}
+            </option>
+          </select>
+        </label>
       </div>
     </header>
 
@@ -186,14 +194,14 @@
               <span>{{ row.condition }}</span>
               <small>Hệ thống: {{ row.systemResult }}</small>
             </div>
-            <label v-if="configType === 'cancel'">
+            <label v-if="configType === 'cancel' || configType === 'cancel_refund'">
               Xử lý của sân
               <select v-model="row.venue.allow_cancel">
                 <option :value="true">Cho hủy</option>
                 <option :value="false">Không cho hủy</option>
               </select>
             </label>
-            <label v-else>
+            <label v-if="configType === 'refund' || configType === 'cancel_refund'">
               Mức hoàn của sân
               <div class="input-unit">
                 <input v-model.number="row.venue.refund_percent" type="number" min="0" max="100" />
@@ -285,6 +293,8 @@ export default {
       error: '',
       success: '',
       venueCluster: null,
+      ownerClusters: [],
+      selectedClusterId: localStorage.getItem('selected_cluster') || '',
       systemPolicies: [],
       customerNotices: [],
       configModal: false,
@@ -301,7 +311,7 @@ export default {
       return this.venueCluster?.status === 'active' ? 'active' : 'locked';
     },
     configurablePolicies() {
-      return this.systemPolicies.filter((policy) => policy.cancellation_configuration || policy.refund_configuration);
+      return this.systemPolicies.filter((policy) => policy.cancel_refund_configuration || policy.cancellation_configuration || policy.refund_configuration);
     },
     customPolicyCount() {
       return this.configurablePolicies.filter((policy) => this.policyConfig(policy).venue_rule_id).length;
@@ -314,14 +324,15 @@ export default {
     },
     tierValidationMessage() {
       for (const row of this.tierDraftRows) {
-        if (this.configType === 'cancel') {
+        if (this.configType === 'cancel' || this.configType === 'cancel_refund') {
           if (row.system.allow_cancel && !row.venue.allow_cancel) {
             return `Mốc ${row.label} không được chặn hủy khi chính sách hệ thống đang cho phép hủy.`;
           }
           if (!row.system.allow_cancel && row.venue.allow_cancel) {
             return `Mốc ${row.label} không được cho hủy khi chính sách hệ thống không cho hủy.`;
           }
-        } else {
+        }
+        if (this.configType === 'refund' || this.configType === 'cancel_refund') {
           const systemPercent = Number(row.system.refund_percent || 0);
           const venuePercent = Number(row.venue.refund_percent || 0);
           if (venuePercent < 0 || venuePercent > 100) {
@@ -335,12 +346,12 @@ export default {
       return '';
     },
     tierPreview() {
-      return this.tierDraftRows.map((row) => `${row.label}: ${this.configType === 'cancel' ? this.cancelResult(row.venue).toLowerCase() : this.refundResult(row.venue).toLowerCase()}`).join('. ') + '.';
+      return this.tierDraftRows.map((row) => `${row.label}: ${this.combinedResult(row.venue).toLowerCase()}`).join('. ') + '.';
     },
   },
   mounted() {
     window.addEventListener('owner-cluster-changed', this.load);
-    this.load();
+    this.bootstrap();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.load);
@@ -349,6 +360,32 @@ export default {
     emptyNotice() {
       return { id: null, title: '', content: '', status: 'active' };
     },
+    async bootstrap() {
+      await this.loadClusters();
+      await this.load();
+    },
+    async loadClusters() {
+      try {
+        const response = await ownerPolicyService.clusters();
+        const clusters = response.data || [];
+        this.ownerClusters = Array.isArray(clusters) ? clusters : [];
+        const current = this.selectedClusterId || localStorage.getItem('selected_cluster');
+        const exists = this.ownerClusters.some((cluster) => cluster.id === current);
+        if ((!current || !exists) && this.ownerClusters.length) {
+          this.selectedClusterId = this.ownerClusters[0].id;
+          localStorage.setItem('selected_cluster', this.selectedClusterId);
+        }
+      } catch (error) {
+        this.error = error.message || 'Không thể tải danh sách cụm sân.';
+      }
+    },
+    async changeCluster() {
+      if (!this.selectedClusterId) return;
+      localStorage.setItem('selected_cluster', this.selectedClusterId);
+      this.success = '';
+      await this.load();
+      window.dispatchEvent(new CustomEvent('owner-cluster-changed', { detail: { id: this.selectedClusterId } }));
+    },
     async load() {
       this.loading = true;
       this.error = '';
@@ -356,6 +393,7 @@ export default {
         const response = await ownerPolicyService.list();
         const data = response.data || {};
         this.venueCluster = data.venue_cluster || null;
+        this.selectedClusterId = this.venueCluster?.id || this.selectedClusterId;
         this.systemPolicies = data.system_policies || [];
         this.customerNotices = data.customer_notices || [];
       } catch (error) {
@@ -365,9 +403,10 @@ export default {
       }
     },
     policyConfig(policy) {
-      return policy.cancellation_configuration || policy.refund_configuration || {};
+      return policy.cancel_refund_configuration || policy.cancellation_configuration || policy.refund_configuration || {};
     },
     policyConfigType(policy) {
+      if (policy.cancel_refund_configuration) return 'cancel_refund';
       return policy.cancellation_configuration ? 'cancel' : 'refund';
     },
     tierRows(policy) {
@@ -386,9 +425,9 @@ export default {
           to_hours: system.to_hours,
           system: systemByKey[system.key],
           venue,
-          systemResult: type === 'cancel' ? this.cancelResult(system) : this.refundResult(system),
-          venueResult: type === 'cancel' ? this.cancelResult(venue) : this.refundResult(venue),
-          limit: limitsByKey[system.key] || (type === 'cancel' ? 'Không được bất lợi hơn hệ thống.' : `Không thấp hơn ${system.refund_percent}%.`),
+          systemResult: type === 'cancel_refund' ? this.combinedResult(system) : (type === 'cancel' ? this.cancelResult(system) : this.refundResult(system)),
+          venueResult: type === 'cancel_refund' ? this.combinedResult(venue) : (type === 'cancel' ? this.cancelResult(venue) : this.refundResult(venue)),
+          limit: limitsByKey[system.key] || (type === 'cancel_refund' ? `Không thấp hơn ${system.refund_percent || 0}% và không chặn hủy nếu hệ thống cho hủy.` : (type === 'cancel' ? 'Không được bất lợi hơn hệ thống.' : `Không thấp hơn ${system.refund_percent}%.`)),
         };
       });
     },
@@ -418,7 +457,10 @@ export default {
           from_hours: row.from_hours,
           to_hours: row.to_hours,
           allow_cancel: Boolean(row.venue.allow_cancel),
-          refund_percent: this.configType === 'refund' ? Number(row.venue.refund_percent || 0) : undefined,
+          refund_percent: (this.configType === 'refund' || this.configType === 'cancel_refund') ? Number(row.venue.refund_percent || 0) : undefined,
+          require_owner_confirm: Boolean(row.venue.require_owner_confirm ?? row.system.require_owner_confirm ?? true),
+          require_admin_confirm: Boolean(row.venue.require_admin_confirm ?? row.system.require_admin_confirm ?? true),
+          customer_message: row.venue.customer_message || row.system.customer_message || '',
         }));
         const response = await ownerPolicyService.saveRule({
           base_policy_rule_id: this.policyConfig(this.selectedPolicy).base_rule_id,
@@ -486,6 +528,11 @@ export default {
       const percent = Number(tier?.refund_percent || 0);
       return percent > 0 ? `Hoàn ${percent}%` : 'Không hoàn';
     },
+    combinedResult(tier) {
+      if (!tier?.allow_cancel) return 'Không cho hủy';
+      const percent = Number(tier?.refund_percent || 0);
+      return percent > 0 ? `Cho hủy, hoàn ${percent}%` : 'Cho hủy nhưng không hoàn';
+    },
     noticeTone(status) {
       return { active: 'success', inactive: 'danger', draft: 'neutral' }[status] || 'neutral';
     },
@@ -506,6 +553,8 @@ export default {
 .cluster-chip.locked { border-left-color: #f59e0b; }
 .cluster-chip span { display: block; color: #94a3b8; font-size: 12px; }
 .cluster-chip strong { display: block; margin-top: 3px; }
+.cluster-select { display: grid; gap: 4px; min-width: 220px; }
+.cluster-select select { width: 100%; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 8px 10px; background: #fff; color: #0f172a; font: inherit; font-weight: 800; }
 .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .stat-card { border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; padding: 16px; display: grid; gap: 6px; }
 .stat-card strong { font-size: 28px; color: #0f172a; }
