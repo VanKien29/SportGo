@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import { platformFeeStore } from '../resources/js/stores/platformFee.store.js';
 import {
   calculatePlatformFee,
+  createTier,
+  deactivateTier,
   findTierForCourtCount,
+  getTiers,
+  updateTier,
+  reactivateTier,
+  updateDiscountProfile,
+  validateDiscountSchedule,
   validateTier,
   validateTierCoverage,
 } from '../resources/js/services/platformFeeTier.service.js';
@@ -190,6 +197,139 @@ await runCase('N. Email nhac dong phi', async () => {
   const overdue = await createLedger({ venue_cluster_id: 'venue-beta', period_months: 1, period_start: '2027-08-01', due_date: '2027-08-15' });
   logs = await processPlatformFeeReminders('2027-08-18');
   assert.ok(logs.some((log) => log.ledger_id === overdue.id && log.type === 'overdue_3_days'));
+});
+
+await runCase('O. Tu can lai khoang bac phi sau khi sua bac truoc', async () => {
+  const saved = await updateTier('tier-small', { max_courts: 5 });
+  const tiers = getTiers();
+  const small = tiers.find((tier) => tier.id === 'tier-small');
+  const medium = tiers.find((tier) => tier.id === 'tier-medium');
+  const large = tiers.find((tier) => tier.id === 'tier-large');
+
+  assert.equal(saved.max_courts, 5);
+  assert.equal(small.min_courts, 1);
+  assert.equal(small.max_courts, 5);
+  assert.equal(medium.min_courts, 6);
+  assert.equal(medium.max_courts, 7);
+  assert.equal(medium.is_active, true);
+  assert.equal(large.min_courts, 8);
+  assert.equal(large.is_active, true);
+  assert.ok(saved.range_adjustments.some((message) => message.includes(medium.name)));
+  assert.equal(validateTierCoverage(tiers).isValid, true);
+});
+
+await runCase('P. Tu vo hieu hoa bac sau khi bac truoc khong gioi han', async () => {
+  const saved = await updateTier('tier-medium', { max_courts: '' });
+  const tiers = getTiers();
+  const medium = tiers.find((tier) => tier.id === 'tier-medium');
+  const large = tiers.find((tier) => tier.id === 'tier-large');
+
+  assert.equal(saved.max_courts, null);
+  assert.equal(medium.min_courts, 4);
+  assert.equal(medium.max_courts, null);
+  assert.equal(large.is_active, false);
+  assert.ok(large.inactive_reason);
+  assert.ok(saved.range_adjustments.some((message) => message.includes(large.name)));
+  assert.equal(validateTierCoverage(tiers).isValid, true);
+});
+
+await runCase('O. Them bac moi tu dong cat bac cuoi', async () => {
+  const created = await createTier({
+    name: 'Bac 4',
+    min_courts: 10,
+    max_courts: null,
+    price_per_court_month: 35000,
+    discount_profile_id: 'discount-large',
+    discount_1_month: 0,
+    discount_3_months: 5,
+    discount_6_months: 10,
+    discount_9_months: 12,
+    discount_12_months: 15,
+    is_active: true,
+    note: '',
+  });
+  const tiers = getTiers();
+  const previousLast = tiers.find((tier) => tier.id === 'tier-large');
+  const newLast = tiers.find((tier) => tier.id === created.id);
+
+  assert.equal(previousLast.min_courts, 8);
+  assert.equal(previousLast.max_courts, 9);
+  assert.equal(newLast.min_courts, 10);
+  assert.equal(newLast.max_courts, null);
+  assert.equal(validateTierCoverage(tiers).isValid, true);
+});
+
+await runCase('P. Chan bac moi co min khong lon hon bac cuoi', async () => {
+  await assert.rejects(() => createTier({
+    name: 'Bac trung',
+    min_courts: 8,
+    max_courts: null,
+    price_per_court_month: 35000,
+    discount_1_month: 0,
+    discount_3_months: 5,
+    discount_6_months: 10,
+    discount_9_months: 12,
+    discount_12_months: 15,
+    is_active: true,
+    note: '',
+  }));
+});
+
+await runCase('Q. Tat va bat lai bac cuoi tu dong can khoang', async () => {
+  await deactivateTier('tier-large', 'Tat thu');
+  let tiers = getTiers();
+  let medium = tiers.find((tier) => tier.id === 'tier-medium');
+  let large = tiers.find((tier) => tier.id === 'tier-large');
+  assert.equal(large.is_active, false);
+  assert.equal(medium.max_courts, null);
+  assert.equal(validateTierCoverage(tiers).isValid, true);
+
+  await reactivateTier('tier-large');
+  tiers = getTiers();
+  medium = tiers.find((tier) => tier.id === 'tier-medium');
+  large = tiers.find((tier) => tier.id === 'tier-large');
+  assert.equal(large.is_active, true);
+  assert.equal(medium.max_courts, 7);
+  assert.equal(large.max_courts, null);
+  assert.equal(validateTierCoverage(tiers).isValid, true);
+});
+
+await runCase('R. Validate giam gia tang dan theo ky', () => {
+  assert.equal(validateDiscountSchedule({
+    discount_1_month: 0,
+    discount_3_months: 5,
+    discount_6_months: 10,
+    discount_9_months: 12,
+    discount_12_months: 15,
+  }).isValid, true);
+  assert.equal(validateDiscountSchedule({
+    discount_1_month: 0,
+    discount_3_months: 5,
+    discount_6_months: 5,
+    discount_9_months: 12,
+    discount_12_months: 15,
+  }).isValid, false);
+  assert.equal(validateDiscountSchedule({
+    discount_1_month: 0,
+    discount_3_months: 5,
+    discount_6_months: 10,
+    discount_9_months: 9,
+    discount_12_months: 15,
+  }).isValid, false);
+});
+
+await runCase('S. Sua mau giam gia cap nhat bac dang dung', async () => {
+  await updateDiscountProfile('discount-large', {
+    name: 'Uu dai cum lon',
+    discount_1_month: 1,
+    discount_3_months: 6,
+    discount_6_months: 11,
+    discount_9_months: 13,
+    discount_12_months: 16,
+  });
+  const tier = getTiers().find((item) => item.id === 'tier-large');
+  assert.equal(tier.discount_1_month, 1);
+  assert.equal(tier.discount_12_months, 16);
 });
 
 const failed = results.filter((result) => result.status === 'FAIL');

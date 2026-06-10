@@ -16,7 +16,11 @@ class VenueCourtsTableSeeder extends Seeder
             return;
         }
 
-        $clusters = VenueCluster::query()->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])->get()->keyBy('slug');
+        $clusters = VenueCluster::query()
+            ->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])
+            ->get()
+            ->keyBy('slug');
+
         $types = CourtType::query()->whereIn('name', [
             'Cầu lông (Sân tiêu chuẩn)',
             'Pickleball (Sân tiêu chuẩn)',
@@ -53,7 +57,7 @@ class VenueCourtsTableSeeder extends Seeder
                     'court_type_id' => $courtTypeId,
                     'status' => 'active',
                     'sort_order' => $sortOrder,
-                ]
+                ],
             );
         }
     }

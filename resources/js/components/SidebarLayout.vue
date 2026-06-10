@@ -325,6 +325,7 @@ export default {
 
 .main-content {
   flex: 1;
+  min-width: 0;
   min-height: 100vh;
   margin-left: 260px;
   display: flex;
@@ -360,6 +361,7 @@ export default {
 
 .content-area {
   flex: 1;
+  min-width: 0;
   padding: 24px;
 }
 

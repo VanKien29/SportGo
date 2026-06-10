@@ -14,6 +14,38 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function discountProfiles() {
+  return [
+    {
+      id: 'discount-small',
+      name: 'Ưu đãi cụm nhỏ',
+      discount_1_month: 0,
+      discount_3_months: 5,
+      discount_6_months: 8,
+      discount_9_months: 10,
+      discount_12_months: 12,
+    },
+    {
+      id: 'discount-standard',
+      name: 'Ưu đãi tiêu chuẩn',
+      discount_1_month: 0,
+      discount_3_months: 5,
+      discount_6_months: 10,
+      discount_9_months: 12,
+      discount_12_months: 14,
+    },
+    {
+      id: 'discount-large',
+      name: 'Ưu đãi cụm lớn',
+      discount_1_month: 0,
+      discount_3_months: 5,
+      discount_6_months: 10,
+      discount_9_months: 12,
+      discount_12_months: 15,
+    },
+  ];
+}
+
 function initialState() {
   const now = new Date().toISOString();
   const currentMonthStart = new Date();
@@ -28,6 +60,7 @@ function initialState() {
         min_courts: 1,
         max_courts: 3,
         price_per_court_month: 50000,
+        discount_profile_id: 'discount-small',
         discount_1_month: 0,
         discount_3_months: 5,
         discount_6_months: 8,
@@ -44,6 +77,7 @@ function initialState() {
         min_courts: 4,
         max_courts: 7,
         price_per_court_month: 45000,
+        discount_profile_id: 'discount-standard',
         discount_1_month: 0,
         discount_3_months: 5,
         discount_6_months: 10,
@@ -60,6 +94,7 @@ function initialState() {
         min_courts: 8,
         max_courts: null,
         price_per_court_month: 40000,
+        discount_profile_id: 'discount-large',
         discount_1_month: 0,
         discount_3_months: 5,
         discount_6_months: 10,
@@ -71,6 +106,7 @@ function initialState() {
         updated_at: now,
       },
     ],
+    discount_profiles: discountProfiles(),
     venues: [
       {
         id: 'venue-alpha',
@@ -197,7 +233,16 @@ function readStoredState() {
   if (typeof localStorage === 'undefined') return initialState();
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? { ...initialState(), ...JSON.parse(stored) } : initialState();
+    if (!stored) return initialState();
+    const defaults = initialState();
+    const parsed = JSON.parse(stored);
+    return {
+      ...defaults,
+      ...parsed,
+      discount_profiles: parsed.discount_profiles?.length
+        ? parsed.discount_profiles
+        : defaults.discount_profiles,
+    };
   } catch {
     return initialState();
   }

@@ -41,6 +41,16 @@ class Report extends Model
         return $this->belongsTo(User::class, 'reporter_id');
     }
 
+    public function reportable()
+    {
+        return $this->morphTo();
+    }
+
+    public function evidence()
+    {
+        return $this->morphMany(Media::class, 'mediable')->orderBy('sort_order');
+    }
+
     public function reviewedBy()
     {
         return $this->belongsTo(User::class, 'reviewed_by');

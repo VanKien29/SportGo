@@ -148,7 +148,7 @@
                                     >
                                         Tổng quan
                                     </h2>
-                                    <p class="text-gray-600 leading-relaxed">
+                                    <p class="text-gray-600 leading-relaxed whitespace-pre-line">
                                         {{
                                             venue.description ||
                                             "Cụm sân chưa cập nhật mô tả."

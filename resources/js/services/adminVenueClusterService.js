@@ -67,4 +67,16 @@ export const adminVenueClusterService = {
       body: JSON.stringify(payload),
     });
   },
+
+  /**
+   * Cập nhật danh sách tiện ích của cụm sân (Admin)
+   * @param {string} id
+   * @param {{ amenities: string[] }} payload
+   */
+  updateAmenities(id, payload) {
+    return api(`/api/admin/venue-clusters/${id}/amenities`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
 };

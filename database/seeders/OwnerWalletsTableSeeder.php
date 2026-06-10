@@ -25,7 +25,7 @@ class OwnerWalletsTableSeeder extends Seeder
             ['owner_id' => $owner->id],
             [
                 'available_balance' => 2500000,
-                'pending_withdrawal_balance' => 300000,
+                'pending_withdrawal_balance' => 450000,
                 'total_earned' => 5000000,
                 'total_withdrawn' => 700000,
             ]

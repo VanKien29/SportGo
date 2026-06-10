@@ -1,10 +1,20 @@
 <template>
     <section class="pf-page">
+        <PlatformFeeSubnav />
+
         <header class="page-head">
             <div>
                 <p class="eyebrow">Phí duy trì nền tảng</p>
             </div>
             <div class="head-actions">
+                <button
+                    class="btn secondary icon-text"
+                    type="button"
+                    @click="openDiscountSettings"
+                >
+                    <AppIcon name="settings" size="18" />
+                    <span>Cấu hình giảm kỳ</span>
+                </button>
                 <button
                     class="btn secondary icon-text"
                     type="button"
@@ -333,32 +343,35 @@
                     <label>
                         Số sân tối đa
                         <input
-                            v-model="form.max_courts"
-                            type="number"
-                            min="1"
-                            step="1"
-                            placeholder="Bỏ trống = không giới hạn"
+                            :value="automaticMaxLabel"
+                            type="text"
+                            disabled
                         />
-                        <small
-                            v-if="fieldError('max_courts')"
-                            class="field-error"
-                            >{{ fieldError("max_courts") }}</small
-                        >
+                        <small>Tự động cân theo bậc kế tiếp.</small>
                     </label>
-                    <label v-for="field in discountFields" :key="field.key">
-                        {{ field.label }}
-                        <input
-                            v-model.number="form[field.key]"
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                        />
-                        <small
-                            v-if="fieldError(field.key)"
-                            class="field-error"
-                            >{{ fieldError(field.key) }}</small
+                    <label class="full">
+                        Mẫu giảm giá theo kỳ *
+                        <select
+                            v-model="form.discount_profile_id"
+                            @change="applySelectedDiscountProfile"
                         >
+                            <option value="">Chọn mẫu giảm giá</option>
+                            <option
+                                v-for="profile in discountProfiles"
+                                :key="profile.id"
+                                :value="profile.id"
+                            >
+                                {{ discountProfileLabel(profile) }}
+                            </option>
+                        </select>
+                        <small
+                            v-if="fieldError('discount_profile_id')"
+                            class="field-error"
+                            >{{ fieldError("discount_profile_id") }}</small
+                        >
+                        <small v-else>
+                            {{ selectedDiscountSummary }}
+                        </small>
                     </label>
                     <label class="check-row">
                         <input v-model="form.is_active" type="checkbox" />
@@ -390,6 +403,127 @@
                     </button>
                 </footer>
             </form>
+        </div>
+
+        <div
+            v-if="showDiscountModal"
+            class="modal-backdrop"
+            @click.self="closeDiscountSettings"
+        >
+            <div class="modal discount-modal">
+                <header class="modal-head">
+                    <div>
+                        <h3>Cấu hình giảm giá theo kỳ</h3>
+                        <p>
+                            Mức giảm phải tăng dần:
+                            1 tháng &lt; 3 tháng &lt; 6 tháng &lt; 9 tháng &lt; 12 tháng.
+                        </p>
+                    </div>
+                    <button
+                        class="icon-close"
+                        type="button"
+                        title="Đóng"
+                        aria-label="Đóng"
+                        @click="closeDiscountSettings"
+                    >
+                        <AppIcon name="x" size="18" />
+                    </button>
+                </header>
+
+                <form class="discount-form" @submit.prevent="saveDiscountProfile">
+                    <div
+                        v-if="discountFieldError('_form')"
+                        class="alert error full"
+                    >
+                        {{ discountFieldError("_form") }}
+                    </div>
+                    <label class="full">
+                        Tên mẫu giảm giá *
+                        <input
+                            v-model.trim="discountForm.name"
+                            placeholder="Ví dụ: Ưu đãi tiêu chuẩn"
+                        />
+                        <small
+                            v-if="discountFieldError('name')"
+                            class="field-error"
+                            >{{ discountFieldError("name") }}</small
+                        >
+                    </label>
+                    <label
+                        v-for="field in discountFields"
+                        :key="field.key"
+                    >
+                        {{ field.label }}
+                        <input
+                            v-model.number="discountForm[field.key]"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                        />
+                        <small
+                            v-if="discountFieldError(field.key)"
+                            class="field-error"
+                            >{{ discountFieldError(field.key) }}</small
+                        >
+                    </label>
+                    <div class="full discount-form-actions">
+                        <button
+                            v-if="editingDiscountId"
+                            class="btn secondary"
+                            type="button"
+                            @click="resetDiscountForm"
+                        >
+                            Hủy chỉnh sửa
+                        </button>
+                        <button class="btn primary icon-text" type="submit">
+                            <AppIcon name="check" size="18" />
+                            <span>{{
+                                editingDiscountId
+                                    ? "Lưu mẫu giảm giá"
+                                    : "Thêm mẫu giảm giá"
+                            }}</span>
+                        </button>
+                    </div>
+                </form>
+
+                <div class="discount-list">
+                    <div class="panel-title">
+                        <strong>Danh sách mẫu giảm giá</strong>
+                        <span>{{ discountProfiles.length }} mẫu</span>
+                    </div>
+                    <div
+                        v-for="profile in discountProfiles"
+                        :key="profile.id"
+                        class="discount-profile-row"
+                    >
+                        <div>
+                            <strong>{{ profile.name }}</strong>
+                            <small>{{ discountProfileLabel(profile) }}</small>
+                        </div>
+                        <div class="actions">
+                            <button
+                                class="icon-btn"
+                                type="button"
+                                title="Sửa mẫu giảm giá"
+                                aria-label="Sửa mẫu giảm giá"
+                                @click="editDiscountProfile(profile)"
+                            >
+                                <AppIcon name="pencil" size="18" />
+                            </button>
+                            <button
+                                class="icon-btn danger"
+                                type="button"
+                                title="Xóa mẫu giảm giá"
+                                aria-label="Xóa mẫu giảm giá"
+                                @click="removeDiscountProfile(profile)"
+                            >
+                                <AppIcon name="trash" size="18" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div
@@ -442,39 +576,55 @@
 <script>
 import { platformFeeStore } from "../../stores/platformFee.store.js";
 import AppIcon from "../../components/AppIcon.vue";
+import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
 import {
     calculatePlatformFee,
+    createDiscountProfile,
     createTier,
     deactivateTier,
+    deleteDiscountProfile,
     deleteTier,
     findTierForCourtCount,
+    getDiscountProfiles,
     getTierUsageCount,
     getTiers,
     reactivateTier,
+    updateDiscountProfile,
     updateTier,
     validateTierCoverage,
 } from "../../services/platformFeeTier.service.js";
 
-const defaultForm = () => ({
+const emptyDiscountForm = () => ({
     name: "",
-    min_courts: 1,
+    discount_1_month: 0,
+    discount_3_months: 5,
+    discount_6_months: 10,
+    discount_9_months: 12,
+    discount_12_months: 15,
+});
+
+const defaultForm = (profile = null, minCourts = 1) => ({
+    name: "",
+    min_courts: minCourts,
     max_courts: "",
     price_per_court_month: 50000,
-    discount_1_month: 0,
-    discount_3_months: 0,
-    discount_6_months: 0,
-    discount_9_months: 0,
-    discount_12_months: 0,
+    discount_profile_id: profile?.id || "",
+    discount_1_month: profile?.discount_1_month ?? 0,
+    discount_3_months: profile?.discount_3_months ?? 5,
+    discount_6_months: profile?.discount_6_months ?? 10,
+    discount_9_months: profile?.discount_9_months ?? 12,
+    discount_12_months: profile?.discount_12_months ?? 15,
     is_active: true,
     note: "",
 });
 
 export default {
     name: "AdminPlatformFeeTiers",
-    components: { AppIcon },
+    components: { AppIcon, PlatformFeeSubnav },
     data() {
         return {
             tiers: [],
+            discountProfiles: [],
             venues: platformFeeStore.state.venues,
             keyword: "",
             statusFilter: "",
@@ -483,6 +633,10 @@ export default {
             viewingTier: null,
             form: defaultForm(),
             formErrors: {},
+            showDiscountModal: false,
+            editingDiscountId: null,
+            discountForm: emptyDiscountForm(),
+            discountErrors: {},
             preview: { venue_cluster_id: "", court_count: 3, period_months: 3 },
             previewResult: null,
             previewError: "",
@@ -515,8 +669,31 @@ export default {
                 return matchKeyword && matchStatus;
             });
         },
+        automaticMaxLabel() {
+            if (!this.form.is_active) return "Không áp dụng khi đang tắt";
+            const nextTier = this.tiers
+                .filter(
+                    (tier) =>
+                        tier.is_active &&
+                        tier.id !== this.editingId &&
+                        tier.min_courts > Number(this.form.min_courts),
+                )
+                .sort((left, right) => left.min_courts - right.min_courts)[0];
+            return nextTier
+                ? `${Number(this.form.min_courts)} - ${nextTier.min_courts - 1} sân`
+                : `Từ ${Number(this.form.min_courts)} sân trở lên`;
+        },
+        selectedDiscountSummary() {
+            const profile = this.discountProfiles.find(
+                (item) => item.id === this.form.discount_profile_id,
+            );
+            return profile
+                ? this.discountProfileLabel(profile)
+                : "Chọn mẫu để tự động áp dụng giảm giá theo từng kỳ.";
+        },
     },
     mounted() {
+        this.loadDiscountProfiles();
         this.loadTiers();
         this.runPreview();
     },
@@ -524,15 +701,41 @@ export default {
         loadTiers() {
             this.tiers = getTiers();
         },
+        loadDiscountProfiles() {
+            this.discountProfiles = getDiscountProfiles();
+        },
+        suggestedMinimum() {
+            const activeTiers = this.tiers
+                .filter((tier) => tier.is_active)
+                .sort((left, right) => left.min_courts - right.min_courts);
+            const lastTier = activeTiers.at(-1);
+            return lastTier ? lastTier.min_courts + 2 : 1;
+        },
         openCreate() {
             this.editingId = null;
-            this.form = defaultForm();
+            const profile = this.discountProfiles[0] || null;
+            this.form = defaultForm(profile, this.suggestedMinimum());
             this.formErrors = {};
             this.showModal = true;
         },
         openEdit(tier) {
             this.editingId = tier.id;
-            this.form = { ...tier, max_courts: tier.max_courts ?? "" };
+            const matchedProfile =
+                this.discountProfiles.find(
+                    (profile) => profile.id === tier.discount_profile_id,
+                ) ||
+                this.discountProfiles.find((profile) =>
+                    this.discountFields.every(
+                        (field) =>
+                            Number(profile[field.key]) ===
+                            Number(tier[field.key]),
+                    ),
+                );
+            this.form = {
+                ...tier,
+                discount_profile_id: matchedProfile?.id || "",
+                max_courts: tier.max_courts ?? "",
+            };
             this.formErrors = {};
             this.showModal = true;
         },
@@ -541,6 +744,13 @@ export default {
             this.formErrors = {};
         },
         async saveTier() {
+            if (!this.form.discount_profile_id) {
+                this.formErrors = {
+                    discount_profile_id: ["Vui lòng chọn mẫu giảm giá."],
+                };
+                return;
+            }
+            this.applySelectedDiscountProfile();
             try {
                 if (this.editingId) await updateTier(this.editingId, this.form);
                 else await createTier(this.form);
@@ -562,6 +772,7 @@ export default {
                 else await reactivateTier(tier.id);
                 this.showMessage("Đã cập nhật trạng thái bậc phí.");
                 this.loadTiers();
+                this.runPreview();
             } catch (error) {
                 this.showMessage(error.message, "error");
             }
@@ -581,6 +792,71 @@ export default {
             } catch (error) {
                 this.showMessage(error.message, "error");
             }
+        },
+        applySelectedDiscountProfile() {
+            const profile = this.discountProfiles.find(
+                (item) => item.id === this.form.discount_profile_id,
+            );
+            if (!profile) return;
+            this.discountFields.forEach((field) => {
+                this.form[field.key] = profile[field.key];
+            });
+        },
+        openDiscountSettings() {
+            this.resetDiscountForm();
+            this.showDiscountModal = true;
+        },
+        closeDiscountSettings() {
+            this.showDiscountModal = false;
+            this.resetDiscountForm();
+        },
+        resetDiscountForm() {
+            this.editingDiscountId = null;
+            this.discountForm = emptyDiscountForm();
+            this.discountErrors = {};
+        },
+        editDiscountProfile(profile) {
+            this.editingDiscountId = profile.id;
+            this.discountForm = { ...profile };
+            this.discountErrors = {};
+        },
+        async saveDiscountProfile() {
+            try {
+                if (this.editingDiscountId) {
+                    await updateDiscountProfile(
+                        this.editingDiscountId,
+                        this.discountForm,
+                    );
+                } else {
+                    await createDiscountProfile(this.discountForm);
+                }
+                this.loadDiscountProfiles();
+                this.loadTiers();
+                this.resetDiscountForm();
+                this.runPreview();
+                this.showMessage("Đã lưu mẫu giảm giá.");
+            } catch (error) {
+                this.discountErrors = error.validation?.errors || {
+                    _form: [error.message],
+                };
+                this.showMessage(error.message, "error");
+            }
+        },
+        async removeDiscountProfile(profile) {
+            if (!confirm(`Xóa mẫu giảm giá "${profile.name}"?`)) return;
+            try {
+                await deleteDiscountProfile(profile.id);
+                this.loadDiscountProfiles();
+                this.showMessage("Đã xóa mẫu giảm giá.");
+            } catch (error) {
+                this.showMessage(error.message, "error");
+            }
+        },
+        discountFieldError(field) {
+            return this.discountErrors[field]?.[0] || "";
+        },
+        discountProfileLabel(profile) {
+            return `1T ${this.percent(profile.discount_1_month)} · 3T ${this.percent(profile.discount_3_months)} · 6T ${this.percent(profile.discount_6_months)} · 9T ${this.percent(profile.discount_9_months)} · 12T ${this.percent(profile.discount_12_months)}`;
         },
         async removeTier(tier) {
             const reason = prompt("Nhập lý do ngừng dùng bậc phí:");
@@ -638,6 +914,7 @@ export default {
             if (!confirm("Khôi phục dữ liệu mẫu phí nền tảng?")) return;
             platformFeeStore.reset();
             this.venues = platformFeeStore.state.venues;
+            this.loadDiscountProfiles();
             this.loadTiers();
             this.runPreview();
             this.showMessage("Đã khôi phục dữ liệu mẫu.");
@@ -805,8 +1082,8 @@ td small {
     box-shadow: 0 0 0 3px #d1fae5;
 }
 .status-dot.inactive {
-    background: #94a3b8;
-    box-shadow: 0 0 0 3px #e2e8f0;
+    background: #ef4444;
+    box-shadow: 0 0 0 3px #fee2e2;
 }
 .actions {
     flex-wrap: wrap;
@@ -936,6 +1213,44 @@ label {
     max-height: calc(100vh - 40px);
     overflow: auto;
 }
+.discount-modal {
+    width: min(980px, calc(100vw - 32px));
+}
+.modal-head p {
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 13px;
+}
+.discount-form {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    padding: 18px 22px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.discount-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.discount-list {
+    padding: 18px 22px 22px;
+}
+.discount-profile-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+.discount-profile-row:last-child {
+    border-bottom: 0;
+}
+.discount-profile-row strong,
+.discount-profile-row small {
+    display: block;
+}
 .modal-head {
     justify-content: space-between;
     padding: 18px 22px;
@@ -983,7 +1298,8 @@ label {
         grid-template-columns: 1fr 1fr;
     }
     .preview-form,
-    .form-grid {
+    .form-grid,
+    .discount-form {
         grid-template-columns: 1fr;
     }
 }

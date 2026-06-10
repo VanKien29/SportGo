@@ -25,7 +25,7 @@ class VenueStaffAssignmentsTableSeeder extends Seeder
         $owner = User::query()->where('username', 'owner')->first();
         $staff = User::query()->where('username', 'venuestaff')->first();
         $cluster = VenueCluster::query()->where('slug', 'sportgo-cau-giay')->first();
-        $badminton = CourtType::query()->where('name', 'Cầu lông')->first();
+        $badminton = CourtType::query()->where('name', 'Cầu lông (Sân tiêu chuẩn)')->first();
 
         if (! $owner || ! $staff || ! $cluster) {
             return;
@@ -42,7 +42,7 @@ class VenueStaffAssignmentsTableSeeder extends Seeder
                 'court_type_id' => null,
                 'assigned_by' => $owner->id,
                 'status' => 'active',
-            ]
+            ],
         );
 
         if (! $badminton) {
@@ -53,14 +53,14 @@ class VenueStaffAssignmentsTableSeeder extends Seeder
             [
                 'user_id' => $staff->id,
                 'venue_cluster_id' => $cluster->id,
-                'scope_key' => 'court_type:'.$badminton->id,
+                'scope_key' => 'court_type:' . $badminton->id,
             ],
             [
                 'scope_type' => 'court_type',
                 'court_type_id' => $badminton->id,
                 'assigned_by' => $owner->id,
                 'status' => 'active',
-            ]
+            ],
         );
     }
 }

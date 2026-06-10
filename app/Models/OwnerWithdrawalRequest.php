@@ -16,6 +16,10 @@ class OwnerWithdrawalRequest extends Model
 
     protected $fillable = [
         'request_code',
+        'source',
+        'partner_settlement_id',
+        'partner_termination_request_id',
+        'auto_created',
         'owner_id',
         'owner_wallet_id',
         'owner_bank_account_id',
@@ -39,6 +43,7 @@ class OwnerWithdrawalRequest extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'auto_created' => 'boolean',
             'metadata' => 'array',
             'reviewed_at' => 'datetime',
             'completed_at' => 'datetime',
@@ -75,5 +80,15 @@ class OwnerWithdrawalRequest extends Model
     public function receipt()
     {
         return $this->morphOne(InternalReceipt::class, 'receiptable');
+    }
+
+    public function partnerSettlement()
+    {
+        return $this->belongsTo(PartnerSettlement::class, 'partner_settlement_id');
+    }
+
+    public function partnerTerminationRequest()
+    {
+        return $this->belongsTo(PartnerTerminationRequest::class, 'partner_termination_request_id');
     }
 }

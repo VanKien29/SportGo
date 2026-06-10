@@ -38,7 +38,7 @@ function extractError(data, fallback) {
 export async function api(path, options = {}) {
   const headers = {
     Accept: 'application/json',
-    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
     ...(options.headers || {}),
   };
 
@@ -51,6 +51,10 @@ export async function api(path, options = {}) {
   if (response.status === 401) {
     clearAuthStorage();
     throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+  }
+
+  if (response.status === 403) {
+    throw new Error(extractError(data, 'Bạn không có quyền thực hiện thao tác này.'));
   }
 
   if (!response.ok) {
@@ -83,6 +87,10 @@ export async function apiFormData(path, formData, options = {}) {
   if (response.status === 401) {
     clearAuthStorage();
     throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+  }
+
+  if (response.status === 403) {
+    throw new Error(extractError(data, 'Bạn không có quyền thực hiện thao tác này.'));
   }
 
   if (!response.ok) {
