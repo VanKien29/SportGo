@@ -16,6 +16,7 @@ use App\Services\Admin\AdminAuditService;
 use App\Services\Admin\PolicyConflictService;
 use App\Services\Policies\ModerationReportPolicyService;
 use App\Services\Policies\RefundCancellationPolicyService;
+use App\Services\Policies\PolicyConfigurationService;
 use App\Support\PolicyUiText;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
@@ -31,7 +32,8 @@ class AdminPolicyController extends Controller
         private readonly AdminAuditService $audit,
         private readonly PolicyConflictService $conflicts,
         private readonly RefundCancellationPolicyService $refundPolicies,
-        private readonly ModerationReportPolicyService $reportPolicies
+        private readonly ModerationReportPolicyService $reportPolicies,
+        private readonly PolicyConfigurationService $configurationPolicies
     ) {
     }
 
@@ -139,7 +141,11 @@ class AdminPolicyController extends Controller
             ->values();
         $cancelRefundConfiguration = $this->cancelRefundConfigurationPayload($policy);
         $reportConfiguration = $this->reportConfigurationPayload($policy);
-        $businessSummary = $cancelRefundConfiguration['summary'] ?? $reportConfiguration['summary'] ?? $this->policyBusinessSummary($policy);
+        $permissionRevokeConfiguration = $this->configurationPolicies->permissionRevokePayload($policy);
+        $accountPolicyConfiguration = $this->configurationPolicies->accountPolicyPayload($policy);
+        $partnerContractConfiguration = $this->configurationPolicies->partnerContractPayload($policy);
+        
+        $businessSummary = $cancelRefundConfiguration['summary'] ?? $reportConfiguration['summary'] ?? $permissionRevokeConfiguration['summary'] ?? $accountPolicyConfiguration['summary'] ?? $partnerContractConfiguration['summary'] ?? $this->policyBusinessSummary($policy);
 
         return response()->json([
             'data' => [
@@ -151,9 +157,12 @@ class AdminPolicyController extends Controller
                     'require_reaccept' => (bool) $policy->require_reaccept,
                     'change_summary' => $policy->change_summary,
                 ],
-                'configuration_type' => $this->configurationType($policy),
+                'configuration_type' => $this->configurationPolicies->getConfigurationType($policy),
                 'cancel_refund_tiers' => $cancelRefundConfiguration,
                 'moderation_thresholds' => $reportConfiguration,
+                'permission_revoke_configuration' => $permissionRevokeConfiguration,
+                'account_policy_configuration' => $accountPolicyConfiguration,
+                'partner_contract_configuration' => $partnerContractConfiguration,
                 'venue_overrides' => $venueRules
                     ->map(fn (VenuePolicyRule $venueRule): array => $this->venueOverridePayload($venueRule))
                     ->values(),
@@ -230,7 +239,44 @@ class AdminPolicyController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Đã cập nhật chính sách.',
+            'message' => 'Đã cập nhật thông tin chung chính sách.',
+            'data' => $this->policyPayload($policy->fresh()),
+        ]);
+    }
+
+    public function updateConfiguration(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'policy.update');
+
+        $policy = SystemPolicy::query()->with(['rules', 'actionBindings'])->findOrFail($id);
+
+        if ($policy->status === 'active') {
+            throw ValidationException::withMessages([
+                'policy' => 'Chính sách đang áp dụng không được sửa cấu hình. Hãy tạo phiên bản nháp mới.',
+            ]);
+        }
+
+        $configService = app(\App\Services\Policies\PolicyConfigurationService::class);
+        $data = $request->validate([
+            'configuration_data' => ['required', 'array'],
+        ]);
+
+        try {
+            DB::transaction(function() use ($policy, $data, $configService) {
+                $configService->applyConfigurationData($policy, $data['configuration_data']);
+            });
+        } catch (\Exception $e) {
+            throw ValidationException::withMessages([
+                'configuration_data' => $e->getMessage()
+            ]);
+        }
+
+        $this->audit->log($request, 'policy', 'policy.configured', 'system_policies', $policy->id, [], $policy->fresh()->toArray(), [
+            'policy_id' => $policy->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Đã cập nhật cấu hình nghiệp vụ chính sách.',
             'data' => $this->policyPayload($policy->fresh()),
         ]);
     }
@@ -938,37 +984,48 @@ class AdminPolicyController extends Controller
     {
         $payload = $this->policyPayload($policy);
         unset($payload['content']);
+
+        if ($payload['configuration_type'] === 'permission_revoke') {
+            $configService = app(\App\Services\Policies\PolicyConfigurationService::class);
+            $payload['supported_targets'] = $configService->getSupportedTargets();
+            $payload['supported_reasons'] = $configService->getSupportedReasons();
+            $payload['supported_permissions'] = $configService->getSupportedPermissions();
+        }
+
         return $payload;
     }
 
     private function policyPayload(SystemPolicy $policy): array
     {
-        $policyType = $policy->policy_type ?: $policy->type;
+        $policy->loadMissing(['rules', 'actionBindings']);
+        
+        $configService = app(\App\Services\Policies\PolicyConfigurationService::class);
 
-        return [
+        $payload = [
             'id' => $policy->id,
             'key' => $policy->key,
             'version' => (int) $policy->version,
             'title' => $policy->title,
             'content' => $policy->content,
             'type' => $policy->type,
-            'policy_type' => $policyType,
-            'policy_type_label' => $this->policyTypeLabel($policyType),
-            'policy_type_label_vi' => $this->policyTypeLabel($policyType),
+            'policy_type' => $policy->policy_type,
+            'policy_type_label' => $this->policyTypeLabel($policy->policy_type ?: $policy->type),
+            'configuration_type' => $configService->getConfigurationType($policy),
+            'configuration_data' => $configService->extractConfigurationData($policy),
+            'supported_actions' => $configService->getSupportedActions($policy),
             'status' => $policy->status,
             'status_label' => $this->statusLabel($policy->status),
-            'status_label_vi' => $this->statusLabel($policy->status),
             'is_active' => (bool) $policy->is_active,
             'is_overridable' => (bool) $policy->is_overridable,
             'priority' => (int) $policy->priority,
+            'require_reaccept' => (bool) $policy->require_reaccept,
             'effective_from' => $policy->effective_from,
             'effective_to' => $policy->effective_to,
             'published_at' => $policy->published_at,
-            'require_reaccept' => (bool) $policy->require_reaccept,
-            'change_summary' => $policy->change_summary,
             'business_summary' => $this->policyBusinessSummary($policy),
             'business_summary_vi' => $this->policyBusinessSummary($policy),
-            'can_edit_content' => $policy->status !== 'active',
+            'can_edit' => $policy->status !== 'active',
+            'can_publish' => $policy->status === 'draft',
             'action_bindings_count' => (int) ($policy->action_bindings_count ?? ($policy->relationLoaded('actionBindings') ? $policy->actionBindings->count() : 0)),
             'rules_count' => (int) ($policy->rules_count ?? ($policy->relationLoaded('rules') ? $policy->rules->count() : 0)),
             'created_by' => $policy->created_by,
@@ -979,7 +1036,23 @@ class AdminPolicyController extends Controller
             'published_by_name' => $policy->relationLoaded('publishedBy') ? ($policy->publishedBy?->full_name ?: $policy->publishedBy?->username) : null,
             'created_at' => $policy->created_at,
             'updated_at' => $policy->updated_at,
+            'status_histories' => $policy->relationLoaded('statusHistories') ? $policy->statusHistories->map(fn($h) => [
+                'id' => $h->id,
+                'old_status' => $h->old_status,
+                'new_status' => $h->new_status,
+                'reason' => $h->reason,
+                'created_at' => $h->created_at,
+                'actor_name' => $h->changedBy?->full_name ?: $h->changedBy?->username,
+            ])->values() : [],
         ];
+
+        if ($payload['configuration_type'] === 'permission_revoke') {
+            $payload['supported_targets'] = $configService->getSupportedTargets();
+            $payload['supported_reasons'] = $configService->getSupportedReasons();
+            $payload['supported_permissions'] = $configService->getSupportedPermissions();
+        }
+
+        return $payload;
     }
 
     private function bindingPayload(PolicyActionBinding $binding): array
@@ -1001,13 +1074,7 @@ class AdminPolicyController extends Controller
 
     private function configurationType(SystemPolicy $policy): string
     {
-        return match ($policy->policy_type ?: $policy->type) {
-            'booking_cancellation' => 'cancel_refund_tiers',
-            'moderation' => 'moderation_thresholds',
-            'platform_fee' => 'platform_fee_thresholds',
-            'terms', 'general' => 'policy_content',
-            default => 'policy_content',
-        };
+        return $this->configurationPolicies->getConfigurationType($policy);
     }
 
     private function cancelRefundConfigurationPayload(SystemPolicy $policy): ?array
@@ -1271,7 +1338,7 @@ class AdminPolicyController extends Controller
 
     private function changesProtectedFields(SystemPolicy $policy, array $data): bool
     {
-        foreach (['key', 'version', 'content', 'policy_type', 'is_overridable', 'require_reaccept'] as $field) {
+        foreach (['key', 'version', 'title', 'content', 'policy_type', 'is_overridable', 'require_reaccept', 'effective_from', 'effective_to'] as $field) {
             if (array_key_exists($field, $data) && $policy->{$field} != $data[$field]) {
                 return true;
             }

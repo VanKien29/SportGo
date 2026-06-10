@@ -26,16 +26,16 @@ class VenuePolicyRulesSeeder extends Seeder
         $owner = User::query()->where('username', 'owner')->first();
         $admin = User::query()->where('username', 'admin')->first();
         $cluster = VenueCluster::query()->where('slug', 'sportgo-cau-giay')->first();
-        $refundPolicy = SystemPolicy::query()->where('key', 'refund')->where('version', 1)->first();
-        $baseRule = $refundPolicy
-            ? PolicyRule::query()->where('system_policy_id', $refundPolicy->id)->where('rule_code', 'refund_percent_by_cancel_time')->first()
+        $cancellationPolicy = SystemPolicy::query()->where('key', 'booking_cancellation')->where('version', 1)->first();
+        $baseRule = $cancellationPolicy
+            ? PolicyRule::query()->where('system_policy_id', $cancellationPolicy->id)->where('rule_code', 'cancel_before_hours')->first()
             : null;
 
         if (! $owner || ! $admin || ! $cluster || ! $baseRule) {
             return;
         }
 
-        $validVenueTiers = $this->refundPolicies->defaultTiers();
+        $validVenueTiers = $this->refundPolicies->defaultCancelRefundTiers();
         foreach ($validVenueTiers as &$tier) {
             if ($tier['key'] === 'from_6_to_24') {
                 $tier['refund_percent'] = 90;
@@ -48,20 +48,19 @@ class VenuePolicyRulesSeeder extends Seeder
         VenuePolicyRule::query()->updateOrCreate(
             [
                 'venue_cluster_id' => $cluster->id,
-                'rule_code' => 'venue_refund_tiers_customer_friendly',
+                'rule_code' => 'cancel_before_hours',
             ],
             [
                 'base_policy_rule_id' => $baseRule->id,
-                'action_code' => 'refund.request',
-                'rule_name' => 'Bảng mốc hoàn tiền riêng có lợi hơn cho khách',
-                'rule_type' => 'refund_percent_by_cancel_time',
-                'condition_json' => ['uses_tier_table' => true],
+                'action_code' => 'booking.cancel_by_customer',
+                'rule_name' => 'Bảng mốc hủy & hoàn booking riêng có lợi hơn cho khách',
+                'rule_type' => 'cancel_before_hours',
+                'condition_json' => ['uses_cancel_refund_tier_table' => true],
                 'result_json' => [
                     'tiers' => $validVenueTiers,
-                    'refund_percent' => 100,
-                    'requires_owner_confirm' => true,
-                    'requires_admin_confirm' => true,
-                    'summary_vi' => $this->refundPolicies->summary($validVenueTiers),
+                    'cancel_refund_tiers' => $validVenueTiers,
+                    'refund_basis' => 'paid_amount',
+                    'summary_vi' => $this->refundPolicies->cancelRefundSummary($validVenueTiers),
                 ],
                 'status' => 'active',
                 'approved_by' => $admin->id,
@@ -84,7 +83,7 @@ class VenuePolicyRulesSeeder extends Seeder
             ],
         );
 
-        $invalidVenueTiers = $this->refundPolicies->defaultTiers();
+        $invalidVenueTiers = $this->refundPolicies->defaultCancelRefundTiers();
         foreach ($invalidVenueTiers as &$tier) {
             if ($tier['key'] === 'from_6_to_24') {
                 $tier['refund_percent'] = 50;
@@ -94,20 +93,19 @@ class VenuePolicyRulesSeeder extends Seeder
         VenuePolicyRule::query()->updateOrCreate(
             [
                 'venue_cluster_id' => $cluster->id,
-                'rule_code' => 'venue_refund_tiers_below_system_minimum',
+                'rule_code' => 'cancel_before_hours_invalid',
             ],
             [
                 'base_policy_rule_id' => $baseRule->id,
-                'action_code' => 'refund.request',
-                'rule_name' => 'Bảng mốc hoàn tiền thấp hơn khung hệ thống',
-                'rule_type' => 'refund_percent_by_cancel_time',
-                'condition_json' => ['uses_tier_table' => true],
+                'action_code' => 'booking.cancel_by_customer',
+                'rule_name' => 'Bảng mốc hủy & hoàn booking thấp hơn khung hệ thống',
+                'rule_type' => 'cancel_before_hours',
+                'condition_json' => ['uses_cancel_refund_tier_table' => true],
                 'result_json' => [
                     'tiers' => $invalidVenueTiers,
-                    'refund_percent' => 100,
-                    'requires_owner_confirm' => true,
-                    'requires_admin_confirm' => true,
-                    'summary_vi' => $this->refundPolicies->summary($invalidVenueTiers),
+                    'cancel_refund_tiers' => $invalidVenueTiers,
+                    'refund_basis' => 'paid_amount',
+                    'summary_vi' => $this->refundPolicies->cancelRefundSummary($invalidVenueTiers),
                 ],
                 'status' => 'rejected',
                 'approved_by' => null,

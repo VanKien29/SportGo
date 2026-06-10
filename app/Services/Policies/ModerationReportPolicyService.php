@@ -197,6 +197,9 @@ class ModerationReportPolicyService
             ->map(function (array $threshold, int $index) use (&$errors): array {
                 $objectType = (string) ($threshold['object_type'] ?? $threshold['target_type'] ?? 'post');
                 $action = (string) ($threshold['action'] ?? ($threshold['actions'][0] ?? 'notify_admin'));
+                if ($action === 'require_admin_review') {
+                    $action = 'pending_review';
+                }
                 $minReports = (int) ($threshold['min_reports'] ?? $threshold['minimum_reports'] ?? 0);
                 $minDistinct = (int) ($threshold['min_distinct_reporters'] ?? $threshold['minimum_unique_reporters'] ?? 0);
                 $withinDays = (int) ($threshold['within_days'] ?? $threshold['window_days'] ?? 0);
@@ -490,12 +493,16 @@ class ModerationReportPolicyService
             $actions = [$actions];
         }
 
+        $actions = array_map(function ($act) {
+            return $act === 'require_admin_review' ? 'pending_review' : $act;
+        }, (array) $actions);
+
         return [
             'target_type' => (string) ($config['target_type'] ?? $default['target_type']),
             'minimum_reports' => (int) ($config['minimum_reports'] ?? $default['minimum_reports']),
             'minimum_unique_reporters' => (int) ($config['minimum_unique_reporters'] ?? $default['minimum_unique_reporters']),
             'window_days' => (int) ($config['window_days'] ?? $default['window_days']),
-            'actions' => array_values(array_unique(array_filter((array) $actions))),
+            'actions' => array_values(array_unique(array_filter($actions))),
         ];
     }
 

@@ -59,6 +59,16 @@
       </nav>
 
       <section v-if="activeTab === 'overview'" class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Thông tin chung</h3>
+            <p>Các thông tin cơ bản của chính sách.</p>
+          </div>
+          <button v-if="canEdit" class="btn secondary" type="button" @click="editGeneralInfo">
+            <AppIcon name="edit" size="15" />
+            Sửa thông tin
+          </button>
+        </div>
         <div class="summary-grid">
           <InfoItem label="Nhóm chính sách" :value="policy.policy_type_label || getPolicyTypeLabel(policy.policy_type)" />
           <InfoItem label="Trạng thái" :value="policy.status_label || getStatusLabel(policy.status)" />
@@ -98,99 +108,169 @@
           </div>
         </div>
 
-        <article v-if="cancelRefundConfiguration" class="config-card">
-          <ConfigHeader
-            kicker="Hủy & hoàn booking"
-            title="Bảng mốc hủy và hoàn theo thời gian"
-            :summary="cancelRefundConfiguration.summary"
-            :can-edit="canEdit"
-            edit-label="Sửa bảng mốc"
-            @edit="openCancelRefundModal"
-            @detail="openDetail('Hủy & hoàn booking', cancelRefundConfiguration.summary, cancelRefundRows)"
-          />
-          <TierTable :rows="cancelRefundRows" mode="cancel_refund" />
-        </article>
-
-        <article v-if="false && !cancelRefundConfiguration && cancellationConfiguration" class="config-card">
-          <ConfigHeader
-            kicker="Hủy booking"
-            title="Bảng mốc thời gian được hủy booking"
-            :summary="cancellationConfiguration.summary"
-            :can-edit="canEdit"
-            edit-label="Sửa bảng hủy"
-            @edit="openCancellationModal"
-            @detail="openDetail('Hủy booking', cancellationConfiguration.summary, cancellationRows)"
-          />
-          <TierTable :rows="cancellationRows" mode="cancel" />
-        </article>
-
-        <article v-if="false && !cancelRefundConfiguration && refundConfiguration" class="config-card">
-          <ConfigHeader
-            kicker="Hoàn tiền"
-            title="Bảng mốc hoàn tiền sau khi hủy hợp lệ"
-            :summary="refundConfiguration.summary"
-            :can-edit="canEdit"
-            edit-label="Sửa bảng hoàn"
-            @edit="openRefundModal"
-            @detail="openDetail('Hoàn tiền', refundConfiguration.summary, refundRows)"
-          />
-          <div class="workflow-line">
-            <span :class="refundConfiguration.requires_owner_confirm ? 'on' : 'off'">Chủ sân xác nhận</span>
-            <span :class="refundConfiguration.requires_admin_confirm ? 'on' : 'off'">Admin hoàn tất</span>
-          </div>
-          <TierTable :rows="refundRows" mode="refund" />
-        </article>
-
-        <article v-if="reportConfiguration" class="config-card">
-          <ConfigHeader
-            kicker="Kiểm duyệt & báo cáo"
-            title="Ngưỡng báo cáo cần xử lý"
-            :summary="reportConfiguration.summary"
-            :can-edit="canEdit"
-            edit-label="Sửa ngưỡng báo cáo"
-            @edit="openReportModal"
-            @detail="openReportDetail"
-          />
-          <div class="tier-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Đối tượng</th>
-                  <th>Ngưỡng báo cáo</th>
-                  <th>Thời gian xét</th>
-                  <th>Hành động</th>
-                  <th>Thông báo admin</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="threshold in reportThresholdRows" :key="threshold.key">
-                  <td>{{ threshold.object_type_label }}</td>
-                  <td>{{ threshold.min_reports }} báo cáo từ {{ threshold.min_distinct_reporters }} người</td>
-                  <td>{{ threshold.within_days }} ngày</td>
-                  <td>{{ threshold.action_label }}</td>
-                  <td>{{ threshold.notify_admin ? 'Có' : 'Không' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </article>
-
-        <div v-if="otherRules.length" class="rule-grid">
-          <article v-for="rule in otherRules" :key="rule.id" class="rule-card">
-            <div>
-              <strong>{{ rule.rule_label_vi || rule.rule_type_label || rule.rule_name }}</strong>
-              <p>{{ rule.business_summary_vi || rule.business_summary }}</p>
+        <div v-if="policy.configuration_type === 'text_only'" class="notice info">
+          Chính sách này là nội dung hiển thị, không có xử lý tự động.
+        </div>
+        
+        <template v-else-if="policy.configuration_type === 'platform_fee'">
+          <article class="config-card">
+            <ConfigHeader
+              kicker="Phí nền tảng"
+              title="Quy trình nhắc nhở & xử lý nợ phí"
+              :summary="platformFeeConfiguration?.message_template"
+              :can-edit="canEdit"
+              edit-label="Sửa cấu hình"
+              @edit="openPlatformFeeModal"
+            />
+            
+            <div class="summary-grid">
+              <InfoItem label="Nhắc trước hạn" :value="`${platformFeeConfiguration?.remind_before_days ?? 0} ngày`" />
+              <InfoItem label="Quá hạn cảnh báo" :value="`${platformFeeConfiguration?.warn_overdue_days ?? 0} ngày`" />
+              <InfoItem label="Quá hạn hạn chế quản lý" :value="`${platformFeeConfiguration?.restrict_overdue_days ?? 0} ngày`" />
+              <InfoItem label="Quá hạn khóa cụm sân" :value="`${platformFeeConfiguration?.lock_overdue_days ?? 0} ngày`" />
+              <InfoItem label="Quá hạn chuyển xử lý chấm dứt" :value="`${platformFeeConfiguration?.termination_review_overdue_days ?? 0} ngày`" />
             </div>
-            <div class="rule-footer">
-              <span class="badge" :class="rule.is_active ? 'success' : 'neutral'">{{ rule.is_active ? 'Đang bật' : 'Đang tắt' }}</span>
-              <button class="text-btn" type="button" @click="openRuleDetail(rule)">Xem chi tiết</button>
+
+            <div class="summary-grid" style="margin-top: 24px;">
+              <InfoItem label="Thông báo cho Owner" :value="platformFeeConfiguration?.notify_owner ? 'Có' : 'Không'" />
+              <InfoItem label="Thông báo cho Admin" :value="platformFeeConfiguration?.notify_admin ? 'Có' : 'Không'" />
+              <InfoItem label="Mẫu thông báo" :value="platformFeeConfiguration?.message_template" style="grid-column: 1 / -1" />
+            </div>
+
+            <div class="supported-actions" v-if="policy.supported_actions && policy.supported_actions.length > 0" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border)">
+              <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Các hành động được hệ thống hỗ trợ:</h4>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <span class="badge neutral" v-for="action in policy.supported_actions" :key="action">
+                  {{ action === 'notify_owner' ? 'Thông báo Owner' : (action === 'notify_admin' ? 'Thông báo Admin' : (action === 'lock_venue_cluster' ? 'Khóa cụm sân' : (action === 'termination_review' ? 'Review chấm dứt' : action))) }}
+                </span>
+                <span class="badge" :class="'danger-ghost'" title="Chức năng này chưa kích hoạt tự động.">Hạn chế quản lý (Chưa hỗ trợ)</span>
+              </div>
             </div>
           </article>
-        </div>
+        </template>
 
-        <div v-if="!cancelRefundConfiguration && !cancellationConfiguration && !refundConfiguration && !reportConfiguration && !otherRules.length" class="empty-state">
-          Chưa có cấu hình xử lý cho chính sách này.
-        </div>
+        <template v-else-if="policy.configuration_type === 'permission_revoke'">
+          <article class="config-card">
+            <ConfigHeader
+              kicker="Thu hồi quyền"
+              title="Quy định thu hồi quyền sử dụng"
+              :summary="permissionRevokeConfiguration?.message_template"
+              :can-edit="canEdit"
+              edit-label="Sửa cấu hình"
+              @edit="openPermissionRevokeModal"
+            />
+            
+            <div class="summary-grid">
+              <InfoItem label="Đối tượng" :value="getOptionLabel(policy.supported_targets, permissionRevokeConfiguration?.target_type) || 'Chủ sân'" />
+              <InfoItem label="Lý do" :value="getOptionLabel(policy.supported_reasons, permissionRevokeConfiguration?.reason_type) || 'Quá hạn phí nền tảng'" />
+              <InfoItem label="Thu hồi sau vi phạm" :value="`${permissionRevokeConfiguration?.revoke_after_days ?? 0} ngày`" />
+              <InfoItem label="Thời hạn thu hồi" :value="permissionRevokeConfiguration?.revoke_duration_days ? `${permissionRevokeConfiguration.revoke_duration_days} ngày` : 'Vĩnh viễn'" />
+            </div>
+
+            <div class="summary-grid" style="margin-top: 24px;">
+              <InfoItem label="Yêu cầu Admin duyệt" :value="permissionRevokeConfiguration?.requires_admin_confirm ? 'Có' : 'Không'" />
+              <InfoItem label="Thông báo đối tượng" :value="permissionRevokeConfiguration?.notify_target ? 'Có' : 'Không'" />
+              <InfoItem label="Thông báo Admin" :value="permissionRevokeConfiguration?.notify_admin ? 'Có' : 'Không'" />
+            </div>
+            
+            <div class="summary-grid" style="margin-top: 24px;">
+              <InfoItem label="Quyền bị thu hồi" :value="(permissionRevokeConfiguration?.permissions_to_revoke || []).map(p => getOptionLabel(policy.supported_permissions, p)).join(', ')" style="grid-column: span 2;" />
+              <InfoItem label="Mẫu thông báo" :value="permissionRevokeConfiguration?.message_template" style="grid-column: span 2;" />
+            </div>
+
+          </article>
+        </template>
+
+        <template v-else-if="policy.configuration_type === 'partner_contract'">
+          <article class="config-card">
+            <ConfigHeader
+              kicker="Hợp đồng đối tác"
+              title="Quy định xử lý hợp đồng đối tác"
+              :summary="partnerContractConfiguration?.summary_vi"
+              :can-edit="canEdit"
+              edit-label="Sửa cấu hình"
+              @edit="openPartnerContractModal"
+            />
+            
+            <div class="summary-grid">
+              <InfoItem label="Nhắc nhở gia hạn trước" :value="`${partnerContractConfiguration?.warn_before_days ?? 0} ngày`" />
+              <InfoItem label="Khóa cụm sân sau khi hết hạn" :value="`${partnerContractConfiguration?.lock_after_days ?? 0} ngày`" />
+              <InfoItem label="Thu hồi quyền sau khi hết hạn" :value="`${partnerContractConfiguration?.revoke_after_days ?? 0} ngày`" />
+            </div>
+
+            <div class="summary-grid" style="margin-top: 24px;">
+              <InfoItem label="Yêu cầu Admin duyệt" :value="partnerContractConfiguration?.requires_admin_confirm ? 'Có' : 'Không'" />
+              <InfoItem label="Thông báo Chủ sân" :value="partnerContractConfiguration?.notify_target ? 'Có' : 'Không'" />
+              <InfoItem label="Thông báo Admin" :value="partnerContractConfiguration?.notify_admin ? 'Có' : 'Không'" />
+            </div>
+          </article>
+        </template>
+
+        <template v-else>
+          <article v-if="cancelRefundConfiguration" class="config-card">
+            <ConfigHeader
+              kicker="Hủy & hoàn booking"
+              title="Bảng mốc hủy và hoàn theo thời gian"
+              :summary="cancelRefundConfiguration.summary"
+              :can-edit="canEdit"
+              edit-label="Sửa bảng mốc"
+              @edit="openCancelRefundModal"
+              @detail="openDetail('Hủy & hoàn booking', cancelRefundConfiguration.summary, cancelRefundRows)"
+            />
+            <TierTable :rows="cancelRefundRows" mode="cancel_refund" />
+          </article>
+
+          <article v-if="reportConfiguration" class="config-card">
+            <ConfigHeader
+              kicker="Kiểm duyệt & báo cáo"
+              title="Ngưỡng báo cáo cần xử lý"
+              :summary="reportConfiguration.summary"
+              :can-edit="canEdit"
+              edit-label="Sửa ngưỡng báo cáo"
+              @edit="openReportModal"
+              @detail="openReportDetail"
+            />
+            <div class="tier-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Đối tượng</th>
+                    <th>Ngưỡng báo cáo</th>
+                    <th>Thời gian xét</th>
+                    <th>Hành động</th>
+                    <th>Thông báo admin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="threshold in reportThresholdRows" :key="threshold.key">
+                    <td>{{ threshold.object_type_label }}</td>
+                    <td>{{ threshold.min_reports }} báo cáo từ {{ threshold.min_distinct_reporters }} người</td>
+                    <td>{{ threshold.within_days }} ngày</td>
+                    <td>{{ threshold.action_label }}</td>
+                    <td>{{ threshold.notify_admin ? 'Có' : 'Không' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <div v-if="otherRules.length" class="rule-grid">
+            <article v-for="rule in otherRules" :key="rule.id" class="rule-card">
+              <div>
+                <strong>{{ rule.rule_label_vi || rule.rule_type_label || rule.rule_name }}</strong>
+                <p>{{ rule.business_summary_vi || rule.business_summary }}</p>
+              </div>
+              <div class="rule-footer">
+                <span class="badge" :class="rule.is_active ? 'success' : 'neutral'">{{ rule.is_active ? 'Đang bật' : 'Đang tắt' }}</span>
+                <button class="text-btn" type="button" @click="openRuleDetail(rule)">Xem chi tiết</button>
+              </div>
+            </article>
+          </div>
+
+          <div v-if="!cancelRefundConfiguration && !reportConfiguration && !otherRules.length" class="empty-state">
+            Chưa có cấu hình xử lý cho chính sách này.
+          </div>
+        </template>
       </section>
 
       <section v-if="activeTab === 'venue'" class="panel">
@@ -213,27 +293,241 @@
         </div>
       </section>
 
-      <section v-if="activeTab === 'audit'" class="panel">
+      <section v-if="activeTab === 'history'" class="panel">
         <div class="panel-head">
           <div>
             <h3>Lịch sử thay đổi</h3>
-            <p>Hiển thị các thay đổi quan trọng bằng ngôn ngữ dễ hiểu.</p>
+            <p>Lịch sử trạng thái và cập nhật của chính sách này.</p>
           </div>
         </div>
-        <div class="list-box">
-          <article v-for="log in auditLogs" :key="log.id" class="timeline-item">
-            <span class="dot"></span>
-            <div>
-              <strong>{{ log.human_message || 'Đã cập nhật chính sách' }}</strong>
-              <p>{{ log.actor_name || 'Hệ thống' }} · {{ formatDateTime(log.created_at) }}</p>
-              <ul v-if="(log.changes_summary || []).length" class="change-list">
-                <li v-for="item in log.changes_summary" :key="`${log.id}-${item.field || item.summary}`">{{ item.summary || item }}</li>
-              </ul>
+        <div v-if="!policy.status_histories || policy.status_histories.length === 0" class="empty-state">
+          Chưa có lịch sử thay đổi.
+        </div>
+        <div v-else class="history-timeline">
+          <div v-for="h in policy.status_histories" :key="h.id" class="history-item">
+            <div class="history-time">{{ formatDate(h.created_at) }}</div>
+            <div class="history-content">
+              <strong>{{ h.actor_name }}</strong> đã chuyển trạng thái từ 
+              <span class="badge" :class="statusTone(h.old_status)">{{ getStatusLabel(h.old_status) }}</span> sang 
+              <span class="badge" :class="statusTone(h.new_status)">{{ getStatusLabel(h.new_status) }}</span>
+              <p v-if="h.reason" class="history-reason">Lý do: {{ h.reason }}</p>
             </div>
-          </article>
-          <div v-if="auditLogs.length === 0" class="empty-state">Chưa có lịch sử thay đổi.</div>
+          </div>
         </div>
       </section>
+
+      <div v-if="generalInfoModal" class="modal-backdrop" @click.self="generalInfoModal = false">
+        <form class="modal" @submit.prevent="saveGeneralInfo">
+          <ModalHead title="Sửa thông tin chung" @close="generalInfoModal = false" />
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Tiêu đề chính sách <span class="req">*</span></label>
+              <input v-model="generalInfoDraft.title" required type="text" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label>Nhóm chính sách <span class="req">*</span></label>
+              <select v-model="generalInfoDraft.policy_type" required class="form-control">
+                <option value="terms">Điều khoản sử dụng</option>
+                <option value="booking_cancellation">Hủy & hoàn booking</option>
+                <option value="moderation">Kiểm duyệt</option>
+                <option value="account">Tài khoản</option>
+                <option value="platform_fee">Phí nền tảng</option>
+                <option value="partner_contract">Hợp đồng đối tác</option>
+                <option value="permission_revoke">Thu hồi quyền</option>
+                <option value="venue_policy">Chính sách sân</option>
+              </select>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Ngày áp dụng (dự kiến)</label>
+                <input v-model="generalInfoDraft.effective_from" type="date" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label>Ngày hết hiệu lực</label>
+                <input v-model="generalInfoDraft.effective_to" type="date" class="form-control" />
+              </div>
+            </div>
+            <div class="form-group check-group">
+              <label class="check-row">
+                <input v-model="generalInfoDraft.is_overridable" type="checkbox" />
+                Cho phép chủ sân cấu hình riêng trong khung hệ thống
+              </label>
+            </div>
+          </div>
+          <ModalActions :saving="saving" save-label="Lưu thông tin" @cancel="generalInfoModal = false" />
+        </form>
+      </div>
+
+      <div v-if="platformFeeModal" class="modal-backdrop" @click.self="closeModals">
+        <form class="modal wide" @submit.prevent="savePlatformFeeConfig">
+          <ModalHead title="Cấu hình xử lý phí nền tảng" eyebrow="Phí nền tảng" @close="closeModals" />
+          <div class="modal-body">
+            
+            <h4 style="margin-bottom: 16px;">Mốc thời gian</h4>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Nhắc trước hạn (ngày)</label>
+                <input v-model.number="platformFeeDraft.remind_before_days" required type="number" min="0" class="form-control" />
+              </div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Quá hạn cảnh báo (ngày)</label>
+                <input v-model.number="platformFeeDraft.warn_overdue_days" required type="number" min="0" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label>Quá hạn hạn chế quản lý (ngày) <span v-if="!policy.supported_actions?.includes('restrict_management')" style="color: var(--danger); font-size: 11px;">(Chưa hỗ trợ)</span></label>
+                <input v-model.number="platformFeeDraft.restrict_overdue_days" required type="number" min="0" class="form-control" />
+              </div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Quá hạn khóa cụm sân (ngày) <span v-if="!policy.supported_actions?.includes('lock_venue_cluster')" style="color: var(--danger); font-size: 11px;">(Chưa hỗ trợ)</span></label>
+                <input v-model.number="platformFeeDraft.lock_overdue_days" required type="number" min="0" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label>Quá hạn chuyển Admin xử lý (ngày)</label>
+                <input v-model.number="platformFeeDraft.termination_review_overdue_days" required type="number" min="0" class="form-control" />
+              </div>
+            </div>
+
+            <h4 style="margin: 24px 0 16px;">Thông báo</h4>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="platformFeeDraft.notify_owner" type="checkbox" /> Gửi thông báo cho Chủ sân
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="platformFeeDraft.notify_admin" type="checkbox" /> Gửi thông báo cho Admin
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Nội dung mẫu</label>
+              <textarea v-model="platformFeeDraft.message_template" required rows="3" class="form-control"></textarea>
+            </div>
+          </div>
+          <ModalActions :saving="savingRule" save-label="Lưu cấu hình" @cancel="closeModals" />
+        </form>
+      </div>
+
+      <div v-if="permissionRevokeModal" class="modal-backdrop" @click.self="closeModals">
+        <form class="modal wide" @submit.prevent="savePermissionRevokeConfig">
+          <ModalHead title="Cấu hình thu hồi quyền" eyebrow="Thu hồi quyền" @close="closeModals" />
+          <div class="modal-body">
+            
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Đối tượng bị thu hồi</label>
+                <select v-model="permissionRevokeDraft.target_type" required class="form-control">
+                  <option v-for="opt in policy.supported_targets" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Lý do / Điều kiện thu hồi</label>
+                <select v-model="permissionRevokeDraft.reason_type" required class="form-control">
+                  <option v-for="opt in policy.supported_reasons" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Thu hồi sau vi phạm (ngày)</label>
+                <input v-model.number="permissionRevokeDraft.revoke_after_days" required type="number" min="0" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label>Thời hạn thu hồi (ngày) <small>(Để trống nếu thu hồi vĩnh viễn)</small></label>
+                <input v-model.number="permissionRevokeDraft.revoke_duration_days" type="number" min="1" class="form-control" placeholder="Vĩnh viễn" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Quyền bị thu hồi</label>
+              <select v-model="permissionRevokeDraft.permissions_to_revoke" multiple required class="form-control" style="height: 80px;">
+                <option v-for="opt in policy.supported_permissions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+              </select>
+              <small style="color: #64748b;">Giữ phím Ctrl (hoặc Cmd) để chọn nhiều quyền.</small>
+            </div>
+
+            <h4 style="margin: 24px 0 16px;">Cài đặt xử lý</h4>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="permissionRevokeDraft.requires_admin_confirm" type="checkbox" /> Yêu cầu Admin xác nhận trước khi thu hồi
+                </label>
+              </div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="permissionRevokeDraft.notify_target" type="checkbox" /> Gửi thông báo đối tượng bị thu hồi
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="permissionRevokeDraft.notify_admin" type="checkbox" /> Gửi thông báo cho Admin
+                </label>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 12px;">
+              <label>Nội dung mẫu</label>
+              <textarea v-model="permissionRevokeDraft.message_template" required rows="3" class="form-control"></textarea>
+            </div>
+          </div>
+          <ModalActions :saving="savingRule" save-label="Lưu cấu hình" @cancel="closeModals" />
+        </form>
+      </div>
+
+      <div v-if="partnerContractModal" class="modal-backdrop" @click.self="closeModals">
+        <form class="modal wide" @submit.prevent="savePartnerContractConfig">
+          <ModalHead title="Cấu hình hợp đồng đối tác" eyebrow="Hợp đồng đối tác" @close="closeModals" />
+          <div class="modal-body">
+            
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Nhắc nhở gia hạn trước (ngày)</label>
+                <input v-model.number="partnerContractDraft.warn_before_days" required type="number" min="0" class="form-control" />
+              </div>
+            </div>
+
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Khóa sân sau khi hết hạn (ngày)</label>
+                <input v-model.number="partnerContractDraft.lock_after_days" required type="number" min="0" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label>Thu hồi quyền Owner sau khi hết hạn (ngày)</label>
+                <input v-model.number="partnerContractDraft.revoke_after_days" required type="number" min="0" class="form-control" />
+              </div>
+            </div>
+
+            <h4 style="margin: 24px 0 16px;">Cài đặt xử lý</h4>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="partnerContractDraft.requires_admin_confirm" type="checkbox" /> Yêu cầu Admin xác nhận trước khi khóa sân/thu hồi quyền
+                </label>
+              </div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="partnerContractDraft.notify_target" type="checkbox" /> Gửi thông báo cho Chủ sân
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="partnerContractDraft.notify_admin" type="checkbox" /> Gửi thông báo cho Admin
+                </label>
+              </div>
+            </div>
+          </div>
+          <ModalActions :saving="savingRule" save-label="Lưu cấu hình" @cancel="closeModals" />
+        </form>
+      </div>
     </template>
 
     <div v-if="cancelRefundModal" class="modal-backdrop" @click.self="closeModals">
@@ -599,7 +893,6 @@ const ModalActions = {
     </footer>
   `,
 };
-
 export default {
   name: 'AdminPolicyDetail',
   components: { AppIcon, ConfirmModal, InfoItem, ConfigHeader, TierTable, ModalHead, PreviewBox, ModalActions },
@@ -628,15 +921,26 @@ export default {
       confirmPublish: { show: false },
       confirmArchive: { show: false },
       confirmDelete: { show: false },
+      generalInfoModal: false,
+      generalInfoDraft: {},
+      platformFeeModal: false,
+      platformFeeDraft: {},
+      permissionRevokeModal: false,
+      permissionRevokeDraft: { permissions_to_revoke: [] },
+      partnerContractModal: false,
+      partnerContractDraft: {},
     };
   },
   computed: {
-    policy() { return this.detail?.policy || null; },
+    policy() { return this.detail?.policy_info || this.detail?.policy || null; },
     rules() { return this.detail?.rules || []; },
     cancelRefundConfiguration() { return this.detail?.cancel_refund_tiers || null; },
     cancellationConfiguration() { return this.detail?.cancellation_configuration || null; },
     refundConfiguration() { return this.detail?.refund_configuration || null; },
     reportConfiguration() { return this.detail?.report_configuration || null; },
+    platformFeeConfiguration() { return this.policy?.configuration_data || null; },
+    permissionRevokeConfiguration() { return this.policy?.configuration_data || null; },
+    partnerContractConfiguration() { return this.policy?.configuration_data || null; },
     venueRules() { return this.detail?.venue_rules || []; },
     auditLogs() { return this.detail?.audit_logs || []; },
     isDraft() { return this.policy?.status === 'draft'; },
@@ -851,6 +1155,117 @@ export default {
       this.cancellationModal = false;
       this.refundModal = false;
       this.reportModal = false;
+      this.generalInfoModal = false;
+      this.platformFeeModal = false;
+      this.permissionRevokeModal = false;
+      this.partnerContractModal = false;
+    },
+    getOptionLabel(options, value) {
+      if (!options || !value) return value;
+      const opt = options.find(o => o.value === value);
+      return opt ? opt.label : value;
+    },
+    openPlatformFeeModal() {
+      if (!this.platformFeeConfiguration) return;
+      this.platformFeeDraft = {
+        ...this.platformFeeConfiguration
+      };
+      this.platformFeeModal = true;
+    },
+    async savePlatformFeeConfig() {
+      if (this.savingRule) return;
+      this.savingRule = true;
+      this.error = '';
+      try {
+        const payload = {
+          configuration_data: this.platformFeeDraft
+        };
+        const res = await adminPolicyService.updatePolicyConfiguration(this.policy.id, payload);
+        if (res.data.data && res.data.data.policy_info) {
+          this.detail.policy_info = res.data.data.policy_info;
+          this.detail.policy = res.data.data.policy_info; // ensure UI reactivity
+        }
+        this.success = res.data.message || 'Đã lưu cấu hình phí nền tảng.';
+        this.platformFeeModal = false;
+        setTimeout(() => (this.success = ''), 3000);
+      } catch (err) {
+        this.error = err.response?.data?.message || err.response?.data?.errors?.configuration_data?.[0] || 'Lỗi lưu cấu hình.';
+        setTimeout(() => (this.error = ''), 4000);
+      } finally {
+        this.savingRule = false;
+      }
+    },
+    openPermissionRevokeModal() {
+      if (!this.permissionRevokeConfiguration) return;
+      this.permissionRevokeDraft = {
+        ...this.permissionRevokeConfiguration,
+        permissions_to_revoke: this.permissionRevokeConfiguration.permissions_to_revoke || ['manage_venue_cluster'],
+        revoke_duration_days: this.permissionRevokeConfiguration.revoke_duration_days || ''
+      };
+      this.permissionRevokeModal = true;
+    },
+    async savePermissionRevokeConfig() {
+      if (this.savingRule) return;
+      this.savingRule = true;
+      this.error = '';
+      try {
+        const payload = {
+          configuration_data: {
+            ...this.permissionRevokeDraft,
+            revoke_duration_days: this.permissionRevokeDraft.revoke_duration_days || null
+          }
+        };
+        const res = await adminPolicyService.updatePolicyConfiguration(this.policy.id, payload);
+        if (res.data.data && res.data.data.policy_info) {
+          this.detail.policy_info = res.data.data.policy_info;
+          this.detail.policy = res.data.data.policy_info;
+        }
+        this.success = res.data.message || 'Đã lưu cấu hình thu hồi quyền.';
+        this.permissionRevokeModal = false;
+        setTimeout(() => (this.success = ''), 3000);
+      } catch (err) {
+        this.error = err.response?.data?.message || err.response?.data?.errors?.configuration_data?.[0] || 'Lỗi lưu cấu hình.';
+        setTimeout(() => (this.error = ''), 4000);
+      } finally {
+        this.savingRule = false;
+      }
+    },
+    openPartnerContractModal() {
+      if (!this.partnerContractConfiguration) return;
+      this.partnerContractDraft = {
+        ...this.partnerContractConfiguration,
+      };
+      this.partnerContractModal = true;
+    },
+    async savePartnerContractConfig() {
+      if (this.savingRule) return;
+      if (this.partnerContractDraft.lock_after_days > this.partnerContractDraft.revoke_after_days) {
+        this.error = 'Ngày khóa cụm sân không được lớn hơn ngày thu hồi quyền.';
+        setTimeout(() => (this.error = ''), 4000);
+        return;
+      }
+      this.savingRule = true;
+      this.error = '';
+      try {
+        const payload = {
+          configuration_data: {
+            ...this.partnerContractDraft
+          }
+        };
+        const res = await adminPolicyService.updatePolicyConfiguration(this.policy.id, payload);
+        if (res.data.data && res.data.data.policy_info) {
+          this.detail.policy_info = res.data.data.policy_info;
+          this.detail.policy = res.data.data.policy_info;
+        }
+        this.success = res.data.message || 'Đã lưu cấu hình hợp đồng đối tác.';
+        this.partnerContractModal = false;
+        setTimeout(() => (this.success = ''), 3000);
+      } catch (err) {
+        this.error = err.response?.data?.message || err.response?.data?.errors?.configuration_data?.[0] || 'Lỗi lưu cấu hình.';
+        setTimeout(() => (this.error = ''), 4000);
+      } finally {
+        this.savingRule = false;
+      }
     },
     addCancelRefundTier() {
       const ascending = [...this.cancelRefundDraft]
@@ -1025,6 +1440,39 @@ export default {
         this.error = error.message || 'Không thể lưu cấu hình xử lý.';
       } finally {
         this.savingRule = false;
+      }
+    },
+    editGeneralInfo() {
+      this.generalInfoDraft = {
+        title: this.policy.title,
+        policy_type: this.policy.policy_type || this.policy.type,
+        effective_from: this.policy.effective_from ? this.policy.effective_from.split('T')[0] : '',
+        effective_to: this.policy.effective_to ? this.policy.effective_to.split('T')[0] : '',
+        is_overridable: this.policy.is_overridable,
+      };
+      this.generalInfoModal = true;
+    },
+    async saveGeneralInfo() {
+      if (this.saving) return;
+      this.saving = true;
+      this.error = '';
+      try {
+        const payload = {
+          key: this.policy.key,
+          version: this.policy.version,
+          content: this.policy.content || 'Nội dung mặc định',
+          ...this.generalInfoDraft,
+        };
+        const res = await adminPolicyService.updatePolicy(this.policy.id, payload);
+        this.detail.policy_info = res.data.data;
+        this.success = res.data.message || 'Đã lưu thông tin chung.';
+        this.generalInfoModal = false;
+        setTimeout(() => (this.success = ''), 3000);
+      } catch (err) {
+        this.error = err.response?.data?.message || 'Có lỗi xảy ra khi lưu.';
+        setTimeout(() => (this.error = ''), 3000);
+      } finally {
+        this.saving = false;
       }
     },
     async saveContent() {
@@ -1249,8 +1697,11 @@ export default {
   .threshold-flags .check-row { width: auto; }
   .check-row { display: flex; gap: 8px; align-items: center; }
   .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .form-group-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
   label { display: grid; gap: 6px; color: #334155; font-weight: 800; }
   input, select, textarea { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font: inherit; }
+  .form-control { width: 100%; box-sizing: border-box; }
   .input-unit { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
   .input-unit span { color: #64748b; font-weight: 800; }
   .detail-summary { color: #334155; line-height: 1.55; }
@@ -1259,7 +1710,7 @@ export default {
   .detail-list b { color: #166534; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .policy-page {
     .hero-card, .config-head, .panel-head { display: grid; }
     .summary-grid, .report-grid, .detail-box, .tier-edit-row, .form-grid { grid-template-columns: 1fr; }

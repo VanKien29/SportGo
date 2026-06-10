@@ -63,28 +63,17 @@ class PolicyRulesTableSeeder extends Seeder
             ],
             'booking_cancellation' => [
                 $this->fromTemplate($templates['cancel_before_hours'], 100, [
-                    'rule_name' => 'Bảng mốc thời gian được hủy booking',
-                    'condition_json' => ['uses_tier_table' => true],
-                    'result_json' => $this->refundPolicies->cancellationResultJson($this->refundPolicies->defaultCancellationTiers(), [
-                        'disallow_statuses' => ['checked_in', 'completed'],
-                        'owner_cancel_requires_reason' => true,
-                        'may_create_refund_request' => true,
+                    'rule_name' => 'Bảng mốc hủy & hoàn booking',
+                    'condition_json' => ['uses_cancel_refund_tier_table' => true],
+                    'result_json' => $this->refundPolicies->cancelRefundResultJson($this->refundPolicies->defaultCancelRefundTiers(), [
+                        'refund_basis' => 'paid_amount',
                     ]),
-                    'constraint_json' => ['tiers' => ['venue_cannot_be_less_favorable_than_system' => true]],
-                    'allowed_override_json' => ['tiers' => ['allow_cancel' => 'venue_can_keep_or_be_more_favorable_to_customer']],
-                ]),
-            ],
-            'refund' => [
-                $this->fromTemplate($templates['refund_percent_by_cancel_time'], 100, [
-                    'rule_name' => 'Bảng mốc hoàn tiền theo thời gian hủy hợp lệ',
-                    'condition_json' => ['uses_tier_table' => true],
-                    'result_json' => $this->refundPolicies->resultJson($this->refundPolicies->defaultTiers()),
-                    'constraint_json' => ['tiers' => ['venue_refund_percent_must_be_at_least_system_percent' => true]],
-                    'allowed_override_json' => ['tiers' => ['refund_percent' => 'venue_can_be_more_favorable_to_customer']],
-                ]),
-                $this->fromTemplate($templates['owner_confirm_required_before_admin_transfer'], 110, [
-                    'constraint_json' => ['owner_confirm_required' => ['exact' => true]],
-                    'allowed_override_json' => ['owner_confirm_required' => ['exact' => true]],
+                    'constraint_json' => ['covers_from_hours' => 0, 'covers_to_infinity' => true],
+                    'allowed_override_json' => [
+                        'venue_can_improve_refund_percent' => true,
+                        'venue_can_change_time_ranges' => false,
+                        'venue_can_block_system_allowed_cancel' => false,
+                    ],
                 ]),
             ],
             'platform_fee' => [

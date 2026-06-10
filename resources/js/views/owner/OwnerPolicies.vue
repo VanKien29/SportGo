@@ -188,7 +188,7 @@
         </header>
 
         <div class="tier-edit-list">
-          <article v-for="row in tierDraftRows" :key="row.key" class="tier-edit-row">
+          <article v-for="row in tierDraftRows" :key="row.key" class="tier-edit-row" :class="configType">
             <div>
               <strong>{{ row.label }}</strong>
               <span>{{ row.condition }}</span>
@@ -602,13 +602,17 @@ td span { display: block; margin-top: 4px; color: #64748b; font-size: 13px; }
 .icon-btn { width: 36px; height: 36px; border: 1px solid #dbe3ef; background: #fff; color: #334155; }
 .empty-state { padding: 26px; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b; text-align: center; font-weight: 900; background: #f8fafc; }
 .spinner { width: 18px; height: 18px; border: 2px solid #bbf7d0; border-top-color: #16a34a; border-radius: 50%; display: inline-block; margin-right: 8px; animation: spin .8s linear infinite; }
-.modal-backdrop { position: fixed; inset: 0; z-index: 800; display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, .52); }
-.modal { width: min(560px, 100%); max-height: 92vh; overflow: auto; background: #fff; border-radius: 10px; padding: 18px; display: grid; gap: 14px; box-shadow: 0 24px 80px rgba(15, 23, 42, .25); }
+.modal-backdrop { position: fixed; inset: 0; z-index: 800; display: flex; justify-content: center; align-items: center; overflow-y: auto; padding: 20px; background: rgba(15, 23, 42, .52); }
+.modal { margin: auto; width: min(560px, 100%); max-height: 92vh; overflow-y: auto; background: #fff; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 24px 80px rgba(15, 23, 42, .25); }
 .modal.wide { width: min(900px, 100%); }
 .modal-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .tier-edit-list { display: grid; gap: 10px; }
-.tier-edit-row { display: grid; grid-template-columns: 1fr 220px; gap: 10px; align-items: end; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+.tier-edit-row { display: grid; gap: 10px; align-items: end; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+.tier-edit-row.cancel { grid-template-columns: 1fr 200px; }
+.tier-edit-row.refund { grid-template-columns: 1fr 200px; }
+.tier-edit-row.cancel_refund { grid-template-columns: 1fr 180px 180px; }
 .tier-edit-row span { display: block; margin-top: 4px; color: #64748b; font-size: 13px; }
+.modal-actions { justify-content: flex-end; }
 label { display: grid; gap: 6px; color: #334155; font-weight: 900; }
 input, select, textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font: inherit; background: #fff; color: #0f172a; }
 .input-unit { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
@@ -616,6 +620,6 @@ input, select, textarea { width: 100%; border: 1px solid #cbd5e1; border-radius:
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 900px) {
   .hero-card, .policy-head, .section-head { display: grid; }
-  .stat-grid, .summary-grid, .tier-edit-row { grid-template-columns: 1fr; }
+  .stat-grid, .summary-grid, .tier-edit-row, .tier-edit-row.cancel, .tier-edit-row.refund, .tier-edit-row.cancel_refund { grid-template-columns: 1fr; }
 }
 </style>

@@ -11,7 +11,7 @@ class PolicyUiText
     {
         return [
             'terms' => 'Điều khoản sử dụng',
-            'booking_cancellation' => 'Hủy booking',
+            'booking_cancellation' => 'Hoàn hủy',
             'refund' => 'Hoàn tiền',
             'platform_fee' => 'Phí nền tảng',
             'venue_policy' => 'Chính sách sân',
@@ -51,9 +51,9 @@ class PolicyUiText
             self::action('booking', 'Hủy booking', 'booking.cancel_by_customer', 'Khách hủy booking', 'Áp dụng khi khách yêu cầu hủy booking.', ['booking_cancellation']),
             self::action('booking', 'Hủy booking', 'booking.cancel_by_owner', 'Chủ sân hủy booking', 'Áp dụng khi chủ sân hoặc nhân viên sân hủy booking.', ['booking_cancellation']),
             self::action('booking', 'Hủy booking', 'booking.expire_unpaid', 'Hệ thống hủy booking do quá hạn thanh toán', 'Áp dụng khi booking hết thời gian giữ chỗ nhưng chưa thanh toán.', ['booking_cancellation']),
-            self::action('refund', 'Hoàn tiền', 'refund.request', 'Khách gửi yêu cầu hoàn tiền', 'Áp dụng khi khách gửi yêu cầu hoàn tiền.', ['refund']),
-            self::action('refund', 'Hoàn tiền', 'refund.owner_confirm', 'Chủ sân xác nhận yêu cầu hoàn tiền', 'Áp dụng khi chủ sân đồng ý hoặc từ chối yêu cầu hoàn.', ['refund']),
-            self::action('refund', 'Hoàn tiền', 'refund.admin_complete', 'Admin xác nhận hoàn tất hoàn tiền', 'Áp dụng khi admin xác nhận giao dịch hoàn tiền đã hoàn tất.', ['refund']),
+            self::action('refund', 'Hoàn tiền', 'refund.request', 'Khách gửi yêu cầu hoàn tiền', 'Áp dụng khi khách gửi yêu cầu hoàn tiền.', ['booking_cancellation']),
+            self::action('refund', 'Hoàn tiền', 'refund.owner_confirm', 'Chủ sân xác nhận yêu cầu hoàn tiền', 'Áp dụng khi chủ sân đồng ý hoặc từ chối yêu cầu hoàn.', ['booking_cancellation']),
+            self::action('refund', 'Hoàn tiền', 'refund.admin_complete', 'Admin xác nhận hoàn tất hoàn tiền', 'Áp dụng khi admin xác nhận giao dịch hoàn tiền đã hoàn tất.', ['booking_cancellation']),
             self::action('venue', 'Phí nền tảng', 'venue.platform_fee_due', 'Sắp đến hạn hoặc quá hạn phí nền tảng', 'Áp dụng khi hệ thống kiểm tra kỳ phí nền tảng của cụm sân.', ['platform_fee']),
             self::action('venue', 'Phí nền tảng', 'venue.lock_due_fee', 'Khóa/giới hạn cụm sân do quá hạn phí nền tảng', 'Áp dụng khi cụm sân quá hạn phí duy trì.', ['platform_fee']),
             self::action('owner', 'Phí nền tảng', 'owner.access_limited_due_fee', 'Giới hạn quyền chủ sân do quá hạn phí', 'Áp dụng khi owner chỉ được thao tác trong phạm vi cho phép.', ['platform_fee']),
@@ -99,7 +99,7 @@ class PolicyUiText
                 ['booking.cancel_by_customer', 'booking.cancel_by_owner', 'booking.expire_unpaid']
             ),
             'refund_percent_by_cancel_time' => self::template(
-                'refund',
+                'booking_cancellation',
                 'refund_percent_by_cancel_time',
                 'Tính phần trăm hoàn tiền theo thời gian hủy',
                 'Tính mức hoàn tiền theo số giờ khách hủy trước giờ chơi.',
@@ -112,7 +112,7 @@ class PolicyUiText
                 'high'
             ),
             'owner_confirm_required_before_admin_transfer' => self::template(
-                'refund',
+                'booking_cancellation',
                 'owner_confirm_required_before_admin_transfer',
                 'Bắt buộc chủ sân xác nhận trước khi admin hoàn tiền',
                 'Admin không được hoàn tất yêu cầu hoàn tiền nếu chủ sân chưa xác nhận.',
@@ -282,8 +282,7 @@ class PolicyUiText
 
         $summary = [
             'terms' => 'Quy định người dùng và chủ sân cần đọc, hiểu và xác nhận trước khi sử dụng SportGo.',
-            'booking_cancellation' => 'Quy định khi nào khách hoặc chủ sân được hủy booking và trường hợp nào có thể phát sinh hoàn tiền.',
-            'refund' => 'Quy định cách tính tiền hoàn và thứ tự xác nhận: khách gửi yêu cầu, chủ sân xác nhận, admin hoàn tất.',
+            'booking_cancellation' => 'Quy định điều kiện khách được hủy booking và mốc tiền hoàn tự động tương ứng theo bảng cấu hình.',
             'platform_fee' => 'Quy định nhắc phí, giới hạn quyền và khóa cụm sân khi chủ sân quá hạn phí nền tảng.',
             'venue_policy' => 'Quy định phạm vi chủ sân được cấu hình chính sách riêng và các giới hạn không được vượt khung hệ thống.',
             'moderation' => 'Quy định cách xử lý nội dung bị báo cáo, nội dung vi phạm và các bước kiểm duyệt.',
