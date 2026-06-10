@@ -148,6 +148,7 @@
                             <th>Đã đóng</th>
                             <th>Còn thiếu</th>
                             <th>Trạng thái</th>
+                            <th>Bằng chứng</th>
                             <th>Ngày thanh toán</th>
                             <th>Email</th>
                             <th class="actions-header">Thao tác</th>
@@ -186,6 +187,15 @@
                                 ></span>
                             </td>
                             <td>
+                                <div v-if="ledger.payment_proof_media_url">
+                                    <a :href="ledger.payment_proof_media_url" target="_blank">
+                                        <img :src="ledger.payment_proof_media_url" class="proof-thumb" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0;" />
+                                    </a>
+                                    <div class="muted" style="font-size: 10px;">{{ proofStatusLabel(ledger.payment_proof_status) }}</div>
+                                </div>
+                                <span v-else class="muted">-</span>
+                            </td>
+                            <td>
                                 {{
                                     ledger.paid_at ? date(ledger.paid_at) : "-"
                                 }}
@@ -219,6 +229,18 @@
                                         @click="openPay(ledger)"
                                     >
                                         <AppIcon name="creditCard" size="18" />
+                                    </button>
+                                    <button
+                                        class="icon-btn danger"
+                                        type="button"
+                                        title="Từ chối bằng chứng"
+                                        aria-label="Từ chối bằng chứng"
+                                        :disabled="
+                                            ledger.payment_proof_status !== 'submitted'
+                                        "
+                                        @click="openRejectProof(ledger)"
+                                    >
+                                        <AppIcon name="x" size="18" />
                                     </button>
                                     <button
                                         class="icon-btn warning"
@@ -448,7 +470,6 @@
 </template>
 
 <script>
-import { platformFeeStore } from "../../stores/platformFee.store.js";
 import AppIcon from "../../components/AppIcon.vue";
 import {
     calculateLedgerPreview,
@@ -460,8 +481,10 @@ import {
     lockVenueForOverdueLedger,
     markLedgerOverdue,
     unlockVenueAfterPayment,
+    rejectPlatformFeePaymentProof,
 } from "../../services/platformFeeLedger.service.js";
 import { processPlatformFeeReminders } from "../../services/platformFeeReminder.service.js";
+import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
 
 function initialFilters(routeQuery = {}) {
     return {
@@ -489,9 +512,14 @@ export default {
     data() {
         return {
             ledgers: [],
-            venues: platformFeeStore.state.venues,
+            venues: [],
             filters: initialFilters(this.$route.query),
-            metrics: getPlatformFeeDashboardMetrics(),
+            metrics: {
+                pending: 0,
+                overdue: 0,
+                pending_amount: 0,
+                overdue_amount: 0,
+            },
             periods: [1, 3, 6, 9, 12],
             loading: false,
             showCreate: false,
@@ -523,6 +551,7 @@ export default {
                     pay: "Xác nhận thanh toán",
                     cancel: "Hủy kỳ phí",
                     lock: "Khóa cụm sân vì quá hạn",
+                    reject_proof: "Từ chối bằng chứng thanh toán",
                 }[this.dialog.type] || "Xác nhận"
             );
         },
@@ -535,15 +564,29 @@ export default {
             },
         },
     },
-    mounted() {
+    async mounted() {
+        await this.loadVenues();
         this.loadLedgers();
     },
     methods: {
+        async loadVenues() {
+            try {
+                const res = await adminVenueClusterService.list();
+                this.venues = res.data || [];
+            } catch (err) {
+                this.showMessage(err.message, "error");
+            }
+        },
         async loadLedgers() {
             this.loading = true;
-            this.ledgers = await getLedgers(this.filters);
-            this.metrics = getPlatformFeeDashboardMetrics();
-            this.loading = false;
+            try {
+                this.ledgers = await getLedgers(this.filters);
+                this.metrics = await getPlatformFeeDashboardMetrics();
+            } catch (err) {
+                this.showMessage(err.message, "error");
+            } finally {
+                this.loading = false;
+            }
         },
         openCreate() {
             this.form = {
@@ -560,12 +603,18 @@ export default {
         closeCreate() {
             this.showCreate = false;
         },
-        refreshPreview() {
+        async refreshPreview() {
             if (!this.form.venue_cluster_id) return;
-            const result = calculateLedgerPreview(this.form);
-            this.previewResult = result.isValid ? result : null;
-            this.previewError = result.isValid ? "" : result.error;
-            this.previewWarnings = result.warnings || [];
+            try {
+                const result = await calculateLedgerPreview(this.form);
+                this.previewResult = result.isValid ? result : null;
+                this.previewError = result.isValid ? "" : result.error;
+                this.previewWarnings = result.warnings || [];
+            } catch (error) {
+                this.previewResult = null;
+                this.previewError = error.message;
+                this.previewWarnings = [];
+            }
         },
         async createNewLedger() {
             try {
@@ -600,6 +649,14 @@ export default {
         closeDialog() {
             this.dialog = { type: "", ledger: null, amount: 0, reason: "" };
         },
+        openRejectProof(ledger) {
+            this.dialog = {
+                type: "reject_proof",
+                ledger,
+                amount: 0,
+                reason: "",
+            };
+        },
         async submitDialog() {
             try {
                 if (this.dialog.type === "pay")
@@ -615,6 +672,11 @@ export default {
                     await lockVenueForOverdueLedger(
                         this.dialog.ledger.id,
                         this.dialog.reason,
+                    );
+                if (this.dialog.type === "reject_proof")
+                    await rejectPlatformFeePaymentProof(
+                        this.dialog.ledger.id,
+                        { reason: this.dialog.reason }
                     );
                 this.showMessage("Thao tác thành công.");
                 this.closeDialog();
@@ -670,6 +732,14 @@ export default {
                     cancelled: "Đã hủy",
                 }[status] || status
             );
+        },
+        proofStatusLabel(status) {
+            return {
+                none: 'Chưa nộp',
+                submitted: 'Chờ duyệt',
+                approved: 'Đã duyệt',
+                rejected: 'Bị từ chối'
+            }[status] || status;
         },
         money(value) {
             return new Intl.NumberFormat("vi-VN", {

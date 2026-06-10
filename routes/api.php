@@ -120,6 +120,19 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveRequest']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectRequest']);
 
+        // Platform Fee Ledgers
+        Route::get('/platform-fee-ledgers', [\App\Http\Controllers\Api\Admin\PlatformFeeLedgerController::class, 'index']);
+        Route::get('/platform-fee-ledgers/metrics', [\App\Http\Controllers\Api\Admin\PlatformFeeLedgerController::class, 'metrics']);
+        Route::post('/platform-fee-ledgers/preview', [\App\Http\Controllers\Api\Admin\PlatformFeeLedgerController::class, 'preview']);
+        Route::get('/platform-fee-ledgers/{id}', [\App\Http\Controllers\Api\Admin\PlatformFeeLedgerController::class, 'show']);
+        Route::post('/platform-fee-ledgers', [\App\Http\Controllers\Api\Admin\PlatformFeeLedgerController::class, 'store']);
+        Route::post('/platform-fee-ledgers/{id}/confirm-payment', [\App\Http\Controllers\Api\Admin\PlatformFeeLedgerController::class, 'confirmPayment']);
+        Route::post('/platform-fee-ledgers/{id}/reject-payment', [\App\Http\Controllers\Api\Admin\PlatformFeeLedgerController::class, 'rejectPayment']);
+        Route::post('/platform-fee-ledgers/{id}/mark-overdue', [\App\Http\Controllers\Api\Admin\PlatformFeeLedgerController::class, 'markOverdue']);
+        Route::post('/platform-fee-ledgers/{id}/cancel', [\App\Http\Controllers\Api\Admin\PlatformFeeLedgerController::class, 'cancel']);
+        Route::post('/platform-fee-ledgers/{id}/lock-venue', [\App\Http\Controllers\Api\Admin\PlatformFeeLedgerController::class, 'lockVenue']);
+        Route::post('/platform-fee-ledgers/{id}/unlock-venue', [\App\Http\Controllers\Api\Admin\PlatformFeeLedgerController::class, 'unlockVenue']);
+
         // Content Moderation
         Route::get('/moderation/queue', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'queue']);
         Route::post('/moderation/posts/{type}/{id}/approve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'approvePost']);

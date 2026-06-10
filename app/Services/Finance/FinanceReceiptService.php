@@ -5,6 +5,7 @@ namespace App\Services\Finance;
 use App\Models\InternalReceipt;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\Refund;
+use App\Models\VenuePlatformFeeLedger;
 
 class FinanceReceiptService
 {
@@ -59,6 +60,35 @@ class FinanceReceiptService
                     'bank_code' => $withdrawal->bankAccount?->bank_code,
                     'account_number' => $withdrawal->bankAccount?->account_number,
                     'account_holder_name' => $withdrawal->bankAccount?->account_holder_name,
+                ],
+            ],
+        );
+    }
+
+    public function createPlatformFeeReceipt(VenuePlatformFeeLedger $ledger, ?string $issuedBy): InternalReceipt
+    {
+        $ledger->loadMissing('venueCluster');
+
+        $code = 'RCPT-FEE-'.strtoupper(substr(hash('sha256', $ledger->id), 0, 20));
+
+        return InternalReceipt::query()->updateOrCreate(
+            ['receipt_code' => $code],
+            [
+                'receipt_type' => 'platform_fee',
+                'receiptable_type' => VenuePlatformFeeLedger::class,
+                'receiptable_id' => $ledger->id,
+                'issued_to_user_id' => $ledger->venueCluster?->owner_id,
+                'issued_by' => $issuedBy,
+                'title' => 'Phiếu thu phí duy trì ' . ($ledger->venueCluster?->name ?? '') . ' kỳ ' . $ledger->period_start->format('d/m/Y') . ' - ' . $ledger->period_end->format('d/m/Y'),
+                'amount' => $ledger->amount_paid,
+                'currency' => 'VND',
+                'status' => 'issued',
+                'issued_at' => $ledger->paid_at ?: now(),
+                'metadata' => [
+                    'period_start' => (string) $ledger->period_start,
+                    'period_end' => (string) $ledger->period_end,
+                    'court_count' => $ledger->court_count,
+                    'tier_name' => $ledger->tier?->name,
                 ],
             ],
         );

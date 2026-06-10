@@ -38,12 +38,43 @@
         </div>
       </section>
 
+      <section class="panel" v-if="ledger.payment_proof_media_url">
+        <h3>Bằng chứng thanh toán</h3>
+        <div class="proof-container">
+          <div class="proof-image-wrapper">
+            <a :href="ledger.payment_proof_media_url" target="_blank" title="Xem ảnh lớn">
+              <img :src="ledger.payment_proof_media_url" class="proof-image" />
+            </a>
+          </div>
+          <div class="proof-info">
+            <div class="info-row">
+              <span>Trạng thái bằng chứng:</span>
+              <strong class="proof-status-badge" :class="ledger.payment_proof_status">
+                {{ proofStatusLabel(ledger.payment_proof_status) }}
+              </strong>
+            </div>
+            <div class="info-row" v-if="ledger.payment_reject_reason">
+              <span>Lý do từ chối:</span>
+              <strong class="reject-reason">{{ ledger.payment_reject_reason }}</strong>
+            </div>
+            <div class="info-row" v-if="ledger.payment_proof_note">
+              <span>Ghi chú thanh toán:</span>
+              <strong class="proof-note">{{ ledger.payment_proof_note }}</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="panel">
         <h3>Hành động</h3>
         <div class="actions">
           <button class="btn primary icon-text" type="button" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="payFull">
             <AppIcon name="creditCard" size="18" />
             <span>Xác nhận thanh toán đủ</span>
+          </button>
+          <button class="btn danger icon-text" type="button" :disabled="ledger.payment_proof_status !== 'submitted'" @click="rejectPaymentProof">
+            <AppIcon name="x" size="18" />
+            <span>Từ chối bằng chứng</span>
           </button>
           <button class="btn secondary icon-text" type="button" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="markOverdueNow">
             <AppIcon name="clock" size="18" />
@@ -129,6 +160,7 @@ import {
   lockVenueForOverdueLedger,
   markLedgerOverdue,
   unlockVenueAfterPayment,
+  rejectPlatformFeePaymentProof,
 } from '../../services/platformFeeLedger.service.js';
 import {
   getEmailLogsByLedgerId,
@@ -159,6 +191,11 @@ export default {
     },
     async payFull() {
       await this.run(() => confirmLedgerPayment(this.ledger.id, { amount: this.ledger.remaining_amount }), 'Đã xác nhận thanh toán đủ.');
+    },
+    async rejectPaymentProof() {
+      const reason = prompt('Nhập lý do từ chối bằng chứng thanh toán:');
+      if (!reason) return;
+      await this.run(() => rejectPlatformFeePaymentProof(this.ledger.id, { reason }), 'Đã từ chối bằng chứng thanh toán.');
     },
     async markOverdueNow() {
       const reason = prompt('Nhập lý do quá hạn:', 'Quá hạn thanh toán');
@@ -192,6 +229,14 @@ export default {
     },
     statusLabel(status) {
       return { pending: 'Chờ thanh toán', paid: 'Đã thanh toán', overdue: 'Quá hạn', cancelled: 'Đã hủy' }[status] || status;
+    },
+    proofStatusLabel(status) {
+      return {
+        none: 'Chưa nộp',
+        submitted: 'Chờ duyệt',
+        approved: 'Đã duyệt',
+        rejected: 'Bị từ chối'
+      }[status] || status;
     },
     reminderLabel(type) {
       return {
@@ -270,8 +315,85 @@ th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: upper
   color: #334155;
   cursor: pointer;
 }
+.proof-container {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: 12px;
+}
+.proof-image-wrapper {
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+  transition: transform 0.2s;
+}
+.proof-image-wrapper:hover {
+  transform: scale(1.02);
+}
+.proof-image {
+  display: block;
+  max-width: 280px;
+  max-height: 280px;
+  object-fit: contain;
+  cursor: zoom-in;
+}
+.proof-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-grow: 1;
+}
+.info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.info-row span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+.proof-status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  width: fit-content;
+}
+.proof-status-badge.none {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+.proof-status-badge.submitted {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+.proof-status-badge.approved {
+  background-color: #d1fae5;
+  color: #059669;
+}
+.proof-status-badge.rejected {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+.reject-reason {
+  color: #dc2626;
+  font-weight: 600;
+  font-size: 14px;
+}
+.proof-note {
+  color: #334155;
+  font-weight: 500;
+  font-size: 14px;
+}
+
 @media (max-width: 900px) {
   .grid, .info-grid { grid-template-columns: 1fr 1fr; }
   .page-head, .panel-head { flex-direction: column; }
+  .proof-container { flex-direction: column; }
+  .proof-image { max-width: 100%; }
 }
 </style>
