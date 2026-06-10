@@ -1,21 +1,34 @@
 export const POLICY_TYPE_LABELS = {
+  terms: 'Điều khoản sử dụng',
+  booking_cancellation: 'Hủy booking',
+  refund: 'Hoàn tiền',
+  platform_fee: 'Phí nền tảng',
+  venue_policy: 'Chính sách sân',
+  moderation: 'Kiểm duyệt & báo cáo',
+  partner_contract: 'Đối tác & hợp đồng',
   general: 'Chung',
   booking: 'Đặt sân',
-  refund: 'Hoàn tiền',
-  moderation: 'Kiểm duyệt và báo cáo',
   account: 'Tài khoản',
-  platform_fee: 'Phí duy trì cụm sân',
-  terms: 'Điều khoản sử dụng',
 };
 
 export const STATUS_LABELS = {
   draft: 'Bản nháp',
   active: 'Đang áp dụng',
-  inactive: 'Tạm ngưng',
-  archived: 'Đã lưu trữ',
+  inactive: 'Ngưng áp dụng',
+  archived: 'Lưu trữ',
+  pending_review: 'Chờ duyệt',
+  rejected: 'Bị từ chối',
+  pending_owner_confirmation: 'Chờ chủ sân xác nhận',
+  owner_confirmed: 'Chủ sân đã xác nhận',
+  admin_processing: 'Admin đang xử lý',
+  completed: 'Hoàn tất',
+  owner_rejected: 'Chủ sân từ chối',
+  pending_owner_signature: 'Chờ chủ sân ký',
+  pending_sportgo_signature: 'Chờ SportGo ký',
+  signed_active: 'Đã ký và có hiệu lực',
+  terminated: 'Đã chấm dứt',
   pending: 'Chờ xử lý',
   approved: 'Đã duyệt',
-  rejected: 'Đã từ chối',
   locked: 'Đã khóa',
 };
 
@@ -24,102 +37,77 @@ export const STATUS_BADGE_CLASS = {
   active: 'status-active',
   inactive: 'status-inactive',
   archived: 'status-archived',
+  pending_review: 'status-pending',
+  rejected: 'status-rejected',
+  pending_owner_confirmation: 'status-pending',
+  owner_confirmed: 'status-active',
+  admin_processing: 'status-pending',
+  completed: 'status-active',
+  owner_rejected: 'status-rejected',
+  pending_owner_signature: 'status-pending',
+  pending_sportgo_signature: 'status-pending',
+  signed_active: 'status-active',
+  terminated: 'status-archived',
   pending: 'status-pending',
   approved: 'status-active',
-  rejected: 'status-archived',
-  locked: 'status-archived',
+  locked: 'status-rejected',
 };
 
 export const ACTION_LABELS = {
-  'booking.cancel': 'Hủy lịch đặt sân',
-  'booking.create': 'Tạo lịch đặt sân',
-  'booking.confirm': 'Xác nhận lịch đặt sân',
-  'refund.request': 'Khách yêu cầu hoàn tiền',
-  'refund.owner_confirm': 'Chủ sân xác nhận hoàn tiền',
-  'refund.admin_confirm': 'Admin xác nhận hoàn tiền',
-  'report.create': 'Người dùng báo cáo vi phạm',
-  'report.resolve': 'Xử lý báo cáo vi phạm',
-  'complaint.create': 'Tạo khiếu nại',
-  'complaint.resolve': 'Xử lý khiếu nại',
-  'account.lock': 'Khóa tài khoản',
-  'account.unlock': 'Mở khóa tài khoản',
-  'venue.lock': 'Khóa cụm sân',
-  'venue.lock_due_fee': 'Khóa cụm sân do quá hạn phí',
-  'first_login.accept_policy': 'Bắt buộc đồng ý điều khoản',
+  'partner_application.approve': 'Admin duyệt hồ sơ đối tác',
+  'partner_contract.generate': 'Hệ thống sinh hợp đồng đối tác',
+  'partner_contract.sign': 'Chủ sân và SportGo ký hợp đồng',
+  'partner_termination.approve': 'Admin duyệt yêu cầu chấm dứt hợp tác',
+  'refund.request': 'Khách gửi yêu cầu hoàn tiền',
+  'refund.owner_confirm': 'Chủ sân xác nhận yêu cầu hoàn tiền',
+  'refund.admin_complete': 'Admin xác nhận hoàn tất hoàn tiền',
+  'booking.cancel_by_customer': 'Khách hủy booking',
+  'booking.cancel_by_owner': 'Chủ sân hủy booking',
+  'booking.expire_unpaid': 'Hệ thống hủy booking do quá hạn thanh toán',
+  'venue.platform_fee_due': 'Sắp đến hạn hoặc quá hạn phí nền tảng',
+  'venue.lock_due_fee': 'Khóa/giới hạn cụm sân do quá hạn phí nền tảng',
+  'owner.access_limited_due_fee': 'Giới hạn quyền chủ sân do quá hạn phí',
+  'post.report': 'Người dùng báo cáo nội dung',
+  'post.hide': 'Ẩn nội dung vi phạm',
+  'first_login.accept_policy': 'Người dùng/chủ sân chấp nhận chính sách',
+  'venue_policy.submit': 'Chủ sân gửi chính sách riêng để duyệt',
+  'venue_policy.activate': 'Kích hoạt chính sách sân hợp lệ',
 };
 
 export const RULE_TYPE_LABELS = {
-  refund_by_cancel_time: 'Hoàn tiền theo thời điểm hủy',
-  refund_time_window: 'Hoàn tiền theo khung thời gian',
-  report_auto_lock: 'Gợi ý khóa tài khoản theo số báo cáo',
-  report_threshold: 'Ngưỡng xử lý báo cáo vi phạm',
-  platform_fee_overdue: 'Xử lý cụm sân quá hạn phí duy trì',
-  account_lock_manual: 'Khóa tài khoản thủ công',
-  first_login_accept_required: 'Bắt buộc đồng ý chính sách',
-  booking_auto_cancel: 'Tự hủy booking chưa thanh toán',
+  terms_acceptance_required: 'Bắt buộc chấp nhận điều khoản trước khi sử dụng',
+  cancel_before_hours: 'Quy định mốc thời gian được hủy booking',
+  refund_percent_by_cancel_time: 'Tính phần trăm hoàn tiền theo thời gian hủy',
+  owner_confirm_required_before_admin_transfer: 'Bắt buộc chủ sân xác nhận trước khi admin hoàn tiền',
+  platform_fee_overdue_warning: 'Nhắc chủ sân khi sắp/quá hạn phí nền tảng',
+  platform_fee_overdue_lock: 'Giới hạn hoặc khóa cụm sân khi quá hạn phí nền tảng',
+  venue_policy_override_limit: 'Giới hạn chính sách riêng của sân theo khung hệ thống',
+  report_threshold_requires_review: 'Đưa nội dung vào chờ kiểm duyệt khi có nhiều báo cáo',
+  contract_signing_required: 'Hợp đồng phải có đủ chữ ký mới có hiệu lực',
+  partner_termination_transition_30_days: 'Thu quyền chủ sân sau thời gian chuyển tiếp khi chấm dứt hợp đồng',
+  partner_application_approve_requires_contract: 'Duyệt hồ sơ đối tác xong phải sinh hợp đồng',
 };
 
 export const MODULE_META = {
-  dashboard: {
-    label: 'Tổng quan hệ thống',
-    description: 'Xem dashboard và số liệu vận hành chung.',
-  },
-  profile: {
-    label: 'Hồ sơ cá nhân',
-    description: 'Xem và cập nhật hồ sơ của chính nhân sự đăng nhập.',
-  },
-  user: {
-    label: 'Tài khoản',
-    description: 'Xem, khóa và mở khóa tài khoản trong hệ thống.',
-  },
-  staff: {
-    label: 'Tài khoản nhân sự',
-    description: 'Tạo, khóa và gán nhóm quyền cho nhân sự hệ thống.',
-  },
-  role: {
-    label: 'Nhóm quyền',
-    description: 'Tạo, sửa và phân quyền cho nhóm nhân sự hệ thống.',
-  },
-  policy: {
-    label: 'Chính sách',
-    description: 'Quản lý văn bản chính sách và quy tắc xử lý tự động.',
-  },
-  moderation: {
-    label: 'Bài viết và kiểm duyệt',
-    description: 'Duyệt, từ chối hoặc xử lý nội dung vi phạm.',
-  },
-  report: {
-    label: 'Báo cáo vi phạm',
-    description: 'Xem và xử lý báo cáo vi phạm từ người dùng.',
-  },
-  complaint: {
-    label: 'Khiếu nại',
-    description: 'Xem, tiếp nhận và xử lý khiếu nại.',
-  },
-  partner: {
-    label: 'Đối tác',
-    description: 'Xem và duyệt hồ sơ đăng ký chủ sân.',
-  },
-  venue: {
-    label: 'Đối tác và sân',
-    description: 'Quản lý hồ sơ đối tác, cụm sân và sân con.',
-  },
-  booking: {
-    label: 'Đặt sân',
-    description: 'Xem và xử lý lịch đặt sân.',
-  },
-  pricing: {
-    label: 'Bảng giá',
-    description: 'Quản lý giá sân và khung giờ.',
-  },
-  finance: {
-    label: 'Tài chính và đối soát',
-    description: 'Xem thanh toán, hoàn tiền và nghiệp vụ đối soát.',
-  },
-  audit: {
-    label: 'Nhật ký hệ thống',
-    description: 'Xem lịch sử thao tác nhạy cảm.',
-  },
+  dashboard: { label: 'Tổng quan hệ thống', description: 'Xem dashboard và số liệu vận hành chung.' },
+  profile: { label: 'Hồ sơ cá nhân', description: 'Xem và cập nhật hồ sơ của nhân sự đăng nhập.' },
+  user: { label: 'Tài khoản', description: 'Xem, khóa và mở khóa tài khoản trong hệ thống.' },
+  staff: { label: 'Tài khoản nhân sự', description: 'Tạo, khóa và gán nhóm quyền cho nhân sự hệ thống.' },
+  role: { label: 'Nhóm quyền', description: 'Tạo, sửa và phân quyền cho nhóm nhân sự hệ thống.' },
+  policy: { label: 'Chính sách', description: 'Quản lý văn bản chính sách và quy tắc xử lý tự động.' },
+  moderation: { label: 'Kiểm duyệt', description: 'Duyệt, từ chối hoặc xử lý nội dung vi phạm.' },
+  report: { label: 'Báo cáo vi phạm', description: 'Xem và xử lý báo cáo vi phạm từ người dùng.' },
+  complaint: { label: 'Khiếu nại', description: 'Xem, tiếp nhận và xử lý khiếu nại.' },
+  partner: { label: 'Đối tác & hợp đồng', description: 'Xem hồ sơ đối tác, hợp đồng và chấm dứt hợp tác.' },
+  venue: { label: 'Cụm sân', description: 'Quản lý cụm sân, sân con và trạng thái vận hành.' },
+  owner: { label: 'Quyền chủ sân', description: 'Quản lý quyền thao tác của owner.' },
+  booking: { label: 'Đặt sân', description: 'Xem và xử lý lịch đặt sân.' },
+  pricing: { label: 'Bảng giá', description: 'Quản lý giá sân và khung giờ.' },
+  finance: { label: 'Tài chính & đối soát', description: 'Xem thanh toán, hoàn tiền và nghiệp vụ đối soát.' },
+  refund: { label: 'Hoàn tiền', description: 'Xử lý yêu cầu hoàn tiền.' },
+  audit: { label: 'Nhật ký hệ thống', description: 'Xem lịch sử thao tác nhạy cảm.' },
+  auth: { label: 'Xác nhận chính sách', description: 'Kiểm tra việc chấp nhận điều khoản/chính sách.' },
+  venue_policy: { label: 'Chính sách sân', description: 'Chính sách riêng do chủ sân đề xuất.' },
 };
 
 const FALLBACK_ACTIONS = {
@@ -141,26 +129,27 @@ export function getPolicyTypeLabel(type) {
 }
 
 export function getStatusLabel(status) {
-  return STATUS_LABELS[status] || status || 'Không xác định';
+  if (!status) return 'Không xác định';
+  return STATUS_LABELS[String(status).toLowerCase()] || status;
 }
 
 export function getStatusBadgeClass(status) {
-  return STATUS_BADGE_CLASS[status] || 'status-default';
+  return STATUS_BADGE_CLASS[String(status || '').toLowerCase()] || 'status-default';
 }
 
 export function getActionLabel(code) {
   if (!code) return 'Không xác định';
-  return ACTION_LABELS[code] || code.replaceAll('.', ' / ').replaceAll('_', ' ');
+  return ACTION_LABELS[code] || code;
 }
 
 export function getRuleTypeLabel(type) {
   if (!type) return 'Không xác định';
-  return RULE_TYPE_LABELS[type] || type.replaceAll('_', ' ');
+  return RULE_TYPE_LABELS[type] || type;
 }
 
 export function getModuleMeta(moduleKey) {
   return MODULE_META[moduleKey] || {
-    label: moduleKey ? moduleKey.replaceAll('_', ' ') : 'Khác',
+    label: moduleKey || 'Khác',
     description: '',
   };
 }
@@ -232,31 +221,30 @@ export function getAuditActionLabel(action) {
 
 export function getRuleSummary(rule) {
   if (!rule) return '';
-  if (rule.business_summary) return rule.business_summary;
+  if (rule.business_summary_vi || rule.business_summary) return rule.business_summary_vi || rule.business_summary;
 
   const condition = rule.condition_json || {};
   const result = rule.result_json || {};
+  const hours = condition.hours_before_start?.gte ?? condition.hours_before_start ?? '?';
+  const days = condition.overdue_days?.gte ?? condition.overdue_days ?? '?';
 
-  if (['refund_by_cancel_time', 'refund_time_window'].includes(rule.rule_type)) {
-    const hours = condition.hours_before_start?.gte ?? condition.hours_before_start ?? '?';
-    const percent = result.refund_percent ?? '?';
-    return `Nếu khách hủy trước ít nhất ${hours} giờ, hệ thống hoàn ${percent}% tiền.`;
+  if (rule.rule_type === 'refund_percent_by_cancel_time') {
+    return `Nếu khách hủy booking trước giờ chơi ít nhất ${hours} giờ, hệ thống đề xuất hoàn tối thiểu ${result.refund_percent ?? '?'}% số tiền đã thanh toán.`;
   }
 
-  if (['report_auto_lock', 'report_threshold'].includes(rule.rule_type)) {
-    const count = condition.report_count?.gte ?? condition.report_count ?? '?';
-    const unique = condition.unique_reporters?.gte ?? condition.unique_reporters ?? '?';
-    const days = condition.window_days ?? '?';
-    return `Nếu có ${count} báo cáo từ ${unique} người trong ${days} ngày, hệ thống xử lý theo cấu hình.`;
+  if (rule.rule_type === 'owner_confirm_required_before_admin_transfer') {
+    return 'Nếu yêu cầu hoàn tiền chưa được chủ sân xác nhận, admin không được chuyển tiền và không được chuyển yêu cầu sang hoàn tất.';
   }
 
-  if (rule.rule_type === 'platform_fee_overdue') {
-    const days = condition.overdue_days?.gte ?? condition.overdue_days ?? '?';
-    return `Nếu cụm sân quá hạn phí ${days} ngày, hệ thống xử lý theo cấu hình.`;
+  if (rule.rule_type === 'platform_fee_overdue_lock') {
+    return `Nếu cụm sân quá hạn phí nền tảng ${days} ngày, hệ thống chuyển cụm sân sang trạng thái bị giới hạn quyền.`;
   }
 
-  if (rule.rule_type === 'first_login_accept_required') {
-    return 'Người dùng phải đồng ý phiên bản chính sách mới nhất trước khi tiếp tục sử dụng.';
+  if (rule.rule_type === 'report_threshold_requires_review') {
+    const count = condition.report_count?.gte ?? '?';
+    const unique = condition.unique_reporters?.gte ?? '?';
+    const windowDays = condition.window_days ?? '?';
+    return `Nếu một nội dung nhận từ ${count} báo cáo hợp lệ bởi ít nhất ${unique} người khác nhau trong ${windowDays} ngày, hệ thống đưa nội dung vào chờ kiểm duyệt.`;
   }
 
   return rule.rule_name || getRuleTypeLabel(rule.rule_type);
@@ -269,10 +257,10 @@ export function buildAuditDiff(oldValues, newValues) {
     title: 'Tiêu đề',
     content: 'Nội dung',
     status: 'Trạng thái',
-    policy_type: 'Loại chính sách',
+    policy_type: 'Nhóm chính sách',
     version: 'Phiên bản',
     priority: 'Thứ tự ưu tiên',
-    is_overridable: 'Cho sân chỉnh riêng',
+    is_overridable: 'Cho sân cấu hình riêng',
     require_reaccept: 'Bắt buộc đồng ý lại',
     display_name: 'Tên hiển thị',
     description: 'Mô tả',
@@ -291,7 +279,7 @@ export function buildAuditDiff(oldValues, newValues) {
 }
 
 export function formatValue(field, value) {
-  if (value === null || value === undefined || value === '') return 'Trống';
+  if (value === null || value === undefined || value === '') return '(trống)';
   if (typeof value === 'boolean') return value ? 'Có' : 'Không';
   if (field === 'status') return getStatusLabel(value);
   if (field === 'policy_type') return getPolicyTypeLabel(value);
@@ -301,10 +289,7 @@ export function formatValue(field, value) {
     return 'Dữ liệu kỹ thuật đã thay đổi';
   }
 
-  const text = typeof value === 'object'
-    ? JSON.stringify(value)
-    : String(value);
-
+  const text = String(value);
   return text.length > 90 ? `${text.slice(0, 90)}...` : text;
 }
 

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FinanceOperationController as AdminFinanceOperationController;
 use App\Http\Controllers\Api\Admin\PartnerApplicationController as AdminPartnerApplicationController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Api\Admin\VoucherController as AdminVoucherController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\GoogleAuthController;
@@ -16,6 +17,9 @@ use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardControll
 use App\Http\Controllers\Api\Payment\SepayPaymentController;
 use App\Http\Controllers\Api\PolicyAcceptanceController;
 use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
+use App\Http\Controllers\Api\Owner\StaffController as OwnerStaffController;
+use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyController;
+use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use Illuminate\Support\Facades\Route;
@@ -57,8 +61,13 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
         Route::get('/users', [AdminUserController::class, 'index']);
+        Route::get('/users/{id}', [AdminUserController::class, 'show']);
         Route::patch('/users/{id}/lock', [AdminUserController::class, 'lock']);
         Route::patch('/users/{id}/unlock', [AdminUserController::class, 'unlock']);
+        Route::get('/vouchers', [AdminVoucherController::class, 'index']);
+        Route::post('/vouchers', [AdminVoucherController::class, 'store']);
+        Route::put('/vouchers/{id}', [AdminVoucherController::class, 'update']);
+        Route::patch('/vouchers/{id}/deactivate', [AdminVoucherController::class, 'deactivate']);
         Route::get('/payments', [AdminPaymentController::class, 'index']);
         Route::get('/payments/{id}', [AdminPaymentController::class, 'show']);
         Route::post('/payments/{id}/retry', [AdminPaymentController::class, 'retry']);
@@ -95,9 +104,10 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/complaints/{id}/assign', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'assign']);
         Route::patch('/complaints/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'resolve']);
 
-        // Court Types CRUD
         Route::apiResource('court-types', \App\Http\Controllers\Api\Admin\CourtTypeController::class);
 
+        Route::apiResource('amenities', \App\Http\Controllers\Api\Admin\AmenityController::class);
+        
         Route::get('/permissions', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'permissions']);
         Route::get('/roles/{id}/users', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'users']);
         Route::get('/roles', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'index']);
@@ -113,6 +123,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/policies', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'store']);
         Route::get('/policies/{id}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'show']);
         Route::put('/policies/{id}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'update']);
+        Route::delete('/policies/{id}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'destroy']);
         Route::post('/policies/{id}/clone-version', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'cloneVersion']);
         Route::post('/policies/{id}/publish', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'publish']);
         Route::patch('/policies/{id}/status', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateStatus']);
@@ -127,6 +138,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/venue-clusters/{id}', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'show']);
         Route::patch('/venue-clusters/{id}/lock', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'lock']);
         Route::patch('/venue-clusters/{id}/unlock', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'unlock']);
+        Route::patch('/venue-clusters/{id}/amenities', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'updateAmenities']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveRequest']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectRequest']);
     });
@@ -138,7 +150,21 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
 
         // Venue Clusters & Venue Courts
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);
+        Route::post('/venue-clusters/{id}/media', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'uploadMedia']);
+        Route::delete('/venue-clusters/{clusterId}/media/{mediaId}', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'deleteMedia']);
         Route::apiResource('venue-courts', \App\Http\Controllers\Api\Owner\VenueCourtController::class);
+        Route::get('/staff', [OwnerStaffController::class, 'index']);
+        Route::post('/staff', [OwnerStaffController::class, 'store']);
+        Route::put('/staff/{id}', [OwnerStaffController::class, 'update']);
+        Route::patch('/staff/{id}/deactivate', [OwnerStaffController::class, 'deactivate']);
+        Route::get('/vouchers', [OwnerVoucherController::class, 'index']);
+        Route::post('/vouchers', [OwnerVoucherController::class, 'store']);
+        Route::put('/vouchers/{id}', [OwnerVoucherController::class, 'update']);
+        Route::patch('/vouchers/{id}/deactivate', [OwnerVoucherController::class, 'deactivate']);
+        Route::get('/venue-policies', [OwnerVenuePolicyController::class, 'index']);
+        Route::post('/venue-policies/rules', [OwnerVenuePolicyController::class, 'storeRule']);
+        Route::post('/venue-policies/notices', [OwnerVenuePolicyController::class, 'storeNotice']);
+        Route::put('/venue-policies/notices/{id}', [OwnerVenuePolicyController::class, 'updateNotice']);
         Route::get('/pricing', [OwnerPricingController::class, 'index']);
         Route::patch('/booking-configs/{venueClusterId}/duration', [OwnerPricingController::class, 'updateDuration']);
         Route::post('/price-slots', [OwnerPricingController::class, 'storePriceSlot']);
@@ -153,6 +179,7 @@ Route::middleware('auth:sanctum')
 
         Route::post('venue-clusters/resolve-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'resolveMapUrl']);
         Route::get('/court-types', [\App\Http\Controllers\Api\Admin\CourtTypeController::class, 'index']); // Read-only: Owner cần xem danh sách loại sân
+        Route::get('/amenities', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'index']); // Read-only: Owner cần xem danh sách tiện ích
         Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);
         Route::get('/bookings/schedule', [\App\Http\Controllers\Api\Player\BookingController::class, 'schedule']);
         Route::get('/bookings/check-availability', [\App\Http\Controllers\Api\Player\BookingController::class, 'checkAvailability']);

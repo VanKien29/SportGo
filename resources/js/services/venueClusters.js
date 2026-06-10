@@ -42,4 +42,15 @@ export const venueClusterService = {
       method: 'DELETE',
     });
   },
+  uploadMedia(clusterId, formData) {
+    return api(`/api/owner/venue-clusters/${clusterId}/media`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+  deleteMedia(clusterId, mediaId) {
+    return api(`/api/owner/venue-clusters/${clusterId}/media/${mediaId}`, {
+      method: 'DELETE',
+    });
+  },
 };

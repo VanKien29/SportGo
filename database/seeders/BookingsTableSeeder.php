@@ -118,7 +118,7 @@ class BookingsTableSeeder extends Seeder
                 'single',
                 'cancelled',
                 null,
-                'Hoàn tiền lỗi do thông tin tài khoản.',
+                'Hoàn tiền đang chờ kết quả từ gateway.',
                 $customer?->id,
             ],
             [
@@ -218,7 +218,7 @@ class BookingsTableSeeder extends Seeder
                     'court_changed_at' => null,
                     'court_changed_reason' => null,
                     'reminder_sent_at' => null,
-                ]
+                ],
             );
         }
     }

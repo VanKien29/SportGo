@@ -32,7 +32,7 @@ class VenueClustersTableSeeder extends Seeder
                 'address' => 'Dịch Vọng, Cầu Giấy, Hà Nội',
                 'latitude' => 21.0362360,
                 'longitude' => 105.7905830,
-                'amenities' => ['Bãi gửi xe', 'Đèn chiếu sáng', 'Nước uống'],
+                'status' => 'active',
             ],
             [
                 'name' => 'SportGo Mỹ Đình',
@@ -42,7 +42,27 @@ class VenueClustersTableSeeder extends Seeder
                 'address' => 'Lê Đức Thọ, Mỹ Đình, Hà Nội',
                 'latitude' => 21.0285110,
                 'longitude' => 105.7783390,
-                'amenities' => ['Bãi gửi xe', 'Khu chờ', 'Đèn chiếu sáng'],
+                'status' => 'active',
+            ],
+            [
+                'name' => 'SportGo Hà Đông',
+                'slug' => 'sportgo-ha-dong',
+                'description' => 'Cụm sân demo dùng để test quyền owner trong thời gian chuyển tiếp.',
+                'phone_contact' => '0902000003',
+                'address' => 'Văn Quán, Hà Đông, Hà Nội',
+                'latitude' => 20.9685190,
+                'longitude' => 105.7853120,
+                'status' => 'active',
+            ],
+            [
+                'name' => 'SportGo Ba Đình',
+                'slug' => 'sportgo-ba-dinh',
+                'description' => 'Cụm sân demo dùng để test trạng thái owner bị chặn quyền.',
+                'phone_contact' => '0902000004',
+                'address' => 'Kim Mã, Ba Đình, Hà Nội',
+                'latitude' => 21.0328640,
+                'longitude' => 105.8131040,
+                'status' => 'active',
             ],
         ];
 
@@ -58,15 +78,14 @@ class VenueClustersTableSeeder extends Seeder
                     'map_url' => null,
                     'latitude' => $cluster['latitude'],
                     'longitude' => $cluster['longitude'],
-                    'amenities' => $cluster['amenities'],
-                    'status' => 'active',
+                    'status' => $cluster['status'],
                     'status_reason' => null,
                     'locked_at' => null,
                     'locked_until' => null,
                     'locked_by' => null,
                     'rating_avg' => 0,
                     'rating_count' => 0,
-                ]
+                ],
             );
         }
     }

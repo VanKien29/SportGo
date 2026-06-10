@@ -1,10 +1,14 @@
 <template>
   <section class="admin-page">
+    <PlatformFeeSubnav v-if="isPlatformFeeScope" />
+
     <header class="page-head">
       <div>
-        <p class="eyebrow">Chính sách vận hành</p>
-        <h2>Quản lý chính sách</h2>
-        <p>Quản lý văn bản chính sách, phiên bản và quy tắc áp dụng.</p>
+        <p class="eyebrow">{{ isPlatformFeeScope ? 'Chính sách phí nền tảng' : 'Quản lý chính sách' }}</p>
+        <h2>{{ isPlatformFeeScope ? 'Chính sách áp dụng cho phí nền tảng' : 'Quản lý chính sách' }}</h2>
+        <p>
+          Quản lý văn bản chính sách và các quy tắc xử lý tự động. Mã kỹ thuật chỉ hiển thị như thông tin phụ.
+        </p>
       </div>
       <button class="btn primary" type="button" @click="openCreateModal">
         <AppIcon name="plus" size="18" />
@@ -29,134 +33,140 @@
         <span>Bản nháp</span>
       </article>
       <article class="stat-card">
-        <strong>{{ summary.require_reaccept || 0 }}</strong>
-        <span>Cần đồng ý lại</span>
+        <strong>{{ policiesNeedAttention }}</strong>
+        <span>Cần rà soát</span>
       </article>
     </div>
 
     <section class="filter-panel">
-      <div class="filter-head">
-        <strong>Bộ lọc</strong>
-        <span>Lọc theo loại, trạng thái và yêu cầu chấp nhận lại.</span>
-      </div>
-      <div class="filter-bar">
-        <label class="search-box">
-          <AppIcon name="search" size="18" />
-          <input
-            v-model.trim="filters.keyword"
-            placeholder="Tìm theo tên, mã hoặc nội dung"
-            @keyup.enter="loadPolicies"
-          />
-        </label>
-        <select v-model="filters.policy_type" @change="loadPolicies">
-          <option value="">Tất cả loại chính sách</option>
-          <option v-for="type in policyTypes" :key="type.value" :value="type.value">
-            {{ type.label }}
-          </option>
-        </select>
-        <select v-model="filters.status" @change="loadPolicies">
-          <option value="">Tất cả trạng thái</option>
-          <option value="draft">Bản nháp</option>
-          <option value="active">Đang áp dụng</option>
-          <option value="inactive">Tạm ngưng</option>
-          <option value="archived">Đã lưu trữ</option>
-        </select>
-        <select v-model="filters.require_reaccept" @change="loadPolicies">
-          <option value="">Chấp nhận lại: tất cả</option>
-          <option value="1">Có yêu cầu</option>
-          <option value="0">Không yêu cầu</option>
-        </select>
-        <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadPolicies" />
-        <ActionIconButton icon="refresh" label="Tải lại" variant="secondary" :disabled="loading" @click="resetFilters" />
-      </div>
+      <label class="search-box">
+        <AppIcon name="search" size="18" />
+        <input
+          v-model.trim="filters.keyword"
+          placeholder="Tìm theo tên chính sách hoặc mã kỹ thuật"
+          @keyup.enter="loadPolicies"
+        />
+      </label>
+
+      <select v-if="!isPlatformFeeScope" v-model="filters.policy_type" @change="loadPolicies">
+        <option value="">Tất cả nhóm chính sách</option>
+        <option v-for="type in policyTypes" :key="type.value" :value="type.value">
+          {{ type.label }}
+        </option>
+      </select>
+
+      <select v-model="filters.status" @change="loadPolicies">
+        <option value="">Tất cả trạng thái</option>
+        <option value="draft">Bản nháp</option>
+        <option value="active">Đang áp dụng</option>
+        <option value="inactive">Ngưng áp dụng</option>
+        <option value="archived">Lưu trữ</option>
+        <option value="pending_review">Chờ duyệt</option>
+        <option value="rejected">Bị từ chối</option>
+      </select>
+
+      <select v-model="filters.require_reaccept" @change="loadPolicies">
+        <option value="">Chấp nhận lại: tất cả</option>
+        <option value="1">Có yêu cầu</option>
+        <option value="0">Không yêu cầu</option>
+      </select>
+
+      <button class="icon-btn" type="button" title="Lọc danh sách" @click="loadPolicies">
+        <AppIcon name="filter" size="17" />
+      </button>
+      <button class="icon-btn" type="button" title="Tải lại" :disabled="loading" @click="resetFilters">
+        <AppIcon name="refresh" size="17" />
+      </button>
     </section>
 
-    <div class="table-card">
+    <section class="table-card">
       <div v-if="loading" class="table-state">Đang tải danh sách chính sách...</div>
       <div v-else-if="policies.length === 0" class="table-state">Chưa có chính sách phù hợp.</div>
       <div v-else class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>
-                <button class="sort-btn" type="button" @click="sortBy('title')">
-                  Chính sách
-                  <AppIcon :name="sortIcon('title')" size="14" />
-                </button>
-              </th>
-              <th>Loại</th>
-              <th>
-                <button class="sort-btn" type="button" @click="sortBy('version')">
-                  Phiên bản
-                  <AppIcon :name="sortIcon('version')" size="14" />
-                </button>
-              </th>
+              <th>Tên chính sách</th>
+              <th>Nhóm chính sách</th>
+              <th>Phiên bản</th>
               <th>Trạng thái</th>
-              <th>Hiệu lực</th>
-              <th>Chấp nhận lại</th>
-              <th>Quy tắc</th>
+              <th>Hiệu lực từ</th>
+              <th>Cho sân cấu hình riêng</th>
+              <th>Số quy tắc</th>
+              <th>Cập nhật lần cuối</th>
               <th class="actions-col">Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="policy in sortedPolicies" :key="policy.id">
+            <tr v-for="policy in policies" :key="policy.id">
               <td class="main-cell">
                 <strong>{{ policy.title }}</strong>
-                <span>{{ policy.key || policy.code || 'Chưa có mã' }}</span>
+                <span>Mã kỹ thuật: {{ policy.key || 'chưa có' }}</span>
               </td>
-              <td>{{ policyTypeLabel(policy.policy_type || policy.type) }}</td>
+              <td>{{ policyTypeLabel(policy) }}</td>
               <td>v{{ policy.version || 1 }}</td>
               <td>
                 <span class="status-badge" :class="statusClass(policy.status)">
-                  <AppIcon :name="statusIcon(policy.status)" size="14" />
-                  {{ statusLabel(policy.status) }}
+                  {{ statusLabel(policy) }}
                 </span>
               </td>
-              <td>{{ formatDate(policy.effective_from || policy.published_at || policy.updated_at) }}</td>
+              <td>{{ formatDate(policy.effective_from || policy.published_at) }}</td>
               <td>
-                <span :class="policy.require_reaccept ? 'yes-text' : 'muted-text'">
-                  {{ policy.require_reaccept ? 'Có' : 'Không' }}
+                <span :class="policy.is_overridable ? 'yes-text' : 'muted-text'">
+                  {{ policy.is_overridable ? 'Có' : 'Không' }}
                 </span>
               </td>
               <td>
                 <span class="rule-count">{{ policy.rules_count || 0 }}</span>
               </td>
+              <td>{{ formatDate(policy.updated_at) }}</td>
               <td class="actions-col">
-                <TableActionGroup>
-                  <ActionIconButton icon="eye" label="Xem chi tiết" @click="goDetail(policy)" />
-                  <ActionIconButton icon="pencil" label="Sửa chính sách" @click="goDetail(policy, 'document')" />
-                  <ActionIconButton icon="copy" label="Tạo phiên bản mới" @click="clonePolicy(policy)" />
-                  <ActionIconButton
+                <div class="action-row">
+                  <button class="icon-action" type="button" title="Xem tổng quan" @click="goDetail(policy, 'overview')">
+                    <AppIcon name="eye" size="16" />
+                  </button>
+                  <button class="icon-action" type="button" title="Xem quy tắc" @click="goDetail(policy, 'rules')">
+                    <AppIcon name="sliders" size="16" />
+                  </button>
+                  <button class="icon-action" type="button" title="Tạo phiên bản mới" @click="clonePolicy(policy)">
+                    <AppIcon name="copy" size="16" />
+                  </button>
+                  <button
                     v-if="policy.status !== 'active'"
-                    icon="rocket"
-                    label="Kích hoạt chính sách"
-                    variant="success"
+                    class="icon-action success"
+                    type="button"
+                    title="Áp dụng chính sách"
                     @click="openPublishConfirm(policy)"
-                  />
-                  <ActionIconButton
-                    v-if="policy.status === 'active'"
-                    icon="archive"
-                    label="Ngưng áp dụng"
-                    variant="danger"
+                  >
+                    <AppIcon name="check" size="16" />
+                  </button>
+                  <button
+                    v-else
+                    class="icon-action danger"
+                    type="button"
+                    title="Ngưng áp dụng"
                     @click="openArchiveConfirm(policy)"
-                  />
-                  <ActionIconButton icon="history" label="Xem lịch sử thay đổi" @click="goDetail(policy, 'audit')" />
-                </TableActionGroup>
+                  >
+                    <AppIcon name="power" size="16" />
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
 
     <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
       <form class="modal" @submit.prevent="savePolicy">
         <header class="modal-head">
           <div>
             <h3>Tạo chính sách mới</h3>
-            <p>Chính sách mới được tạo ở trạng thái bản nháp. Sau khi rà soát xong mới kích hoạt.</p>
+            <p>Tạo bản nháp trước, sau khi có nội dung và quy tắc phù hợp mới đưa vào áp dụng.</p>
           </div>
-          <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeModal" />
+          <button class="icon-btn" type="button" title="Đóng" @click="closeModal">
+            <AppIcon name="x" size="18" />
+          </button>
         </header>
 
         <div v-if="modalError" class="alert error">{{ modalError }}</div>
@@ -172,7 +182,7 @@
               <input v-model.number="form.version" type="number" min="1" required />
             </label>
             <label>
-              Loại chính sách
+              Nhóm chính sách
               <select v-model="form.policy_type" required>
                 <option v-for="type in policyTypes" :key="type.value" :value="type.value">
                   {{ type.label }}
@@ -186,7 +196,7 @@
           </div>
 
           <label>
-            Tiêu đề
+            Tên chính sách
             <input v-model.trim="form.title" required />
           </label>
           <label>
@@ -200,18 +210,18 @@
 
           <label class="check-row">
             <input v-model="form.require_reaccept" type="checkbox" />
-            <span>Bắt buộc người dùng đồng ý lại khi chính sách được kích hoạt</span>
+            <span>Bắt buộc người dùng/chủ sân xác nhận lại khi chính sách được áp dụng</span>
           </label>
           <label class="check-row">
             <input v-model="form.is_overridable" type="checkbox" />
-            <span>Cho phép chủ sân cấu hình ghi đè nếu module hỗ trợ</span>
+            <span>Cho phép sân cấu hình riêng nếu vẫn đúng khung hệ thống</span>
           </label>
         </div>
 
         <footer class="modal-actions">
           <button class="btn secondary" type="button" @click="closeModal">Hủy</button>
           <button class="btn primary" type="submit" :disabled="saving">
-            {{ saving ? 'Đang lưu...' : 'Lưu chính sách' }}
+            {{ saving ? 'Đang lưu...' : 'Lưu bản nháp' }}
           </button>
         </footer>
       </form>
@@ -219,10 +229,10 @@
 
     <ConfirmModal
       v-model="confirmPublish.show"
-      title="Kích hoạt chính sách"
-      :message="`Bạn sắp kích hoạt chính sách ${confirmPublish.policy?.title || ''}.`"
-      consequence="Chính sách sẽ được áp dụng trên hệ thống. Nếu bắt buộc đồng ý lại, người dùng sẽ nhận thông báo."
-      confirm-text="Kích hoạt"
+      title="Áp dụng chính sách"
+      :message="`Áp dụng chính sách ${confirmPublish.policy?.title || ''}?`"
+      consequence="Chính sách và các quy tắc đang bật sẽ được dùng trên hệ thống."
+      confirm-text="Áp dụng"
       type="warning"
       @confirm="publishPolicy"
     />
@@ -230,7 +240,7 @@
     <ConfirmModal
       v-model="confirmArchive.show"
       title="Ngưng áp dụng chính sách"
-      :message="`Bạn sắp ngưng áp dụng chính sách ${confirmArchive.policy?.title || ''}.`"
+      :message="`Ngưng áp dụng chính sách ${confirmArchive.policy?.title || ''}?`"
       consequence="Các quy tắc xử lý tự động của chính sách này sẽ không còn hiệu lực."
       confirm-text="Ngưng áp dụng"
       type="danger"
@@ -240,73 +250,59 @@
 </template>
 
 <script>
-import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import ConfirmModal from '../../components/ConfirmModal.vue';
-import TableActionGroup from '../../components/TableActionGroup.vue';
+import PlatformFeeSubnav from '../../components/PlatformFeeSubnav.vue';
 import { adminPolicyService } from '../../services/adminPolicies.js';
-import { STATUS_ICON_MAP } from '../../utils/iconRegistry.js';
-
-const POLICY_TYPE_LABELS = {
-  general: 'Chung',
-  booking: 'Đặt sân',
-  refund: 'Hoàn tiền',
-  moderation: 'Kiểm duyệt và báo cáo',
-  account: 'Tài khoản',
-  platform_fee: 'Phí duy trì cụm sân',
-  terms: 'Điều khoản sử dụng',
-};
-
-const STATUS_LABELS = {
-  draft: 'Bản nháp',
-  active: 'Đang áp dụng',
-  inactive: 'Tạm ngưng',
-  archived: 'Đã lưu trữ',
-};
+import { getPolicyTypeLabel, getStatusBadgeClass, getStatusLabel, POLICY_TYPE_LABELS } from '../../utils/labelMaps.js';
 
 export default {
   name: 'AdminPolicies',
-  components: { ActionIconButton, AppIcon, ConfirmModal, TableActionGroup },
+  components: { AppIcon, ConfirmModal, PlatformFeeSubnav },
   data() {
+    const platformFeeScope = this.$route.name === 'admin-platform-fee-policies';
     return {
       policies: [],
       summary: {},
-      filters: { keyword: '', policy_type: '', status: '', require_reaccept: '' },
-      form: this.defaultForm(),
+      filters: {
+        keyword: '',
+        policy_type: platformFeeScope ? 'platform_fee' : '',
+        status: '',
+        require_reaccept: '',
+      },
+      form: this.defaultForm(platformFeeScope),
       loading: false,
       saving: false,
       showModal: false,
       modalError: '',
       error: '',
       success: '',
-      sortKey: 'title',
-      sortDir: 'asc',
       confirmPublish: { show: false, policy: null },
       confirmArchive: { show: false, policy: null },
-      policyTypes: Object.entries(POLICY_TYPE_LABELS).map(([value, label]) => ({ value, label })),
+      policyTypes: Object.entries(POLICY_TYPE_LABELS)
+        .filter(([value]) => !['general', 'booking', 'account'].includes(value))
+        .map(([value, label]) => ({ value, label })),
     };
   },
   computed: {
-    sortedPolicies() {
-      return [...this.policies].sort((a, b) => {
-        const left = this.sortValue(a, this.sortKey);
-        const right = this.sortValue(b, this.sortKey);
-        const result = String(left).localeCompare(String(right), 'vi', { numeric: true, sensitivity: 'base' });
-        return this.sortDir === 'asc' ? result : -result;
-      });
+    isPlatformFeeScope() {
+      return this.$route.name === 'admin-platform-fee-policies';
+    },
+    policiesNeedAttention() {
+      return this.policies.filter((policy) => ['draft', 'pending_review', 'rejected'].includes(policy.status)).length;
     },
   },
   mounted() {
     this.loadPolicies();
   },
   methods: {
-    defaultForm() {
+    defaultForm(platformFeeScope = this.isPlatformFeeScope) {
       return {
         key: '',
         version: 1,
         title: '',
         content: '',
-        policy_type: 'general',
+        policy_type: platformFeeScope ? 'platform_fee' : 'terms',
         priority: 0,
         is_overridable: false,
         require_reaccept: false,
@@ -327,27 +323,23 @@ export default {
       }
     },
     resetFilters() {
-      this.filters = { keyword: '', policy_type: '', status: '', require_reaccept: '' };
+      this.filters = {
+        keyword: '',
+        policy_type: this.isPlatformFeeScope ? 'platform_fee' : '',
+        status: '',
+        require_reaccept: '',
+      };
       this.loadPolicies();
     },
-    sortBy(key) {
-      if (this.sortKey === key) {
-        this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
-        return;
-      }
-      this.sortKey = key;
-      this.sortDir = 'asc';
-    },
-    sortIcon(key) {
-      if (this.sortKey !== key) return 'chevronDown';
-      return this.sortDir === 'asc' ? 'chevronUp' : 'chevronDown';
-    },
-    sortValue(policy, key) {
-      if (key === 'version') return Number(policy.version || 0);
-      return policy[key] || '';
-    },
-    goDetail(policy, tab = 'document') {
-      this.$router.push({ name: 'admin-policy-detail', params: { id: policy.id }, query: { tab } });
+    goDetail(policy, tab = 'overview') {
+      this.$router.push({
+        name: 'admin-policy-detail',
+        params: { id: policy.id },
+        query: {
+          tab,
+          ...(this.isPlatformFeeScope ? { source: 'platform_fee' } : {}),
+        },
+      });
     },
     openCreateModal() {
       this.form = this.defaultForm();
@@ -363,7 +355,7 @@ export default {
       this.modalError = '';
       try {
         const response = await adminPolicyService.create(this.form);
-        this.success = this.safeDisplayText(response.message, 'Đã tạo chính sách.');
+        this.success = response.message || 'Đã tạo chính sách.';
         this.closeModal();
         await this.loadPolicies();
         this.autoHide();
@@ -382,7 +374,7 @@ export default {
     async publishPolicy() {
       const policy = this.confirmPublish.policy;
       if (!policy) return;
-      await this.runAction(() => adminPolicyService.publish(policy.id), 'Đã kích hoạt chính sách.');
+      await this.runAction(() => adminPolicyService.publish(policy.id), 'Đã áp dụng chính sách.');
     },
     async archivePolicy() {
       const policy = this.confirmArchive.policy;
@@ -397,28 +389,21 @@ export default {
       this.success = '';
       try {
         const response = await action();
-        this.success = this.safeDisplayText(response.message, fallbackMessage);
+        this.success = response.message || fallbackMessage;
         await this.loadPolicies();
         this.autoHide();
       } catch (error) {
-        this.error = this.safeDisplayText(error.message, 'Thao tác không thành công.');
+        this.error = error.message || 'Thao tác không thành công.';
       }
     },
-    policyTypeLabel(type) {
-      return POLICY_TYPE_LABELS[type] || type || 'Không xác định';
+    policyTypeLabel(policy) {
+      return policy.policy_type_label_vi || policy.policy_type_label || getPolicyTypeLabel(policy.policy_type || policy.type);
     },
-    statusLabel(status) {
-      return STATUS_LABELS[status] || status || 'Không xác định';
+    statusLabel(policy) {
+      return policy.status_label_vi || policy.status_label || getStatusLabel(policy.status);
     },
     statusClass(status) {
-      return `status-${status || 'default'}`;
-    },
-    statusIcon(status) {
-      return STATUS_ICON_MAP[status] || 'alert';
-    },
-    safeDisplayText(value, fallback = '') {
-      if (!value) return fallback;
-      return /[ĂÄÂÆ]|áº|á»|â€|â€™|â€œ|â€/.test(String(value)) ? fallback : value;
+      return getStatusBadgeClass(status);
     },
     formatDate(value) {
       if (!value) return '-';
@@ -444,7 +429,7 @@ export default {
 
 .page-head {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 18px;
   align-items: flex-start;
 }
@@ -485,7 +470,7 @@ p {
 .table-card,
 .modal {
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #fff;
 }
 
@@ -505,32 +490,11 @@ p {
 }
 
 .filter-panel {
-  padding: 14px;
-}
-
-.filter-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.filter-head strong {
-  color: #0f172a;
-}
-
-.filter-head span {
-  color: #64748b;
-  font-size: 13px;
-}
-
-.filter-bar {
   display: grid;
-  grid-template-columns: minmax(260px, 2fr) repeat(3, minmax(145px, 1fr)) 36px 36px;
+  grid-template-columns: minmax(260px, 2fr) repeat(3, minmax(145px, 1fr)) 40px 40px;
   gap: 10px;
+  padding: 14px;
   align-items: center;
-  min-width: 0;
 }
 
 .search-box {
@@ -543,7 +507,6 @@ p {
   border-radius: 8px;
   padding: 0 12px;
   color: #64748b;
-  font-weight: normal;
 }
 
 .search-box input {
@@ -565,13 +528,9 @@ textarea {
 
 input:focus,
 select:focus,
-textarea:focus {
-  outline: none;
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
-}
-
+textarea:focus,
 .search-box:focus-within {
+  outline: none;
   border-color: #16a34a;
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
 }
@@ -591,7 +550,7 @@ textarea:focus {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1040px;
+  min-width: 1180px;
 }
 
 th,
@@ -649,22 +608,16 @@ tbody tr:hover {
   text-align: right;
 }
 
-.sort-btn {
-  display: inline-flex;
-  align-items: center;
+.action-row {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
   gap: 4px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  text-transform: inherit;
 }
 
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   border-radius: 999px;
   padding: 5px 9px;
   font-size: 12px;
@@ -677,7 +630,8 @@ tbody tr:hover {
   color: #166534;
 }
 
-.status-draft {
+.status-draft,
+.status-pending {
   background: #e0f2fe;
   color: #075985;
 }
@@ -685,6 +639,11 @@ tbody tr:hover {
 .status-inactive {
   background: #fef3c7;
   color: #92400e;
+}
+
+.status-rejected {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .status-archived,
@@ -715,20 +674,83 @@ tbody tr:hover {
   color: #047857;
 }
 
-.btn {
+.btn,
+.mini-btn,
+.icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   border: 0;
   border-radius: 8px;
-  padding: 10px 14px;
   font: inherit;
   font-weight: 800;
   cursor: pointer;
 }
 
-.btn.primary {
+.btn {
+  padding: 10px 14px;
+}
+
+.mini-btn {
+  padding: 7px 9px;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+  font: inherit;
+}
+
+.icon-action:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+.icon-action.success {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.icon-action.success:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+.icon-action.danger {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+}
+
+.icon-action.danger:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.btn.primary,
+.mini-btn.success {
   background: #16a34a;
   color: #fff;
 }
@@ -738,7 +760,13 @@ tbody tr:hover {
   color: #334155;
 }
 
-.btn:disabled {
+.mini-btn.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.btn:disabled,
+.icon-btn:disabled {
   cursor: not-allowed;
   opacity: .55;
 }
@@ -812,13 +840,7 @@ label {
   background: #f8fafc;
 }
 
-@media (max-width: 1120px) {
-  .filter-bar {
-    grid-template-columns: minmax(240px, 1fr) repeat(3, minmax(135px, 1fr)) 36px 36px;
-  }
-}
-
-@media (max-width: 760px) {
+@media (max-width: 920px) {
   .page-head {
     flex-direction: column;
   }
@@ -828,12 +850,7 @@ label {
     grid-template-columns: 1fr;
   }
 
-  .filter-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .filter-bar {
+  .filter-panel {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -842,8 +859,8 @@ label {
   }
 }
 
-@media (max-width: 520px) {
-  .filter-bar {
+@media (max-width: 560px) {
+  .filter-panel {
     grid-template-columns: 1fr;
   }
 }

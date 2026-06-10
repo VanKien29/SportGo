@@ -27,6 +27,10 @@ export const adminPolicyService = {
     });
   },
 
+  delete(id) {
+    return api(`/api/admin/policies/${id}`, { method: 'DELETE' });
+  },
+
   update(id, payload) {
     return api(`/api/admin/policies/${id}`, {
       method: 'PUT',

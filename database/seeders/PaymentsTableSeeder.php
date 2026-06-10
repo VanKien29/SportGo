@@ -53,7 +53,7 @@ class PaymentsTableSeeder extends Seeder
                     ],
                     'status' => $status,
                     'paid_at' => $paidAt,
-                ]
+                ],
             );
         }
     }

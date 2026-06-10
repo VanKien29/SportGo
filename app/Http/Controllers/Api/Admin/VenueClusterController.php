@@ -26,6 +26,8 @@ class VenueClusterController extends Controller
                 'owner:id,full_name,username,email,phone',
                 'venueCourts:id,venue_cluster_id,court_type_id,name,status',
                 'venueCourts.courtType:id,name',
+                'latestPlatformFeeLedger',
+                'media',
             ]);
 
         // Filter trạng thái
@@ -62,6 +64,7 @@ class VenueClusterController extends Controller
             'venueCourts.courtType:id,name',
             'bookingConfig',
             'lockedBy:id,full_name,username',
+            'media',
         ])->findOrFail($id);
 
         // Bookings của cụm sân (20 gần nhất)
@@ -109,12 +112,16 @@ class VenueClusterController extends Controller
                 'paid_at'              => $f->paid_at,
             ]);
 
-        // Lịch sử khóa (audit_logs)
+        // Lịch sử khóa (audit_logs) - chỉ lấy các hành động khóa / mở khóa
         $lockHistory = [];
         if (Schema::hasTable('audit_logs')) {
             $lockHistory = AuditLog::query()
                 ->where('entity_type', 'venue_clusters')
                 ->where('entity_id', $id)
+                ->whereIn('action', [
+                    'venue_cluster.locked',
+                    'venue_cluster.unlocked',
+                ])
                 ->with('actor:id,full_name,username')
                 ->latest()
                 ->limit(30)
@@ -125,7 +132,7 @@ class VenueClusterController extends Controller
                     'actor'      => $log->actor ? ['id' => $log->actor->id, 'full_name' => $log->actor->full_name] : null,
                     'old_values' => $log->old_values,
                     'new_values' => $log->new_values,
-                    'reason'     => $log->reason ?? ($log->context ?? null),
+                    'reason'     => $log->reason ?? ($log->new_values['status_reason'] ?? null),
                     'created_at' => $log->created_at,
                 ]);
         }
@@ -219,6 +226,44 @@ class VenueClusterController extends Controller
 
         return response()->json([
             'message' => 'Mở khóa cụm sân thành công.',
+            'cluster' => $this->detailPayload($cluster->fresh(['owner', 'venueCourts.courtType', 'lockedBy'])),
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // Cập nhật tiện ích cụm sân
+    // ─────────────────────────────────────────────────────────────────
+    public function updateAmenities(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'amenities' => ['required', 'array'],
+            'amenities.*' => ['required', 'string', 'max:255'],
+        ], [
+            'amenities.required' => 'Danh sách tiện ích không được để trống.',
+            'amenities.array' => 'Tiện ích phải là một danh sách.',
+        ]);
+
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
+        $cluster = VenueCluster::findOrFail($id);
+
+        $oldAmenities = $cluster->amenities ?? [];
+
+        $cluster->forceFill([
+            'amenities' => $data['amenities'],
+        ])->save();
+
+        $this->audit(
+            $request,
+            $actor,
+            'venue_cluster.amenities_updated',
+            $cluster,
+            ['amenities' => $oldAmenities],
+            ['amenities' => $data['amenities']]
+        );
+
+        return response()->json([
+            'message' => 'Cập nhật tiện ích cụm sân thành công.',
             'cluster' => $this->detailPayload($cluster->fresh(['owner', 'venueCourts.courtType', 'lockedBy'])),
         ]);
     }
@@ -322,6 +367,8 @@ class VenueClusterController extends Controller
             'rating_count' => $c->rating_count,
             'court_count'  => $courts->count(),
             'court_types'  => $courtTypes,
+            'fee_status'   => $c->latestPlatformFeeLedger?->status ?? 'no_fee',
+            'image_path'   => $c->media->first()?->file_path ?? null,
             'owner'        => $c->owner ? [
                 'id'        => $c->owner->id,
                 'full_name' => $c->owner->full_name,
@@ -353,6 +400,11 @@ class VenueClusterController extends Controller
                 'status'     => $court->status,
                 'court_type' => $court->courtType ? ['id' => $court->courtType->id, 'name' => $court->courtType->name] : null,
                 'sort_order' => $court->sort_order,
+            ])->values(),
+            'images'        => $c->media->map(fn ($m) => [
+                'id'        => $m->id,
+                'file_path' => $m->file_path,
+                'file_name' => $m->file_name,
             ])->values(),
         ]);
     }
