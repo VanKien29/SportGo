@@ -30,19 +30,31 @@
         <span>Voucher hệ thống</span>
       </router-link>
 
-      <div class="nav-group">Cấu hình hệ thống</div>
-      <router-link to="/admin/policies" class="nav-item" active-class="nav-active">
-        <AppIcon name="fileText" size="18" />
-        <span>Quản lý chính sách</span>
-      </router-link>
-      <router-link to="/admin/court-types" class="nav-item" active-class="nav-active">
-        <AppIcon name="layers" size="18" />
-        <span>Loại sân</span>
-      </router-link>
-      <router-link to="/admin/amenities" class="nav-item" active-class="nav-active">
-        <AppIcon name="star" size="18" />
-        <span>Tiện ích</span>
-      </router-link>
+            <div class="nav-group">Đối tác & nội dung</div>
+            <router-link
+                to="/admin/partner-applications"
+                class="nav-item"
+                active-class="nav-active"
+            >
+                <AppIcon name="fileText" size="18" />
+                <span>Quản lý đơn đăng kí</span>
+            </router-link>
+            <router-link
+                to="/admin/banners"
+                class="nav-item"
+                active-class="nav-active"
+            >
+                <AppIcon name="image" size="18" />
+                <span>Quản lý banner</span>
+            </router-link>
+            <router-link
+                to="/admin/moderation"
+                class="nav-item"
+                active-class="nav-active"
+            >
+                <AppIcon name="messageWarning" size="18" />
+                <span>Kiểm duyệt nội dung</span>
+            </router-link>
 
       <div class="nav-group">Kiểm duyệt & hỗ trợ</div>
       <router-link to="/admin/reports" class="nav-item" active-class="nav-active">
@@ -86,40 +98,31 @@ import SidebarLayout from '../../components/SidebarLayout.vue';
 import AppIcon from '../../components/AppIcon.vue';
 
 export default {
-  name: 'AdminLayout',
-  components: { AppIcon, SidebarLayout },
-  computed: {
-    platformFeeSectionActive() {
-      return String(this.$route.name || '').includes('platform-fee') || this.$route.query.source === 'platform_fee';
-    },
-    currentTitle() {
-      const map = {
-        'admin-dashboard': 'Dashboard',
-        'admin-profile': 'Thông tin cá nhân',
-        'admin-users': 'Quản lý tài khoản',
-        'admin-user-detail': 'Chi tiết tài khoản',
-        'admin-payments': 'Theo dõi thanh toán booking',
-        'admin-finance-operations': 'Hoàn tiền và rút tiền',
-        'admin-vouchers': 'Voucher hệ thống',
-        'admin-partner-applications': 'Quản lý đơn đăng ký',
-        'admin-banners': 'Quản lý banner',
-        'admin-roles': 'Quản lý nhóm quyền',
-        'admin-role-detail': 'Chi tiết nhóm quyền',
-        'admin-policies': 'Quản lý chính sách',
-        'admin-platform-fee-policies': 'Chính sách phí nền tảng',
-        'admin-policy-detail': 'Chi tiết chính sách',
-        'admin-reports': 'Xử lý báo cáo',
-        'admin-complaints': 'Xử lý khiếu nại',
-        'admin-court-types': 'Quản lý loại sân',
-        'admin-amenities': 'Quản lý tiện ích',
-        'admin-venue-clusters': 'Quản lý cụm sân',
-        'admin-venue-cluster-detail': 'Chi tiết cụm sân',
-        'admin-platform-fee-tiers': 'Cấu hình bậc phí nền tảng',
-        'admin-platform-fee-ledgers': 'Quản lý phí duy trì hệ thống',
-        'admin-platform-fee-ledger-detail': 'Chi tiết kỳ phí duy trì',
-        'admin-venue-platform-fees': 'Phí duy trì cụm sân',
-        'admin-platform-fee-settings': 'Cài đặt phí duy trì',
-      };
+    name: "AdminLayout",
+    components: { AppIcon, SidebarLayout },
+    computed: {
+        currentTitle() {
+            const map = {
+                "admin-dashboard": "Dashboard",
+                "admin-profile": "Thông tin cá nhân",
+                "admin-users": "Quản lý tài khoản",
+                "admin-payments": "Theo dõi thanh toán booking",
+                "admin-finance-operations": "Hoàn tiền và rút tiền",
+                "admin-partner-applications": "Quản lý đơn đăng kí",
+                "admin-banners": "Quản lý banner",
+                "admin-moderation": "Kiểm duyệt nội dung",
+                "admin-roles": "Quản lý nhóm quyền",
+                "admin-role-detail": "Chi tiết nhóm quyền",
+                "admin-policies": "Quản lý chính sách",
+                "admin-policy-detail": "Chi tiết chính sách",
+                "admin-court-types": "Quản lý loại sân",
+                "admin-venue-clusters": "Quản lý cụm sân",
+                "admin-venue-cluster-detail": "Chi tiết cụm sân",
+                "admin-platform-fee-tiers": "Cấu hình bậc phí nền tảng",
+                "admin-platform-fee-ledger-detail": "Chi tiết kỳ phí duy trì",
+                "admin-venue-platform-fees": "Phí duy trì cụm sân",
+                "admin-platform-fee-settings": "Cài đặt phí duy trì",
+            };
 
       return map[this.$route.name] || 'Admin';
     },
