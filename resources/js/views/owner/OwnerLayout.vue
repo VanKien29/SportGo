@@ -43,6 +43,10 @@
           <AppIcon name="fileText" size="18" />
           <span>Chính sách sân</span>
         </router-link>
+        <router-link to="/owner/posts" class="nav-item" active-class="nav-active">
+          <AppIcon name="messageWarning" size="18" />
+          <span>Bài đăng & Thông báo</span>
+        </router-link>
       </div>
     </template>
 
@@ -85,6 +89,7 @@ export default {
         'owner-staff': 'Quản lý nhân viên sân',
         'owner-vouchers': 'Voucher của sân',
         'owner-policies': 'Chính sách sân',
+        'owner-posts': 'Bài đăng & Thông báo',
       };
 
       return map[this.$route.name] || 'Chủ sân';

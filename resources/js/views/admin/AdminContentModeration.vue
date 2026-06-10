@@ -188,8 +188,8 @@
     </div>
 
     <!-- MODAL CHI TIẾT BÀI VIẾT / BÁO CÁO -->
-    <div v-if="detailModal.open" class="modal-backdrop" @click.self="closeDetail">
-      <div class="modal large">
+    <div v-if="detailModal.open" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeDetail)">
+      <div class="modal large" @mousedown.stop>
         <div class="modal-header">
           <h3>
             {{ activeTab === 'reports' ? 'Chi tiết báo cáo vi phạm' : 'Chi tiết bài viết chờ duyệt' }}
@@ -353,8 +353,8 @@
     </div>
 
     <!-- MODAL XỬ LÝ NHANH HÀNH ĐỘNG CHO POST (Từ chối, Ẩn, Xóa) -->
-    <div v-if="actionModal.open" class="modal-backdrop" @click.self="closeActionModal">
-      <div class="modal small">
+    <div v-if="actionModal.open" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeActionModal)">
+      <div class="modal small" @mousedown.stop>
         <div class="modal-header">
           <h3>Xử lý kiểm duyệt nội dung</h3>
           <button class="icon-btn" type="button" title="Đóng" @click="closeActionModal">
@@ -404,8 +404,8 @@
     </div>
 
     <!-- MODAL XỬ LÝ NHANH CHO REPORT -->
-    <div v-if="resolveReportModal.open" class="modal-backdrop" @click.self="closeResolveReport">
-      <div class="modal small">
+    <div v-if="resolveReportModal.open" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeResolveReport)">
+      <div class="modal small" @mousedown.stop>
         <div class="modal-header">
           <h3>Giải quyết báo cáo vi phạm</h3>
           <button class="icon-btn" type="button" title="Đóng" @click="closeResolveReport">
@@ -519,6 +519,7 @@ export default {
         open: false,
         img: '',
       },
+      mousedownWasOnBackdrop: false,
     };
   },
   computed: {
@@ -533,6 +534,15 @@ export default {
     this.loadData();
   },
   methods: {
+    handleBackdropMousedown(event) {
+      this.mousedownWasOnBackdrop = event.target === event.currentTarget;
+    },
+    handleBackdropClick(event, closeFn) {
+      if (this.mousedownWasOnBackdrop && event.target === event.currentTarget) {
+        closeFn();
+      }
+      this.mousedownWasOnBackdrop = false;
+    },
     async loadData(page = 1) {
       this.loading = true;
       this.error = '';

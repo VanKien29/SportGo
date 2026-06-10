@@ -222,6 +222,11 @@ const routes = [
             { path: "staff", name: "owner-staff", component: OwnerStaff },
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
+            {
+                path: "posts",
+                name: "owner-posts",
+                component: () => import("../views/owner/OwnerPosts.vue"),
+            },
             { path: "", redirect: { name: "owner-dashboard" } },
         ],
     },

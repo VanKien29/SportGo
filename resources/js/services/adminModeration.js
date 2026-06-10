@@ -50,3 +50,44 @@ export const adminModerationService = {
     });
   },
 };
+
+export const adminReportService = {
+  list(params = {}) {
+    return api(`/api/admin/reports${query(params)}`);
+  },
+  show(id) {
+    return api(`/api/admin/reports/${id}`);
+  },
+  review(id) {
+    return api(`/api/admin/reports/${id}/review`, {
+      method: 'PATCH',
+    });
+  },
+  resolve(id, data) {
+    return api(`/api/admin/reports/${id}/resolve`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+export const adminComplaintService = {
+  list(params = {}) {
+    return api(`/api/admin/complaints${query(params)}`);
+  },
+  show(id) {
+    return api(`/api/admin/complaints/${id}`);
+  },
+  assign(id, assigned_to) {
+    return api(`/api/admin/complaints/${id}/assign`, {
+      method: 'PATCH',
+      body: JSON.stringify({ assigned_to }),
+    });
+  },
+  resolve(id, data) {
+    return api(`/api/admin/complaints/${id}/resolve`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+};
