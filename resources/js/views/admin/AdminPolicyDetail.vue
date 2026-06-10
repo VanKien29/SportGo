@@ -1217,7 +1217,7 @@ export default {
   .notice.warning { background: #fffbeb; color: #92400e; }
   .empty-state { padding: 22px; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b; text-align: center; font-weight: 800; }
   .spinner { width: 18px; height: 18px; border: 2px solid #bbf7d0; border-top-color: #16a34a; border-radius: 50%; display: inline-block; margin-right: 8px; animation: spin .8s linear infinite; }
-  .modal-backdrop { position: fixed; inset: 0; z-index: 800; display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, .52); }
+  .modal-backdrop { position: fixed; inset: 0; z-index: 800; display: flex; justify-content: center; align-items: flex-start; padding: 40px 20px; background: rgba(15, 23, 42, .52); overflow-y: auto; }
   .modal { width: min(640px, 100%); max-height: 92vh; overflow: auto; background: #fff; border-radius: 10px; padding: 18px; display: grid; gap: 14px; box-shadow: 0 24px 80px rgba(15, 23, 42, .25); }
   .modal.wide { width: min(900px, 100%); }
   .modal.extra-wide { width: min(1180px, 100%); }
