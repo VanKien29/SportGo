@@ -25,6 +25,13 @@ class WalletController extends Controller
             ]
         );
 
+        $pendingAmount = (float) OwnerWithdrawalRequest::where('owner_id', $request->user()->id)
+            ->whereIn('status', ['pending', 'reviewing'])
+            ->sum('amount');
+
+        $wallet->available_balance = (float) $wallet->available_balance - $pendingAmount;
+        $wallet->pending_withdrawal_balance = (float) $wallet->pending_withdrawal_balance + $pendingAmount;
+
         $bankAccounts = OwnerBankAccount::where('owner_id', $request->user()->id)
             ->where('status', 'active')
             ->get();

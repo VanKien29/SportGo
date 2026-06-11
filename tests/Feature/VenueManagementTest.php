@@ -430,4 +430,37 @@ class VenueManagementTest extends TestCase
             ->deleteJson("/api/owner/venue-clusters/{$this->cluster1->id}/media/{$media->id}");
         $response->assertStatus(403);
     }
+
+    public function test_owner_cannot_update_cluster_or_courts_when_locked(): void
+    {
+        // 1. Lock the cluster
+        $this->cluster1->update([
+            'status' => 'locked',
+            'status_reason' => 'Locked for testing',
+        ]);
+
+        // 2. Try to update cluster details as owner -> should be blocked by middleware
+        $response = $this->actingAs($this->owner1, 'sanctum')
+            ->putJson("/api/owner/venue-clusters/{$this->cluster1->id}", [
+                'name' => 'Should fail Name',
+                'address' => 'Danang',
+                'phone_contact' => '0987654321',
+                'latitude' => 16.0544,
+                'longitude' => 108.2022,
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['venue_cluster_id']);
+
+        // 3. Try to add a court to the locked cluster -> should be blocked
+        $response = $this->actingAs($this->owner1, 'sanctum')
+            ->postJson('/api/owner/venue-courts', [
+                'venue_cluster_id' => $this->cluster1->id,
+                'court_type_id' => $this->courtType->id,
+                'name' => 'Sân số 2',
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['venue_cluster_id']);
+    }
 }

@@ -9,9 +9,16 @@ use Illuminate\Http\Request;
 
 class CourtTypeController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $courtTypes = CourtType::query()->with('parent')->latest()->get();
+        $query = CourtType::query()->with('parent');
+        $user = $request->user();
+
+        if ($request->query('active_only') || !$user || $user->role_group !== 'admin') {
+            $query->where('is_active', true);
+        }
+
+        $courtTypes = $query->latest()->get();
 
         return response()->json(['data' => $courtTypes]);
     }

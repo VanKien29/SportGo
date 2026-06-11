@@ -24,18 +24,32 @@ class DashboardController extends Controller
             $clusterIds = collect([$selectedClusterId]);
         }
 
+        $wallet = DB::table('owner_wallets')
+            ->where('owner_id', $request->user()->id)
+            ->first();
+
+        $pendingAmount = 0.0;
+        if ($wallet) {
+            $pendingAmount = (float) DB::table('owner_withdrawal_requests')
+                ->where('owner_id', $request->user()->id)
+                ->whereIn('status', ['pending', 'reviewing'])
+                ->sum('amount');
+        }
+
+        $walletData = [
+            'available_balance' => $wallet ? ((float) $wallet->available_balance - $pendingAmount) : 0.0,
+            'pending_withdrawal_balance' => $wallet ? ((float) $wallet->pending_withdrawal_balance + $pendingAmount) : 0.0,
+            'total_earned' => $wallet ? (float) $wallet->total_earned : 0.0,
+            'total_withdrawn' => $wallet ? (float) $wallet->total_withdrawn : 0.0,
+        ];
+
         if ($clusterIds->isEmpty()) {
             return response()->json([
                 'bookings' => 0,
                 'revenue' => 0,
                 'rating' => 0,
                 'venue_cluster_id' => null,
-                'wallet' => [
-                    'available_balance' => 0.0,
-                    'pending_withdrawal_balance' => 0.0,
-                    'total_earned' => 0.0,
-                    'total_withdrawn' => 0.0,
-                ],
+                'wallet' => $walletData,
                 'golden_hours' => [],
                 'court_revenues' => [],
             ]);
@@ -80,17 +94,6 @@ class DashboardController extends Controller
                 'revenue' => (float) $item->revenue,
             ];
         });
-
-        $wallet = DB::table('owner_wallets')
-            ->where('owner_id', $request->user()->id)
-            ->first();
-
-        $walletData = [
-            'available_balance' => $wallet ? (float) $wallet->available_balance : 0.0,
-            'pending_withdrawal_balance' => $wallet ? (float) $wallet->pending_withdrawal_balance : 0.0,
-            'total_earned' => $wallet ? (float) $wallet->total_earned : 0.0,
-            'total_withdrawn' => $wallet ? (float) $wallet->total_withdrawn : 0.0,
-        ];
 
         return response()->json([
             'bookings' => $bookingsCount,

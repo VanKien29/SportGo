@@ -113,6 +113,48 @@ class OwnerWalletTest extends TestCase
         ]);
     }
 
+    public function test_get_wallet_returns_dynamically_adjusted_balances_when_pending_withdrawals_exist(): void
+    {
+        OwnerWithdrawalRequest::query()->create([
+            'request_code' => 'WRTEST02',
+            'source' => 'manual',
+            'owner_id' => $this->owner->id,
+            'owner_wallet_id' => $this->wallet->id,
+            'owner_bank_account_id' => $this->bankAccount->id,
+            'amount' => 50000,
+            'status' => 'pending',
+            'requested_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->getJson('/api/owner/wallet');
+
+        $response->assertOk()
+            ->assertJsonPath('wallet.available_balance', '150000.00')
+            ->assertJsonPath('wallet.pending_withdrawal_balance', '50000.00');
+    }
+
+    public function test_dashboard_returns_dynamically_adjusted_balances(): void
+    {
+        OwnerWithdrawalRequest::query()->create([
+            'request_code' => 'WRTEST03',
+            'source' => 'manual',
+            'owner_id' => $this->owner->id,
+            'owner_wallet_id' => $this->wallet->id,
+            'owner_bank_account_id' => $this->bankAccount->id,
+            'amount' => 50000,
+            'status' => 'pending',
+            'requested_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->getJson('/api/owner/dashboard');
+
+        $response->assertOk()
+            ->assertJsonPath('wallet.available_balance', 150000.0)
+            ->assertJsonPath('wallet.pending_withdrawal_balance', 50000.0);
+    }
+
     public function test_cannot_withdraw_more_than_effective_balance(): void
     {
         // First request: withdraw 150,000 (valid, balance is 200,000)
