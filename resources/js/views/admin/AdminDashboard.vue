@@ -1,77 +1,77 @@
 <template>
-  <div class="dashboard">
-    <div class="welcome-card">
-      <div class="welcome-content">
-        <h1 class="welcome-title">Xin chào, {{ user?.fullName || user?.full_name || user?.username }}</h1>
-        <p class="welcome-desc">Tổng quan hệ thống SportGo.</p>
+  <section class="dashboard">
+    <section class="dashboard-hero">
+      <div>
+        <span class="hero-kicker">SportGo Admin</span>
+        <h1>Xin chào, {{ userName }}</h1>
+        <p>Điều phối người dùng, sân, thanh toán và phí nền tảng trong một không gian quản trị sáng, gọn, dễ quét.</p>
       </div>
-    </div>
+      <RouterLink class="hero-action" to="/admin/payments">
+        <AppIcon name="creditCard" size="18" />
+        <span>Đối soát thanh toán</span>
+      </RouterLink>
+    </section>
 
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-content">
-          <div class="stat-number">{{ isLoading ? '...' : stats.users.toLocaleString() }}</div>
-          <div class="stat-label">Người dùng</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-content">
-          <div class="stat-number">{{ isLoading ? '...' : stats.venues.toLocaleString() }}</div>
-          <div class="stat-label">Cụm sân</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-content">
-          <div class="stat-number">{{ isLoading ? '...' : stats.bookings.toLocaleString() }}</div>
-          <div class="stat-label">Lượt đặt sân</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-content">
-          <div class="stat-number">{{ isLoading ? '...' : formatCurrency(stats.revenue) }}</div>
-          <div class="stat-label">Doanh thu</div>
-        </div>
-      </div>
-    </div>
+    <div v-if="error" class="alert error">{{ error }}</div>
 
-    <div v-if="error" style="color: red; margin-bottom: 20px;">{{ error }}</div>
+    <section class="metric-grid">
+      <article v-for="item in overviewCards" :key="item.label" class="metric-card" :class="item.tone">
+        <div class="metric-icon">
+          <AppIcon :name="item.icon" size="20" />
+        </div>
+        <span>{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+        <small>{{ item.caption }}</small>
+      </article>
+    </section>
 
-    <div class="stats-grid platform-fee-grid">
-      <router-link class="stat-card fee-link" to="/admin/platform-fee-ledgers?status=pending">
-        <div class="stat-content">
-          <div class="stat-number">{{ feeMetrics.pending }}</div>
-          <div class="stat-label">Kỳ phí chờ thanh toán</div>
+    <section class="dashboard-grid">
+      <article class="dashboard-panel quick-panel">
+        <div class="panel-head">
+          <div>
+            <span class="eyebrow">Luồng công việc</span>
+            <h2>Truy cập nhanh</h2>
+          </div>
         </div>
-      </router-link>
-      <router-link class="stat-card fee-link" to="/admin/platform-fee-ledgers?status=overdue">
-        <div class="stat-content">
-          <div class="stat-number">{{ feeMetrics.overdue }}</div>
-          <div class="stat-label">Kỳ phí quá hạn</div>
+        <div class="quick-links">
+          <RouterLink v-for="item in quickLinks" :key="item.to" class="quick-link" :to="item.to">
+            <span class="quick-icon"><AppIcon :name="item.icon" size="18" /></span>
+            <span>
+              <strong>{{ item.label }}</strong>
+              <small>{{ item.description }}</small>
+            </span>
+          </RouterLink>
         </div>
-      </router-link>
-      <router-link class="stat-card fee-link" to="/admin/platform-fee-ledgers?status=paid&range=this_month">
-        <div class="stat-content">
-          <div class="stat-number">{{ formatCurrency(feeMetrics.paid_this_month) }}</div>
-          <div class="stat-label">Phí đã thu tháng này</div>
+      </article>
+
+      <article class="dashboard-panel fee-panel">
+        <div class="panel-head">
+          <div>
+            <span class="eyebrow">Platform fee</span>
+            <h2>Phí duy trì</h2>
+          </div>
+          <RouterLink class="panel-link" to="/admin/platform-fee-ledgers">Xem ledger</RouterLink>
         </div>
-      </router-link>
-      <router-link class="stat-card fee-link" to="/admin/platform-fee-ledgers?email_status=failed">
-        <div class="stat-content">
-          <div class="stat-number">{{ feeMetrics.email_failed }}</div>
-          <div class="stat-label">Email nhắc phí gửi lỗi</div>
+        <div class="fee-list">
+          <RouterLink v-for="item in feeCards" :key="item.label" class="fee-row" :to="item.to">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </RouterLink>
         </div>
-      </router-link>
-    </div>
-  </div>
+      </article>
+    </section>
+  </section>
 </template>
 
 <script>
 import { getAuth } from '../../stores/auth.js';
 import { api } from '../../services/api.js';
 import { getPlatformFeeDashboardMetrics } from '../../services/platformFeeLedger.service.js';
+import AppIcon from '../../components/AppIcon.vue';
 
 export default {
   name: 'AdminDashboard',
+  components: { AppIcon },
   data() {
     return {
       user: getAuth(),
@@ -84,7 +84,94 @@ export default {
       feeMetrics: getPlatformFeeDashboardMetrics(),
       isLoading: true,
       error: null,
+      quickLinks: [
+        {
+          label: 'Tài khoản',
+          description: 'Vai trò, khóa mở và cảnh báo người dùng',
+          icon: 'users',
+          to: '/admin/users',
+        },
+        {
+          label: 'Cụm sân',
+          description: 'Duyệt cụm sân, loại sân và phí duy trì',
+          icon: 'building',
+          to: '/admin/venue-clusters',
+        },
+        {
+          label: 'Đơn đối tác',
+          description: 'Hồ sơ đăng ký và tài liệu xác minh',
+          icon: 'fileText',
+          to: '/admin/partner-applications',
+        },
+        {
+          label: 'Kiểm duyệt',
+          description: 'Báo cáo cộng đồng và khiếu nại dịch vụ',
+          icon: 'messageWarning',
+          to: '/admin/reports',
+        },
+      ],
     };
+  },
+  computed: {
+    userName() {
+      return this.user?.fullName || this.user?.full_name || this.user?.username || 'Admin';
+    },
+    overviewCards() {
+      return [
+        {
+          label: 'Người dùng',
+          value: this.isLoading ? '...' : this.stats.users.toLocaleString(),
+          caption: 'Tài khoản trên hệ thống',
+          icon: 'users',
+          tone: 'green',
+        },
+        {
+          label: 'Cụm sân',
+          value: this.isLoading ? '...' : this.stats.venues.toLocaleString(),
+          caption: 'Địa điểm đang quản lý',
+          icon: 'building',
+          tone: 'blue',
+        },
+        {
+          label: 'Lượt đặt sân',
+          value: this.isLoading ? '...' : this.stats.bookings.toLocaleString(),
+          caption: 'Booking đã ghi nhận',
+          icon: 'calendar',
+          tone: 'purple',
+        },
+        {
+          label: 'Doanh thu',
+          value: this.isLoading ? '...' : this.formatCurrency(this.stats.revenue),
+          caption: 'Tổng giá trị giao dịch',
+          icon: 'banknote',
+          tone: 'amber',
+        },
+      ];
+    },
+    feeCards() {
+      return [
+        {
+          label: 'Chờ thanh toán',
+          value: this.feeMetrics.pending,
+          to: '/admin/platform-fee-ledgers?status=pending',
+        },
+        {
+          label: 'Quá hạn',
+          value: this.feeMetrics.overdue,
+          to: '/admin/platform-fee-ledgers?status=overdue',
+        },
+        {
+          label: 'Đã thu tháng này',
+          value: this.formatCurrency(this.feeMetrics.paid_this_month),
+          to: '/admin/platform-fee-ledgers?status=paid&range=this_month',
+        },
+        {
+          label: 'Email gửi lỗi',
+          value: this.feeMetrics.email_failed,
+          to: '/admin/platform-fee-ledgers?email_status=failed',
+        },
+      ];
+    },
   },
   async mounted() {
     try {

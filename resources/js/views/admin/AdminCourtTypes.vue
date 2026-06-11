@@ -1,5 +1,17 @@
 <template>
     <div class="court-types-container">
+        <header class="page-header">
+            <div>
+                <h2>Quản lý loại sân</h2>
+                <p>Tổ chức bộ môn, loại sân con và trạng thái hiển thị trên hệ thống.</p>
+            </div>
+
+            <button class="btn btn-primary icon-text" type="button" @click="openCreateModal">
+                <AppIcon name="plus" size="17" />
+                <span>Thêm môn thể thao mới</span>
+            </button>
+        </header>
+
         <div class="header-actions-bar">
             <!-- View Switcher -->
             <div class="view-switcher">
@@ -44,10 +56,6 @@
                     <span>Kanban</span>
                 </button>
             </div>
-            
-            <button class="btn btn-primary" @click="openCreateModal">
-                <span class="plus-icon">+</span> Thêm môn thể thao mới
-            </button>
         </div>
 
         <!-- Loading State -->
@@ -59,16 +67,18 @@
         <!-- Error State -->
         <div v-else-if="error" class="error-state card">
             <p class="error-message">{{ error }}</p>
-            <button class="btn btn-outline" @click="fetchCourtTypes">
-                Thử lại
+            <button class="btn btn-outline icon-text" type="button" @click="fetchCourtTypes">
+                <AppIcon name="refresh" size="17" />
+                <span>Thử lại</span>
             </button>
         </div>
 
         <!-- Empty State -->
         <div v-else-if="courtTypes.length === 0" class="empty-state card">
             <p>Chưa có môn thể thao hay loại sân nào được cấu hình trên hệ thống.</p>
-            <button class="btn btn-primary" @click="openCreateModal">
-                Thêm ngay
+            <button class="btn btn-primary icon-text" type="button" @click="openCreateModal">
+                <AppIcon name="plus" size="17" />
+                <span>Thêm ngay</span>
             </button>
         </div>
 
@@ -132,22 +142,30 @@
                                         <div class="actions-wrapper">
                                             <button
                                                 class="btn-action btn-add-child"
+                                                type="button"
                                                 title="Thêm loại sân con trực thuộc"
+                                                aria-label="Thêm loại sân con trực thuộc"
                                                 @click="openCreateChildModal(parent.id)"
                                             >
-                                                +
+                                                <AppIcon name="plus" size="16" />
                                             </button>
                                             <button
                                                 class="btn-action btn-edit"
+                                                type="button"
+                                                title="Sửa bộ môn"
+                                                aria-label="Sửa bộ môn"
                                                 @click="openEditModal(parent)"
                                             >
-                                                Sửa
+                                                <AppIcon name="pencil" size="16" />
                                             </button>
                                             <button
                                                 class="btn-action btn-delete"
+                                                type="button"
+                                                title="Xóa bộ môn"
+                                                aria-label="Xóa bộ môn"
                                                 @click="confirmDelete(parent)"
                                             >
-                                                Xóa
+                                                <AppIcon name="trash" size="16" />
                                             </button>
                                         </div>
                                     </td>
@@ -179,15 +197,21 @@
                                         <div class="actions-wrapper">
                                             <button
                                                 class="btn-action btn-edit"
+                                                type="button"
+                                                title="Sửa loại sân"
+                                                aria-label="Sửa loại sân"
                                                 @click="openEditModal(child)"
                                             >
-                                                Sửa
+                                                <AppIcon name="pencil" size="16" />
                                             </button>
                                             <button
                                                 class="btn-action btn-delete"
+                                                type="button"
+                                                title="Xóa loại sân"
+                                                aria-label="Xóa loại sân"
                                                 @click="confirmDelete(child)"
                                             >
-                                                Xóa
+                                                <AppIcon name="trash" size="16" />
                                             </button>
                                         </div>
                                     </td>
@@ -228,8 +252,12 @@
                         <div class="detail-header">
                             <h3>{{ selectedParent.name }}</h3>
                             <div class="detail-actions">
-                                <button class="btn-action btn-edit" @click="openEditModal(selectedParent)">Sửa</button>
-                                <button class="btn-action btn-delete" @click="confirmDelete(selectedParent)">Xóa</button>
+                                <button class="btn-action btn-edit" type="button" title="Sửa bộ môn" aria-label="Sửa bộ môn" @click="openEditModal(selectedParent)">
+                                    <AppIcon name="pencil" size="16" />
+                                </button>
+                                <button class="btn-action btn-delete" type="button" title="Xóa bộ môn" aria-label="Xóa bộ môn" @click="confirmDelete(selectedParent)">
+                                    <AppIcon name="trash" size="16" />
+                                </button>
                             </div>
                         </div>
                         <p class="parent-description text-muted">
@@ -242,10 +270,12 @@
                             <div class="children-header">
                                 <h4>Loại sân cụ thể ({{ getChildren(selectedParent.id).length }})</h4>
                                 <button 
-                                    class="btn btn-primary btn-sm" 
+                                    class="btn btn-primary btn-sm icon-text"
+                                    type="button"
                                     @click="openCreateChildModal(selectedParent.id)"
                                 >
-                                    + Thêm loại sân
+                                    <AppIcon name="plus" size="16" />
+                                    <span>Thêm loại sân</span>
                                 </button>
                             </div>
                             
@@ -273,8 +303,12 @@
                                              <span>{{ child.player_count }}</span>
                                          </div>
                                          <div class="child-card-actions">
-                                             <button class="btn-action btn-edit" @click="openEditModal(child)">Sửa</button>
-                                             <button class="btn-action btn-delete" @click="confirmDelete(child)">Xóa</button>
+                                             <button class="btn-action btn-edit" type="button" title="Sửa loại sân" aria-label="Sửa loại sân" @click="openEditModal(child)">
+                                                 <AppIcon name="pencil" size="16" />
+                                             </button>
+                                             <button class="btn-action btn-delete" type="button" title="Xóa loại sân" aria-label="Xóa loại sân" @click="confirmDelete(child)">
+                                                 <AppIcon name="trash" size="16" />
+                                             </button>
                                          </div>
                                     </div>
                                 </div>
@@ -301,9 +335,15 @@
                             </div>
                         </div>
                         <div class="parent-card-actions">
-                            <button class="btn-action btn-add-child" title="Thêm loại sân con" @click="openCreateChildModal(parent.id)">+</button>
-                            <button class="btn-action btn-edit" @click="openEditModal(parent)">Sửa</button>
-                            <button class="btn-action btn-delete" @click="confirmDelete(parent)">Xóa</button>
+                            <button class="btn-action btn-add-child" type="button" title="Thêm loại sân con" aria-label="Thêm loại sân con" @click="openCreateChildModal(parent.id)">
+                                <AppIcon name="plus" size="16" />
+                            </button>
+                            <button class="btn-action btn-edit" type="button" title="Sửa bộ môn" aria-label="Sửa bộ môn" @click="openEditModal(parent)">
+                                <AppIcon name="pencil" size="16" />
+                            </button>
+                            <button class="btn-action btn-delete" type="button" title="Xóa bộ môn" aria-label="Xóa bộ môn" @click="confirmDelete(parent)">
+                                <AppIcon name="trash" size="16" />
+                            </button>
                         </div>
                     </div>
                     <div class="parent-card-body">
@@ -333,8 +373,12 @@
                                         <span>{{ child.player_count }}</span>
                                     </div>
                                     <div class="child-inline-actions">
-                                        <button class="btn-action-mini" @click="openEditModal(child)">Sửa</button>
-                                        <button class="btn-action-mini btn-delete-mini" @click="confirmDelete(child)">Xóa</button>
+                                        <button class="btn-action-mini" type="button" title="Sửa loại sân" aria-label="Sửa loại sân" @click="openEditModal(child)">
+                                            <AppIcon name="pencil" size="15" />
+                                        </button>
+                                        <button class="btn-action-mini btn-delete-mini" type="button" title="Xóa loại sân" aria-label="Xóa loại sân" @click="confirmDelete(child)">
+                                            <AppIcon name="trash" size="15" />
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -356,8 +400,12 @@
                             <span class="kanban-count-badge">{{ getChildren(parent.id).length }}</span>
                         </div>
                         <div class="kanban-column-actions">
-                            <button class="btn-action-icon" title="Thêm loại sân con" @click="openCreateChildModal(parent.id)">+</button>
-                            <button class="btn-action-icon" title="Sửa môn thể thao" @click="openEditModal(parent)">✏️</button>
+                            <button class="btn-action-icon" type="button" title="Thêm loại sân con" aria-label="Thêm loại sân con" @click="openCreateChildModal(parent.id)">
+                                <AppIcon name="plus" size="15" />
+                            </button>
+                            <button class="btn-action-icon" type="button" title="Sửa môn thể thao" aria-label="Sửa môn thể thao" @click="openEditModal(parent)">
+                                <AppIcon name="pencil" size="15" />
+                            </button>
                         </div>
                     </div>
                     
@@ -394,8 +442,12 @@
                                     <span>{{ child.player_count }}</span>
                                 </div>
                                 <div class="kanban-card-actions">
-                                    <button class="btn-action-mini" @click="openEditModal(child)">Sửa</button>
-                                    <button class="btn-action-mini btn-delete-mini" @click="confirmDelete(child)">Xóa</button>
+                                    <button class="btn-action-mini" type="button" title="Sửa loại sân" aria-label="Sửa loại sân" @click="openEditModal(child)">
+                                        <AppIcon name="pencil" size="15" />
+                                    </button>
+                                    <button class="btn-action-mini btn-delete-mini" type="button" title="Xóa loại sân" aria-label="Xóa loại sân" @click="confirmDelete(child)">
+                                        <AppIcon name="trash" size="15" />
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -541,10 +593,12 @@
 </template>
 
 <script>
+import AppIcon from "../../components/AppIcon.vue";
 import { courtTypeService } from "../../services/courtTypes";
 
 export default {
     name: "AdminCourtTypes",
+    components: { AppIcon },
     data() {
         return {
             courtTypes: [],
@@ -2183,6 +2237,64 @@ export default {
 
 .option-text {
     flex-grow: 1;
+}
+
+.court-types-container .btn-switch:hover {
+    color: var(--admin-primary-dark);
+}
+
+.court-types-container .btn-switch.active {
+    border-color: rgba(47, 158, 68, 0.22);
+    background: var(--admin-primary-soft);
+    color: var(--admin-primary-dark);
+    box-shadow: 0 8px 18px rgba(47, 158, 68, 0.08);
+}
+
+.court-types-container .parent-sidebar-item:hover,
+.court-types-container .custom-select-option:hover {
+    background: rgba(232, 247, 236, 0.68);
+}
+
+.court-types-container .parent-sidebar-item.active {
+    border-color: rgba(47, 158, 68, 0.26);
+    background: var(--admin-primary-soft);
+    color: var(--admin-primary-dark);
+}
+
+.court-types-container .parent-sidebar-item.active .parent-sidebar-name {
+    color: var(--admin-primary-dark);
+}
+
+.court-types-container .parent-sidebar-item.active .parent-sidebar-badge,
+.court-types-container .custom-select-option.active {
+    border-color: rgba(47, 158, 68, 0.18);
+    background: rgba(47, 158, 68, 0.12);
+    color: var(--admin-primary-dark);
+}
+
+.court-types-container .custom-select-trigger:hover,
+.court-types-container .custom-select-trigger:focus-within {
+    border-color: rgba(47, 158, 68, 0.62);
+    box-shadow: 0 0 0 3px rgba(47, 158, 68, 0.14);
+}
+
+.court-types-container .status-dot.active {
+    background: var(--admin-primary);
+}
+
+.court-types-container .status-dot.inactive {
+    background: #9aa89c;
+}
+
+.court-types-container .btn-action,
+.court-types-container .btn-action-mini,
+.court-types-container .btn-action-icon {
+    color: #344238;
+}
+
+.court-types-container .btn-add-child,
+.court-types-container .option-badge-parent {
+    color: var(--admin-primary-dark);
 }
 
 /* ==========================================

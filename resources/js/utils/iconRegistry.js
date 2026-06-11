@@ -5,6 +5,9 @@ export const ICON_REGISTRY = {
     ['rect', { x: 14, y: 14, width: 7, height: 7, rx: 1 }],
     ['rect', { x: 3, y: 14, width: 7, height: 7, rx: 1 }],
   ],
+  menu: [
+    ['path', { d: 'M4 6h16M4 12h16M4 18h16' }],
+  ],
   users: [
     ['path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' }],
     ['circle', { cx: 9, cy: 7, r: 4 }],
@@ -72,6 +75,9 @@ export const ICON_REGISTRY = {
   messageWarning: [
     ['path', { d: 'M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z' }],
     ['path', { d: 'M12 7v4M12 15h.01' }],
+  ],
+  star: [
+    ['path', { d: 'M12 2 15.1 8.3 22 9.3l-5 4.9 1.2 6.8L12 17.8 5.8 21 7 14.2 2 9.3l6.9-1L12 2Z' }],
   ],
   bell: [
     ['path', { d: 'M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8' }],
@@ -141,6 +147,12 @@ export const ICON_REGISTRY = {
   ],
   chevronDown: [
     ['path', { d: 'm6 9 6 6 6-6' }],
+  ],
+  chevronRight: [
+    ['path', { d: 'm9 18 6-6-6-6' }],
+  ],
+  chevronLeft: [
+    ['path', { d: 'm15 18-6-6 6-6' }],
   ],
   lock: [
     ['rect', { x: 3, y: 11, width: 18, height: 11, rx: 2 }],

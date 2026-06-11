@@ -1,5 +1,17 @@
 <template>
   <div class="admin-banners-page">
+    <header class="page-header">
+      <div>
+        <h2>Quản lý banner</h2>
+        <p>Thiết lập hình ảnh quảng bá, vị trí hiển thị và thời gian chạy trên hệ thống.</p>
+      </div>
+
+      <button class="btn primary" type="button" @click="openCreateModal">
+        <AppIcon name="plus" size="16" />
+        <span>Thêm banner</span>
+      </button>
+    </header>
+
     <div class="toolbar card">
       <div class="filters">
         <label class="field compact">
@@ -29,11 +41,6 @@
           </select>
         </label>
       </div>
-
-      <button class="btn primary" type="button" @click="openCreateModal">
-        <AppIcon name="plus" size="16" />
-        <span>Thêm banner</span>
-      </button>
     </div>
 
     <div v-if="message" class="notice success">{{ message }}</div>
@@ -105,12 +112,12 @@
       </div>
 
       <div v-if="pagination.last_page > 1" class="pagination">
-        <button class="btn ghost" type="button" :disabled="pagination.current_page <= 1" @click="loadBanners(pagination.current_page - 1)">
-          Trước
+        <button class="icon-btn" type="button" title="Trang trước" aria-label="Trang trước" :disabled="pagination.current_page <= 1" @click="loadBanners(pagination.current_page - 1)">
+          <AppIcon name="chevronLeft" size="17" />
         </button>
         <span>{{ pagination.current_page }} / {{ pagination.last_page }}</span>
-        <button class="btn ghost" type="button" :disabled="pagination.current_page >= pagination.last_page" @click="loadBanners(pagination.current_page + 1)">
-          Sau
+        <button class="icon-btn" type="button" title="Trang sau" aria-label="Trang sau" :disabled="pagination.current_page >= pagination.last_page" @click="loadBanners(pagination.current_page + 1)">
+          <AppIcon name="chevronRight" size="17" />
         </button>
       </div>
     </div>

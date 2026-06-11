@@ -5,9 +5,8 @@
         <h2>Xử lý hoàn tiền và rút tiền</h2>
         <p>Đối soát yêu cầu, số dư online và phiếu tài chính.</p>
       </div>
-      <button class="secondary-btn" type="button" :disabled="loading" @click="loadData(1)">
+      <button class="icon-only" type="button" title="Tải lại" aria-label="Tải lại" :disabled="loading" @click="loadData(1)">
         <AppIcon name="refresh" size="17" />
-        Tải lại
       </button>
     </header>
 
@@ -18,13 +17,6 @@
       <button :class="{ active: tab === 'withdrawals' }" type="button" @click="switchTab('withdrawals')">
         Rút tiền
       </button>
-    </div>
-
-    <div class="summary-grid">
-      <div class="summary-item"><span>Tổng yêu cầu</span><strong>{{ summary.total }}</strong></div>
-      <div class="summary-item"><span>Đang chờ</span><strong>{{ pendingSummary }}</strong></div>
-      <div class="summary-item"><span>Đã hoàn tất</span><strong>{{ summary.completed }}</strong></div>
-      <div class="summary-item"><span>Tổng số tiền</span><strong>{{ formatCurrency(summary.requested_amount) }}</strong></div>
     </div>
 
     <form class="toolbar" @submit.prevent="loadData(1)">
@@ -63,8 +55,12 @@
         <span>đến</span>
         <input v-model="filters.date_to" type="date" :title="tab === 'refunds' ? 'Yêu cầu hoàn tiền đến ngày' : 'Yêu cầu rút tiền đến ngày'" />
       </div>
-      <button class="primary-btn" type="submit"><AppIcon name="filter" size="16" />Lọc</button>
-      <button class="secondary-btn" type="button" @click="resetFilters">Xóa lọc</button>
+      <button class="icon-only primary" type="submit" title="Lọc danh sách" aria-label="Lọc danh sách">
+        <AppIcon name="filter" size="16" />
+      </button>
+      <button class="icon-only" type="button" title="Xóa lọc" aria-label="Xóa lọc" @click="resetFilters">
+        <AppIcon name="x" size="16" />
+      </button>
       <button
         class="export-btn"
         type="button"
@@ -173,9 +169,13 @@
     </div>
 
     <div class="pagination">
-      <button class="secondary-btn" type="button" :disabled="meta.current_page <= 1 || loading" @click="loadData(meta.current_page - 1)">Trước</button>
+      <button class="icon-only" type="button" title="Trang trước" aria-label="Trang trước" :disabled="meta.current_page <= 1 || loading" @click="loadData(meta.current_page - 1)">
+        <AppIcon name="chevronLeft" size="17" />
+      </button>
       <span>Trang {{ meta.current_page }} / {{ meta.last_page }}</span>
-      <button class="secondary-btn" type="button" :disabled="meta.current_page >= meta.last_page || loading" @click="loadData(meta.current_page + 1)">Sau</button>
+      <button class="icon-only" type="button" title="Trang sau" aria-label="Trang sau" :disabled="meta.current_page >= meta.last_page || loading" @click="loadData(meta.current_page + 1)">
+        <AppIcon name="chevronRight" size="17" />
+      </button>
     </div>
 
     <div v-if="actionItem" class="modal-backdrop" @click.self="closeAction">
@@ -577,11 +577,7 @@ export default {
 .tabs { display: flex; border-bottom: 1px solid #dbe2ea; }
 .tabs button { border: 0; border-bottom: 3px solid transparent; background: transparent; padding: 10px 18px; color: #64748b; font-weight: 800; cursor: pointer; }
 .tabs button.active { border-color: #16a34a; color: #166534; }
-.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
-.summary-item { padding: 14px 16px; border-right: 1px solid #e2e8f0; }
-.summary-item:last-child { border-right: 0; }
-.summary-item span, .sub-line { display: block; color: #64748b; font-size: 12px; }
-.summary-item strong { display: block; margin-top: 6px; color: #0f172a; font-size: 19px; }
+.sub-line { display: block; color: #64748b; font-size: 12px; }
 .toolbar { flex-wrap: wrap; gap: 8px; align-items: stretch; }
 .toolbar select, .toolbar input, .action-modal select, .action-modal input, .action-modal textarea { border: 1px solid #dbe2ea; border-radius: 7px; background: #fff; color: #0f172a; padding: 9px 10px; font: inherit; }
 .search-field { display: flex; align-items: center; gap: 8px; min-width: 290px; border: 1px solid #dbe2ea; border-radius: 7px; padding: 0 10px; background: #fff; }
@@ -636,7 +632,6 @@ th { background: #f8fafc; color: #334155; font-weight: 800; }
 .inline-success { color: #15803d; }
 .inline-error { color: #b91c1c; }
 pre { max-height: 240px; overflow: auto; padding: 10px; border-radius: 6px; background: #0f172a; color: #d1fae5; font-size: 11px; white-space: pre-wrap; }
-@media (max-width: 900px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } .summary-item:nth-child(2) { border-right: 0; } }
 @media (max-width: 700px) { .payout-content { grid-template-columns: 1fr; } .payout-content img { width: 100%; } }
 @media (max-width: 600px) { .page-header { align-items: flex-start; flex-direction: column; } .search-field { min-width: 100%; } .export-btn { margin-left: 0; } }
 </style>

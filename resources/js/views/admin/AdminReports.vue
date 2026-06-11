@@ -5,21 +5,11 @@
         <h2>Xử lý báo cáo</h2>
         <p>Kiểm duyệt nội dung và xử lý hành vi vi phạm trong cộng đồng.</p>
       </div>
-      <button class="btn secondary" type="button" :disabled="loading" @click="loadReports">
-        <AppIcon name="refresh" size="17" />
-        Tải lại
-      </button>
+      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadReports" />
     </header>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
-
-    <section class="stat-grid">
-      <article class="stat-card"><strong>{{ summary.total || 0 }}</strong><span>Tổng báo cáo</span></article>
-      <article class="stat-card warning"><strong>{{ summary.pending || 0 }}</strong><span>Chờ xử lý</span></article>
-      <article class="stat-card"><strong>{{ summary.reviewing || 0 }}</strong><span>Đang kiểm duyệt</span></article>
-      <article class="stat-card success"><strong>{{ summary.resolved || 0 }}</strong><span>Đã xử lý</span></article>
-    </section>
 
     <section class="filter-panel">
       <div class="filter-bar">
@@ -39,7 +29,7 @@
           <option value="">Tất cả trạng thái</option>
           <option v-for="item in statuses" :key="item.value" :value="item.value">{{ item.label }}</option>
         </select>
-        <button class="btn primary" type="button" @click="loadReports">Lọc</button>
+        <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadReports" />
       </div>
     </section>
 
@@ -64,7 +54,7 @@
           <div class="meta-item"><span>Người xử lý</span><strong>{{ report.reviewed_by?.full_name || 'Chưa phân công' }}</strong></div>
           <div class="meta-item"><span>Kết quả</span><strong>{{ actionLabel(report.action_taken) }}</strong></div>
           <div class="card-actions">
-            <button class="btn primary" type="button" @click="openDetail(report)">Xem và xử lý</button>
+            <ActionIconButton icon="eye" label="Xem và xử lý" variant="primary" @click="openDetail(report)" />
           </div>
         </footer>
       </article>
@@ -77,7 +67,7 @@
             <h3>Chi tiết báo cáo</h3>
             <p>{{ selected ? `${targetLabel(selected.target_type)} · ${shortId(selected.id)}` : 'Đang tải...' }}</p>
           </div>
-          <button class="btn secondary" type="button" @click="closeDetail">Đóng</button>
+          <ActionIconButton icon="x" label="Đóng" @click="closeDetail" />
         </header>
 
         <div v-if="detailLoading" class="empty-state">Đang tải chi tiết...</div>
@@ -163,11 +153,12 @@
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import ActionIconButton from '../../components/ActionIconButton.vue';
 import { adminReportService } from '../../services/adminModeration.js';
 
 export default {
   name: 'AdminReports',
-  components: { AppIcon },
+  components: { AppIcon, ActionIconButton },
   data() {
     return {
       reports: [],

@@ -5,7 +5,7 @@
         <h2>Quản lý tài khoản</h2>
         <p>Theo dõi trạng thái, cảnh báo, vai trò và các thao tác nhạy cảm của tài khoản.</p>
       </div>
-      <button class="btn secondary" :disabled="loading" @click="loadUsers">Tải lại</button>
+      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadUsers" />
     </header>
 
     <nav class="tabs" aria-label="Lọc nhanh tài khoản">
@@ -46,7 +46,7 @@
           <option value="lock_suggested">Đề xuất khóa</option>
         </select>
       </label>
-      <button class="btn secondary" type="button" @click="resetFilters">Xóa lọc</button>
+      <ActionIconButton icon="refresh" label="Xóa lọc" @click="resetFilters" />
     </section>
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -93,27 +93,24 @@
             <td>{{ money(user.wallet_balance) }}</td>
             <td>{{ date(user.created_at) }}</td>
             <td class="actions-col">
-              <RouterLink class="icon-btn" :to="{ name: 'admin-user-detail', params: { id: user.id } }" title="Xem chi tiết">
-                Chi tiết
-              </RouterLink>
-              <button
-                v-if="user.status === 'locked'"
-                class="icon-btn"
-                type="button"
-                title="Mở khóa tài khoản"
-                @click="openUnlockModal(user)"
-              >
-                Mở khóa
-              </button>
-              <button
-                v-else
-                class="icon-btn danger"
-                type="button"
-                title="Khóa tài khoản"
-                @click="openLockModal(user)"
-              >
-                Khóa
-              </button>
+              <TableActionGroup>
+                <RouterLink class="icon-btn" :to="{ name: 'admin-user-detail', params: { id: user.id } }" title="Xem chi tiết" aria-label="Xem chi tiết">
+                  <AppIcon name="eye" size="17" />
+                </RouterLink>
+                <ActionIconButton
+                  v-if="user.status === 'locked'"
+                  icon="unlock"
+                  label="Mở khóa tài khoản"
+                  @click="openUnlockModal(user)"
+                />
+                <ActionIconButton
+                  v-else
+                  icon="lock"
+                  label="Khóa tài khoản"
+                  variant="danger"
+                  @click="openLockModal(user)"
+                />
+              </TableActionGroup>
             </td>
           </tr>
         </tbody>
@@ -123,13 +120,9 @@
     <footer class="pagination" v-if="meta.total > 0">
       <span>Hiển thị {{ users.length }} / {{ meta.total }} tài khoản</span>
       <div>
-        <button class="btn secondary" type="button" :disabled="meta.current_page <= 1 || loading" @click="goPage(meta.current_page - 1)">
-          Trước
-        </button>
+        <ActionIconButton icon="chevronLeft" label="Trang trước" :disabled="meta.current_page <= 1 || loading" @click="goPage(meta.current_page - 1)" />
         <span>Trang {{ meta.current_page }} / {{ meta.last_page }}</span>
-        <button class="btn secondary" type="button" :disabled="meta.current_page >= meta.last_page || loading" @click="goPage(meta.current_page + 1)">
-          Sau
-        </button>
+        <ActionIconButton icon="chevronRight" label="Trang sau" :disabled="meta.current_page >= meta.last_page || loading" @click="goPage(meta.current_page + 1)" />
       </div>
     </footer>
 
@@ -175,10 +168,14 @@
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
 import { adminUserService } from '../../services/adminUserService.js';
 
 export default {
   name: 'AdminUsers',
+  components: { ActionIconButton, AppIcon, TableActionGroup },
   data() {
     return {
       users: [],

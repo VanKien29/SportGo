@@ -1,5 +1,16 @@
 <template>
   <div class="partner-app-page">
+    <header class="page-header">
+      <div>
+        <h2>Quản lý đơn đăng ký đối tác</h2>
+        <p>Rà soát hồ sơ chủ sân, trạng thái duyệt và thông tin kinh doanh gửi về hệ thống.</p>
+      </div>
+
+      <button class="icon-btn" type="button" title="Làm mới" aria-label="Làm mới" @click="refresh">
+        <AppIcon name="refresh" size="16" />
+      </button>
+    </header>
+
     <div class="toolbar card">
       <div class="filters">
         <label class="field compact">
@@ -29,10 +40,6 @@
           <input v-model="filters.date_to" type="date" @change="loadApplications(1)" />
         </label>
       </div>
-      <button class="btn ghost" type="button" @click="refresh">
-        <AppIcon name="refresh" size="16" />
-        <span>Làm mới</span>
-      </button>
     </div>
 
     <div v-if="message" class="notice success">{{ message }}</div>
@@ -108,12 +115,12 @@
       </div>
 
       <div v-if="pagination.last_page > 1" class="pagination">
-        <button class="btn ghost" type="button" :disabled="pagination.current_page <= 1" @click="loadApplications(pagination.current_page - 1)">
-          Trước
+        <button class="icon-btn" type="button" title="Trang trước" aria-label="Trang trước" :disabled="pagination.current_page <= 1" @click="loadApplications(pagination.current_page - 1)">
+          <AppIcon name="chevronLeft" size="17" />
         </button>
         <span>{{ pagination.current_page }} / {{ pagination.last_page }}</span>
-        <button class="btn ghost" type="button" :disabled="pagination.current_page >= pagination.last_page" @click="loadApplications(pagination.current_page + 1)">
-          Sau
+        <button class="icon-btn" type="button" title="Trang sau" aria-label="Trang sau" :disabled="pagination.current_page >= pagination.last_page" @click="loadApplications(pagination.current_page + 1)">
+          <AppIcon name="chevronRight" size="17" />
         </button>
       </div>
     </div>

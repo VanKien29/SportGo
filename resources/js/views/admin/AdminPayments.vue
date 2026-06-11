@@ -5,30 +5,10 @@
         <h2>Theo dõi thanh toán booking</h2>
         <p>Đối soát payment attempt, gateway logs và tiền hệ thống thu hộ chủ sân.</p>
       </div>
-      <button class="icon-command" type="button" :disabled="loading" title="Tải lại" @click="loadPayments">
+      <button class="icon-command" type="button" :disabled="loading" title="Tải lại" aria-label="Tải lại" @click="loadPayments">
         <AppIcon name="refresh" size="18" />
-        <span>Tải lại</span>
       </button>
     </header>
-
-    <div class="summary-grid">
-      <div class="summary-item">
-        <span>Tổng giao dịch</span>
-        <strong>{{ summary.total }}</strong>
-      </div>
-      <div class="summary-item">
-        <span>Chờ xử lý</span>
-        <strong>{{ summary.pending }}</strong>
-      </div>
-      <div class="summary-item">
-        <span>Thành công</span>
-        <strong>{{ summary.paid }}</strong>
-      </div>
-      <div class="summary-item">
-        <span>Tiền đã thu hộ</span>
-        <strong>{{ formatCurrency(summary.collected_amount) }}</strong>
-      </div>
-    </div>
 
     <form class="filters" @submit.prevent="applyFilters">
       <label class="search-field">
@@ -72,11 +52,8 @@
         <span>đến</span>
         <input v-model="filters.paid_to" type="date" title="Thanh toán đến ngày" />
       </div>
-      <button class="primary-btn" type="submit">
-        <AppIcon name="filter" size="16" />
-        Lọc
-      </button>
-      <button class="secondary-btn" type="button" @click="resetFilters">Xóa lọc</button>
+      <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" type="submit" />
+      <ActionIconButton icon="refresh" label="Xóa lọc" @click="resetFilters" />
     </form>
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -136,9 +113,9 @@
     </div>
 
     <div class="pagination">
-      <button class="secondary-btn" type="button" :disabled="meta.current_page <= 1 || loading" @click="changePage(meta.current_page - 1)">Trước</button>
+      <ActionIconButton icon="chevronLeft" label="Trang trước" :disabled="meta.current_page <= 1 || loading" @click="changePage(meta.current_page - 1)" />
       <span>Trang {{ meta.current_page }} / {{ meta.last_page }}</span>
-      <button class="secondary-btn" type="button" :disabled="meta.current_page >= meta.last_page || loading" @click="changePage(meta.current_page + 1)">Sau</button>
+      <ActionIconButton icon="chevronRight" label="Trang sau" :disabled="meta.current_page >= meta.last_page || loading" @click="changePage(meta.current_page + 1)" />
     </div>
 
     <div v-if="detailOpen" class="drawer-backdrop" @click.self="closeDetail">
@@ -255,12 +232,13 @@
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import { adminPaymentService } from '../../services/adminPayments.js';
 
 export default {
   name: 'AdminPayments',
-  components: { AppIcon },
+  components: { ActionIconButton, AppIcon },
   data() {
     return {
       payments: [],
@@ -495,11 +473,7 @@ export default {
 .page-header { justify-content: space-between; gap: 16px; }
 .page-header h2 { margin: 0 0 4px; font-size: 22px; color: #0f172a; }
 .page-header p { margin: 0; color: #64748b; font-size: 13px; }
-.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
-.summary-item { padding: 16px; border-right: 1px solid #e2e8f0; }
-.summary-item:last-child { border-right: 0; }
-.summary-item span, .sub-line, .detail-facts span, .ledger-row small { display: block; color: #64748b; font-size: 12px; }
-.summary-item strong { display: block; margin-top: 7px; font-size: 20px; color: #0f172a; }
+.sub-line, .detail-facts span, .ledger-row small { display: block; color: #64748b; font-size: 12px; }
 .filters { gap: 8px; flex-wrap: wrap; align-items: stretch; }
 .filters select, .filters input, .action-modal select, .action-modal input, .action-modal textarea { border: 1px solid #dbe2ea; border-radius: 7px; background: #fff; color: #0f172a; padding: 9px 10px; font: inherit; }
 .search-field { display: flex; align-items: center; gap: 8px; min-width: 290px; border: 1px solid #dbe2ea; border-radius: 7px; padding: 0 10px; background: #fff; }
@@ -555,14 +529,10 @@ pre { max-height: 250px; overflow: auto; padding: 10px; background: #0f172a; col
 .action-modal h3 { margin: 0; font-size: 20px; }
 .action-modal label { display: flex; flex-direction: column; gap: 6px; color: #334155; font-size: 13px; font-weight: 700; }
 .action-modal footer { justify-content: flex-end; gap: 8px; }
-@media (max-width: 900px) {
-  .summary-grid { grid-template-columns: repeat(2, 1fr); }
-  .summary-item:nth-child(2) { border-right: 0; }
-}
 @media (max-width: 600px) {
   .page-header { align-items: flex-start; flex-direction: column; }
-  .summary-grid, .detail-facts { grid-template-columns: 1fr; }
-  .summary-item, .detail-facts div { border-right: 0; }
+  .detail-facts { grid-template-columns: 1fr; }
+  .detail-facts div { border-right: 0; }
   .search-field { min-width: 100%; }
 }
 </style>

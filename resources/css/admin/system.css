@@ -1,0 +1,581 @@
+.sg-shell-admin .content-area > :is(section, div, main) {
+  width: 100%;
+  max-width: 1520px;
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.sg-shell-admin .content-area :is(
+  .amenities-container,
+  .admin-banners-page,
+  .moderation-page,
+  .page,
+  .platform-fee-page,
+  .settings-page,
+  .profile-page,
+  .detail-page,
+  .users-page,
+  .roles-page,
+  .policies-page,
+  .venue-clusters-page,
+  .avc-page,
+  .admin-page,
+  .admin-users,
+  .admin-payments,
+  .finance-page,
+  .finance-operations,
+  .partner-app-page,
+  .court-types-container
+) {
+  display: grid;
+  min-width: 0;
+  gap: 18px;
+}
+
+.sg-shell-admin .content-area :is(h1, h2, h3, h4, .page-title, .section-title, .card-title, .main-title, .avcd-title) {
+  color: var(--admin-text) !important;
+  font-weight: 750 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.25 !important;
+}
+
+.sg-shell-admin .content-area :is(p, td, dd, input, select, textarea, button, a, summary, .muted, .sub-line, .text-muted, .section-subtitle, .meta-item span, dt, small) {
+  letter-spacing: 0 !important;
+}
+
+.sg-shell-admin .content-area :is(p, td, dd, input, select, textarea, .content-box, .detail-field, .meta-item, .mini-item, .receipt-facts, .card-content) {
+  color: var(--admin-text) !important;
+}
+
+.sg-shell-admin .content-area :is(.page-header, .page-head, .toolbar, .header-actions-bar, .card-head, .panel-head, .detail-head, .drawer-header, .modal-header, .modal-head) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+}
+
+.sg-shell-admin .content-area :is(.page-header, .page-head) {
+  min-height: 62px;
+  padding: 16px 18px !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius-lg) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 248, 241, 0.86)),
+    var(--admin-surface) !important;
+  box-shadow: var(--admin-shadow-card) !important;
+}
+
+.sg-shell-admin .content-area :is(.page-header h2, .page-head h2) {
+  display: block !important;
+  margin: 0 0 5px !important;
+  color: var(--admin-text) !important;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+}
+
+.sg-shell-admin .content-area :is(.page-header p, .page-head p, .muted, .text-muted, .section-subtitle, .empty, .empty-text, .state-text, .sub-line, .eyebrow, .pagination, .date-range-fields, .log-head time, .log-meta, .muted-text, .meta-item span, .detail-facts span, .ledger-row small, dt, small, summary) {
+  color: var(--admin-faint) !important;
+}
+
+.sg-shell-admin .content-area :is(.page-header p, .page-head p) {
+  max-width: 76ch;
+  margin: 0 !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+}
+
+.sg-shell-admin .content-area :is(.summary-grid, .stat-grid, .stats-grid, .metrics-grid) {
+  display: grid !important;
+  gap: 14px !important;
+}
+
+.sg-shell-admin .content-area :is(
+  .card,
+  .table-card,
+  .table-wrap,
+  .table-scroll,
+  .table-responsive,
+  .avc-table-wrap,
+  .banner-table,
+  .applications-table,
+  .filter-panel,
+  .avc-filters,
+  .record-card,
+  .detail-section,
+  .detail-drawer,
+  .side-panel,
+  .state-box,
+  .loading-state,
+  .empty-state,
+  .error-state,
+  .empty-block,
+  .drawer-loading,
+  .summary-item,
+  .stat-card,
+  .summary-card,
+  .fees-stat-card,
+  .preview-card,
+  .panel,
+  .tabs,
+  .avcd-card,
+  .fees-card-wrap,
+  .modal,
+  .modal-box,
+  .action-modal,
+  .receipt-modal,
+  .payout-modal,
+  .detail-modal,
+  .confirm-modal
+) {
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius-lg) !important;
+  background-color: rgba(255, 255, 255, 0.97) !important;
+  box-shadow: var(--admin-shadow-card) !important;
+}
+
+.sg-shell-admin .content-area :is(.filter-panel, form.filters, form.toolbar, .filter-bar, .toolbar.card, .avc-filters) {
+  padding: 16px !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius-lg) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 248, 241, 0.88)),
+    var(--admin-surface-muted) !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area :is(.toolbar.card, .filter-panel, .avc-filters, .card, .table-card, .banner-table, .applications-table, .panel) > :is(.filters, .filter-bar, .table-scroll, .table-responsive) {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area :is(form.filters, form.toolbar, .filter-bar) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+}
+
+.sg-shell-admin .content-area :is(form.filters, form.toolbar, .filter-bar) > :is(.search-field, .search-box) {
+  flex: 1 1 280px !important;
+  max-width: 360px !important;
+}
+
+.sg-shell-admin .content-area :is(form.filters, form.toolbar, .filter-bar) > :is(select, input, .date-range-fields) {
+  flex: 0 1 180px !important;
+}
+
+.sg-shell-admin .content-area :is(form.filters, form.toolbar, .filter-bar) > .export-btn {
+  margin-left: auto !important;
+}
+
+.sg-shell-admin .content-area :is(.filter-head, .toolbar-title, .card-head, .panel-head) {
+  color: var(--admin-text) !important;
+}
+
+.sg-shell-admin .content-area :is(.filter-head strong, .toolbar-title strong, .card-head strong, .panel-head strong) {
+  color: var(--admin-text) !important;
+  font-weight: 800 !important;
+}
+
+.sg-shell-admin .content-area :is(.filter-head span, .toolbar-title span, .card-head span, .panel-head span) {
+  color: var(--admin-muted) !important;
+}
+
+.sg-shell-admin .content-area :is(.table-card, .table-wrap, .banner-table, .applications-table, .table-responsive, .table-scroll, .avc-table-wrap) {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+}
+
+.sg-shell-admin .content-area :is(table, .data-table, .simple-table, .avc-table) {
+  width: 100% !important;
+  min-width: 1060px;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  color: var(--admin-text) !important;
+  font-size: 14px !important;
+}
+
+.sg-shell-admin .content-area :is(th, .data-table th, .simple-table th, .avc-table th) {
+  border-bottom: 1px solid var(--admin-border) !important;
+  background: #f2f7ef !important;
+  color: #334238 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.025em !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+.sg-shell-admin .content-area :is(td, .data-table td, .simple-table td, .avc-table td) {
+  border-bottom: 1px solid rgba(23, 34, 27, 0.075) !important;
+  color: #16231a !important;
+  font-weight: 560 !important;
+}
+
+.sg-shell-admin .content-area :is(th, td, .data-table th, .data-table td, .simple-table th, .simple-table td, .avc-table th, .avc-table td) {
+  padding: 14px 16px !important;
+  vertical-align: middle !important;
+}
+
+.sg-shell-admin .content-area :is(tbody tr:hover, .data-table tbody tr:hover, .simple-table tbody tr:hover, .avc-table tbody tr:hover) {
+  background: rgba(232, 247, 236, 0.68) !important;
+}
+
+.sg-shell-admin .content-area :is(td:last-child, th:last-child, .actions-col, .actions-cell, .row-actions, .payout-actions, .actions-wrapper) {
+  white-space: nowrap !important;
+}
+
+.sg-shell-admin .content-area :is(.actions-col, .actions-cell) {
+  min-width: 220px !important;
+  width: 1% !important;
+}
+
+.sg-shell-admin .content-area :is(.actions, .action-row, .card-actions, .row-actions, .payout-actions, .actions-wrapper, .table-action-group, .parent-card-actions, .child-card-actions, .child-inline-actions, .kanban-card-actions, .detail-actions) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+}
+
+.sg-shell-admin .content-area :is(.table-card table, .table-wrap table, .table-scroll table, .table-responsive table, .applications-table table, .banner-table table, .admin-users table, .admin-payments table, .finance-operations table, .page table, .avc-table, .data-table) {
+  table-layout: auto !important;
+}
+
+.sg-shell-admin .content-area :is(input:not([type='checkbox']):not([type='radio']), select, textarea, .form-control, .search-field, .search-box, .search-input) {
+  min-height: 42px !important;
+  border: 1px solid #b9cbbb !important;
+  border-radius: var(--admin-radius) !important;
+  background: #fff !important;
+  color: var(--admin-text) !important;
+  font: inherit !important;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease !important;
+}
+
+.sg-shell-admin .content-area :is(input:not([type='checkbox']):not([type='radio']), select, textarea, .form-control, .search-input) {
+  padding: 10px 12px !important;
+}
+
+.sg-shell-admin .content-area :is(input, select, textarea)::placeholder {
+  color: #4c5e51 !important;
+  opacity: 1 !important;
+}
+
+.sg-shell-admin .content-area select {
+  appearance: none !important;
+  padding-right: 36px !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #526053 50%),
+    linear-gradient(135deg, #526053 50%, transparent 50%) !important;
+  background-position:
+    calc(100% - 17px) 50%,
+    calc(100% - 11px) 50% !important;
+  background-size: 6px 6px, 6px 6px !important;
+  background-repeat: no-repeat !important;
+}
+
+.sg-shell-admin .content-area :is(.search-field, .search-box) {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 0 12px !important;
+  color: var(--admin-text) !important;
+}
+
+.sg-shell-admin .content-area :is(.search-field, .search-box) > svg {
+  flex: 0 0 auto !important;
+}
+
+.sg-shell-admin .content-area :is(.search-field, .search-box) > :is(input:not([type='checkbox']):not([type='radio']), .search-input),
+.sg-shell-admin .content-area :is(label.search-field, label.search-box) > :is(input:not([type='checkbox']):not([type='radio']), .search-input) {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.sg-shell-admin .content-area :is(input:not([type='checkbox']):not([type='radio']):focus, select:focus, textarea:focus, .form-control:focus, .search-box:focus-within, .search-field:focus-within) {
+  border-color: rgba(47, 158, 68, 0.62) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
+}
+
+.sg-shell-admin .content-area :is(.search-field input:focus, .search-box input:focus) {
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area :is(.search-field, .search-box) > :is(input:not([type='checkbox']):not([type='radio']):focus, .search-input:focus),
+.sg-shell-admin .content-area :is(label.search-field, label.search-box) > :is(input:not([type='checkbox']):not([type='radio']):focus, .search-input:focus) {
+  border: 0 !important;
+  background: transparent !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area :is(.search-field:focus-within, .search-box:focus-within) {
+  border-color: rgba(47, 158, 68, 0.72) !important;
+  box-shadow: 0 0 0 3px rgba(47, 158, 68, 0.14) !important;
+}
+
+.sg-shell-admin .content-area :is(label, .field, .form-group label, .form-label) {
+  color: #223127 !important;
+  font-size: 13px !important;
+  font-weight: 760 !important;
+}
+
+.sg-shell-admin .content-area :is(.btn, .mini-btn, .icon-btn, .icon-action, .icon-close, .btn-action, .btn-action-mini, .btn-action-icon, .btn-switch, .tab-btn, .tabs button, .sort-btn, .btn-back, .btn-map-link, .btn-edit-link, .btn-add-child, .primary-btn, .secondary-btn, .export-btn, .icon-only, .icon-command, .pay-command, .link-btn) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  min-height: 38px !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--admin-radius) !important;
+  padding: 9px 13px !important;
+  font: inherit !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease, color 180ms ease, box-shadow 180ms ease !important;
+}
+
+.sg-shell-admin .content-area :is(.icon-btn, .icon-action, .icon-close, .icon-only, .btn-action, .btn-action-mini, .btn-action-icon, .action-icon-button) {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+}
+
+.sg-shell-admin .content-area :is(.btn-close) {
+  display: inline-grid !important;
+  width: 36px !important;
+  height: 36px !important;
+  place-items: center !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius) !important;
+  background: #fff !important;
+  color: var(--admin-muted) !important;
+  font-size: 0 !important;
+}
+
+.sg-shell-admin .content-area :is(.btn-close)::before {
+  color: currentColor;
+  font-size: 18px;
+  content: "×";
+}
+
+.sg-shell-admin .content-area :is(.btn:hover, .mini-btn:hover, .icon-btn:hover, .icon-action:hover, .icon-close:hover, .btn-action:hover, .btn-action-icon:hover, .btn-switch:hover, .tab-btn:hover, .tabs button:hover, .sort-btn:hover, .btn-back:hover, .primary-btn:hover, .secondary-btn:hover, .export-btn:hover, .icon-only:hover, .icon-command:hover, .pay-command:hover) {
+  transform: translateY(-1px) !important;
+}
+
+.sg-shell-admin .content-area :is(.btn, .mini-btn, .icon-btn, .icon-action, .icon-close, .btn-action, .btn-action-mini, .btn-action-icon, .btn-switch, .tab-btn, .sort-btn, .btn-back, .primary-btn, .secondary-btn, .export-btn, .icon-only, .icon-command, .pay-command, .link-btn):focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
+}
+
+.sg-shell-admin .content-area :is(.btn:disabled, .mini-btn:disabled, .icon-btn:disabled, .icon-action:disabled, .icon-close:disabled, .btn-action:disabled, .btn-action-icon:disabled, .primary-btn:disabled, .secondary-btn:disabled, .export-btn:disabled, .icon-only:disabled, .icon-command:disabled, .pay-command:disabled) {
+  cursor: not-allowed !important;
+  opacity: 0.55 !important;
+  transform: none !important;
+}
+
+.sg-shell-admin .content-area :is(.primary, .btn.primary, .btn-primary, .btn-success, .primary-btn:not(.danger), .pay-command, button.primary, a.primary) {
+  border-color: var(--admin-primary) !important;
+  background: var(--admin-primary) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 22px rgba(47, 158, 68, 0.18) !important;
+}
+
+.sg-shell-admin .content-area :is(.primary:hover, .btn.primary:hover, .btn-primary:hover, .btn-success:hover, .primary-btn:not(.danger):hover, .pay-command:hover, button.primary:hover, a.primary:hover) {
+  border-color: var(--admin-primary-dark) !important;
+  background: var(--admin-primary-dark) !important;
+  color: #fff !important;
+}
+
+.sg-shell-admin .content-area :is(.success, .icon-action.success, .btn-action.success, .btn-success-soft) {
+  border-color: rgba(34, 166, 83, 0.24) !important;
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+}
+
+.sg-shell-admin .content-area :is(.secondary, .btn.secondary, .btn-outline, .secondary-btn, .ghost, .mini-btn, .icon-btn, .icon-action, .icon-close, .icon-only, .icon-command, .export-btn, .btn-back, .tab-btn, .tabs button, .sort-btn, .btn-action, .btn-action-icon, .btn-map-link, .btn-edit-link) {
+  border-color: var(--admin-border) !important;
+  background: #fff !important;
+  color: #344238 !important;
+}
+
+.sg-shell-admin .content-area :is(.secondary:hover, .btn.secondary:hover, .btn-outline:hover, .secondary-btn:hover, .ghost:hover, .mini-btn:hover, .icon-btn:hover, .icon-action:hover, .icon-close:hover, .icon-only:hover, .icon-command:hover, .export-btn:hover, .btn-back:hover, .tab-btn:hover, .tabs button:hover, .sort-btn:hover, .btn-action:hover, .btn-action-icon:hover, .btn-map-link:hover, .btn-edit-link:hover) {
+  border-color: rgba(47, 158, 68, 0.32) !important;
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+  box-shadow: 0 8px 18px rgba(47, 158, 68, 0.08) !important;
+}
+
+.sg-shell-admin .content-area :is(.icon-only.primary, .icon-command.primary, .btn-action.primary, .action-icon-button.variant-primary) {
+  border-color: var(--admin-primary) !important;
+  background: var(--admin-primary) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 22px rgba(34, 166, 83, 0.2) !important;
+}
+
+.sg-shell-admin .content-area :is(.icon-only.primary:hover, .icon-command.primary:hover, .btn-action.primary:hover, .action-icon-button.variant-primary:hover) {
+  border-color: var(--admin-primary-dark) !important;
+  background: var(--admin-primary-dark) !important;
+  color: #fff !important;
+}
+
+.sg-shell-admin .content-area :is(.tabs button.active, .tab-btn.active, .tab-sm.active, .segmented button.active, .btn-switch.active) {
+  border-color: var(--admin-primary) !important;
+  background: var(--admin-primary) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 22px rgba(34, 166, 83, 0.2) !important;
+}
+
+.sg-shell-admin .content-area :is(.danger, .btn.danger, .btn-danger, .btn-delete, .btn-delete-mini, .btn-action.danger, .btn-action.btn-delete, .btn-action-mini.btn-delete-mini, .primary-btn.danger, button.danger, a.danger) {
+  border-color: rgba(220, 38, 38, 0.2) !important;
+  background: var(--admin-danger-soft) !important;
+  color: #991b1b !important;
+}
+
+.sg-shell-admin .content-area :is(.danger:hover, .btn.danger:hover, .btn-danger:hover, .btn-delete:hover, .btn-delete-mini:hover, .btn-action.danger:hover, .btn-action.btn-delete:hover, .btn-action-mini.btn-delete-mini:hover, .primary-btn.danger:hover, button.danger:hover, a.danger:hover) {
+  border-color: rgba(220, 38, 38, 0.32) !important;
+  background: #fee2e2 !important;
+  color: #7f1d1d !important;
+}
+
+.sg-shell-admin .content-area :is(.status, .status-badge, .badge, .type-badge, .risk-badge, .child-count-badge, .parent-sidebar-badge, .fees-count-badge, .player-count-badge, .status-dot-wrapper, .booking-status, .fee-status-badge, .status-pill, .ct-chip, .email-chip) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  min-height: 26px !important;
+  border-radius: 999px !important;
+  padding: 5px 10px !important;
+  border: 1px solid transparent !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+  white-space: nowrap !important;
+}
+
+.sg-shell-admin .content-area :is(.status.active, .status-badge.active, .status-badge.status-active, .status-badge.status-approved, .status-badge.status-paid, .badge.active, .badge.resolved, .badge.paid, .status-pill.completed, .status-pill.paid, .status-pill.credit, .status-pill.approved, .status-dot-wrapper.active, .fee-status-paid, .fee-paid, .status-active) {
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+}
+
+.sg-shell-admin .content-area :is(.status.pending, .status.open, .status-badge.pending, .status-badge.open, .status-badge.status-pending, .badge.pending, .badge.open, .status-pill.pending, .status-pill.pending_confirmation, .status-pill.reviewing, .status-pill.processing, .fee-status-unpaid, .fee-status-partial, .fee-pending, .status-pending) {
+  background: var(--admin-warning-soft) !important;
+  color: #9a3412 !important;
+}
+
+.sg-shell-admin .content-area :is(.status.inactive, .status.locked, .status.rejected, .status-badge.inactive, .status-badge.locked, .status-badge.rejected, .status-badge.status-locked, .status-badge.status-rejected, .badge.inactive, .badge.expired, .status-pill.failed, .status-pill.rejected, .status-pill.cancelled, .status-pill.refunded, .fee-status-overdue, .fee-overdue, .status-locked, .status-rejected) {
+  background: var(--admin-danger-soft) !important;
+  color: #991b1b !important;
+}
+
+.sg-shell-admin .content-area :is(.notice, .alert, .global-alert, .toast, .inline-summary, .preview-banner, .state, .empty, .empty-block) {
+  border-radius: var(--admin-radius) !important;
+  font-weight: 650 !important;
+}
+
+.sg-shell-admin .content-area :is(.notice.success, .alert.success, .global-alert.success, .toast.success) {
+  border-color: rgba(47, 158, 68, 0.2) !important;
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+}
+
+.sg-shell-admin .content-area :is(.notice.error, .alert.error, .alert-danger, .global-alert.error, .toast.error, .alert-error) {
+  border-color: rgba(220, 38, 38, 0.18) !important;
+  background: var(--admin-danger-soft) !important;
+  color: #991b1b !important;
+}
+
+.sg-shell-admin .content-area :is(.modal-backdrop, .detail-backdrop, .drawer-backdrop) {
+  z-index: 420 !important;
+  background: rgba(7, 17, 13, 0.56) !important;
+  backdrop-filter: blur(8px);
+}
+
+.sg-shell-admin .content-area :is(.modal, .modal-box, .action-modal, .receipt-modal, .payout-modal) {
+  width: min(760px, calc(100vw - 32px));
+  overflow: hidden;
+}
+
+.sg-shell-admin .content-area :is(.modal-header, .detail-head, .drawer-header) {
+  border-bottom: 1px solid var(--admin-border) !important;
+  background: #fbfdf9 !important;
+  padding: 16px 18px !important;
+}
+
+.sg-shell-admin .content-area :is(.modal-footer, .modal-actions, .dialog-footer) {
+  border-top: 1px solid var(--admin-border) !important;
+  background: #fbfdf9 !important;
+  padding: 14px 18px !important;
+}
+
+.sg-shell-admin .content-area :is(.spinner) {
+  width: 34px !important;
+  height: 34px !important;
+  border: 3px solid rgba(47, 158, 68, 0.14) !important;
+  border-top-color: var(--admin-primary) !important;
+  border-radius: 999px !important;
+}
+
+.sg-shell-admin .content-area :is(.empty-state, .state-box, .loading-state, .error-state) {
+  color: var(--admin-muted) !important;
+  text-align: center !important;
+}
+
+.sg-shell-admin .content-area :is(.mini-item, .receipt, .info-grid div, .rule-row, .option-card, .empty-state.small, .detail-field, .content-box, .evidence-item, .timeline-item) {
+  border-radius: var(--admin-radius) !important;
+  background: var(--admin-surface-muted) !important;
+}
+
+.sg-shell-admin .content-area :is(.code-link, .link-btn, .btn-map-link, .btn-edit-link) {
+  color: var(--admin-primary-dark) !important;
+  font-weight: 700 !important;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.sg-shell-admin .content-area .address-cell {
+  max-width: 340px !important;
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+}
+
+@media (max-width: 900px) {
+  .sg-shell-admin .content-area :is(.page-header, .page-head, .header-actions-bar, .toolbar, .filter-bar, .filters) {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .sg-shell-admin .content-area :is(.filters, .filter-bar) {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .sg-shell-admin .content-area :is(.btn, .btn-primary, .btn-outline, .primary-btn, .secondary-btn, button.primary, button.secondary, a.primary, a.secondary) {
+    width: 100% !important;
+  }
+}

@@ -46,9 +46,10 @@ export default {
   border: 1px solid transparent;
   border-radius: 8px;
   font: inherit;
-  font-weight: 800;
+  font-weight: 750;
   cursor: pointer;
-  transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
+  box-shadow: 0 1px 2px rgba(23, 34, 27, 0.05);
+  transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease;
 }
 
 .size-sm {
@@ -63,46 +64,54 @@ export default {
 
 .action-icon-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, .18);
+  box-shadow: 0 0 0 3px rgba(47, 158, 68, .18);
 }
 
 .action-icon-button:hover:not(:disabled) {
   transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(47, 158, 68, 0.08);
 }
 
 .variant-primary {
-  background: #16a34a;
+  border-color: #2f9e44;
+  background: #2f9e44;
   color: #fff;
 }
 
 .variant-secondary {
-  background: #f8fafc;
-  border-color: #dbe3ea;
-  color: #334155;
+  background: #fff;
+  border-color: #dce8dc;
+  color: #344238;
 }
 
 .variant-secondary:hover:not(:disabled) {
-  background: #eef2f7;
+  border-color: rgba(47, 158, 68, 0.3);
+  background: #e8f7ec;
+  color: #216b34;
 }
 
 .variant-success {
-  background: #dcfce7;
-  color: #166534;
+  border-color: rgba(47, 158, 68, .2);
+  background: #e8f7ec;
+  color: #216b34;
 }
 
 .variant-warning {
+  border-color: rgba(217, 119, 6, .2);
   background: #fef3c7;
   color: #92400e;
 }
 
 .variant-danger {
-  background: #fee2e2;
+  border-color: rgba(220, 38, 38, .18);
+  background: #fef2f2;
   color: #991b1b;
 }
 
 .variant-ghost {
-  background: transparent;
-  color: #475569;
+  border-color: #dce8dc;
+  background: #fff;
+  color: #4f5d52;
 }
 
 .action-icon-button:disabled {
