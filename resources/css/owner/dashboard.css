@@ -1,4 +1,6 @@
 .dashboard {
+  display: grid;
+  gap: 18px;
   max-width: 1200px;
 }
 
@@ -61,7 +63,6 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  margin-bottom: 24px;
 }
 .stat-card {
   display: flex;
