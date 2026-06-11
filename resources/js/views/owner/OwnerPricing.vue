@@ -17,27 +17,6 @@
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="notice" class="alert alert-success">{{ notice }}</div>
 
-    <section class="duration-card">
-      <div>
-        <p class="eyebrow">THỜI LƯỢNG BOOKING</p>
-        <h3>Giới hạn thời gian đặt sân</h3>
-        <p>Thời lượng được tính theo phút và áp dụng cho toàn bộ cụm sân.</p>
-      </div>
-      <form class="duration-form" @submit.prevent="saveDuration">
-        <label>
-          Tối thiểu
-          <input v-model.number="durationForm.min_duration_minutes" type="number" min="30" step="30" required>
-        </label>
-        <label>
-          Tối đa
-          <input v-model.number="durationForm.max_duration_minutes" type="number" min="30" step="30" placeholder="Không giới hạn">
-        </label>
-        <button class="btn primary" type="submit" :disabled="isSavingDuration || !selectedClusterId">
-          {{ isSavingDuration ? 'Đang lưu...' : 'Lưu thời lượng' }}
-        </button>
-      </form>
-    </section>
-
     <section class="pricing-card">
       <div class="section-head">
         <div>
@@ -260,13 +239,11 @@ export default {
       holidayPrices: [],
       selectedClusterId: localStorage.getItem('selected_cluster') || '',
       isLoading: true,
-      isSavingDuration: false,
       isSavingPrice: false,
       error: '',
       notice: '',
       showModal: false,
       editingRow: null,
-      durationForm: { min_duration_minutes: 30, max_duration_minutes: null },
       filters: { court_type_id: '', day: '', kind: '', booking_type: '', status: '' },
       form: this.defaultForm(),
       days: [
@@ -316,7 +293,6 @@ export default {
   watch: {
     selectedClusterId(value) {
       if (value) localStorage.setItem('selected_cluster', value);
-      this.syncDuration();
       this.filters.court_type_id = '';
     },
   },
@@ -358,41 +334,10 @@ export default {
         if (!this.clusters.some((cluster) => cluster.id === this.selectedClusterId)) {
           this.selectedClusterId = this.clusters[0]?.id || '';
         }
-        this.syncDuration();
       } catch (error) {
         this.error = error.message || 'Không thể tải cấu hình giá.';
       } finally {
         this.isLoading = false;
-      }
-    },
-    syncDuration() {
-      const config = this.selectedCluster?.booking_config || {};
-      this.durationForm = {
-        min_duration_minutes: config.min_duration_minutes ?? 30,
-        max_duration_minutes: config.max_duration_minutes ?? null,
-      };
-    },
-    async saveDuration() {
-      if (!this.selectedClusterId) return;
-      this.clearMessages();
-      this.isSavingDuration = true;
-      try {
-        const config = await api(`/api/owner/booking-configs/${this.selectedClusterId}/duration`, {
-          method: 'PATCH',
-          body: JSON.stringify({
-            min_duration_minutes: Number(this.durationForm.min_duration_minutes),
-            max_duration_minutes: this.durationForm.max_duration_minutes
-              ? Number(this.durationForm.max_duration_minutes)
-              : null,
-          }),
-        });
-        const cluster = this.clusters.find((item) => item.id === this.selectedClusterId);
-        if (cluster) cluster.booking_config = config;
-        this.notice = 'Đã lưu thời lượng booking.';
-      } catch (error) {
-        this.error = error.message || 'Không thể lưu thời lượng.';
-      } finally {
-        this.isSavingDuration = false;
       }
     },
     openCreateModal() {

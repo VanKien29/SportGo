@@ -220,6 +220,11 @@ const routes = [
             },
             { path: "pricing", name: "owner-pricing", component: OwnerPricing },
             {
+                path: "booking-settings",
+                name: "owner-booking-settings",
+                component: () => import("../views/owner/OwnerBookingSettings.vue"),
+            },
+            {
                 path: "platform-fees",
                 name: "owner-platform-fees",
                 component: () => import("../views/owner/OwnerPlatformFees.vue"),

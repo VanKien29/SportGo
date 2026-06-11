@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\Auth\SetPasswordController;
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
+use App\Http\Controllers\Api\Owner\BookingConfigController as OwnerBookingConfigController;
 use App\Http\Controllers\Api\Payment\SepayPaymentController;
 use App\Http\Controllers\Api\PolicyAcceptanceController;
 use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
@@ -157,6 +158,8 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
+        Route::get('/booking-configs', [OwnerBookingConfigController::class, 'index']);
+        Route::put('/booking-configs/{venueClusterId}', [OwnerBookingConfigController::class, 'update']);
 
         // Venue Clusters & Venue Courts
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);
