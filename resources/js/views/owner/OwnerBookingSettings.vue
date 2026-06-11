@@ -22,10 +22,8 @@
     <form v-else class="settings-form" @submit.prevent="save">
       <article class="setting-card">
         <header class="card-head">
-          <span class="step">1</span>
           <div>
             <h3>Thời lượng một booking</h3>
-            <p>Các giá trị phải theo bước 30 phút để khớp với ô lịch.</p>
           </div>
         </header>
 
@@ -51,10 +49,8 @@
 
       <article class="setting-card">
         <header class="card-head">
-          <span class="step">2</span>
           <div>
             <h3>Giữ chỗ và nhắc lịch</h3>
-            <p>Áp dụng cho quá trình thanh toán trực tuyến và lịch đã xác nhận.</p>
           </div>
         </header>
 
@@ -80,10 +76,8 @@
 
       <article class="setting-card">
         <header class="card-head">
-          <span class="step">3</span>
           <div>
             <h3>Hình thức thanh toán</h3>
-            <p>Phải bật ít nhất một lựa chọn cho khách đặt sân.</p>
           </div>
         </header>
 
@@ -247,5 +241,5 @@ export default {
 </script>
 
 <style scoped>
-.settings-page{display:grid;gap:18px;max-width:1120px}.page-head,.card-head,.save-bar{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}.page-head h2,.card-head h3{margin:0;color:#0f172a}.page-head>div>p:last-child,.card-head p{margin:6px 0 0;color:#64748b}.eyebrow{margin:0 0 6px;color:#059669;font-size:11px;font-weight:900;letter-spacing:.1em}.cluster-select{min-width:280px;display:grid;gap:7px;color:#475569;font-size:12px;font-weight:850}.cluster-select select,.input-unit input,.deposit-field input{width:100%;height:42px;border:1px solid #cbd5e1;border-radius:9px;padding:0 11px;background:#fff;color:#0f172a;font:inherit}.alert,.state-card{padding:14px;border-radius:10px;font-weight:800}.alert.error{background:#fee2e2;color:#991b1b}.alert.success{background:#dcfce7;color:#166534}.state-card{text-align:center;background:#fff;border:1px solid #e2e8f0;color:#64748b}.settings-form{display:grid;gap:16px}.setting-card,.save-bar{padding:20px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 28px rgba(15,23,42,.04)}.card-head{justify-content:flex-start;padding-bottom:18px;border-bottom:1px solid #e2e8f0}.step{display:grid;place-items:center;width:32px;height:32px;flex:0 0 32px;border-radius:9px;background:#ecfdf5;color:#047857;font-weight:900}.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}.field-grid label{display:grid;gap:7px;color:#334155;font-size:13px;font-weight:850}.field-grid small{color:#64748b;font-weight:400;line-height:1.45}.input-unit,.deposit-field{position:relative}.input-unit input{padding-right:58px}.input-unit>span,.deposit-field>span{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#64748b;font-size:12px;font-weight:800}.payment-list{display:grid;gap:10px;margin-top:18px}.payment-option{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;padding:15px;border:1px solid #e2e8f0;border-radius:11px;cursor:pointer}.payment-option.enabled{border-color:#6ee7b7;background:#ecfdf5}.payment-option>input{width:18px;height:18px;accent-color:#059669}.payment-option>span{display:grid;gap:4px}.payment-option strong{color:#0f172a}.payment-option small{color:#64748b}.deposit-field{width:92px}.deposit-field input{padding-right:30px}.validation-note{margin:14px 0 0;padding:11px;border-radius:9px;background:#fff1f2;color:#be123c;font-size:13px;font-weight:800}.save-bar{position:sticky;bottom:16px;align-items:center;border-color:#a7f3d0}.save-bar>div{display:grid;gap:4px}.save-bar span{color:#64748b;font-size:12px}.primary-btn{border:0;border-radius:9px;padding:11px 16px;background:#059669;color:#fff;font:inherit;font-weight:850;cursor:pointer}.primary-btn:disabled{opacity:.55;cursor:not-allowed}@media(max-width:720px){.page-head,.field-grid,.save-bar{display:grid;grid-template-columns:1fr}.cluster-select{min-width:0}.payment-option{grid-template-columns:auto 1fr}.deposit-field{grid-column:2}.primary-btn{width:100%}}
+.settings-page{display:grid;gap:14px;max-width:1120px}.page-head,.card-head,.save-bar{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}.page-head h2,.card-head h3{margin:0;color:#0f172a}.page-head>div>p:last-child{margin:6px 0 0;color:#64748b}.card-head h3{font-size:16px}.eyebrow{margin:0 0 6px;color:#059669;font-size:11px;font-weight:900;letter-spacing:.1em}.cluster-select{min-width:280px;display:grid;gap:7px;color:#475569;font-size:12px;font-weight:850}.cluster-select select,.input-unit input,.deposit-field input{width:100%;height:42px;border:1px solid #cbd5e1;border-radius:9px;padding:0 11px;background:#fff;color:#0f172a;font:inherit}.alert,.state-card{padding:12px 14px;border-radius:10px;font-weight:800}.alert.error{background:#fee2e2;color:#991b1b}.alert.success{background:#dcfce7;color:#166534}.state-card{text-align:center;background:#fff;border:1px solid #e2e8f0;color:#64748b}.settings-form{display:grid;gap:12px}.setting-card,.save-bar{padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 6px 20px rgba(15,23,42,.04)}.card-head{justify-content:flex-start;padding-bottom:12px;border-bottom:1px solid #e2e8f0}.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}.field-grid label{display:grid;gap:6px;color:#334155;font-size:13px;font-weight:850}.field-grid small{color:#64748b;font-weight:400;line-height:1.4}.input-unit,.deposit-field{position:relative}.input-unit input{padding-right:58px}.input-unit>span,.deposit-field>span{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#64748b;font-size:12px;font-weight:800}.payment-list{display:grid;gap:8px;margin-top:14px}.payment-option{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer}.payment-option.enabled{border-color:#6ee7b7;background:#ecfdf5}.payment-option>input{width:18px;height:18px;accent-color:#059669}.payment-option>span{display:grid;gap:3px}.payment-option strong{color:#0f172a}.payment-option small{color:#64748b}.deposit-field{width:92px}.deposit-field input{padding-right:30px}.validation-note{margin:12px 0 0;padding:10px;border-radius:9px;background:#fff1f2;color:#be123c;font-size:13px;font-weight:800}.save-bar{position:sticky;bottom:12px;align-items:center;border-color:#a7f3d0}.save-bar>div{display:grid;gap:4px}.save-bar span{color:#64748b;font-size:12px}.primary-btn{border:0;border-radius:9px;padding:11px 16px;background:#059669;color:#fff;font:inherit;font-weight:850;cursor:pointer}.primary-btn:disabled{opacity:.55;cursor:not-allowed}@media(max-width:720px){.page-head,.field-grid,.save-bar{display:grid;grid-template-columns:1fr}.cluster-select{min-width:0}.payment-option{grid-template-columns:auto 1fr}.deposit-field{grid-column:2}.primary-btn{width:100%}}
 </style>

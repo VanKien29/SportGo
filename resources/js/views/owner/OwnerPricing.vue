@@ -72,7 +72,16 @@
       </div>
 
       <div v-if="isLoading" class="empty-state">Đang tải cấu hình giá...</div>
-      <div v-else-if="!filteredRows.length" class="empty-state">Không có cấu hình giá phù hợp.</div>
+      <div v-else-if="loadFailed" class="empty-state load-error">
+        <span>Không thể tải dữ liệu cấu hình giá.</span>
+        <button class="btn secondary" type="button" @click="loadPricing">Tải lại</button>
+      </div>
+      <div v-else-if="!filteredRows.length" class="empty-state no-results">
+        <span>Không có cấu hình giá phù hợp.</span>
+        <button v-if="hasActiveFilters" class="btn secondary" type="button" @click="resetFilters">
+          Xóa bộ lọc
+        </button>
+      </div>
       <div v-else class="table-wrap">
         <table>
           <thead>
@@ -240,6 +249,7 @@ export default {
       selectedClusterId: localStorage.getItem('selected_cluster') || '',
       isLoading: true,
       isSavingPrice: false,
+      loadFailed: false,
       error: '',
       notice: '',
       showModal: false,
@@ -289,6 +299,9 @@ export default {
         return true;
       });
     },
+    hasActiveFilters() {
+      return Object.values(this.filters).some(Boolean);
+    },
   },
   watch: {
     selectedClusterId(value) {
@@ -324,9 +337,12 @@ export default {
     },
     async loadPricing() {
       this.isLoading = true;
+      this.loadFailed = false;
       this.error = '';
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 15000);
       try {
-        const data = await api('/api/owner/pricing');
+        const data = await api('/api/owner/pricing', { signal: controller.signal });
         this.clusters = data.clusters || [];
         this.courtTypesByCluster = data.court_types_by_cluster || {};
         this.priceSlots = data.price_slots || [];
@@ -335,8 +351,12 @@ export default {
           this.selectedClusterId = this.clusters[0]?.id || '';
         }
       } catch (error) {
-        this.error = error.message || 'Không thể tải cấu hình giá.';
+        this.loadFailed = true;
+        this.error = error.name === 'AbortError'
+          ? 'Tải cấu hình giá quá lâu. Vui lòng kiểm tra kết nối và thử lại.'
+          : (error.message || 'Không thể tải cấu hình giá.');
       } finally {
+        window.clearTimeout(timeout);
         this.isLoading = false;
       }
     },
@@ -355,7 +375,7 @@ export default {
         court_type_id: row.court_type_id,
         apply_to_days: this.normalizeDays(row.apply_to_days),
         date_type: row.date_type || 'holiday',
-        holiday_date: row.holiday_date || new Date().toISOString().split('T')[0],
+        holiday_date: this.dateOnly(row.holiday_date) || new Date().toISOString().split('T')[0],
         start_time: this.time(row.start_time),
         end_time: this.time(row.end_time),
         booking_type: row.booking_type,
@@ -484,11 +504,15 @@ export default {
       return values.map((day) => labels[day]).join(', ');
     },
     dayOfWeek(value) {
-      const day = new Date(`${value}T00:00:00`).getDay();
+      const day = new Date(`${this.dateOnly(value)}T00:00:00`).getDay();
       return day === 0 ? 7 : day;
     },
     formatDate(value) {
-      return new Intl.DateTimeFormat('vi-VN').format(new Date(`${value}T00:00:00`));
+      const date = new Date(`${this.dateOnly(value)}T00:00:00`);
+      return Number.isNaN(date.getTime()) ? '-' : new Intl.DateTimeFormat('vi-VN').format(date);
+    },
+    dateOnly(value) {
+      return String(value || '').slice(0, 10);
     },
     time(value) {
       return (value || '').slice(0, 5);
@@ -504,8 +528,27 @@ export default {
       this.error = '';
       this.notice = '';
     },
+    resetFilters() {
+      this.filters = { court_type_id: '', day: '', kind: '', booking_type: '', status: '' };
+    },
   },
 };
 </script>
 
 <style src="../../../css/owner/pricing.css" scoped></style>
+<style scoped>
+.load-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #991b1b;
+}
+
+.no-results {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+</style>

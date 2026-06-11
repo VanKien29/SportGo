@@ -106,6 +106,28 @@ class OwnerPricingTest extends TestCase
         ]);
     }
 
+    public function test_owner_can_load_pricing_configuration(): void
+    {
+        PriceSlot::query()->create([
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $this->courtType->id,
+            'apply_to_days' => [1, 2, 3, 4, 5],
+            'start_time' => '06:00:00',
+            'end_time' => '17:00:00',
+            'booking_type' => 'all',
+            'price' => 80000,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->getJson('/api/owner/pricing')
+            ->assertOk()
+            ->assertJsonPath('clusters.0.id', $this->cluster->id)
+            ->assertJsonPath("court_types_by_cluster.{$this->cluster->id}.0.id", $this->courtType->id)
+            ->assertJsonPath('price_slots.0.price', '80000.00')
+            ->assertJsonCount(0, 'holiday_prices');
+    }
+
     public function test_owner_can_create_price_slot_and_overlap_is_rejected(): void
     {
         $payload = [
