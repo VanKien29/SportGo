@@ -32,7 +32,7 @@ class VenueClusterController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $cluster = VenueCluster::query()
-            ->with(['venueCourts.courtType', 'media'])
+            ->with(['venueCourts.courtType', 'media', 'bookingConfig'])
             ->where('owner_id', $request->user()->id)
             ->findOrFail($id);
 

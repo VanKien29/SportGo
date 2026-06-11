@@ -370,7 +370,7 @@ export default {
       }, 0);
     },
     depositPercent() {
-      return Number(this.selectedClusterDetail?.booking_config?.deposit_percent || 50);
+      return Number(this.selectedClusterDetail?.booking_config?.deposit_percent || 30);
     },
     paymentOptions() {
       return [

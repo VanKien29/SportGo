@@ -14,9 +14,12 @@ use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\Auth\SetPasswordController;
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
+use App\Http\Controllers\Api\Owner\BookingConfigController as OwnerBookingConfigController;
 use App\Http\Controllers\Api\Payment\SepayPaymentController;
 use App\Http\Controllers\Api\PolicyAcceptanceController;
 use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
+use App\Http\Controllers\Api\Owner\PlatformFeeController as OwnerPlatformFeeController;
+use App\Http\Controllers\Api\Owner\ScheduleLockController as OwnerScheduleLockController;
 use App\Http\Controllers\Api\Owner\StaffController as OwnerStaffController;
 use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyController;
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
@@ -107,7 +110,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::apiResource('court-types', \App\Http\Controllers\Api\Admin\CourtTypeController::class);
 
         Route::apiResource('amenities', \App\Http\Controllers\Api\Admin\AmenityController::class);
-        
+
         Route::get('/permissions', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'permissions']);
         Route::get('/roles/{id}/users', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'users']);
         Route::get('/roles', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'index']);
@@ -155,6 +158,8 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
+        Route::get('/booking-configs', [OwnerBookingConfigController::class, 'index']);
+        Route::put('/booking-configs/{venueClusterId}', [OwnerBookingConfigController::class, 'update']);
 
         // Venue Clusters & Venue Courts
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);
@@ -178,6 +183,15 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
         Route::post('/price-slots', [OwnerPricingController::class, 'storePriceSlot']);
         Route::patch('/price-slots/{id}', [OwnerPricingController::class, 'updatePriceSlot']);
         Route::delete('/price-slots/{id}', [OwnerPricingController::class, 'destroyPriceSlot']);
+        Route::post('/holiday-prices', [OwnerPricingController::class, 'storeHolidayPrice']);
+        Route::patch('/holiday-prices/{id}', [OwnerPricingController::class, 'updateHolidayPrice']);
+        Route::delete('/holiday-prices/{id}', [OwnerPricingController::class, 'destroyHolidayPrice']);
+        Route::get('/platform-fees', [OwnerPlatformFeeController::class, 'index']);
+        Route::get('/platform-fees/{id}', [OwnerPlatformFeeController::class, 'show']);
+        Route::post('/platform-fees/{id}/payment-proof', [OwnerPlatformFeeController::class, 'submitProof']);
+        Route::get('/schedule-locks', [OwnerScheduleLockController::class, 'index']);
+        Route::post('/schedule-locks', [OwnerScheduleLockController::class, 'store']);
+        Route::delete('/schedule-locks/{id}', [OwnerScheduleLockController::class, 'destroy']);
     });
 
 Route::middleware('auth:sanctum')
