@@ -82,7 +82,7 @@ class WalletController extends Controller
 
             $withdrawal = OwnerWithdrawalRequest::create([
                 'request_code' => $code,
-                'source' => 'owner',
+                'source' => 'manual',
                 'owner_id' => $userId,
                 'owner_wallet_id' => $wallet->id,
                 'owner_bank_account_id' => $bankAccountId,
