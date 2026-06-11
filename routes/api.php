@@ -180,6 +180,9 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
         Route::post('/price-slots', [OwnerPricingController::class, 'storePriceSlot']);
         Route::patch('/price-slots/{id}', [OwnerPricingController::class, 'updatePriceSlot']);
         Route::delete('/price-slots/{id}', [OwnerPricingController::class, 'destroyPriceSlot']);
+        Route::post('/holiday-prices', [OwnerPricingController::class, 'storeHolidayPrice']);
+        Route::patch('/holiday-prices/{id}', [OwnerPricingController::class, 'updateHolidayPrice']);
+        Route::delete('/holiday-prices/{id}', [OwnerPricingController::class, 'destroyHolidayPrice']);
         Route::get('/platform-fees', [OwnerPlatformFeeController::class, 'index']);
         Route::get('/platform-fees/{id}', [OwnerPlatformFeeController::class, 'show']);
         Route::post('/platform-fees/{id}/payment-proof', [OwnerPlatformFeeController::class, 'submitProof']);
