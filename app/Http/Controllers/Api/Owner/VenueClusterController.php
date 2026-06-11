@@ -22,6 +22,7 @@ class VenueClusterController extends Controller
             ->pluck('venue_cluster_id');
 
         $clusters = VenueCluster::query()
+            ->with(['media'])
             ->whereIn('id', $ownedClusterIds->merge($assignedClusterIds)->unique()->values())
             ->latest()
             ->get();

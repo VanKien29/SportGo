@@ -29,6 +29,7 @@ import OwnerPricing from "../views/owner/OwnerPricing.vue";
 import OwnerStaff from "../views/owner/OwnerStaff.vue";
 import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
+import OwnerWallet from "../views/owner/OwnerWallet.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
 
@@ -231,6 +232,7 @@ const routes = [
             },
             { path: "staff", name: "owner-staff", component: OwnerStaff },
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
+            { path: "wallet", name: "owner-wallet", component: OwnerWallet },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
             { path: "", redirect: { name: "owner-dashboard" } },
         ],

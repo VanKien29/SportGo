@@ -39,6 +39,10 @@
           <AppIcon name="creditCard" size="18" />
           <span>Phí nền tảng</span>
         </router-link>
+        <router-link to="/owner/wallet" class="nav-item" active-class="nav-active">
+          <AppIcon name="banknote" size="18" />
+          <span>Ví của tôi</span>
+        </router-link>
         <router-link to="/owner/staff" class="nav-item" active-class="nav-active">
           <AppIcon name="users" size="18" />
           <span>Nhân viên sân</span>
@@ -95,6 +99,7 @@ export default {
         'owner-staff': 'Quản lý nhân viên sân',
         'owner-vouchers': 'Voucher của sân',
         'owner-policies': 'Chính sách sân',
+        'owner-wallet': 'Ví của tôi',
       };
 
       return map[this.$route.name] || 'Chủ sân';

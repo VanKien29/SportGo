@@ -217,7 +217,7 @@
                                     <div class="spinner-sm"></div> Đang tải lên ảnh...
                                 </span>
                                 <span v-else class="upload-status-text">
-                                    📸 Nhấp vào đây để tải lên ảnh mới (jpeg, png, webp, tối đa 5MB)
+                                    Nhấp vào đây để tải lên ảnh mới (jpeg, png, webp, tối đa 5MB)
                                 </span>
                             </label>
                         </div>
@@ -455,8 +455,8 @@ export default {
             return `/storage/${path}`;
         },
         async handleImageUpload(e) {
-            const files = e.target.files;
-            if (!files || files.length === 0) return;
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
 
             this.uploadingImage = true;
             this.updateError = null;
@@ -843,6 +843,7 @@ export default {
     font-size: 14px;
     font-weight: 700;
     transition: background 0.18s;
+    z-index: 10;
 }
 .btn-delete-img:hover {
     background: rgb(220, 38, 38);

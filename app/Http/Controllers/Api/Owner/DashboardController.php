@@ -30,6 +30,14 @@ class DashboardController extends Controller
                 'revenue' => 0,
                 'rating' => 0,
                 'venue_cluster_id' => null,
+                'wallet' => [
+                    'available_balance' => 0.0,
+                    'pending_withdrawal_balance' => 0.0,
+                    'total_earned' => 0.0,
+                    'total_withdrawn' => 0.0,
+                ],
+                'golden_hours' => [],
+                'court_revenues' => [],
             ]);
         }
 
@@ -47,11 +55,51 @@ class DashboardController extends Controller
             ->whereIn('id', $clusterIds)
             ->avg('rating_avg') ?? 0;
 
+        $goldenHours = DB::table('bookings')
+            ->select(DB::raw("CONCAT(SUBSTRING(start_time, 1, 5), ' - ', SUBSTRING(end_time, 1, 5)) as time_slot"), DB::raw('count(*) as count'))
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->where('status', '!=', 'cancelled')
+            ->groupBy('time_slot')
+            ->orderByDesc('count')
+            ->limit(5)
+            ->get();
+
+        $courtRevenuesRaw = DB::table('payments')
+            ->join('bookings', 'payments.booking_id', '=', 'bookings.id')
+            ->join('venue_courts', 'bookings.venue_court_id', '=', 'venue_courts.id')
+            ->select('venue_courts.name as court_name', DB::raw('sum(payments.amount) as revenue'))
+            ->whereIn('bookings.venue_cluster_id', $clusterIds)
+            ->where('payments.status', 'paid')
+            ->groupBy('venue_courts.id', 'venue_courts.name')
+            ->orderByDesc('revenue')
+            ->get();
+
+        $courtRevenues = collect($courtRevenuesRaw)->map(function ($item) {
+            return [
+                'court_name' => $item->court_name,
+                'revenue' => (float) $item->revenue,
+            ];
+        });
+
+        $wallet = DB::table('owner_wallets')
+            ->where('owner_id', $request->user()->id)
+            ->first();
+
+        $walletData = [
+            'available_balance' => $wallet ? (float) $wallet->available_balance : 0.0,
+            'pending_withdrawal_balance' => $wallet ? (float) $wallet->pending_withdrawal_balance : 0.0,
+            'total_earned' => $wallet ? (float) $wallet->total_earned : 0.0,
+            'total_withdrawn' => $wallet ? (float) $wallet->total_withdrawn : 0.0,
+        ];
+
         return response()->json([
             'bookings' => $bookingsCount,
             'revenue' => (float) $revenue,
             'rating' => round((float) $rating, 2),
             'venue_cluster_id' => $selectedClusterId,
+            'wallet' => $walletData,
+            'golden_hours' => $goldenHours,
+            'court_revenues' => $courtRevenues,
         ]);
     }
 

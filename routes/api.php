@@ -158,6 +158,11 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
 
+        // Wallet & Withdrawals
+        Route::get('/wallet', [\App\Http\Controllers\Api\Owner\WalletController::class, 'getWallet']);
+        Route::post('/wallet/withdraw', [\App\Http\Controllers\Api\Owner\WalletController::class, 'withdraw']);
+        Route::get('/wallet/withdrawals', [\App\Http\Controllers\Api\Owner\WalletController::class, 'getWithdrawals']);
+
         // Venue Clusters & Venue Courts
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);
         Route::post('/venue-clusters/{id}/media', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'uploadMedia']);
