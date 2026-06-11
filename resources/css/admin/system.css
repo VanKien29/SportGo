@@ -133,7 +133,6 @@
   .form-card,
   .preview-box,
   .panel,
-  .tabs,
   .avcd-card,
   .fees-card-wrap,
   .modal,
@@ -148,6 +147,13 @@
   border-radius: var(--admin-radius-lg) !important;
   background-color: rgba(255, 255, 255, 0.97) !important;
   box-shadow: var(--admin-shadow-card) !important;
+}
+
+.sg-shell-admin .content-area :is(.tabs) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .sg-shell-admin .content-area :is(.filter-panel, form.filters, form.toolbar, .filter-bar, .toolbar.card, .avc-filters, .filters) {
