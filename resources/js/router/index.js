@@ -224,6 +224,11 @@ const routes = [
                 name: "owner-platform-fees",
                 component: () => import("../views/owner/OwnerPlatformFees.vue"),
             },
+            {
+                path: "schedule-locks",
+                name: "owner-schedule-locks",
+                component: () => import("../views/owner/OwnerScheduleLocks.vue"),
+            },
             { path: "staff", name: "owner-staff", component: OwnerStaff },
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },

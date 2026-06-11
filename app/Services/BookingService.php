@@ -7,8 +7,8 @@ use App\Models\BookingConfig;
 use App\Models\HolidayPrice;
 use App\Models\PriceSlot;
 use App\Models\SlotLock;
-use App\Models\VenueCourt;
 use App\Models\VenueCluster;
+use App\Models\VenueCourt;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Collection;
@@ -93,7 +93,7 @@ class BookingService
             }
 
             // 1. Kiểm tra tính trống của sân
-            if (!$this->checkAvailability($venueCourtId, $bookingDate, $startTime, $endTime)) {
+            if (! $this->checkAvailability($venueCourtId, $bookingDate, $startTime, $endTime)) {
                 throw new Exception('Sân đã bị đặt hoặc đang được giữ chỗ trong khung giờ này.');
             }
 
@@ -122,13 +122,13 @@ class BookingService
             $allowDeposit = $config ? $config->allow_deposit : true;
             $allowNoPrepay = $config ? $config->allow_no_prepay : true;
 
-            if ($paymentOption === 'full_payment' && !$allowFull) {
+            if ($paymentOption === 'full_payment' && ! $allowFull) {
                 throw new Exception('Hình thức thanh toán hết không được cụm sân này hỗ trợ.');
             }
-            if ($paymentOption === 'deposit' && !$allowDeposit) {
+            if ($paymentOption === 'deposit' && ! $allowDeposit) {
                 throw new Exception('Hình thức đặt cọc không được cụm sân này hỗ trợ.');
             }
-            if ($paymentOption === 'no_prepay' && !$allowNoPrepay) {
+            if ($paymentOption === 'no_prepay' && ! $allowNoPrepay) {
                 throw new Exception('Hình thức không trả trước không được cụm sân này hỗ trợ.');
             }
 
@@ -151,7 +151,7 @@ class BookingService
             }
 
             // 8. Tạo bản ghi Booking
-            $bookingCode = 'BK' . strtoupper(Str::random(8));
+            $bookingCode = 'BK'.strtoupper(Str::random(8));
             $booking = Booking::create([
                 'booking_code' => $bookingCode,
                 'customer_id' => $customerId,
@@ -215,7 +215,8 @@ class BookingService
 
         foreach ($courts as $court) {
             foreach ($timeSlots as $slot) {
-                $isAvailable = ! $this->intervalsOverlapSlot($busyIntervals, $court->id, $slot['start_time'], $slot['end_time']);
+                $busyInterval = $this->overlappingInterval($busyIntervals, $court->id, $slot['start_time'], $slot['end_time']);
+                $isAvailable = $busyInterval === null;
                 $price = $this->resolveHourlyRate($cluster->id, $court->court_type_id, $bookingDate, $slot['start_time'], $slot['end_time'], $bookingType);
 
                 $slotStatuses[] = [
@@ -226,6 +227,10 @@ class BookingService
                     'hourly_rate' => $price['hourly_rate'],
                     'price' => round($price['hourly_rate'] / 2, 2),
                     'price_source' => $price['source'],
+                    'busy_source' => $busyInterval['source'] ?? null,
+                    'busy_status' => $busyInterval['status'] ?? null,
+                    'schedule_lock_id' => $busyInterval['schedule_lock_id'] ?? null,
+                    'lock_reason' => $busyInterval['reason'] ?? null,
                 ];
             }
         }
@@ -236,7 +241,7 @@ class BookingService
             ->unique('id')
             ->sortBy('name')
             ->values()
-            ->map(fn($type) => [
+            ->map(fn ($type) => [
                 'id' => $type->id,
                 'name' => $type->name,
             ]);
@@ -275,7 +280,7 @@ class BookingService
             ->where('is_active', true)
             ->where('start_time', '<=', $startTime)
             ->where('end_time', '>=', $endTime)
-            ->orderByRaw("CASE WHEN booking_type = ? THEN 0 ELSE 1 END", [$bookingType])
+            ->orderByRaw('CASE WHEN booking_type = ? THEN 0 ELSE 1 END', [$bookingType])
             ->first();
 
         if ($holidayPrice) {
@@ -300,7 +305,7 @@ class BookingService
             })
             ->where('start_time', '<=', $startTime)
             ->where('end_time', '>=', $endTime)
-            ->orderByRaw("CASE WHEN booking_type = ? THEN 0 ELSE 1 END", [$bookingType])
+            ->orderByRaw('CASE WHEN booking_type = ? THEN 0 ELSE 1 END', [$bookingType])
             ->first();
 
         return [
@@ -316,13 +321,16 @@ class BookingService
             ->where('booking_date', $bookingDate)
             ->whereIn('status', self::BLOCKING_BOOKING_STATUSES)
             ->get(['id', 'venue_court_id', 'start_time', 'end_time', 'status'])
-            ->map(fn(Booking $booking) => [
+            ->map(fn (Booking $booking) => [
                 'venue_court_id' => $booking->venue_court_id,
                 'start_time' => $booking->start_time,
                 'end_time' => $booking->end_time,
                 'source' => 'booking',
                 'status' => $booking->status,
-            ]);
+                'schedule_lock_id' => null,
+                'reason' => null,
+            ])
+            ->toBase();
 
         $slotLocks = SlotLock::query()
             ->where('venue_cluster_id', $venueClusterId)
@@ -332,28 +340,30 @@ class BookingService
                 $query->where('lock_scope', 'cluster')
                     ->orWhereIn('venue_court_id', $courtIds);
             })
-            ->get(['venue_court_id', 'lock_scope', 'start_time', 'end_time', 'lock_type'])
+            ->get(['id', 'venue_court_id', 'lock_scope', 'start_time', 'end_time', 'lock_type', 'reason'])
             ->flatMap(function (SlotLock $lock) use ($courtIds) {
                 $targetCourtIds = $lock->lock_scope === 'cluster' ? $courtIds : collect([$lock->venue_court_id]);
 
-                return $targetCourtIds->map(fn($courtId) => [
+                return $targetCourtIds->map(fn ($courtId) => [
                     'venue_court_id' => $courtId,
                     'start_time' => $lock->start_time,
                     'end_time' => $lock->end_time,
                     'source' => 'slot_lock',
                     'status' => $lock->lock_type,
+                    'schedule_lock_id' => $lock->id,
+                    'reason' => $lock->reason,
                 ]);
             });
 
         return $bookings->merge($slotLocks)->values();
     }
 
-    private function intervalsOverlapSlot(Collection $intervals, string $venueCourtId, string $startTime, string $endTime): bool
+    private function overlappingInterval(Collection $intervals, string $venueCourtId, string $startTime, string $endTime): ?array
     {
         $slotStart = $this->timeToMinutes($startTime);
         $slotEnd = $this->timeToMinutes($endTime);
 
-        return $intervals->contains(function (array $interval) use ($venueCourtId, $slotStart, $slotEnd) {
+        return $intervals->first(function (array $interval) use ($venueCourtId, $slotStart, $slotEnd) {
             return $interval['venue_court_id'] === $venueCourtId
                 && $this->timeToMinutes($interval['start_time']) < $slotEnd
                 && $this->timeToMinutes($interval['end_time']) > $slotStart;

@@ -31,6 +31,10 @@
           <AppIcon name="settings" size="18" />
           <span>Cấu hình giá</span>
         </router-link>
+        <router-link to="/owner/schedule-locks" class="nav-item" active-class="nav-active">
+          <AppIcon name="calendar" size="18" />
+          <span>Khóa lịch</span>
+        </router-link>
         <router-link to="/owner/platform-fees" class="nav-item" active-class="nav-active">
           <AppIcon name="creditCard" size="18" />
           <span>Phí nền tảng</span>
@@ -86,6 +90,7 @@ export default {
         'owner-venue-clusters': 'Quản lý cụm sân',
         'owner-venue-courts': 'Quản lý sân con',
         'owner-pricing': 'Cấu hình giá',
+        'owner-schedule-locks': 'Khóa lịch theo khung giờ',
         'owner-platform-fees': 'Phí nền tảng',
         'owner-staff': 'Quản lý nhân viên sân',
         'owner-vouchers': 'Voucher của sân',

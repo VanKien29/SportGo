@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Payment\SepayPaymentController;
 use App\Http\Controllers\Api\PolicyAcceptanceController;
 use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
 use App\Http\Controllers\Api\Owner\PlatformFeeController as OwnerPlatformFeeController;
+use App\Http\Controllers\Api\Owner\ScheduleLockController as OwnerScheduleLockController;
 use App\Http\Controllers\Api\Owner\StaffController as OwnerStaffController;
 use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyController;
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
@@ -182,6 +183,9 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
         Route::get('/platform-fees', [OwnerPlatformFeeController::class, 'index']);
         Route::get('/platform-fees/{id}', [OwnerPlatformFeeController::class, 'show']);
         Route::post('/platform-fees/{id}/payment-proof', [OwnerPlatformFeeController::class, 'submitProof']);
+        Route::get('/schedule-locks', [OwnerScheduleLockController::class, 'index']);
+        Route::post('/schedule-locks', [OwnerScheduleLockController::class, 'store']);
+        Route::delete('/schedule-locks/{id}', [OwnerScheduleLockController::class, 'destroy']);
     });
 
 Route::middleware('auth:sanctum')

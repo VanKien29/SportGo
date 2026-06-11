@@ -26,6 +26,7 @@ class SlotLock extends Model
         'locked_by',
         'booking_id',
         'lock_type',
+        'reason',
         'expires_at',
     ];
 
@@ -45,5 +46,10 @@ class SlotLock extends Model
     public function venueCourt()
     {
         return $this->belongsTo(VenueCourt::class, 'venue_court_id');
+    }
+
+    public function venueCluster()
+    {
+        return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
     }
 }
