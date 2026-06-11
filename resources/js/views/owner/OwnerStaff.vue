@@ -5,7 +5,10 @@
         <h2>Quản lý nhân viên sân</h2>
         <p>Tạo nhân viên sân và gán phạm vi làm việc theo toàn cụm hoặc loại sân.</p>
       </div>
-      <button class="btn primary" type="button" @click="openCreate">Thêm nhân viên</button>
+      <button class="btn primary" type="button" @click="openCreate">
+        <AppIcon name="plus" size="16" />
+        <span>Thêm nhân viên</span>
+      </button>
     </header>
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -33,8 +36,10 @@
             <td>{{ assignmentText(item.assignments) }}</td>
             <td><span class="badge" :class="item.status">{{ statusLabel(item.status) }}</span></td>
             <td>
-              <button class="mini-btn" type="button" @click="openEdit(item)">Sửa</button>
-              <button class="mini-btn danger" type="button" @click="deactivate(item)">Tạm ngưng</button>
+              <TableActionGroup>
+                <ActionIconButton icon="pencil" label="Sửa nhân viên" @click="openEdit(item)" />
+                <ActionIconButton icon="power" label="Tạm ngưng nhân viên" variant="danger" @click="deactivate(item)" />
+              </TableActionGroup>
             </td>
           </tr>
         </tbody>
@@ -81,10 +86,14 @@
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
 import { ownerStaffService } from '../../services/ownerStaffService.js';
 
 export default {
   name: 'OwnerStaff',
+  components: { ActionIconButton, AppIcon, TableActionGroup },
   data() {
     return {
       staff: [],

@@ -1,15 +1,11 @@
 <template>
   <div class="pricing-page">
-    <div class="header-actions">
-      <label class="cluster-select">
-        <span>Cụm sân</span>
-        <select v-model="selectedClusterId" :disabled="isLoading || clusters.length === 0">
-          <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">
-            {{ cluster.name }}
-          </option>
-        </select>
-      </label>
-    </div>
+    <section class="page-head">
+      <div>
+        <h2>Cấu hình giá</h2>
+        <p>Thiết lập thời lượng booking và khung giá cho cụm sân đang chọn.</p>
+      </div>
+    </section>
 
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="notice" class="alert alert-success">{{ notice }}</div>
@@ -44,7 +40,8 @@
       <div class="section-heading">
         <h2>Danh sách giá theo tuần</h2>
         <button class="btn btn-primary" :disabled="!selectedClusterId || courtTypes.length === 0" @click="openCreateModal">
-          + Thêm khung giá mới
+          <AppIcon name="plus" size="16" />
+          <span>Thêm khung giá</span>
         </button>
       </div>
 
@@ -76,10 +73,10 @@
                 </button>
               </td>
               <td>
-                <div class="actions">
-                  <button title="Sửa" @click="openEditModal(slot)">Sửa</button>
-                  <button title="Xóa" class="danger" @click="deleteSlot(slot)">Xóa</button>
-                </div>
+                <TableActionGroup>
+                  <ActionIconButton icon="pencil" label="Sửa khung giá" @click="openEditModal(slot)" />
+                  <ActionIconButton icon="trash" label="Xóa khung giá" variant="danger" @click="deleteSlot(slot)" />
+                </TableActionGroup>
               </td>
             </tr>
           </tbody>
@@ -99,7 +96,7 @@
       <form class="slot-modal" @submit.prevent="saveSlot">
         <div class="modal-head">
           <h2>{{ editingSlot ? 'Sửa khung giá' : 'Thêm khung giá mới' }}</h2>
-          <button type="button" @click="closeSlotModal">Đóng</button>
+          <button class="btn-close" type="button" title="Đóng" @click="closeSlotModal">Đóng</button>
         </div>
 
         <label>
@@ -159,10 +156,14 @@
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
 import { api } from '../../services/api.js';
 
 export default {
   name: 'OwnerPricing',
+  components: { ActionIconButton, AppIcon, TableActionGroup },
   data() {
     return {
       clusters: [],
@@ -195,13 +196,13 @@ export default {
   },
   computed: {
     selectedCluster() {
-      return this.clusters.find((cluster) => cluster.id === this.selectedClusterId) || null;
+      return this.clusters.find((cluster) => String(cluster.id) === String(this.selectedClusterId)) || null;
     },
     courtTypes() {
       return this.courtTypesByCluster[this.selectedClusterId] || [];
     },
     filteredSlots() {
-      return this.priceSlots.filter((slot) => slot.venue_cluster_id === this.selectedClusterId);
+      return this.priceSlots.filter((slot) => String(slot.venue_cluster_id) === String(this.selectedClusterId));
     },
   },
   watch: {
@@ -210,7 +211,11 @@ export default {
     },
   },
   async mounted() {
+    window.addEventListener('owner-cluster-changed', this.handleOwnerClusterChanged);
     await this.loadPricing();
+  },
+  beforeUnmount() {
+    window.removeEventListener('owner-cluster-changed', this.handleOwnerClusterChanged);
   },
   methods: {
     defaultSlotForm() {
@@ -233,7 +238,10 @@ export default {
         this.clusters = data.clusters || [];
         this.courtTypesByCluster = data.court_types_by_cluster || {};
         this.priceSlots = data.price_slots || [];
-        this.selectedClusterId = this.selectedClusterId || this.clusters[0]?.id || '';
+        const savedClusterId = localStorage.getItem('selected_cluster');
+        this.selectedClusterId = this.clusters.some((cluster) => String(cluster.id) === String(savedClusterId))
+          ? savedClusterId
+          : this.selectedClusterId || this.clusters[0]?.id || '';
         this.syncDurationForm();
       } catch (error) {
         this.error = error.message || 'Không thể tải cấu hình giá.';
@@ -247,6 +255,12 @@ export default {
         min_duration_minutes: config.min_duration_minutes ?? 30,
         max_duration_minutes: config.max_duration_minutes ?? null,
       };
+    },
+    handleOwnerClusterChanged(event) {
+      const clusterId = event.detail?.id;
+      if (!clusterId || String(clusterId) === String(this.selectedClusterId)) return;
+      this.selectedClusterId = clusterId;
+      this.syncDurationForm();
     },
     async saveDuration() {
       if (!this.selectedClusterId) return;
@@ -263,7 +277,7 @@ export default {
           body: JSON.stringify(payload),
         });
 
-        const cluster = this.clusters.find((item) => item.id === this.selectedClusterId);
+        const cluster = this.clusters.find((item) => String(item.id) === String(this.selectedClusterId));
         if (cluster) cluster.booking_config = config;
         this.notice = 'Đã lưu cấu hình thời lượng booking.';
       } catch (error) {
