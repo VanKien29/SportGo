@@ -248,10 +248,28 @@ class VenueClusterController extends Controller
         $cluster = VenueCluster::findOrFail($id);
 
         $oldAmenities = $cluster->amenities ?? [];
+        $amenityNames = $data['amenities'];
 
-        $cluster->forceFill([
-            'amenities' => $data['amenities'],
-        ])->save();
+        // Find matching active amenities
+        $activeAmenities = \App\Models\Amenity::whereIn('name', $amenityNames)
+            ->where('status', 'active')
+            ->get();
+
+        $syncData = [];
+        foreach ($activeAmenities as $amenity) {
+            $syncData[$amenity->id] = [
+                'is_visible' => true,
+                'description' => null,
+            ];
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($cluster, $data, $syncData) {
+            $cluster->forceFill([
+                'amenities' => $data['amenities'],
+            ])->save();
+
+            $cluster->amenityCatalog()->sync($syncData);
+        });
 
         $this->audit(
             $request,

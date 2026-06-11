@@ -75,13 +75,13 @@
         <AppIcon name="layers" size="18" />
         <span>Bậc phí nền tảng</span>
       </router-link>
-      <router-link to="/admin/partner-applications" class="nav-item" active-class="nav-active">
-        <AppIcon name="fileText" size="18" />
-        <span>Đơn đăng ký đối tác</span>
+      <router-link to="/admin/court-types" class="nav-item" active-class="nav-active">
+        <AppIcon name="layers" size="18" />
+        <span>Quản lý loại sân</span>
       </router-link>
-      <router-link to="/admin/banners" class="nav-item" active-class="nav-active">
-        <AppIcon name="image" size="18" />
-        <span>Banner</span>
+      <router-link to="/admin/amenities" class="nav-item" active-class="nav-active">
+        <AppIcon name="layers" size="18" />
+        <span>Quản lý tiện ích</span>
       </router-link>
     </template>
 
@@ -116,6 +116,7 @@ export default {
                 "admin-policies": "Quản lý chính sách",
                 "admin-policy-detail": "Chi tiết chính sách",
                 "admin-court-types": "Quản lý loại sân",
+                "admin-amenities": "Quản lý tiện ích chung",
                 "admin-venue-clusters": "Quản lý cụm sân",
                 "admin-venue-cluster-detail": "Chi tiết cụm sân",
                 "admin-platform-fee-tiers": "Cấu hình bậc phí nền tảng",

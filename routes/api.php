@@ -109,7 +109,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
 
         Route::apiResource('court-types', \App\Http\Controllers\Api\Admin\CourtTypeController::class);
 
+        Route::patch('/amenities/{id}/review', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'review']);
         Route::apiResource('amenities', \App\Http\Controllers\Api\Admin\AmenityController::class);
+
         
         Route::get('/permissions', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'permissions']);
         Route::get('/roles/{id}/users', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'users']);
@@ -192,6 +194,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/schedule-locks', [OwnerScheduleLockController::class, 'index']);
         Route::post('/schedule-locks', [OwnerScheduleLockController::class, 'store']);
         Route::delete('/schedule-locks/{id}', [OwnerScheduleLockController::class, 'destroy']);
+        Route::post('/amenities/request', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'requestAmenity']);
     });
 
 Route::middleware('auth:sanctum')

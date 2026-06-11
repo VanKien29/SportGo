@@ -60,12 +60,29 @@ class VenueClusterController extends Controller
         ]);
 
         $data['slug'] = Str::slug($data['name']) . '-' . substr($id, 0, 8);
+        $amenityNames = $data['amenities'] ?? [];
 
-        $cluster->update($data);
+        // Find matching active amenities
+        $activeAmenities = \App\Models\Amenity::whereIn('name', $amenityNames)
+            ->where('status', 'active')
+            ->get();
+
+        $syncData = [];
+        foreach ($activeAmenities as $amenity) {
+            $syncData[$amenity->id] = [
+                'is_visible' => true,
+                'description' => null,
+            ];
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($cluster, $data, $syncData) {
+            $cluster->update($data);
+            $cluster->amenityCatalog()->sync($syncData);
+        });
 
         return response()->json([
             'message' => 'Cập nhật cụm sân thành công.',
-            'data' => $cluster,
+            'data' => $cluster->fresh(['media']),
         ]);
     }
 

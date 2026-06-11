@@ -183,8 +183,12 @@
                                 <span>{{ item }}</span>
                             </label>
                         </div>
-
-
+                        <div class="amenity-request-tip">
+                            Bạn không tìm thấy tiện ích mong muốn?
+                            <a href="#" class="link-request-amenity" @click.prevent="openRequestModal">
+                                Gửi yêu cầu thêm tiện ích mới
+                            </a>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -249,6 +253,71 @@
                 </form>
             </div>
         </div>
+
+        <!-- Request Amenity Modal -->
+        <div v-if="showRequestModal" class="modal-backdrop" @click.self="closeRequestModal">
+            <div class="modal card">
+                <div class="modal-header">
+                    <h3>Gửi yêu cầu thêm tiện ích</h3>
+                    <button class="btn-close" @click="closeRequestModal">
+                        &times;
+                    </button>
+                </div>
+                <form @submit.prevent="handleRequestSubmit">
+                    <div class="modal-body">
+                        <div v-if="requestError" class="alert alert-danger">
+                            {{ requestError }}
+                        </div>
+                        <div v-if="requestSuccessMsg" class="alert alert-success">
+                            {{ requestSuccessMsg }}
+                        </div>
+
+                        <div class="form-group">
+                            <label for="req-name">
+                                Tên tiện ích <span class="required">*</span>
+                            </label>
+                            <input
+                                id="req-name"
+                                v-model="requestForm.name"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Máy bắn cầu tự động..."
+                                required
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="req-description">
+                                Mô tả tiện ích
+                            </label>
+                            <textarea
+                                id="req-description"
+                                v-model="requestForm.description"
+                                class="form-control"
+                                placeholder="Nhập mô tả chi tiết của tiện ích..."
+                                rows="3"
+                            ></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-outline"
+                            @click="closeRequestModal"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            :disabled="requestSubmitting"
+                        >
+                            {{ requestSubmitting ? "Đang gửi..." : "Gửi yêu cầu" }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -280,6 +349,14 @@ export default {
                 latitude: 21.0285,
                 longitude: 105.8542,
                 amenities: [],
+                description: "",
+            },
+            showRequestModal: false,
+            requestSubmitting: false,
+            requestError: null,
+            requestSuccessMsg: null,
+            requestForm: {
+                name: "",
                 description: "",
             },
         };
@@ -503,6 +580,34 @@ export default {
                 this.availableAmenities = (res.data || []).map(a => a.name);
             } catch (err) {
                 console.error("Lỗi khi tải danh sách tiện ích:", err.message);
+            }
+        },
+        openRequestModal() {
+            this.showRequestModal = true;
+            this.requestError = null;
+            this.requestSuccessMsg = null;
+            this.requestForm = {
+                name: "",
+                description: "",
+            };
+        },
+        closeRequestModal() {
+            this.showRequestModal = false;
+        },
+        async handleRequestSubmit() {
+            this.requestSubmitting = true;
+            this.requestError = null;
+            this.requestSuccessMsg = null;
+            try {
+                await amenityService.request(this.requestForm);
+                this.requestSuccessMsg = "Gửi yêu cầu thành công. Vui lòng chờ admin duyệt.";
+                setTimeout(() => {
+                    this.closeRequestModal();
+                }, 2000);
+            } catch (err) {
+                this.requestError = err.message || "Lỗi gửi yêu cầu.";
+            } finally {
+                this.requestSubmitting = false;
             }
         },
     },
@@ -895,5 +1000,78 @@ export default {
     border-top-color: #000000;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
+}
+
+/* Modal styles for requesting amenity */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    display: grid;
+    place-items: center;
+    z-index: 999;
+}
+
+.modal {
+    width: min(450px, 95vw);
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--sg-border, #e2e8f0);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--sg-border, #e2e8f0);
+    background: #f8fafc;
+}
+
+.amenity-request-tip {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.link-request-amenity {
+    color: #000000;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.link-request-amenity:hover {
+    color: #333333;
 }
 </style>

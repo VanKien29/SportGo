@@ -35,10 +35,12 @@
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th style="width: 10%;">#</th>
-                            <th style="width: 50%;">Tên tiện ích</th>
-                            <th class="status-header text-center" style="width: 20%;">Trạng thái</th>
-                            <th class="text-center actions-header" style="width: 20%;">Thao tác</th>
+                            <th style="width: 5%;">#</th>
+                            <th style="width: 30%;">Tên tiện ích</th>
+                            <th style="width: 25%;">Mô tả</th>
+                            <th style="width: 15%;">Người gửi</th>
+                            <th class="status-header text-center" style="width: 12%;">Trạng thái</th>
+                            <th class="text-center actions-header" style="width: 13%;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -47,15 +49,28 @@
                             <td class="font-bold amenity-name-cell">
                                 <span class="name-text">{{ item.name }}</span>
                             </td>
+                            <td class="text-muted text-sm">{{ item.description || '-' }}</td>
+                            <td class="text-sm text-muted">
+                                {{ item.created_by ? item.created_by.full_name : 'Hệ thống' }}
+                            </td>
                             <td class="status-cell text-center">
-                                <span class="status-badge" :class="item.is_active ? 'status-active' : 'status-locked'">
-                                    {{ item.is_active ? 'Đang hoạt động' : 'Tạm khóa' }}
+                                <span class="status-badge" :class="statusClass(item.status)">
+                                    {{ statusText(item.status) }}
                                 </span>
+                                <div v-if="item.status === 'rejected' && item.status_reason" class="status-reason-text">
+                                    Lý do từ chối: {{ item.status_reason }}
+                                </div>
                             </td>
                             <td class="text-center actions-cell">
                                 <div class="actions-wrapper">
-                                    <button class="btn-action btn-edit" @click="openEditModal(item)">Sửa</button>
-                                    <button class="btn-action btn-delete" @click="confirmDelete(item)">Xóa</button>
+                                    <template v-if="item.status === 'pending_review'">
+                                        <button class="btn-action btn-approve" @click="handleApprove(item)">Duyệt</button>
+                                        <button class="btn-action btn-reject" @click="handleReject(item)">Từ chối</button>
+                                    </template>
+                                    <template v-else>
+                                        <button class="btn-action btn-edit" @click="openEditModal(item)">Sửa</button>
+                                        <button class="btn-action btn-delete" @click="confirmDelete(item)">Xóa</button>
+                                    </template>
                                 </div>
                             </td>
                         </tr>
@@ -95,14 +110,29 @@
                             />
                         </div>
 
-                        <div class="form-group checkbox-group">
-                            <label class="checkbox-label">
-                                <input
-                                    v-model="form.is_active"
-                                    type="checkbox"
-                                />
-                                <span>Kích hoạt hoạt động</span>
+                        <div class="form-group">
+                            <label for="description">
+                                Mô tả tiện ích
                             </label>
+                            <textarea
+                                id="description"
+                                v-model="form.description"
+                                class="form-control"
+                                placeholder="Nhập mô tả chi tiết của tiện ích..."
+                                rows="3"
+                            ></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="status">
+                                Trạng thái
+                            </label>
+                            <select id="status" v-model="form.status" class="form-control">
+                                <option value="active">Đang hoạt động</option>
+                                <option value="inactive">Tạm khóa</option>
+                                <option value="pending_review" disabled>Chờ duyệt</option>
+                                <option value="rejected" disabled>Bị từ chối</option>
+                            </select>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -143,7 +173,8 @@ export default {
             modalError: null,
             form: {
                 name: "",
-                is_active: true,
+                description: "",
+                status: "active",
             },
         };
     },
@@ -165,7 +196,8 @@ export default {
             this.modalError = null;
             this.form = {
                 name: "",
-                is_active: true,
+                description: "",
+                status: "active",
             };
             this.showModal = true;
         },
@@ -174,7 +206,8 @@ export default {
             this.modalError = null;
             this.form = {
                 name: item.name,
-                is_active: !!item.is_active,
+                description: item.description || "",
+                status: item.status || "active",
             };
             this.showModal = true;
         },
@@ -208,6 +241,49 @@ export default {
                 } catch (err) {
                     alert(err.message || "Không thể xóa tiện ích.");
                 }
+            }
+        },
+        statusClass(status) {
+            switch (status) {
+                case 'active': return 'status-active';
+                case 'pending_review': return 'status-pending';
+                case 'rejected': return 'status-rejected';
+                case 'inactive': return 'status-inactive';
+                default: return '';
+            }
+        },
+        statusText(status) {
+            switch (status) {
+                case 'active': return 'Đang hoạt động';
+                case 'pending_review': return 'Chờ duyệt';
+                case 'rejected': return 'Từ chối';
+                case 'inactive': return 'Tạm khóa';
+                default: return status;
+            }
+        },
+        async handleApprove(item) {
+            if (confirm(`Bạn có chắc chắn muốn duyệt tiện ích "${item.name}" không?`)) {
+                try {
+                    await amenityService.review(item.id, { status: 'active' });
+                    await this.fetchAmenities();
+                } catch (err) {
+                    alert(err.message || "Không thể duyệt tiện ích.");
+                }
+            }
+        },
+        async handleReject(item) {
+            const reason = prompt(`Nhập lý do từ chối tiện ích "${item.name}":`);
+            if (reason === null) return;
+            const trimmed = reason.trim();
+            if (!trimmed) {
+                alert("Lý do từ chối không được để trống.");
+                return;
+            }
+            try {
+                await amenityService.review(item.id, { status: 'rejected', status_reason: trimmed });
+                await this.fetchAmenities();
+            } catch (err) {
+                alert(err.message || "Không thể từ chối tiện ích.");
             }
         },
     },
@@ -346,9 +422,25 @@ export default {
     color: #166534;
 }
 
-.status-locked {
+.status-pending {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.status-rejected {
     background: #fee2e2;
     color: #991b1b;
+}
+
+.status-inactive {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.status-reason-text {
+    font-size: 11px;
+    color: #ef4444;
+    margin-top: 4px;
 }
 
 .actions-wrapper {
@@ -386,6 +478,22 @@ export default {
 }
 .btn-delete:hover {
     background: #fef2f2;
+}
+
+.btn-approve {
+    color: #166534;
+    border-color: #bbf7d0;
+}
+.btn-approve:hover {
+    background: #dcfce7;
+}
+
+.btn-reject {
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+.btn-reject:hover {
+    background: #fee2e2;
 }
 
 /* Modal */

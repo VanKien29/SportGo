@@ -95,6 +95,13 @@ class VenueManagementTest extends TestCase
             'longitude' => 105.8542,
             'status' => 'active',
         ]);
+
+        // 5. Tạo Tiện ích mẫu để đồng bộ
+        \App\Models\Amenity::create(['name' => 'Wifi', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Water', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Parking', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Gửi xe', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Phòng tắm VIP', 'status' => 'active']);
     }
 
     // ==========================================
