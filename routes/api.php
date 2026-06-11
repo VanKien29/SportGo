@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyCont
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
+use App\Http\Middleware\EnforceVenueAccessRestrictions;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
@@ -153,7 +154,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/moderation/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'resolveReport']);
     });
 
-Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
+Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRestrictions::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);

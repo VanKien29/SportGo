@@ -141,4 +141,38 @@ class OwnerPricingTest extends TestCase
 
         $this->assertSame(1, PriceSlot::count());
     }
+
+    public function test_owner_cannot_update_duration_or_price_slots_when_cluster_is_locked(): void
+    {
+        // Lock the cluster
+        $this->cluster->update(['status' => 'locked', 'status_reason' => 'Test lock']);
+
+        // 1. Try to update booking duration config
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->patchJson("/api/owner/booking-configs/{$this->cluster->id}/duration", [
+                'min_duration_minutes' => 60,
+                'max_duration_minutes' => 180,
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['venue_cluster_id']);
+
+        // 2. Try to create price slot
+        $payload = [
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $this->courtType->id,
+            'apply_to_days' => [1, 2, 3, 4, 5],
+            'start_time' => '06:00',
+            'end_time' => '17:00',
+            'booking_type' => 'all',
+            'price' => 80000,
+            'is_active' => true,
+        ];
+
+        $createResponse = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/price-slots', $payload);
+
+        $createResponse->assertUnprocessable()
+            ->assertJsonValidationErrors(['venue_cluster_id']);
+    }
 }
