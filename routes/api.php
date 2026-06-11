@@ -110,7 +110,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::apiResource('court-types', \App\Http\Controllers\Api\Admin\CourtTypeController::class);
 
         Route::apiResource('amenities', \App\Http\Controllers\Api\Admin\AmenityController::class);
-        
+
         Route::get('/permissions', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'permissions']);
         Route::get('/roles/{id}/users', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'users']);
         Route::get('/roles', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'index']);

@@ -23,7 +23,7 @@ class BookingConfigController extends Controller
             ->whereIn('id', $clusterIds)
             ->orderBy('name')
             ->get()
-            ->map(fn (VenueCluster $cluster): array => [
+            ->map(fn(VenueCluster $cluster): array => [
                 'id' => $cluster->id,
                 'name' => $cluster->name,
                 'status' => $cluster->status,
@@ -48,9 +48,11 @@ class BookingConfigController extends Controller
             'deposit_percent' => ['nullable', 'numeric', 'min:1', 'max:100'],
         ]);
 
-        if (! $validated['allow_full_payment']
-            && ! $validated['allow_deposit']
-            && ! $validated['allow_no_prepay']) {
+        if (
+            !$validated['allow_full_payment']
+            && !$validated['allow_deposit']
+            && !$validated['allow_no_prepay']
+        ) {
             throw ValidationException::withMessages([
                 'payment_methods' => 'Phải bật ít nhất một hình thức thanh toán.',
             ]);
