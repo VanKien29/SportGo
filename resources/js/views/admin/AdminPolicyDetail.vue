@@ -1,1119 +1,1721 @@
 <template>
-  <section class="admin-page">
-
-    <!-- Loading -->
-    <div v-if="loading" class="table-state">
-      <div class="spinner"></div>
+  <section class="policy-page">
+    <div v-if="loading" class="state-card">
+      <span class="spinner"></span>
       Đang tải chi tiết chính sách...
     </div>
 
-    <!-- Error without data -->
     <template v-else-if="!policy">
       <div class="alert error">{{ error || 'Không tìm thấy chính sách.' }}</div>
-      <button class="btn secondary" @click="$router.push({ name: 'admin-policies' })">← Quay lại danh sách</button>
+      <button class="btn secondary" type="button" @click="backToList">
+        <AppIcon name="arrowLeft" size="16" />
+        Danh sách chính sách
+      </button>
     </template>
 
     <template v-else>
-
-      <!-- Page header -->
-      <header class="page-head">
+      <header class="hero-card">
         <div>
-          <p class="eyebrow">
-            <button class="back-link" @click="$router.push({ name: 'admin-policies' })">← Danh sách chính sách</button>
-          </p>
-          <div class="policy-title-row">
-            <h2>{{ policy.title }}</h2>
-            <span class="badge" :class="getStatusBadgeClass(policy.status)">{{ policy.status_label || getStatusLabel(policy.status) }}</span>
-            <span class="badge badge-version">v{{ policy.version || 1 }}</span>
-          </div>
-          <p>{{ policy.policy_type_label || getPolicyTypeLabel(policy.policy_type) }} · {{ policy.business_summary_vi || policy.business_summary || 'Chính sách hệ thống SportGo.' }}</p>
-        </div>
-        <div class="page-head-actions">
-          <button v-if="policy.status === 'draft'" class="btn danger-ghost" type="button" @click="confirmDelete.show = true">
-            <AppIcon name="trash" size="16" />
-            Xóa nháp
+          <button class="back-link" type="button" @click="backToList">
+            <AppIcon name="arrowLeft" size="16" />
+            Danh sách chính sách
           </button>
-          <button class="btn secondary" type="button" @click="clonePolicy" :disabled="saving">
+          <div class="title-row">
+            <h2>{{ policy.title }}</h2>
+            <span class="badge" :class="statusTone(policy.status)">{{ policy.status_label || getStatusLabel(policy.status) }}</span>
+            <span class="badge neutral">v{{ policy.version || 1 }}</span>
+          </div>
+          <p>{{ policy.policy_type_label || getPolicyTypeLabel(policy.policy_type) }}</p>
+        </div>
+        <div class="hero-actions">
+          <button v-if="isDraft" class="btn danger-ghost" type="button" :disabled="saving" @click="confirmDelete.show = true">
+            <AppIcon name="trash" size="16" />
+            Xóa bản nháp
+          </button>
+          <button v-if="isDraft" class="btn primary" type="button" :disabled="saving" @click="confirmPublish.show = true">
+            <AppIcon name="check" size="16" />
+            Áp dụng
+          </button>
+          <button v-if="!isDraft" class="btn secondary" type="button" :disabled="saving" @click="clonePolicy">
             <AppIcon name="copy" size="16" />
             Tạo phiên bản mới
           </button>
-          <button v-if="policy.status !== 'active'" class="btn primary" type="button" @click="publishPolicy" :disabled="saving">
-            <AppIcon name="check" size="16" />
-            {{ saving ? 'Đang xử lý...' : 'Áp dụng ngay' }}
-          </button>
-          <button v-else class="btn danger-ghost" type="button" @click="archivePolicy" :disabled="saving">
+          <button v-if="policy.status === 'active'" class="btn danger-ghost" type="button" :disabled="saving" @click="confirmArchive.show = true">
             <AppIcon name="power" size="16" />
-            {{ saving ? 'Đang xử lý...' : 'Ngưng áp dụng' }}
+            Ngưng áp dụng
           </button>
         </div>
       </header>
 
-      <!-- Alerts -->
       <div v-if="success" class="alert success">{{ success }}</div>
       <div v-if="error" class="alert error">{{ error }}</div>
 
-      <!-- Tabs -->
-      <div class="tab-nav">
-        <button
-          v-for="tab in tabs" :key="tab.key"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.key }"
-          @click="activeTab = tab.key"
-        >
+      <nav class="tabs" aria-label="Chi tiết chính sách">
+        <button v-for="tab in tabs" :key="tab.key" type="button" :class="{ active: activeTab === tab.key }" @click="activeTab = tab.key">
           <AppIcon :name="tab.icon" size="15" />
           {{ tab.label }}
-          <span v-if="tab.count != null" class="tab-count">{{ tab.count }}</span>
+          <span v-if="tab.count !== undefined" class="tab-count">{{ tab.count }}</span>
         </button>
-      </div>
+      </nav>
 
-      <!-- ─── TAB: Tổng quan ─── -->
-      <div v-if="activeTab === 'overview'" class="tab-body">
-        <div class="meta-grid">
-          <div class="meta-item span2">
-            <span class="meta-label">Mô tả nghiệp vụ</span>
-            <span class="meta-value">{{ policy.business_summary_vi || policy.business_summary || '(Chưa có mô tả)' }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Nhóm chính sách</span>
-            <span class="meta-value">{{ policy.policy_type_label || getPolicyTypeLabel(policy.policy_type) }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Phiên bản</span>
-            <span class="meta-value">v{{ policy.version || 1 }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Thứ tự ưu tiên</span>
-            <span class="meta-value">{{ policy.priority ?? 0 }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Hiệu lực từ</span>
-            <span class="meta-value">{{ formatDate(policy.effective_from || policy.published_at) }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Yêu cầu chấp nhận lại</span>
-            <span class="meta-value" :class="{ 'text-green': policy.require_reaccept }">{{ policy.require_reaccept ? 'Có' : 'Không' }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Cho sân cấu hình riêng</span>
-            <span class="meta-value" :class="{ 'text-green': policy.is_overridable }">{{ policy.is_overridable ? 'Có (trong khung hệ thống)' : 'Không' }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Tổng quy tắc</span>
-            <span class="meta-value">{{ rules.length }} quy tắc</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ─── TAB: Nội dung ─── -->
-      <div v-if="activeTab === 'content'" class="tab-body">
-        <div class="section-row">
+      <section v-if="activeTab === 'overview'" class="panel">
+        <div class="panel-head">
           <div>
-            <strong>Nội dung văn bản chính sách</strong>
-            <p>Đây là nội dung người dùng và chủ sân sẽ đọc khi cần đồng ý.</p>
+            <h3>Thông tin chung</h3>
+            <p>Các thông tin cơ bản của chính sách.</p>
           </div>
-          <button v-if="policy.can_edit_content" class="btn primary" @click="saveContent" :disabled="savingContent">
+          <button v-if="canEdit" class="btn secondary" type="button" @click="editGeneralInfo">
+            <AppIcon name="edit" size="15" />
+            Sửa thông tin
+          </button>
+        </div>
+        <div class="summary-grid">
+          <InfoItem label="Nhóm chính sách" :value="policy.policy_type_label || getPolicyTypeLabel(policy.policy_type)" />
+          <InfoItem label="Trạng thái" :value="policy.status_label || getStatusLabel(policy.status)" />
+          <InfoItem label="Phiên bản" :value="`v${policy.version || 1}`" />
+          <InfoItem label="Hiệu lực từ" :value="formatDate(policy.effective_from || policy.published_at)" />
+          <InfoItem label="Cho sân cấu hình riêng" :value="policy.is_overridable ? 'Có, trong khung hệ thống' : 'Không'" />
+          <InfoItem label="Số cấu hình xử lý" :value="`${rules.length} cấu hình`" />
+        </div>
+        <article class="business-card">
+          <strong>Tóm tắt nghiệp vụ</strong>
+          <p>{{ policy.business_summary_vi || policy.business_summary || 'Chưa có tóm tắt nghiệp vụ.' }}</p>
+        </article>
+      </section>
+
+      <section v-if="activeTab === 'content'" class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Nội dung chính sách</h3>
+            <p>Văn bản để người dùng hoặc chủ sân đọc và chấp nhận khi cần.</p>
+          </div>
+          <button v-if="canEdit" class="btn primary" type="button" :disabled="savingContent" @click="saveContent">
             <AppIcon name="check" size="15" />
             {{ savingContent ? 'Đang lưu...' : 'Lưu nội dung' }}
           </button>
         </div>
-        <div v-if="!policy.can_edit_content" class="info-notice">
-          <AppIcon name="lock" size="15" />
-          Chính sách đang áp dụng. Hãy tạo phiên bản mới để chỉnh sửa.
+        <div v-if="!canEdit" class="notice warning">
+          Chính sách đang áp dụng. Hãy tạo phiên bản mới để chỉnh sửa nội dung.
         </div>
-        <textarea
-          v-model="contentDraft"
-          :readonly="!policy.can_edit_content"
-          class="content-textarea"
-          rows="16"
-          placeholder="Nhập nội dung chính sách..."
-        ></textarea>
-      </div>
+        <textarea v-model="contentDraft" class="content-textarea" rows="16" :readonly="!canEdit" />
+      </section>
 
-      <!-- ─── TAB: Quy tắc ─── -->
-      <div v-if="activeTab === 'rules'" class="tab-body">
-        <div class="section-row">
+      <section v-if="activeTab === 'config'" class="panel">
+        <div class="panel-head">
           <div>
-            <strong>Quy tắc xử lý tự động</strong>
-            <p>{{ rules.length }} quy tắc đã cấu hình cho chính sách này.</p>
+            <h3>Cấu hình xử lý</h3>
+            <p>Chỉ hiển thị bằng nghiệp vụ. Không nhập điều kiện kỹ thuật.</p>
           </div>
-          <button
-            class="btn primary"
-            :disabled="policy.status === 'active'"
-            @click="openRuleWizard"
-          >
-            <AppIcon name="plus" size="15" />
-            Thêm quy tắc
-          </button>
         </div>
 
-        <div v-if="policy.status === 'active'" class="info-notice warning">
-          <AppIcon name="alert" size="15" />
-          Chính sách đang áp dụng. Tạo phiên bản mới để thêm hoặc sửa quy tắc.
+        <div v-if="policy.configuration_type === 'text_only'" class="notice info">
+          Chính sách này là nội dung hiển thị, không có xử lý tự động.
         </div>
+        
+        <template v-else-if="policy.configuration_type === 'platform_fee'">
+          <article class="config-card">
+            <ConfigHeader
+              kicker="Phí nền tảng"
+              title="Quy trình nhắc nhở & xử lý nợ phí"
+              :summary="platformFeeConfiguration?.message_template"
+              :can-edit="canEdit"
+              edit-label="Sửa cấu hình"
+              @edit="openPlatformFeeModal"
+            />
+            
+            <div class="summary-grid">
+              <InfoItem label="Nhắc trước hạn" :value="`${platformFeeConfiguration?.remind_before_days ?? 0} ngày`" />
+              <InfoItem label="Quá hạn cảnh báo" :value="`${platformFeeConfiguration?.warn_overdue_days ?? 0} ngày`" />
+              <InfoItem label="Quá hạn hạn chế quản lý" :value="`${platformFeeConfiguration?.restrict_overdue_days ?? 0} ngày`" />
+              <InfoItem label="Quá hạn khóa cụm sân" :value="`${platformFeeConfiguration?.lock_overdue_days ?? 0} ngày`" />
+              <InfoItem label="Quá hạn chuyển xử lý chấm dứt" :value="`${platformFeeConfiguration?.termination_review_overdue_days ?? 0} ngày`" />
+            </div>
 
-        <div v-if="!rules.length" class="empty-state">
-          <AppIcon name="sliders" size="28" />
-          <span>Chưa có quy tắc nào. Bấm <strong>Thêm quy tắc</strong> để bắt đầu.</span>
-        </div>
+            <div class="summary-grid" style="margin-top: 24px;">
+              <InfoItem label="Thông báo cho Owner" :value="platformFeeConfiguration?.notify_owner ? 'Có' : 'Không'" />
+              <InfoItem label="Thông báo cho Admin" :value="platformFeeConfiguration?.notify_admin ? 'Có' : 'Không'" />
+              <InfoItem label="Mẫu thông báo" :value="platformFeeConfiguration?.message_template" style="grid-column: 1 / -1" />
+            </div>
 
-        <div class="rule-list">
-          <div v-for="rule in rules" :key="rule.id" class="rule-row" :class="{ inactive: !rule.is_active }">
-            <div class="rule-row-main">
+            <div class="supported-actions" v-if="policy.supported_actions && policy.supported_actions.length > 0" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border)">
+              <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Các hành động được hệ thống hỗ trợ:</h4>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <span class="badge neutral" v-for="action in policy.supported_actions" :key="action">
+                  {{ action === 'notify_owner' ? 'Thông báo Owner' : (action === 'notify_admin' ? 'Thông báo Admin' : (action === 'lock_venue_cluster' ? 'Khóa cụm sân' : (action === 'termination_review' ? 'Review chấm dứt' : action))) }}
+                </span>
+                <span class="badge" :class="'danger-ghost'" title="Chức năng này chưa kích hoạt tự động.">Hạn chế quản lý (Chưa hỗ trợ)</span>
+              </div>
+            </div>
+          </article>
+        </template>
+
+        <template v-else-if="policy.configuration_type === 'permission_revoke'">
+          <article class="config-card">
+            <ConfigHeader
+              kicker="Thu hồi quyền"
+              title="Quy định thu hồi quyền sử dụng"
+              :summary="permissionRevokeConfiguration?.message_template"
+              :can-edit="canEdit"
+              edit-label="Sửa cấu hình"
+              @edit="openPermissionRevokeModal"
+            />
+            
+            <div class="summary-grid">
+              <InfoItem label="Đối tượng" :value="getOptionLabel(policy.supported_targets, permissionRevokeConfiguration?.target_type) || 'Chủ sân'" />
+              <InfoItem label="Lý do" :value="getOptionLabel(policy.supported_reasons, permissionRevokeConfiguration?.reason_type) || 'Quá hạn phí nền tảng'" />
+              <InfoItem label="Thu hồi sau vi phạm" :value="`${permissionRevokeConfiguration?.revoke_after_days ?? 0} ngày`" />
+              <InfoItem label="Thời hạn thu hồi" :value="permissionRevokeConfiguration?.revoke_duration_days ? `${permissionRevokeConfiguration.revoke_duration_days} ngày` : 'Vĩnh viễn'" />
+            </div>
+
+            <div class="summary-grid" style="margin-top: 24px;">
+              <InfoItem label="Yêu cầu Admin duyệt" :value="permissionRevokeConfiguration?.requires_admin_confirm ? 'Có' : 'Không'" />
+              <InfoItem label="Thông báo đối tượng" :value="permissionRevokeConfiguration?.notify_target ? 'Có' : 'Không'" />
+              <InfoItem label="Thông báo Admin" :value="permissionRevokeConfiguration?.notify_admin ? 'Có' : 'Không'" />
+            </div>
+            
+            <div class="summary-grid" style="margin-top: 24px;">
+              <InfoItem label="Quyền bị thu hồi" :value="(permissionRevokeConfiguration?.permissions_to_revoke || []).map(p => getOptionLabel(policy.supported_permissions, p)).join(', ')" style="grid-column: span 2;" />
+              <InfoItem label="Mẫu thông báo" :value="permissionRevokeConfiguration?.message_template" style="grid-column: span 2;" />
+            </div>
+
+          </article>
+        </template>
+
+        <template v-else-if="policy.configuration_type === 'partner_contract'">
+          <article class="config-card">
+            <ConfigHeader
+              kicker="Hợp đồng đối tác"
+              title="Quy định xử lý hợp đồng đối tác"
+              :summary="partnerContractConfiguration?.summary_vi"
+              :can-edit="canEdit"
+              edit-label="Sửa cấu hình"
+              @edit="openPartnerContractModal"
+            />
+            
+            <div class="summary-grid">
+              <InfoItem label="Nhắc nhở gia hạn trước" :value="`${partnerContractConfiguration?.warn_before_days ?? 0} ngày`" />
+              <InfoItem label="Khóa cụm sân sau khi hết hạn" :value="`${partnerContractConfiguration?.lock_after_days ?? 0} ngày`" />
+              <InfoItem label="Thu hồi quyền sau khi hết hạn" :value="`${partnerContractConfiguration?.revoke_after_days ?? 0} ngày`" />
+            </div>
+
+            <div class="summary-grid" style="margin-top: 24px;">
+              <InfoItem label="Yêu cầu Admin duyệt" :value="partnerContractConfiguration?.requires_admin_confirm ? 'Có' : 'Không'" />
+              <InfoItem label="Thông báo Chủ sân" :value="partnerContractConfiguration?.notify_target ? 'Có' : 'Không'" />
+              <InfoItem label="Thông báo Admin" :value="partnerContractConfiguration?.notify_admin ? 'Có' : 'Không'" />
+            </div>
+          </article>
+        </template>
+
+        <template v-else>
+          <article v-if="cancelRefundConfiguration" class="config-card">
+            <ConfigHeader
+              kicker="Hủy & hoàn booking"
+              title="Bảng mốc hủy và hoàn theo thời gian"
+              :summary="cancelRefundConfiguration.summary"
+              :can-edit="canEdit"
+              edit-label="Sửa bảng mốc"
+              @edit="openCancelRefundModal"
+              @detail="openDetail('Hủy & hoàn booking', cancelRefundConfiguration.summary, cancelRefundRows)"
+            />
+            <TierTable :rows="cancelRefundRows" mode="cancel_refund" />
+          </article>
+
+          <article v-if="reportConfiguration" class="config-card">
+            <ConfigHeader
+              kicker="Kiểm duyệt & báo cáo"
+              title="Ngưỡng báo cáo cần xử lý"
+              :summary="reportConfiguration.summary"
+              :can-edit="canEdit"
+              edit-label="Sửa ngưỡng báo cáo"
+              @edit="openReportModal"
+              @detail="openReportDetail"
+            />
+            <div class="tier-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Đối tượng</th>
+                    <th>Ngưỡng báo cáo</th>
+                    <th>Thời gian xét</th>
+                    <th>Hành động</th>
+                    <th>Thông báo admin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="threshold in reportThresholdRows" :key="threshold.key">
+                    <td>{{ threshold.object_type_label }}</td>
+                    <td>{{ threshold.min_reports }} báo cáo từ {{ threshold.min_distinct_reporters }} người</td>
+                    <td>{{ threshold.within_days }} ngày</td>
+                    <td>{{ threshold.action_label }}</td>
+                    <td>{{ threshold.notify_admin ? 'Có' : 'Không' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <div v-if="otherRules.length" class="rule-grid">
+            <article v-for="rule in otherRules" :key="rule.id" class="rule-card">
               <div>
-                <p class="rule-name">{{ rule.rule_name || getRuleTypeLabel(rule.rule_type) }}</p>
-                <p class="rule-sub">{{ getRuleSummary(rule) }}</p>
-                <span class="rule-action-tag">{{ rule.action_label_vi || getActionLabel(rule.action_code) }}</span>
+                <strong>{{ rule.rule_label_vi || rule.rule_type_label || rule.rule_name }}</strong>
+                <p>{{ rule.business_summary_vi || rule.business_summary }}</p>
               </div>
-              <div class="rule-controls">
-                <span class="badge" :class="rule.is_active ? 'status-active' : 'status-archived'">{{ rule.is_active ? 'Bật' : 'Tắt' }}</span>
-                <button
-                  class="icon-btn"
-                  :title="rule.is_active ? 'Tắt quy tắc này' : 'Bật quy tắc này'"
-                  :disabled="policy.status === 'active'"
-                  @click="toggleRule(rule)"
-                >
-                  <AppIcon :name="rule.is_active ? 'power' : 'circleCheck'" size="16" />
-                </button>
+              <div class="rule-footer">
+                <span class="badge" :class="rule.is_active ? 'success' : 'neutral'">{{ rule.is_active ? 'Đang bật' : 'Đang tắt' }}</span>
+                <button class="text-btn" type="button" @click="openRuleDetail(rule)">Xem chi tiết</button>
               </div>
-            </div>
+            </article>
           </div>
-        </div>
-      </div>
 
-      <!-- ─── TAB: Lịch sử thay đổi ─── -->
-      <div v-if="activeTab === 'audit'" class="tab-body">
-        <div class="section-row">
+          <div v-if="!cancelRefundConfiguration && !reportConfiguration && !otherRules.length" class="empty-state">
+            Chưa có cấu hình xử lý cho chính sách này.
+          </div>
+        </template>
+      </section>
+
+      <section v-if="activeTab === 'venue'" class="panel">
+        <div class="panel-head">
           <div>
-            <strong>Lịch sử thay đổi chính sách</strong>
-            <p>Ghi nhận các thao tác chỉnh sửa, kích hoạt và tạo phiên bản mới.</p>
+            <h3>Chính sách sân</h3>
+            <p>Các cấu hình riêng của sân đang dùng trong khung hệ thống.</p>
           </div>
         </div>
-
-        <div v-if="!auditLogs.length" class="empty-state">
-          <AppIcon name="history" size="28" />
-          <span>Chưa có lịch sử thay đổi.</span>
-        </div>
-
-        <div class="audit-list">
-          <div v-for="log in auditLogs" :key="log.id" class="audit-row">
-            <div class="audit-dot"></div>
-            <div class="audit-content">
-              <strong>{{ log.human_message || 'Đã cập nhật chính sách' }}</strong>
-              <span class="audit-meta">{{ formatDateTime(log.created_at) }} · {{ log.actor_name || 'Hệ thống' }}</span>
-              <ul v-if="log.changes_summary?.length" class="change-list">
-                <li v-for="c in log.changes_summary" :key="c.field">{{ c.summary }}</li>
-              </ul>
+        <div class="list-box">
+          <article v-for="item in venueRules" :key="item.id" class="timeline-item">
+            <span class="dot"></span>
+            <div>
+              <strong>{{ item.venue_cluster?.name || item.venue_cluster_name || 'Cụm sân' }}</strong>
+              <p>{{ item.rule_name || 'Cấu hình riêng của sân' }} · {{ getStatusLabel(item.status) }}</p>
+              <small v-if="item.reject_reason || item.status_reason">Lý do: {{ item.reject_reason || item.status_reason }}</small>
             </div>
-          </div>
+          </article>
+          <div v-if="venueRules.length === 0" class="empty-state">Chưa có sân nào cấu hình riêng.</div>
         </div>
-      </div>
+      </section>
 
-    </template>
-
-    <!-- ═══════════════════════════════════
-         WIZARD MODAL — Thêm quy tắc
-         2 bước: Chọn tình huống → Cấu hình & Lưu
-    ════════════════════════════════════════ -->
-    <div v-if="showWizard" class="modal-bg" @click.self="closeWizard">
-      <div class="modal-box">
-
-        <!-- Modal header -->
-        <div class="modal-head">
+      <section v-if="activeTab === 'history'" class="panel">
+        <div class="panel-head">
           <div>
-            <p class="eyebrow">Chính sách: {{ policy?.title }}</p>
-            <h3>Thêm quy tắc xử lý tự động</h3>
-          </div>
-          <button class="icon-btn" @click="closeWizard"><AppIcon name="x" size="18" /></button>
-        </div>
-
-        <!-- Step indicator (2 bước) -->
-        <div class="step-bar">
-          <div class="step-item" :class="{ done: wizardStep > 1, active: wizardStep === 1 }">
-            <div class="step-dot">
-              <AppIcon v-if="wizardStep > 1" name="check" size="12" />
-              <span v-else>1</span>
-            </div>
-            <span>Chọn tình huống</span>
-          </div>
-          <div class="step-line" :class="{ done: wizardStep > 1 }"></div>
-          <div class="step-item" :class="{ active: wizardStep === 2 }">
-            <div class="step-dot">
-              <span>2</span>
-            </div>
-            <span>Cấu hình & Lưu</span>
+            <h3>Lịch sử thay đổi</h3>
+            <p>Lịch sử trạng thái và cập nhật của chính sách này.</p>
           </div>
         </div>
-
-        <!-- ── Bước 1: Chọn tình huống ── -->
-        <div v-if="wizardStep === 1" class="modal-body">
-          <p class="step-hint">Chọn tình huống mà quy tắc sẽ được áp dụng trong hệ thống.</p>
-
-          <div v-if="loadingOptions" class="table-state">
-            <div class="spinner small"></div>
-            Đang tải danh sách tình huống...
-          </div>
-
-          <div v-else-if="!filteredActions.length" class="empty-state small">
-            <AppIcon name="alert" size="22" />
-            <span>Chưa có tình huống phù hợp cho nhóm <strong>{{ policy?.policy_type_label }}</strong>.</span>
-          </div>
-
-          <div v-else class="option-list">
-            <label
-              v-for="action in filteredActions"
-              :key="action.action_code"
-              class="option-card"
-              :class="{ selected: ruleForm.action_code === action.action_code }"
-            >
-              <input type="radio" :value="action.action_code" v-model="ruleForm.action_code" />
-              <div class="option-card-body">
-                <strong>{{ action.label || action.action_label_vi || getActionLabel(action.action_code) }}</strong>
-                <span>Chọn tình huống nghiệp vụ này để tiếp tục cấu hình quy tắc.</span>
-              </div>
-            </label>
+        <div v-if="!policy.status_histories || policy.status_histories.length === 0" class="empty-state">
+          Chưa có lịch sử thay đổi.
+        </div>
+        <div v-else class="history-timeline">
+          <div v-for="h in policy.status_histories" :key="h.id" class="history-item">
+            <div class="history-time">{{ formatDate(h.created_at) }}</div>
+            <div class="history-content">
+              <strong>{{ h.actor_name }}</strong> đã chuyển trạng thái từ 
+              <span class="badge" :class="statusTone(h.old_status)">{{ getStatusLabel(h.old_status) }}</span> sang 
+              <span class="badge" :class="statusTone(h.new_status)">{{ getStatusLabel(h.new_status) }}</span>
+              <p v-if="h.reason" class="history-reason">Lý do: {{ h.reason }}</p>
+            </div>
           </div>
         </div>
+      </section>
 
-        <!-- ── Bước 2: Cấu hình & Lưu ── -->
-        <div v-if="wizardStep === 2" class="modal-body">
-
-          <!-- Tình huống đã chọn -->
-          <div class="selected-context">
-            <AppIcon name="circleCheck" size="16" />
-            <span>Tình huống: <strong>{{ getActionLabel(ruleForm.action_code) }}</strong></span>
-            <button class="link-btn" @click="wizardStep = 1">Thay đổi</button>
-          </div>
-
-          <!-- Chọn mẫu quy tắc -->
-          <p class="field-label">Chọn loại quy tắc</p>
-
-          <div v-if="!filteredTemplates.length" class="empty-state small">
-            <AppIcon name="alert" size="20" />
-            <span>Chưa có mẫu quy tắc cho tình huống này.</span>
-          </div>
-
-          <div v-else class="option-list compact">
-            <label
-              v-for="tpl in filteredTemplates"
-              :key="tpl.rule_type"
-              class="option-card"
-              :class="{ selected: ruleForm.rule_type === tpl.rule_type }"
-              @click="selectTemplate(tpl)"
-            >
-              <input type="radio" :value="tpl.rule_type" v-model="ruleForm.rule_type" />
-              <div class="option-card-body">
-                <strong>{{ tpl.label || getRuleTypeLabel(tpl.rule_type) }}</strong>
-                <span>{{ tpl.business_summary_vi || tpl.description || '' }}</span>
+      <div v-if="generalInfoModal" class="modal-backdrop" @click.self="generalInfoModal = false">
+        <form class="modal" @submit.prevent="saveGeneralInfo">
+          <ModalHead title="Sửa thông tin chung" @close="generalInfoModal = false" />
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Tiêu đề chính sách <span class="req">*</span></label>
+              <input v-model="generalInfoDraft.title" required type="text" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label>Nhóm chính sách <span class="req">*</span></label>
+              <select v-model="generalInfoDraft.policy_type" required class="form-control">
+                <option value="terms">Điều khoản sử dụng</option>
+                <option value="booking_cancellation">Hủy & hoàn booking</option>
+                <option value="moderation">Kiểm duyệt</option>
+                <option value="account">Tài khoản</option>
+                <option value="platform_fee">Phí nền tảng</option>
+                <option value="partner_contract">Hợp đồng đối tác</option>
+                <option value="permission_revoke">Thu hồi quyền</option>
+                <option value="venue_policy">Chính sách sân</option>
+              </select>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Ngày áp dụng (dự kiến)</label>
+                <input v-model="generalInfoDraft.effective_from" type="date" class="form-control" />
               </div>
-            </label>
-          </div>
-
-          <!-- Tham số (chỉ hiện khi đã chọn loại) -->
-          <template v-if="ruleForm.rule_type">
-            <div v-if="hasConfigFields" class="param-section">
-              <p class="field-label">Điều chỉnh tham số</p>
-              <div class="param-grid">
-                <label v-if="needsField('hours_before_start')" class="param-field">
-                  <span>Hủy trước giờ chơi tối thiểu</span>
-                  <div class="input-unit">
-                    <input v-model.number="formNumbers.hours_before_start" type="number" min="1" />
-                    <span>giờ</span>
-                  </div>
-                </label>
-                <label v-if="needsField('refund_percent')" class="param-field">
-                  <span>Phần trăm hoàn tiền</span>
-                  <div class="input-unit">
-                    <input v-model.number="formNumbers.refund_percent" type="number" min="0" max="100" />
-                    <span>%</span>
-                  </div>
-                </label>
-                <label v-if="needsField('days_before_due')" class="param-field">
-                  <span>Nhắc trước hạn</span>
-                  <div class="input-unit">
-                    <input v-model.number="formNumbers.days_before_due" type="number" min="1" />
-                    <span>ngày</span>
-                  </div>
-                </label>
-                <label v-if="needsField('overdue_days')" class="param-field">
-                  <span>Quá hạn để giới hạn/khóa</span>
-                  <div class="input-unit">
-                    <input v-model.number="formNumbers.overdue_days" type="number" min="1" />
-                    <span>ngày</span>
-                  </div>
-                </label>
-                <label v-if="needsField('report_count')" class="param-field">
-                  <span>Số báo cáo tối thiểu</span>
-                  <div class="input-unit">
-                    <input v-model.number="formNumbers.report_count" type="number" min="1" />
-                    <span>báo cáo</span>
-                  </div>
-                </label>
-                <label v-if="needsField('unique_reporters')" class="param-field">
-                  <span>Số người báo cáo khác nhau</span>
-                  <div class="input-unit">
-                    <input v-model.number="formNumbers.unique_reporters" type="number" min="1" />
-                    <span>người</span>
-                  </div>
-                </label>
-                <label v-if="needsField('window_days')" class="param-field">
-                  <span>Theo dõi trong</span>
-                  <div class="input-unit">
-                    <input v-model.number="formNumbers.window_days" type="number" min="1" />
-                    <span>ngày</span>
-                  </div>
-                </label>
-                <label v-if="needsField('transition_days')" class="param-field">
-                  <span>Thời gian chuyển tiếp</span>
-                  <div class="input-unit">
-                    <input v-model.number="formNumbers.transition_days" type="number" min="1" />
-                    <span>ngày</span>
-                  </div>
-                </label>
-                <label v-if="needsField('owner_confirm_required')" class="param-field-check">
-                  <input v-model="formBooleans.owner_confirm_required" type="checkbox" />
-                  <span>Bắt buộc chủ sân xác nhận trước khi admin hoàn tiền</span>
-                </label>
-                <label v-if="needsField('admin_can_complete_without_owner')" class="param-field-check">
-                  <input v-model="formBooleans.admin_can_complete_without_owner" type="checkbox" />
-                  <span>Cho phép admin hoàn tất khi chủ sân chưa xác nhận</span>
-                </label>
+              <div class="form-group">
+                <label>Ngày hết hiệu lực</label>
+                <input v-model="generalInfoDraft.effective_to" type="date" class="form-control" />
               </div>
             </div>
-
-            <!-- Preview text -->
-            <div class="preview-banner">
-              <p class="preview-label">Câu tóm tắt nghiệp vụ</p>
-              <p>{{ previewSummary }}</p>
-            </div>
-
-            <!-- Tên quy tắc -->
-            <div class="name-fields">
-              <label class="param-field">
-                <span>Tên hiển thị của quy tắc <em>(tuỳ chỉnh)</em></span>
-                <input v-model.trim="ruleForm.rule_name" type="text" :placeholder="getRuleTypeLabel(ruleForm.rule_type)" />
+            <div class="form-group check-group">
+              <label class="check-row">
+                <input v-model="generalInfoDraft.is_overridable" type="checkbox" />
+                Cho phép chủ sân cấu hình riêng trong khung hệ thống
               </label>
             </div>
-          </template>
-        </div>
-
-        <!-- Wizard error -->
-        <div v-if="wizardError" class="alert error modal-alert">
-          <AppIcon name="alert" size="14" />
-          {{ wizardError }}
-        </div>
-
-        <!-- Wizard footer -->
-        <div class="modal-foot">
-          <button class="btn secondary" @click="wizardStep === 1 ? closeWizard() : (wizardStep = 1)">
-            {{ wizardStep === 1 ? 'Hủy' : '← Quay lại' }}
-          </button>
-          <div class="modal-foot-right">
-            <template v-if="wizardStep === 1">
-              <button class="btn primary" @click="goStep2" :disabled="!ruleForm.action_code">
-                Tiếp tục →
-              </button>
-            </template>
-            <template v-else>
-              <button class="btn secondary" @click="saveRule(false)" :disabled="savingRule || !ruleForm.rule_type">
-                {{ savingRule ? 'Đang lưu...' : 'Lưu nháp' }}
-              </button>
-              <button class="btn primary" @click="saveRule(true)" :disabled="savingRule || !ruleForm.rule_type">
-                <AppIcon name="check" size="15" />
-                {{ savingRule ? 'Đang lưu...' : 'Lưu & Bật ngay' }}
-              </button>
-            </template>
           </div>
-        </div>
-
+          <ModalActions :saving="saving" save-label="Lưu thông tin" @cancel="generalInfoModal = false" />
+        </form>
       </div>
-    </div>
 
-    <!-- ═══════════════════════════════
-         CONFIRM DELETE MODAL
-    ════════════════════════════════════ -->
-    <div v-if="confirmDelete.show" class="modal-bg" @click.self="confirmDelete.show = false">
-      <div class="modal-box confirm-box">
-        <div class="confirm-icon">
-          <AppIcon name="trash" size="24" />
-        </div>
-        <h3>Xóa bản nháp này?</h3>
-        <p>Chính sách <strong>{{ policy?.title }}</strong> và tất cả quy tắc liên quan sẽ bị xóa vĩnh viễn.</p>
-        <p class="confirm-warn">Không thể hoàn tác.</p>
-        <div class="confirm-actions">
-          <button class="btn secondary" @click="confirmDelete.show = false">Hủy</button>
-          <button class="btn danger" @click="deletePolicy" :disabled="saving">
-            {{ saving ? 'Đang xóa...' : 'Xóa chính sách' }}
+      <div v-if="platformFeeModal" class="modal-backdrop" @click.self="closeModals">
+        <form class="modal wide" @submit.prevent="savePlatformFeeConfig">
+          <ModalHead title="Cấu hình xử lý phí nền tảng" eyebrow="Phí nền tảng" @close="closeModals" />
+          <div class="modal-body">
+            
+            <h4 style="margin-bottom: 16px;">Mốc thời gian</h4>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Nhắc trước hạn (ngày)</label>
+                <input v-model.number="platformFeeDraft.remind_before_days" required type="number" min="0" class="form-control" />
+              </div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Quá hạn cảnh báo (ngày)</label>
+                <input v-model.number="platformFeeDraft.warn_overdue_days" required type="number" min="0" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label>Quá hạn hạn chế quản lý (ngày) <span v-if="!policy.supported_actions?.includes('restrict_management')" style="color: var(--danger); font-size: 11px;">(Chưa hỗ trợ)</span></label>
+                <input v-model.number="platformFeeDraft.restrict_overdue_days" required type="number" min="0" class="form-control" />
+              </div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Quá hạn khóa cụm sân (ngày) <span v-if="!policy.supported_actions?.includes('lock_venue_cluster')" style="color: var(--danger); font-size: 11px;">(Chưa hỗ trợ)</span></label>
+                <input v-model.number="platformFeeDraft.lock_overdue_days" required type="number" min="0" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label>Quá hạn chuyển Admin xử lý (ngày)</label>
+                <input v-model.number="platformFeeDraft.termination_review_overdue_days" required type="number" min="0" class="form-control" />
+              </div>
+            </div>
+
+            <h4 style="margin: 24px 0 16px;">Thông báo</h4>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="platformFeeDraft.notify_owner" type="checkbox" /> Gửi thông báo cho Chủ sân
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="platformFeeDraft.notify_admin" type="checkbox" /> Gửi thông báo cho Admin
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Nội dung mẫu</label>
+              <textarea v-model="platformFeeDraft.message_template" required rows="3" class="form-control"></textarea>
+            </div>
+          </div>
+          <ModalActions :saving="savingRule" save-label="Lưu cấu hình" @cancel="closeModals" />
+        </form>
+      </div>
+
+      <div v-if="permissionRevokeModal" class="modal-backdrop" @click.self="closeModals">
+        <form class="modal wide" @submit.prevent="savePermissionRevokeConfig">
+          <ModalHead title="Cấu hình thu hồi quyền" eyebrow="Thu hồi quyền" @close="closeModals" />
+          <div class="modal-body">
+            
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Đối tượng bị thu hồi</label>
+                <select v-model="permissionRevokeDraft.target_type" required class="form-control">
+                  <option v-for="opt in policy.supported_targets" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Lý do / Điều kiện thu hồi</label>
+                <select v-model="permissionRevokeDraft.reason_type" required class="form-control">
+                  <option v-for="opt in policy.supported_reasons" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Thu hồi sau vi phạm (ngày)</label>
+                <input v-model.number="permissionRevokeDraft.revoke_after_days" required type="number" min="0" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label>Thời hạn thu hồi (ngày) <small>(Để trống nếu thu hồi vĩnh viễn)</small></label>
+                <input v-model.number="permissionRevokeDraft.revoke_duration_days" type="number" min="1" class="form-control" placeholder="Vĩnh viễn" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Quyền bị thu hồi</label>
+              <select v-model="permissionRevokeDraft.permissions_to_revoke" multiple required class="form-control" style="height: 80px;">
+                <option v-for="opt in policy.supported_permissions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+              </select>
+              <small style="color: #64748b;">Giữ phím Ctrl (hoặc Cmd) để chọn nhiều quyền.</small>
+            </div>
+
+            <h4 style="margin: 24px 0 16px;">Cài đặt xử lý</h4>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="permissionRevokeDraft.requires_admin_confirm" type="checkbox" /> Yêu cầu Admin xác nhận trước khi thu hồi
+                </label>
+              </div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="permissionRevokeDraft.notify_target" type="checkbox" /> Gửi thông báo đối tượng bị thu hồi
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="permissionRevokeDraft.notify_admin" type="checkbox" /> Gửi thông báo cho Admin
+                </label>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 12px;">
+              <label>Nội dung mẫu</label>
+              <textarea v-model="permissionRevokeDraft.message_template" required rows="3" class="form-control"></textarea>
+            </div>
+          </div>
+          <ModalActions :saving="savingRule" save-label="Lưu cấu hình" @cancel="closeModals" />
+        </form>
+      </div>
+
+      <div v-if="partnerContractModal" class="modal-backdrop" @click.self="closeModals">
+        <form class="modal wide" @submit.prevent="savePartnerContractConfig">
+          <ModalHead title="Cấu hình hợp đồng đối tác" eyebrow="Hợp đồng đối tác" @close="closeModals" />
+          <div class="modal-body">
+            
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Nhắc nhở gia hạn trước (ngày)</label>
+                <input v-model.number="partnerContractDraft.warn_before_days" required type="number" min="0" class="form-control" />
+              </div>
+            </div>
+
+            <div class="form-group-row">
+              <div class="form-group">
+                <label>Khóa sân sau khi hết hạn (ngày)</label>
+                <input v-model.number="partnerContractDraft.lock_after_days" required type="number" min="0" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label>Thu hồi quyền Owner sau khi hết hạn (ngày)</label>
+                <input v-model.number="partnerContractDraft.revoke_after_days" required type="number" min="0" class="form-control" />
+              </div>
+            </div>
+
+            <h4 style="margin: 24px 0 16px;">Cài đặt xử lý</h4>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="partnerContractDraft.requires_admin_confirm" type="checkbox" /> Yêu cầu Admin xác nhận trước khi khóa sân/thu hồi quyền
+                </label>
+              </div>
+            </div>
+            <div class="form-group-row">
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="partnerContractDraft.notify_target" type="checkbox" /> Gửi thông báo cho Chủ sân
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="check-row">
+                  <input v-model="partnerContractDraft.notify_admin" type="checkbox" /> Gửi thông báo cho Admin
+                </label>
+              </div>
+            </div>
+          </div>
+          <ModalActions :saving="savingRule" save-label="Lưu cấu hình" @cancel="closeModals" />
+        </form>
+      </div>
+    </template>
+
+    <div v-if="cancelRefundModal" class="modal-backdrop" @click.self="closeModals">
+      <form class="modal wide" @submit.prevent="saveCancelRefundConfig">
+        <ModalHead title="Sửa bảng mốc hủy & hoàn booking" eyebrow="Hủy & hoàn booking" @close="closeModals" />
+        <div class="edit-toolbar">
+          <button class="btn secondary" type="button" @click="addCancelRefundTier">
+            <AppIcon name="plus" size="15" />
+            Thêm mốc
           </button>
         </div>
-      </div>
+        <div class="tier-edit-list">
+          <article v-for="tier in cancelRefundDraft" :key="tier.key" class="tier-edit-row-combined">
+            <header class="tier-header">
+              <strong>{{ getDynamicLabel(tier) }}</strong>
+              <span>{{ getDynamicConditionLabel(tier) }}</span>
+              <small class="tier-badge">{{ cancelRefundResult(tier) }}</small>
+              <button class="icon-btn danger" type="button" title="Xóa mốc" :disabled="cancelRefundDraft.length <= 2" @click="removeCancelRefundTier(tier.key)">
+                <AppIcon name="trash" size="15" />
+              </button>
+            </header>
+            <div class="tier-body-grid">
+              <label>
+                Từ giờ
+                <input v-model.number="tier.from_hours" type="number" min="0" step="0.5" />
+              </label>
+              <label>
+                Đến dưới giờ
+                <input v-model="tier.to_hours" type="number" min="0" step="0.5" placeholder="Không giới hạn" />
+              </label>
+              <label>
+                Cho hủy
+                <select v-model="tier.allow_cancel">
+                  <option :value="true">Có</option>
+                  <option :value="false">Không</option>
+                </select>
+              </label>
+              <label>
+                Hoàn (%)
+                <div class="input-unit">
+                  <input v-model.number="tier.refund_percent" type="number" min="0" max="100" />
+                  <span>%</span>
+                </div>
+              </label>
+              <div class="confirm-options">
+                <label class="check-row">
+                  <input v-model="tier.require_owner_confirm" type="checkbox" />
+                  <span>Chủ sân xác nhận</span>
+                </label>
+                <label class="check-row">
+                  <input v-model="tier.require_admin_confirm" type="checkbox" />
+                  <span>Admin hoàn tất</span>
+                </label>
+              </div>
+              <label class="customer-message-col">
+                Nội dung cho khách
+                <input v-model.trim="tier.customer_message" maxlength="500" />
+              </label>
+            </div>
+          </article>
+        </div>
+        <PreviewBox :error="cancelRefundValidation" :text="cancelRefundPreview" />
+        <ModalActions :saving="savingRule" save-label="Lưu bảng mốc" @cancel="closeModals" />
+      </form>
     </div>
 
+    <div v-if="cancellationModal" class="modal-backdrop" @click.self="closeModals">
+      <form class="modal wide" @submit.prevent="saveCancellationConfig">
+        <ModalHead title="Sửa bảng hủy booking" eyebrow="Hủy booking" @close="closeModals" />
+        <div class="tier-edit-list">
+          <article v-for="tier in cancellationDraft" :key="tier.key" class="tier-edit-row cancel">
+            <div>
+              <strong>{{ tier.label }}</strong>
+              <span>{{ tier.condition_label }}</span>
+            </div>
+            <label>
+              Xử lý
+              <select v-model="tier.allow_cancel">
+                <option :value="true">Cho hủy</option>
+                <option :value="false">Không cho hủy</option>
+              </select>
+            </label>
+          </article>
+        </div>
+        <PreviewBox :error="cancellationValidation" :text="cancellationPreview" />
+        <ModalActions :saving="savingRule" save-label="Lưu bảng hủy" @cancel="closeModals" />
+      </form>
+    </div>
+
+    <div v-if="refundModal" class="modal-backdrop" @click.self="closeModals">
+      <form class="modal wide" @submit.prevent="saveRefundConfig">
+        <ModalHead title="Sửa bảng hoàn tiền" eyebrow="Hoàn tiền" @close="closeModals" />
+        <div class="workflow-edit">
+          <label class="check-row">
+            <input v-model="refundWorkflow.requires_owner_confirm" type="checkbox" />
+            <span>Cần chủ sân xác nhận trước khi admin hoàn tiền</span>
+          </label>
+          <label class="check-row">
+            <input v-model="refundWorkflow.requires_admin_confirm" type="checkbox" />
+            <span>Admin xác nhận hoàn tất hoàn tiền</span>
+          </label>
+        </div>
+        <div class="tier-edit-list">
+          <article v-for="tier in refundDraft" :key="tier.key" class="tier-edit-row">
+            <div>
+              <strong>{{ tier.label }}</strong>
+              <span>{{ tier.condition_label }}</span>
+            </div>
+            <label>
+              Mức hoàn
+              <div class="input-unit">
+                <input v-model.number="tier.refund_percent" type="number" min="0" max="100" />
+                <span>%</span>
+              </div>
+            </label>
+          </article>
+        </div>
+        <PreviewBox :error="refundValidation" :text="refundPreview" />
+        <ModalActions :saving="savingRule" save-label="Lưu bảng hoàn" @cancel="closeModals" />
+      </form>
+    </div>
+
+    <div v-if="reportModal" class="modal-backdrop" @click.self="closeModals">
+      <form class="modal extra-wide" @submit.prevent="saveReportConfig">
+        <ModalHead title="Sửa ngưỡng báo cáo" eyebrow="Kiểm duyệt" @close="closeModals" />
+        <div class="edit-toolbar">
+          <button class="btn secondary" type="button" @click="addReportThreshold">
+            <AppIcon name="plus" size="15" />
+            Thêm ngưỡng
+          </button>
+        </div>
+        <div class="threshold-edit-list">
+          <article v-for="threshold in reportThresholdDraft" :key="threshold.key" class="threshold-edit-row">
+            <div class="threshold-grid">
+              <label>
+                Đối tượng
+                <select v-model="threshold.object_type" @change="normalizeThresholdAction(threshold)">
+                  <option v-for="option in reportConfiguration?.target_type_options || []" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                Số báo cáo
+                <input v-model.number="threshold.min_reports" type="number" min="1" />
+              </label>
+              <label>
+                Số người khác nhau
+                <input v-model.number="threshold.min_distinct_reporters" type="number" min="1" />
+              </label>
+              <label>
+                Số ngày xét
+                <input v-model.number="threshold.within_days" type="number" min="1" />
+              </label>
+              <label class="threshold-action">
+                Hành động
+                <select v-model="threshold.action">
+                  <option v-for="option in reportActionOptionsFor(threshold.object_type)" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+            </div>
+            <div class="threshold-flags">
+              <label class="check-row">
+                <input v-model="threshold.notify_admin" type="checkbox" />
+                <span>Thông báo admin</span>
+              </label>
+              <label class="check-row">
+                <input v-model="threshold.notify_reported_user" type="checkbox" />
+                <span>Thông báo đối tượng bị báo cáo</span>
+              </label>
+              <label class="check-row">
+                <input v-model="threshold.is_active" type="checkbox" />
+                <span>Đang áp dụng</span>
+              </label>
+              <button class="icon-btn danger" type="button" title="Xóa ngưỡng" @click="removeReportThreshold(threshold.key)">
+                <AppIcon name="trash" size="15" />
+              </button>
+            </div>
+          </article>
+        </div>
+        <div v-if="false">
+        <label>
+          Áp dụng cho
+          <select v-model="reportDraft.target_type">
+            <option v-for="option in reportConfiguration?.target_type_options || []" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+        <div class="form-grid">
+          <label>
+            Số báo cáo tối thiểu
+            <input v-model.number="reportDraft.minimum_reports" type="number" min="1" />
+          </label>
+          <label>
+            Số người báo cáo khác nhau
+            <input v-model.number="reportDraft.minimum_unique_reporters" type="number" min="1" />
+          </label>
+          <label>
+            Trong bao nhiêu ngày
+            <input v-model.number="reportDraft.window_days" type="number" min="1" />
+          </label>
+        </div>
+        <div class="check-list">
+          <label v-for="option in reportActionOptions" :key="option.value" class="check-row">
+            <input v-model="reportDraft.actions" type="checkbox" :value="option.value" />
+            <span>{{ option.label }}</span>
+          </label>
+        </div>
+        </div>
+        <PreviewBox :error="reportValidation" :text="reportPreview" />
+        <ModalActions :saving="savingRule" save-label="Lưu ngưỡng báo cáo" @cancel="closeModals" />
+      </form>
+    </div>
+
+    <div v-if="detailModal" class="modal-backdrop" @click.self="detailModal = null">
+      <article class="modal">
+        <ModalHead :title="detailModal.title" eyebrow="Chi tiết cấu hình" @close="detailModal = null" />
+        <div class="detail-box">
+          <InfoItem label="Chính sách cha" :value="policy?.title" />
+          <InfoItem label="Trạng thái" :value="policy?.status_label || getStatusLabel(policy?.status)" />
+        </div>
+        <p class="detail-summary">{{ detailModal.summary }}</p>
+        <div v-if="detailModal.rows?.length" class="detail-list">
+          <article v-for="row in detailModal.rows" :key="row.key">
+            <strong>{{ row.label }}</strong>
+            <span>{{ row.condition }}</span>
+            <b>{{ row.result }}</b>
+          </article>
+        </div>
+      </article>
+    </div>
+
+    <ConfirmModal
+      v-model="confirmPublish.show"
+      title="Áp dụng chính sách"
+      :message="`Áp dụng chính sách ${policy?.title || ''}?`"
+      consequence="Bản nháp sẽ trở thành chính sách đang áp dụng."
+      confirm-text="Áp dụng"
+      type="warning"
+      @confirm="publishPolicy"
+    />
+    <ConfirmModal
+      v-model="confirmArchive.show"
+      title="Ngưng áp dụng chính sách"
+      :message="`Ngưng áp dụng chính sách ${policy?.title || ''}?`"
+      consequence="Các cấu hình xử lý của chính sách này sẽ không còn được áp dụng."
+      confirm-text="Ngưng áp dụng"
+      type="danger"
+      @confirm="archivePolicy"
+    />
+    <ConfirmModal
+      v-model="confirmDelete.show"
+      title="Xóa bản nháp"
+      :message="`Xóa bản nháp ${policy?.title || ''}?`"
+      consequence="Bản nháp và cấu hình xử lý của bản nháp sẽ bị xóa."
+      confirm-text="Xóa bản nháp"
+      type="danger"
+      @confirm="deletePolicy"
+    />
   </section>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import ConfirmModal from '../../components/ConfirmModal.vue';
 import { adminPolicyService } from '../../services/adminPolicies.js';
-import {
-  getActionLabel,
-  getPolicyTypeLabel,
-  getRuleSummary,
-  getRuleTypeLabel,
-  getStatusBadgeClass,
-  getStatusLabel,
-} from '../../utils/labelMaps.js';
+import { getPolicyTypeLabel, getStatusLabel } from '../../utils/labelMaps.js';
 
+const InfoItem = {
+  props: { label: String, value: [String, Number] },
+  template: '<div class="info-item"><span>{{ label }}</span><strong>{{ value || "-" }}</strong></div>',
+};
+
+const ConfigHeader = {
+  components: { AppIcon },
+  props: { kicker: String, title: String, summary: String, canEdit: Boolean, editLabel: String },
+  emits: ['edit', 'detail'],
+  template: `
+    <header class="config-head">
+      <div>
+        <span class="card-kicker">{{ kicker }}</span>
+        <h4>{{ title }}</h4>
+        <p>{{ summary }}</p>
+      </div>
+      <div class="config-actions">
+        <button class="btn secondary" type="button" @click="$emit('detail')">
+          <AppIcon name="eye" size="15" />
+          Chi tiết
+        </button>
+        <button class="btn primary" type="button" :disabled="!canEdit" @click="$emit('edit')">
+          <AppIcon name="pencil" size="15" />
+          {{ editLabel }}
+        </button>
+      </div>
+    </header>
+  `,
+};
+
+const TierTable = {
+  props: { rows: Array, mode: String },
+  template: `
+    <div class="tier-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Mốc thời gian</th>
+            <th>Điều kiện</th>
+            <th>Kết quả</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in rows" :key="row.key">
+            <td><strong>{{ row.label }}</strong></td>
+            <td>{{ row.condition }}</td>
+            <td><span class="badge" :class="row.tone">{{ row.result }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `,
+};
+
+const ModalHead = {
+  components: { AppIcon },
+  props: { title: String, eyebrow: String },
+  emits: ['close'],
+  template: `
+    <header class="modal-head">
+      <div>
+        <p class="eyebrow">{{ eyebrow }}</p>
+        <h3>{{ title }}</h3>
+      </div>
+      <button class="icon-btn" type="button" title="Đóng" @click="$emit('close')">
+        <AppIcon name="x" size="18" />
+      </button>
+    </header>
+  `,
+};
+
+const PreviewBox = {
+  components: { AppIcon },
+  props: { error: String, text: String },
+  template: `
+    <div class="preview-box" :class="{ invalid: error }">
+      <AppIcon :name="error ? 'alert' : 'circleCheck'" size="18" />
+      <span>{{ error || text }}</span>
+    </div>
+  `,
+};
+
+const ModalActions = {
+  props: { saving: Boolean, saveLabel: String },
+  emits: ['cancel'],
+  template: `
+    <footer class="modal-actions">
+      <button class="btn secondary" type="button" @click="$emit('cancel')">Hủy</button>
+      <button class="btn primary" type="submit" :disabled="saving">
+        {{ saving ? 'Đang lưu...' : saveLabel }}
+      </button>
+    </footer>
+  `,
+};
 export default {
   name: 'AdminPolicyDetail',
-  components: { AppIcon },
+  components: { AppIcon, ConfirmModal, InfoItem, ConfigHeader, TierTable, ModalHead, PreviewBox, ModalActions },
   data() {
     return {
-      loading: true,
+      loading: false,
       saving: false,
       savingContent: false,
       savingRule: false,
       error: '',
       success: '',
-      wizardError: '',
-      loadingOptions: false,
-      activeTab: this.$route.query.tab || 'overview',
-      policy: null,
-      rules: [],
-      venueRules: [],
-      auditLogs: [],
-      actionOptions: [],
-      ruleTemplates: [],
+      activeTab: this.$route.query.tab === 'rules' ? 'config' : (this.$route.query.tab || 'overview'),
+      detail: null,
       contentDraft: '',
-      showWizard: false,
-      wizardStep: 1,
-      ruleForm: { action_code: '', rule_type: '', rule_name: '' },
-      formNumbers: {
-        hours_before_start: 24,
-        refund_percent: 80,
-        days_before_due: 3,
-        overdue_days: 7,
-        report_count: 5,
-        unique_reporters: 2,
-        window_days: 14,
-        transition_days: 30,
-      },
-      formBooleans: {
-        owner_confirm_required: true,
-        admin_can_complete_without_owner: false,
-      },
+      cancelRefundModal: false,
+      cancellationModal: false,
+      refundModal: false,
+      reportModal: false,
+      detailModal: null,
+      cancelRefundDraft: [],
+      cancellationDraft: [],
+      refundDraft: [],
+      refundWorkflow: { requires_owner_confirm: true, requires_admin_confirm: true },
+      reportDraft: { target_type: 'content', minimum_reports: 5, minimum_unique_reporters: 2, window_days: 14, actions: [] },
+      reportThresholdDraft: [],
+      confirmPublish: { show: false },
+      confirmArchive: { show: false },
       confirmDelete: { show: false },
-      tabs: [],
+      generalInfoModal: false,
+      generalInfoDraft: {},
+      platformFeeModal: false,
+      platformFeeDraft: {},
+      permissionRevokeModal: false,
+      permissionRevokeDraft: { permissions_to_revoke: [] },
+      partnerContractModal: false,
+      partnerContractDraft: {},
     };
   },
   computed: {
-    policyType() {
-      return this.policy?.policy_type || this.policy?.type || 'general';
+    policy() { return this.detail?.policy_info || this.detail?.policy || null; },
+    rules() { return this.detail?.rules || []; },
+    cancelRefundConfiguration() { return this.detail?.cancel_refund_tiers || null; },
+    cancellationConfiguration() { return this.detail?.cancellation_configuration || null; },
+    refundConfiguration() { return this.detail?.refund_configuration || null; },
+    reportConfiguration() { return this.detail?.report_configuration || null; },
+    platformFeeConfiguration() { return this.policy?.configuration_data || null; },
+    permissionRevokeConfiguration() { return this.policy?.configuration_data || null; },
+    partnerContractConfiguration() { return this.policy?.configuration_data || null; },
+    venueRules() { return this.detail?.venue_rules || []; },
+    auditLogs() { return this.detail?.audit_logs || []; },
+    isDraft() { return this.policy?.status === 'draft'; },
+    canEdit() { return this.policy?.status !== 'active'; },
+    cancellationRule() { return this.rules.find((rule) => rule.configuration_type === 'cancellation_tier_table' || rule.configuration_type === 'cancel_refund_tier_table') || null; },
+    refundRule() { return this.rules.find((rule) => rule.configuration_type === 'refund_tier_table') || null; },
+    reportRule() { return this.rules.find((rule) => rule.configuration_type === 'report_threshold') || null; },
+    otherRules() {
+      return this.rules.filter((rule) => !['cancel_refund_tier_table', 'cancellation_tier_table', 'refund_tier_table', 'report_threshold'].includes(rule.configuration_type));
     },
-    filteredActions() {
-      return this.actionOptions.filter((a) => (a.policy_types || []).includes(this.policyType));
-    },
-    filteredTemplates() {
-      return this.ruleTemplates.filter((t) => {
-        const typeOk = (t.policy_types || []).includes(this.policyType);
-        const actionOk = !this.ruleForm.action_code || (t.action_codes || []).includes(this.ruleForm.action_code);
-        return typeOk && actionOk;
-      });
-    },
-    selectedTemplate() {
-      return this.ruleTemplates.find((t) => t.rule_type === this.ruleForm.rule_type);
-    },
-    hasConfigFields() {
-      if (!this.ruleForm.rule_type) return false;
-      const all = ['hours_before_start', 'refund_percent', 'days_before_due', 'overdue_days', 'report_count', 'unique_reporters', 'window_days', 'transition_days', 'owner_confirm_required', 'admin_can_complete_without_owner'];
-      return all.some((f) => this.needsField(f));
-    },
-    previewSummary() {
-      const t = this.ruleForm.rule_type;
-      const n = this.formNumbers;
-      const b = this.formBooleans;
-      const m = {
-        cancel_before_hours: `Khách chỉ được hủy booking trước giờ chơi tối thiểu ${n.hours_before_start} giờ.`,
-        refund_percent_by_cancel_time: `Hủy trước ${n.hours_before_start} giờ → hoàn tối thiểu ${n.refund_percent}% số tiền đã thanh toán.`,
-        owner_confirm_required_before_admin_transfer: b.owner_confirm_required ? 'Admin chỉ được hoàn tiền sau khi chủ sân đã xác nhận yêu cầu.' : 'Quy tắc không bắt buộc chủ sân xác nhận.',
-        platform_fee_overdue_warning: `Nhắc chủ sân khi phí nền tảng sắp/quá hạn trong ${n.days_before_due} ngày.`,
-        platform_fee_overdue_lock: `Quá hạn phí ${n.overdue_days} ngày → hệ thống giới hạn quyền cụm sân.`,
-        report_threshold_requires_review: `${n.report_count} báo cáo bởi ${n.unique_reporters} người trong ${n.window_days} ngày → đưa vào chờ kiểm duyệt.`,
-        contract_signing_required: 'Hợp đồng chỉ có hiệu lực khi đã có đủ chữ ký.',
-        partner_termination_transition_30_days: `Thu quyền chủ sân sau ${n.transition_days} ngày chuyển tiếp.`,
-        terms_acceptance_required: 'Bắt buộc chấp nhận điều khoản trước khi sử dụng dịch vụ.',
-        venue_policy_override_limit: 'Chính sách riêng của sân không được vượt quá khung hệ thống đã đặt.',
-        partner_application_approve_requires_contract: 'Duyệt hồ sơ đối tác xong phải tạo hợp đồng trước khi chính thức..',
-      };
-      return m[t] || this.selectedTemplate?.business_summary_vi || 'Chọn loại quy tắc để xem mô tả nghiệp vụ.';
-    },
-  },
-  watch: {
-    activeTab(v) {
-      this.$router.replace({ query: { ...this.$route.query, tab: v } }).catch(() => {});
-    },
-  },
-  async mounted() {
-    await Promise.all([this.loadDetail(), this.loadOptions()]);
-  },
-  methods: {
-    getActionLabel, getPolicyTypeLabel, getRuleSummary, getRuleTypeLabel, getStatusBadgeClass, getStatusLabel,
-
-    buildTabs() {
-      this.tabs = [
-        { key: 'overview', label: 'Tổng quan', icon: 'eye' },
-        { key: 'content', label: 'Nội dung', icon: 'fileText' },
-        { key: 'rules', label: 'Quy tắc', icon: 'sliders', count: this.rules.length },
-        { key: 'audit', label: 'Lịch sử', icon: 'history' },
+    tabs() {
+      return [
+        { key: 'overview', label: 'Tổng quan', icon: 'dashboard' },
+        { key: 'content', label: 'Nội dung chính sách', icon: 'fileText' },
+        { key: 'config', label: 'Cấu hình xử lý', icon: 'sliders', count: this.rules.length },
+        { key: 'venue', label: 'Chính sách sân', icon: 'building', count: this.venueRules.length },
+        { key: 'audit', label: 'Lịch sử thay đổi', icon: 'clock', count: this.auditLogs.length },
       ];
     },
+    cancelRefundRows() {
+      return (this.cancelRefundConfiguration?.tiers || []).map((tier) => ({
+        key: tier.key,
+        label: tier.label,
+        condition: tier.condition_label,
+        result: this.cancelRefundResult(tier),
+        tone: tier.allow_cancel ? 'success' : 'danger',
+      }));
+    },
+    cancellationRows() {
+      return (this.cancellationConfiguration?.tiers || []).map((tier) => ({
+        key: tier.key,
+        label: tier.label,
+        condition: tier.condition_label,
+        result: tier.allow_cancel ? 'Cho hủy' : 'Không cho hủy',
+        tone: tier.allow_cancel ? 'success' : 'danger',
+      }));
+    },
+    refundRows() {
+      return (this.refundConfiguration?.tiers || []).map((tier) => ({
+        key: tier.key,
+        label: tier.label,
+        condition: tier.condition_label,
+        result: Number(tier.refund_percent || 0) > 0 ? `Hoàn ${Number(tier.refund_percent)}%` : 'Không hoàn',
+        tone: Number(tier.refund_percent || 0) > 0 ? 'success' : 'neutral',
+      }));
+    },
+    reportThresholdRows() {
+      if (this.reportConfiguration?.thresholds?.length) {
+        return this.reportConfiguration.thresholds;
+      }
 
+      const config = this.reportConfiguration?.config || {};
+      return this.reportConfiguration ? [{
+        key: 'legacy',
+        object_type_label: this.reportConfiguration.target_type_label,
+        min_reports: config.minimum_reports,
+        min_distinct_reporters: config.minimum_unique_reporters,
+        within_days: config.window_days,
+        action_label: (this.reportConfiguration.action_labels || []).join(', '),
+        notify_admin: (config.actions || []).includes('notify_admin'),
+      }] : [];
+    },
+    cancelRefundPreview() {
+      return this.cancelRefundDraft.map((tier) => `${this.getDynamicLabel(tier)}: ${this.cancelRefundResult(tier).toLowerCase()}`).join('. ') + '.';
+    },
+    cancellationPreview() {
+      return this.cancellationDraft.map((tier) => `${tier.label}: ${tier.allow_cancel ? 'cho hủy' : 'không cho hủy'}`).join('. ') + '.';
+    },
+    refundPreview() {
+      return this.refundDraft.map((tier) => `${tier.label}: ${Number(tier.refund_percent || 0) > 0 ? `hoàn ${Number(tier.refund_percent)}%` : 'không hoàn'}`).join('. ') + '.';
+    },
+    reportPreview() {
+      if (!this.reportThresholdDraft.length) return 'Thêm ít nhất một ngưỡng báo cáo để hệ thống xử lý.';
+      return this.reportThresholdDraft.map((threshold) => {
+        const target = this.targetTypeLabel(threshold.object_type).toLowerCase();
+        const action = this.actionLabel(threshold.object_type, threshold.action).toLowerCase();
+        const notify = threshold.notify_admin ? ' và thông báo admin' : '';
+        return `Nếu ${target} nhận từ ${threshold.min_reports} báo cáo hợp lệ bởi ít nhất ${threshold.min_distinct_reporters} người khác nhau trong ${threshold.within_days} ngày, hệ thống ${action}${notify}`;
+      }).join('. ') + '.';
+      const target = this.reportConfiguration?.target_type_options?.find((item) => item.value === this.reportDraft.target_type)?.label || 'Nội dung';
+      const actions = this.reportActionOptions
+        .filter((item) => this.reportDraft.actions.includes(item.value))
+        .map((item) => item.label.toLowerCase())
+        .join(' và ');
+      return `Nếu ${target.toLowerCase()} nhận từ ${this.reportDraft.minimum_reports} báo cáo hợp lệ bởi ít nhất ${this.reportDraft.minimum_unique_reporters} người khác nhau trong ${this.reportDraft.window_days} ngày, hệ thống ${actions}.`;
+    },
+    reportActionOptions() {
+      const options = this.reportConfiguration?.action_options || [];
+      if (Array.isArray(options)) return options;
+      return options[this.reportDraft.target_type] || options.post || [];
+    },
+    cancelRefundValidation() {
+      if (this.cancelRefundDraft.length < 2) return 'Bảng hủy & hoàn phải có ít nhất 2 mốc thời gian.';
+      for (const tier of this.cancelRefundDraft) {
+        const from = Number(tier.from_hours);
+        const to = tier.to_hours === '' || tier.to_hours === null ? null : Number(tier.to_hours);
+        const percent = Number(tier.refund_percent);
+        if (Number.isNaN(from) || from < 0) return 'Giờ bắt đầu mốc phải lớn hơn hoặc bằng 0.';
+        if (to !== null && (Number.isNaN(to) || to <= from)) return 'Giờ kết thúc mốc phải lớn hơn giờ bắt đầu.';
+        if (Number.isNaN(percent) || percent < 0 || percent > 100) return 'Tỷ lệ hoàn phải nằm trong khoảng 0 đến 100%.';
+        if (!tier.allow_cancel && percent !== 0) return 'Nếu không cho hủy thì tỷ lệ hoàn bắt buộc bằng 0%.';
+      }
+      const sorted = [...this.cancelRefundDraft]
+        .map((tier) => ({ from: Number(tier.from_hours), to: tier.to_hours === '' || tier.to_hours === null ? null : Number(tier.to_hours) }))
+        .sort((a, b) => a.from - b.from);
+      if (sorted[0]?.from !== 0) return 'Bảng mốc phải bắt đầu từ 0 giờ.';
+      for (let index = 0; index < sorted.length; index += 1) {
+        const current = sorted[index];
+        const next = sorted[index + 1];
+        if (next && (current.to === null || current.to !== next.from)) return 'Các mốc phải liền nhau, không chồng hoặc hở khoảng.';
+        if (!next && current.to !== null) return 'Mốc cao nhất phải phủ đến vô hạn.';
+      }
+      return '';
+      if (this.cancelRefundDraft.length !== 4) return 'Bảng hủy & hoàn phải có đủ 4 mốc thời gian.';
+      for (const tier of this.cancelRefundDraft) {
+        const from = Number(tier.from_hours);
+        const percent = Number(tier.refund_percent);
+        if (Number.isNaN(from) || from < 0) return 'Giờ bắt đầu mốc phải lớn hơn hoặc bằng 0.';
+        if (tier.to_hours !== null && tier.to_hours !== '' && Number(tier.to_hours) <= from) return 'Giờ kết thúc mốc phải lớn hơn giờ bắt đầu.';
+        if (Number.isNaN(percent) || percent < 0 || percent > 100) return 'Tỷ lệ hoàn phải nằm trong khoảng 0 đến 100%.';
+        if (!tier.allow_cancel && percent !== 0) return 'Nếu không cho hủy thì tỷ lệ hoàn bắt buộc bằng 0%.';
+      }
+      return '';
+    },
+    cancellationValidation() {
+      return this.cancellationDraft.length === 4 ? '' : 'Bảng hủy booking phải có đủ 4 mốc thời gian.';
+    },
+    refundValidation() {
+      if (this.refundDraft.length !== 4) return 'Bảng hoàn tiền phải có đủ 4 mốc thời gian.';
+      for (const tier of this.refundDraft) {
+        const percent = Number(tier.refund_percent);
+        if (Number.isNaN(percent) || percent < 0 || percent > 100) return 'Phần trăm hoàn tiền phải nằm trong khoảng 0 đến 100.';
+      }
+      if (!this.refundWorkflow.requires_owner_confirm) return 'Luồng hoàn tiền phải có bước chủ sân xác nhận.';
+      if (!this.refundWorkflow.requires_admin_confirm) return 'Luồng hoàn tiền phải có bước admin xác nhận hoàn tất.';
+      return '';
+    },
+    reportValidation() {
+      if (!this.reportThresholdDraft.length) return 'Vui lòng thêm ít nhất một ngưỡng báo cáo.';
+      for (const [index, threshold] of this.reportThresholdDraft.entries()) {
+        if (Number(threshold.min_reports) <= 0 || Number(threshold.min_distinct_reporters) <= 0 || Number(threshold.within_days) <= 0) {
+          return `Dòng ${index + 1}: các ngưỡng báo cáo phải lớn hơn 0.`;
+        }
+        if (Number(threshold.min_distinct_reporters) > Number(threshold.min_reports)) {
+          return `Dòng ${index + 1}: số người báo cáo khác nhau không được lớn hơn tổng số báo cáo.`;
+        }
+        if (!threshold.action) return `Dòng ${index + 1}: vui lòng chọn hành động xử lý.`;
+        if (!this.reportActionOptionsFor(threshold.object_type).some((option) => option.value === threshold.action)) {
+          return `Dòng ${index + 1}: hành động không phù hợp với đối tượng đã chọn.`;
+        }
+      }
+      return '';
+      if (this.reportDraft.minimum_reports <= 0 || this.reportDraft.minimum_unique_reporters <= 0 || this.reportDraft.window_days <= 0) {
+        return 'Các ngưỡng báo cáo phải lớn hơn 0.';
+      }
+      if (this.reportDraft.minimum_unique_reporters > this.reportDraft.minimum_reports) {
+        return 'Số người báo cáo khác nhau không được lớn hơn tổng số báo cáo.';
+      }
+      if (!this.reportDraft.actions.length) return 'Vui lòng chọn ít nhất một hành động khi đạt ngưỡng.';
+      return '';
+    },
+  },
+  mounted() {
+    this.loadDetail();
+  },
+  methods: {
+    getPolicyTypeLabel,
+    getStatusLabel,
     async loadDetail() {
       this.loading = true;
       this.error = '';
       try {
-        const res = await adminPolicyService.show(this.$route.params.id);
-        const d = res.data || {};
-        this.policy = d.policy;
-        this.rules = d.rules || [];
-        this.venueRules = d.venue_rules || [];
-        this.auditLogs = d.audit_logs || [];
+        const response = await adminPolicyService.show(this.$route.params.id);
+        this.detail = response.data || null;
         this.contentDraft = this.policy?.content || '';
-        this.buildTabs();
-      } catch (e) {
-        this.error = e.message || 'Không thể tải chi tiết chính sách.';
+      } catch (error) {
+        this.error = error.message || 'Không tải được chi tiết chính sách.';
       } finally {
         this.loading = false;
       }
     },
-
-    async loadOptions() {
-      this.loadingOptions = true;
-      try {
-        const [a, t] = await Promise.all([
-          adminPolicyService.actionCodes(),
-          adminPolicyService.ruleTemplates(),
-        ]);
-        this.actionOptions = a.data || [];
-        const tData = t.data;
-        this.ruleTemplates = Array.isArray(tData) ? tData : (tData ? Object.values(tData) : []);
-      } catch (e) {
-        console.warn('Options load failed:', e.message);
-      } finally {
-        this.loadingOptions = false;
-      }
+    backToList() {
+      this.$router.push({ name: this.$route.query.source === 'platform_fee' ? 'admin-platform-fee-policies' : 'admin-policies' });
     },
-
-    async clonePolicy() {
-      this.saving = true;
-      try {
-        const res = await adminPolicyService.cloneVersion(this.policy.id);
-        this.$router.push({ name: 'admin-policy-detail', params: { id: res.data.id }, query: { tab: 'rules' } });
-      } catch (e) {
-        this.error = e.message || 'Không thể tạo phiên bản mới.';
-      } finally {
-        this.saving = false;
-      }
+    openCancelRefundModal() {
+      if (!this.canEdit) return;
+      this.cancelRefundDraft = JSON.parse(JSON.stringify(this.cancelRefundConfiguration?.tiers || []));
+      this.cancelRefundModal = true;
     },
-
-    async publishPolicy() {
-      this.saving = true;
-      try {
-        const res = await adminPolicyService.publish(this.policy.id);
-        this.success = res.message || 'Đã áp dụng chính sách.';
-        await this.loadDetail();
-        this.autoHide();
-      } catch (e) {
-        this.error = e.message || 'Không thể áp dụng chính sách.';
-      } finally {
-        this.saving = false;
-      }
+    openCancellationModal() {
+      if (!this.canEdit) return;
+      this.cancellationDraft = JSON.parse(JSON.stringify(this.cancellationConfiguration?.tiers || []));
+      this.cancellationModal = true;
     },
-
-    async archivePolicy() {
-      this.saving = true;
-      try {
-        const res = await adminPolicyService.updateStatus(this.policy.id, { status: 'archived', reason: 'Ngưng áp dụng.' });
-        this.success = res.message || 'Đã ngưng áp dụng.';
-        await this.loadDetail();
-        this.autoHide();
-      } catch (e) {
-        this.error = e.message || 'Không thể ngưng áp dụng.';
-      } finally {
-        this.saving = false;
-      }
+    openRefundModal() {
+      if (!this.canEdit) return;
+      this.refundDraft = JSON.parse(JSON.stringify(this.refundConfiguration?.tiers || []));
+      this.refundWorkflow = {
+        requires_owner_confirm: this.refundConfiguration?.requires_owner_confirm !== false,
+        requires_admin_confirm: this.refundConfiguration?.requires_admin_confirm !== false,
+      };
+      this.refundModal = true;
     },
-
-    async deletePolicy() {
-      this.saving = true;
-      try {
-        await adminPolicyService.delete(this.policy.id);
-        this.$router.push({ name: 'admin-policies' });
-      } catch (e) {
-        this.error = e.message || 'Không thể xóa chính sách.';
-        this.confirmDelete.show = false;
-      } finally {
-        this.saving = false;
-      }
+    openReportModal() {
+      if (!this.canEdit) return;
+      this.reportThresholdDraft = JSON.parse(JSON.stringify(this.reportThresholdRows.length ? this.reportThresholdRows : [this.defaultReportThreshold()]))
+        .map((threshold) => this.normalizeThresholdShape(threshold));
+      this.reportModal = true;
     },
-
-    async saveContent() {
-      this.savingContent = true;
+    closeModals() {
+      this.cancelRefundModal = false;
+      this.cancellationModal = false;
+      this.refundModal = false;
+      this.reportModal = false;
+      this.generalInfoModal = false;
+      this.platformFeeModal = false;
+      this.permissionRevokeModal = false;
+      this.partnerContractModal = false;
+    },
+    getOptionLabel(options, value) {
+      if (!options || !value) return value;
+      const opt = options.find(o => o.value === value);
+      return opt ? opt.label : value;
+    },
+    openPlatformFeeModal() {
+      if (!this.platformFeeConfiguration) return;
+      this.platformFeeDraft = {
+        ...this.platformFeeConfiguration
+      };
+      this.platformFeeModal = true;
+    },
+    async savePlatformFeeConfig() {
+      if (this.savingRule) return;
+      this.savingRule = true;
       this.error = '';
       try {
-        const p = this.policy;
-        const res = await adminPolicyService.update(p.id, {
-          key: p.key, version: p.version, title: p.title,
-          content: this.contentDraft, policy_type: p.policy_type,
-          priority: p.priority || 0, is_overridable: !!p.is_overridable,
-          require_reaccept: !!p.require_reaccept,
-          effective_from: p.effective_from, effective_to: p.effective_to,
-          change_summary: p.change_summary,
-        });
-        this.success = res.message || 'Đã lưu nội dung.';
-        await this.loadDetail();
-        this.autoHide();
-      } catch (e) {
-        this.error = e.message || 'Không thể lưu nội dung.';
-      } finally {
-        this.savingContent = false;
-      }
-    },
-
-    openRuleWizard() {
-      this.ruleForm = { action_code: '', rule_type: '', rule_name: '' };
-      this.wizardStep = 1;
-      this.wizardError = '';
-      this.showWizard = true;
-    },
-
-    closeWizard() {
-      this.showWizard = false;
-      this.wizardError = '';
-    },
-
-    goStep2() {
-      if (!this.ruleForm.action_code) { this.wizardError = 'Vui lòng chọn tình huống.'; return; }
-      this.wizardError = '';
-      this.ruleForm.rule_type = '';
-      this.ruleForm.rule_name = '';
-      this.wizardStep = 2;
-    },
-
-    selectTemplate(tpl) {
-      this.ruleForm.rule_type = tpl.rule_type;
-      this.ruleForm.rule_name = tpl.label || getRuleTypeLabel(tpl.rule_type);
-    },
-
-    needsField(field) {
-      const m = {
-        cancel_before_hours: ['hours_before_start'],
-        refund_percent_by_cancel_time: ['hours_before_start', 'refund_percent'],
-        owner_confirm_required_before_admin_transfer: ['owner_confirm_required', 'admin_can_complete_without_owner'],
-        platform_fee_overdue_warning: ['days_before_due'],
-        platform_fee_overdue_lock: ['overdue_days'],
-        report_threshold_requires_review: ['report_count', 'unique_reporters', 'window_days'],
-        partner_termination_transition_30_days: ['transition_days'],
-      };
-      return (m[this.ruleForm.rule_type] || []).includes(field);
-    },
-
-    buildPayload(active) {
-      const n = this.formNumbers;
-      const b = this.formBooleans;
-      const condition = {};
-      const result = {};
-      const t = this.ruleForm.rule_type;
-      let decisionKey = this.selectedTemplate?.decision_key || null;
-
-      if (t === 'cancel_before_hours') { condition.hours_before_start = { gte: +n.hours_before_start }; result.can_cancel = true; decisionKey = decisionKey || 'can_cancel'; }
-      if (t === 'refund_percent_by_cancel_time') { condition.hours_before_start = { gte: +n.hours_before_start }; result.refund_percent = +n.refund_percent; result.owner_confirm_required = true; decisionKey = decisionKey || 'refund_percent'; }
-      if (t === 'owner_confirm_required_before_admin_transfer') { result.owner_confirm_required = !!b.owner_confirm_required; result.admin_can_complete_without_owner = !!b.admin_can_complete_without_owner; decisionKey = decisionKey || 'owner_confirm_required'; }
-      if (t === 'platform_fee_overdue_warning') { condition.days_before_due = +n.days_before_due; result.action = 'notify_owner'; decisionKey = decisionKey || 'platform_fee_warning'; }
-      if (t === 'platform_fee_overdue_lock') { condition.overdue_days = { gte: +n.overdue_days }; result.action = 'limit_owner_access'; result.access_mode = 'limited'; decisionKey = decisionKey || 'owner_access_mode'; }
-      if (t === 'report_threshold_requires_review') { condition.report_count = { gte: +n.report_count }; condition.unique_reporters = { gte: +n.unique_reporters }; condition.window_days = +n.window_days; result.action = 'mark_pending_review'; decisionKey = decisionKey || 'moderation_action'; }
-      if (t === 'contract_signing_required') { condition.owner_signed = true; condition.sportgo_signed = true; result.contract_status = 'signed_active'; decisionKey = decisionKey || 'contract_status'; }
-      if (t === 'partner_termination_transition_30_days') { result.transition_days = +n.transition_days; result.action = 'revoke_owner_access'; decisionKey = decisionKey || 'owner_access'; }
-      if (t === 'terms_acceptance_required') { result.require_reaccept = true; decisionKey = decisionKey || 'require_reaccept'; }
-      if (t === 'venue_policy_override_limit') { result.action = 'reject_if_below_system_minimum'; decisionKey = decisionKey || 'venue_policy_constraint'; }
-      if (t === 'partner_application_approve_requires_contract') { result.action = 'generate_contract'; result.next_status = 'approved_pending_contract'; decisionKey = decisionKey || 'partner_application_status'; }
-
-      return {
-        action_code: this.ruleForm.action_code,
-        rule_code: t,
-        rule_name: this.ruleForm.rule_name || getRuleTypeLabel(t),
-        rule_type: t,
-        decision_key: decisionKey,
-        conflict_group: this.policyType,
-        condition_json: condition,
-        result_json: result,
-        constraint_json: {},
-        allowed_override_json: {},
-        priority: 100,
-        is_active: active,
-      };
-    },
-
-    async saveRule(active) {
-      if (!this.ruleForm.rule_type) { this.wizardError = 'Vui lòng chọn loại quy tắc.'; return; }
-      this.wizardError = '';
-      this.savingRule = true;
-      try {
-        await adminPolicyService.addBinding(this.policy.id, {
-          module: this.policyType,
-          action_code: this.ruleForm.action_code,
-          description: getActionLabel(this.ruleForm.action_code),
-          is_active: true,
-        });
-        const res = await adminPolicyService.addRule(this.policy.id, this.buildPayload(active));
-        this.success = res.message || 'Đã thêm quy tắc xử lý tự động.';
-        this.closeWizard();
-        await this.loadDetail();
-        this.activeTab = 'rules';
-        this.autoHide();
-      } catch (e) {
-        this.wizardError = e.message || 'Không thể lưu quy tắc.';
+        const payload = {
+          configuration_data: this.platformFeeDraft
+        };
+        const res = await adminPolicyService.updatePolicyConfiguration(this.policy.id, payload);
+        if (res.data.data && res.data.data.policy_info) {
+          this.detail.policy_info = res.data.data.policy_info;
+          this.detail.policy = res.data.data.policy_info; // ensure UI reactivity
+        }
+        this.success = res.data.message || 'Đã lưu cấu hình phí nền tảng.';
+        this.platformFeeModal = false;
+        setTimeout(() => (this.success = ''), 3000);
+      } catch (err) {
+        this.error = err.response?.data?.message || err.response?.data?.errors?.configuration_data?.[0] || 'Lỗi lưu cấu hình.';
+        setTimeout(() => (this.error = ''), 4000);
       } finally {
         this.savingRule = false;
       }
     },
-
-    async toggleRule(rule) {
+    openPermissionRevokeModal() {
+      if (!this.permissionRevokeConfiguration) return;
+      this.permissionRevokeDraft = {
+        ...this.permissionRevokeConfiguration,
+        permissions_to_revoke: this.permissionRevokeConfiguration.permissions_to_revoke || ['manage_venue_cluster'],
+        revoke_duration_days: this.permissionRevokeConfiguration.revoke_duration_days || ''
+      };
+      this.permissionRevokeModal = true;
+    },
+    async savePermissionRevokeConfig() {
+      if (this.savingRule) return;
+      this.savingRule = true;
+      this.error = '';
       try {
-        const res = await adminPolicyService.toggleRule(this.policy.id, rule.id);
-        this.success = res.message || 'Đã cập nhật trạng thái quy tắc.';
-        await this.loadDetail();
-        this.autoHide();
-      } catch (e) {
-        this.error = e.message || 'Không thể cập nhật quy tắc.';
+        const payload = {
+          configuration_data: {
+            ...this.permissionRevokeDraft,
+            revoke_duration_days: this.permissionRevokeDraft.revoke_duration_days || null
+          }
+        };
+        const res = await adminPolicyService.updatePolicyConfiguration(this.policy.id, payload);
+        if (res.data.data && res.data.data.policy_info) {
+          this.detail.policy_info = res.data.data.policy_info;
+          this.detail.policy = res.data.data.policy_info;
+        }
+        this.success = res.data.message || 'Đã lưu cấu hình thu hồi quyền.';
+        this.permissionRevokeModal = false;
+        setTimeout(() => (this.success = ''), 3000);
+      } catch (err) {
+        this.error = err.response?.data?.message || err.response?.data?.errors?.configuration_data?.[0] || 'Lỗi lưu cấu hình.';
+        setTimeout(() => (this.error = ''), 4000);
+      } finally {
+        this.savingRule = false;
       }
     },
-
-    formatDate(v) {
-      if (!v) return '—';
-      return new Intl.DateTimeFormat('vi-VN').format(new Date(v));
+    openPartnerContractModal() {
+      if (!this.partnerContractConfiguration) return;
+      this.partnerContractDraft = {
+        ...this.partnerContractConfiguration,
+      };
+      this.partnerContractModal = true;
     },
-    formatDateTime(v) {
-      if (!v) return '—';
-      return new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(v));
+    async savePartnerContractConfig() {
+      if (this.savingRule) return;
+      if (this.partnerContractDraft.lock_after_days > this.partnerContractDraft.revoke_after_days) {
+        this.error = 'Ngày khóa cụm sân không được lớn hơn ngày thu hồi quyền.';
+        setTimeout(() => (this.error = ''), 4000);
+        return;
+      }
+      this.savingRule = true;
+      this.error = '';
+      try {
+        const payload = {
+          configuration_data: {
+            ...this.partnerContractDraft
+          }
+        };
+        const res = await adminPolicyService.updatePolicyConfiguration(this.policy.id, payload);
+        if (res.data.data && res.data.data.policy_info) {
+          this.detail.policy_info = res.data.data.policy_info;
+          this.detail.policy = res.data.data.policy_info;
+        }
+        this.success = res.data.message || 'Đã lưu cấu hình hợp đồng đối tác.';
+        this.partnerContractModal = false;
+        setTimeout(() => (this.success = ''), 3000);
+      } catch (err) {
+        this.error = err.response?.data?.message || err.response?.data?.errors?.configuration_data?.[0] || 'Lỗi lưu cấu hình.';
+        setTimeout(() => (this.error = ''), 4000);
+      } finally {
+        this.savingRule = false;
+      }
     },
-    autoHide() {
-      setTimeout(() => { this.success = ''; this.error = ''; }, 4000);
+    addCancelRefundTier() {
+      const ascending = [...this.cancelRefundDraft]
+        .sort((a, b) => Number(a.from_hours || 0) - Number(b.from_hours || 0));
+      const top = ascending[ascending.length - 1];
+      if (!top) {
+        this.cancelRefundDraft = [this.defaultCancelRefundTier(0, null)];
+        return;
+      }
+      const splitAt = Number(top.from_hours || 0) + 24;
+      top.to_hours = splitAt;
+      ascending.push(this.defaultCancelRefundTier(splitAt, null));
+      this.cancelRefundDraft = ascending.sort((a, b) => Number(b.from_hours || 0) - Number(a.from_hours || 0));
+    },
+    removeCancelRefundTier(key) {
+      const ascending = [...this.cancelRefundDraft]
+        .sort((a, b) => Number(a.from_hours || 0) - Number(b.from_hours || 0));
+      if (ascending.length <= 2) return;
+      const index = ascending.findIndex((tier) => tier.key === key);
+      if (index < 0) return;
+      const removed = ascending[index];
+      const previous = ascending[index - 1];
+      const next = ascending[index + 1];
+      if (previous) previous.to_hours = removed.to_hours;
+      if (!previous && next) next.from_hours = 0;
+      ascending.splice(index, 1);
+      this.cancelRefundDraft = ascending.sort((a, b) => Number(b.from_hours || 0) - Number(a.from_hours || 0));
+    },
+    defaultCancelRefundTier(fromHours = 0, toHours = null) {
+      return {
+        key: `tier_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        label: '',
+        from_hours: fromHours,
+        to_hours: toHours,
+        allow_cancel: true,
+        refund_percent: 0,
+        require_owner_confirm: true,
+        require_admin_confirm: true,
+        customer_message: '',
+      };
+    },
+    defaultReportThreshold() {
+      const objectType = this.reportConfiguration?.target_type_options?.[0]?.value || 'post';
+      const action = this.reportActionOptionsFor(objectType)[0]?.value || 'notify_admin';
+      return {
+        key: `threshold_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        object_type: objectType,
+        min_reports: 5,
+        min_distinct_reporters: 2,
+        within_days: 14,
+        action,
+        notify_admin: true,
+        notify_reported_user: false,
+        is_active: true,
+      };
+    },
+    normalizeThresholdShape(threshold) {
+      const objectType = threshold.object_type || threshold.target_type || 'post';
+      const options = this.reportActionOptionsFor(objectType);
+      const action = options.some((option) => option.value === threshold.action)
+        ? threshold.action
+        : (options[0]?.value || 'notify_admin');
+      return {
+        key: threshold.key || `threshold_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        object_type: objectType,
+        min_reports: Number(threshold.min_reports || threshold.minimum_reports || 5),
+        min_distinct_reporters: Number(threshold.min_distinct_reporters || threshold.minimum_unique_reporters || 2),
+        within_days: Number(threshold.within_days || threshold.window_days || 14),
+        action,
+        notify_admin: threshold.notify_admin !== false,
+        notify_reported_user: Boolean(threshold.notify_reported_user),
+        is_active: threshold.is_active !== false,
+      };
+    },
+    addReportThreshold() {
+      this.reportThresholdDraft.push(this.defaultReportThreshold());
+    },
+    removeReportThreshold(key) {
+      this.reportThresholdDraft = this.reportThresholdDraft.filter((threshold) => threshold.key !== key);
+    },
+    normalizeThresholdAction(threshold) {
+      const options = this.reportActionOptionsFor(threshold.object_type);
+      if (!options.some((option) => option.value === threshold.action)) {
+        threshold.action = options[0]?.value || 'notify_admin';
+      }
+    },
+    reportActionOptionsFor(objectType) {
+      const options = this.reportConfiguration?.action_options || [];
+      if (Array.isArray(options)) return options;
+      return options[objectType] || options.account || options.post || [];
+    },
+    targetTypeLabel(objectType) {
+      return this.reportConfiguration?.target_type_options?.find((item) => item.value === objectType)?.label || objectType || 'Nội dung';
+    },
+    actionLabel(objectType, action) {
+      return this.reportActionOptionsFor(objectType).find((item) => item.value === action)?.label || action || 'xử lý thủ công';
+    },
+    async saveCancelRefundConfig() {
+      if (this.cancelRefundValidation) return;
+      this.savingRule = true;
+      this.error = '';
+      try {
+        const tiers = this.cancelRefundDraft.map((tier) => ({
+          ...tier,
+          from_hours: Number(tier.from_hours || 0),
+          to_hours: tier.to_hours === '' || tier.to_hours === null ? null : Number(tier.to_hours),
+          allow_cancel: Boolean(tier.allow_cancel),
+          refund_percent: Number(tier.refund_percent || 0),
+          require_owner_confirm: Boolean(tier.require_owner_confirm),
+          require_admin_confirm: Boolean(tier.require_admin_confirm),
+        }));
+        await adminPolicyService.saveCancelRefundTiers(this.policy.id, { tiers });
+        this.success = 'Đã lưu bảng mốc hủy & hoàn booking.';
+        this.closeModals();
+        await this.loadDetail();
+        this.activeTab = 'config';
+      } catch (error) {
+        this.error = error.message || 'Không thể lưu bảng mốc hủy & hoàn.';
+      } finally {
+        this.savingRule = false;
+      }
+    },
+    async saveCancellationConfig() {
+      this.error = 'Vui lòng cấu hình bằng nhóm Hủy & hoàn booking để hệ thống tính đúng cả bước hủy và hoàn tiền.';
+    },
+    async saveRefundConfig() {
+      this.error = 'Vui lòng cấu hình bằng nhóm Hủy & hoàn booking để mức hoàn luôn đi cùng điều kiện được hủy.';
+    },
+    async saveReportConfig() {
+      if (this.reportValidation) return;
+      this.savingRule = true;
+      this.error = '';
+      try {
+        await adminPolicyService.saveModerationThresholds(this.policy.id, {
+          thresholds: this.reportThresholdDraft.map((threshold) => ({
+            key: threshold.key,
+            object_type: threshold.object_type,
+            min_reports: Number(threshold.min_reports || 0),
+            min_distinct_reporters: Number(threshold.min_distinct_reporters || 0),
+            within_days: Number(threshold.within_days || 0),
+            action: threshold.action,
+            notify_admin: Boolean(threshold.notify_admin),
+            notify_reported_user: Boolean(threshold.notify_reported_user),
+            is_active: Boolean(threshold.is_active),
+          })),
+        });
+        this.success = 'Đã lưu ngưỡng báo cáo.';
+        this.closeModals();
+        await this.loadDetail();
+        this.activeTab = 'config';
+      } catch (error) {
+        this.error = error.message || 'Không thể lưu ngưỡng báo cáo.';
+      } finally {
+        this.savingRule = false;
+      }
+    },
+    async saveConfigRule({ existingRule, binding, payload, successMessage }) {
+      this.savingRule = true;
+      this.error = '';
+      try {
+        await adminPolicyService.addBinding(this.policy.id, binding);
+        if (existingRule) {
+          await adminPolicyService.updateRule(this.policy.id, existingRule.id, payload);
+        } else {
+          await adminPolicyService.addRule(this.policy.id, payload);
+        }
+        this.success = successMessage;
+        this.closeModals();
+        await this.loadDetail();
+        this.activeTab = 'config';
+      } catch (error) {
+        this.error = error.message || 'Không thể lưu cấu hình xử lý.';
+      } finally {
+        this.savingRule = false;
+      }
+    },
+    editGeneralInfo() {
+      this.generalInfoDraft = {
+        title: this.policy.title,
+        policy_type: this.policy.policy_type || this.policy.type,
+        effective_from: this.policy.effective_from ? this.policy.effective_from.split('T')[0] : '',
+        effective_to: this.policy.effective_to ? this.policy.effective_to.split('T')[0] : '',
+        is_overridable: this.policy.is_overridable,
+      };
+      this.generalInfoModal = true;
+    },
+    async saveGeneralInfo() {
+      if (this.saving) return;
+      this.saving = true;
+      this.error = '';
+      try {
+        const payload = {
+          key: this.policy.key,
+          version: this.policy.version,
+          content: this.policy.content || 'Nội dung mặc định',
+          ...this.generalInfoDraft,
+        };
+        const res = await adminPolicyService.updatePolicy(this.policy.id, payload);
+        this.detail.policy_info = res.data.data;
+        this.success = res.data.message || 'Đã lưu thông tin chung.';
+        this.generalInfoModal = false;
+        setTimeout(() => (this.success = ''), 3000);
+      } catch (err) {
+        this.error = err.response?.data?.message || 'Có lỗi xảy ra khi lưu.';
+        setTimeout(() => (this.error = ''), 3000);
+      } finally {
+        this.saving = false;
+      }
+    },
+    async saveContent() {
+      this.savingContent = true;
+      this.error = '';
+      try {
+        await adminPolicyService.update(this.policy.id, {
+          key: this.policy.key,
+          version: this.policy.version,
+          title: this.policy.title,
+          content: this.contentDraft,
+          policy_type: this.policy.policy_type,
+          is_overridable: this.policy.is_overridable,
+          require_reaccept: this.policy.require_reaccept,
+          priority: this.policy.priority,
+          effective_from: this.policy.effective_from,
+          effective_to: this.policy.effective_to,
+          change_summary: this.policy.change_summary,
+        });
+        this.success = 'Đã lưu nội dung chính sách.';
+        await this.loadDetail();
+      } catch (error) {
+        this.error = error.message || 'Không thể lưu nội dung chính sách.';
+      } finally {
+        this.savingContent = false;
+      }
+    },
+    async clonePolicy() {
+      await this.runAction(() => adminPolicyService.cloneVersion(this.policy.id), 'Đã tạo phiên bản mới.');
+    },
+    async publishPolicy() {
+      await this.runAction(() => adminPolicyService.publish(this.policy.id), 'Đã áp dụng chính sách.');
+    },
+    async archivePolicy() {
+      await this.runAction(() => adminPolicyService.updateStatus(this.policy.id, { status: 'archived' }), 'Đã ngưng áp dụng chính sách.');
+    },
+    async deletePolicy() {
+      this.saving = true;
+      this.error = '';
+      try {
+        await adminPolicyService.delete(this.policy.id);
+        this.$router.push({ name: 'admin-policies' });
+      } catch (error) {
+        this.error = error.message || 'Không thể xóa bản nháp.';
+      } finally {
+        this.saving = false;
+      }
+    },
+    async runAction(action, message) {
+      this.saving = true;
+      this.error = '';
+      try {
+        const response = await action();
+        this.success = response?.message || message;
+        if (this.policy) await this.loadDetail();
+      } catch (error) {
+        this.error = error.message || 'Thao tác không thành công.';
+      } finally {
+        this.saving = false;
+      }
+    },
+    openDetail(title, summary, rows) {
+      this.detailModal = { title, summary, rows };
+    },
+    openReportDetail() {
+      const config = this.reportConfiguration;
+      const thresholds = config?.thresholds || [];
+      this.detailModal = {
+        title: 'Ngưỡng báo cáo',
+        summary: config.summary,
+        rows: thresholds.length
+          ? thresholds.map((threshold) => ({
+              key: threshold.key,
+              label: threshold.object_type_label,
+              condition: `${threshold.min_reports} báo cáo, ${threshold.min_distinct_reporters} người khác nhau trong ${threshold.within_days} ngày`,
+              result: threshold.action_label,
+            }))
+          : [
+              { key: 'target', label: 'Áp dụng cho', condition: config.target_type_label, result: config.action_labels.join(', ') },
+              { key: 'count', label: 'Điều kiện', condition: `${config.config.minimum_reports} báo cáo, ${config.config.minimum_unique_reporters} người khác nhau`, result: `Trong ${config.config.window_days} ngày` },
+            ],
+      };
+    },
+    openRuleDetail(rule) {
+      this.detailModal = {
+        title: rule.rule_label_vi || rule.rule_type_label || rule.rule_name,
+        summary: rule.business_summary_vi || rule.business_summary,
+        rows: [
+          { key: 'condition', label: 'Điều kiện', condition: rule.condition_summary_vi || 'Theo mẫu nghiệp vụ', result: rule.result_summary_vi || 'Xử lý theo cấu hình' },
+        ],
+      };
+    },
+    statusTone(status) {
+      return { active: 'success', draft: 'warning', inactive: 'neutral', archived: 'neutral', rejected: 'danger' }[String(status || '').toLowerCase()] || 'neutral';
+    },
+    cancelRefundResult(tier) {
+      if (!tier?.allow_cancel) return 'Không cho hủy';
+      const percent = Number(tier?.refund_percent || 0);
+      return percent > 0 ? `Cho hủy, hoàn ${percent}%` : 'Cho hủy nhưng không hoàn';
+    },
+    getDynamicLabel(tier) {
+      const from = tier.from_hours === '' || tier.from_hours === null ? null : Number(tier.from_hours);
+      const to = tier.to_hours === '' || tier.to_hours === null ? null : Number(tier.to_hours);
+      if ((from === null || from <= 0) && to !== null) {
+        return `Dưới ${to} giờ`;
+      }
+      if (to === null) {
+        return `Từ ${from} giờ trở lên`;
+      }
+      return `Từ ${from} đến dưới ${to} giờ`;
+    },
+    getDynamicConditionLabel(tier) {
+      const from = tier.from_hours === '' || tier.from_hours === null ? null : Number(tier.from_hours);
+      const to = tier.to_hours === '' || tier.to_hours === null ? null : Number(tier.to_hours);
+      if ((from === null || from <= 0) && to !== null) {
+        return `Khách hủy trước giờ chơi dưới ${to} giờ`;
+      }
+      if (to === null) {
+        return `Khách hủy trước giờ chơi từ ${from} giờ trở lên`;
+      }
+      return `Khách hủy trước giờ chơi từ ${from} đến dưới ${to} giờ`;
+    },
+    formatDate(value) {
+      return value ? new Date(value).toLocaleDateString('vi-VN') : '-';
+    },
+    formatDateTime(value) {
+      return value ? new Date(value).toLocaleString('vi-VN') : '-';
     },
   },
 };
 </script>
 
-<style scoped>
-/* ── Reuse system variables ── */
-.admin-page { display: flex; flex-direction: column; gap: 20px; }
+<style>
+.policy-page {
+  display: flex; flex-direction: column; gap: 18px;
 
-/* ── Back link ── */
-.back-link {
-  background: none; border: none; padding: 0; cursor: pointer;
-  color: #2563eb; font: inherit; font-size: 13px; font-weight: 600;
+  .hero-card, .panel, .state-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; }
+  .hero-card { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+  .back-link { border: 0; background: transparent; padding: 0; display: inline-flex; gap: 6px; align-items: center; color: #15803d; font-weight: 800; cursor: pointer; }
+  .title-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0 4px; }
+  h2, h3, h4, p { margin: 0; }
+  .hero-card p, .panel-head p, .config-head p, .rule-card p, .timeline-item p, small { color: #64748b; }
+  .hero-actions, .tabs, .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .config-actions { display: flex; gap: 8px; flex-wrap: nowrap; flex-shrink: 0; }
+  .tabs { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px; width: fit-content; }
+  .tabs button { border: 0; background: transparent; border-radius: 6px; padding: 9px 12px; display: inline-flex; align-items: center; gap: 7px; color: #475569; font-weight: 800; cursor: pointer; }
+  .tabs button.active { background: #dcfce7; color: #166534; }
+  .tab-count { background: #e2e8f0; border-radius: 999px; padding: 1px 7px; font-size: 12px; }
+  .panel { display: flex; flex-direction: column; gap: 14px; }
+  .panel-head, .config-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .summary-grid, .report-grid, .detail-box { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .info-item, .business-card, .config-card, .rule-card, .timeline-item { border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; padding: 12px; }
+  .info-item { display: grid; gap: 5px; }
+  .info-item span, .card-kicker { color: #64748b; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+  .info-item strong { color: #0f172a; }
+  .business-card { background: #f0fdf4; border-color: #bbf7d0; display: grid; gap: 6px; color: #14532d; }
+  .content-textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; font: inherit; resize: vertical; }
+  .config-card { display: grid; gap: 12px; background: #fff; }
+  .tier-table { overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; min-width: 680px; }
+  th, td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+  th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: uppercase; }
+  .workflow-line, .action-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .workflow-line span, .action-chips span { border-radius: 999px; padding: 6px 10px; font-weight: 800; font-size: 12px; }
+  .workflow-line .on, .action-chips span { background: #dcfce7; color: #166534; }
+  .workflow-line .off { background: #fee2e2; color: #991b1b; }
+  .rule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .rule-card { display: grid; gap: 10px; background: #fff; }
+  .rule-footer { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+  .text-btn { border: 0; background: transparent; color: #15803d; font-weight: 900; cursor: pointer; }
+  .list-box, .detail-list { display: grid; gap: 10px; }
+  .timeline-item { display: grid; grid-template-columns: auto 1fr; gap: 10px; background: #fff; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #16a34a; margin-top: 5px; }
+  .change-list { margin: 8px 0 0; padding-left: 18px; color: #334155; }
+  .badge { display: inline-flex; width: fit-content; border-radius: 999px; padding: 5px 9px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .badge.success { background: #dcfce7; color: #166534; }
+  .badge.warning { background: #fef3c7; color: #92400e; }
+  .badge.danger { background: #fee2e2; color: #991b1b; }
+  .badge.neutral { background: #f1f5f9; color: #475569; }
+  .btn, .icon-btn { border: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; cursor: pointer; }
+  .btn { padding: 10px 14px; }
+  .btn.primary { background: #16a34a; color: #fff; }
+  .btn.secondary { background: #f1f5f9; color: #334155; }
+  .btn.danger-ghost { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+  .icon-btn { width: 36px; height: 36px; border: 1px solid #dbe3ef; background: #fff; }
+  .alert, .notice, .preview-box { border-radius: 8px; padding: 12px; font-weight: 700; }
+  .alert.error, .preview-box.invalid { background: #fef2f2; color: #991b1b; }
+  .alert.success, .preview-box { background: #f0fdf4; color: #166534; }
+  .notice.warning { background: #fffbeb; color: #92400e; }
+  .empty-state { padding: 22px; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b; text-align: center; font-weight: 800; }
+  .spinner { width: 18px; height: 18px; border: 2px solid #bbf7d0; border-top-color: #16a34a; border-radius: 50%; display: inline-block; margin-right: 8px; animation: spin .8s linear infinite; }
+  .modal-backdrop { position: fixed; inset: 0; z-index: 800; display: flex; justify-content: center; align-items: flex-start; padding: 40px 20px; background: rgba(15, 23, 42, .52); overflow-y: auto; }
+  .modal { width: min(640px, 100%); max-height: 92vh; overflow: auto; background: #fff; border-radius: 10px; padding: 18px; display: grid; gap: 14px; box-shadow: 0 24px 80px rgba(15, 23, 42, .25); }
+  .modal.wide { width: min(900px, 100%); }
+  .modal.extra-wide { width: min(1180px, 100%); }
+  .modal-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .eyebrow { margin: 0 0 4px; color: #15803d; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+  .tier-edit-list { display: grid; gap: 10px; }
+  .tier-edit-row { display: grid; grid-template-columns: 1fr 180px; gap: 10px; align-items: end; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+  .tier-edit-row.cancel { display: grid; grid-template-columns: 1fr 180px; }
+  .tier-edit-row span { display: block; margin-top: 4px; color: #64748b; font-size: 13px; }
+
+  .tier-edit-row-combined { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; background: #f8fafc; display: flex; flex-direction: column; gap: 12px; }
+  .tier-header { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; flex-wrap: wrap; }
+  .tier-header strong { font-size: 15px; color: #0f172a; }
+  .tier-header span { font-size: 13px; color: #64748b; }
+  .tier-badge { margin-left: auto; background: #eef2f7; padding: 2px 8px; border-radius: 4px; font-weight: 700; color: #334155; }
+  .tier-body-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .confirm-options { grid-column: span 2; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+  .customer-message-col { grid-column: span 2; }
+  @media (max-width: 768px) {
+    .tier-body-grid { grid-template-columns: 1fr; }
+    .confirm-options, .customer-message-col { grid-column: span 1; }
+  }
+  .workflow-edit, .check-list { display: grid; gap: 10px; }
+  .edit-toolbar { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+  .threshold-edit-list { display: grid; gap: 12px; }
+  .threshold-edit-row { border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; background: #f8fafc; display: grid; gap: 12px; }
+  .threshold-grid { display: grid; grid-template-columns: minmax(180px, 1.2fr) repeat(3, minmax(120px, .75fr)) minmax(220px, 1.3fr); gap: 10px; align-items: end; }
+  .threshold-flags { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+  .threshold-flags .check-row { width: auto; }
+  .check-row { display: flex; gap: 8px; align-items: center; }
+  .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .form-group-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  label { display: grid; gap: 6px; color: #334155; font-weight: 800; }
+  input, select, textarea { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font: inherit; }
+  .form-control { width: 100%; box-sizing: border-box; }
+  .input-unit { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+  .input-unit span { color: #64748b; font-weight: 800; }
+  .detail-summary { color: #334155; line-height: 1.55; }
+  .detail-list article { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; display: grid; gap: 4px; }
+  .detail-list span { color: #64748b; }
+  .detail-list b { color: #166534; }
 }
-.back-link:hover { text-decoration: underline; }
-
-/* ── Page head ── */
-.page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.page-head h2 { margin: 4px 0 2px; font-size: 22px; }
-.page-head p { margin: 0; color: #64748b; font-size: 14px; }
-.page-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
-
-.policy-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.policy-title-row h2 { margin: 0; }
-
-/* ── eyebrow ── */
-.eyebrow { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin: 0 0 4px; }
-
-/* ── Badges ── */
-.badge {
-  display: inline-flex; align-items: center; padding: 3px 9px;
-  border-radius: 999px; font-size: 12px; font-weight: 700;
-}
-.badge-version { background: #f1f5f9; color: #475569; }
-.status-draft { background: #dbeafe; color: #1d4ed8; }
-.status-active { background: #dcfce7; color: #15803d; }
-.status-inactive, .status-archived { background: #f1f5f9; color: #64748b; }
-.status-rejected { background: #fee2e2; color: #b91c1c; }
-.status-pending { background: #fef9c3; color: #854d0e; }
-
-/* ── Tabs ── */
-.tab-nav {
-  display: flex; gap: 2px;
-  background: #f1f5f9; border-radius: 10px; padding: 4px;
-  border: 1px solid #e2e8f0;
-  overflow-x: auto;
-}
-.tab-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 14px; border-radius: 7px; border: none;
-  background: transparent; color: #64748b;
-  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
-  white-space: nowrap; transition: background 0.15s, color 0.15s;
-}
-.tab-btn:hover { background: #fff; color: #0f172a; }
-.tab-btn.active { background: #fff; color: #16a34a; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-.tab-count {
-  background: #e2e8f0; color: #475569;
-  border-radius: 999px; padding: 1px 6px; font-size: 11px;
-}
-.tab-btn.active .tab-count { background: #dcfce7; color: #15803d; }
-
-/* ── Tab body ── */
-.tab-body {
-  background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
-  padding: 24px; display: flex; flex-direction: column; gap: 18px;
-}
-
-/* ── Section row ── */
-.section-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.section-row strong { display: block; font-size: 16px; margin-bottom: 2px; }
-.section-row p { margin: 0; color: #64748b; font-size: 14px; }
-
-/* ── Meta grid ── */
-.meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.meta-item { display: flex; flex-direction: column; gap: 4px; }
-.meta-item.span2 { grid-column: span 2; }
-.meta-label { font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; }
-.meta-value { font-size: 14px; font-weight: 600; color: #0f172a; }
-.text-green { color: #15803d; }
-
-/* ── Notices ── */
-.info-notice {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px; border-radius: 8px;
-  background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;
-  font-size: 14px; font-weight: 600;
-}
-.info-notice.warning { background: #fffbeb; color: #92400e; border-color: #fde68a; }
-
-/* ── Content textarea ── */
-.content-textarea {
-  width: 100%; border: 1px solid #e2e8f0; border-radius: 8px;
-  padding: 12px; font: inherit; font-size: 14px; color: #0f172a;
-  background: #f8fafc; line-height: 1.7; resize: vertical; box-sizing: border-box;
-}
-.content-textarea:not([readonly]):focus { outline: none; border-color: #16a34a; background: #fff; }
-.content-textarea[readonly] { color: #64748b; }
-
-/* ── Empty state ── */
-.empty-state {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 8px; padding: 32px; color: #94a3b8; text-align: center;
-}
-.empty-state.small { padding: 20px; font-size: 14px; border: 1px dashed #e2e8f0; border-radius: 10px; }
-.empty-state strong { color: #475569; }
-
-/* ── Rule list ── */
-.rule-list { display: flex; flex-direction: column; gap: 8px; }
-.rule-row {
-  display: flex; align-items: flex-start;
-  border: 1px solid #e2e8f0; border-radius: 10px;
-  background: #fff; transition: box-shadow 0.15s;
-}
-.rule-row:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
-.rule-row.inactive { opacity: 0.55; }
-.rule-row-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; width: 100%; padding: 14px 16px; }
-.rule-name { font-weight: 700; font-size: 14px; color: #0f172a; margin: 0 0 3px; }
-.rule-sub { margin: 0 0 6px; font-size: 13px; color: #64748b; line-height: 1.5; }
-.rule-action-tag { font-size: 12px; color: #2563eb; font-weight: 600; background: #eff6ff; padding: 2px 8px; border-radius: 4px; }
-.rule-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-
-/* ── Audit list ── */
-.audit-list { display: flex; flex-direction: column; }
-.audit-row { display: flex; gap: 12px; padding-bottom: 18px; }
-.audit-dot { width: 12px; height: 12px; border-radius: 50%; background: #16a34a; flex-shrink: 0; margin-top: 4px; border: 2px solid #dcfce7; }
-.audit-content { flex: 1; }
-.audit-content strong { display: block; font-size: 14px; margin-bottom: 2px; }
-.audit-meta { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 6px; }
-.change-list { margin: 4px 0 0; padding-left: 14px; color: #64748b; font-size: 13px; }
-
-/* ── Buttons ── */
-.btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border-radius: 8px; border: 1px solid transparent;
-  font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-  white-space: nowrap;
-}
-.btn:hover { transform: translateY(-1px); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-.btn.primary { background: #16a34a; color: #fff; border-color: #16a34a; }
-.btn.primary:hover { background: #15803d; }
-.btn.secondary { background: #f1f5f9; color: #334155; border-color: #e2e8f0; }
-.btn.secondary:hover { background: #e2e8f0; }
-.btn.danger { background: #dc2626; color: #fff; border-color: #dc2626; }
-.btn.danger:hover { background: #b91c1c; }
-.btn.danger-ghost { background: transparent; color: #dc2626; border-color: #fecaca; }
-.btn.danger-ghost:hover { background: #fff1f2; }
-
-.icon-btn {
-  width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc;
-  color: #475569; cursor: pointer; font: inherit; transition: background 0.15s;
-}
-.icon-btn:hover { background: #e2e8f0; }
-.icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-/* ── Spinner ── */
-.spinner { width: 28px; height: 28px; border: 3px solid #e2e8f0; border-top-color: #16a34a; border-radius: 50%; animation: spin 0.7s linear infinite; }
-.spinner.small { width: 18px; height: 18px; border-width: 2px; }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── Alert ── */
-.alert { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; }
-.alert.success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
-.alert.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-.modal-alert { border-radius: 0; border-left: none; border-right: none; }
-
-/* ── Table state ── */
-.table-state { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 40px 20px; color: #64748b; }
-
-/* ── Modal ── */
-.modal-bg {
-  position: fixed; inset: 0; z-index: 1000;
-  background: rgba(15,23,42,0.55); backdrop-filter: blur(2px);
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-}
-.modal-box {
-  width: min(680px, calc(100vw - 32px));
-  max-height: calc(100vh - 40px);
-  background: #fff; border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-  display: flex; flex-direction: column; overflow: hidden;
-  animation: fadeUp 0.2s ease;
-}
-@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-
-.modal-head {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
-  padding: 20px 22px 16px; border-bottom: 1px solid #f1f5f9;
-}
-.modal-head h3 { margin: 4px 0 0; font-size: 18px; }
-
-/* ── Step bar ── */
-.step-bar {
-  display: flex; align-items: center;
-  padding: 14px 22px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
-}
-.step-item { display: flex; align-items: center; gap: 8px; flex: none; }
-.step-dot {
-  width: 28px; height: 28px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 800;
-  background: #e2e8f0; color: #94a3b8;
-}
-.step-item.active .step-dot { background: #16a34a; color: #fff; }
-.step-item.done .step-dot { background: #16a34a; color: #fff; }
-.step-item span:last-child { font-size: 13px; font-weight: 600; color: #94a3b8; }
-.step-item.active span:last-child { color: #0f172a; }
-.step-item.done span:last-child { color: #16a34a; }
-.step-line { flex: 1; height: 2px; background: #e2e8f0; margin: 0 12px; }
-.step-line.done { background: #16a34a; }
-
-/* ── Modal body ── */
-.modal-body { flex: 1; overflow-y: auto; padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; }
-.step-hint { margin: 0; color: #64748b; font-size: 14px; }
-.field-label { margin: 0; font-size: 13px; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; }
-
-/* ── Option list ── */
-.option-list { display: flex; flex-direction: column; gap: 8px; }
-.option-list.compact .option-card { border-radius: 8px; }
-
-.option-card {
-  display: flex; align-items: flex-start;
-  border: 1.5px solid #e2e8f0; border-radius: 10px;
-  background: #fff; cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-.option-card:hover { border-color: #86efac; }
-.option-card.selected { border-color: #16a34a; background: #f0fdf4; }
-.option-card input[type="radio"] { display: none; }
-.option-card-body {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 12px 14px; flex: 1;
-}
-.option-card-body strong { font-size: 14px; color: #0f172a; }
-.option-card-body span { font-size: 13px; color: #64748b; line-height: 1.5; }
-.option-card-body code { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; width: fit-content; }
-
-/* ── Selected context ── */
-.selected-context {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px; border-radius: 8px;
-  background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;
-  font-size: 14px; font-weight: 600;
-}
-.link-btn {
-  background: none; border: none; padding: 0; cursor: pointer;
-  color: #2563eb; font: inherit; font-size: 13px; font-weight: 600; margin-left: auto;
-}
-.link-btn:hover { text-decoration: underline; }
-
-/* ── Param section ── */
-.param-section { display: flex; flex-direction: column; gap: 12px; }
-.param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.param-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #334155; }
-.param-field-check { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #334155; font-weight: 600; grid-column: span 2; }
-.param-field-check input { margin-top: 2px; flex-shrink: 0; accent-color: #16a34a; }
-.input-unit { display: flex; }
-.input-unit input {
-  flex: 1; border: 1px solid #e2e8f0; border-right: 0; border-radius: 8px 0 0 8px;
-  padding: 9px 11px; font: inherit; font-size: 14px; color: #0f172a; background: #fff;
-}
-.input-unit input:focus { outline: none; border-color: #16a34a; }
-.input-unit span {
-  display: flex; align-items: center; padding: 0 12px;
-  border: 1px solid #e2e8f0; border-radius: 0 8px 8px 0;
-  background: #f8fafc; color: #64748b; font-size: 13px; font-weight: 700;
-  white-space: nowrap;
-}
-
-/* ── Preview banner ── */
-.preview-banner {
-  padding: 14px 16px; border-radius: 8px;
-  background: #f0fdf4; border: 1px solid #bbf7d0;
-}
-.preview-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #16a34a; margin: 0 0 6px; }
-.preview-banner p:last-child { margin: 0; font-size: 14px; color: #0f172a; line-height: 1.6; font-weight: 500; }
-
-/* ── Name fields ── */
-.name-fields .param-field input {
-  border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 11px;
-  font: inherit; font-size: 14px; color: #0f172a;
-}
-.name-fields .param-field input:focus { outline: none; border-color: #16a34a; }
-
-/* ── Modal foot ── */
-.modal-foot {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 16px 22px; border-top: 1px solid #f1f5f9; background: #f8fafc;
-}
-.modal-foot-right { display: flex; gap: 8px; }
-
-/* ── Confirm modal ── */
-.confirm-box { width: min(420px, calc(100vw - 32px)); text-align: center; padding: 32px; gap: 10px; }
-.confirm-icon { width: 52px; height: 52px; border-radius: 50%; background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
-.confirm-box h3 { margin: 0 0 8px; font-size: 18px; }
-.confirm-box p { margin: 0; color: #64748b; font-size: 14px; line-height: 1.5; }
-.confirm-warn { color: #dc2626 !important; font-weight: 700 !important; font-size: 13px !important; }
-.confirm-actions { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
-
-/* ── Responsive ── */
-@media (max-width: 900px) {
-  .meta-grid { grid-template-columns: repeat(2, 1fr); }
-  .meta-item.span2 { grid-column: span 2; }
-  .param-grid { grid-template-columns: 1fr; }
-  .param-field-check { grid-column: span 1; }
-  .page-head { flex-direction: column; }
-  .page-head-actions { flex-wrap: wrap; }
-}
-@media (max-width: 600px) {
-  .meta-grid { grid-template-columns: 1fr; }
-  .meta-item.span2 { grid-column: span 1; }
-  .tab-body { padding: 16px; }
-  .modal-body { padding: 16px; }
-  .modal-foot { padding: 14px 16px; }
+@media (max-width: 1024px) {
+  .policy-page {
+    .hero-card, .config-head, .panel-head { display: grid; }
+    .summary-grid, .report-grid, .detail-box, .tier-edit-row, .form-grid { grid-template-columns: 1fr; }
+    .threshold-grid { grid-template-columns: 1fr; }
+    .threshold-flags { justify-content: flex-start; }
+  }
 }
 </style>

@@ -20,9 +20,9 @@ class RefundsTableSeeder extends Seeder
 
         $owner = User::query()->where('username', 'owner')->first();
         $admin = User::query()->where('username', 'admin')->first();
-        $policy = SystemPolicy::query()->where('key', 'refund')->where('version', 1)->first();
+        $policy = SystemPolicy::query()->where('key', 'booking_cancellation')->where('version', 1)->first();
         $refundRule = $policy
-            ? PolicyRule::query()->where('system_policy_id', $policy->id)->where('rule_code', 'refund_percent_by_cancel_time')->first()
+            ? PolicyRule::query()->where('system_policy_id', $policy->id)->where('rule_type', 'cancel_before_hours')->first()
             : null;
 
         $refunds = [

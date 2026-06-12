@@ -2,29 +2,47 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PartnerContract extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasUuids;
+
+    public $incrementing = false;
+
+    protected $keyType = 'string';
 
     protected $fillable = [
+        'contract_code',
         'partner_application_id',
-        'contract_template_id',
-        'contract_number',
+        'owner_id',
+        'venue_cluster_id',
+        'contract_title',
         'status',
-        'generated_file_path',
-        'final_signed_file_path',
-        'completed_at',
+        'generated_document_id',
+        'generated_file_media_id',
+        'signed_file_media_id',
+        'final_file_media_id',
+        'generated_by',
+        'approved_by',
+        'owner_signed_at',
+        'sportgo_signed_at',
+        'effective_from',
+        'effective_to',
+        'terminated_at',
+        'note',
     ];
 
     protected function casts(): array
     {
         return [
-            'status' => \App\Enums\ContractStatus::class,
-            'completed_at' => 'datetime',
+            'owner_signed_at' => 'datetime',
+            'sportgo_signed_at' => 'datetime',
+            'effective_from' => 'datetime',
+            'effective_to' => 'datetime',
+            'terminated_at' => 'datetime',
         ];
     }
 
@@ -33,19 +51,23 @@ class PartnerContract extends Model
         return $this->belongsTo(PartnerApplication::class, 'partner_application_id');
     }
 
-    public function template()
+    public function generatedDocument()
     {
-        return $this->belongsTo(ContractTemplate::class, 'contract_template_id');
+        return $this->belongsTo(GeneratedDocument::class, 'generated_document_id');
     }
 
-    public function signatures()
+    public function owner()
     {
-        return $this->hasMany(ContractSignature::class);
+        return $this->belongsTo(User::class, 'owner_id');
     }
 
-    public function liquidation()
+    public function terminations()
     {
-        return $this->hasOne(PartnerLiquidation::class);
+        return $this->hasMany(PartnerTerminationRequest::class, 'partner_contract_id');
+    }
+
+    public function venueCluster()
+    {
+        return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
     }
 }
-

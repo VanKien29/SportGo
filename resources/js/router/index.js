@@ -20,6 +20,7 @@ import AdminUsers from "../views/admin/AdminUsers.vue";
 import AdminStaffs from "../views/admin/AdminStaffs.vue";
 import AdminUserDetail from "../views/admin/AdminUserDetail.vue";
 import AdminVouchers from "../views/admin/AdminVouchers.vue";
+import AdminVoucherDetail from "../views/admin/AdminVoucherDetail.vue";
 import AdminPolicies from "../views/admin/AdminPolicies.vue";
 import AdminPolicyDetail from "../views/admin/AdminPolicyDetail.vue";
 import AdminRoles from "../views/admin/AdminRoles.vue";
@@ -92,6 +93,7 @@ const routes = [
             { path: "staffs", name: "admin-staffs", component: AdminStaffs },
             { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail },
             { path: "vouchers", name: "admin-vouchers", component: AdminVouchers },
+            { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail },
             {
                 path: "payments",
                 name: "admin-payments",

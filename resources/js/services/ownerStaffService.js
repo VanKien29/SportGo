@@ -14,8 +14,13 @@ function withClusterPayload(payload = {}) {
 }
 
 export const ownerStaffService = {
-  list() {
-    return api(withCluster('/api/owner/staff'));
+  list(params = {}) {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== '' && value !== null && value !== undefined) query.set(key, value);
+    });
+
+    return api(withCluster(`/api/owner/staff${query.toString() ? `?${query.toString()}` : ''}`));
   },
   create(payload) {
     return api('/api/owner/staff', {

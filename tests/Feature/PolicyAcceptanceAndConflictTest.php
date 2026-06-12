@@ -348,7 +348,7 @@ class PolicyAcceptanceAndConflictTest extends TestCase
         ]);
     }
 
-    public function test_admin_can_delete_draft_policy_along_with_restricted_dependencies(): void
+    public function test_admin_can_delete_draft_policy_as_archived_and_keep_status_history(): void
     {
         $policy = $this->createPolicy([
             'key' => 'delete_draft_policy',
@@ -383,9 +383,17 @@ class PolicyAcceptanceAndConflictTest extends TestCase
             ->assertOk()
             ->assertJsonPath('message', 'Đã xóa bản nháp chính sách.');
 
-        $this->assertDatabaseMissing('system_policies', ['id' => $policy->id]);
-        $this->assertDatabaseMissing('policy_status_histories', ['system_policy_id' => $policy->id]);
-        $this->assertDatabaseMissing('policy_override_constraints', ['system_policy_id' => $policy->id]);
+        $this->assertDatabaseHas('system_policies', [
+            'id' => $policy->id,
+            'status' => 'archived',
+            'is_active' => false,
+        ]);
+        $this->assertDatabaseHas('policy_status_histories', [
+            'system_policy_id' => $policy->id,
+            'old_status' => 'draft',
+            'new_status' => 'archived',
+        ]);
+        $this->assertDatabaseHas('policy_override_constraints', ['system_policy_id' => $policy->id]);
     }
 
     public function test_admin_cannot_delete_non_draft_policy(): void

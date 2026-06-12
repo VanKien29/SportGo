@@ -11,7 +11,7 @@ class PolicyUiText
     {
         return [
             'terms' => 'Điều khoản sử dụng',
-            'booking_cancellation' => 'Hủy booking',
+            'booking_cancellation' => 'Hoàn hủy',
             'refund' => 'Hoàn tiền',
             'platform_fee' => 'Phí nền tảng',
             'venue_policy' => 'Chính sách sân',
@@ -51,9 +51,9 @@ class PolicyUiText
             self::action('booking', 'Hủy booking', 'booking.cancel_by_customer', 'Khách hủy booking', 'Áp dụng khi khách yêu cầu hủy booking.', ['booking_cancellation']),
             self::action('booking', 'Hủy booking', 'booking.cancel_by_owner', 'Chủ sân hủy booking', 'Áp dụng khi chủ sân hoặc nhân viên sân hủy booking.', ['booking_cancellation']),
             self::action('booking', 'Hủy booking', 'booking.expire_unpaid', 'Hệ thống hủy booking do quá hạn thanh toán', 'Áp dụng khi booking hết thời gian giữ chỗ nhưng chưa thanh toán.', ['booking_cancellation']),
-            self::action('refund', 'Hoàn tiền', 'refund.request', 'Khách gửi yêu cầu hoàn tiền', 'Áp dụng khi khách gửi yêu cầu hoàn tiền.', ['refund']),
-            self::action('refund', 'Hoàn tiền', 'refund.owner_confirm', 'Chủ sân xác nhận yêu cầu hoàn tiền', 'Áp dụng khi chủ sân đồng ý hoặc từ chối yêu cầu hoàn.', ['refund']),
-            self::action('refund', 'Hoàn tiền', 'refund.admin_complete', 'Admin xác nhận hoàn tất hoàn tiền', 'Áp dụng khi admin xác nhận giao dịch hoàn tiền đã hoàn tất.', ['refund']),
+            self::action('refund', 'Hoàn tiền', 'refund.request', 'Khách gửi yêu cầu hoàn tiền', 'Áp dụng khi khách gửi yêu cầu hoàn tiền.', ['booking_cancellation']),
+            self::action('refund', 'Hoàn tiền', 'refund.owner_confirm', 'Chủ sân xác nhận yêu cầu hoàn tiền', 'Áp dụng khi chủ sân đồng ý hoặc từ chối yêu cầu hoàn.', ['booking_cancellation']),
+            self::action('refund', 'Hoàn tiền', 'refund.admin_complete', 'Admin xác nhận hoàn tất hoàn tiền', 'Áp dụng khi admin xác nhận giao dịch hoàn tiền đã hoàn tất.', ['booking_cancellation']),
             self::action('venue', 'Phí nền tảng', 'venue.platform_fee_due', 'Sắp đến hạn hoặc quá hạn phí nền tảng', 'Áp dụng khi hệ thống kiểm tra kỳ phí nền tảng của cụm sân.', ['platform_fee']),
             self::action('venue', 'Phí nền tảng', 'venue.lock_due_fee', 'Khóa/giới hạn cụm sân do quá hạn phí nền tảng', 'Áp dụng khi cụm sân quá hạn phí duy trì.', ['platform_fee']),
             self::action('owner', 'Phí nền tảng', 'owner.access_limited_due_fee', 'Giới hạn quyền chủ sân do quá hạn phí', 'Áp dụng khi owner chỉ được thao tác trong phạm vi cho phép.', ['platform_fee']),
@@ -87,11 +87,11 @@ class PolicyUiText
             'cancel_before_hours' => self::template(
                 'booking_cancellation',
                 'cancel_before_hours',
-                'Quy định mốc thời gian được hủy booking',
-                'Kiểm tra thời điểm hủy và trạng thái booking trước khi cho phép hủy.',
+                'Bảng mốc thời gian được hủy booking',
+                'Kiểm tra khách có được hủy booking theo từng mốc thời gian trước giờ chơi hay không.',
                 'booking.cancel_by_customer',
-                ['hours_before_start' => ['gte' => 6], 'booking_status' => ['confirmed', 'pending_payment']],
-                ['allow_cancel' => true, 'may_create_refund_request' => true],
+                ['uses_tier_table' => true],
+                ['tiers' => self::defaultCancellationTiers(), 'may_create_refund_request' => true],
                 'cancel_allowed',
                 'booking_cancel_window',
                 true,
@@ -99,20 +99,20 @@ class PolicyUiText
                 ['booking.cancel_by_customer', 'booking.cancel_by_owner', 'booking.expire_unpaid']
             ),
             'refund_percent_by_cancel_time' => self::template(
-                'refund',
+                'booking_cancellation',
                 'refund_percent_by_cancel_time',
                 'Tính phần trăm hoàn tiền theo thời gian hủy',
                 'Tính mức hoàn tiền theo số giờ khách hủy trước giờ chơi.',
                 'refund.request',
-                ['hours_before_start' => ['gte' => 24]],
-                ['refund_percent' => 80, 'requires_owner_confirm' => true, 'requires_admin_confirm' => true],
+                ['uses_tier_table' => true],
+                ['tiers' => self::defaultRefundTiers(), 'refund_percent' => 100, 'requires_owner_confirm' => true, 'requires_admin_confirm' => true],
                 'refund_percent',
                 'refund_percent_minimum',
                 true,
                 'high'
             ),
             'owner_confirm_required_before_admin_transfer' => self::template(
-                'refund',
+                'booking_cancellation',
                 'owner_confirm_required_before_admin_transfer',
                 'Bắt buộc chủ sân xác nhận trước khi admin hoàn tiền',
                 'Admin không được hoàn tất yêu cầu hoàn tiền nếu chủ sân chưa xác nhận.',
@@ -172,8 +172,8 @@ class PolicyUiText
                 'Đưa nội dung vào chờ kiểm duyệt khi có nhiều báo cáo',
                 'Đưa nội dung vào chờ kiểm duyệt khi có đủ báo cáo hợp lệ từ nhiều người.',
                 'post.report',
-                ['report_count' => ['gte' => 5], 'unique_reporters' => ['gte' => 2], 'window_days' => 14],
-                ['action' => 'require_admin_review'],
+                ['target_type' => 'content', 'report_count' => ['gte' => 5], 'unique_reporters' => ['gte' => 2], 'window_days' => 14],
+                ['actions' => ['pending_review', 'notify_admin'], 'action' => 'pending_review'],
                 'report_review_required',
                 'moderation_report_threshold',
                 false,
@@ -234,7 +234,8 @@ class PolicyUiText
             return 'Không xác định';
         }
 
-        return self::statusLabels()[strtolower($status)] ?? self::statusLabels()[$status] ?? $status;
+        $normalized = strtolower($status);
+        return self::statusLabels()[$normalized] ?? self::statusLabels()[$status] ?? $status;
     }
 
     public static function actionLabel(?string $code): string
@@ -281,8 +282,7 @@ class PolicyUiText
 
         $summary = [
             'terms' => 'Quy định người dùng và chủ sân cần đọc, hiểu và xác nhận trước khi sử dụng SportGo.',
-            'booking_cancellation' => 'Quy định khi nào khách hoặc chủ sân được hủy booking và hủy trong trường hợp nào có thể phát sinh hoàn tiền.',
-            'refund' => 'Quy định cách tính tiền hoàn và thứ tự xác nhận: khách gửi yêu cầu, chủ sân xác nhận, admin hoàn tất.',
+            'booking_cancellation' => 'Quy định điều kiện khách được hủy booking và mốc tiền hoàn tự động tương ứng theo bảng cấu hình.',
             'platform_fee' => 'Quy định nhắc phí, giới hạn quyền và khóa cụm sân khi chủ sân quá hạn phí nền tảng.',
             'venue_policy' => 'Quy định phạm vi chủ sân được cấu hình chính sách riêng và các giới hạn không được vượt khung hệ thống.',
             'moderation' => 'Quy định cách xử lý nội dung bị báo cáo, nội dung vi phạm và các bước kiểm duyệt.',
@@ -310,13 +310,23 @@ class PolicyUiText
         return match ($ruleType) {
             'terms_acceptance_required' => 'Nếu người dùng/chủ sân chưa chấp nhận phiên bản chính sách đang áp dụng, hệ thống yêu cầu xác nhận trước khi tiếp tục sử dụng.',
             'cancel_before_hours' => sprintf(
-                'Nếu booking còn ít nhất %s giờ trước giờ chơi và đang ở trạng thái hợp lệ, hệ thống cho phép hủy và có thể tạo yêu cầu hoàn tiền nếu đã thanh toán.',
-                self::conditionValue($condition, 'hours_before_start')
+                '%s',
+                isset($result['tiers']) && is_array($result['tiers'])
+                    ? self::cancellationTierSummary($result['tiers'])
+                    : sprintf(
+                        'Khách chỉ được hủy booking trước giờ chơi tối thiểu %s giờ và booking phải ở trạng thái hợp lệ.',
+                        self::conditionValue($condition, 'hours_before_start')
+                    )
             ),
             'refund_percent_by_cancel_time' => sprintf(
-                'Nếu khách hủy booking trước giờ chơi ít nhất %s giờ, hệ thống đề xuất hoàn tối thiểu %s%% số tiền đã thanh toán.',
-                self::conditionValue($condition, 'hours_before_start'),
-                self::scalar($result['refund_percent'] ?? '?')
+                '%s',
+                isset($result['tiers']) && is_array($result['tiers'])
+                    ? self::refundTierSummary($result['tiers'])
+                    : sprintf(
+                        'Nếu khách hủy booking trước giờ chơi ít nhất %s giờ, hệ thống đề xuất hoàn tối thiểu %s%% số tiền đã thanh toán.',
+                        self::conditionValue($condition, 'hours_before_start'),
+                        self::scalar($result['refund_percent'] ?? '?')
+                    )
             ),
             'owner_confirm_required_before_admin_transfer' => 'Nếu yêu cầu hoàn tiền chưa được chủ sân xác nhận, admin không được chuyển tiền và không được chuyển yêu cầu sang hoàn tất.',
             'platform_fee_overdue_warning' => 'Khi phí nền tảng sắp đến hạn hoặc đã quá hạn, hệ thống gửi nhắc nhở cho chủ sân.',
@@ -344,7 +354,12 @@ class PolicyUiText
     public static function conditionSummary(string $ruleType, array $condition): string
     {
         return match ($ruleType) {
-            'cancel_before_hours', 'refund_percent_by_cancel_time' => 'Thời gian trước giờ chơi: tối thiểu ' . self::conditionValue($condition, 'hours_before_start') . ' giờ.',
+            'cancel_before_hours' => ($condition['uses_tier_table'] ?? false)
+                ? 'Kiểm tra theo bảng 4 mốc thời gian trước giờ chơi.'
+                : 'Thời gian trước giờ chơi: tối thiểu ' . self::conditionValue($condition, 'hours_before_start') . ' giờ.',
+            'refund_percent_by_cancel_time' => ($condition['uses_tier_table'] ?? false)
+                ? 'Tính theo bảng 4 mốc thời gian trước giờ chơi.'
+                : 'Thời gian trước giờ chơi: tối thiểu ' . self::conditionValue($condition, 'hours_before_start') . ' giờ.',
             'platform_fee_overdue_lock' => 'Quá hạn phí: tối thiểu ' . self::conditionValue($condition, 'overdue_days') . ' ngày.',
             'report_threshold_requires_review' => 'Báo cáo hợp lệ: từ ' . self::conditionValue($condition, 'report_count') . ' báo cáo, bởi ít nhất ' . self::conditionValue($condition, 'unique_reporters') . ' người, trong ' . self::scalar($condition['window_days'] ?? '?') . ' ngày.',
             'contract_signing_required' => 'Có đủ chữ ký chủ sân và chữ ký SportGo.',
@@ -356,7 +371,12 @@ class PolicyUiText
     public static function resultSummary(string $ruleType, array $result): string
     {
         return match ($ruleType) {
-            'refund_percent_by_cancel_time' => 'Đề xuất hoàn ' . self::scalar($result['refund_percent'] ?? '?') . '% số tiền đã thanh toán.',
+            'cancel_before_hours' => isset($result['tiers']) && is_array($result['tiers'])
+                ? self::cancellationTierSummary($result['tiers'])
+                : (($result['allow_cancel'] ?? false) ? 'Cho hủy booking.' : 'Không cho hủy booking.'),
+            'refund_percent_by_cancel_time' => isset($result['tiers']) && is_array($result['tiers'])
+                ? self::refundTierSummary($result['tiers'])
+                : 'Đề xuất hoàn ' . self::scalar($result['refund_percent'] ?? '?') . '% số tiền đã thanh toán.',
             'owner_confirm_required_before_admin_transfer' => 'Bắt buộc chủ sân xác nhận trước khi admin hoàn tất.',
             'platform_fee_overdue_warning' => 'Gửi thông báo nhắc phí cho chủ sân.',
             'platform_fee_overdue_lock' => 'Giới hạn quyền owner: chỉ được đóng phí, xem ví/rút tiền nếu được phép, xem hồ sơ/hợp đồng.',
@@ -379,6 +399,10 @@ class PolicyUiText
             'notify_owner' => 'gửi nhắc nhở cho chủ sân',
             'warning' => 'gửi cảnh báo',
             'require_admin_review' => 'đưa vào chờ admin kiểm duyệt',
+            'pending_review' => 'chuyển sang chờ kiểm duyệt',
+            'hide_temporarily' => 'ẩn tạm nội dung',
+            'notify_admin' => 'thông báo admin',
+            'temporary_lock' => 'khóa tạm nếu hệ thống hỗ trợ',
             'hide_content' => 'ẩn nội dung vi phạm',
             'limit_owner_access' => 'giới hạn quyền chủ sân',
             'lock_venue' => 'khóa hoặc giới hạn cụm sân',
@@ -396,6 +420,26 @@ class PolicyUiText
             'action_label_vi' => $label,
             'description' => $description,
             'policy_types' => $policyTypes,
+        ];
+    }
+
+    private static function defaultRefundTiers(): array
+    {
+        return [
+            ['key' => 'from_24', 'label' => 'Từ 24 giờ trở lên', 'from_hours' => 24, 'to_hours' => null, 'refund_percent' => 100, 'allow_cancel' => true],
+            ['key' => 'from_6_to_24', 'label' => 'Từ 6 đến dưới 24 giờ', 'from_hours' => 6, 'to_hours' => 24, 'refund_percent' => 80, 'allow_cancel' => true],
+            ['key' => 'from_1_to_6', 'label' => 'Từ 1 đến dưới 6 giờ', 'from_hours' => 1, 'to_hours' => 6, 'refund_percent' => 50, 'allow_cancel' => true],
+            ['key' => 'under_1', 'label' => 'Dưới 1 giờ', 'from_hours' => null, 'to_hours' => 1, 'refund_percent' => 0, 'allow_cancel' => true],
+        ];
+    }
+
+    private static function defaultCancellationTiers(): array
+    {
+        return [
+            ['key' => 'from_24', 'label' => 'Từ 24 giờ trở lên', 'from_hours' => 24, 'to_hours' => null, 'allow_cancel' => true],
+            ['key' => 'from_6_to_24', 'label' => 'Từ 6 đến dưới 24 giờ', 'from_hours' => 6, 'to_hours' => 24, 'allow_cancel' => true],
+            ['key' => 'from_1_to_6', 'label' => 'Từ 1 đến dưới 6 giờ', 'from_hours' => 1, 'to_hours' => 6, 'allow_cancel' => true],
+            ['key' => 'under_1', 'label' => 'Dưới 1 giờ', 'from_hours' => null, 'to_hours' => 1, 'allow_cancel' => true],
         ];
     }
 
@@ -445,6 +489,56 @@ class PolicyUiText
         }
 
         return self::scalar($value);
+    }
+
+    private static function refundTierSummary(array $tiers): string
+    {
+        $items = collect($tiers)->map(function (array $tier): string {
+            $label = $tier['label'] ?? self::refundTierLabel($tier);
+            $allowCancel = array_key_exists('allow_cancel', $tier) ? (bool) $tier['allow_cancel'] : true;
+            $percent = self::scalar($tier['refund_percent'] ?? 0);
+            $result = $allowCancel
+                ? ((float) ($tier['refund_percent'] ?? 0) > 0 ? "hoàn {$percent}%" : 'cho hủy nhưng không hoàn')
+                : 'không cho hủy';
+
+            return "{$label}: {$result}";
+        });
+
+        return $items->implode('. ') . '.';
+    }
+
+    private static function cancellationTierSummary(array $tiers): string
+    {
+        $items = collect($tiers)->map(function (array $tier): string {
+            $label = $tier['label'] ?? self::refundTierLabel($tier);
+            $allowCancel = array_key_exists('allow_cancel', $tier) ? (bool) $tier['allow_cancel'] : true;
+            $result = $allowCancel ? 'cho hủy' : 'không cho hủy';
+
+            return "{$label}: {$result}";
+        });
+
+        return $items->implode('. ') . '.';
+    }
+
+    private static function refundTierLabel(array $tier): string
+    {
+        $from = $tier['from_hours'] ?? null;
+        $to = $tier['to_hours'] ?? null;
+
+        if ((int) $from === 24 && $to === null) {
+            return 'Từ 24 giờ trở lên';
+        }
+        if ((int) $from === 6 && (int) $to === 24) {
+            return 'Từ 6 đến dưới 24 giờ';
+        }
+        if ((int) $from === 1 && (int) $to === 6) {
+            return 'Từ 1 đến dưới 6 giờ';
+        }
+        if (($from === null || $from === '') && (int) $to === 1) {
+            return 'Dưới 1 giờ';
+        }
+
+        return 'Mốc hủy/hoàn';
     }
 
     private static function scalar(mixed $value): string

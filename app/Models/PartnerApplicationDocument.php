@@ -9,8 +9,6 @@ class PartnerApplicationDocument extends Model
 {
     use HasFactory;
 
-    protected $table = 'partner_documents';
-
     protected $fillable = [
         'partner_application_id',
         'media_id',

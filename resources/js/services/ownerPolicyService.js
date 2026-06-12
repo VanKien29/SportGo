@@ -14,12 +14,21 @@ function payloadWithCluster(payload = {}) {
 }
 
 export const ownerPolicyService = {
+  clusters() {
+    return api('/api/owner/venue-clusters');
+  },
   list() {
     return api(withCluster('/api/owner/venue-policies'));
   },
   saveRule(payload) {
     return api('/api/owner/venue-policies/rules', {
       method: 'POST',
+      body: JSON.stringify(payloadWithCluster(payload)),
+    });
+  },
+  resetRule(id, payload = {}) {
+    return api(`/api/owner/venue-policies/rules/${id}`, {
+      method: 'DELETE',
       body: JSON.stringify(payloadWithCluster(payload)),
     });
   },
