@@ -26,6 +26,8 @@ class OwnerScheduleLockTest extends TestCase
 
     private VenueCourt $court;
 
+    private VenueCourt $secondCourt;
+
     private string $date;
 
     protected function setUp(): void
@@ -67,6 +69,14 @@ class OwnerScheduleLockTest extends TestCase
             'name' => 'Sân A1',
             'status' => 'active',
             'sort_order' => 1,
+        ]);
+
+        $this->secondCourt = VenueCourt::query()->create([
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $type->id,
+            'name' => 'Sân A2',
+            'status' => 'active',
+            'sort_order' => 2,
         ]);
     }
 
@@ -171,6 +181,90 @@ class OwnerScheduleLockTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('start_time');
+    }
+
+    public function test_owner_can_lock_multiple_ranges_across_multiple_courts(): void
+    {
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/schedule-locks', [
+                'booking_date' => $this->date,
+                'reason' => 'Bảo trì đồng loạt.',
+                'slots' => [
+                    [
+                        'venue_court_id' => $this->court->id,
+                        'start_time' => '08:00:00',
+                        'end_time' => '10:00:00',
+                    ],
+                    [
+                        'venue_court_id' => $this->secondCourt->id,
+                        'start_time' => '09:00:00',
+                        'end_time' => '11:30:00',
+                    ],
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('message', 'Đã tạo 2 khoảng khóa lịch.')
+            ->assertJsonCount(2, 'data');
+
+        $this->assertDatabaseHas('slot_locks', [
+            'venue_court_id' => $this->court->id,
+            'start_time' => '08:00:00',
+            'end_time' => '10:00:00',
+            'reason' => 'Bảo trì đồng loạt.',
+        ]);
+        $this->assertDatabaseHas('slot_locks', [
+            'venue_court_id' => $this->secondCourt->id,
+            'start_time' => '09:00:00',
+            'end_time' => '11:30:00',
+            'reason' => 'Bảo trì đồng loạt.',
+        ]);
+        $this->assertCount(2, $response->json('data'));
+    }
+
+    public function test_batch_lock_is_rolled_back_when_one_range_is_unavailable(): void
+    {
+        Booking::query()->create([
+            'booking_code' => 'BKBATCHLOCK',
+            'customer_id' => $this->owner->id,
+            'venue_court_id' => $this->secondCourt->id,
+            'requested_venue_court_id' => $this->secondCourt->id,
+            'venue_cluster_id' => $this->cluster->id,
+            'booking_date' => $this->date,
+            'start_time' => '09:00:00',
+            'end_time' => '10:00:00',
+            'duration_minutes' => 60,
+            'total_price' => 100000,
+            'payment_option' => 'no_prepay',
+            'required_payment_amount' => 0,
+            'source' => 'counter',
+            'booking_type' => 'single',
+            'status' => 'confirmed',
+        ]);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/schedule-locks', [
+                'booking_date' => $this->date,
+                'reason' => 'Khóa nhiều sân.',
+                'slots' => [
+                    [
+                        'venue_court_id' => $this->court->id,
+                        'start_time' => '08:00:00',
+                        'end_time' => '09:00:00',
+                    ],
+                    [
+                        'venue_court_id' => $this->secondCourt->id,
+                        'start_time' => '09:00:00',
+                        'end_time' => '10:00:00',
+                    ],
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('slots.1.start_time');
+
+        $this->assertDatabaseMissing('slot_locks', [
+            'venue_court_id' => $this->court->id,
+            'booking_date' => $this->date,
+        ]);
     }
 
     public function test_owner_can_only_delete_manual_lock_in_visible_cluster(): void
