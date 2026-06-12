@@ -435,6 +435,7 @@ export default {
             }
         },
         async parseCoordinatesFromMapUrl(url) {
+            let targetUrl = url;
             // Nếu là link rút gọn maps.app.goo.gl hoặc goo.gl/maps thì gọi API Server-side để giải mã
             if (
                 url.includes("maps.app.goo.gl") ||
@@ -442,14 +443,20 @@ export default {
             ) {
                 try {
                     const res = await venueClusterService.resolveMapUrl(url);
-                    if (res.latitude && res.longitude) {
-                        this.form.latitude = res.latitude;
-                        this.form.longitude = res.longitude;
-                        this.mapExtractMsg = {
-                            type: "success",
-                            text: `Trích xuất thành công: Vĩ độ ${res.latitude}, Kinh độ ${res.longitude}`,
-                        };
-                        return;
+                    const resolvedData = res.data;
+                    if (resolvedData) {
+                        if (resolvedData.latitude && resolvedData.longitude) {
+                            this.form.latitude = resolvedData.latitude;
+                            this.form.longitude = resolvedData.longitude;
+                            this.mapExtractMsg = {
+                                type: "success",
+                                text: `Trích xuất thành công: Vĩ độ ${resolvedData.latitude}, Kinh độ ${resolvedData.longitude}`,
+                            };
+                            return;
+                        }
+                        if (resolvedData.final_url) {
+                            targetUrl = resolvedData.final_url;
+                        }
                     }
                 } catch (e) {
                     console.warn(
@@ -466,7 +473,7 @@ export default {
 
             // Ví dụ URL: https://www.google.com/maps/place/21.028511,105.854167 hoặc @21.028511,105.854167,17z
             // Regex 1: Tìm mẫu @latitude,longitude
-            let match = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            let match = targetUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (match) {
                 this.form.latitude = parseFloat(match[1]);
                 this.form.longitude = parseFloat(match[2]);
@@ -478,7 +485,7 @@ export default {
             }
 
             // Regex 2: Tìm mẫu !3dlatitude!4dlongitude (phổ biến trong link share của Google Maps)
-            let match3d4d = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+            let match3d4d = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
             if (match3d4d) {
                 this.form.latitude = parseFloat(match3d4d[1]);
                 this.form.longitude = parseFloat(match3d4d[2]);
@@ -490,7 +497,7 @@ export default {
             }
 
             // Regex 3: Tìm query q=latitude,longitude
-            let matchQuery = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+            let matchQuery = targetUrl.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (matchQuery) {
                 this.form.latitude = parseFloat(matchQuery[1]);
                 this.form.longitude = parseFloat(matchQuery[2]);
@@ -502,7 +509,7 @@ export default {
             }
 
             // Regex 4: Tìm cặp tọa độ trực tiếp trong URL dạng /place/latitude,longitude
-            let matchCoords = url.match(/\/place\/(-?\d+\.\d+),(-?\d+\.\d+)/);
+            let matchCoords = targetUrl.match(/\/place\/(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (matchCoords) {
                 this.form.latitude = parseFloat(matchCoords[1]);
                 this.form.longitude = parseFloat(matchCoords[2]);
@@ -588,6 +595,9 @@ export default {
                         ...this.clusters[index],
                         ...res.data,
                     };
+                    // Cập nhật selectedCluster và phát event để đồng bộ dữ liệu giao diện
+                    this.selectedCluster = this.clusters[index];
+                    window.dispatchEvent(new CustomEvent("owner-cluster-changed", { detail: this.selectedCluster }));
                 }
             } catch (err) {
                 this.updateError = err.message || "Lỗi khi cập nhật cụm sân.";

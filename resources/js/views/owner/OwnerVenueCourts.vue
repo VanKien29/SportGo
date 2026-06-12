@@ -2,10 +2,6 @@
   <div class="venue-courts-container">
     <section class="page-head header-card">
       <div class="header-left">
-        <router-link to="/owner/venue-clusters" class="btn-back">
-          <AppIcon name="chevronLeft" size="15" />
-          <span>Quay lại cụm sân</span>
-        </router-link>
         <h2 v-if="cluster">Danh sách sân con: {{ cluster.name }}</h2>
         <h2 v-else>Quản lý sân con</h2>
         <p class="subtitle">Quản lý các sân thi đấu chi tiết trong cụm sân</p>
@@ -1484,7 +1480,8 @@ export default {
 
 .canvas-viewport {
   position: relative;
-  width: 1000px;
+  flex: 1;
+  min-width: 0;
   height: 600px;
   background-color: #f8fafc;
   border: 1px solid var(--sg-border);
@@ -1599,11 +1596,11 @@ export default {
 .resize-handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; }
 
 .editor-sidebar {
-  flex: 1;
+  width: 300px;
+  flex: 0 0 300px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  min-width: 280px;
 }
 
 .sidebar-section {
@@ -1776,5 +1773,22 @@ export default {
   text-align: center;
   padding: 20px 0;
   font-style: italic;
+}
+
+@media (max-width: 1024px) {
+  .editor-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .canvas-viewport {
+    width: 100%;
+    height: 500px;
+  }
+  
+  .editor-sidebar {
+    width: 100%;
+    flex: none;
+  }
 }
 </style>

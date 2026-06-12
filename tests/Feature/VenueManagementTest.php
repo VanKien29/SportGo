@@ -174,6 +174,8 @@ class VenueManagementTest extends TestCase
             ->putJson("/api/owner/venue-clusters/{$this->cluster1->id}", [
                 'name' => 'Updated Cluster Name',
                 'address' => 'Danang',
+                'province' => 'Danang Province',
+                'ward' => 'Danang Ward',
                 'phone_contact' => '0987654321',
                 'amenities' => ['Wifi', 'Water', 'Parking'],
                 'latitude' => 16.0544,

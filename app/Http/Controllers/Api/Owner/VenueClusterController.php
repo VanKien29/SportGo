@@ -113,28 +113,44 @@ class VenueClusterController extends Controller
             // 1. Dạng @lat,lng
             if (preg_match('/@(-?\d+\.\d+),(-?\d+\.\d+)/', $finalUrl, $matches)) {
                 return response()->json([
-                    'latitude' => (float)$matches[1],
-                    'longitude' => (float)$matches[2],
+                    'data' => [
+                        'latitude' => (float)$matches[1],
+                        'longitude' => (float)$matches[2],
+                        'final_url' => $finalUrl,
+                    ]
                 ]);
             }
 
             // 2. Dạng !3dlat!4dlng
             if (preg_match('/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/', $finalUrl, $matches)) {
                 return response()->json([
-                    'latitude' => (float)$matches[1],
-                    'longitude' => (float)$matches[2],
+                    'data' => [
+                        'latitude' => (float)$matches[1],
+                        'longitude' => (float)$matches[2],
+                        'final_url' => $finalUrl,
+                    ]
                 ]);
             }
 
             // 3. Dạng q=lat,lng
             if (preg_match('/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/', $finalUrl, $matches)) {
                 return response()->json([
-                    'latitude' => (float)$matches[1],
-                    'longitude' => (float)$matches[2],
+                    'data' => [
+                        'latitude' => (float)$matches[1],
+                        'longitude' => (float)$matches[2],
+                        'final_url' => $finalUrl,
+                    ]
                 ]);
             }
 
-            return response()->json(['message' => 'Không thể trích xuất tọa độ từ liên kết này. Vui lòng kiểm tra lại.'], 422);
+            // Trả về final_url để client-side tự parse tiếp
+            return response()->json([
+                'data' => [
+                    'latitude' => null,
+                    'longitude' => null,
+                    'final_url' => $finalUrl,
+                ]
+            ]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Lỗi kết nối khi phân giải link map: ' . $e->getMessage()], 500);
         }

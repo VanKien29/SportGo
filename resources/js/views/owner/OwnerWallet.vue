@@ -78,39 +78,41 @@
       <div v-if="loadingHistory && history.data.length === 0" class="loading-text">Đang tải lịch sử...</div>
       <div v-else-if="history.data.length === 0" class="empty-text">Chưa có giao dịch rút tiền nào được tạo.</div>
       <div v-else>
-        <table class="simple-table">
-          <thead>
-            <tr>
-              <th align="left">Mã yêu cầu</th>
-              <th align="left">Tài khoản nhận</th>
-              <th align="right">Số tiền</th>
-              <th align="center">Trạng thái</th>
-              <th align="left">Ngày yêu cầu</th>
-              <th align="left">Ghi chú / Lý do</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in history.data" :key="item.id">
-              <td><strong>{{ item.request_code }}</strong></td>
-              <td>
-                <span v-if="item.bank_account">
-                  {{ item.bank_account.bank_name }} - {{ item.bank_account.account_number }}
-                </span>
-                <span v-else>-</span>
-              </td>
-              <td align="right">{{ formatCurrency(item.amount) }}</td>
-              <td align="center">
-                <span class="status-badge" :class="item.status">
-                  {{ getStatusText(item.status) }}
-                </span>
-              </td>
-              <td>{{ formatDate(item.requested_at) }}</td>
-              <td>
-                <span class="note-text">{{ item.status_reason || item.owner_note || '-' }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="simple-table">
+            <thead>
+              <tr>
+                <th align="left">Mã yêu cầu</th>
+                <th align="left">Tài khoản nhận</th>
+                <th align="right">Số tiền</th>
+                <th align="center">Trạng thái</th>
+                <th align="left">Ngày yêu cầu</th>
+                <th align="left">Ghi chú / Lý do</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in history.data" :key="item.id">
+                <td><strong>{{ item.request_code }}</strong></td>
+                <td>
+                  <span v-if="item.bank_account">
+                    {{ item.bank_account.bank_name }} - {{ item.bank_account.account_number }}
+                  </span>
+                  <span v-else>-</span>
+                </td>
+                <td align="right">{{ formatCurrency(item.amount) }}</td>
+                <td align="center">
+                  <span class="status-badge" :class="item.status">
+                    {{ getStatusText(item.status) }}
+                  </span>
+                </td>
+                <td>{{ formatDate(item.requested_at) }}</td>
+                <td>
+                  <span class="note-text">{{ item.status_reason || item.owner_note || '-' }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <!-- Phân trang đơn giản (Simple Pagination) -->
         <div v-if="history.last_page > 1" class="pagination-simple">
@@ -250,6 +252,8 @@ export default {
 <style scoped>
 .wallet-simple {
   max-width: 1000px;
+  width: 100%;
+  box-sizing: border-box;
   font-family: inherit;
   color: #333333;
 }
@@ -279,6 +283,8 @@ export default {
   padding: 20px;
   margin-bottom: 20px;
   background-color: #ffffff;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .section-title {
@@ -338,12 +344,15 @@ export default {
 }
 
 .form-control-simple {
+  width: 100%;
+  max-width: 100%;
   padding: 10px 12px;
   border: 1px solid #cccccc;
   border-radius: 4px;
   font-size: 14px;
   outline: none;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .form-control-simple:focus {
@@ -374,9 +383,10 @@ export default {
 }
 
 .simple-table {
-  width: 100%;
+  width: 100% !important;
   border-collapse: collapse;
   font-size: 14px;
+  min-width: 750px !important;
 }
 
 .simple-table th, .simple-table td {
@@ -434,6 +444,16 @@ export default {
 .note-text {
   font-size: 12px;
   color: #666666;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.table-responsive {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid #eeeeee;
+  margin-bottom: 15px;
 }
 
 .pagination-simple {
