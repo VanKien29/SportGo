@@ -124,7 +124,9 @@ export default {
   display: grid;
   place-items: center;
   padding: 32px 20px;
-  background: #eef2f6;
+  background:
+    linear-gradient(180deg, rgba(247, 251, 245, 0.9), rgba(238, 246, 240, 0.98)),
+    #eef6f0;
   color: #111827;
 }
 
@@ -133,11 +135,11 @@ export default {
   min-height: 560px;
   display: grid;
   grid-template-columns: 0.92fr 1.08fr;
-  border: 1px solid #d8dee8;
+  border: 1px solid #dce8dc;
   border-radius: 8px;
   overflow: hidden;
   background: #fff;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 24px 70px rgba(23, 34, 27, 0.14);
 }
 
 .auth-info {
@@ -145,19 +147,21 @@ export default {
   flex-direction: column;
   justify-content: space-between;
   padding: 34px;
-  background: #0f172a;
-  color: #f8fafc;
+  background:
+    linear-gradient(135deg, rgba(33, 107, 52, 0.96), rgba(47, 158, 68, 0.9)),
+    #2f9e44;
+  color: #f8fff9;
 }
 
 .home-link {
   width: fit-content;
-  color: #cbd5e1;
+  color: rgba(248, 255, 249, 0.78);
   font-size: 14px;
   font-weight: 800;
 }
 
 .home-link:hover {
-  color: #86efac;
+  color: #fff;
 }
 
 .brand-block {
@@ -171,14 +175,14 @@ export default {
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: #16a34a;
-  color: #fff;
+  background: rgba(255, 255, 255, 0.92);
+  color: #216b34;
   font-weight: 900;
 }
 
 .brand-kicker {
   margin: 0 0 8px;
-  color: #86efac;
+  color: #d8ffe1;
   font-size: 13px;
   font-weight: 900;
   letter-spacing: .04em;
@@ -197,7 +201,7 @@ export default {
 .info-list {
   display: grid;
   gap: 14px;
-  color: #cbd5e1;
+  color: rgba(248, 255, 249, 0.78);
   font-size: 14px;
   line-height: 1.55;
 }
@@ -213,7 +217,7 @@ export default {
   height: 8px;
   margin-top: 7px;
   border-radius: 50%;
-  background: #22c55e;
+  background: #d8ffe1;
 }
 
 .form-panel {
@@ -289,8 +293,8 @@ export default {
 }
 
 .field input:focus {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+  border-color: #2f9e44;
+  box-shadow: 0 0 0 3px rgba(47, 158, 68, 0.14);
 }
 
 .password-field {
@@ -317,7 +321,7 @@ export default {
 .primary-btn {
   height: 48px;
   border-radius: 8px;
-  background: #16a34a;
+  background: #2f9e44;
   color: #fff;
   font-weight: 900;
 }

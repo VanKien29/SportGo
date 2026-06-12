@@ -1,6 +1,13 @@
 <template>
-  <div class="dashboard-simple">
-    <div v-if="error" class="error-msg">{{ error }}</div>
+  <div class="dashboard">
+    <section class="page-head">
+      <div>
+        <h2>Bảng điều hành chủ sân</h2>
+        <p>Theo dõi nhanh booking, doanh thu online và đánh giá của cụm sân đang chọn.</p>
+      </div>
+    </section>
+
+    <div v-if="error" class="alert error">{{ error }}</div>
 
     <!-- Ví của tôi (Wallet) -->
     <div class="section-box">

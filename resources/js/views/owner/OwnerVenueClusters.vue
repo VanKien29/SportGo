@@ -1,6 +1,11 @@
 <template>
     <div class="venue-clusters-container">
-
+        <section class="page-head">
+            <div>
+                <h2>Quản lý cụm sân</h2>
+                <p>Cập nhật thông tin vận hành, bản đồ, tiện ích và hình ảnh của cụm sân.</p>
+            </div>
+        </section>
 
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -50,7 +55,8 @@
                         }"
                         class="btn btn-outline btn-sm"
                     >
-                        Quản lý sân con
+                        <AppIcon name="layers" size="15" />
+                        <span>Quản lý sân con</span>
                     </router-link>
                 </div>
 
@@ -121,6 +127,7 @@
                                 :disabled="resolvingMap"
                                 @click="handleExtractCoordinates"
                             >
+                                <AppIcon name="search" size="15" />
                                 {{
                                     resolvingMap
                                         ? "Đang trích xuất..."
@@ -243,6 +250,7 @@
                             class="btn btn-primary"
                             :disabled="updating"
                         >
+                            <AppIcon name="check" size="16" />
                             {{
                                 updating
                                     ? "Đang cập nhật..."
@@ -322,11 +330,13 @@
 </template>
 
 <script>
+import AppIcon from "../../components/AppIcon.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 
 export default {
     name: "OwnerVenueClusters",
+    components: { AppIcon },
     data() {
         return {
             clusters: [],
@@ -482,6 +492,8 @@ export default {
         },
         selectCluster(cluster) {
             this.selectedCluster = cluster;
+            localStorage.setItem("selected_cluster", cluster.id);
+            window.dispatchEvent(new CustomEvent("owner-cluster-changed", { detail: cluster }));
             this.updateSuccess = false;
             this.updateError = null;
             this.imagesList = (cluster.media || []).filter(

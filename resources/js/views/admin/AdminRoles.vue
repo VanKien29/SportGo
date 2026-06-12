@@ -15,25 +15,6 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <div class="stat-grid">
-      <article class="stat-card">
-        <strong>{{ summary.total || 0 }}</strong>
-        <span>Nhóm nhân sự hệ thống</span>
-      </article>
-      <article class="stat-card">
-        <strong>{{ summary.custom || 0 }}</strong>
-        <span>Nhóm tùy chỉnh</span>
-      </article>
-      <article class="stat-card">
-        <strong>{{ summary.staff_count || 0 }}</strong>
-        <span>Nhân sự đang gán quyền</span>
-      </article>
-      <article class="stat-card">
-        <strong>{{ summary.sensitive_permissions || 0 }}</strong>
-        <span>Quyền nhạy cảm</span>
-      </article>
-    </div>
-
     <section class="filter-panel">
       <div class="filter-head">
         <strong>Bộ lọc</strong>
@@ -426,13 +407,6 @@ p {
   line-height: 1.55;
 }
 
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.stat-card,
 .filter-panel,
 .fixed-note,
 .table-card,
@@ -440,21 +414,6 @@ p {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: #fff;
-}
-
-.stat-card {
-  padding: 16px;
-}
-
-.stat-card strong {
-  display: block;
-  color: #0f172a;
-  font-size: 26px;
-}
-
-.stat-card span {
-  color: #64748b;
-  font-size: 13px;
 }
 
 .filter-panel {
@@ -788,10 +747,6 @@ small {
   .fixed-note {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .stat-grid {
-    grid-template-columns: 1fr;
   }
 
   .filter-head {

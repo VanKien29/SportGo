@@ -115,7 +115,7 @@ export default {
     },
     profileRoute() {
       if (!this.user) return '/login';
-      // Dùng chung /profile vì Profile.vue sẽ render đúng layout theo role
+      if (this.user.role === 'owner') return '/owner/profile';
       return '/profile';
     },
   },
