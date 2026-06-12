@@ -1,15 +1,20 @@
 <template>
   <div class="venue-courts-container">
-    <div class="card header-card">
+    <section class="page-head header-card">
       <div class="header-left">
-        <router-link to="/owner/venue-clusters" class="btn-back">&larr; Quay lại cụm sân</router-link>
+        <router-link to="/owner/venue-clusters" class="btn-back">
+          <AppIcon name="chevronLeft" size="15" />
+          <span>Quay lại cụm sân</span>
+        </router-link>
         <h2 v-if="cluster">Danh sách sân con: {{ cluster.name }}</h2>
+        <h2 v-else>Quản lý sân con</h2>
         <p class="subtitle">Quản lý các sân thi đấu chi tiết trong cụm sân</p>
       </div>
       <button class="btn btn-primary" :disabled="!cluster" @click="openCreateModal">
-        + Thêm sân con mới
+        <AppIcon name="plus" size="16" />
+        <span>Thêm sân con</span>
       </button>
-    </div>
+    </section>
 
     <!-- Loading State -->
     <div v-if="loading" class="loading-state card">
@@ -50,8 +55,8 @@
         </div>
 
         <div class="court-actions">
-          <button class="btn btn-outline btn-sm" @click="openEditModal(court)">Chỉnh sửa</button>
-          <button class="btn btn-danger-outline btn-sm" @click="confirmDelete(court)">Xóa sân</button>
+          <ActionIconButton icon="pencil" label="Sửa sân con" @click="openEditModal(court)" />
+          <ActionIconButton icon="trash" label="Xóa sân con" variant="danger" @click="confirmDelete(court)" />
         </div>
       </div>
     </div>
@@ -147,14 +152,17 @@
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
 import { venueClusterService } from '../../services/venueClusters';
 import { courtTypeService } from '../../services/courtTypes';
 
 export default {
   name: 'OwnerVenueCourts',
+  components: { ActionIconButton, AppIcon },
   data() {
     return {
-      clusterId: this.$route.query.venue_cluster_id,
+      clusterId: this.$route.query.venue_cluster_id || localStorage.getItem('selected_cluster') || '',
       cluster: null,
       courts: [],
       courtTypes: [],
@@ -200,8 +208,15 @@ export default {
       this.error = null;
       try {
         if (!this.clusterId) {
+          const clustersRes = await venueClusterService.getClusters();
+          this.clusterId = clustersRes.data?.[0]?.id || '';
+        }
+
+        if (!this.clusterId) {
           throw new Error('Thiếu mã cụm sân (venue_cluster_id).');
         }
+
+        localStorage.setItem('selected_cluster', this.clusterId);
 
         // Tải chi tiết cụm sân
         const clusterRes = await venueClusterService.getClusterDetails(this.clusterId);
@@ -305,6 +320,12 @@ export default {
         this.showTypeDropdown = false;
       }
     },
+    handleOwnerClusterChanged(event) {
+      const clusterId = event.detail?.id;
+      if (!clusterId || String(clusterId) === String(this.clusterId)) return;
+      this.clusterId = clusterId;
+      this.initData();
+    },
     async confirmDelete(court) {
       if (confirm(`Bạn có chắc chắn muốn xóa sân "${court.name}" không?`)) {
         try {
@@ -318,9 +339,11 @@ export default {
   },
   mounted() {
     document.addEventListener('click', this.handleOutsideClick);
+    window.addEventListener('owner-cluster-changed', this.handleOwnerClusterChanged);
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleOutsideClick);
+    window.removeEventListener('owner-cluster-changed', this.handleOwnerClusterChanged);
   },
   created() {
     this.initData();
@@ -520,13 +543,14 @@ export default {
 
 .court-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 10px;
   border-top: 1px solid var(--sg-border);
   padding-top: 12px;
 }
 
 .court-actions button {
-  flex: 1;
+  flex: 0 0 auto;
 }
 
 /* Modal Styling */

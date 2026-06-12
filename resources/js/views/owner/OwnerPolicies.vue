@@ -24,7 +24,7 @@
             <strong>{{ rule.rule_label }}</strong>
             <span>{{ rule.business_summary }}</span>
           </div>
-          <button class="mini-btn" type="button" @click="openRule(rule)">Cấu hình</button>
+          <ActionIconButton icon="settings" label="Cấu hình quy tắc" @click="openRule(rule)" />
         </div>
       </article>
       <div v-if="!loading && systemPolicies.length === 0" class="state">
@@ -38,7 +38,10 @@
           <h3>Quy định hiển thị cho khách</h3>
           <p>Nội dung này chỉ để khách đọc, không tác động tự động đến booking/refund/payment.</p>
         </div>
-        <button class="btn primary" type="button" @click="openNotice()">Thêm quy định</button>
+        <button class="btn primary" type="button" @click="openNotice()">
+          <AppIcon name="plus" size="16" />
+          <span>Thêm quy định</span>
+        </button>
       </div>
       <div v-if="customerNotices.length === 0" class="state">Chưa có nội quy hiển thị cho khách.</div>
       <article v-for="notice in customerNotices" :key="notice.id" class="notice-card">
@@ -47,7 +50,7 @@
           <p>{{ notice.content }}</p>
         </div>
         <span class="badge" :class="notice.status">{{ notice.status_label }}</span>
-        <button class="mini-btn" type="button" @click="openNotice(notice)">Sửa</button>
+        <ActionIconButton icon="pencil" label="Sửa quy định" @click="openNotice(notice)" />
       </article>
     </section>
 
@@ -94,10 +97,13 @@
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
 import { ownerPolicyService } from '../../services/ownerPolicyService.js';
 
 export default {
   name: 'OwnerPolicies',
+  components: { ActionIconButton, AppIcon },
   data() {
     return {
       tab: 'rules',

@@ -77,12 +77,6 @@ const routes = [
         meta: { guestAdmin: true },
     },
     {
-        path: "/owner/profile",
-        name: "owner-profile",
-        component: Profile,
-        meta: { requiresAuth: true, role: "owner" },
-    },
-    {
         path: "/admin",
         component: AdminLayout,
         meta: { requiresAuth: true, role: "admin" },
@@ -217,6 +211,7 @@ const routes = [
             { path: "staff", name: "owner-staff", component: OwnerStaff },
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
+            { path: "profile", name: "owner-profile", component: Profile },
             { path: "", redirect: { name: "owner-dashboard" } },
         ],
     },
@@ -247,6 +242,10 @@ router.beforeEach(async (to, from, next) => {
         if (auth?.role_group === "admin")
             return next({ name: "admin-dashboard" });
         return next();
+    }
+
+    if (to.name === "profile" && auth?.role_group === "owner") {
+        return next({ name: "owner-profile" });
     }
 
     if (to.matched.some((route) => route.meta.requiresAuth)) {
