@@ -147,7 +147,22 @@ class PartnerApplicationController extends Controller
                 'longitude' => $application->venue_longitude,
                 'status' => 'active',
                 'status_reason' => null,
+                'amenities' => $application->amenities,
             ]);
+
+            if (is_array($application->amenities) && ! empty($application->amenities)) {
+                $activeAmenities = \App\Models\Amenity::whereIn('name', $application->amenities)
+                    ->where('status', 'active')
+                    ->get();
+                $syncData = [];
+                foreach ($activeAmenities as $amenity) {
+                    $syncData[$amenity->id] = [
+                        'is_visible' => true,
+                        'description' => null,
+                    ];
+                }
+                $venueCluster->amenityCatalog()->sync($syncData);
+            }
 
             $this->createVenueCourts($application, $venueCluster, $data);
             $this->activateExistingBankAccounts($application, $actor?->id);

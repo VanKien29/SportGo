@@ -86,7 +86,7 @@
                 </div>
                 <div class="info-detail-body">
                   <span class="info-detail-label">Địa chỉ</span>
-                  <span class="info-detail-value">{{ cluster.address }}</span>
+                  <span class="info-detail-value">{{ formatFullAddress(cluster) }}</span>
                 </div>
               </div>
 
@@ -904,7 +904,15 @@ export default {
       this.globalMsgType = type;
       this.globalTimer = setTimeout(() => { this.globalMsg = ''; }, 3500);
     },
-
+    formatFullAddress(cluster) {
+      if (!cluster) return "";
+      const parts = [
+        cluster.address,
+        cluster.ward,
+        cluster.province
+      ].filter(Boolean);
+      return parts.join(', ') || '—';
+    },
   },
 };
 </script>

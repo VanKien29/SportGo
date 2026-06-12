@@ -47,6 +47,12 @@ export const venueClusterService = {
       method: 'DELETE',
     });
   },
+  updateCourtsLayout(data) {
+    return api('/api/owner/venue-courts/bulk-layout', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
   uploadMedia(clusterId, formData) {
     return api(`/api/owner/venue-clusters/${clusterId}/media`, {
       method: 'POST',

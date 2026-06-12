@@ -289,28 +289,69 @@
                                     </div>
                                 </div>
 
-                                <!-- Legend -->
-                                <div
-                                    class="flex flex-wrap gap-4 mb-4 text-xs font-bold text-gray-600"
+                                <!-- Legend & Toggle -->
+                                <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                                    <div class="flex flex-wrap gap-4 text-xs font-bold text-gray-600">
+                                        <span class="flex items-center gap-1.5"
+                                            ><i
+                                                class="w-3.5 h-3.5 rounded border border-gray-300 bg-white inline-block"
+                                            ></i>
+                                            Trống</span
+                                        >
+                                        <span class="flex items-center gap-1.5"
+                                            ><i
+                                                class="w-3.5 h-3.5 rounded bg-gray-200 inline-block"
+                                            ></i>
+                                            Đã đặt</span
+                                        >
+                                        <span class="flex items-center gap-1.5"
+                                            ><i
+                                                class="w-3.5 h-3.5 rounded bg-green-500 inline-block"
+                                            ></i>
+                                            Đang chọn</span
+                                        >
+                                    </div>
+                                    <div v-if="hasVisualLayout" class="flex gap-2">
+                                        <button 
+                                            type="button" 
+                                            class="px-3 py-1.5 rounded-lg text-xs font-black border transition-all"
+                                            :class="showMapMode ? 'bg-sportgo-accent text-white border-sportgo-accent' : 'bg-white text-gray-700 border-gray-200'"
+                                            @click="showMapMode = !showMapMode"
+                                        >
+                                            🗺️ {{ showMapMode ? 'Ẩn sơ đồ' : 'Xem sơ đồ sân' }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Interactive Court Map Selector -->
+                                <div 
+                                    v-if="hasVisualLayout && showMapMode && !scheduleLoading" 
+                                    class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-2xl"
                                 >
-                                    <span class="flex items-center gap-1.5"
-                                        ><i
-                                            class="w-3.5 h-3.5 rounded border border-gray-300 bg-white inline-block"
-                                        ></i>
-                                        Trống</span
-                                    >
-                                    <span class="flex items-center gap-1.5"
-                                        ><i
-                                            class="w-3.5 h-3.5 rounded bg-gray-200 inline-block"
-                                        ></i>
-                                        Đã đặt</span
-                                    >
-                                    <span class="flex items-center gap-1.5"
-                                        ><i
-                                            class="w-3.5 h-3.5 rounded bg-green-500 inline-block"
-                                        ></i>
-                                        Đang chọn</span
-                                    >
+                                    <h4 class="text-sm font-black text-gray-800 mb-1">Vị trí các sân con ngoài thực tế:</h4>
+                                    <p class="text-xs text-gray-500 mb-4">📍 Click chọn sân con trên sơ đồ để định vị nhanh dòng đặt lịch bên dưới</p>
+                                    <div class="relative w-full aspect-[1000/600] border border-gray-200 rounded-xl bg-slate-100 overflow-hidden shadow-inner">
+                                        <!-- Grid markings background -->
+                                        <div class="absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.02)_1px,transparent_1px)] bg-[size:30px_30px] pointer-events-none"></div>
+                                        
+                                        <!-- Placed Courts on client view -->
+                                        <div
+                                            v-for="court in placedCourts"
+                                            :key="court.id"
+                                            class="absolute transition-all duration-150"
+                                            :style="getClientCourtStyle(court)"
+                                            @click="selectCourtFromMap(court)"
+                                        >
+                                            <CourtVisual
+                                                :name="court.name"
+                                                :court-type-name="court.court_type?.name"
+                                                :status="getCourtMapStatus(court)"
+                                                :rotation="court.layout_rotation || 0"
+                                                :interactive="true"
+                                                :show-type="true"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <p
@@ -356,6 +397,8 @@
                                         >
                                             <div
                                                 class="schedule-court sticky-col"
+                                                :id="`court-row-${court.id}`"
+                                                :class="{ 'active-highlight': selectedGridCourtId === court.id }"
                                             >
                                                 <strong
                                                     class="text-xs font-black text-gray-900 block"
@@ -666,12 +709,13 @@
 
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
+import CourtVisual from "../../components/CourtVisual.vue";
 import { getAuth } from "../../stores/auth.js";
 import { venueService } from "../../services/venues.js";
 
 export default {
     name: "VenueDetail",
-    components: { PublicNavbar },
+    components: { PublicNavbar, CourtVisual },
     data() {
         return {
             venue: null,
@@ -681,6 +725,7 @@ export default {
             activeTab: "booking",
             bookingDate: new Date().toISOString().split("T")[0],
             selectedCourtTypeId: "",
+            showMapMode: true,
             scheduleLoading: false,
             scheduleError: "",
             scheduleSlots: [],
@@ -703,6 +748,16 @@ export default {
     computed: {
         minDate() {
             return new Date().toISOString().split("T")[0];
+        },
+        hasVisualLayout() {
+            return this.scheduleCourts.some(
+                (c) => c.layout_x !== null && c.layout_y !== null,
+            );
+        },
+        placedCourts() {
+            return this.scheduleCourts.filter(
+                (c) => c.layout_x !== null && c.layout_y !== null,
+            );
         },
         amenities() {
             return Array.isArray(this.venue?.amenities)
@@ -942,6 +997,40 @@ export default {
                 ] || type
             );
         },
+        getClientCourtStyle(court) {
+            return {
+                left: `${court.layout_x / 10}%`,
+                top: `${court.layout_y / 6}%`,
+                width: `${court.layout_w / 10}%`,
+                height: `${court.layout_h / 6}%`,
+            };
+        },
+        getCourtMapStatus(court) {
+            if (court.status === 'maintenance') return 'maintenance';
+            if (court.status === 'inactive') return 'inactive';
+            if (this.selectedGridCourtId === court.id) return 'selected';
+            
+            // If all slots are busy, show as busy
+            const courtSlots = this.scheduleSlotStatuses.filter(s => s.venue_court_id === court.id);
+            if (courtSlots.length > 0 && courtSlots.every(s => !s.is_available)) {
+                return 'busy';
+            }
+            return 'active';
+        },
+        selectCourtFromMap(court) {
+            if (court.status === 'maintenance' || court.status === 'inactive') {
+                return;
+            }
+            this.selectedGridCourtId = court.id;
+            
+            // Smoothly scroll the selected court row into view in the timetable
+            this.$nextTick(() => {
+                const el = document.getElementById(`court-row-${court.id}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        }
     },
 };
 </script>
@@ -983,6 +1072,12 @@ export default {
     padding: 5px 7px;
     background: #fff;
     min-width: 132px;
+    transition: background-color 0.2s, border-left 0.2s;
+    border-left: 4px solid transparent;
+}
+.schedule-court.active-highlight {
+    background-color: #f0fdf4 !important; /* light emerald */
+    border-left: 4px solid #16a34a !important; /* active green border */
 }
 .schedule-cell {
     width: 36px;

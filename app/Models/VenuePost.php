@@ -51,4 +51,15 @@ class VenuePost extends Model
     {
         return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
     }
+
+    public function media()
+    {
+        return $this->morphMany(Media::class, 'mediable');
+    }
+
+    public function hashtags()
+    {
+        return $this->belongsToMany(Hashtag::class, 'post_hashtags', 'post_id', 'hashtag_id')
+            ->where('post_hashtags.post_type', 'venue_posts');
+    }
 }

@@ -20,6 +20,8 @@ class VenueCluster extends Model
         'slug',
         'description',
         'phone_contact',
+        'province',
+        'ward',
         'address',
         'map_url',
         'latitude',

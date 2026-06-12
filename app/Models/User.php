@@ -73,4 +73,34 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class, 'user_roles')
             ->withPivot(['scope_type', 'scope_id', 'granted_by']);
     }
+
+    public function getRoleGroupAttribute(): string
+    {
+        $roles = $this->roles->pluck('name')->all();
+        $adminRoles = [
+            'super_admin',
+            'admin',
+            'system_staff',
+            'content_moderator',
+            'complaint_handler',
+            'venue_manager',
+            'partner_manager',
+            'booking_support',
+            'finance_operator',
+            'policy_manager',
+            'staff_manager',
+        ];
+        $ownerRoles = ['venue_owner', 'venue_staff'];
+
+        if (array_intersect($roles, $adminRoles)) {
+            return 'admin';
+        }
+
+        if (array_intersect($roles, $ownerRoles)) {
+            return 'owner';
+        }
+
+        return 'user';
+    }
 }
+

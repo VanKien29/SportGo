@@ -55,10 +55,10 @@ class VenueAccessRestrictionsTableSeeder extends Seeder
             ],
         );
 
-        if ($accessMode === 'limited') {
+        if ($accessMode === 'limited' || $accessMode === 'blocked') {
             $cluster->forceFill([
                 'status' => 'locked',
-                'status_reason' => 'Quá hạn phí duy trì hệ thống.',
+                'status_reason' => $reason,
                 'locked_at' => $startsAt,
                 'locked_by' => $createdBy,
             ])->save();

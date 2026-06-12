@@ -22,6 +22,7 @@ class VenueClusterController extends Controller
             ->pluck('venue_cluster_id');
 
         $clusters = VenueCluster::query()
+            ->with(['media'])
             ->whereIn('id', $ownedClusterIds->merge($assignedClusterIds)->unique()->values())
             ->latest()
             ->get();
@@ -51,6 +52,8 @@ class VenueClusterController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'phone_contact' => ['required', 'string', 'max:20'],
+            'province' => ['required', 'string', 'max:255'],
+            'ward' => ['required', 'string', 'max:255'],
             'address' => ['required', 'string', 'max:255'],
             'map_url' => ['nullable', 'url', 'max:2000'],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
@@ -59,12 +62,29 @@ class VenueClusterController extends Controller
         ]);
 
         $data['slug'] = Str::slug($data['name']) . '-' . substr($id, 0, 8);
+        $amenityNames = $data['amenities'] ?? [];
 
-        $cluster->update($data);
+        // Find matching active amenities
+        $activeAmenities = \App\Models\Amenity::whereIn('name', $amenityNames)
+            ->where('status', 'active')
+            ->get();
+
+        $syncData = [];
+        foreach ($activeAmenities as $amenity) {
+            $syncData[$amenity->id] = [
+                'is_visible' => true,
+                'description' => null,
+            ];
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($cluster, $data, $syncData) {
+            $cluster->update($data);
+            $cluster->amenityCatalog()->sync($syncData);
+        });
 
         return response()->json([
             'message' => 'Cập nhật cụm sân thành công.',
-            'data' => $cluster,
+            'data' => $cluster->fresh(['media']),
         ]);
     }
 
@@ -93,28 +113,44 @@ class VenueClusterController extends Controller
             // 1. Dạng @lat,lng
             if (preg_match('/@(-?\d+\.\d+),(-?\d+\.\d+)/', $finalUrl, $matches)) {
                 return response()->json([
-                    'latitude' => (float)$matches[1],
-                    'longitude' => (float)$matches[2],
+                    'data' => [
+                        'latitude' => (float)$matches[1],
+                        'longitude' => (float)$matches[2],
+                        'final_url' => $finalUrl,
+                    ]
                 ]);
             }
 
             // 2. Dạng !3dlat!4dlng
             if (preg_match('/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/', $finalUrl, $matches)) {
                 return response()->json([
-                    'latitude' => (float)$matches[1],
-                    'longitude' => (float)$matches[2],
+                    'data' => [
+                        'latitude' => (float)$matches[1],
+                        'longitude' => (float)$matches[2],
+                        'final_url' => $finalUrl,
+                    ]
                 ]);
             }
 
             // 3. Dạng q=lat,lng
             if (preg_match('/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/', $finalUrl, $matches)) {
                 return response()->json([
-                    'latitude' => (float)$matches[1],
-                    'longitude' => (float)$matches[2],
+                    'data' => [
+                        'latitude' => (float)$matches[1],
+                        'longitude' => (float)$matches[2],
+                        'final_url' => $finalUrl,
+                    ]
                 ]);
             }
 
-            return response()->json(['message' => 'Không thể trích xuất tọa độ từ liên kết này. Vui lòng kiểm tra lại.'], 422);
+            // Trả về final_url để client-side tự parse tiếp
+            return response()->json([
+                'data' => [
+                    'latitude' => null,
+                    'longitude' => null,
+                    'final_url' => $finalUrl,
+                ]
+            ]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Lỗi kết nối khi phân giải link map: ' . $e->getMessage()], 500);
         }

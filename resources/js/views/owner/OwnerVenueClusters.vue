@@ -44,7 +44,7 @@
                 >
                     <div class="cluster-info">
                         <h4 class="cluster-name">{{ cluster.name }}</h4>
-                        <p class="cluster-address">{{ cluster.address }}</p>
+                        <p class="cluster-address">{{ formatFullAddress(cluster) }}</p>
                     </div>
                 </div>
             </div>
@@ -102,9 +102,40 @@
                         </div>
                     </div>
 
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="province"
+                                >Tỉnh/Thành phố
+                                <span class="required">*</span></label
+                            >
+                            <input
+                                id="province"
+                                v-model="form.province"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Hà Nội, TP. Hồ Chí Minh..."
+                                required
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="ward"
+                                >Xã/Phường/Thị trấn
+                                <span class="required">*</span></label
+                            >
+                            <input
+                                id="ward"
+                                v-model="form.ward"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Dịch Vọng, Phường Bến Nghé..."
+                                required
+                            />
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label for="address"
-                            >Địa chỉ cụm sân
+                            >Địa chỉ cụ thể (Số nhà, tên đường...)
                             <span class="required">*</span></label
                         >
                         <input
@@ -112,6 +143,7 @@
                             v-model="form.address"
                             type="text"
                             class="form-control"
+                            placeholder="Ví dụ: Số 15 ngõ 20..."
                             required
                         />
                     </div>
@@ -179,6 +211,15 @@
                         </div>
                     </div>
 
+                    <!-- Leaflet Map Integration -->
+                    <div class="form-group">
+                        <label>Vị trí bản đồ</label>
+                        <p class="map-help-text">
+                            Bạn có thể click trực tiếp lên bản đồ hoặc kéo marker để chọn vị trí chính xác của cụm sân.
+                        </p>
+                        <div id="cluster-map" class="map-container"></div>
+                    </div>
+
                     <div class="form-group">
                         <label>Tiện ích cụm sân (Amenities)</label>
                         <div class="amenities-grid">
@@ -195,8 +236,12 @@
                                 <span>{{ item }}</span>
                             </label>
                         </div>
-
-
+                        <div class="amenity-request-tip">
+                            Bạn không tìm thấy tiện ích mong muốn?
+                            <a href="#" class="link-request-amenity" @click.prevent="openRequestModal">
+                                Gửi yêu cầu thêm tiện ích mới
+                            </a>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -263,6 +308,68 @@
             </div>
         </div>
 
+        <!-- Request Amenity Modal -->
+        <div v-if="showRequestModal" class="modal-backdrop" @click.self="closeRequestModal">
+            <div class="modal card">
+                <div class="modal-header">
+                    <h3>Gửi yêu cầu thêm tiện ích</h3>
+                    <button class="btn-close" @click="closeRequestModal">
+                        &times;
+                    </button>
+                </div>
+                <form @submit.prevent="handleRequestSubmit">
+                    <div class="modal-body">
+                        <div v-if="requestError" class="alert alert-danger">
+                            {{ requestError }}
+                        </div>
+                        <div v-if="requestSuccessMsg" class="alert alert-success">
+                            {{ requestSuccessMsg }}
+                        </div>
+
+                        <div class="form-group">
+                            <label for="req-name">
+                                Tên tiện ích <span class="required">*</span>
+                            </label>
+                            <input
+                                id="req-name"
+                                v-model="requestForm.name"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Máy bắn cầu tự động..."
+                                required
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="req-description">
+                                Mô tả tiện ích
+                            </label>
+                            <textarea
+                                id="req-description"
+                                v-model="requestForm.description"
+                                class="form-control"
+                                placeholder="Nhập mô tả chi tiết của tiện ích..."
+                                rows="3"
+                            ></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-outline"
+                            @click="closeRequestModal"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            :disabled="requestSubmitting"
+                        >
+                            {{ requestSubmitting ? "Đang gửi..." : "Gửi yêu cầu" }}
+                        </button>
+                    </div>
+                </form>
         <!-- Modal đăng ký cụm sân mới -->
         <div v-if="showNewClusterModal" class="modal-backdrop">
             <div class="modal-content">
@@ -349,11 +456,21 @@ export default {
             form: {
                 name: "",
                 phone_contact: "",
+                province: "",
+                ward: "",
                 address: "",
                 map_url: "",
                 latitude: 21.0285,
                 longitude: 105.8542,
                 amenities: [],
+                description: "",
+            },
+            showRequestModal: false,
+            requestSubmitting: false,
+            requestError: null,
+            requestSuccessMsg: null,
+            requestForm: {
+                name: "",
                 description: "",
             },
         };
@@ -379,6 +496,7 @@ export default {
             }
         },
         async parseCoordinatesFromMapUrl(url) {
+            let targetUrl = url;
             // Nếu là link rút gọn maps.app.goo.gl hoặc goo.gl/maps thì gọi API Server-side để giải mã
             if (
                 url.includes("maps.app.goo.gl") ||
@@ -386,14 +504,20 @@ export default {
             ) {
                 try {
                     const res = await venueClusterService.resolveMapUrl(url);
-                    if (res.latitude && res.longitude) {
-                        this.form.latitude = res.latitude;
-                        this.form.longitude = res.longitude;
-                        this.mapExtractMsg = {
-                            type: "success",
-                            text: `Trích xuất thành công: Vĩ độ ${res.latitude}, Kinh độ ${res.longitude}`,
-                        };
-                        return;
+                    const resolvedData = res.data;
+                    if (resolvedData) {
+                        if (resolvedData.latitude && resolvedData.longitude) {
+                            this.form.latitude = resolvedData.latitude;
+                            this.form.longitude = resolvedData.longitude;
+                            this.mapExtractMsg = {
+                                type: "success",
+                                text: `Trích xuất thành công: Vĩ độ ${resolvedData.latitude}, Kinh độ ${resolvedData.longitude}`,
+                            };
+                            return;
+                        }
+                        if (resolvedData.final_url) {
+                            targetUrl = resolvedData.final_url;
+                        }
                     }
                 } catch (e) {
                     console.warn(
@@ -410,7 +534,7 @@ export default {
 
             // Ví dụ URL: https://www.google.com/maps/place/21.028511,105.854167 hoặc @21.028511,105.854167,17z
             // Regex 1: Tìm mẫu @latitude,longitude
-            let match = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            let match = targetUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (match) {
                 this.form.latitude = parseFloat(match[1]);
                 this.form.longitude = parseFloat(match[2]);
@@ -422,7 +546,7 @@ export default {
             }
 
             // Regex 2: Tìm mẫu !3dlatitude!4dlongitude (phổ biến trong link share của Google Maps)
-            let match3d4d = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+            let match3d4d = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
             if (match3d4d) {
                 this.form.latitude = parseFloat(match3d4d[1]);
                 this.form.longitude = parseFloat(match3d4d[2]);
@@ -434,7 +558,7 @@ export default {
             }
 
             // Regex 3: Tìm query q=latitude,longitude
-            let matchQuery = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+            let matchQuery = targetUrl.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (matchQuery) {
                 this.form.latitude = parseFloat(matchQuery[1]);
                 this.form.longitude = parseFloat(matchQuery[2]);
@@ -446,7 +570,7 @@ export default {
             }
 
             // Regex 4: Tìm cặp tọa độ trực tiếp trong URL dạng /place/latitude,longitude
-            let matchCoords = url.match(/\/place\/(-?\d+\.\d+),(-?\d+\.\d+)/);
+            let matchCoords = targetUrl.match(/\/place\/(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (matchCoords) {
                 this.form.latitude = parseFloat(matchCoords[1]);
                 this.form.longitude = parseFloat(matchCoords[2]);
@@ -489,6 +613,8 @@ export default {
             this.form = {
                 name: cluster.name,
                 phone_contact: cluster.phone_contact || "",
+                province: cluster.province || "",
+                ward: cluster.ward || "",
                 address: cluster.address,
                 map_url: cluster.map_url || "",
                 latitude: parseFloat(cluster.latitude || 21.0285),
@@ -498,6 +624,18 @@ export default {
                     : [],
                 description: cluster.description || "",
             };
+            this.$nextTick(() => {
+                this.initMap();
+            });
+        },
+        formatFullAddress(cluster) {
+            if (!cluster) return "";
+            const parts = [
+                cluster.address,
+                cluster.ward,
+                cluster.province
+            ].filter(Boolean);
+            return parts.join(', ') || 'Chưa cấu hình địa chỉ';
         },
         async handleUpdate() {
             this.updating = true;
@@ -518,6 +656,9 @@ export default {
                         ...this.clusters[index],
                         ...res.data,
                     };
+                    // Cập nhật selectedCluster và phát event để đồng bộ dữ liệu giao diện
+                    this.selectedCluster = this.clusters[index];
+                    window.dispatchEvent(new CustomEvent("owner-cluster-changed", { detail: this.selectedCluster }));
                 }
             } catch (err) {
                 this.updateError = err.message || "Lỗi khi cập nhật cụm sân.";
@@ -531,8 +672,8 @@ export default {
             return `/storage/${path}`;
         },
         async handleImageUpload(e) {
-            const files = e.target.files;
-            if (!files || files.length === 0) return;
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
 
             this.uploadingImage = true;
             this.updateError = null;
@@ -581,6 +722,126 @@ export default {
                 console.error("Lỗi khi tải danh sách tiện ích:", err.message);
             }
         },
+        openRequestModal() {
+            this.showRequestModal = true;
+            this.requestError = null;
+            this.requestSuccessMsg = null;
+            this.requestForm = {
+                name: "",
+                description: "",
+            };
+        },
+        closeRequestModal() {
+            this.showRequestModal = false;
+        },
+        async handleRequestSubmit() {
+            this.requestSubmitting = true;
+            this.requestError = null;
+            this.requestSuccessMsg = null;
+            try {
+                await amenityService.request(this.requestForm);
+                this.requestSuccessMsg = "Gửi yêu cầu thành công. Vui lòng chờ admin duyệt.";
+                setTimeout(() => {
+                    this.closeRequestModal();
+                }, 2000);
+            } catch (err) {
+                this.requestError = err.message || "Lỗi gửi yêu cầu.";
+            } finally {
+                this.requestSubmitting = false;
+            }
+        },
+        initMap() {
+            if (!window.L) {
+                console.error("Leaflet library is not loaded.");
+                return;
+            }
+
+            const container = document.getElementById('cluster-map');
+            if (!container) return;
+
+            // If map is initialized on a different/stale container, destroy it
+            if (this.map && this.map.getContainer() !== container) {
+                this.destroyMap();
+            }
+
+            const lat = parseFloat(this.form.latitude) || 21.0285;
+            const lng = parseFloat(this.form.longitude) || 105.8542;
+
+            // Fix Leaflet default icon issues in SPAs
+            const DefaultIcon = window.L.icon({
+                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+            window.L.Marker.prototype.options.icon = DefaultIcon;
+
+            if (!this.map) {
+                this.map = window.L.map('cluster-map').setView([lat, lng], 15);
+                window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(this.map);
+
+                this.marker = window.L.marker([lat, lng], { draggable: true }).addTo(this.map);
+
+                // Handle marker dragging
+                this.marker.on('dragend', (e) => {
+                    const position = e.target.getLatLng();
+                    this.form.latitude = parseFloat(position.lat.toFixed(7));
+                    this.form.longitude = parseFloat(position.lng.toFixed(7));
+                });
+
+                // Handle clicking on map to set position
+                this.map.on('click', (e) => {
+                    const position = e.latlng;
+                    this.marker.setLatLng(position);
+                    this.form.latitude = parseFloat(position.lat.toFixed(7));
+                    this.form.longitude = parseFloat(position.lng.toFixed(7));
+                });
+            } else {
+                // Map is already initialized, just update marker and view
+                this.map.setView([lat, lng], 15);
+                this.marker.setLatLng([lat, lng]);
+            }
+
+            // Invalidate size to ensure map tiles render correctly
+            setTimeout(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                }
+            }, 100);
+        },
+        updateMapMarker() {
+            if (this.map && this.marker) {
+                const lat = parseFloat(this.form.latitude);
+                const lng = parseFloat(this.form.longitude);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    const currentLatLng = this.marker.getLatLng();
+                    // Avoid updating if the difference is extremely small (e.g. from user dragging)
+                    if (Math.abs(currentLatLng.lat - lat) > 0.00001 || Math.abs(currentLatLng.lng - lng) > 0.00001) {
+                        this.marker.setLatLng([lat, lng]);
+                        this.map.setView([lat, lng], this.map.getZoom());
+                    }
+                }
+            }
+        },
+        destroyMap() {
+            if (this.map) {
+                this.map.remove();
+                this.map = null;
+                this.marker = null;
+            }
+        },
+    },
+    watch: {
+        'form.latitude'(newVal) {
+            this.updateMapMarker();
+        },
+        'form.longitude'(newVal) {
+            this.updateMapMarker();
+        }
         async submitNewCluster() {
             this.submittingCluster = true;
             try {
@@ -610,6 +871,9 @@ export default {
     created() {
         this.fetchClusters();
         this.fetchAvailableAmenities();
+    },
+    beforeUnmount() {
+        this.destroyMap();
     },
 };
 </script>
@@ -944,6 +1208,7 @@ export default {
     font-size: 14px;
     font-weight: 700;
     transition: background 0.18s;
+    z-index: 10;
 }
 .btn-delete-img:hover {
     background: rgb(220, 38, 38);
@@ -997,6 +1262,31 @@ export default {
     animation: spin 0.8s linear infinite;
 }
 
+/* Modal styles for requesting amenity */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    display: grid;
+    place-items: center;
+    z-index: 999;
+}
+
+.modal {
+    width: min(450px, 95vw);
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--sg-border, #e2e8f0);
 /* Modal Styles */
 .modal-backdrop {
     position: fixed;
@@ -1031,6 +1321,64 @@ export default {
 
 .modal-header h3 {
     margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--sg-border, #e2e8f0);
+    background: #f8fafc;
+}
+
+.amenity-request-tip {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.link-request-amenity {
+    color: #000000;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.link-request-amenity:hover {
+    color: #333333;
+}
+
+.map-container {
+    width: 100%;
+    height: 320px;
+    border-radius: 8px;
+    border: 1px solid var(--sg-border);
+    margin-top: 8px;
+    margin-bottom: 8px;
+    z-index: 1;
+}
+
+.map-help-text {
+    font-size: 12px;
+    color: rgba(15, 23, 42, 0.5);
+    margin-bottom: 8px;
     font-size: 18px;
     font-weight: 700;
 }
