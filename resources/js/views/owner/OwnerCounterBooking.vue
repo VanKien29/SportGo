@@ -106,25 +106,29 @@
             </div>
           </div>
 
-          <div v-for="period in slotPeriods" :key="period.key" class="period-row">
-            <div class="period-label">
-              <strong>{{ period.label }}</strong>
-              <span>{{ period.range }}</span>
-            </div>
-            <div class="period-slots">
-              <button
-                v-for="slot in period.slots"
-                :key="slot.start_time"
-                type="button"
-                class="time-slot"
-                :class="slotButtonClass(slot)"
-                :disabled="isSlotDisabled(slot)"
-                :title="slotActionTitle(slot)"
-                @click="toggleSlot(slot)"
-              >
-                <span>{{ formatTime(slot.start_time) }}</span>
-                <small>{{ slotPriceLabel(slot) }}</small>
-              </button>
+          <div class="slot-matrix" role="grid" aria-label="Bảng chọn khung giờ">
+            <div v-for="period in slotPeriods" :key="period.key" class="period-row" role="row">
+              <div class="period-label" role="rowheader">
+                <strong>{{ period.label }}</strong>
+                <span>{{ period.range }}</span>
+              </div>
+              <div class="period-slots" role="presentation">
+                <button
+                  v-for="slot in period.slots"
+                  :key="slot.start_time"
+                  type="button"
+                  class="time-slot"
+                  role="gridcell"
+                  :aria-pressed="isSlotSelected(slot)"
+                  :class="slotButtonClass(slot)"
+                  :disabled="isSlotDisabled(slot)"
+                  :title="slotActionTitle(slot)"
+                  @click="toggleSlot(slot)"
+                >
+                  <span>{{ formatTime(slot.start_time) }}</span>
+                  <small v-if="slotCellLabel(slot)">{{ slotCellLabel(slot) }}</small>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -774,8 +778,11 @@ export default {
 
       return this.isSlotBusy(this.selectedGridCourtId, slot);
     },
+    isSlotSelected(slot) {
+      return this.selectedSlotIndexes.some((index) => this.bookableScheduleSlots[index]?.start_time === slot.start_time);
+    },
     slotButtonClass(slot) {
-      const selected = this.selectedSlotIndexes.some((index) => this.bookableScheduleSlots[index]?.start_time === slot.start_time);
+      const selected = this.isSlotSelected(slot);
       const busy = this.isSlotBusy(this.selectedGridCourtId, slot);
       const interval = this.busyInterval(this.selectedGridCourtId, slot);
 
@@ -794,11 +801,20 @@ export default {
 
       return this.formatCurrency(status.price);
     },
+    slotCellLabel(slot) {
+      const interval = this.busyInterval(this.selectedGridCourtId, slot);
+
+      if (this.isSlotSelected(slot)) return 'Đã chọn';
+      if (interval) return ['pending_payment', 'pending_approval', 'auto', 'manual'].includes(interval.status) ? 'Giữ' : 'Đặt';
+      if (this.isSlotDisabled(slot)) return 'Bận';
+
+      return '';
+    },
     slotActionTitle(slot) {
       if (!slot) return '';
       const start = this.formatTime(slot.start_time);
       const end = this.formatTime(slot.end_time);
-      const selected = this.selectedSlotIndexes.some((index) => this.bookableScheduleSlots[index]?.start_time === slot.start_time);
+      const selected = this.isSlotSelected(slot);
 
       if (this.isSlotDisabled(slot)) {
         return `${start} - ${end} không khả dụng`;
@@ -1272,6 +1288,13 @@ select {
   gap: 12px;
 }
 
+.slot-matrix {
+  overflow: hidden;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
+}
+
 .selected-court-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1304,64 +1327,73 @@ select {
 .period-row {
   display: grid;
   grid-template-columns: 118px minmax(0, 1fr);
-  gap: 12px;
   align-items: stretch;
-  padding: 12px;
-  border: 1px solid #d9e8d9;
-  border-radius: 8px;
+  border-bottom: 1px solid #d9e8d9;
   background: #fff;
+}
+
+.period-row:last-child {
+  border-bottom: 0;
 }
 
 .period-label {
   display: grid;
   align-content: center;
   gap: 4px;
+  min-height: 52px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-right: 1px solid #d9e8d9;
   background: #f2f7ef;
 }
 
 .period-slots {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+  gap: 0;
 }
 
 .time-slot {
   display: grid;
-  gap: 4px;
-  min-height: 58px;
-  padding: 9px 8px;
-  border: 1px solid #cbdccc;
-  border-radius: 8px;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 7px 4px;
+  border: 0;
+  border-right: 1px solid #e4eee4;
+  border-radius: 0;
   background: #fff;
   color: #16231a;
-  text-align: left;
+  text-align: center;
   transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
+.time-slot:last-child {
+  border-right: 0;
+}
+
 .time-slot:hover:not(:disabled) {
-  border-color: rgba(47, 158, 68, 0.65);
-  background: #f7fbf5;
-  box-shadow: 0 8px 18px rgba(27, 94, 48, 0.08);
-  transform: translateY(-1px);
+  background: #e8f7ec;
+  box-shadow: inset 0 0 0 1px rgba(47, 158, 68, 0.4);
 }
 
 .time-slot span {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 850;
+  line-height: 1;
 }
 
 .time-slot small {
   color: #607267;
-  font-size: 11px;
-  font-weight: 750;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .time-slot.selected {
-  border-color: #2f9e44;
   background: #2f9e44;
   color: #fff;
+  box-shadow: inset 0 0 0 1px #2f9e44;
 }
 
 .time-slot.selected small {
@@ -1369,13 +1401,11 @@ select {
 }
 
 .time-slot.busy {
-  border-color: #d7e0d7;
   background: #eef3ee;
   color: #758176;
 }
 
 .time-slot.pending {
-  border-color: #f2c879;
   background: #fff7dc;
   color: #7a4a0b;
 }
@@ -1711,6 +1741,11 @@ select {
 
   .period-row {
     grid-template-columns: 1fr;
+  }
+
+  .period-label {
+    border-right: 0;
+    border-bottom: 1px solid #d9e8d9;
   }
 }
 </style>
