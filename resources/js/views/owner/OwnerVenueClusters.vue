@@ -206,6 +206,15 @@
                         </div>
                     </div>
 
+                    <!-- Leaflet Map Integration -->
+                    <div class="form-group">
+                        <label>Vị trí bản đồ</label>
+                        <p class="map-help-text">
+                            Bạn có thể click trực tiếp lên bản đồ hoặc kéo marker để chọn vị trí chính xác của cụm sân.
+                        </p>
+                        <div id="cluster-map" class="map-container"></div>
+                    </div>
+
                     <div class="form-group">
                         <label>Tiện ích cụm sân (Amenities)</label>
                         <div class="amenities-grid">
@@ -547,6 +556,9 @@ export default {
                     : [],
                 description: cluster.description || "",
             };
+            this.$nextTick(() => {
+                this.initMap();
+            });
         },
         formatFullAddress(cluster) {
             if (!cluster) return "";
@@ -667,10 +679,105 @@ export default {
                 this.requestSubmitting = false;
             }
         },
+        initMap() {
+            if (!window.L) {
+                console.error("Leaflet library is not loaded.");
+                return;
+            }
+
+            const container = document.getElementById('cluster-map');
+            if (!container) return;
+
+            // If map is initialized on a different/stale container, destroy it
+            if (this.map && this.map.getContainer() !== container) {
+                this.destroyMap();
+            }
+
+            const lat = parseFloat(this.form.latitude) || 21.0285;
+            const lng = parseFloat(this.form.longitude) || 105.8542;
+
+            // Fix Leaflet default icon issues in SPAs
+            const DefaultIcon = window.L.icon({
+                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+            window.L.Marker.prototype.options.icon = DefaultIcon;
+
+            if (!this.map) {
+                this.map = window.L.map('cluster-map').setView([lat, lng], 15);
+                window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(this.map);
+
+                this.marker = window.L.marker([lat, lng], { draggable: true }).addTo(this.map);
+
+                // Handle marker dragging
+                this.marker.on('dragend', (e) => {
+                    const position = e.target.getLatLng();
+                    this.form.latitude = parseFloat(position.lat.toFixed(7));
+                    this.form.longitude = parseFloat(position.lng.toFixed(7));
+                });
+
+                // Handle clicking on map to set position
+                this.map.on('click', (e) => {
+                    const position = e.latlng;
+                    this.marker.setLatLng(position);
+                    this.form.latitude = parseFloat(position.lat.toFixed(7));
+                    this.form.longitude = parseFloat(position.lng.toFixed(7));
+                });
+            } else {
+                // Map is already initialized, just update marker and view
+                this.map.setView([lat, lng], 15);
+                this.marker.setLatLng([lat, lng]);
+            }
+
+            // Invalidate size to ensure map tiles render correctly
+            setTimeout(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                }
+            }, 100);
+        },
+        updateMapMarker() {
+            if (this.map && this.marker) {
+                const lat = parseFloat(this.form.latitude);
+                const lng = parseFloat(this.form.longitude);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    const currentLatLng = this.marker.getLatLng();
+                    // Avoid updating if the difference is extremely small (e.g. from user dragging)
+                    if (Math.abs(currentLatLng.lat - lat) > 0.00001 || Math.abs(currentLatLng.lng - lng) > 0.00001) {
+                        this.marker.setLatLng([lat, lng]);
+                        this.map.setView([lat, lng], this.map.getZoom());
+                    }
+                }
+            }
+        },
+        destroyMap() {
+            if (this.map) {
+                this.map.remove();
+                this.map = null;
+                this.marker = null;
+            }
+        },
+    },
+    watch: {
+        'form.latitude'(newVal) {
+            this.updateMapMarker();
+        },
+        'form.longitude'(newVal) {
+            this.updateMapMarker();
+        }
     },
     created() {
         this.fetchClusters();
         this.fetchAvailableAmenities();
+    },
+    beforeUnmount() {
+        this.destroyMap();
     },
 };
 </script>
@@ -1130,5 +1237,21 @@ export default {
 }
 .link-request-amenity:hover {
     color: #333333;
+}
+
+.map-container {
+    width: 100%;
+    height: 320px;
+    border-radius: 8px;
+    border: 1px solid var(--sg-border);
+    margin-top: 8px;
+    margin-bottom: 8px;
+    z-index: 1;
+}
+
+.map-help-text {
+    font-size: 12px;
+    color: rgba(15, 23, 42, 0.5);
+    margin-bottom: 8px;
 }
 </style>
