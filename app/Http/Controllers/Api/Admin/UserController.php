@@ -44,11 +44,60 @@ class UserController extends Controller
     {
         $this->authorizePermission($request, ['user.view', 'staff.view']);
 
-        $users = User::query()
-            ->with('roles:id,name,display_name')
-            ->latest()
-            ->get()
-            ->map(fn (User $user): array => $this->payload($user));
+        $query = User::query()->with('roles:id,name,display_name')->latest();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('role')) {
+            $query->whereHas('roles', function ($q) use ($request) {
+                $q->where('name', $request->role);
+            });
+        }
+
+        if ($request->filled('role_group')) {
+            if ($request->role_group === 'staff') {
+                $query->whereHas('roles', function ($q) {
+                    $q->whereIn('name', [
+                        'super_admin', 'admin', 'system_staff', 'content_moderator',
+                        'complaint_handler', 'venue_manager', 'partner_manager',
+                        'booking_support', 'finance_operator', 'policy_manager', 'staff_manager'
+                    ]);
+                });
+            } elseif ($request->role_group === 'user') {
+                $query->where(function ($q) {
+                    $q->whereHas('roles', function ($sq) {
+                        $sq->whereIn('name', ['user', 'venue_owner', 'venue_staff']);
+                    })->orWhereDoesntHave('roles');
+                });
+            }
+        }
+
+        if ($request->filled('keyword')) {
+            $keyword = '%' . $request->keyword . '%';
+            $query->where(function ($q) use ($keyword) {
+                $q->where('full_name', 'like', $keyword)
+                  ->orWhere('email', 'like', $keyword)
+                  ->orWhere('username', 'like', $keyword)
+                  ->orWhere('phone', 'like', $keyword);
+            });
+        }
+
+        if ($request->filled('per_page')) {
+            $paginator = $query->paginate($request->per_page);
+            return response()->json([
+                'data' => collect($paginator->items())->map(fn (User $user) => $this->payload($user)),
+                'meta' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                    'per_page' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                ]
+            ]);
+        }
+
+        $users = $query->get()->map(fn (User $user): array => $this->payload($user));
 
         return response()->json(['data' => $users]);
     }

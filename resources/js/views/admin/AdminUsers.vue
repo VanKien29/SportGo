@@ -2,11 +2,11 @@
   <section class="admin-users">
     <div class="header-section">
       <div>
-        <h2>Quản lý Nhân sự & Tài khoản</h2>
-        <p class="muted">Quản lý tài khoản hệ thống, phân quyền vai trò và nhật ký audit logs truy vết.</p>
+        <h2>Quản lý Tài khoản</h2>
+        <p class="muted">Quản lý tài khoản người dùng, chủ sân, và nhật ký hoạt động.</p>
       </div>
-      <button class="btn success" @click="openCreateModal">
-        + Thêm nhân sự
+      <button class="btn success" @click="openCreateModal" style="display: none;">
+        + Thêm người dùng
       </button>
     </div>
 
@@ -57,7 +57,7 @@
             <td colspan="6" class="empty">Đang tải danh sách...</td>
           </tr>
           <tr v-else-if="filteredUsers.length === 0">
-            <td colspan="6" class="empty">Không tìm thấy tài khoản nhân sự phù hợp.</td>
+            <td colspan="6" class="empty">Không tìm thấy tài khoản phù hợp.</td>
           </tr>
           <tr v-for="user in filteredUsers" :key="user.id">
             <td>
@@ -444,6 +444,7 @@ export default {
         keyword: '',
         status: '',
         role: '',
+        role_group: 'user',
       },
       searchTimeout: null,
 
@@ -561,7 +562,7 @@ export default {
       this.loading = true;
       this.error = '';
       try {
-        const response = await adminUserService.list();
+        const response = await adminUserService.list(this.filters);
         this.users = response.data || [];
       } catch (err) {
         this.error = err.message || 'Không tải được danh sách tài khoản.';

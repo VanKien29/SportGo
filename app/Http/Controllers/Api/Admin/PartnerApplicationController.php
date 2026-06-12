@@ -90,6 +90,7 @@ class PartnerApplicationController extends Controller
                 'approvedVenueCluster:id,name,status,slug,address',
                 'courts.courtType:id,name',
                 'bankAccounts',
+                'contracts.signatures',
             ])
             ->findOrFail($id);
 
@@ -149,7 +150,6 @@ class PartnerApplicationController extends Controller
             ]);
 
             $this->createVenueCourts($application, $venueCluster, $data);
-            $this->grantVenueOwnerRole($application->user_id, $actor?->id);
             $this->activateExistingBankAccounts($application, $actor?->id);
 
             if ($bankPayload) {
@@ -164,12 +164,30 @@ class PartnerApplicationController extends Controller
                 'approved_venue_cluster_id' => $venueCluster->id,
             ])->save();
 
+            // Generate contract
+            $template = \App\Models\ContractTemplate::first();
+            if ($template) {
+                $contractService = app(\App\Services\Partner\ContractGenerationService::class);
+                $contract = $contractService->generate($application->id, $template->id);
+                $contractService->sendEmail($contract);
+            }
+
+            \App\Models\Notification::create([
+                'user_id' => $application->user_id,
+                'type' => 'partner_application_approved',
+                'title' => 'Hồ sơ đối tác đã được duyệt',
+                'body' => 'Hồ sơ đăng ký đối tác của bạn đã được duyệt thành công. Hợp đồng đã được tạo và gửi cho bạn, vui lòng kiểm tra và ký kết.',
+                'reference_type' => 'partner_application',
+                'reference_id' => $application->id,
+            ]);
+
             return $application->fresh([
                 'user:id,full_name,username,email,phone,status',
                 'reviewedBy:id,full_name,username,email',
                 'approvedVenueCluster:id,name,status,slug,address',
                 'courts.courtType:id,name',
                 'bankAccounts',
+                'contracts.signatures',
             ]);
         });
 
@@ -211,6 +229,15 @@ class PartnerApplicationController extends Controller
             'status_reason' => $reason,
             'reviewed_at' => now(),
         ])->save();
+
+        \App\Models\Notification::create([
+            'user_id' => $application->user_id,
+            'type' => 'partner_application_rejected',
+            'title' => 'Hồ sơ đối tác bị từ chối',
+            'body' => 'Hồ sơ đăng ký đối tác của bạn đã bị từ chối. Lý do: ' . $reason,
+            'reference_type' => 'partner_application',
+            'reference_id' => $application->id,
+        ]);
 
         return response()->json([
             'status' => 'success',
@@ -358,6 +385,7 @@ class PartnerApplicationController extends Controller
         $payload = [
             'id' => $application->id,
             'user_id' => $application->user_id,
+            'type' => $application->type,
             'business_name' => $application->business_name,
             'tax_code' => $application->tax_code,
             'venue_name' => $application->venue_name,
@@ -365,6 +393,8 @@ class PartnerApplicationController extends Controller
             'venue_map_url' => $application->venue_map_url,
             'venue_latitude' => $application->venue_latitude,
             'venue_longitude' => $application->venue_longitude,
+            'venue_description' => $application->venue_description,
+            'amenities' => $application->amenities,
             'status' => $application->status,
             'status_reason' => $application->status_reason,
             'approved_venue_cluster_id' => $application->approved_venue_cluster_id,

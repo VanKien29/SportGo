@@ -70,7 +70,11 @@
           <tbody>
             <tr v-for="application in applications" :key="application.id">
               <td>
-                <div class="main-title">{{ application.venue_name }}</div>
+                <div class="main-title">
+                  {{ application.venue_name }}
+                  <span v-if="application.type === 'new_cluster'" class="badge cluster-badge">Cụm mới</span>
+                  <span v-else class="badge partner-badge">Đối tác mới</span>
+                </div>
                 <div class="muted">{{ application.business_name }}</div>
               </td>
               <td>
@@ -154,12 +158,26 @@
           <section class="detail-section">
             <h4>Kinh doanh</h4>
             <dl>
+              <dt>Loại hồ sơ</dt>
+              <dd>
+                <span v-if="activeApplication.type === 'new_cluster'" class="badge cluster-badge">Đăng ký thêm cụm sân</span>
+                <span v-else class="badge partner-badge">Đăng ký đối tác mới</span>
+              </dd>
               <dt>Đơn vị</dt>
               <dd>{{ activeApplication.business_name }}</dd>
               <dt>Mã số thuế</dt>
               <dd>{{ activeApplication.tax_code || '-' }}</dd>
               <dt>Tên cụm sân</dt>
               <dd>{{ activeApplication.venue_name }}</dd>
+              <dt>Mô tả dịch vụ</dt>
+              <dd>{{ activeApplication.venue_description || '-' }}</dd>
+              <dt>Tiện ích chọn sẵn</dt>
+              <dd>
+                <div v-if="activeApplication.amenities && activeApplication.amenities.length > 0" class="amenities-list">
+                  <span v-for="amenity in activeApplication.amenities" :key="amenity" class="amenity-tag">{{ amenity }}</span>
+                </div>
+                <span v-else>-</span>
+              </dd>
             </dl>
           </section>
 
@@ -200,6 +218,22 @@
               </div>
             </div>
             <p v-else class="muted">Chưa có tài khoản ngân hàng.</p>
+          </section>
+
+          <section class="detail-section full">
+            <h4>Hợp đồng hợp tác</h4>
+            <div v-if="activeApplication.contracts?.length" class="mini-list">
+              <div v-for="contract in activeApplication.contracts" :key="contract.id" class="mini-item stacked" style="align-items: flex-start;">
+                <span><strong>{{ contract.contract_number }}</strong></span>
+                <span class="status" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
+                <div v-if="contract.status === 'signed'" style="margin-top: 8px;">
+                  <button class="btn primary small" type="button" :disabled="signingAction" @click="approveSignature(contract.id)">
+                    Ký phê duyệt & Cấp quyền
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p v-else class="muted">Chưa có hợp đồng nào.</p>
           </section>
 
           <section class="detail-section full">
@@ -521,9 +555,25 @@ export default {
         this.closeDetail();
         await this.loadApplications(this.pagination.current_page);
       } catch (err) {
-        this.error = err.message || 'Không từ chối được đơn.';
+        this.error = err.message || 'Có lỗi xảy ra khi từ chối đơn.';
       } finally {
         this.savingAction = false;
+      }
+    },
+    async approveSignature(contractId) {
+      if (!confirm('Xác nhận ký phê duyệt và cấp quyền Chủ sân cho đối tác này?')) return;
+      
+      this.clearAlerts();
+      this.signingAction = true;
+      try {
+        await adminPartnerApplicationService.approveSignature(contractId);
+        this.message = 'Phê duyệt hợp đồng thành công!';
+        await this.fetchApplication(this.activeApplication);
+        await this.loadApplications(this.pagination.current_page);
+      } catch (err) {
+        this.error = err.message || 'Có lỗi xảy ra khi phê duyệt hợp đồng.';
+      } finally {
+        this.signingAction = false;
       }
     },
     clearAlerts() {
@@ -534,14 +584,23 @@ export default {
       return ['pending', 'reviewing'].includes(status);
     },
     statusLabel(status) {
-      const map = {
+      const labels = {
         pending: 'Chờ duyệt',
         reviewing: 'Đang xem xét',
         approved: 'Đã duyệt',
         rejected: 'Từ chối',
         cancelled: 'Đã hủy',
       };
-      return map[status] || status || '-';
+      return labels[status] || status || '-';
+    },
+    contractStatusLabel(status) {
+      const labels = {
+        draft: 'Nháp',
+        waiting_signature: 'Chờ đối tác ký',
+        signed: 'Đã ký (Chờ Admin duyệt)',
+        completed: 'Hoàn tất',
+      };
+      return labels[status] || status;
     },
     formatDate(value) {
       if (!value) return '-';
@@ -841,6 +900,43 @@ th {
   overflow: hidden;
   background: #fff;
   border-radius: 8px;
+  text-overflow: ellipsis;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.cluster-badge {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.partner-badge {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.amenities-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.amenity-tag {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .modal.large {

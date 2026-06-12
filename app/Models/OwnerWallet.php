@@ -16,6 +16,7 @@ class OwnerWallet extends Model
 
     protected $fillable = [
         'owner_id',
+        'venue_cluster_id',
         'available_balance',
         'pending_withdrawal_balance',
         'total_earned',
@@ -35,6 +36,11 @@ class OwnerWallet extends Model
     public function owner()
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function venueCluster()
+    {
+        return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
     }
 
     public function ledgers()

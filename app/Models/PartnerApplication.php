@@ -101,6 +101,23 @@ class PartnerApplication extends Model
         return $this->hasMany(PartnerApplicationDocument::class, 'partner_application_id');
     }
 
+    public function terminationRequests()
+    {
+        return $this->hasMany(PartnerTerminationRequest::class, 'partner_application_id');
+    }
+
+    public function liquidations()
+    {
+        return $this->hasManyThrough(
+            PartnerLiquidation::class,
+            PartnerContract::class,
+            'partner_application_id', // Foreign key on contracts table
+            'partner_contract_id',    // Foreign key on liquidations table
+            'id',                     // Local key on applications table
+            'id'                      // Local key on contracts table
+        );
+    }
+
     public function statusHistories()
     {
         return $this->hasMany(PartnerApplicationStatusHistory::class, 'partner_application_id');

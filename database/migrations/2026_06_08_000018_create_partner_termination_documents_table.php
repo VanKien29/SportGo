@@ -14,7 +14,7 @@ return new class extends Migration
 
         Schema::create('partner_termination_documents', function (Blueprint $table): void {
             $table->id();
-            $table->char('partner_termination_request_id', 36);
+            $table->unsignedBigInteger('partner_termination_request_id');
             $table->char('generated_document_id', 36)->nullable();
             $table->enum('document_type', ['owner_termination_request', 'mutual_liquidation_minutes', 'unilateral_notice', 'settlement_minutes', 'final_termination_file']);
             $table->char('media_id', 36)->nullable();

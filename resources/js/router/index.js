@@ -17,6 +17,7 @@ import AdminLayout from "../views/admin/AdminLayout.vue";
 import AdminDashboard from "../views/admin/AdminDashboard.vue";
 import AdminProfile from "../views/admin/AdminProfile.vue";
 import AdminUsers from "../views/admin/AdminUsers.vue";
+import AdminStaffs from "../views/admin/AdminStaffs.vue";
 import AdminUserDetail from "../views/admin/AdminUserDetail.vue";
 import AdminVouchers from "../views/admin/AdminVouchers.vue";
 import AdminPolicies from "../views/admin/AdminPolicies.vue";
@@ -88,6 +89,7 @@ const routes = [
             },
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
+            { path: "staffs", name: "admin-staffs", component: AdminStaffs },
             { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail },
             { path: "vouchers", name: "admin-vouchers", component: AdminVouchers },
             {
@@ -212,6 +214,16 @@ const routes = [
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
             { path: "profile", name: "owner-profile", component: Profile },
+            {
+                path: "partner-profile",
+                name: "owner-partner-profile",
+                component: () => import("../views/owner/OwnerPartnerProfile.vue"),
+            },
+            {
+                path: "finance",
+                name: "owner-finance",
+                component: () => import("../views/owner/OwnerFinance.vue"),
+            },
             { path: "", redirect: { name: "owner-dashboard" } },
         ],
     },

@@ -14,11 +14,13 @@ return new class extends Migration
 
         Schema::table('generated_documents', function (Blueprint $table): void {
             if (Schema::hasColumn('generated_documents', 'partner_contract_id') && Schema::hasTable('partner_contracts')) {
+                $table->unsignedBigInteger('partner_contract_id')->nullable()->change();
                 $table->foreign('partner_contract_id', 'generated_documents_contract_foreign')
                     ->references('id')->on('partner_contracts')->onDelete('set null');
             }
 
             if (Schema::hasColumn('generated_documents', 'partner_termination_request_id') && Schema::hasTable('partner_termination_requests')) {
+                $table->unsignedBigInteger('partner_termination_request_id')->nullable()->change();
                 $table->foreign('partner_termination_request_id', 'generated_documents_termination_foreign')
                     ->references('id')->on('partner_termination_requests')->onDelete('set null');
             }
