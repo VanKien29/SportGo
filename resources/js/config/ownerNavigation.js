@@ -14,16 +14,10 @@ export const ownerNavigationSections = [
     label: 'Vận hành sân',
     items: [
       {
-        label: 'Cụm sân',
+        label: 'Cụm sân & Sân con',
         icon: 'building',
         to: '/owner/venue-clusters',
-        activeNames: ['owner-venue-clusters'],
-      },
-      {
-        label: 'Sân con',
-        icon: 'layers',
-        to: '/owner/venue-courts',
-        activeNames: ['owner-venue-courts'],
+        activeNames: ['owner-venue-clusters', 'owner-venue-courts'],
       },
       {
         label: 'Cấu hình giá',
@@ -62,6 +56,7 @@ export const ownerNavigationSections = [
     ],
   },
 ];
+
 
 export const ownerRouteTitles = {
   'owner-dashboard': 'Bảng điều hành',

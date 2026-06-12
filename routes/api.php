@@ -180,6 +180,11 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/vouchers', [OwnerVoucherController::class, 'store']);
         Route::put('/vouchers/{id}', [OwnerVoucherController::class, 'update']);
         Route::patch('/vouchers/{id}/deactivate', [OwnerVoucherController::class, 'deactivate']);
+        // Venue Court Approval Requests (Owner gửi yêu cầu quy mô)
+        Route::get('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'store']);
+        Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/cancel', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'cancel']);
+
         Route::get('/venue-policies', [OwnerVenuePolicyController::class, 'index']);
         Route::post('/venue-policies/rules', [OwnerVenuePolicyController::class, 'storeRule']);
         Route::post('/venue-policies/notices', [OwnerVenuePolicyController::class, 'storeNotice']);

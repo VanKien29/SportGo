@@ -59,4 +59,22 @@ export const venueClusterService = {
       method: 'DELETE',
     });
   },
+
+  // Venue Court Approval Requests (Owner gửi yêu cầu quy mô)
+  getApprovalRequests(clusterId, status = null) {
+    const qs = status ? `?status=${status}` : '';
+    return api(`/api/owner/venue-clusters/${clusterId}/approval-requests${qs}`);
+  },
+  createApprovalRequest(clusterId, data) {
+    return api(`/api/owner/venue-clusters/${clusterId}/approval-requests`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  cancelApprovalRequest(clusterId, requestId) {
+    return api(`/api/owner/venue-clusters/${clusterId}/approval-requests/${requestId}/cancel`, {
+      method: 'PATCH',
+    });
+  },
 };
+
