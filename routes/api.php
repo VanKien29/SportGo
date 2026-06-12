@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\BannerController as AdminBannerController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FinanceOperationController as AdminFinanceOperationController;
 use App\Http\Controllers\Api\Admin\PartnerApplicationController as AdminPartnerApplicationController;
+use App\Http\Controllers\Api\Admin\PartnerContractController as AdminPartnerContractController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\Admin\VoucherController as AdminVoucherController;
 use App\Http\Controllers\Api\Auth\AuthController;
@@ -15,12 +16,15 @@ use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\Auth\SetPasswordController;
 use App\Http\Controllers\Api\Owner\BookingManagementController as OwnerBookingManagementController;
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
+use App\Http\Controllers\Api\Owner\PartnerApplicationController as OwnerPartnerApplicationController;
+use App\Http\Controllers\Api\Owner\PartnerContractController as OwnerPartnerContractController;
 use App\Http\Controllers\Api\Payment\SepayPaymentController;
 use App\Http\Controllers\Api\PolicyAcceptanceController;
 use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
 use App\Http\Controllers\Api\Owner\StaffController as OwnerStaffController;
 use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyController;
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
+use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use Illuminate\Support\Facades\Route;
@@ -37,7 +41,6 @@ Route::prefix('auth')->group(function (): void {
     Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'reset']);
     Route::get('/google/redirect', [GoogleAuthController::class, 'redirect']);
     Route::get('/google/callback', [GoogleAuthController::class, 'callback']);
-
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -63,6 +66,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
         Route::get('/users', [AdminUserController::class, 'index']);
         Route::get('/users/{id}', [AdminUserController::class, 'show']);
+        Route::post('/users', [AdminUserController::class, 'store']);
+        Route::put('/users/{id}', [AdminUserController::class, 'update']);
         Route::patch('/users/{id}/lock', [AdminUserController::class, 'lock']);
         Route::patch('/users/{id}/unlock', [AdminUserController::class, 'unlock']);
         Route::get('/vouchers', [AdminVoucherController::class, 'index']);
@@ -88,6 +93,10 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/partner-applications/{id}', [AdminPartnerApplicationController::class, 'show']);
         Route::post('/partner-applications/{id}/approve', [AdminPartnerApplicationController::class, 'approve']);
         Route::post('/partner-applications/{id}/reject', [AdminPartnerApplicationController::class, 'reject']);
+
+        // Partner Contracts
+        Route::post('/contracts/{id}/send-email', [AdminPartnerContractController::class, 'sendEmail']);
+        Route::post('/contracts/{id}/approve-signature', [AdminPartnerContractController::class, 'approveSignature']);
 
         Route::get('/banners', [AdminBannerController::class, 'index']);
         Route::post('/banners', [AdminBannerController::class, 'store']);
@@ -149,6 +158,12 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
 
+        // Partner Profile
+        Route::get('/partner-applications', [OwnerPartnerApplicationController::class, 'myApplications']);
+        Route::get('/partner-application', [OwnerPartnerApplicationController::class, 'myApplication']);
+        Route::post('/partner-applications/new-cluster', [OwnerPartnerApplicationController::class, 'storeNewCluster']);
+        Route::post('/contracts/{id}/sign', [OwnerPartnerContractController::class, 'sign']);
+
         // Venue Clusters & Venue Courts
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);
         Route::post('/venue-clusters/{id}/media', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'uploadMedia']);
@@ -171,6 +186,12 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
         Route::post('/price-slots', [OwnerPricingController::class, 'storePriceSlot']);
         Route::patch('/price-slots/{id}', [OwnerPricingController::class, 'updatePriceSlot']);
         Route::delete('/price-slots/{id}', [OwnerPricingController::class, 'destroyPriceSlot']);
+
+        // Finance / Wallet
+        Route::get('/finance/wallets', [OwnerFinanceController::class, 'wallets']);
+        Route::get('/finance/ledgers', [OwnerFinanceController::class, 'ledgers']);
+        Route::get('/finance/withdrawals', [OwnerFinanceController::class, 'withdrawals']);
+        Route::post('/finance/withdrawals', [OwnerFinanceController::class, 'storeWithdrawal']);
         Route::get('/bookings', [OwnerBookingManagementController::class, 'index']);
         Route::post('/bookings/counter', [OwnerBookingManagementController::class, 'storeCounter']);
         Route::post('/bookings/recurring', [OwnerBookingManagementController::class, 'storeRecurring']);

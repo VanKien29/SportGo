@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('partner_settlements', function (Blueprint $table): void {
             $table->char('id', 36)->primary();
             $table->string('settlement_code', 50)->unique();
-            $table->char('partner_termination_request_id', 36);
+            $table->unsignedBigInteger('partner_termination_request_id');
             $table->char('partner_contract_id', 36);
             $table->char('owner_id', 36);
             $table->char('venue_cluster_id', 36)->nullable();

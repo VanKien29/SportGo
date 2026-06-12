@@ -47,6 +47,12 @@ export const adminNavigationSections = [
     label: 'Người dùng & quyền',
     items: [
       {
+        label: 'Nhân sự',
+        icon: 'users',
+        to: '/admin/staffs',
+        activeNames: ['admin-staffs'],
+      },
+      {
         label: 'Tài khoản',
         icon: 'users',
         to: '/admin/users',
@@ -134,6 +140,7 @@ export const adminNavigationSections = [
 export const adminRouteTitles = {
   'admin-dashboard': 'Bảng điều hành',
   'admin-profile': 'Thông tin cá nhân',
+  'admin-staffs': 'Quản lý nhân sự',
   'admin-users': 'Quản lý tài khoản',
   'admin-user-detail': 'Chi tiết tài khoản',
   'admin-payments': 'Theo dõi thanh toán booking',

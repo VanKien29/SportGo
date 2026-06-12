@@ -45,7 +45,10 @@ class OwnerWalletService
             }
 
             $wallet = OwnerWallet::query()->firstOrCreate(
-                ['owner_id' => $cluster->owner_id],
+                [
+                    'owner_id' => $cluster->owner_id,
+                    'venue_cluster_id' => $cluster->id
+                ],
                 [
                     'available_balance' => 0,
                     'pending_withdrawal_balance' => 0,

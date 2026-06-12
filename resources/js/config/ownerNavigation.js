@@ -8,6 +8,12 @@ export const ownerNavigationSections = [
         to: '/owner/dashboard',
         activeNames: ['owner-dashboard'],
       },
+      {
+        label: 'Hồ sơ & Hợp đồng',
+        icon: 'fileText',
+        to: '/owner/partner-profile',
+        activeNames: ['owner-partner-profile'],
+      },
     ],
   },
   {
@@ -49,6 +55,12 @@ export const ownerNavigationSections = [
     label: 'Kinh doanh',
     items: [
       {
+        label: 'Ví tài chính',
+        icon: 'dollarSign',
+        to: '/owner/finance',
+        activeNames: ['owner-finance'],
+      },
+      {
         label: 'Voucher sân',
         icon: 'tag',
         to: '/owner/vouchers',
@@ -77,12 +89,14 @@ export const ownerNavigationSections = [
 
 export const ownerRouteTitles = {
   'owner-dashboard': 'Bảng điều hành',
+  'owner-partner-profile': 'Hồ sơ & Hợp đồng',
   'owner-profile': 'Thông tin cá nhân',
   'owner-venue-clusters': 'Quản lý cụm sân',
   'owner-venue-courts': 'Quản lý sân con',
   'owner-bookings': 'Lịch sân',
   'owner-counter-booking': 'Booking tại quầy',
   'owner-pricing': 'Cấu hình giá',
+  'owner-finance': 'Ví tài chính',
   'owner-staff': 'Nhân viên sân',
   'owner-vouchers': 'Voucher của sân',
   'owner-policies': 'Chính sách sân',

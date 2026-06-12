@@ -20,28 +20,42 @@ return new class extends Migration
                 $table->char('partner_settlement_id', 36)->nullable()->after('source');
             }
             if (! Schema::hasColumn('owner_withdrawal_requests', 'partner_termination_request_id')) {
-                $table->char('partner_termination_request_id', 36)->nullable()->after('partner_settlement_id');
+                $table->unsignedBigInteger('partner_termination_request_id')->nullable()->after('partner_settlement_id');
             }
             if (! Schema::hasColumn('owner_withdrawal_requests', 'auto_created')) {
                 $table->boolean('auto_created')->default(false)->after('partner_termination_request_id');
             }
         });
 
-        Schema::table('owner_withdrawal_requests', function (Blueprint $table): void {
-            if (Schema::hasColumn('owner_withdrawal_requests', 'source')) {
-                $table->index('source', 'owner_withdrawal_requests_source_index');
-            }
-            if (Schema::hasColumn('owner_withdrawal_requests', 'partner_settlement_id')) {
-                $table->index('partner_settlement_id', 'owner_withdrawal_requests_settlement_index');
-                $table->foreign('partner_settlement_id', 'owner_withdrawal_requests_settlement_foreign')
-                    ->references('id')->on('partner_settlements')->onDelete('restrict');
-            }
-            if (Schema::hasColumn('owner_withdrawal_requests', 'partner_termination_request_id')) {
-                $table->index('partner_termination_request_id', 'owner_withdrawal_requests_termination_index');
-                $table->foreign('partner_termination_request_id', 'owner_withdrawal_requests_termination_foreign')
-                    ->references('id')->on('partner_termination_requests')->onDelete('restrict');
-            }
-        });
+        try {
+            DB::statement('ALTER TABLE `owner_withdrawal_requests` ADD INDEX `owner_withdrawal_requests_source_index` (`source`)');
+        } catch (\Exception $e) {
+            // Ignore if index already exists
+        }
+
+        $indexes = [
+            'owner_withdrawal_requests_settlement_index' => 'partner_settlement_id',
+            'owner_withdrawal_requests_termination_index' => 'partner_termination_request_id',
+        ];
+        
+        foreach ($indexes as $indexName => $column) {
+            try {
+                DB::statement("ALTER TABLE `owner_withdrawal_requests` ADD INDEX `$indexName` (`$column`)");
+            } catch (\Exception $e) {}
+        }
+        
+        try {
+            Schema::table('owner_withdrawal_requests', function (Blueprint $table): void {
+                if (Schema::hasColumn('owner_withdrawal_requests', 'partner_settlement_id')) {
+                    $table->foreign('partner_settlement_id', 'owner_withdrawal_requests_settlement_foreign')
+                        ->references('id')->on('partner_settlements')->onDelete('restrict');
+                }
+                if (Schema::hasColumn('owner_withdrawal_requests', 'partner_termination_request_id')) {
+                    $table->foreign('partner_termination_request_id', 'owner_withdrawal_requests_termination_foreign')
+                        ->references('id')->on('partner_termination_requests')->onDelete('restrict');
+                }
+            });
+        } catch (\Exception $e) {}
     }
 
     public function down(): void
