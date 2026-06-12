@@ -87,11 +87,12 @@
             <td>{{ booking.booking_type === 'recurring' ? 'Cố định' : 'Lẻ' }}</td>
             <td>
               <strong>{{ paymentLabel(booking.payment_option) }}</strong>
-              <small>{{ formatCurrency(booking.required_payment_amount) }} / {{ formatCurrency(booking.total_price) }}</small>
+              <small>{{ paymentSummary(booking) }}</small>
             </td>
             <td><span class="status-chip" :class="booking.status">{{ statusLabel(booking.status) }}</span></td>
             <td class="actions">
               <TableActionGroup>
+                <ActionIconButton v-if="canCollectPayment(booking)" icon="banknote" label="Thu tiền" variant="primary" @click="openCollectPayment(booking)" />
                 <ActionIconButton icon="check" label="Xác nhận" variant="success" @click="updateStatus(booking, 'confirm')" />
                 <ActionIconButton icon="clock" label="Check-in" @click="updateStatus(booking, 'check_in')" />
                 <ActionIconButton icon="circleCheck" label="Hoàn thành" @click="updateStatus(booking, 'complete')" />
@@ -124,6 +125,73 @@
         <footer>
           <button type="button" class="ghost-btn" @click="closeChangeCourt">Hủy</button>
           <button class="primary-link" type="submit" :disabled="savingChangeCourt">Lưu đổi sân</button>
+        </footer>
+      </form>
+    </div>
+
+    <div v-if="collectBooking" class="modal-backdrop" @click.self="closeCollectPayment">
+      <form class="modal-panel collect-panel" @submit.prevent="submitCollectPayment">
+        <header>
+          <div>
+            <h2>Thu tiền booking</h2>
+            <p>{{ collectBooking.booking_code }} · {{ customerName(collectBooking) }}</p>
+          </div>
+          <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeCollectPayment" />
+        </header>
+
+        <dl class="collect-summary">
+          <div>
+            <dt>Tổng tiền</dt>
+            <dd>{{ formatCurrency(collectBooking.total_price) }}</dd>
+          </div>
+          <div>
+            <dt>Đã thu</dt>
+            <dd>{{ formatCurrency(paidAmount(collectBooking)) }}</dd>
+          </div>
+          <div class="highlight">
+            <dt>Còn phải thu</dt>
+            <dd>{{ formatCurrency(outstandingAmount(collectBooking)) }}</dd>
+          </div>
+        </dl>
+
+        <label>
+          <span>Số tiền thu</span>
+          <input v-model.number="collectForm.amount" type="number" min="1000" step="1000" />
+        </label>
+
+        <div class="method-row">
+          <button type="button" :class="{ active: collectForm.payment_method === 'cash' }" @click="collectForm.payment_method = 'cash'">
+            <AppIcon name="banknote" size="16" />
+            <span>Tiền mặt</span>
+          </button>
+          <button type="button" :class="{ active: collectForm.payment_method === 'bank_transfer' }" @click="collectForm.payment_method = 'bank_transfer'">
+            <AppIcon name="creditCard" size="16" />
+            <span>Chuyển khoản</span>
+          </button>
+          <button type="button" :class="{ active: collectForm.payment_method === 'sepay' }" @click="collectForm.payment_method = 'sepay'">
+            <AppIcon name="qrCode" size="16" />
+            <span>QR SePay</span>
+          </button>
+        </div>
+
+        <div v-if="collectQr" class="collect-qr">
+          <img :src="collectQr.qr_url" alt="QR thanh toán SePay" />
+          <div>
+            <span>Nội dung chuyển khoản</span>
+            <button type="button" @click="copyText(collectQr.transfer_content)">{{ collectQr.transfer_content }}</button>
+          </div>
+          <div>
+            <span>Số tiền</span>
+            <strong>{{ formatCurrency(collectQr.payment?.amount) }}</strong>
+          </div>
+          <small>Hệ thống sẽ tự cập nhật khi SePay gửi xác nhận.</small>
+        </div>
+
+        <footer>
+          <button type="button" class="ghost-btn" @click="closeCollectPayment">Đóng</button>
+          <button class="primary-link" type="submit" :disabled="collectingPayment">
+            {{ collectForm.payment_method === 'sepay' ? 'Tạo QR' : 'Xác nhận thu' }}
+          </button>
         </footer>
       </form>
     </div>
@@ -161,11 +229,22 @@ export default {
         court_changed_reason: '',
       },
       savingChangeCourt: false,
+      collectBooking: null,
+      collectForm: {
+        payment_method: 'cash',
+        amount: 0,
+      },
+      collectQr: null,
+      collectingPayment: false,
+      collectPollInterval: null,
     };
   },
   async created() {
     await this.loadClusters();
     await this.loadBookings();
+  },
+  beforeUnmount() {
+    this.clearCollectPolling();
   },
   methods: {
     async loadClusters() {
@@ -237,6 +316,108 @@ export default {
         this.error = error.message || 'Không thể đổi sân.';
       } finally {
         this.savingChangeCourt = false;
+      }
+    },
+    openCollectPayment(booking) {
+      this.collectBooking = booking;
+      this.collectForm = {
+        payment_method: 'cash',
+        amount: this.outstandingAmount(booking),
+      };
+      this.collectQr = null;
+      this.clearCollectPolling();
+    },
+    closeCollectPayment() {
+      this.collectBooking = null;
+      this.collectQr = null;
+      this.clearCollectPolling();
+    },
+    async submitCollectPayment() {
+      if (!this.collectBooking || this.collectingPayment) return;
+
+      this.collectingPayment = true;
+      this.error = '';
+      this.notice = '';
+
+      try {
+        const response = await ownerBookingService.collectPayment(this.collectBooking.id, {
+          payment_method: this.collectForm.payment_method,
+          amount: this.collectForm.amount,
+        });
+
+        if (this.collectForm.payment_method === 'sepay') {
+          this.collectQr = response.payment_qr || null;
+          this.notice = 'Đã tạo QR thu tiền.';
+          this.startCollectPolling();
+        } else {
+          this.notice = 'Đã ghi nhận thu tiền tại quầy.';
+          await this.loadBookings();
+          this.closeCollectPayment();
+        }
+      } catch (error) {
+        this.error = error.message || 'Không thể ghi nhận thu tiền.';
+      } finally {
+        this.collectingPayment = false;
+      }
+    },
+    startCollectPolling() {
+      this.clearCollectPolling();
+      this.collectPollInterval = setInterval(() => {
+        this.refreshCollectBooking();
+      }, 5000);
+    },
+    async refreshCollectBooking() {
+      if (!this.collectBooking) return;
+
+      try {
+        const response = await ownerBookingService.show(this.collectBooking.id);
+        const booking = response.data || response;
+        this.collectBooking = booking;
+
+        if (this.outstandingAmount(booking) <= 0) {
+          this.notice = 'Thanh toán QR đã được ghi nhận.';
+          await this.loadBookings();
+          this.closeCollectPayment();
+        }
+      } catch {
+        this.clearCollectPolling();
+      }
+    },
+    clearCollectPolling() {
+      if (this.collectPollInterval) {
+        clearInterval(this.collectPollInterval);
+        this.collectPollInterval = null;
+      }
+    },
+    canCollectPayment(booking) {
+      return booking.source === 'counter'
+        && !['cancelled', 'expired', 'rejected'].includes(booking.status)
+        && this.outstandingAmount(booking) > 0;
+    },
+    paidAmount(booking) {
+      return (booking.payments || [])
+        .filter((payment) => payment.status === 'paid')
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    },
+    outstandingAmount(booking) {
+      return Math.max(Number(booking.total_price || 0) - this.paidAmount(booking), 0);
+    },
+    paymentSummary(booking) {
+      const paid = this.paidAmount(booking);
+      const outstanding = this.outstandingAmount(booking);
+
+      if (outstanding <= 0) return `Đã thu đủ ${this.formatCurrency(paid)}`;
+      if (paid > 0) return `Đã thu ${this.formatCurrency(paid)} · còn ${this.formatCurrency(outstanding)}`;
+      return `Còn phải thu ${this.formatCurrency(outstanding)}`;
+    },
+    async copyText(text) {
+      if (!text) return;
+
+      try {
+        await navigator.clipboard.writeText(text);
+        this.notice = 'Đã sao chép nội dung chuyển khoản.';
+      } catch {
+        this.error = 'Không thể sao chép nội dung chuyển khoản.';
       }
     },
     customerName(booking) {
@@ -490,6 +671,116 @@ td strong {
   padding: 20px;
 }
 
+.modal-panel header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.collect-panel {
+  width: min(620px, 100%);
+}
+
+.collect-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.collect-summary div {
+  padding: 12px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #f7fbf5;
+}
+
+.collect-summary dt {
+  color: #647265;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.collect-summary dd {
+  margin: 6px 0 0;
+  color: #16231a;
+  font-weight: 900;
+}
+
+.collect-summary .highlight {
+  border-color: rgba(47, 158, 68, 0.45);
+  background: #e8f7ec;
+}
+
+.method-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.method-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
+  color: #344238;
+  font-weight: 900;
+}
+
+.method-row button.active {
+  border-color: #2f9e44;
+  background: #2f9e44;
+  color: #fff;
+}
+
+.collect-qr {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 14px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #f7fbf5;
+}
+
+.collect-qr img {
+  width: 220px;
+  max-width: 100%;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.collect-qr div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  color: #647265;
+}
+
+.collect-qr button {
+  border: 0;
+  background: transparent;
+  color: #216b34;
+  font-weight: 900;
+  text-decoration: underline;
+}
+
+.collect-qr strong {
+  color: #16231a;
+}
+
+.collect-qr small {
+  color: #647265;
+  font-weight: 700;
+}
+
 .modal-panel header,
 .modal-panel footer {
   display: flex;
@@ -500,7 +791,9 @@ td strong {
 
 @media (max-width: 980px) {
   .page-head,
-  .filters {
+  .filters,
+  .collect-summary,
+  .method-row {
     display: grid;
     grid-template-columns: 1fr;
   }

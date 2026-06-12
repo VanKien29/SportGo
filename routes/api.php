@@ -175,6 +175,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
         Route::post('/bookings/counter', [OwnerBookingManagementController::class, 'storeCounter']);
         Route::post('/bookings/recurring', [OwnerBookingManagementController::class, 'storeRecurring']);
         Route::get('/bookings/{id}', [OwnerBookingManagementController::class, 'show']);
+        Route::post('/bookings/{id}/payments/collect', [OwnerBookingManagementController::class, 'collectPayment']);
         Route::patch('/bookings/{id}/status', [OwnerBookingManagementController::class, 'updateStatus']);
         Route::patch('/bookings/{id}/court', [OwnerBookingManagementController::class, 'changeCourt']);
     });

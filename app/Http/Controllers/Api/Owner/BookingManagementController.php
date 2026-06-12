@@ -7,18 +7,21 @@ use App\Models\Booking;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\BookingService;
+use App\Services\Payments\SepayPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class BookingManagementController extends Controller
 {
-    public function __construct(private readonly BookingService $bookingService)
-    {
-    }
+    public function __construct(
+        private readonly BookingService $bookingService,
+        private readonly SepayPaymentService $sepayPaymentService,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -66,20 +69,44 @@ class BookingManagementController extends Controller
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => ['required', Rule::in(['full_payment', 'deposit', 'no_prepay'])],
             'is_paid' => ['nullable', 'boolean'],
-            'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer'])],
+            'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer', 'sepay'])],
             'customer_id' => ['nullable', 'uuid', 'exists:users,id'],
             'walk_in_name' => ['required_without:customer_id', 'nullable', 'string', 'max:255'],
             'walk_in_phone' => ['required_without:customer_id', 'nullable', 'string', 'max:20'],
         ]);
 
+        if (($validated['payment_method'] ?? null) === 'sepay' && $validated['payment_option'] === 'no_prepay') {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Thu sau bằng QR sẽ được tạo ở bước thu tiền sau trận.',
+            ]);
+        }
+
+        if (($validated['payment_method'] ?? null) === 'sepay') {
+            $validated['is_paid'] = false;
+        }
+
         $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
         $this->ensureClusterCanMutate($request, $court->venueCluster);
 
         $booking = $this->bookingService->createCounterBooking($validated, $request->user());
+        $paymentQr = null;
+
+        if (($validated['payment_method'] ?? null) === 'sepay') {
+            try {
+                $paymentQr = $this->sepayPaymentService->createCounterCollectionPayment(
+                    $booking,
+                    $request->user(),
+                    (float) $booking->required_payment_amount,
+                );
+            } catch (RuntimeException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+        }
 
         return response()->json([
             'message' => 'Đã tạo booking tại quầy.',
             'data' => $booking->load(['venueCourt.courtType', 'customer']),
+            'payment_qr' => $paymentQr,
         ], 201);
     }
 
@@ -190,6 +217,47 @@ class BookingManagementController extends Controller
         return response()->json([
             'message' => 'Đã đổi sân thực tế cho booking.',
             'data' => $booking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer']),
+        ]);
+    }
+
+    public function collectPayment(Request $request, string $id): JsonResponse
+    {
+        $booking = Booking::query()->with(['venueCluster', 'payments'])->findOrFail($id);
+        $this->ensureClusterCanMutate($request, $booking->venueCluster);
+
+        $validated = $request->validate([
+            'payment_method' => ['required', Rule::in(['cash', 'bank_transfer', 'sepay'])],
+            'amount' => ['nullable', 'numeric', 'min:1000'],
+        ]);
+
+        if ($validated['payment_method'] === 'sepay') {
+            try {
+                $paymentQr = $this->sepayPaymentService->createCounterCollectionPayment(
+                    $booking,
+                    $request->user(),
+                    isset($validated['amount']) ? (float) $validated['amount'] : null,
+                );
+            } catch (RuntimeException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            return response()->json([
+                'message' => 'Đã tạo QR thu tiền.',
+                'payment_qr' => $paymentQr,
+                'data' => $booking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'payments']),
+            ]);
+        }
+
+        $updated = $this->bookingService->collectCounterPayment(
+            $booking,
+            $request->user(),
+            $validated['payment_method'],
+            isset($validated['amount']) ? (float) $validated['amount'] : null,
+        );
+
+        return response()->json([
+            'message' => 'Đã ghi nhận thu tiền tại quầy.',
+            'data' => $updated,
         ]);
     }
 

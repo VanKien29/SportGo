@@ -55,10 +55,43 @@
               <option v-for="type in courtTypeOptions" :key="type.id" :value="type.id">{{ type.name }}</option>
             </select>
           </label>
-          <label>
-            <span>Thời lượng</span>
-            <input :value="selectedDurationText" type="text" readonly />
+        </div>
+
+        <div class="booking-picker">
+          <label class="court-field">
+            <span>Sân con</span>
+            <select v-model="selectedGridCourtId" @change="syncTimeSelection">
+              <option value="">Chọn sân</option>
+              <option v-for="court in scheduleCourts" :key="court.id" :value="court.id">
+                {{ court.name }} · {{ court.court_type?.name || '-' }}
+              </option>
+            </select>
           </label>
+          <label>
+            <span>Bắt đầu</span>
+            <select v-model="form.start_time" @change="handleStartTimeChange">
+              <option v-for="slot in scheduleSlots" :key="slot.start_time" :value="formatTime(slot.start_time)">
+                {{ formatTime(slot.start_time) }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>Kết thúc</span>
+            <select v-model="form.end_time" @change="syncTimeSelection">
+              <option
+                v-for="slot in scheduleSlots"
+                :key="slot.end_time"
+                :value="formatTime(slot.end_time)"
+                :disabled="isEndTimeOptionDisabled(slot.end_time)"
+              >
+                {{ formatTime(slot.end_time) }}
+              </option>
+            </select>
+          </label>
+          <div class="duration-pill" :class="{ active: hasCounterSelection }">
+            <span>Thời lượng</span>
+            <strong>{{ selectedDurationText }}</strong>
+          </div>
         </div>
 
         <div class="legend">
@@ -145,23 +178,52 @@
           </div>
 
           <div class="paid-row" :class="{ disabled: form.payment_option === 'no_prepay' }">
-            <button type="button" :class="{ active: form.is_paid }" @click="form.is_paid = true">Đã thu</button>
-            <button type="button" :class="{ active: !form.is_paid }" @click="form.is_paid = false">Chưa thu</button>
+            <button type="button" :class="{ active: form.collection_mode === 'paid' }" @click="setCollectionMode('paid')">Đã thu</button>
+            <button type="button" :class="{ active: form.collection_mode === 'qr' }" @click="setCollectionMode('qr')">QR SePay</button>
+            <button type="button" :class="{ active: form.collection_mode === 'later' }" @click="setCollectionMode('later')">Thu sau</button>
           </div>
 
-          <label v-if="form.is_paid && form.payment_option !== 'no_prepay'">
+          <label v-if="form.collection_mode === 'paid' && form.payment_option !== 'no_prepay'">
             <span>Phương thức</span>
             <select v-model="form.payment_method">
               <option value="cash">Tiền mặt</option>
               <option value="bank_transfer">Chuyển khoản tại sân</option>
             </select>
           </label>
+
+          <div v-if="form.collection_mode === 'qr' && form.payment_option !== 'no_prepay'" class="inline-note">
+            QR sẽ được tạo sau khi booking được giữ chỗ.
+          </div>
+          <div v-if="form.payment_option === 'no_prepay'" class="inline-note">
+            Booking được giữ chỗ ngay, tiền sẽ thu sau khi khách chơi xong.
+          </div>
         </section>
 
         <button class="primary-btn full" type="button" :disabled="submitting || !canSubmitCounter" @click="submitCounter">
           <AppIcon name="plus" size="16" />
           <span>{{ submitting ? 'Đang tạo...' : 'Tạo booking' }}</span>
         </button>
+
+        <section v-if="counterQr" class="side-section qr-section">
+          <div class="section-title muted">
+            <h2>QR thanh toán</h2>
+          </div>
+          <img :src="counterQr.qr_url" alt="QR thanh toán SePay" />
+          <div class="qr-info">
+            <div>
+              <span>Nội dung</span>
+              <button type="button" @click="copyText(counterQr.transfer_content)">{{ counterQr.transfer_content }}</button>
+            </div>
+            <div>
+              <span>Số tiền</span>
+              <strong>{{ formatCurrency(counterQr.payment?.amount) }}</strong>
+            </div>
+            <div>
+              <span>Tài khoản</span>
+              <strong>{{ counterQr.payment_account?.account_number || '-' }}</strong>
+            </div>
+          </div>
+        </section>
       </aside>
     </section>
 
@@ -336,6 +398,7 @@ export default {
         start_time: '08:00',
         end_time: '09:00',
         payment_option: 'full_payment',
+        collection_mode: 'paid',
         is_paid: true,
         payment_method: 'cash',
       },
@@ -351,6 +414,9 @@ export default {
       submitting: false,
       error: '',
       notice: '',
+      counterQr: null,
+      counterQrBookingId: '',
+      counterQrPollInterval: null,
     };
   },
   computed: {
@@ -491,6 +557,9 @@ export default {
   async created() {
     await this.loadOwnerData();
   },
+  beforeUnmount() {
+    this.clearCounterQrPolling();
+  },
   methods: {
     async loadOwnerData() {
       this.error = '';
@@ -536,8 +605,8 @@ export default {
       this.scheduleLoading = true;
       this.scheduleError = '';
       this.selectionError = '';
+      const previousCourtId = this.selectedGridCourtId;
       this.selectedSlotIndexes = [];
-      this.selectedGridCourtId = '';
 
       try {
         const response = await bookingService.getSchedule({
@@ -551,6 +620,11 @@ export default {
         this.scheduleCourts = response.courts || [];
         this.scheduleSlotStatuses = response.slot_statuses || [];
         this.scheduleBusyIntervals = response.busy_intervals || [];
+
+        this.selectedGridCourtId = this.scheduleCourts.some((court) => String(court.id) === String(previousCourtId))
+          ? previousCourtId
+          : this.scheduleCourts[0]?.id || '';
+        this.syncTimeSelection();
       } catch (error) {
         this.scheduleError = error.message || 'Không thể tải lịch sân.';
       } finally {
@@ -585,51 +659,70 @@ export default {
       if (!status.is_available) return 'Khung giờ không khả dụng';
       return `${this.formatTime(slot.start_time)} - ${this.formatTime(slot.end_time)} · ${this.formatCurrency(status.price)}`;
     },
-    selectSlot(court, index) {
-      this.selectionError = '';
-
-      if (this.selectedGridCourtId && this.selectedGridCourtId !== court.id) {
-        this.selectedSlotIndexes = [];
+    handleStartTimeChange() {
+      if (this.timeToMinutes(this.form.end_time) <= this.timeToMinutes(this.form.start_time)) {
+        const startIndex = this.scheduleSlots.findIndex((slot) => this.formatTime(slot.start_time) === this.form.start_time);
+        this.form.end_time = this.formatTime(this.scheduleSlots[startIndex + 1]?.end_time || this.scheduleSlots[startIndex]?.end_time || this.form.end_time);
       }
 
-      this.selectedGridCourtId = court.id;
-      const selected = [...this.selectedSlotIndexes].sort((a, b) => a - b);
+      this.syncTimeSelection();
+    },
+    isEndTimeOptionDisabled(endTime) {
+      return this.timeToMinutes(endTime) <= this.timeToMinutes(this.form.start_time);
+    },
+    slotRangeIndexes() {
+      const startIndex = this.scheduleSlots.findIndex((slot) => this.formatTime(slot.start_time) === this.form.start_time);
+      const endIndex = this.scheduleSlots.findIndex((slot) => this.formatTime(slot.end_time) === this.form.end_time);
 
-      if (selected.length === 0) {
-        this.selectedSlotIndexes = [index];
-      } else if (selected.includes(index)) {
-        const min = selected[0];
-        const max = selected[selected.length - 1];
+      if (startIndex < 0 || endIndex < startIndex) return [];
 
-        if (index === min || index === max) {
-          this.selectedSlotIndexes = selected.filter((item) => item !== index);
-        } else {
-          this.selectionError = 'Khung giờ cần liền mạch.';
-          return;
-        }
-      } else if (index === selected[0] - 1 || index === selected[selected.length - 1] + 1) {
-        this.selectedSlotIndexes = [...selected, index].sort((a, b) => a - b);
-      } else {
-        this.selectionError = 'Khung giờ cần liền mạch.';
+      return Array.from({ length: endIndex - startIndex + 1 }, (_, offset) => startIndex + offset);
+    },
+    syncTimeSelection() {
+      this.selectionError = '';
+
+      if (!this.selectedGridCourtId) {
+        this.selectedSlotIndexes = [];
         return;
       }
 
-      const indexes = [...this.selectedSlotIndexes].sort((a, b) => a - b);
-      this.form.venue_court_id = this.selectedGridCourtId;
-
-      if (indexes.length) {
-        this.form.start_time = this.formatTime(this.scheduleSlots[indexes[0]]?.start_time);
-        this.form.end_time = this.formatTime(this.scheduleSlots[indexes[indexes.length - 1]]?.end_time);
+      const indexes = this.slotRangeIndexes();
+      if (!indexes.length) {
+        this.selectedSlotIndexes = [];
+        this.selectionError = 'Vui lòng chọn giờ bắt đầu và kết thúc hợp lệ.';
+        return;
       }
+
+      const blocked = indexes.some((index) => this.isSlotBusy(this.selectedGridCourtId, this.scheduleSlots[index]));
+      if (blocked) {
+        this.selectedSlotIndexes = [];
+        this.selectionError = 'Khung giờ đã chọn có slot bận, vui lòng chọn khoảng khác.';
+        return;
+      }
+
+      this.selectedSlotIndexes = indexes;
+      this.form.venue_court_id = this.selectedGridCourtId;
+    },
+    selectSlot(court, index) {
+      this.selectionError = '';
+      this.selectedGridCourtId = court.id;
+      const currentDurationSlots = Math.max(this.selectedSlotIndexes.length, 2);
+      const endIndex = Math.min(index + currentDurationSlots - 1, this.scheduleSlots.length - 1);
+
+      this.form.start_time = this.formatTime(this.scheduleSlots[index]?.start_time);
+      this.form.end_time = this.formatTime(this.scheduleSlots[endIndex]?.end_time);
+      this.syncTimeSelection();
     },
     async submitCounter() {
       if (!this.canSubmitCounter) return;
       this.submitting = true;
       this.error = '';
       this.notice = '';
+      this.counterQr = null;
+      this.clearCounterQrPolling();
 
       try {
-        await ownerBookingService.createCounter({
+        const response = await ownerBookingService.createCounter({
           venue_court_id: this.selectedGridCourtId,
           walk_in_name: this.form.walk_in_name,
           walk_in_phone: this.form.walk_in_phone,
@@ -637,11 +730,16 @@ export default {
           start_time: this.withSeconds(this.form.start_time),
           end_time: this.withSeconds(this.form.end_time),
           payment_option: this.form.payment_option,
-          is_paid: this.form.payment_option !== 'no_prepay' ? this.form.is_paid : false,
-          payment_method: this.form.payment_method,
+          is_paid: this.form.payment_option !== 'no_prepay' && this.form.collection_mode === 'paid',
+          payment_method: this.form.collection_mode === 'qr' ? 'sepay' : this.form.payment_method,
         });
 
-        this.notice = 'Đã tạo booking tại quầy.';
+        this.notice = response.payment_qr ? 'Đã tạo booking và QR thanh toán.' : 'Đã tạo booking tại quầy.';
+        if (response.payment_qr) {
+          this.counterQr = response.payment_qr;
+          this.counterQrBookingId = response.data?.id || '';
+          this.startCounterQrPolling();
+        }
         this.selectedSlotIndexes = [];
         this.selectedGridCourtId = '';
         await this.loadSchedule();
@@ -699,6 +797,61 @@ export default {
     syncPaidState() {
       if (this.form.payment_option === 'no_prepay') {
         this.form.is_paid = false;
+        this.form.collection_mode = 'later';
+      } else if (this.form.collection_mode === 'later' && this.form.is_paid) {
+        this.form.collection_mode = 'paid';
+      }
+    },
+    setCollectionMode(mode) {
+      this.form.collection_mode = this.form.payment_option === 'no_prepay' ? 'later' : mode;
+      this.form.is_paid = this.form.collection_mode === 'paid';
+    },
+    startCounterQrPolling() {
+      this.clearCounterQrPolling();
+      if (!this.counterQrBookingId) return;
+
+      this.counterQrPollInterval = setInterval(() => {
+        this.refreshCounterQrBooking();
+      }, 5000);
+    },
+    async refreshCounterQrBooking() {
+      if (!this.counterQrBookingId) return;
+
+      try {
+        const response = await ownerBookingService.show(this.counterQrBookingId);
+        const booking = response.data || response;
+        const paidAmount = this.paidAmount(booking);
+
+        if (paidAmount >= Number(booking.total_price || 0) || booking.status !== 'pending_payment') {
+          this.notice = 'Thanh toán QR đã được ghi nhận.';
+          this.counterQr = null;
+          this.counterQrBookingId = '';
+          this.clearCounterQrPolling();
+          await this.loadSchedule();
+        }
+      } catch {
+        this.clearCounterQrPolling();
+      }
+    },
+    clearCounterQrPolling() {
+      if (this.counterQrPollInterval) {
+        clearInterval(this.counterQrPollInterval);
+        this.counterQrPollInterval = null;
+      }
+    },
+    paidAmount(booking) {
+      return (booking?.payments || [])
+        .filter((payment) => payment.status === 'paid')
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    },
+    async copyText(text) {
+      if (!text) return;
+
+      try {
+        await navigator.clipboard.writeText(text);
+        this.notice = 'Đã sao chép nội dung chuyển khoản.';
+      } catch {
+        this.error = 'Không thể sao chép nội dung chuyển khoản.';
       }
     },
     withSeconds(time) {
@@ -800,6 +953,45 @@ export default {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+.booking-picker {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(120px, 0.65fr) minmax(120px, 0.65fr) minmax(120px, 0.55fr);
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #f7fbf5;
+}
+
+.duration-pill {
+  display: grid;
+  gap: 6px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.duration-pill span {
+  color: #607267;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.duration-pill strong {
+  color: #16231a;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.duration-pill.active {
+  border-color: rgba(47, 158, 68, 0.45);
+  background: #e8f7ec;
 }
 
 label {
@@ -1024,7 +1216,7 @@ select {
 
 .paid-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1046,6 +1238,53 @@ select {
 .paid-row.disabled {
   opacity: 0.55;
   pointer-events: none;
+}
+
+.inline-note {
+  padding: 10px 12px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #f7fbf5;
+  color: #475b4d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.qr-section {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.qr-section img {
+  width: min(210px, 100%);
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.qr-info {
+  display: grid;
+  gap: 8px;
+}
+
+.qr-info div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #475b4d;
+  font-size: 13px;
+}
+
+.qr-info button {
+  border: 0;
+  background: transparent;
+  color: #216b34;
+  font-weight: 850;
+  text-decoration: underline;
+}
+
+.qr-info strong {
+  color: #16231a;
 }
 
 .day-grid {
@@ -1164,7 +1403,8 @@ select {
 
 @media (max-width: 820px) {
   .schedule-filters,
-  .form-grid {
+  .form-grid,
+  .booking-picker {
     grid-template-columns: 1fr;
   }
 }

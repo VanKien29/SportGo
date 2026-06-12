@@ -304,6 +304,123 @@ class BookingService
         });
     }
 
+    public function collectCounterPayment(Booking $booking, User $actor, string $method, ?float $amount = null): Booking
+    {
+        if (! in_array($method, ['cash', 'bank_transfer'], true)) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Phương thức thu tại quầy không hợp lệ.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($booking, $actor, $method, $amount): Booking {
+            $booking = Booking::query()
+                ->with('payments')
+                ->whereKey($booking->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $this->assertCounterBookingCanCollect($booking);
+
+            $outstandingAmount = $this->outstandingAmount($booking);
+            $collectionAmount = round((float) ($amount ?: $outstandingAmount), 2);
+
+            if ($collectionAmount <= 0 || $collectionAmount > $outstandingAmount) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Số tiền thu không hợp lệ so với số còn phải thu.',
+                ]);
+            }
+
+            $this->failPendingSepayPayments($booking, $actor, 'counter_payment_replaced_by_direct');
+
+            $payment = Payment::query()
+                ->where('booking_id', $booking->id)
+                ->where('status', 'pending')
+                ->whereIn('method', ['cash', 'bank_transfer'])
+                ->lockForUpdate()
+                ->latest()
+                ->first();
+
+            if ($payment) {
+                $statusBefore = $payment->status;
+                $gatewayResponse = is_array($payment->gateway_response) ? $payment->gateway_response : [];
+
+                $payment->update([
+                    'amount' => $collectionAmount,
+                    'wallet_amount' => 0,
+                    'gateway_amount' => $collectionAmount,
+                    'payment_kind' => $this->paymentKindForCollection($booking, $collectionAmount),
+                    'method' => $method,
+                    'gateway_response' => array_merge($gatewayResponse, [
+                        'counter_collection' => [
+                            'source' => 'owner_counter_collect',
+                            'actor_id' => $actor->id,
+                            'collected_at' => now()->toIso8601String(),
+                        ],
+                    ]),
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                ]);
+            } else {
+                $statusBefore = null;
+                $payment = Payment::query()->create([
+                    'payment_code' => $this->uniquePaymentCode(),
+                    'booking_id' => $booking->id,
+                    'amount' => $collectionAmount,
+                    'wallet_amount' => 0,
+                    'gateway_amount' => $collectionAmount,
+                    'payment_kind' => $this->paymentKindForCollection($booking, $collectionAmount),
+                    'method' => $method,
+                    'gateway_response' => [
+                        'counter_collection' => [
+                            'source' => 'owner_counter_collect',
+                            'actor_id' => $actor->id,
+                            'collected_at' => now()->toIso8601String(),
+                        ],
+                    ],
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                ]);
+            }
+
+            PaymentLog::query()->create([
+                'payment_id' => $payment->id,
+                'event_type' => 'counter_payment_collected',
+                'request_payload' => [
+                    'actor_id' => $actor->id,
+                    'booking_code' => $booking->booking_code,
+                    'method' => $method,
+                    'amount' => $collectionAmount,
+                ],
+                'status_before' => $statusBefore,
+                'status_after' => $payment->status,
+            ]);
+
+            Payment::query()
+                ->where('booking_id', $booking->id)
+                ->where('status', 'pending')
+                ->whereIn('method', ['cash', 'bank_transfer'])
+                ->whereKeyNot($payment->id)
+                ->get()
+                ->each(fn (Payment $pendingPayment) => $this->failPendingPayment($pendingPayment, $actor, 'counter_payment_replaced'));
+
+            if (in_array($booking->status, ['pending_approval', 'pending_payment'], true)) {
+                $booking->update(['status' => 'confirmed']);
+            }
+
+            return $booking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'payments']);
+        });
+    }
+
+    public function outstandingAmount(Booking $booking): float
+    {
+        $paidAmount = (float) Payment::query()
+            ->where('booking_id', $booking->id)
+            ->where('status', 'paid')
+            ->sum('amount');
+
+        return round(max((float) $booking->total_price - $paidAmount, 0), 2);
+    }
+
     public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single'): array
     {
         $cluster = VenueCluster::query()->whereKey($venueClusterId)->where('status', 'active')->firstOrFail();
@@ -482,7 +599,7 @@ class BookingService
 
     private function createCounterPayment(Booking $booking, User $actor, bool $isPaid, string $method): ?Payment
     {
-        if ($booking->payment_option === 'no_prepay' || (float) $booking->required_payment_amount <= 0) {
+        if ($method === 'sepay' || $booking->payment_option === 'no_prepay' || (float) $booking->required_payment_amount <= 0) {
             return null;
         }
 
@@ -517,6 +634,74 @@ class BookingService
         ]);
 
         return $payment;
+    }
+
+    private function assertCounterBookingCanCollect(Booking $booking): void
+    {
+        if ($booking->source !== 'counter') {
+            throw ValidationException::withMessages([
+                'booking_id' => 'Chỉ hỗ trợ thu tiền tại quầy cho booking được tạo tại quầy.',
+            ]);
+        }
+
+        if (in_array($booking->status, ['cancelled', 'expired', 'rejected'], true)) {
+            throw ValidationException::withMessages([
+                'booking_id' => 'Booking này không còn ở trạng thái có thể thu tiền.',
+            ]);
+        }
+    }
+
+    private function failPendingSepayPayments(Booking $booking, User $actor, string $eventType): void
+    {
+        Payment::query()
+            ->where('booking_id', $booking->id)
+            ->where('method', 'sepay')
+            ->where('status', 'pending')
+            ->lockForUpdate()
+            ->get()
+            ->each(fn (Payment $payment) => $this->failPendingPayment($payment, $actor, $eventType));
+    }
+
+    private function failPendingPayment(Payment $payment, User $actor, string $eventType): void
+    {
+        $statusBefore = $payment->status;
+        $gatewayResponse = is_array($payment->gateway_response) ? $payment->gateway_response : [];
+
+        $payment->update([
+            'gateway_response' => array_merge($gatewayResponse, [
+                'replaced_by_counter_collection' => [
+                    'actor_id' => $actor->id,
+                    'replaced_at' => now()->toIso8601String(),
+                ],
+            ]),
+            'status' => 'failed',
+        ]);
+
+        PaymentLog::query()->create([
+            'payment_id' => $payment->id,
+            'event_type' => $eventType,
+            'request_payload' => [
+                'actor_id' => $actor->id,
+                'booking_id' => $payment->booking_id,
+            ],
+            'status_before' => $statusBefore,
+            'status_after' => $payment->status,
+            'error_code' => 'counter_collection_replaced',
+            'error_message' => 'Payment pending được thay thế bởi thao tác thu tiền tại quầy.',
+        ]);
+    }
+
+    private function paymentKindForCollection(Booking $booking, float $amount): string
+    {
+        if ((int) round($amount) >= (int) round((float) $booking->total_price)) {
+            return 'full';
+        }
+
+        if ($booking->payment_option === 'deposit' && (int) round($amount) === (int) round((float) $booking->required_payment_amount)) {
+            return 'deposit';
+        }
+
+        return 'partial';
     }
 
     private function lockActiveCourt(string $venueCourtId): VenueCourt

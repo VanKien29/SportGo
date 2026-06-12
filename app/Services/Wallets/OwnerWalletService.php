@@ -31,7 +31,7 @@ class OwnerWalletService
                 throw new RuntimeException('Không xác định được chủ sân để ghi nhận tiền vào ví.');
             }
 
-            if ($booking->payment_option === 'no_prepay') {
+            if ($booking->payment_option === 'no_prepay' && $payment->method !== 'sepay') {
                 throw new RuntimeException('Thanh toán trực tiếp tại sân không được ghi nhận vào ví chủ sân.');
             }
 
