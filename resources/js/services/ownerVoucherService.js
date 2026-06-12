@@ -14,16 +14,8 @@ function payloadWithCluster(payload = {}) {
 }
 
 export const ownerVoucherService = {
-  list(params = {}) {
-    const query = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== '' && value !== null && value !== undefined) query.set(key, value);
-    });
-
-    return api(withCluster(`/api/owner/vouchers${query.toString() ? `?${query.toString()}` : ''}`));
-  },
-  get(id) {
-    return api(withCluster(`/api/owner/vouchers/${id}`));
+  list() {
+    return api(withCluster('/api/owner/vouchers'));
   },
   create(payload) {
     return api('/api/owner/vouchers', {

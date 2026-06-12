@@ -12,9 +12,6 @@ export const adminVoucherService = {
   list(params = {}) {
     return api(`/api/admin/vouchers${query(params)}`);
   },
-  get(id) {
-    return api(`/api/admin/vouchers/${id}`);
-  },
   create(payload) {
     return api('/api/admin/vouchers', {
       method: 'POST',
@@ -31,11 +28,6 @@ export const adminVoucherService = {
     return api(`/api/admin/vouchers/${id}/deactivate`, {
       method: 'PATCH',
       body: JSON.stringify({ reason }),
-    });
-  },
-  activate(id) {
-    return api(`/api/admin/vouchers/${id}/activate`, {
-      method: 'PATCH',
     });
   },
 };
