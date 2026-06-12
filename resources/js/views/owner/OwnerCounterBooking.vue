@@ -60,39 +60,21 @@
         <div class="booking-picker">
           <label class="court-field">
             <span>Sân con</span>
-            <select v-model="selectedGridCourtId" @change="syncTimeSelection">
+            <select v-model="selectedGridCourtId" @change="handleCounterCourtChange">
               <option value="">Chọn sân</option>
               <option v-for="court in scheduleCourts" :key="court.id" :value="court.id">
                 {{ court.name }} · {{ court.court_type?.name || '-' }}
               </option>
             </select>
           </label>
-          <label>
-            <span>Bắt đầu</span>
-            <select v-model="form.start_time" @change="handleStartTimeChange">
-              <option v-for="slot in scheduleSlots" :key="slot.start_time" :value="formatTime(slot.start_time)">
-                {{ formatTime(slot.start_time) }}
-              </option>
-            </select>
-          </label>
-          <div class="duration-choices">
-            <span>Thời lượng</span>
-            <div>
-              <button
-                v-for="duration in durationOptions"
-                :key="duration"
-                type="button"
-                :class="{ active: form.duration_minutes === duration }"
-                :disabled="isDurationDisabled(duration)"
-                @click="setDuration(duration)"
-              >
-                {{ duration }}'
-              </button>
-            </div>
+          <div class="selection-help">
+            <span>Cách chọn</span>
+            <strong>Bấm từng ô 30 phút</strong>
+            <small>Có thể chọn nhiều khoảng cách nhau trong cùng một sân.</small>
           </div>
           <div class="duration-pill" :class="{ active: hasCounterSelection }">
-            <span>Kết thúc</span>
-            <strong>{{ formatTime(form.end_time) }}</strong>
+            <span>Đã chọn</span>
+            <strong>{{ selectedDurationText }}</strong>
           </div>
         </div>
 
@@ -100,36 +82,50 @@
           <span><i></i>Trống</span>
           <span><i class="selected"></i>Đang chọn</span>
           <span><i class="pending"></i>Chờ thanh toán / giữ chỗ</span>
-          <span><i class="busy"></i>Đã đặt</span>
+          <span><i class="busy"></i>Không khả dụng</span>
         </div>
 
         <p v-if="selectionError" class="selection-error">{{ selectionError }}</p>
 
         <div v-if="scheduleLoading" class="state-card">Đang tải lịch sân...</div>
         <div v-else-if="scheduleError" class="state-card error-state">{{ scheduleError }}</div>
-        <div v-else class="schedule-wrap">
-          <div class="schedule-grid" :style="scheduleGridStyle">
-            <div class="schedule-head sticky-col">Sân / giờ</div>
-            <div v-for="slot in scheduleSlots" :key="slot.start_time" class="schedule-head time-head">
-              {{ slot.label }}
+        <div v-else-if="!selectedCounterCourt" class="state-card">Chọn sân con để xem khung giờ còn trống.</div>
+        <div v-else class="time-board">
+          <div class="selected-court-strip">
+            <div>
+              <span>Đang chọn sân</span>
+              <strong>{{ selectedCounterCourt.name }}</strong>
             </div>
+            <div>
+              <span>Loại sân</span>
+              <strong>{{ selectedCounterCourt.court_type?.name || '-' }}</strong>
+            </div>
+            <div>
+              <span>Khung giờ</span>
+              <strong>{{ hasCounterSelection ? selectedTimeText : '06:00 - 22:00' }}</strong>
+            </div>
+          </div>
 
-            <template v-for="court in scheduleCourts" :key="court.id">
-              <div class="schedule-court sticky-col">
-                <strong>{{ court.name }}</strong>
-                <span>{{ court.court_type?.name || '-' }}</span>
-              </div>
+          <div v-for="period in slotPeriods" :key="period.key" class="period-row">
+            <div class="period-label">
+              <strong>{{ period.label }}</strong>
+              <span>{{ period.range }}</span>
+            </div>
+            <div class="period-slots">
               <button
-                v-for="(slot, index) in scheduleSlots"
-                :key="`${court.id}-${slot.start_time}`"
+                v-for="slot in period.slots"
+                :key="slot.start_time"
                 type="button"
-                class="schedule-cell"
-                :class="cellClass(court.id, slot, index)"
-                :disabled="isSlotBusy(court.id, slot)"
-                :title="slotTitle(court.id, slot)"
-                @click="selectSlot(court, index)"
-              ></button>
-            </template>
+                class="time-slot"
+                :class="slotButtonClass(slot)"
+                :disabled="isSlotDisabled(slot)"
+                :title="slotActionTitle(slot)"
+                @click="toggleSlot(slot)"
+              >
+                <span>{{ formatTime(slot.start_time) }}</span>
+                <small>{{ slotPriceLabel(slot) }}</small>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -260,11 +256,11 @@
           </label>
           <label>
             <span>Bắt đầu</span>
-            <input v-model="form.start_time" type="time" />
+            <input v-model="form.start_time" type="time" min="06:00" max="21:30" step="1800" @change="normalizeRecurringTime" />
           </label>
           <label>
             <span>Kết thúc</span>
-            <input v-model="form.end_time" type="time" />
+            <input v-model="form.end_time" type="time" min="06:30" max="22:00" step="1800" @change="normalizeRecurringTime" />
           </label>
           <label>
             <span>Kiểu lặp</span>
@@ -278,19 +274,6 @@
             <span>Chu kỳ</span>
             <select v-model.number="form.recurrence_interval">
               <option v-for="value in 12" :key="value" :value="value">{{ value }}</option>
-            </select>
-          </label>
-          <label>
-            <span>Hình thức thu</span>
-            <select v-model="form.payment_option" @change="syncPaidState">
-              <option v-for="option in paymentOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
-          </label>
-          <label>
-            <span>Trạng thái thu</span>
-            <select v-model="form.is_paid" :disabled="form.payment_option === 'no_prepay'">
-              <option :value="true">Đã thu</option>
-              <option :value="false">Chưa thu</option>
             </select>
           </label>
         </div>
@@ -310,6 +293,58 @@
           <span>Ngày trong tháng</span>
           <input v-model="monthDaysInput" type="text" placeholder="1, 15, 30" />
         </label>
+
+        <section class="recurring-payment">
+          <div class="section-title muted">
+            <h2>Thu tiền</h2>
+            <p>Thiết lập cách ghi nhận thanh toán cho toàn bộ nhóm lịch cố định.</p>
+          </div>
+
+          <div class="payment-list recurring-payment-list">
+            <label
+              v-for="option in recurringPaymentOptions"
+              :key="option.value"
+              class="payment-card"
+              :class="{ active: form.payment_option === option.value }"
+            >
+              <input v-model="form.payment_option" type="radio" :value="option.value" @change="syncPaidState" />
+              <span>
+                {{ option.label }}
+                <small>{{ option.description }}</small>
+              </span>
+            </label>
+          </div>
+
+          <div v-if="form.payment_option !== 'no_prepay'" class="settlement-card">
+            <div class="segmented-field">
+              <span>Trạng thái thu</span>
+              <div>
+                <button type="button" :class="{ active: form.is_paid }" @click="setRecurringPaid(true)">Đã thu</button>
+                <button type="button" :class="{ active: !form.is_paid }" @click="setRecurringPaid(false)">Chưa thu</button>
+              </div>
+            </div>
+
+            <div v-if="form.is_paid" class="segmented-field">
+              <span>Phương thức</span>
+              <div>
+                <button
+                  v-for="method in recurringPaymentMethods"
+                  :key="method.value"
+                  type="button"
+                  :class="{ active: form.payment_method === method.value }"
+                  @click="form.payment_method = method.value"
+                >
+                  <AppIcon :name="method.icon" size="15" />
+                  {{ method.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="inline-note">
+            Lịch sẽ được tạo trước, tiền thu sau từng buổi khi khách đến chơi.
+          </div>
+        </section>
 
         <div class="form-actions">
           <button class="primary-btn" type="button" :disabled="submitting || !canSubmitRecurring" @click="submitRecurring">
@@ -351,6 +386,15 @@ function toWeekDayIndex(date) {
   return (date.getDay() + 6) % 7;
 }
 
+const BOOKING_DAY_START = 6 * 60;
+const BOOKING_DAY_END = 22 * 60;
+const SLOT_STEP_MINUTES = 30;
+const SLOT_PERIODS = [
+  { key: 'morning', label: 'Sáng', range: '06:00 - 12:00', start: 6 * 60, end: 12 * 60 },
+  { key: 'afternoon', label: 'Chiều', range: '12:00 - 18:00', start: 12 * 60, end: 18 * 60 },
+  { key: 'evening', label: 'Tối', range: '18:00 - 22:00', start: 18 * 60, end: 22 * 60 },
+];
+
 export default {
   name: 'OwnerCounterBooking',
   components: { AppIcon },
@@ -366,13 +410,13 @@ export default {
       selectedClusterId: '',
       selectedClusterDetail: null,
       selectedCourtTypeId: '',
-      durationOptions: [30, 60, 90, 120],
       scheduleSlots: [],
       scheduleCourts: [],
       scheduleSlotStatuses: [],
       scheduleBusyIntervals: [],
       selectedGridCourtId: '',
       selectedSlotIndexes: [],
+      timePeriods: SLOT_PERIODS,
       scheduleLoading: false,
       scheduleError: '',
       selectionError: '',
@@ -389,7 +433,6 @@ export default {
         recurrence_days_of_week: [toWeekDayIndex(now)],
         start_time: '08:00',
         end_time: '09:00',
-        duration_minutes: 60,
         payment_option: 'full_payment',
         collection_mode: 'cash',
         is_paid: true,
@@ -403,6 +446,10 @@ export default {
         { value: 4, label: 'T6' },
         { value: 5, label: 'T7' },
         { value: 6, label: 'CN' },
+      ],
+      recurringPaymentMethods: [
+        { value: 'cash', label: 'Tiền mặt', icon: 'banknote' },
+        { value: 'bank_transfer', label: 'Chuyển khoản', icon: 'creditCard' },
       ],
       submitting: false,
       error: '',
@@ -432,24 +479,70 @@ export default {
       });
       return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
     },
-    scheduleGridStyle() {
-      return {
-        gridTemplateColumns: `160px repeat(${this.scheduleSlots.length}, 34px)`,
-      };
+    bookableScheduleSlots() {
+      return this.scheduleSlots.filter((slot) => {
+        const start = this.timeToMinutes(slot.start_time);
+        const end = this.timeToMinutes(slot.end_time);
+        return start >= BOOKING_DAY_START && end <= BOOKING_DAY_END;
+      });
+    },
+    slotPeriods() {
+      return this.timePeriods.map((period) => ({
+        ...period,
+        slots: this.bookableScheduleSlots.filter((slot) => {
+          const start = this.timeToMinutes(slot.start_time);
+          return start >= period.start && start < period.end;
+        }),
+      }));
     },
     selectedDurationMinutes() {
-      return this.form.duration_minutes;
+      return this.selectedSlotIndexes.reduce((total, index) => {
+        const slot = this.bookableScheduleSlots[index];
+        if (!slot) return total;
+
+        return total + Math.max(this.timeToMinutes(slot.end_time) - this.timeToMinutes(slot.start_time), 0);
+      }, 0);
     },
     selectedDurationText() {
-      return this.selectedDurationMinutes ? `${this.selectedDurationMinutes} phút` : 'Chưa chọn';
+      if (!this.selectedDurationMinutes) return '0 phút';
+
+      const hours = Math.floor(this.selectedDurationMinutes / 60);
+      const minutes = this.selectedDurationMinutes % 60;
+      if (!hours) return `${minutes} phút`;
+      if (!minutes) return `${hours} giờ`;
+      return `${hours} giờ ${minutes} phút`;
+    },
+    selectedSlotRanges() {
+      const slots = [...this.selectedSlotIndexes]
+        .sort((a, b) => a - b)
+        .map((index) => this.bookableScheduleSlots[index])
+        .filter(Boolean);
+      const ranges = [];
+
+      slots.forEach((slot) => {
+        const current = ranges[ranges.length - 1];
+        if (!current || current.end_time !== slot.start_time) {
+          ranges.push({
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+          });
+          return;
+        }
+
+        current.end_time = slot.end_time;
+      });
+
+      return ranges;
     },
     selectedTimeText() {
       if (!this.hasCounterSelection) return '-';
-      return `${this.formatTime(this.form.start_time)} - ${this.formatTime(this.form.end_time)}`;
+      return this.selectedSlotRanges
+        .map((range) => `${this.formatTime(range.start_time)} - ${this.formatTime(range.end_time)}`)
+        .join(', ');
     },
     selectedTotal() {
       return this.selectedSlotIndexes.reduce((total, index) => {
-        const slot = this.scheduleSlots[index];
+        const slot = this.bookableScheduleSlots[index];
         const status = this.slotStatus(this.selectedGridCourtId, slot);
         return total + Number(status?.price || 0);
       }, 0);
@@ -505,12 +598,25 @@ export default {
 
       return options.filter((option) => option.enabled);
     },
+    recurringPaymentOptions() {
+      const descriptions = {
+        full_payment: 'Ghi nhận thu đủ cho từng buổi trong nhóm lịch.',
+        deposit: `Ghi nhận tiền cọc ${this.depositPercent}% theo chính sách hiện tại.`,
+        no_prepay: 'Tạo lịch trước, thu tiền sau khi khách đến chơi.',
+      };
+
+      return this.paymentOptions.map((option) => ({
+        ...option,
+        description: descriptions[option.value] || option.label,
+      }));
+    },
     counterSummaryRows() {
       return [
         ['Cụm sân', this.selectedCluster?.name || '-'],
         ['Sân', this.selectedCounterCourt?.name || '-'],
         ['Ngày', this.formatDate(this.form.booking_date)],
         ['Giờ', this.selectedTimeText],
+        ['Thời lượng', this.selectedDurationText],
         ['Tổng tiền', this.formatCurrency(this.selectedTotal)],
       ];
     },
@@ -557,11 +663,16 @@ export default {
         && !this.submitting;
     },
     canSubmitRecurring() {
+      const start = this.timeToMinutes(this.form.start_time);
+      const end = this.timeToMinutes(this.form.end_time);
+
       return this.form.venue_court_id
         && this.form.walk_in_name
         && this.form.walk_in_phone
         && this.form.payment_option
-        && this.timeToMinutes(this.form.end_time) > this.timeToMinutes(this.form.start_time)
+        && start >= BOOKING_DAY_START
+        && end <= BOOKING_DAY_END
+        && end > start
         && this.recurringPreview.length > 0
         && !this.submitting;
     },
@@ -636,8 +747,8 @@ export default {
         this.selectedGridCourtId = this.scheduleCourts.some((court) => String(court.id) === String(previousCourtId))
           ? previousCourtId
           : this.scheduleCourts[0]?.id || '';
-        this.updateEndTimeFromDuration();
-        this.syncTimeSelection();
+        this.form.venue_court_id = this.selectedGridCourtId;
+        this.syncCounterRangeFields();
       } catch (error) {
         this.scheduleError = error.message || 'Không thể tải lịch sân.';
       } finally {
@@ -658,83 +769,75 @@ export default {
       const status = this.slotStatus(courtId, slot);
       return !status || !status.is_available;
     },
-    cellClass(courtId, slot, index) {
-      const busy = this.busyInterval(courtId, slot);
+    isSlotDisabled(slot) {
+      if (!this.selectedGridCourtId || !slot) return true;
+
+      return this.isSlotBusy(this.selectedGridCourtId, slot);
+    },
+    slotButtonClass(slot) {
+      const selected = this.selectedSlotIndexes.some((index) => this.bookableScheduleSlots[index]?.start_time === slot.start_time);
+      const busy = this.isSlotBusy(this.selectedGridCourtId, slot);
+      const interval = this.busyInterval(this.selectedGridCourtId, slot);
+
       return {
-        selected: this.selectedGridCourtId === courtId && this.selectedSlotIndexes.includes(index),
-        busy: this.isSlotBusy(courtId, slot),
-        pending: busy && ['pending_payment', 'pending_approval', 'auto', 'manual'].includes(busy.status),
+        selected,
+        busy,
+        pending: busy && ['pending_payment', 'pending_approval', 'auto', 'manual'].includes(interval?.status),
       };
     },
-    slotTitle(courtId, slot) {
-      const status = this.slotStatus(courtId, slot);
-      if (!status) return 'Không có dữ liệu';
-      if (!status.is_available) return 'Khung giờ không khả dụng';
-      return `${this.formatTime(slot.start_time)} - ${this.formatTime(slot.end_time)} · ${this.formatCurrency(status.price)}`;
-    },
-    handleStartTimeChange() {
-      this.updateEndTimeFromDuration();
-      this.syncTimeSelection();
-    },
-    setDuration(minutes) {
-      if (this.isDurationDisabled(minutes)) return;
-      this.form.duration_minutes = minutes;
-      this.updateEndTimeFromDuration();
-      this.syncTimeSelection();
-    },
-    updateEndTimeFromDuration() {
-      const startMinutes = this.timeToMinutes(this.form.start_time);
-      const maxDuration = Math.max(30, Math.floor((1440 - startMinutes) / 30) * 30);
+    slotPriceLabel(slot) {
+      const interval = this.busyInterval(this.selectedGridCourtId, slot);
+      const status = this.slotStatus(this.selectedGridCourtId, slot);
 
-      if (Number(this.form.duration_minutes || 0) > maxDuration) {
-        this.form.duration_minutes = maxDuration;
+      if (interval) return ['pending_payment', 'pending_approval', 'auto', 'manual'].includes(interval.status) ? 'Đang giữ' : 'Đã đặt';
+      if (!status || !status.is_available) return 'Bận';
+
+      return this.formatCurrency(status.price);
+    },
+    slotActionTitle(slot) {
+      if (!slot) return '';
+      const start = this.formatTime(slot.start_time);
+      const end = this.formatTime(slot.end_time);
+      const selected = this.selectedSlotIndexes.some((index) => this.bookableScheduleSlots[index]?.start_time === slot.start_time);
+
+      if (this.isSlotDisabled(slot)) {
+        return `${start} - ${end} không khả dụng`;
       }
 
-      const endMinutes = Math.min(startMinutes + Number(this.form.duration_minutes || 0), 1440);
-      this.form.end_time = this.minutesToTime(endMinutes);
+      return selected
+        ? `Bỏ chọn ${start} - ${end}`
+        : `Chọn ${start} - ${end} · ${this.slotPriceLabel(slot)}`;
     },
-    isDurationDisabled(minutes) {
-      return this.timeToMinutes(this.form.start_time) + minutes > 1440;
+    handleCounterCourtChange() {
+      this.selectedSlotIndexes = [];
+      this.form.venue_court_id = this.selectedGridCourtId;
+      this.syncCounterRangeFields();
     },
-    slotRangeIndexes() {
-      const startIndex = this.scheduleSlots.findIndex((slot) => this.formatTime(slot.start_time) === this.form.start_time);
-      const endIndex = this.scheduleSlots.findIndex((slot) => this.formatTime(slot.end_time) === this.form.end_time);
-
-      if (startIndex < 0 || endIndex < startIndex) return [];
-
-      return Array.from({ length: endIndex - startIndex + 1 }, (_, offset) => startIndex + offset);
-    },
-    syncTimeSelection() {
+    syncCounterRangeFields() {
       this.selectionError = '';
+      const ranges = this.selectedSlotRanges;
 
-      if (!this.selectedGridCourtId) {
-        this.selectedSlotIndexes = [];
+      if (!ranges.length) {
+        this.form.start_time = '06:00';
+        this.form.end_time = '06:30';
         return;
       }
 
-      const indexes = this.slotRangeIndexes();
-      if (!indexes.length) {
-        this.selectedSlotIndexes = [];
-        this.selectionError = 'Vui lòng chọn giờ bắt đầu và kết thúc hợp lệ.';
-        return;
-      }
-
-      const blocked = indexes.some((index) => this.isSlotBusy(this.selectedGridCourtId, this.scheduleSlots[index]));
-      if (blocked) {
-        this.selectedSlotIndexes = [];
-        this.selectionError = 'Khung giờ đã chọn có slot bận, vui lòng chọn khoảng khác.';
-        return;
-      }
-
-      this.selectedSlotIndexes = indexes;
+      this.form.start_time = this.formatTime(ranges[0].start_time);
+      this.form.end_time = this.formatTime(ranges[ranges.length - 1].end_time);
       this.form.venue_court_id = this.selectedGridCourtId;
     },
-    selectSlot(court, index) {
+    toggleSlot(slot) {
+      if (this.isSlotDisabled(slot)) return;
+
+      const index = this.bookableScheduleSlots.findIndex((item) => item.start_time === slot.start_time);
+      if (index < 0) return;
+
       this.selectionError = '';
-      this.selectedGridCourtId = court.id;
-      this.form.start_time = this.formatTime(this.scheduleSlots[index]?.start_time);
-      this.updateEndTimeFromDuration();
-      this.syncTimeSelection();
+      this.selectedSlotIndexes = this.selectedSlotIndexes.includes(index)
+        ? this.selectedSlotIndexes.filter((item) => item !== index)
+        : [...this.selectedSlotIndexes, index].sort((a, b) => a - b);
+      this.syncCounterRangeFields();
     },
     async submitCounter() {
       if (!this.canSubmitCounter) return;
@@ -745,13 +848,20 @@ export default {
       this.clearCounterQrPolling();
 
       try {
+        const timeRanges = this.selectedSlotRanges.map((range) => ({
+          start_time: this.withSeconds(this.formatTime(range.start_time)),
+          end_time: this.withSeconds(this.formatTime(range.end_time)),
+        }));
+        const firstRange = timeRanges[0];
+        const lastRange = timeRanges[timeRanges.length - 1];
         const response = await ownerBookingService.createCounter({
           venue_court_id: this.selectedGridCourtId,
           walk_in_name: this.form.walk_in_name,
           walk_in_phone: this.form.walk_in_phone,
           booking_date: this.form.booking_date,
-          start_time: this.withSeconds(this.form.start_time),
-          end_time: this.withSeconds(this.form.end_time),
+          start_time: firstRange.start_time,
+          end_time: lastRange.end_time,
+          time_ranges: timeRanges,
           payment_option: this.form.collection_mode === 'later' ? 'no_prepay' : 'full_payment',
           is_paid: this.form.collection_mode === 'cash',
           payment_method: this.form.collection_mode === 'transfer' ? 'sepay' : 'cash',
@@ -765,6 +875,7 @@ export default {
         }
         this.selectedSlotIndexes = [];
         this.selectedGridCourtId = '';
+        this.syncCounterRangeFields();
         await this.loadSchedule();
       } catch (error) {
         this.error = error.message || 'Không thể tạo booking tại quầy.';
@@ -774,6 +885,7 @@ export default {
     },
     async submitRecurring() {
       if (!this.canSubmitRecurring) return;
+      this.normalizeRecurringTime();
       this.submitting = true;
       this.error = '';
       this.notice = '';
@@ -820,9 +932,16 @@ export default {
     syncPaidState() {
       if (this.form.payment_option === 'no_prepay') {
         this.form.is_paid = false;
+        this.form.payment_method = 'cash';
         if (this.activeTab === 'counter') this.form.collection_mode = 'later';
       } else if (this.form.collection_mode === 'later' && this.form.is_paid) {
         this.form.collection_mode = 'cash';
+      }
+    },
+    setRecurringPaid(isPaid) {
+      this.form.is_paid = isPaid;
+      if (!isPaid) {
+        this.form.payment_method = 'cash';
       }
     },
     applyCounterCollectionMode() {
@@ -836,6 +955,21 @@ export default {
       this.form.payment_option = 'full_payment';
       this.form.payment_method = this.form.collection_mode === 'transfer' ? 'sepay' : 'cash';
       this.form.is_paid = this.form.collection_mode === 'cash';
+    },
+    normalizeRecurringTime() {
+      let start = this.timeToMinutes(this.form.start_time);
+      let end = this.timeToMinutes(this.form.end_time);
+
+      if (start < BOOKING_DAY_START) start = BOOKING_DAY_START;
+      if (start >= BOOKING_DAY_END) start = BOOKING_DAY_END - SLOT_STEP_MINUTES;
+      if (end > BOOKING_DAY_END) end = BOOKING_DAY_END;
+      if (end <= start) end = Math.min(start + 60, BOOKING_DAY_END);
+      if (end <= start) {
+        start = Math.max(BOOKING_DAY_START, end - SLOT_STEP_MINUTES);
+      }
+
+      this.form.start_time = this.minutesToTime(start);
+      this.form.end_time = this.minutesToTime(end);
     },
     startCounterQrPolling() {
       this.clearCounterQrPolling();
@@ -965,6 +1099,11 @@ export default {
   padding: 18px;
 }
 
+.form-card {
+  display: grid;
+  gap: 16px;
+}
+
 .panel-head.compact {
   margin-bottom: 14px;
 }
@@ -983,6 +1122,13 @@ export default {
   font-size: 13px;
 }
 
+.section-title p {
+  margin: 4px 0 0;
+  color: #607267;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .schedule-filters,
 .form-grid {
   display: grid;
@@ -992,7 +1138,7 @@ export default {
 
 .booking-picker {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) minmax(120px, 0.65fr) minmax(120px, 0.65fr) minmax(120px, 0.55fr);
+  grid-template-columns: minmax(240px, 1.3fr) minmax(220px, 1fr) minmax(130px, 0.5fr);
   gap: 12px;
   align-items: end;
   margin-top: 12px;
@@ -1012,41 +1158,33 @@ export default {
   background: #fff;
 }
 
-.duration-choices {
+.selection-help {
   display: grid;
-  gap: 7px;
-}
-
-.duration-choices > span {
-  color: #223127;
-  font-size: 13px;
-  font-weight: 760;
-}
-
-.duration-choices div {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.duration-choices button {
+  gap: 5px;
   min-height: 42px;
+  padding: 9px 12px;
   border: 1px solid #d9e8d9;
   border-radius: 8px;
   background: #fff;
-  color: #344238;
+}
+
+.selection-help span {
+  color: #607267;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.selection-help strong {
+  color: #16231a;
+  font-size: 14px;
   font-weight: 850;
 }
 
-.duration-choices button.active {
-  border-color: #2f9e44;
-  background: #2f9e44;
-  color: #fff;
-}
-
-.duration-choices button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
+.selection-help small {
+  color: #607267;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 .duration-pill span {
@@ -1129,82 +1267,122 @@ select {
   font-weight: 800;
 }
 
-.schedule-wrap {
-  max-width: 100%;
-  overflow: auto;
+.time-board {
+  display: grid;
+  gap: 12px;
+}
+
+.selected-court-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
   border: 1px solid #d9e8d9;
   border-radius: 8px;
+  background: #f7fbf5;
 }
 
-.schedule-grid {
+.selected-court-strip div {
   display: grid;
-  min-width: max-content;
+  gap: 3px;
 }
 
-.schedule-head,
-.schedule-court,
-.schedule-cell {
-  min-height: 34px;
-  border-right: 1px solid #e4eee4;
-  border-bottom: 1px solid #e4eee4;
+.selected-court-strip span,
+.period-label span {
+  color: #607267;
+  font-size: 12px;
+  font-weight: 750;
 }
 
-.schedule-head {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f2f7ef;
-  color: #334238;
-  font-size: 11px;
-  font-weight: 800;
+.selected-court-strip strong,
+.period-label strong {
+  color: #16231a;
+  font-size: 14px;
+  font-weight: 850;
 }
 
-.sticky-col {
-  position: sticky;
-  left: 0;
-  z-index: 2;
+.period-row {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  padding: 12px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
 }
 
-.schedule-court {
+.period-label {
   display: grid;
   align-content: center;
-  gap: 3px;
-  padding: 7px 10px;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f2f7ef;
+}
+
+.period-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 8px;
+}
+
+.time-slot {
+  display: grid;
+  gap: 4px;
+  min-height: 58px;
+  padding: 9px 8px;
+  border: 1px solid #cbdccc;
+  border-radius: 8px;
   background: #fff;
-}
-
-.schedule-court strong {
   color: #16231a;
-  font-size: 12px;
+  text-align: left;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
-.schedule-court span {
+.time-slot:hover:not(:disabled) {
+  border-color: rgba(47, 158, 68, 0.65);
+  background: #f7fbf5;
+  box-shadow: 0 8px 18px rgba(27, 94, 48, 0.08);
+  transform: translateY(-1px);
+}
+
+.time-slot span {
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.time-slot small {
   color: #607267;
   font-size: 11px;
+  font-weight: 750;
 }
 
-.schedule-cell {
-  background: #fff;
-}
-
-.schedule-cell:hover:not(:disabled) {
-  background: #e8f7ec;
-}
-
-.schedule-cell.selected {
+.time-slot.selected {
+  border-color: #2f9e44;
   background: #2f9e44;
+  color: #fff;
 }
 
-.schedule-cell.busy {
-  background: #dfe7df;
+.time-slot.selected small {
+  color: rgba(255, 255, 255, 0.86);
 }
 
-.schedule-cell.pending {
-  background: #fff2c7;
+.time-slot.busy {
+  border-color: #d7e0d7;
+  background: #eef3ee;
+  color: #758176;
 }
 
-.schedule-cell:disabled {
+.time-slot.pending {
+  border-color: #f2c879;
+  background: #fff7dc;
+  color: #7a4a0b;
+}
+
+.time-slot:disabled {
   cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .booking-side {
@@ -1303,6 +1481,71 @@ select {
   color: #475b4d;
   font-size: 13px;
   font-weight: 700;
+}
+
+.recurring-payment {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #f7fbf5;
+}
+
+.recurring-payment-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.recurring-payment-list .payment-card {
+  grid-template-columns: auto minmax(0, 1fr);
+  background: #fff;
+}
+
+.settlement-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.segmented-field {
+  display: grid;
+  gap: 7px;
+}
+
+.segmented-field > span {
+  color: #223127;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.segmented-field > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.segmented-field button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
+  color: #344238;
+  font-weight: 850;
+}
+
+.segmented-field button.active {
+  border-color: #2f9e44;
+  background: #2f9e44;
+  color: #fff;
 }
 
 .qr-section {
@@ -1459,7 +1702,14 @@ select {
 @media (max-width: 820px) {
   .schedule-filters,
   .form-grid,
-  .booking-picker {
+  .booking-picker,
+  .selected-court-strip,
+  .settlement-card,
+  .recurring-payment-list {
+    grid-template-columns: 1fr;
+  }
+
+  .period-row {
     grid-template-columns: 1fr;
   }
 }

@@ -65,8 +65,11 @@ class BookingManagementController extends Controller
         $validated = $request->validate([
             'venue_court_id' => ['required', 'uuid', 'exists:venue_courts,id'],
             'booking_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
-            'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
-            'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'start_time' => ['required_without:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'end_time' => ['required_without:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'time_ranges' => ['nullable', 'array', 'min:1', 'max:32'],
+            'time_ranges.*.start_time' => ['required_with:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'time_ranges.*.end_time' => ['required_with:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => ['required', Rule::in(['full_payment', 'no_prepay'])],
             'is_paid' => ['nullable', 'boolean'],
             'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer', 'sepay'])],

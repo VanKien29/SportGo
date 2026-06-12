@@ -226,6 +226,71 @@ class OwnerCounterPaymentTest extends TestCase
             ->assertJsonValidationErrors(['payment_option']);
     }
 
+    public function test_owner_can_create_counter_booking_with_split_time_ranges(): void
+    {
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => now()->addDay()->toDateString(),
+                'time_ranges' => [
+                    ['start_time' => '08:00:00', 'end_time' => '09:00:00'],
+                    ['start_time' => '11:00:00', 'end_time' => '12:00:00'],
+                ],
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'Khách đặt cách quãng',
+                'walk_in_phone' => '0901234567',
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.start_time', '08:00:00')
+            ->assertJsonPath('data.end_time', '12:00:00')
+            ->assertJsonPath('data.duration_minutes', 120)
+            ->assertJsonPath('data.total_price', '20000.00');
+
+        $booking = Booking::query()->with('items')->findOrFail($response->json('data.id'));
+
+        $this->assertCount(2, $booking->items);
+        $this->assertDatabaseHas('booking_items', [
+            'booking_id' => $booking->id,
+            'start_time' => '08:00:00',
+            'end_time' => '09:00:00',
+            'subtotal' => 10000.00,
+            'sort_order' => 1,
+        ]);
+        $this->assertDatabaseHas('booking_items', [
+            'booking_id' => $booking->id,
+            'start_time' => '11:00:00',
+            'end_time' => '12:00:00',
+            'subtotal' => 10000.00,
+            'sort_order' => 2,
+        ]);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => now()->addDay()->toDateString(),
+                'start_time' => '09:00:00',
+                'end_time' => '10:00:00',
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'Khách giữa giờ',
+                'walk_in_phone' => '0901234568',
+            ])
+            ->assertCreated();
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => now()->addDay()->toDateString(),
+                'start_time' => '08:30:00',
+                'end_time' => '09:30:00',
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'Khách trùng giờ',
+                'walk_in_phone' => '0901234569',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['start_time']);
+    }
+
     private function createPayLaterCounterBooking(): Booking
     {
         $response = $this->actingAs($this->owner, 'sanctum')
