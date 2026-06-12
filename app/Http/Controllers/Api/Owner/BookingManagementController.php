@@ -68,6 +68,7 @@ class BookingManagementController extends Controller
             'start_time' => ['required_without:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required_without:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'time_ranges' => ['nullable', 'array', 'min:1', 'max:32'],
+            'time_ranges.*.venue_court_id' => ['nullable', 'uuid', 'exists:venue_courts,id'],
             'time_ranges.*.start_time' => ['required_with:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'time_ranges.*.end_time' => ['required_with:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => ['required', Rule::in(['full_payment', 'no_prepay'])],

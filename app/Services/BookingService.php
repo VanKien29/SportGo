@@ -33,16 +33,18 @@ class BookingService
         $venueClusterId = $court->venue_cluster_id;
 
         // 1. Kiểm tra xem có booking nào đã được xác nhận hoặc đang chờ duyệt/chờ thanh toán trùng giờ không
-        $hasOverlapBooking = Booking::where('venue_court_id', $venueCourtId)
+        $hasOverlapBooking = Booking::query()
             ->where('booking_date', $bookingDate)
             ->whereIn('status', self::BLOCKING_BOOKING_STATUSES)
             ->when($ignoreBookingId, fn ($query) => $query->whereKeyNot($ignoreBookingId))
-            ->where(function ($query) use ($startTime, $endTime) {
-                $query->whereHas('items', function ($itemQuery) use ($startTime, $endTime) {
-                    $itemQuery->where('start_time', '<', $endTime)
+            ->where(function ($query) use ($venueCourtId, $startTime, $endTime) {
+                $query->whereHas('items', function ($itemQuery) use ($venueCourtId, $startTime, $endTime) {
+                    $itemQuery->where('venue_court_id', $venueCourtId)
+                        ->where('start_time', '<', $endTime)
                         ->where('end_time', '>', $startTime);
-                })->orWhere(function ($fallbackQuery) use ($startTime, $endTime) {
+                })->orWhere(function ($fallbackQuery) use ($venueCourtId, $startTime, $endTime) {
                     $fallbackQuery->doesntHave('items')
+                        ->where('venue_court_id', $venueCourtId)
                         ->where('start_time', '<', $endTime)
                         ->where('end_time', '>', $startTime);
                 });
@@ -214,12 +216,13 @@ class BookingService
     {
         return DB::transaction(function () use ($data, $actor): Booking {
             $court = $this->lockActiveCourt($data['venue_court_id']);
-            $timeRanges = $this->normalizeTimeRanges($data);
+            $timeRanges = $this->normalizeTimeRanges($data, $court->id);
+            $rangeCourts = $this->courtsForTimeRanges($timeRanges, $court);
             $this->validateTimeRanges($timeRanges);
             $this->validateDurationMinutesAndPayment($court->venue_cluster_id, $this->rangesDurationMinutes($timeRanges), $data['payment_option']);
 
             foreach ($timeRanges as $range) {
-                if (! $this->checkAvailability($court->id, $data['booking_date'], $range['start_time'], $range['end_time'])) {
+                if (! $this->checkAvailability($range['venue_court_id'], $data['booking_date'], $range['start_time'], $range['end_time'])) {
                     $errorKey = isset($data['time_ranges']) ? 'time_ranges' : 'start_time';
 
                     throw ValidationException::withMessages([
@@ -234,6 +237,7 @@ class BookingService
                     'start_time' => $timeRanges[0]['start_time'],
                     'end_time' => $timeRanges[array_key_last($timeRanges)]['end_time'],
                     'time_ranges' => $timeRanges,
+                    'range_courts' => $rangeCourts,
                 ]),
                 $actor,
                 $data['booking_date'],
@@ -509,15 +513,17 @@ class BookingService
         return round($total, 2);
     }
 
-    private function calculateTotalPriceForRanges(VenueCourt $court, string $bookingDate, array $timeRanges, string $bookingType): float
+    private function calculateTotalPriceForRanges(Collection $courts, string $bookingDate, array $timeRanges, string $bookingType): float
     {
-        return round(collect($timeRanges)->sum(fn (array $range) => $this->calculateTotalPrice(
-            $court,
-            $bookingDate,
-            $range['start_time'],
-            $range['end_time'],
-            $bookingType,
-        )), 2);
+        return round(collect($timeRanges)->sum(function (array $range) use ($courts, $bookingDate, $bookingType): float {
+            return $this->calculateTotalPrice(
+                $courts->get($range['venue_court_id']),
+                $bookingDate,
+                $range['start_time'],
+                $range['end_time'],
+                $bookingType,
+            );
+        }), 2);
     }
 
     public function resolveHourlyRate(string $venueClusterId, int $courtTypeId, string $bookingDate, string $startTime, string $endTime, string $bookingType = 'single'): array
@@ -566,9 +572,10 @@ class BookingService
 
     private function createOperationalBooking(VenueCourt $court, array $data, User $actor, string $bookingDate, string $bookingType): Booking
     {
-        $timeRanges = $this->normalizeTimeRanges($data);
+        $timeRanges = $this->normalizeTimeRanges($data, $court->id);
+        $rangeCourts = $data['range_courts'] ?? $this->courtsForTimeRanges($timeRanges, $court);
         $durationMinutes = $this->rangesDurationMinutes($timeRanges);
-        $totalPrice = $this->calculateTotalPriceForRanges($court, $bookingDate, $timeRanges, $bookingType);
+        $totalPrice = $this->calculateTotalPriceForRanges($rangeCourts, $bookingDate, $timeRanges, $bookingType);
         $requiredPaymentAmount = $this->requiredPaymentAmount($court->venue_cluster_id, $totalPrice, $data['payment_option']);
         $isPaid = (bool) ($data['is_paid'] ?? false);
         $status = $this->initialCounterStatus($data['payment_option'], $isPaid);
@@ -604,9 +611,10 @@ class BookingService
         ]);
 
         foreach ($timeRanges as $index => $range) {
+            $rangeCourt = $rangeCourts->get($range['venue_court_id']);
             $rangeDuration = $this->durationMinutes($range['start_time'], $range['end_time']);
-            $rangeTotal = $this->calculateTotalPrice($court, $bookingDate, $range['start_time'], $range['end_time'], $bookingType);
-            $this->createBookingItem($booking, $court, $range, $rangeDuration, $rangeTotal, $index + 1);
+            $rangeTotal = $this->calculateTotalPrice($rangeCourt, $bookingDate, $range['start_time'], $range['end_time'], $bookingType);
+            $this->createBookingItem($booking, $rangeCourt, $range, $rangeDuration, $rangeTotal, $index + 1);
         }
 
         $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash');
@@ -818,19 +826,26 @@ class BookingService
             ]);
         }
 
-        $previousEnd = null;
-
         foreach ($timeRanges as $range) {
             $this->validateTimeRange($range['start_time'], $range['end_time']);
-
-            if ($previousEnd && $this->timeToMinutes($range['start_time']) < $this->timeToMinutes($previousEnd)) {
-                throw ValidationException::withMessages([
-                    'time_ranges' => 'Các khung giờ không được chồng lấn nhau.',
-                ]);
-            }
-
-            $previousEnd = $range['end_time'];
         }
+
+        collect($timeRanges)
+            ->groupBy('venue_court_id')
+            ->each(function (Collection $ranges): void {
+                $previousEnd = null;
+
+                $ranges->sortBy(fn (array $range) => $this->timeToMinutes($range['start_time']))
+                    ->each(function (array $range) use (&$previousEnd): void {
+                        if ($previousEnd && $this->timeToMinutes($range['start_time']) < $this->timeToMinutes($previousEnd)) {
+                            throw ValidationException::withMessages([
+                                'time_ranges' => 'Các khung giờ trên cùng một sân không được chồng lấn nhau.',
+                            ]);
+                        }
+
+                        $previousEnd = $range['end_time'];
+                    });
+            });
     }
 
     private function requiredPaymentAmount(string $venueClusterId, float $totalPrice, string $paymentOption): float
@@ -917,9 +932,12 @@ class BookingService
     {
         $bookings = Booking::query()
             ->with('items:id,booking_id,venue_court_id,start_time,end_time')
-            ->whereIn('venue_court_id', $courtIds)
             ->where('booking_date', $bookingDate)
             ->whereIn('status', self::BLOCKING_BOOKING_STATUSES)
+            ->where(function ($query) use ($courtIds) {
+                $query->whereIn('venue_court_id', $courtIds)
+                    ->orWhereHas('items', fn ($itemQuery) => $itemQuery->whereIn('venue_court_id', $courtIds));
+            })
             ->get(['id', 'venue_court_id', 'start_time', 'end_time', 'status'])
             ->flatMap(function (Booking $booking) {
                 if ($booking->items->isNotEmpty()) {
@@ -1009,19 +1027,65 @@ class BookingService
         return collect($timeRanges)->sum(fn (array $range) => $this->durationMinutes($range['start_time'], $range['end_time']));
     }
 
-    private function normalizeTimeRanges(array $data): array
+    private function courtsForTimeRanges(array $timeRanges, VenueCourt $primaryCourt): Collection
     {
+        $courtIds = collect($timeRanges)->pluck('venue_court_id')->unique()->values();
+        $courts = VenueCourt::query()
+            ->with('venueCluster')
+            ->whereIn('id', $courtIds)
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
+
+        if ($courts->count() !== $courtIds->count()) {
+            throw ValidationException::withMessages([
+                'time_ranges' => 'Một hoặc nhiều sân trong khung giờ không hợp lệ.',
+            ]);
+        }
+
+        foreach ($courts as $court) {
+            if ($court->status !== 'active') {
+                throw ValidationException::withMessages([
+                    'venue_court_id' => 'Sân con này hiện không hoạt động.',
+                ]);
+            }
+
+            if ($court->venue_cluster_id !== $primaryCourt->venue_cluster_id) {
+                throw ValidationException::withMessages([
+                    'time_ranges' => 'Các sân trong cùng một booking phải thuộc cùng cụm sân.',
+                ]);
+            }
+
+            if ($court->venueCluster?->status === 'locked') {
+                throw ValidationException::withMessages([
+                    'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
+                ]);
+            }
+        }
+
+        return $courts;
+    }
+
+    private function normalizeTimeRanges(array $data, ?string $defaultCourtId = null): array
+    {
+        $defaultCourtId = $defaultCourtId ?: ($data['venue_court_id'] ?? null);
         $ranges = $data['time_ranges'] ?? [[
+            'venue_court_id' => $defaultCourtId,
             'start_time' => $data['start_time'],
             'end_time' => $data['end_time'],
         ]];
 
         return collect($ranges)
             ->map(fn (array $range) => [
+                'venue_court_id' => $range['venue_court_id'] ?? $defaultCourtId,
                 'start_time' => $this->minutesToTime($this->timeToMinutes($range['start_time'])),
                 'end_time' => $this->minutesToTime($this->timeToMinutes($range['end_time'])),
             ])
-            ->sortBy(fn (array $range) => $this->timeToMinutes($range['start_time']))
+            ->sortBy(fn (array $range) => sprintf(
+                '%05d-%s',
+                $this->timeToMinutes($range['start_time']),
+                $range['venue_court_id'],
+            ))
             ->values()
             ->all();
     }

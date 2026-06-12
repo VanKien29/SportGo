@@ -26,6 +26,8 @@ class OwnerCounterPaymentTest extends TestCase
 
     private VenueCourt $court;
 
+    private VenueCourt $secondCourt;
+
     private SystemBankAccount $systemBankAccount;
 
     protected function setUp(): void
@@ -85,6 +87,14 @@ class OwnerCounterPaymentTest extends TestCase
             'name' => 'Sân tại quầy',
             'status' => 'active',
             'sort_order' => 1,
+        ]);
+
+        $this->secondCourt = VenueCourt::create([
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $courtType->id,
+            'name' => 'Sân tại quầy 2',
+            'status' => 'active',
+            'sort_order' => 2,
         ]);
 
         $this->systemBankAccount = SystemBankAccount::create([
@@ -285,6 +295,78 @@ class OwnerCounterPaymentTest extends TestCase
                 'end_time' => '09:30:00',
                 'payment_option' => 'no_prepay',
                 'walk_in_name' => 'Khách trùng giờ',
+                'walk_in_phone' => '0901234569',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['start_time']);
+    }
+
+    public function test_owner_can_create_counter_booking_with_multiple_courts(): void
+    {
+        $bookingDate = now()->addDay()->toDateString();
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $bookingDate,
+                'time_ranges' => [
+                    ['venue_court_id' => $this->court->id, 'start_time' => '08:00:00', 'end_time' => '09:00:00'],
+                    ['venue_court_id' => $this->secondCourt->id, 'start_time' => '08:00:00', 'end_time' => '09:00:00'],
+                    ['venue_court_id' => $this->secondCourt->id, 'start_time' => '11:00:00', 'end_time' => '12:00:00'],
+                ],
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'Khách nhiều sân',
+                'walk_in_phone' => '0901234567',
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.start_time', '08:00:00')
+            ->assertJsonPath('data.end_time', '12:00:00')
+            ->assertJsonPath('data.duration_minutes', 180)
+            ->assertJsonPath('data.total_price', '30000.00');
+
+        $booking = Booking::query()->with('items')->findOrFail($response->json('data.id'));
+
+        $this->assertCount(3, $booking->items);
+        $this->assertDatabaseHas('booking_items', [
+            'booking_id' => $booking->id,
+            'venue_court_id' => $this->court->id,
+            'start_time' => '08:00:00',
+            'end_time' => '09:00:00',
+        ]);
+        $this->assertDatabaseHas('booking_items', [
+            'booking_id' => $booking->id,
+            'venue_court_id' => $this->secondCourt->id,
+            'start_time' => '08:00:00',
+            'end_time' => '09:00:00',
+        ]);
+        $this->assertDatabaseHas('booking_items', [
+            'booking_id' => $booking->id,
+            'venue_court_id' => $this->secondCourt->id,
+            'start_time' => '11:00:00',
+            'end_time' => '12:00:00',
+        ]);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $bookingDate,
+                'start_time' => '09:00:00',
+                'end_time' => '10:00:00',
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'Khách khoảng trống',
+                'walk_in_phone' => '0901234568',
+            ])
+            ->assertCreated();
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->secondCourt->id,
+                'booking_date' => $bookingDate,
+                'start_time' => '11:30:00',
+                'end_time' => '12:30:00',
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'Khách trùng sân hai',
                 'walk_in_phone' => '0901234569',
             ])
             ->assertUnprocessable()
