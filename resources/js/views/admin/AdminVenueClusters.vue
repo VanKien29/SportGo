@@ -93,7 +93,7 @@
                                     {{ c.owner?.email || "" }}
                                 </div>
                             </td>
-                            <td class="address-cell">{{ c.address }}</td>
+                            <td class="address-cell">{{ formatFullAddress(c) }}</td>
                             <td>
                                 <div class="court-types">
                                     <span
@@ -245,6 +245,15 @@ export default {
                 name: "admin-venue-cluster-detail",
                 params: { id },
             });
+        },
+        formatFullAddress(c) {
+            if (!c) return "";
+            const parts = [
+                c.address,
+                c.ward,
+                c.province
+            ].filter(Boolean);
+            return parts.join(', ') || '—';
         },
     },
 };

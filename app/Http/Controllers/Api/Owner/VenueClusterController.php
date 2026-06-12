@@ -52,6 +52,8 @@ class VenueClusterController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'phone_contact' => ['required', 'string', 'max:20'],
+            'province' => ['required', 'string', 'max:255'],
+            'ward' => ['required', 'string', 'max:255'],
             'address' => ['required', 'string', 'max:255'],
             'map_url' => ['nullable', 'url', 'max:2000'],
             'latitude' => ['required', 'numeric', 'between:-90,90'],

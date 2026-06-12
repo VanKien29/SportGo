@@ -39,7 +39,7 @@
                 >
                     <div class="cluster-info">
                         <h4 class="cluster-name">{{ cluster.name }}</h4>
-                        <p class="cluster-address">{{ cluster.address }}</p>
+                        <p class="cluster-address">{{ formatFullAddress(cluster) }}</p>
                     </div>
                 </div>
             </div>
@@ -97,9 +97,40 @@
                         </div>
                     </div>
 
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="province"
+                                >Tỉnh/Thành phố
+                                <span class="required">*</span></label
+                            >
+                            <input
+                                id="province"
+                                v-model="form.province"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Hà Nội, TP. Hồ Chí Minh..."
+                                required
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="ward"
+                                >Xã/Phường/Thị trấn
+                                <span class="required">*</span></label
+                            >
+                            <input
+                                id="ward"
+                                v-model="form.ward"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Dịch Vọng, Phường Bến Nghé..."
+                                required
+                            />
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label for="address"
-                            >Địa chỉ cụm sân
+                            >Địa chỉ cụ thể (Số nhà, tên đường...)
                             <span class="required">*</span></label
                         >
                         <input
@@ -107,6 +138,7 @@
                             v-model="form.address"
                             type="text"
                             class="form-control"
+                            placeholder="Ví dụ: Số 15 ngõ 20..."
                             required
                         />
                     </div>
@@ -354,6 +386,8 @@ export default {
             form: {
                 name: "",
                 phone_contact: "",
+                province: "",
+                ward: "",
                 address: "",
                 map_url: "",
                 latitude: 21.0285,
@@ -502,6 +536,8 @@ export default {
             this.form = {
                 name: cluster.name,
                 phone_contact: cluster.phone_contact || "",
+                province: cluster.province || "",
+                ward: cluster.ward || "",
                 address: cluster.address,
                 map_url: cluster.map_url || "",
                 latitude: parseFloat(cluster.latitude || 21.0285),
@@ -511,6 +547,15 @@ export default {
                     : [],
                 description: cluster.description || "",
             };
+        },
+        formatFullAddress(cluster) {
+            if (!cluster) return "";
+            const parts = [
+                cluster.address,
+                cluster.ward,
+                cluster.province
+            ].filter(Boolean);
+            return parts.join(', ') || 'Chưa cấu hình địa chỉ';
         },
         async handleUpdate() {
             this.updating = true;

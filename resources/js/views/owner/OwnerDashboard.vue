@@ -1,32 +1,6 @@
 <template>
   <div class="dashboard">
-    <section class="page-head">
-      <div>
-        <h2>Bảng điều hành chủ sân</h2>
-        <p>Theo dõi nhanh booking, doanh thu online và đánh giá của cụm sân đang chọn.</p>
-      </div>
-      <!-- Cluster Badge -->
-      <div v-if="selectedCluster" class="cluster-badge">
-        <span class="dot"></span>
-        <span>{{ selectedCluster.name }}</span>
-      </div>
-    </section>
-
     <div v-if="error" class="alert error">{{ error }}</div>
-
-    <!-- Welcome Hero Card (No icons) -->
-    <div class="welcome-card">
-      <div class="welcome-content">
-        <h2 class="welcome-title">Xin chào, {{ userName }}!</h2>
-        <p class="welcome-desc">
-          Chào mừng quay trở lại với trang quản trị SportGo. Hãy theo dõi các chỉ số tài chính, tình trạng đặt sân và phản hồi của khách hàng bên dưới để vận hành cụm sân tốt nhất.
-        </p>
-        <div class="welcome-badges">
-          <span class="badge badge-green">Tài khoản active</span>
-          <span v-if="selectedCluster" class="badge badge-blue">{{ selectedCluster.name }}</span>
-        </div>
-      </div>
-    </div>
 
     <div class="section-container">
       <!-- Ví của tôi (Wallet) -->

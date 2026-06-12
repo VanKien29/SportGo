@@ -376,6 +376,8 @@ class VenueClusterController extends Controller
             'id'           => $c->id,
             'name'         => $c->name,
             'slug'         => $c->slug,
+            'province'     => $c->province,
+            'ward'         => $c->ward,
             'address'      => $c->address,
             'status'       => $c->status,
             'status_reason' => $c->status_reason,
