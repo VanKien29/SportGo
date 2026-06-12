@@ -120,14 +120,12 @@
                   class="time-slot"
                   role="gridcell"
                   :aria-pressed="isSlotSelected(slot)"
+                  :aria-label="slotActionTitle(slot)"
                   :class="slotButtonClass(slot)"
                   :disabled="isSlotDisabled(slot)"
                   :title="slotActionTitle(slot)"
                   @click="toggleSlot(slot)"
-                >
-                  <span>{{ formatTime(slot.start_time) }}</span>
-                  <small v-if="slotCellLabel(slot)">{{ slotCellLabel(slot) }}</small>
-                </button>
+                ></button>
               </div>
             </div>
           </div>
@@ -801,15 +799,6 @@ export default {
 
       return this.formatCurrency(status.price);
     },
-    slotCellLabel(slot) {
-      const interval = this.busyInterval(this.selectedGridCourtId, slot);
-
-      if (this.isSlotSelected(slot)) return 'Đã chọn';
-      if (interval) return ['pending_payment', 'pending_approval', 'auto', 'manual'].includes(interval.status) ? 'Giữ' : 'Đặt';
-      if (this.isSlotDisabled(slot)) return 'Bận';
-
-      return '';
-    },
     slotActionTitle(slot) {
       if (!slot) return '';
       const start = this.formatTime(slot.start_time);
@@ -1340,7 +1329,7 @@ select {
   display: grid;
   align-content: center;
   gap: 4px;
-  min-height: 52px;
+  min-height: 38px;
   padding: 10px 12px;
   border-right: 1px solid #d9e8d9;
   background: #f2f7ef;
@@ -1348,24 +1337,18 @@ select {
 
 .period-slots {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(34px, 1fr));
   gap: 0;
 }
 
 .time-slot {
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 2px;
-  min-height: 52px;
-  padding: 7px 4px;
+  min-height: 38px;
+  padding: 0;
   border: 0;
   border-right: 1px solid #e4eee4;
   border-radius: 0;
   background: #fff;
-  color: #16231a;
-  text-align: center;
-  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+  transition: background 0.16s ease, box-shadow 0.16s ease;
 }
 
 .time-slot:last-child {
@@ -1377,37 +1360,17 @@ select {
   box-shadow: inset 0 0 0 1px rgba(47, 158, 68, 0.4);
 }
 
-.time-slot span {
-  font-size: 13px;
-  font-weight: 850;
-  line-height: 1;
-}
-
-.time-slot small {
-  color: #607267;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
-}
-
 .time-slot.selected {
   background: #2f9e44;
-  color: #fff;
   box-shadow: inset 0 0 0 1px #2f9e44;
-}
-
-.time-slot.selected small {
-  color: rgba(255, 255, 255, 0.86);
 }
 
 .time-slot.busy {
   background: #eef3ee;
-  color: #758176;
 }
 
 .time-slot.pending {
   background: #fff7dc;
-  color: #7a4a0b;
 }
 
 .time-slot:disabled {
