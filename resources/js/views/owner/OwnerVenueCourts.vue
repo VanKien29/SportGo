@@ -123,7 +123,7 @@
               v-for="court in placedCourts"
               :key="court.id"
               class="canvas-court-element"
-              :class="{ selected: selectedCourtId === court.id, dragging: draggingCourtId === court.id }"
+              :class="{ selected: selectedCourtId === court.id, dragging: draggingCourtId === court.id, resizing: resizingCourtId === court.id }"
               :style="getCourtStyle(court)"
               @mousedown.stop="startDrag($event, court)"
               @click.stop="selectCourt(court)"
@@ -137,6 +137,14 @@
                 :rotation="court.layout_rotation || 0"
                 :show-type="false"
               />
+              
+              <!-- Resize Handles (Only for selected court) -->
+              <template v-if="selectedCourtId === court.id">
+                <div class="resize-handle tl" @mousedown.stop.prevent="startResize($event, court, 'tl')"></div>
+                <div class="resize-handle tr" @mousedown.stop.prevent="startResize($event, court, 'tr')"></div>
+                <div class="resize-handle bl" @mousedown.stop.prevent="startResize($event, court, 'bl')"></div>
+                <div class="resize-handle br" @mousedown.stop.prevent="startResize($event, court, 'br')"></div>
+              </template>
             </div>
           </div>
 
@@ -343,6 +351,12 @@ export default {
       dragStartX: 0,
       dragStartY: 0,
       savingLayout: false,
+      resizingCourtId: null,
+      resizeDirection: '',
+      resizeStartW: 0,
+      resizeStartH: 0,
+      resizeStartXCoord: 0,
+      resizeStartYCoord: 0,
     };
   },
   computed: {
@@ -562,6 +576,16 @@ export default {
         height: `${court.layout_h || this.getDefaultHeight(court)}px`
       };
     },
+    startResize(event, court, direction) {
+      this.resizingCourtId = court.id;
+      this.resizeDirection = direction;
+      this.dragStartX = event.clientX;
+      this.dragStartY = event.clientY;
+      this.resizeStartW = court.layout_w || this.getDefaultWidth(court);
+      this.resizeStartH = court.layout_h || this.getDefaultHeight(court);
+      this.resizeStartXCoord = court.layout_x || 0;
+      this.resizeStartYCoord = court.layout_y || 0;
+    },
     startDrag(event, court) {
       this.draggingCourtId = court.id;
       this.selectedCourtId = court.id;
@@ -569,6 +593,48 @@ export default {
       this.dragStartY = event.clientY - (court.layout_y || 0);
     },
     handleDrag(event) {
+      if (this.resizingCourtId) {
+        const court = this.courts.find(c => c.id === this.resizingCourtId);
+        if (!court) return;
+        
+        const dx = event.clientX - this.dragStartX;
+        const dy = event.clientY - this.dragStartY;
+        
+        if (this.resizeDirection === 'br') {
+          court.layout_w = Math.max(30, this.resizeStartW + dx);
+          court.layout_h = Math.max(30, this.resizeStartH + dy);
+        } else if (this.resizeDirection === 'bl') {
+          const newW = this.resizeStartW - dx;
+          if (newW >= 30) {
+            court.layout_x = this.resizeStartXCoord + dx;
+            court.layout_w = newW;
+          }
+          court.layout_h = Math.max(30, this.resizeStartH + dy);
+        } else if (this.resizeDirection === 'tr') {
+          court.layout_w = Math.max(30, this.resizeStartW + dx);
+          const newH = this.resizeStartH - dy;
+          if (newH >= 30) {
+            court.layout_y = this.resizeStartYCoord + dy;
+            court.layout_h = newH;
+          }
+        } else if (this.resizeDirection === 'tl') {
+          const newW = this.resizeStartW - dx;
+          const newH = this.resizeStartH - dy;
+          if (newW >= 30) {
+            court.layout_x = this.resizeStartXCoord + dx;
+            court.layout_w = newW;
+          }
+          if (newH >= 30) {
+            court.layout_y = this.resizeStartYCoord + dy;
+            court.layout_h = newH;
+          }
+        }
+        
+        this.validateSize(court);
+        this.validateCoords(court);
+        return;
+      }
+
       if (!this.draggingCourtId) return;
       const court = this.courts.find(c => c.id === this.draggingCourtId);
       if (!court) return;
@@ -587,6 +653,7 @@ export default {
     },
     endDrag() {
       this.draggingCourtId = null;
+      this.resizingCourtId = null;
     },
     selectCourt(court) {
       this.selectedCourtId = court.id;
@@ -1249,9 +1316,25 @@ export default {
 }
 
 .canvas-court-element.selected {
-  outline: 3px solid rgba(0, 0, 0, 0.15);
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+  outline: 2px dashed #000000;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
 }
+
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: #ffffff;
+  border: 2px solid #000000;
+  border-radius: 50%;
+  z-index: 25;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.resize-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
+.resize-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
+.resize-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.resize-handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; }
 
 .editor-sidebar {
   flex: 1;

@@ -11,13 +11,45 @@
       height="100%" 
       xmlns="http://www.w3.org/2000/svg"
     >
+      <defs>
+        <!-- Smooth sports-themed gradients -->
+        <linearGradient id="grad-football" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#166534" />
+          <stop offset="100%" stop-color="#14532d" />
+        </linearGradient>
+        <linearGradient id="grad-badminton" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#0f766e" />
+          <stop offset="100%" stop-color="#115e59" />
+        </linearGradient>
+        <linearGradient id="grad-pickleball" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#1d4ed8" />
+          <stop offset="100%" stop-color="#1e40af" />
+        </linearGradient>
+        <linearGradient id="grad-tennis" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#2563eb" />
+          <stop offset="100%" stop-color="#1d4ed8" />
+        </linearGradient>
+        <linearGradient id="grad-basketball" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ea580c" />
+          <stop offset="100%" stop-color="#c2410c" />
+        </linearGradient>
+        <linearGradient id="grad-volleyball" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#d97706" />
+          <stop offset="100%" stop-color="#b45309" />
+        </linearGradient>
+        <linearGradient id="grad-default" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#475569" />
+          <stop offset="100%" stop-color="#334155" />
+        </linearGradient>
+      </defs>
+      
       <!-- Background Turf / Floor -->
       <rect 
         x="0" 
         y="0" 
         :width="viewBoxWidth" 
         :height="viewBoxHeight" 
-        :fill="bgColor" 
+        :fill="`url(#grad-${sportKey})`" 
         rx="6" 
       />
 
@@ -281,11 +313,9 @@ export default {
       return style;
     },
     labelContainerStyle() {
-      // If rotated, we counter-rotate the text so it stays readable (optional but very nice!)
-      // For 90deg, 180deg, 270deg, we can optionally counter-rotate.
-      // Let's keep it simple: if rotation is odd, we can adjust.
-      // But standard is rotating text together with the court.
-      return {};
+      return {
+        transform: `translate(-50%, -50%) rotate(${-this.rotation}deg)`
+      };
     },
     statusClass() {
       return `status-${this.status}`;
@@ -397,28 +427,37 @@ export default {
 /* Labels */
 .court-label-container {
   position: absolute;
-  z-index: 3;
+  top: 50%;
+  left: 50%;
+  z-index: 15;
   color: #ffffff;
   text-align: center;
   pointer-events: none;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 1px rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 4px;
+  padding: 6px 10px;
+  background: rgba(15, 23, 42, 0.78);
+  border-radius: 6px;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+  max-width: 90%;
+  white-space: nowrap;
 }
 
 .court-name-text {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 900;
   letter-spacing: -0.01em;
+  text-transform: uppercase;
 }
 
 .court-type-text {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
-  opacity: 0.85;
+  opacity: 0.8;
   margin-top: 1px;
 }
 </style>
