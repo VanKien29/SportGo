@@ -93,7 +93,13 @@
             <td class="actions">
               <TableActionGroup>
                 <ActionIconButton v-if="canCollectPayment(booking)" icon="banknote" label="Thu tiền" variant="primary" @click="openCollectPayment(booking)" />
-                <ActionIconButton icon="check" label="Xác nhận" variant="success" @click="updateStatus(booking, 'confirm')" />
+                <ActionIconButton
+                  icon="check"
+                  label="Xác nhận"
+                  variant="success"
+                  :disabled="bookingHasPendingTransfer(booking)"
+                  @click="updateStatus(booking, 'confirm')"
+                />
                 <ActionIconButton icon="clock" label="Check-in" @click="updateStatus(booking, 'check_in')" />
                 <ActionIconButton icon="circleCheck" label="Hoàn thành" @click="updateStatus(booking, 'complete')" />
                 <ActionIconButton icon="pencil" label="Đổi sân" @click="openChangeCourt(booking)" />
@@ -164,18 +170,14 @@
             <AppIcon name="banknote" size="16" />
             <span>Tiền mặt</span>
           </button>
-          <button type="button" :class="{ active: collectForm.payment_method === 'bank_transfer' }" @click="collectForm.payment_method = 'bank_transfer'">
+          <button type="button" :class="{ active: collectForm.payment_method === 'sepay' }" @click="collectForm.payment_method = 'sepay'">
             <AppIcon name="creditCard" size="16" />
             <span>Chuyển khoản</span>
-          </button>
-          <button type="button" :class="{ active: collectForm.payment_method === 'sepay' }" @click="collectForm.payment_method = 'sepay'">
-            <AppIcon name="qrCode" size="16" />
-            <span>QR SePay</span>
           </button>
         </div>
 
         <div v-if="collectQr" class="collect-qr">
-          <img :src="collectQr.qr_url" alt="QR thanh toán SePay" />
+          <img :src="collectQr.qr_url" alt="Mã chuyển khoản" />
           <div>
             <span>Nội dung chuyển khoản</span>
             <button type="button" @click="copyText(collectQr.transfer_content)">{{ collectQr.transfer_content }}</button>
@@ -184,13 +186,13 @@
             <span>Số tiền</span>
             <strong>{{ formatCurrency(collectQr.payment?.amount) }}</strong>
           </div>
-          <small>Hệ thống sẽ tự cập nhật khi SePay gửi xác nhận.</small>
+          <small>Hệ thống sẽ tự cập nhật khi ngân hàng xác nhận thanh toán.</small>
         </div>
 
         <footer>
           <button type="button" class="ghost-btn" @click="closeCollectPayment">Đóng</button>
           <button class="primary-link" type="submit" :disabled="collectingPayment">
-            {{ collectForm.payment_method === 'sepay' ? 'Tạo QR' : 'Xác nhận thu' }}
+            {{ collectForm.payment_method === 'sepay' ? 'Tạo thông tin chuyển khoản' : 'Xác nhận thu' }}
           </button>
         </footer>
       </form>
@@ -347,7 +349,7 @@ export default {
 
         if (this.collectForm.payment_method === 'sepay') {
           this.collectQr = response.payment_qr || null;
-          this.notice = 'Đã tạo QR thu tiền.';
+          this.notice = 'Đã tạo thông tin chuyển khoản.';
           this.startCollectPolling();
         } else {
           this.notice = 'Đã ghi nhận thu tiền tại quầy.';
@@ -375,7 +377,7 @@ export default {
         this.collectBooking = booking;
 
         if (this.outstandingAmount(booking) <= 0) {
-          this.notice = 'Thanh toán QR đã được ghi nhận.';
+          this.notice = 'Chuyển khoản đã được ghi nhận.';
           await this.loadBookings();
           this.closeCollectPayment();
         }
@@ -394,6 +396,9 @@ export default {
         && !['cancelled', 'expired', 'rejected'].includes(booking.status)
         && this.outstandingAmount(booking) > 0;
     },
+    bookingHasPendingTransfer(booking) {
+      return (booking.payments || []).some((payment) => payment.method === 'sepay' && payment.status === 'pending');
+    },
     paidAmount(booking) {
       return (booking.payments || [])
         .filter((payment) => payment.status === 'paid')
@@ -407,6 +412,7 @@ export default {
       const outstanding = this.outstandingAmount(booking);
 
       if (outstanding <= 0) return `Đã thu đủ ${this.formatCurrency(paid)}`;
+      if (this.bookingHasPendingTransfer(booking)) return `Đang chờ chuyển khoản · còn ${this.formatCurrency(outstanding)}`;
       if (paid > 0) return `Đã thu ${this.formatCurrency(paid)} · còn ${this.formatCurrency(outstanding)}`;
       return `Còn phải thu ${this.formatCurrency(outstanding)}`;
     },
@@ -715,7 +721,7 @@ td strong {
 
 .method-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 

@@ -75,22 +75,24 @@
               </option>
             </select>
           </label>
-          <label>
-            <span>Kết thúc</span>
-            <select v-model="form.end_time" @change="syncTimeSelection">
-              <option
-                v-for="slot in scheduleSlots"
-                :key="slot.end_time"
-                :value="formatTime(slot.end_time)"
-                :disabled="isEndTimeOptionDisabled(slot.end_time)"
-              >
-                {{ formatTime(slot.end_time) }}
-              </option>
-            </select>
-          </label>
-          <div class="duration-pill" :class="{ active: hasCounterSelection }">
+          <div class="duration-choices">
             <span>Thời lượng</span>
-            <strong>{{ selectedDurationText }}</strong>
+            <div>
+              <button
+                v-for="duration in durationOptions"
+                :key="duration"
+                type="button"
+                :class="{ active: form.duration_minutes === duration }"
+                :disabled="isDurationDisabled(duration)"
+                @click="setDuration(duration)"
+              >
+                {{ duration }}'
+              </button>
+            </div>
+          </div>
+          <div class="duration-pill" :class="{ active: hasCounterSelection }">
+            <span>Kết thúc</span>
+            <strong>{{ formatTime(form.end_time) }}</strong>
           </div>
         </div>
 
@@ -166,35 +168,24 @@
           </div>
           <div class="payment-list">
             <label
-              v-for="option in paymentOptions"
+              v-for="option in counterCollectionOptions"
               :key="option.value"
               class="payment-card"
-              :class="{ active: form.payment_option === option.value }"
+              :class="{ active: form.collection_mode === option.value }"
             >
-              <input v-model="form.payment_option" type="radio" :value="option.value" @change="syncPaidState" />
-              <span>{{ option.label }}</span>
+              <input v-model="form.collection_mode" type="radio" :value="option.value" @change="applyCounterCollectionMode" />
+              <span>
+                {{ option.label }}
+                <small>{{ option.description }}</small>
+              </span>
               <strong>{{ formatCurrency(option.amount) }}</strong>
             </label>
           </div>
 
-          <div class="paid-row" :class="{ disabled: form.payment_option === 'no_prepay' }">
-            <button type="button" :class="{ active: form.collection_mode === 'paid' }" @click="setCollectionMode('paid')">Đã thu</button>
-            <button type="button" :class="{ active: form.collection_mode === 'qr' }" @click="setCollectionMode('qr')">QR SePay</button>
-            <button type="button" :class="{ active: form.collection_mode === 'later' }" @click="setCollectionMode('later')">Thu sau</button>
+          <div v-if="form.collection_mode === 'transfer'" class="inline-note">
+            Thông tin chuyển khoản sẽ được tạo sau khi booking được giữ chỗ. Hệ thống tự cập nhật khi nhận được thanh toán.
           </div>
-
-          <label v-if="form.collection_mode === 'paid' && form.payment_option !== 'no_prepay'">
-            <span>Phương thức</span>
-            <select v-model="form.payment_method">
-              <option value="cash">Tiền mặt</option>
-              <option value="bank_transfer">Chuyển khoản tại sân</option>
-            </select>
-          </label>
-
-          <div v-if="form.collection_mode === 'qr' && form.payment_option !== 'no_prepay'" class="inline-note">
-            QR sẽ được tạo sau khi booking được giữ chỗ.
-          </div>
-          <div v-if="form.payment_option === 'no_prepay'" class="inline-note">
+          <div v-if="form.collection_mode === 'later'" class="inline-note">
             Booking được giữ chỗ ngay, tiền sẽ thu sau khi khách chơi xong.
           </div>
         </section>
@@ -206,9 +197,9 @@
 
         <section v-if="counterQr" class="side-section qr-section">
           <div class="section-title muted">
-            <h2>QR thanh toán</h2>
+            <h2>Thông tin chuyển khoản</h2>
           </div>
-          <img :src="counterQr.qr_url" alt="QR thanh toán SePay" />
+          <img :src="counterQr.qr_url" alt="Mã chuyển khoản" />
           <div class="qr-info">
             <div>
               <span>Nội dung</span>
@@ -375,6 +366,7 @@ export default {
       selectedClusterId: '',
       selectedClusterDetail: null,
       selectedCourtTypeId: '',
+      durationOptions: [30, 60, 90, 120],
       scheduleSlots: [],
       scheduleCourts: [],
       scheduleSlotStatuses: [],
@@ -397,8 +389,9 @@ export default {
         recurrence_days_of_week: [toWeekDayIndex(now)],
         start_time: '08:00',
         end_time: '09:00',
+        duration_minutes: 60,
         payment_option: 'full_payment',
-        collection_mode: 'paid',
+        collection_mode: 'cash',
         is_paid: true,
         payment_method: 'cash',
       },
@@ -445,17 +438,14 @@ export default {
       };
     },
     selectedDurationMinutes() {
-      return this.selectedSlotIndexes.length * 30;
+      return this.form.duration_minutes;
     },
     selectedDurationText() {
       return this.selectedDurationMinutes ? `${this.selectedDurationMinutes} phút` : 'Chưa chọn';
     },
     selectedTimeText() {
-      if (!this.selectedSlotIndexes.length) return '-';
-      const indexes = [...this.selectedSlotIndexes].sort((a, b) => a - b);
-      const start = this.scheduleSlots[indexes[0]]?.start_time;
-      const end = this.scheduleSlots[indexes[indexes.length - 1]]?.end_time;
-      return `${this.formatTime(start)} - ${this.formatTime(end)}`;
+      if (!this.hasCounterSelection) return '-';
+      return `${this.formatTime(this.form.start_time)} - ${this.formatTime(this.form.end_time)}`;
     },
     selectedTotal() {
       return this.selectedSlotIndexes.reduce((total, index) => {
@@ -466,6 +456,28 @@ export default {
     },
     depositPercent() {
       return Number(this.selectedClusterDetail?.booking_config?.deposit_percent || 30);
+    },
+    counterCollectionOptions() {
+      return [
+        {
+          value: 'cash',
+          label: 'Tiền mặt',
+          description: 'Ghi nhận đã thu tại quầy.',
+          amount: this.selectedTotal,
+        },
+        {
+          value: 'transfer',
+          label: 'Chuyển khoản',
+          description: 'Tạo thông tin chuyển khoản và tự xác nhận khi tiền về.',
+          amount: this.selectedTotal,
+        },
+        {
+          value: 'later',
+          label: 'Thu sau',
+          description: 'Giữ sân trước, thu tiền sau khi khách chơi xong.',
+          amount: this.selectedTotal,
+        },
+      ];
     },
     paymentOptions() {
       const config = this.selectedClusterDetail?.booking_config || {};
@@ -624,6 +636,7 @@ export default {
         this.selectedGridCourtId = this.scheduleCourts.some((court) => String(court.id) === String(previousCourtId))
           ? previousCourtId
           : this.scheduleCourts[0]?.id || '';
+        this.updateEndTimeFromDuration();
         this.syncTimeSelection();
       } catch (error) {
         this.scheduleError = error.message || 'Không thể tải lịch sân.';
@@ -660,15 +673,28 @@ export default {
       return `${this.formatTime(slot.start_time)} - ${this.formatTime(slot.end_time)} · ${this.formatCurrency(status.price)}`;
     },
     handleStartTimeChange() {
-      if (this.timeToMinutes(this.form.end_time) <= this.timeToMinutes(this.form.start_time)) {
-        const startIndex = this.scheduleSlots.findIndex((slot) => this.formatTime(slot.start_time) === this.form.start_time);
-        this.form.end_time = this.formatTime(this.scheduleSlots[startIndex + 1]?.end_time || this.scheduleSlots[startIndex]?.end_time || this.form.end_time);
-      }
-
+      this.updateEndTimeFromDuration();
       this.syncTimeSelection();
     },
-    isEndTimeOptionDisabled(endTime) {
-      return this.timeToMinutes(endTime) <= this.timeToMinutes(this.form.start_time);
+    setDuration(minutes) {
+      if (this.isDurationDisabled(minutes)) return;
+      this.form.duration_minutes = minutes;
+      this.updateEndTimeFromDuration();
+      this.syncTimeSelection();
+    },
+    updateEndTimeFromDuration() {
+      const startMinutes = this.timeToMinutes(this.form.start_time);
+      const maxDuration = Math.max(30, Math.floor((1440 - startMinutes) / 30) * 30);
+
+      if (Number(this.form.duration_minutes || 0) > maxDuration) {
+        this.form.duration_minutes = maxDuration;
+      }
+
+      const endMinutes = Math.min(startMinutes + Number(this.form.duration_minutes || 0), 1440);
+      this.form.end_time = this.minutesToTime(endMinutes);
+    },
+    isDurationDisabled(minutes) {
+      return this.timeToMinutes(this.form.start_time) + minutes > 1440;
     },
     slotRangeIndexes() {
       const startIndex = this.scheduleSlots.findIndex((slot) => this.formatTime(slot.start_time) === this.form.start_time);
@@ -706,11 +732,8 @@ export default {
     selectSlot(court, index) {
       this.selectionError = '';
       this.selectedGridCourtId = court.id;
-      const currentDurationSlots = Math.max(this.selectedSlotIndexes.length, 2);
-      const endIndex = Math.min(index + currentDurationSlots - 1, this.scheduleSlots.length - 1);
-
       this.form.start_time = this.formatTime(this.scheduleSlots[index]?.start_time);
-      this.form.end_time = this.formatTime(this.scheduleSlots[endIndex]?.end_time);
+      this.updateEndTimeFromDuration();
       this.syncTimeSelection();
     },
     async submitCounter() {
@@ -729,12 +752,12 @@ export default {
           booking_date: this.form.booking_date,
           start_time: this.withSeconds(this.form.start_time),
           end_time: this.withSeconds(this.form.end_time),
-          payment_option: this.form.payment_option,
-          is_paid: this.form.payment_option !== 'no_prepay' && this.form.collection_mode === 'paid',
-          payment_method: this.form.collection_mode === 'qr' ? 'sepay' : this.form.payment_method,
+          payment_option: this.form.collection_mode === 'later' ? 'no_prepay' : 'full_payment',
+          is_paid: this.form.collection_mode === 'cash',
+          payment_method: this.form.collection_mode === 'transfer' ? 'sepay' : 'cash',
         });
 
-        this.notice = response.payment_qr ? 'Đã tạo booking và QR thanh toán.' : 'Đã tạo booking tại quầy.';
+        this.notice = response.payment_qr ? 'Đã tạo booking và thông tin chuyển khoản.' : 'Đã tạo booking tại quầy.';
         if (response.payment_qr) {
           this.counterQr = response.payment_qr;
           this.counterQrBookingId = response.data?.id || '';
@@ -797,14 +820,22 @@ export default {
     syncPaidState() {
       if (this.form.payment_option === 'no_prepay') {
         this.form.is_paid = false;
-        this.form.collection_mode = 'later';
+        if (this.activeTab === 'counter') this.form.collection_mode = 'later';
       } else if (this.form.collection_mode === 'later' && this.form.is_paid) {
-        this.form.collection_mode = 'paid';
+        this.form.collection_mode = 'cash';
       }
     },
-    setCollectionMode(mode) {
-      this.form.collection_mode = this.form.payment_option === 'no_prepay' ? 'later' : mode;
-      this.form.is_paid = this.form.collection_mode === 'paid';
+    applyCounterCollectionMode() {
+      if (this.form.collection_mode === 'later') {
+        this.form.payment_option = 'no_prepay';
+        this.form.payment_method = 'cash';
+        this.form.is_paid = false;
+        return;
+      }
+
+      this.form.payment_option = 'full_payment';
+      this.form.payment_method = this.form.collection_mode === 'transfer' ? 'sepay' : 'cash';
+      this.form.is_paid = this.form.collection_mode === 'cash';
     },
     startCounterQrPolling() {
       this.clearCounterQrPolling();
@@ -823,7 +854,7 @@ export default {
         const paidAmount = this.paidAmount(booking);
 
         if (paidAmount >= Number(booking.total_price || 0) || booking.status !== 'pending_payment') {
-          this.notice = 'Thanh toán QR đã được ghi nhận.';
+          this.notice = 'Chuyển khoản đã được ghi nhận.';
           this.counterQr = null;
           this.counterQrBookingId = '';
           this.clearCounterQrPolling();
@@ -863,6 +894,10 @@ export default {
     timeToMinutes(time) {
       const [hour, minute] = this.formatTime(time).split(':').map(Number);
       return (hour || 0) * 60 + (minute || 0);
+    },
+    minutesToTime(minutes) {
+      if (minutes >= 1440) return '24:00';
+      return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
     },
     dayIndex(value) {
       const date = value instanceof Date ? value : new Date(value);
@@ -975,6 +1010,43 @@ export default {
   border: 1px solid #d9e8d9;
   border-radius: 8px;
   background: #fff;
+}
+
+.duration-choices {
+  display: grid;
+  gap: 7px;
+}
+
+.duration-choices > span {
+  color: #223127;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.duration-choices div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.duration-choices button {
+  min-height: 42px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
+  color: #344238;
+  font-weight: 850;
+}
+
+.duration-choices button.active {
+  border-color: #2f9e44;
+  background: #2f9e44;
+  color: #fff;
+}
+
+.duration-choices button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .duration-pill span {
@@ -1214,30 +1286,13 @@ select {
   color: #216b34;
 }
 
-.paid-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.paid-row button {
-  min-height: 38px;
-  border: 1px solid #d9e8d9;
-  border-radius: 8px;
-  background: #fff;
-  color: #344238;
-  font-weight: 800;
-}
-
-.paid-row button.active {
-  border-color: #2f9e44;
-  background: #2f9e44;
-  color: #fff;
-}
-
-.paid-row.disabled {
-  opacity: 0.55;
-  pointer-events: none;
+.payment-card small {
+  display: block;
+  margin-top: 4px;
+  color: #607267;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 .inline-note {

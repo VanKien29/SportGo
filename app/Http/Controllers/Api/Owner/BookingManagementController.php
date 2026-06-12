@@ -67,7 +67,7 @@ class BookingManagementController extends Controller
             'booking_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
-            'payment_option' => ['required', Rule::in(['full_payment', 'deposit', 'no_prepay'])],
+            'payment_option' => ['required', Rule::in(['full_payment', 'no_prepay'])],
             'is_paid' => ['nullable', 'boolean'],
             'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer', 'sepay'])],
             'customer_id' => ['nullable', 'uuid', 'exists:users,id'],
@@ -77,7 +77,7 @@ class BookingManagementController extends Controller
 
         if (($validated['payment_method'] ?? null) === 'sepay' && $validated['payment_option'] === 'no_prepay') {
             throw ValidationException::withMessages([
-                'payment_method' => 'Thu sau bằng QR sẽ được tạo ở bước thu tiền sau trận.',
+                'payment_method' => 'Thu sau bằng chuyển khoản sẽ được tạo ở bước thu tiền sau trận.',
             ]);
         }
 
@@ -161,6 +161,12 @@ class BookingManagementController extends Controller
             'status_reason' => ['required_if:action,reject,cancel', 'nullable', 'string', 'max:1000'],
         ]);
 
+        if ($validated['action'] === 'confirm' && $this->hasPendingSepayPayment($booking)) {
+            throw ValidationException::withMessages([
+                'action' => 'Booking đang chờ chuyển khoản. Hệ thống sẽ tự xác nhận khi thanh toán thành công.',
+            ]);
+        }
+
         $status = match ($validated['action']) {
             'confirm' => 'confirmed',
             'reject' => 'rejected',
@@ -242,7 +248,7 @@ class BookingManagementController extends Controller
             }
 
             return response()->json([
-                'message' => 'Đã tạo QR thu tiền.',
+                'message' => 'Đã tạo thông tin chuyển khoản.',
                 'payment_qr' => $paymentQr,
                 'data' => $booking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'payments']),
             ]);
@@ -292,5 +298,13 @@ class BookingManagementController extends Controller
             ->merge($assignedClusterIds)
             ->unique()
             ->values();
+    }
+
+    private function hasPendingSepayPayment(Booking $booking): bool
+    {
+        return $booking->payments()
+            ->where('method', 'sepay')
+            ->where('status', 'pending')
+            ->exists();
     }
 }

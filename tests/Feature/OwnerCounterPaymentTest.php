@@ -192,6 +192,40 @@ class OwnerCounterPaymentTest extends TestCase
         ]);
     }
 
+    public function test_owner_cannot_manually_confirm_booking_waiting_for_transfer(): void
+    {
+        $booking = $this->createPayLaterCounterBooking();
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson("/api/owner/bookings/{$booking->id}/payments/collect", [
+                'payment_method' => 'sepay',
+            ])
+            ->assertOk();
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson("/api/owner/bookings/{$booking->id}/status", [
+                'action' => 'confirm',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['action']);
+    }
+
+    public function test_counter_booking_does_not_accept_deposit_option(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => now()->addDay()->toDateString(),
+                'start_time' => '11:00:00',
+                'end_time' => '12:00:00',
+                'payment_option' => 'deposit',
+                'walk_in_name' => 'Khách tại quầy',
+                'walk_in_phone' => '0901234567',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['payment_option']);
+    }
+
     private function createPayLaterCounterBooking(): Booking
     {
         $response = $this->actingAs($this->owner, 'sanctum')
