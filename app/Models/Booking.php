@@ -110,6 +110,11 @@ class Booking extends Model
         return $this->hasMany(Payment::class, 'booking_id');
     }
 
+    public function slotLocks()
+    {
+        return $this->hasMany(SlotLock::class, 'booking_id');
+    }
+
     public function requestedVenueCourt()
     {
         return $this->belongsTo(VenueCourt::class, 'requested_venue_court_id');

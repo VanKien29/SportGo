@@ -126,7 +126,7 @@ class BookingService
             $durationMinutes = $endMinutes - $startMinutes;
 
             // 3. Kiểm tra cấu hình thời lượng từ BookingConfig
-            $config = BookingConfig::find($venueClusterId);
+            $config = $this->bookingConfigForCluster($venueClusterId);
             $minDuration = $config ? $config->min_duration_minutes : 30;
             $maxDuration = $config ? $config->max_duration_minutes : null;
 
@@ -191,7 +191,7 @@ class BookingService
                 'created_by' => $customerId,
             ]);
 
-            // 9. Nếu cần thanh toán trước, tự động giữ slot 20 phút
+            // 9. Nếu cần thanh toán trước, tự động giữ slot theo cấu hình cụm sân.
             if ($status === 'pending_payment') {
                 $slotHoldMinutes = $config ? $config->slot_hold_minutes : 20;
                 SlotLock::create([
@@ -440,6 +440,45 @@ class BookingService
         return round(max((float) $booking->total_price - $paidAmount, 0), 2);
     }
 
+    public function ensurePendingPaymentLocks(Booking $booking, string $lockedBy): Collection
+    {
+        if ($booking->status !== 'pending_payment') {
+            return collect();
+        }
+
+        $existingLocks = SlotLock::query()->where('booking_id', $booking->id)->get();
+        if ($existingLocks->isNotEmpty()) {
+            return $existingLocks;
+        }
+
+        $booking->loadMissing('items');
+        $slotHoldMinutes = (int) ($this->bookingConfigForCluster($booking->venue_cluster_id)?->slot_hold_minutes ?? 20);
+        $expiresAt = Carbon::now()->addMinutes($slotHoldMinutes);
+        $items = $booking->items->isNotEmpty()
+            ? $booking->items
+            : collect([(object) [
+                'id' => null,
+                'venue_court_id' => $booking->venue_court_id,
+                'start_time' => $booking->start_time,
+                'end_time' => $booking->end_time,
+            ]]);
+
+        return $items->map(fn ($item) => SlotLock::query()->create([
+            'venue_cluster_id' => $booking->venue_cluster_id,
+            'venue_court_id' => $item->venue_court_id,
+            'lock_scope' => 'court',
+            'booking_date' => $booking->booking_date,
+            'start_time' => $item->start_time,
+            'end_time' => $item->end_time,
+            'locked_by' => $lockedBy,
+            'booking_id' => $booking->id,
+            'booking_item_id' => $item->id,
+            'lock_type' => 'auto',
+            'reason' => "Giữ chỗ chờ thanh toán trong {$slotHoldMinutes} phút.",
+            'expires_at' => $expiresAt,
+        ]));
+    }
+
     public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single'): array
     {
         $cluster = VenueCluster::query()->whereKey($venueClusterId)->where('status', 'active')->firstOrFail();
@@ -615,12 +654,16 @@ class BookingService
             'created_by' => $actor->id,
         ]);
 
+        $bookingItems = collect();
+
         foreach ($timeRanges as $index => $range) {
             $rangeCourt = $rangeCourts->get($range['venue_court_id']);
             $rangeDuration = $this->durationMinutes($range['start_time'], $range['end_time']);
             $rangeTotal = $this->calculateTotalPrice($rangeCourt, $bookingDate, $range['start_time'], $range['end_time'], $bookingType);
-            $this->createBookingItem($booking, $rangeCourt, $range, $rangeDuration, $rangeTotal, $index + 1);
+            $bookingItems->push($this->createBookingItem($booking, $rangeCourt, $range, $rangeDuration, $rangeTotal, $index + 1));
         }
+
+        $this->ensurePendingPaymentLocks($booking->setRelation('items', $bookingItems), $actor->id);
 
         $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash');
 
@@ -785,7 +828,7 @@ class BookingService
 
     private function validateDurationMinutesAndPayment(string $venueClusterId, int $durationMinutes, string $paymentOption): void
     {
-        $config = BookingConfig::query()->find($venueClusterId);
+        $config = $this->bookingConfigForCluster($venueClusterId);
         $minDuration = $config?->min_duration_minutes ?: 30;
         $maxDuration = $config?->max_duration_minutes;
 
@@ -860,7 +903,7 @@ class BookingService
         }
 
         if ($paymentOption === 'deposit') {
-            $config = BookingConfig::query()->find($venueClusterId);
+            $config = $this->bookingConfigForCluster($venueClusterId);
             $depositPercent = (float) ($config?->deposit_percent ?? 30);
 
             return round($totalPrice * ($depositPercent / 100), 2);
@@ -876,6 +919,13 @@ class BookingService
         }
 
         return 'pending_payment';
+    }
+
+    private function bookingConfigForCluster(string $venueClusterId): ?BookingConfig
+    {
+        return BookingConfig::query()
+            ->where('venue_cluster_id', $venueClusterId)
+            ->first();
     }
 
     private function recurringDates(array $data): Collection
@@ -944,15 +994,29 @@ class BookingService
                     ->orWhereHas('items', fn ($itemQuery) => $itemQuery->whereIn('venue_court_id', $courtIds));
             })
             ->get(['id', 'venue_court_id', 'start_time', 'end_time', 'status'])
-            ->map(fn (Booking $booking) => [
-                'venue_court_id' => $booking->venue_court_id,
-                'start_time' => $booking->start_time,
-                'end_time' => $booking->end_time,
-                'source' => 'booking',
-                'status' => $booking->status,
-                'schedule_lock_id' => null,
-                'reason' => null,
-            ])
+            ->flatMap(function (Booking $booking) use ($courtIds): Collection {
+                $ranges = $booking->items->isNotEmpty()
+                    ? $booking->items->map(fn (BookingItem $item): array => [
+                        'venue_court_id' => $item->venue_court_id,
+                        'start_time' => $item->start_time,
+                        'end_time' => $item->end_time,
+                    ])
+                    : collect([[
+                        'venue_court_id' => $booking->venue_court_id,
+                        'start_time' => $booking->start_time,
+                        'end_time' => $booking->end_time,
+                    ]]);
+
+                return $ranges
+                    ->filter(fn (array $range): bool => $courtIds->contains($range['venue_court_id']))
+                    ->map(fn (array $range): array => [
+                        ...$range,
+                        'source' => 'booking',
+                        'status' => $booking->status,
+                        'schedule_lock_id' => null,
+                        'reason' => null,
+                    ]);
+            })
             ->toBase();
 
         $slotLocks = SlotLock::query()

@@ -56,6 +56,11 @@ class PartnerTerminationRequest extends Model
         return $this->belongsTo(PartnerContract::class, 'partner_contract_id');
     }
 
+    public function venueCluster()
+    {
+        return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
+    }
+
     public function documents()
     {
         return $this->hasMany(PartnerTerminationDocument::class, 'partner_termination_request_id');

@@ -8,6 +8,7 @@ use App\Models\PaymentLog;
 use App\Models\SlotLock;
 use App\Models\SystemBankAccount;
 use App\Models\User;
+use App\Services\BookingService;
 use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -15,7 +16,10 @@ use RuntimeException;
 
 class SepayPaymentService
 {
-    public function __construct(private readonly OwnerWalletService $ownerWalletService) {}
+    public function __construct(
+        private readonly OwnerWalletService $ownerWalletService,
+        private readonly BookingService $bookingService,
+    ) {}
 
     public function createPayment(Booking $booking): array
     {
@@ -104,6 +108,8 @@ class SepayPaymentService
                 ->latest()
                 ->first();
 
+            $reused = (bool) $payment;
+
             if (! $payment) {
                 $payment = Payment::query()->create([
                     'payment_code' => 'PM'.Str::upper(Str::random(10)),
@@ -124,33 +130,35 @@ class SepayPaymentService
                     'status' => 'pending',
                 ]);
             } else {
+                $account = $payment->system_bank_account_id
+                    ? (SystemBankAccount::query()->find($payment->system_bank_account_id) ?: $account)
+                    : $account;
                 $gatewayResponse = is_array($payment->gateway_response) ? $payment->gateway_response : [];
 
                 $payment->update([
-                    'system_bank_account_id' => $account->id,
-                    'amount' => $collectionAmount,
+                    'system_bank_account_id' => $payment->system_bank_account_id ?: $account->id,
                     'wallet_amount' => 0,
-                    'gateway_amount' => $collectionAmount,
-                    'payment_kind' => $this->paymentKindForCounterCollection($booking, $collectionAmount),
+                    'gateway_amount' => $payment->amount,
                     'gateway_response' => array_merge($gatewayResponse, [
-                        'counter_collection' => [
-                            'source' => 'owner_counter_qr',
+                        'counter_collection_reopened' => [
                             'actor_id' => $actor->id,
-                            'created_at' => now()->toIso8601String(),
+                            'reopened_at' => now()->toIso8601String(),
                         ],
                     ]),
                 ]);
             }
 
+            $this->bookingService->ensurePendingPaymentLocks($booking, $actor->id);
+
             PaymentLog::query()->create([
                 'payment_id' => $payment->id,
-                'event_type' => 'counter_sepay_qr_created',
+                'event_type' => $reused ? 'counter_sepay_qr_reopened' : 'counter_sepay_qr_created',
                 'request_payload' => [
                     'actor_id' => $actor->id,
                     'system_bank_account_id' => $account->id,
                     'transfer_content' => $payment->payment_code,
                     'qr_url' => $this->qrUrl($payment, $account),
-                    'amount' => $collectionAmount,
+                    'amount' => (float) $payment->amount,
                 ],
                 'status_before' => $payment->status,
                 'status_after' => $payment->status,
@@ -162,6 +170,7 @@ class SepayPaymentService
                 'system_bank_account' => $account,
                 'transfer_content' => $payment->payment_code,
                 'qr_url' => $this->qrUrl($payment, $account),
+                'reused' => $reused,
             ];
         });
     }
@@ -263,9 +272,14 @@ class SepayPaymentService
         return $result;
     }
 
-    public function cancelPendingPayment(Booking $booking, string $cancelledBy): array
+    public function cancelPendingPayment(
+        Booking $booking,
+        string $cancelledBy,
+        ?string $reason = null,
+        string $eventType = 'sepay_payment_cancelled',
+    ): array
     {
-        return DB::transaction(function () use ($booking, $cancelledBy): array {
+        return DB::transaction(function () use ($booking, $cancelledBy, $reason, $eventType): array {
             $booking = Booking::query()
                 ->whereKey($booking->id)
                 ->lockForUpdate()
@@ -275,6 +289,8 @@ class SepayPaymentService
                 throw new RuntimeException('Chỉ có thể hủy thanh toán khi đơn đang chờ thanh toán.');
             }
 
+            $cancelReason = $reason ?: 'Khách hàng hủy thanh toán chuyển khoản.';
+            $errorCode = $eventType === 'sepay_payment_cancelled' ? 'customer_cancelled' : 'owner_cancelled';
             $payments = Payment::query()
                 ->where('booking_id', $booking->id)
                 ->where('status', 'pending')
@@ -288,22 +304,23 @@ class SepayPaymentService
                 $payment->gateway_response = array_merge($gatewayResponse, [
                     'cancelled_by' => $cancelledBy,
                     'cancelled_at' => now()->toIso8601String(),
+                    'cancelled_reason' => $cancelReason,
                 ]);
                 $payment->status = 'failed';
                 $payment->save();
 
                 PaymentLog::query()->create([
                     'payment_id' => $payment->id,
-                    'event_type' => 'sepay_payment_cancelled',
+                    'event_type' => $eventType,
                     'status_before' => $statusBefore,
                     'status_after' => $payment->status,
-                    'error_code' => 'customer_cancelled',
-                    'error_message' => 'Khách hàng hủy thanh toán SePay.',
+                    'error_code' => $errorCode,
+                    'error_message' => $cancelReason,
                 ]);
             }
 
             $booking->status = 'cancelled';
-            $booking->status_reason = 'Khách hàng hủy thanh toán SePay.';
+            $booking->status_reason = $cancelReason;
             $booking->cancelled_by = $cancelledBy;
             $booking->cancelled_at = now();
             $booking->save();

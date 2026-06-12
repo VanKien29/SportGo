@@ -237,16 +237,52 @@
                         <input
                             v-model.trim="form.walk_in_name"
                             type="text"
+                            autocomplete="name"
+                            minlength="2"
+                            maxlength="100"
+                            required
+                            :aria-invalid="
+                                contactTouched.name && Boolean(walkInNameError)
+                            "
+                            :class="{
+                                invalid: contactTouched.name && walkInNameError,
+                            }"
                             placeholder="Nguyễn Văn A"
+                            @blur="validateContactField('name')"
                         />
+                        <small
+                            v-if="contactTouched.name && walkInNameError"
+                            class="field-error"
+                        >
+                            {{ walkInNameError }}
+                        </small>
                     </label>
                     <label>
                         <span>Số điện thoại</span>
                         <input
                             v-model.trim="form.walk_in_phone"
                             type="tel"
+                            autocomplete="tel"
+                            inputmode="tel"
+                            maxlength="15"
+                            required
+                            :aria-invalid="
+                                contactTouched.phone &&
+                                Boolean(walkInPhoneError)
+                            "
+                            :class="{
+                                invalid:
+                                    contactTouched.phone && walkInPhoneError,
+                            }"
                             placeholder="0901234567"
+                            @blur="validateContactField('phone')"
                         />
+                        <small
+                            v-if="contactTouched.phone && walkInPhoneError"
+                            class="field-error"
+                        >
+                            {{ walkInPhoneError }}
+                        </small>
                     </label>
                 </section>
 
@@ -367,16 +403,52 @@
                         <input
                             v-model.trim="form.walk_in_name"
                             type="text"
+                            autocomplete="name"
+                            minlength="2"
+                            maxlength="100"
+                            required
+                            :aria-invalid="
+                                contactTouched.name && Boolean(walkInNameError)
+                            "
+                            :class="{
+                                invalid: contactTouched.name && walkInNameError,
+                            }"
                             placeholder="Nguyễn Văn A"
+                            @blur="validateContactField('name')"
                         />
+                        <small
+                            v-if="contactTouched.name && walkInNameError"
+                            class="field-error"
+                        >
+                            {{ walkInNameError }}
+                        </small>
                     </label>
                     <label>
                         <span>Số điện thoại</span>
                         <input
                             v-model.trim="form.walk_in_phone"
                             type="tel"
+                            autocomplete="tel"
+                            inputmode="tel"
+                            maxlength="15"
+                            required
+                            :aria-invalid="
+                                contactTouched.phone &&
+                                Boolean(walkInPhoneError)
+                            "
+                            :class="{
+                                invalid:
+                                    contactTouched.phone && walkInPhoneError,
+                            }"
                             placeholder="0901234567"
+                            @blur="validateContactField('phone')"
                         />
+                        <small
+                            v-if="contactTouched.phone && walkInPhoneError"
+                            class="field-error"
+                        >
+                            {{ walkInPhoneError }}
+                        </small>
                     </label>
                     <label>
                         <span>Từ ngày</span>
@@ -608,6 +680,8 @@ function toWeekDayIndex(date) {
 const BOOKING_DAY_START = 6 * 60;
 const BOOKING_DAY_END = 22 * 60;
 const SLOT_STEP_MINUTES = 30;
+const WALK_IN_NAME_PATTERN = /^[\p{L}\p{M}][\p{L}\p{M}\s.'-]*$/u;
+const WALK_IN_PHONE_PATTERN = /^(?:\+84|0)(?:3|5|7|8|9)\d{8}$/;
 const SLOT_PERIODS = [
     {
         key: "morning",
@@ -699,6 +773,10 @@ export default {
             counterQr: null,
             counterQrBookingId: "",
             counterQrPollInterval: null,
+            contactTouched: {
+                name: false,
+                phone: false,
+            },
         };
     },
     computed: {
@@ -981,11 +1059,38 @@ export default {
 
             return dates;
         },
+        normalizedWalkInName() {
+            return String(this.form.walk_in_name || "")
+                .trim()
+                .replace(/\s+/g, " ");
+        },
+        normalizedWalkInPhone() {
+            return String(this.form.walk_in_phone || "")
+                .trim()
+                .replace(/[\s().-]+/g, "");
+        },
+        walkInNameError() {
+            if (!this.normalizedWalkInName) return "Vui lòng nhập tên khách.";
+            if (this.normalizedWalkInName.length < 2)
+                return "Tên khách phải có ít nhất 2 ký tự.";
+            if (this.normalizedWalkInName.length > 100)
+                return "Tên khách không được vượt quá 100 ký tự.";
+            if (!WALK_IN_NAME_PATTERN.test(this.normalizedWalkInName))
+                return "Tên khách chỉ được chứa chữ cái và dấu câu thông dụng.";
+            return "";
+        },
+        walkInPhoneError() {
+            if (!this.normalizedWalkInPhone)
+                return "Vui lòng nhập số điện thoại khách.";
+            if (!WALK_IN_PHONE_PATTERN.test(this.normalizedWalkInPhone))
+                return "Nhập số Việt Nam hợp lệ, ví dụ 0901234567.";
+            return "";
+        },
         canSubmitCounter() {
             return (
                 this.hasCounterSelection &&
-                this.form.walk_in_name &&
-                this.form.walk_in_phone &&
+                !this.walkInNameError &&
+                !this.walkInPhoneError &&
                 this.form.payment_option &&
                 !this.submitting
             );
@@ -996,8 +1101,8 @@ export default {
 
             return (
                 this.form.venue_court_id &&
-                this.form.walk_in_name &&
-                this.form.walk_in_phone &&
+                !this.walkInNameError &&
+                !this.walkInPhoneError &&
                 this.form.payment_option &&
                 start >= BOOKING_DAY_START &&
                 end <= BOOKING_DAY_END &&
@@ -1209,6 +1314,16 @@ export default {
                 ? this.selectedSlotKeys.filter((item) => item !== key)
                 : [...this.selectedSlotKeys, key];
             this.syncCounterRangeFields();
+        },
+        validateContactField(field) {
+            this.contactTouched[field] = true;
+
+            if (field === "name") {
+                this.form.walk_in_name = this.normalizedWalkInName;
+                return;
+            }
+
+            this.form.walk_in_phone = this.normalizedWalkInPhone;
         },
         async submitCounter() {
             if (!this.canSubmitCounter) return;
@@ -1636,6 +1751,18 @@ label span,
 input,
 select {
     width: 100%;
+}
+
+input.invalid {
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08) !important;
+}
+
+.field-error {
+    color: #b91c1c;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
 }
 
 .legend {
