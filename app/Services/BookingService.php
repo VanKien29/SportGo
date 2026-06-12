@@ -58,7 +58,7 @@ class BookingService
         // 2. Kiểm tra các slot lock (khoá tạm thời) còn hiệu lực tại sân con này
         $hasOverlapCourtLock = SlotLock::where('venue_court_id', $venueCourtId)
             ->where('booking_date', $bookingDate)
-            ->where('expires_at', '>', Carbon::now())
+            ->where(fn ($query) => $this->activeSlotLockConstraint($query))
             ->when($ignoreBookingId, fn ($query) => $query->where(function ($lockQuery) use ($ignoreBookingId) {
                 $lockQuery->whereNull('booking_id')->orWhere('booking_id', '!=', $ignoreBookingId);
             }))
@@ -76,7 +76,7 @@ class BookingService
         $hasOverlapClusterLock = SlotLock::where('venue_cluster_id', $venueClusterId)
             ->where('lock_scope', 'cluster')
             ->where('booking_date', $bookingDate)
-            ->where('expires_at', '>', Carbon::now())
+            ->where(fn ($query) => $this->activeSlotLockConstraint($query))
             ->when($ignoreBookingId, fn ($query) => $query->where(function ($lockQuery) use ($ignoreBookingId) {
                 $lockQuery->whereNull('booking_id')->orWhere('booking_id', '!=', $ignoreBookingId);
             }))
@@ -1022,7 +1022,7 @@ class BookingService
         $slotLocks = SlotLock::query()
             ->where('venue_cluster_id', $venueClusterId)
             ->where('booking_date', $bookingDate)
-            ->where('expires_at', '>', Carbon::now())
+            ->where(fn ($query) => $this->activeSlotLockConstraint($query))
             ->where(function ($query) use ($courtIds) {
                 $query->where('lock_scope', 'cluster')
                     ->orWhereIn('venue_court_id', $courtIds);
@@ -1043,6 +1043,15 @@ class BookingService
             });
 
         return $bookings->merge($slotLocks)->values();
+    }
+
+    private function activeSlotLockConstraint($query): void
+    {
+        $query->where('lock_type', 'manual')
+            ->orWhere(function ($autoQuery): void {
+                $autoQuery->where('lock_type', 'auto')
+                    ->where('expires_at', '>', Carbon::now());
+            });
     }
 
     private function overlappingInterval(Collection $intervals, string $venueCourtId, string $startTime, string $endTime): ?array
