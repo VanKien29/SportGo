@@ -25,6 +25,9 @@ class Refund extends Model
         'user_wallet_ledger_id',
         'user_payout_account_id',
         'owner_wallet_ledger_id',
+        'policy_id',
+        'policy_rule_id',
+        'policy_evaluation_log_id',
         'status',
         'status_reason',
         'owner_confirmed_by',
@@ -34,6 +37,7 @@ class Refund extends Model
         'processed_at',
         'admin_confirmed_by',
         'admin_confirmed_at',
+        'completed_at',
         'gateway_refund_txn_id',
         'payout_transfer_code',
         'payout_qr_created_at',
@@ -46,6 +50,7 @@ class Refund extends Model
             'owner_confirmed_at' => 'datetime',
             'processed_at' => 'datetime',
             'admin_confirmed_at' => 'datetime',
+            'completed_at' => 'datetime',
             'payout_qr_created_at' => 'datetime',
         ];
     }
@@ -88,5 +93,20 @@ class Refund extends Model
     public function processedBy()
     {
         return $this->belongsTo(User::class, 'processed_by');
+    }
+
+    public function policy()
+    {
+        return $this->belongsTo(SystemPolicy::class, 'policy_id');
+    }
+
+    public function policyRule()
+    {
+        return $this->belongsTo(PolicyRule::class, 'policy_rule_id');
+    }
+
+    public function statusHistories()
+    {
+        return $this->hasMany(RefundStatusHistory::class, 'refund_id');
     }
 }

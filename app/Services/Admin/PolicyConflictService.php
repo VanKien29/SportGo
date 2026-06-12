@@ -46,12 +46,15 @@ class PolicyConflictService
     private function policyNeedsRules(SystemPolicy $policy): bool
     {
         return in_array($policy->policy_type ?: $policy->type, [
-            'refund',
+            'terms',
             'booking',
+            'booking_cancellation',
+            'refund',
+            'platform_fee',
+            'venue_policy',
             'moderation',
             'account',
-            'platform_fee',
-            'terms',
+            'partner_contract',
         ], true);
     }
 

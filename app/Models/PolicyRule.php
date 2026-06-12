@@ -63,4 +63,9 @@ class PolicyRule extends Model
     {
         return $this->hasMany(VenuePolicyRule::class, 'base_policy_rule_id');
     }
+
+    public function overrideConstraints()
+    {
+        return $this->hasMany(PolicyOverrideConstraint::class, 'policy_rule_id');
+    }
 }

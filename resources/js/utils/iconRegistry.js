@@ -5,6 +5,9 @@ export const ICON_REGISTRY = {
     ['rect', { x: 14, y: 14, width: 7, height: 7, rx: 1 }],
     ['rect', { x: 3, y: 14, width: 7, height: 7, rx: 1 }],
   ],
+  menu: [
+    ['path', { d: 'M4 6h16M4 12h16M4 18h16' }],
+  ],
   users: [
     ['path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' }],
     ['circle', { cx: 9, cy: 7, r: 4 }],
@@ -72,6 +75,9 @@ export const ICON_REGISTRY = {
   messageWarning: [
     ['path', { d: 'M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z' }],
     ['path', { d: 'M12 7v4M12 15h.01' }],
+  ],
+  star: [
+    ['path', { d: 'M12 2 15.1 8.3 22 9.3l-5 4.9 1.2 6.8L12 17.8 5.8 21 7 14.2 2 9.3l6.9-1L12 2Z' }],
   ],
   bell: [
     ['path', { d: 'M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8' }],
@@ -142,6 +148,12 @@ export const ICON_REGISTRY = {
   chevronDown: [
     ['path', { d: 'm6 9 6 6 6-6' }],
   ],
+  chevronRight: [
+    ['path', { d: 'm9 18 6-6-6-6' }],
+  ],
+  chevronLeft: [
+    ['path', { d: 'm15 18-6-6 6-6' }],
+  ],
   lock: [
     ['rect', { x: 3, y: 11, width: 18, height: 11, rx: 2 }],
     ['path', { d: 'M7 11V7a5 5 0 0 1 10 0v4' }],
@@ -166,6 +178,23 @@ export const ICON_REGISTRY = {
     ['circle', { cx: 12, cy: 12, r: 10 }],
     ['path', { d: 'M12 6v6l4 2' }],
   ],
+  power: [
+    ['path', { d: 'M18.36 6.64a9 9 0 1 1-12.73 0' }],
+    ['line', { x1: 12, y1: 2, x2: 12, y2: 12 }],
+  ],
+  'arrow-left': [
+    ['path', { d: 'm12 19-7-7 7-7' }],
+    ['path', { d: 'M19 12H5' }],
+  ],
+  'pause-circle': [
+    ['circle', { cx: 12, cy: 12, r: 10 }],
+    ['line', { x1: 10, y1: 15, x2: 10, y2: 9 }],
+    ['line', { x1: 14, y1: 15, x2: 14, y2: 9 }],
+  ],
+  tag: [
+    ['path', { d: 'M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z' }],
+    ['circle', { cx: 7.5, cy: 7.5, r: 1.5 }],
+  ],
 };
 
 export const ICON_ALIASES = {
@@ -184,6 +213,9 @@ export const ICON_ALIASES = {
   delete: 'trash',
   view: 'eye',
   clone: 'copy',
+  stop: 'power',
+  back: 'arrow-left',
+  arrowLeft: 'arrow-left',
 };
 
 export const NAV_ICON_MAP = {

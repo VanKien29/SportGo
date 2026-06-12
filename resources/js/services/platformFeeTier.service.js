@@ -145,8 +145,8 @@ export function validateTier(payload, existingTiers = getTiers(), options = {}) 
     addFieldError(errors, 'max_courts', 'Chỉ được có một bậc không giới hạn.');
   }
 
-  const coverage = validateTierCoverage(proposed);
-  if (tier.is_active && !coverage.isValid && !skipCoverage) errors._coverage = coverage.errors;
+  const initialCoverage = validateTierCoverage(proposed);
+  if (tier.is_active && !initialCoverage.isValid && !skipCoverage) errors._coverage = initialCoverage.errors;
   const otherActiveTiers = existingTiers.filter((item) => item.id !== editingId && item.is_active);
 
   if (tier.is_active && otherActiveTiers.some((item) => item.min_courts === tier.min_courts)) {

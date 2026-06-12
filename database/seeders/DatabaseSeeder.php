@@ -17,6 +17,12 @@ class DatabaseSeeder extends Seeder
 
         $this->callIfTablesExist(CourtTypesTableSeeder::class, ['court_types']);
         $this->callIfTablesExist(VenueClustersTableSeeder::class, ['users', 'venue_clusters']);
+        $this->callIfTablesExist(AmenitiesTableSeeder::class, ['amenities']);
+        $this->callIfTablesExist(VenueClusterAmenitiesTableSeeder::class, [
+            'amenities',
+            'venue_clusters',
+            'venue_cluster_amenities',
+        ]);
         $this->callIfTablesExist(VenueCourtsTableSeeder::class, ['court_types', 'venue_clusters', 'venue_courts']);
         $this->callIfTablesExist(BookingConfigsTableSeeder::class, ['venue_clusters', 'booking_configs']);
         $this->callIfTablesExist(VenueStaffAssignmentsTableSeeder::class, [

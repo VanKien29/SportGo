@@ -7,32 +7,41 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('amenities', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
-            $table->boolean('is_active')->default(true);
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->enum('status', [
+                'pending_review',
+                'active',
+                'rejected',
+                'inactive',
+                'cancelled',
+            ]);
+            $table->char('created_by', 36)->nullable();
+            $table->char('reviewed_by', 36)->nullable();
+            $table->timestamp('reviewed_at')->nullable();
+            $table->text('status_reason')->nullable();
             $table->timestamps();
+            $table->softDeletes();
+
+            $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
+            $table->foreign('reviewed_by')->references('id')->on('users')->nullOnDelete();
+
+            // Virtual column to enforce unique active names
+            $table->string('active_name')
+                ->virtualAs("IF(status = 'active' AND deleted_at IS NULL, name, NULL)")
+                ->nullable();
+            $table->unique('active_name', 'amenities_active_name_unique');
         });
 
-        // Chèn dữ liệu tiện ích mặc định
-        DB::table('amenities')->insert([
-            ['name' => 'Wifi', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Gửi xe', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Căng tin', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Tắm nóng lạnh', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Cho thuê vợt', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Nước uống free', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
-        ]);
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE amenities ADD CONSTRAINT amenities_status_reason_check CHECK (status NOT IN ('rejected', 'inactive', 'cancelled') OR status_reason IS NOT NULL)");
+        }
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('amenities');

@@ -1,11 +1,15 @@
 <template>
     <div class="amenities-container">
-        <div class="header-actions-bar">
-            <h3 class="page-title">Quản lý tiện ích chung</h3>
+        <header class="page-header">
+            <div>
+                <h2>Quản lý tiện ích chung</h2>
+                <p>Cấu hình các tiện ích hiển thị cho cụm sân và hồ sơ vận hành.</p>
+            </div>
             <button class="btn btn-primary" @click="openCreateModal">
-                <span class="plus-icon">+</span> Thêm tiện ích mới
+                <AppIcon name="plus" size="17" />
+                <span>Thêm tiện ích</span>
             </button>
-        </div>
+        </header>
 
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -16,16 +20,15 @@
         <!-- Error State -->
         <div v-else-if="error" class="error-state card">
             <p class="error-message">{{ error }}</p>
-            <button class="btn btn-outline" @click="fetchAmenities">
-                Thử lại
-            </button>
+            <ActionIconButton icon="refresh" label="Thử lại" @click="fetchAmenities" />
         </div>
 
         <!-- Empty State -->
         <div v-else-if="amenities.length === 0" class="empty-state card">
             <p>Chưa có tiện ích nào được cấu hình trên hệ thống.</p>
             <button class="btn btn-primary" @click="openCreateModal">
-                Thêm ngay
+                <AppIcon name="plus" size="17" />
+                <span>Thêm ngay</span>
             </button>
         </div>
 
@@ -53,10 +56,10 @@
                                 </span>
                             </td>
                             <td class="text-center actions-cell">
-                                <div class="actions-wrapper">
-                                    <button class="btn-action btn-edit" @click="openEditModal(item)">Sửa</button>
-                                    <button class="btn-action btn-delete" @click="confirmDelete(item)">Xóa</button>
-                                </div>
+                                <TableActionGroup>
+                                    <ActionIconButton icon="pencil" label="Sửa tiện ích" @click="openEditModal(item)" />
+                                    <ActionIconButton icon="trash" label="Xóa tiện ích" variant="danger" @click="confirmDelete(item)" />
+                                </TableActionGroup>
                             </td>
                         </tr>
                     </tbody>
@@ -128,10 +131,14 @@
 </template>
 
 <script>
+import ActionIconButton from "../../components/ActionIconButton.vue";
+import AppIcon from "../../components/AppIcon.vue";
+import TableActionGroup from "../../components/TableActionGroup.vue";
 import { amenityService } from "../../services/amenityService";
 
 export default {
     name: "AdminAmenities",
+    components: { ActionIconButton, AppIcon, TableActionGroup },
     data() {
         return {
             amenities: [],

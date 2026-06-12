@@ -5,21 +5,11 @@
         <h2>Xử lý khiếu nại</h2>
         <p>Tiếp nhận, phân công và giải quyết tranh chấp dịch vụ hoặc nền tảng.</p>
       </div>
-      <button class="btn secondary" type="button" :disabled="loading" @click="loadComplaints">
-        <AppIcon name="refresh" size="17" />
-        Tải lại
-      </button>
+      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadComplaints" />
     </header>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
-
-    <section class="stat-grid">
-      <article class="stat-card"><strong>{{ summary.total || 0 }}</strong><span>Tổng khiếu nại</span></article>
-      <article class="stat-card warning"><strong>{{ summary.open || 0 }}</strong><span>Chờ tiếp nhận</span></article>
-      <article class="stat-card"><strong>{{ summary.processing || 0 }}</strong><span>Đang xử lý</span></article>
-      <article class="stat-card success"><strong>{{ summary.resolved || 0 }}</strong><span>Đã giải quyết</span></article>
-    </section>
 
     <section class="filter-panel">
       <div class="filter-bar">
@@ -41,7 +31,7 @@
           <option value="unassigned">Chưa phân công</option>
           <option v-for="member in staff" :key="member.id" :value="member.id">{{ member.full_name }}</option>
         </select>
-        <button class="btn primary" type="button" @click="loadComplaints">Lọc</button>
+        <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadComplaints" />
       </div>
     </section>
 
@@ -66,7 +56,7 @@
           <div class="meta-item"><span>Người xử lý</span><strong>{{ complaint.assigned_to?.full_name || 'Chưa phân công' }}</strong></div>
           <div class="meta-item"><span>Thời gian</span><strong>{{ formatDateTime(complaint.created_at) }}</strong></div>
           <div class="card-actions">
-            <button class="btn primary" type="button" @click="openDetail(complaint)">Xem và xử lý</button>
+            <ActionIconButton icon="eye" label="Xem và xử lý" variant="primary" @click="openDetail(complaint)" />
           </div>
         </footer>
       </article>
@@ -79,7 +69,7 @@
             <h3>Chi tiết khiếu nại</h3>
             <p>{{ selected ? `${typeLabel(selected.complaint_type)} · ${shortId(selected.id)}` : 'Đang tải...' }}</p>
           </div>
-          <button class="btn secondary" type="button" @click="closeDetail">Đóng</button>
+          <ActionIconButton icon="x" label="Đóng" @click="closeDetail" />
         </header>
 
         <div v-if="detailLoading" class="empty-state">Đang tải chi tiết...</div>
@@ -172,11 +162,12 @@
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import ActionIconButton from '../../components/ActionIconButton.vue';
 import { adminComplaintService } from '../../services/adminModeration.js';
 
 export default {
   name: 'AdminComplaints',
-  components: { AppIcon },
+  components: { AppIcon, ActionIconButton },
   data() {
     return {
       complaints: [],

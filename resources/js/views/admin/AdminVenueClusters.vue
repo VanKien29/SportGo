@@ -142,12 +142,7 @@
                                 </span>
                             </td>
                             <td class="text-right" @click.stop>
-                                <button
-                                    class="btn-action btn-view"
-                                    @click="goDetail(c.id)"
-                                >
-                                    Chi tiết
-                                </button>
+                                <ActionIconButton icon="eye" label="Xem chi tiết" @click="goDetail(c.id)" />
                             </td>
                         </tr>
                     </tbody>
@@ -158,10 +153,12 @@
 </template>
 
 <script>
+import ActionIconButton from "../../components/ActionIconButton.vue";
 import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
 
 export default {
     name: "AdminVenueClusters",
+    components: { ActionIconButton },
     data() {
         return {
             clusters: [],

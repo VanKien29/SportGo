@@ -77,9 +77,19 @@ class SystemPolicy extends Model
         return $this->hasMany(PolicyActionBinding::class, 'system_policy_id');
     }
 
+    public function overrideConstraints()
+    {
+        return $this->hasMany(PolicyOverrideConstraint::class, 'system_policy_id');
+    }
+
     public function rules()
     {
         return $this->hasMany(PolicyRule::class, 'system_policy_id');
+    }
+
+    public function statusHistories()
+    {
+        return $this->hasMany(PolicyStatusHistory::class, 'system_policy_id');
     }
 
     public function evaluationLogs()

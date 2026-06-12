@@ -53,6 +53,10 @@ export async function api(path, options = {}) {
     throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
   }
 
+  if (response.status === 403) {
+    throw new Error(extractError(data, 'Bạn không có quyền thực hiện thao tác này.'));
+  }
+
   if (!response.ok) {
     const error = new Error(extractError(data, 'Có lỗi xảy ra. Vui lòng thử lại.'));
     error.status = response.status;
@@ -83,6 +87,10 @@ export async function apiFormData(path, formData, options = {}) {
   if (response.status === 401) {
     clearAuthStorage();
     throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+  }
+
+  if (response.status === 403) {
+    throw new Error(extractError(data, 'Bạn không có quyền thực hiện thao tác này.'));
   }
 
   if (!response.ok) {

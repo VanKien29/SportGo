@@ -88,6 +88,22 @@ Báo cáo này được tự động trích xuất và tổng hợp từ các fi
 | 78 | voucher_scopes | Voucher | Phạm vi voucher | Giới hạn phạm vi áp dụng voucher (cụm sân, loại sân, loại booking) | vouchers.id |
 | 79 | voucher_usages | Voucher | Lịch sử dùng voucher | Ghi nhận voucher đã áp dụng cho booking/payment nào | vouchers.id, users.user_id, bookings.id |
 | 80 | backup_jobs | System | Job sao lưu dữ liệu | Lưu metadata và trạng thái các lần backup database | users.created_by |
+| 81 | policy_rule_templates | Policy | Mẫu cấu hình rule | Danh mục template rule để admin tạo/cấu hình đúng loại chính sách và action code | logical: system_policies.policy_type, policy_rules.rule_code |
+| 82 | policy_override_constraints | Policy | Ràng buộc override chính sách sân | Giới hạn owner không được override rule hệ thống vượt khung cho phép | system_policies.id, policy_rules.id |
+| 83 | policy_status_histories | Policy | Lịch sử trạng thái chính sách | Ghi nhận mỗi lần chính sách hệ thống đổi trạng thái/version | system_policies.id, users.changed_by |
+| 84 | refund_status_histories | Payment | Lịch sử trạng thái refund | Ghi nhận từng bước xử lý hoàn tiền (owner confirm, admin confirm, gateway) | refunds.id, users.changed_by |
+| 85 | partner_application_documents | Partner | Tài liệu hồ sơ đối tác | File đính kèm hồ sơ: ảnh sân, CCCD, giấy phép, chứng từ ngân hàng | partner_applications.id, media.id, users.reviewed_by |
+| 86 | partner_application_status_histories | Partner | Lịch sử trạng thái hồ sơ đối tác | Ghi nhận mỗi lần hồ sơ đối tác đổi trạng thái | partner_applications.id, users.changed_by |
+| 87 | document_templates | Document | Template văn bản DOCX | Lưu template biểu mẫu theo loại và version, có render engine | users.uploaded_by, document_templates.replaced_template_id |
+| 88 | generated_documents | Document | Văn bản đã sinh | Văn bản sinh từ template, có snapshot render_data và file path | document_templates.id, users.generated_by, media.id |
+| 89 | generated_document_signatures | Document | Chữ ký văn bản | Chữ ký/xác nhận của owner và SportGo trên văn bản đã sinh | generated_documents.id, users.signer_user_id, media.signature_media_id |
+| 90 | partner_contracts | Contract | Hợp đồng đối tác | Hợp đồng giữa SportGo và chủ sân, link hồ sơ và văn bản đã ký | partner_applications.id, users.owner_id, venue_clusters.id, generated_documents.id |
+| 91 | partner_termination_requests | Termination | Yêu cầu chấm dứt hợp tác | Yêu cầu chấm dứt hợp tác: hai bên đồng ý hoặc đơn phương | partner_contracts.id, users.owner_id, venue_clusters.id |
+| 92 | partner_termination_documents | Termination | Văn bản chấm dứt | Biên bản thanh lý, công văn đơn phương, đơn chấm dứt | partner_termination_requests.id, generated_documents.id, media.id |
+| 93 | partner_termination_status_histories | Termination | Lịch sử trạng thái chấm dứt | Ghi nhận từng bước xử lý yêu cầu chấm dứt hợp tác | partner_termination_requests.id, users.changed_by |
+| 94 | partner_settlements | Settlement | Quyết toán công nợ | Kết quả quyết toán khi chấm dứt hợp tác: payable vs receivable | partner_termination_requests.id, partner_contracts.id, users.owner_id |
+| 95 | partner_settlement_items | Settlement | Chi tiết quyết toán | Từng dòng cộng/trừ trong biên bản quyết toán | partner_settlements.id |
+| 96 | venue_access_restrictions | Owner Restriction | Giới hạn quyền owner | Khóa/giới hạn quyền chủ sân trên cụm sân: limited hoặc blocked | venue_clusters.id, users.created_by |
 
 ==================================================
 ## PHẦN 2. CHI TIẾT CÁC BẢNG
@@ -2131,3 +2147,993 @@ Migration `2026_06_01_000008_extend_policy_management_fields.php` bổ sung các
 - Admin Policy Management dùng `system_policies`, `policy_action_bindings`, `policy_rules`, `venue_policy_rules`, `policy_evaluation_logs`, `notifications`, `audit_logs`.
 - Admin Role Permission Management dùng `roles`, `permissions`, `role_permissions`, `user_roles`, `audit_logs`.
 - Permission seed bổ sung: `policy.view`, `policy.create`, `policy.update`, `policy.publish`, `policy.rule.manage`, `role.create`, `role.update`, `role.delete`, `role.permission.manage`.
+
+### MODULE: POLICY BỔ SUNG (08/06/2026)
+
+## Tên bảng: policy_rule_templates
+
+### 1. Mục đích bảng
+Lưu danh mục mẫu rule để admin cấu hình nhanh khi tạo policy rule mới. Template chứa sẵn action_code, schema JSON cho condition/result, mức rủi ro và khả năng override bởi sân.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | bigint | Không | auto | PK | ID tự tăng | 1 |
+| 2 | policy_type | varchar(50) | Không | - | Unique (cùng rule_code) | Loại chính sách: terms, booking_cancellation, refund, platform_fee, venue_policy... | refund |
+| 3 | rule_code | varchar(100) | Không | - | Unique (cùng policy_type) | Mã rule duy nhất trong cùng loại chính sách | refund_percent_by_cancel_time |
+| 4 | rule_name | varchar(255) | Không | - | - | Tên hiển thị của rule | Hoàn tiền theo thời điểm hủy |
+| 5 | description | text | Có | null | - | Mô tả chi tiết template rule | Template rule dùng để admin cấu hình... |
+| 6 | action_code | varchar(100) | Không | - | Index | Mã action nghiệp vụ mà rule áp dụng | refund.request |
+| 7 | condition_schema | json | Có | null | - | JSON Schema cho điều kiện rule | {"type": "object"} |
+| 8 | result_schema | json | Có | null | - | JSON Schema cho kết quả rule | {"type": "object"} |
+| 9 | is_venue_overridable | boolean | Không | false | - | Sân có được override rule này không | true |
+| 10 | risk_level | enum | Không | medium | - | Mức rủi ro: low, medium, high, critical | high |
+| 11 | is_active | boolean | Không | true | Index | Còn hiệu lực không | true |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: (policy_type, rule_code)
+- Index: (policy_type, is_active), action_code
+
+### 4. Quan hệ với bảng khác
+- Logical reference tới system_policies qua policy_type (cùng loại chính sách)
+- Logical reference tới policy_rules qua rule_code (template cho rule thật)
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "id": 3,
+  "policy_type": "refund",
+  "rule_code": "refund_percent_by_cancel_time",
+  "rule_name": "Hoàn tiền theo thời điểm hủy",
+  "action_code": "refund.request",
+  "is_venue_overridable": true,
+  "risk_level": "high"
+}
+```
+
+---
+
+## Tên bảng: policy_override_constraints
+
+### 1. Mục đích bảng
+Định nghĩa ràng buộc mà chủ sân phải tuân theo khi override chính sách hệ thống. Ví dụ: mức hoàn tiền tối thiểu 80%, chủ sân không được giảm dưới mức này.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | bigint | Không | auto | PK | ID tự tăng | 1 |
+| 2 | system_policy_id | char(36) | Không | - | FK, Unique (cùng constraint_key) | ID chính sách hệ thống | UUID-refund-policy |
+| 3 | policy_rule_id | char(36) | Có | null | FK | ID rule cụ thể bị ràng buộc (nullable nếu áp dụng toàn bộ policy) | UUID-rule |
+| 4 | rule_code | varchar(100) | Không | - | Index | Mã rule để lookup nhanh | refund_percent_by_cancel_time |
+| 5 | constraint_key | varchar(100) | Không | - | Unique (cùng system_policy_id) | Mã ràng buộc duy nhất trong policy | refund_percent_minimum |
+| 6 | constraint_name | varchar(255) | Không | - | - | Tên hiển thị ràng buộc | Mức hoàn tiền tối thiểu |
+| 7 | comparison_direction | enum | Không | - | - | Hướng so sánh: exact_only, venue_can_be_more_favorable_to_customer, venue_can_be_stricter_for_safety, venue_can_only_choose_within_range | venue_can_be_more_favorable_to_customer |
+| 8 | min_value | decimal(12,2) | Có | null | - | Giá trị tối thiểu cho phép | 80.00 |
+| 9 | max_value | decimal(12,2) | Có | null | - | Giá trị tối đa cho phép | 100.00 |
+| 10 | allowed_values | json | Có | null | - | Danh sách giá trị cho phép (cho exact_only) | [true] |
+| 11 | message_vi | text | Không | - | - | Thông báo lỗi tiếng Việt khi vi phạm | Chính sách sân không được hoàn thấp hơn... |
+| 12 | is_active | boolean | Không | true | - | Còn hiệu lực không | true |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: (system_policy_id, constraint_key)
+- FK: system_policy_id → system_policies.id (restrict), policy_rule_id → policy_rules.id (set null)
+- Index: (rule_code, is_active)
+
+### 4. Quan hệ với bảng khác
+- Thuộc system_policies (1 policy có nhiều constraints)
+- Tham chiếu policy_rules (nullable, nếu constraint cho 1 rule cụ thể)
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "system_policy_id": "UUID-refund-policy",
+  "rule_code": "refund_percent_by_cancel_time",
+  "constraint_key": "refund_percent_minimum",
+  "constraint_name": "Mức hoàn tiền tối thiểu",
+  "comparison_direction": "venue_can_be_more_favorable_to_customer",
+  "min_value": 80.00,
+  "max_value": 100.00
+}
+```
+
+---
+
+## Tên bảng: policy_status_histories
+
+### 1. Mục đích bảng
+Ghi nhận lịch sử mỗi lần chính sách hệ thống đổi trạng thái (draft → active, active → inactive, thay đổi version...).
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | bigint | Không | auto | PK | ID tự tăng | 1 |
+| 2 | system_policy_id | char(36) | Không | - | FK, Index | ID chính sách | UUID-policy |
+| 3 | old_status | varchar(50) | Có | null | - | Trạng thái cũ (null khi tạo mới) | null |
+| 4 | new_status | varchar(50) | Không | - | - | Trạng thái mới | active |
+| 5 | changed_by | char(36) | Có | null | FK | Admin thay đổi | UUID-admin |
+| 6 | actor_type | varchar(50) | Không | admin | - | Loại tác nhân: admin, system | admin |
+| 7 | reason | text | Có | null | - | Lý do thay đổi | Publish chính sách hoàn tiền v1 |
+| 8 | created_at | timestamp | Không | CURRENT | - | Thời điểm thay đổi | 2026-06-08 10:00:00 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: system_policy_id → system_policies.id (restrict), changed_by → users.id (set null)
+- Index: (system_policy_id, created_at)
+
+### 4. Quan hệ với bảng khác
+- Thuộc system_policies. Mỗi policy có nhiều status history records.
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "system_policy_id": "UUID-refund-policy",
+  "old_status": "draft",
+  "new_status": "active",
+  "changed_by": "UUID-admin",
+  "actor_type": "admin",
+  "reason": "Publish chính sách hoàn tiền v1"
+}
+```
+
+---
+
+### MODULE: REFUND BỔ SUNG (08/06/2026)
+
+## Tên bảng: refund_status_histories
+
+### 1. Mục đích bảng
+Ghi nhận từng bước xử lý hoàn tiền: khách yêu cầu → owner xác nhận → admin xử lý → gateway hoàn → hoàn tất.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | bigint | Không | auto | PK | ID tự tăng | 1 |
+| 2 | refund_id | char(36) | Không | - | FK, Index | ID refund | UUID-refund |
+| 3 | old_status | varchar(50) | Có | null | - | Trạng thái cũ | pending_owner_confirmation |
+| 4 | new_status | varchar(50) | Không | - | Index | Trạng thái mới | owner_confirmed |
+| 5 | changed_by | char(36) | Có | null | FK | Người thay đổi | UUID-owner |
+| 6 | actor_type | varchar(50) | Không | system | - | Loại tác nhân: customer, owner, admin, system | owner |
+| 7 | reason | text | Có | null | - | Lý do/ghi chú | Chủ sân xác nhận yêu cầu hoàn tiền |
+| 8 | metadata | json | Có | null | - | Dữ liệu bổ sung | {"confirm_method": "manual"} |
+| 9 | created_at | timestamp | Không | CURRENT | - | Thời điểm thay đổi | 2026-06-08 10:00:00 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: refund_id → refunds.id (restrict), changed_by → users.id (set null)
+- Index: (refund_id, created_at), new_status
+
+### 4. Quan hệ với bảng khác
+- Thuộc refunds. Mỗi refund có nhiều status history records.
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "refund_id": "UUID-refund",
+  "old_status": "pending_owner_confirmation",
+  "new_status": "owner_confirmed",
+  "changed_by": "UUID-owner",
+  "actor_type": "owner"
+}
+```
+
+---
+
+### MODULE: HỒ SƠ ĐỐI TÁC BỔ SUNG (08/06/2026)
+
+## Tên bảng: partner_application_documents
+
+### 1. Mục đích bảng
+Lưu file/tài liệu đính kèm hồ sơ đối tác: ảnh mặt tiền sân, CCCD, giấy đăng ký kinh doanh, hợp đồng thuê mặt bằng, chứng từ ngân hàng. Mỗi file được admin review và đánh dấu verified/rejected.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | bigint | Không | auto | PK | ID tự tăng | 1 |
+| 2 | partner_application_id | char(36) | Không | - | FK, Index | ID hồ sơ đối tác | UUID-app |
+| 3 | media_id | char(36) | Có | null | FK | ID file media (nếu dùng bảng media) | UUID-media |
+| 4 | document_type | varchar(100) | Không | - | Index | Loại tài liệu: venue_front_image, identity_front, business_registration... | identity_front |
+| 5 | document_group | varchar(100) | Không | - | Index | Nhóm tài liệu: venue_images, identity_documents, business_documents, land_documents, bank_documents | identity_documents |
+| 6 | title | varchar(255) | Không | - | - | Tên hiển thị của tài liệu | CCCD mặt trước |
+| 7 | description | text | Có | null | - | Mô tả chi tiết | File seed dùng để kiểm tra... |
+| 8 | file_path | varchar(1000) | Có | null | - | Đường dẫn file trên storage | /seed/partner-applications/1/identity-front.jpg |
+| 9 | status | enum | Không | uploaded | Index | Trạng thái: uploaded, verified, rejected | verified |
+| 10 | reviewed_by | char(36) | Có | null | FK | Admin review file | UUID-admin |
+| 11 | reviewed_at | timestamp | Có | null | - | Thời điểm review | 2026-06-05 10:00:00 |
+| 12 | reject_reason | text | Có | null | - | Lý do từ chối file | Chứng từ không khớp tên... |
+| 13 | sort_order | unsigned int | Không | 0 | - | Thứ tự hiển thị | 1 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: partner_application_id → partner_applications.id (restrict), media_id → media.id (set null), reviewed_by → users.id (set null)
+- Index: (partner_application_id, document_group), (document_type, status)
+
+### 4. Quan hệ với bảng khác
+- Thuộc partner_applications (1 hồ sơ có nhiều tài liệu)
+- Tham chiếu media (file thực tế), users (admin review)
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "partner_application_id": "UUID-app",
+  "document_type": "identity_front",
+  "document_group": "identity_documents",
+  "title": "CCCD mặt trước",
+  "file_path": "/seed/partner-applications/1/identity-front.jpg",
+  "status": "verified",
+  "reviewed_by": "UUID-admin"
+}
+```
+
+---
+
+## Tên bảng: partner_application_status_histories
+
+### 1. Mục đích bảng
+Ghi nhận lịch sử đổi trạng thái hồ sơ đối tác: submitted → reviewing → approved_pending_contract → contract_pending_owner_signature...
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | bigint | Không | auto | PK | ID tự tăng | 1 |
+| 2 | partner_application_id | char(36) | Không | - | FK, Index | ID hồ sơ đối tác | UUID-app |
+| 3 | old_status | varchar(50) | Có | null | - | Trạng thái cũ | submitted |
+| 4 | new_status | varchar(50) | Không | - | - | Trạng thái mới | reviewing |
+| 5 | changed_by | char(36) | Có | null | FK | Người thay đổi | UUID-admin |
+| 6 | actor_type | varchar(50) | Không | admin | - | Loại tác nhân: admin, owner, system | admin |
+| 7 | reason | text | Có | null | - | Lý do | Admin tiếp nhận hồ sơ |
+| 8 | metadata | json | Có | null | - | Dữ liệu bổ sung | null |
+| 9 | created_at | timestamp | Không | CURRENT | - | Thời điểm thay đổi | 2026-06-08 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: partner_application_id → partner_applications.id (restrict), changed_by → users.id (set null)
+- Index: (partner_application_id, created_at)
+
+### 4. Quan hệ với bảng khác
+- Thuộc partner_applications.
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "partner_application_id": "UUID-app",
+  "old_status": "submitted",
+  "new_status": "reviewing",
+  "changed_by": "UUID-admin",
+  "actor_type": "admin"
+}
+```
+
+---
+
+### MODULE: TEMPLATE VĂN BẢN (08/06/2026)
+
+## Tên bảng: document_templates
+
+### 1. Mục đích bảng
+Lưu template DOCX cho các loại văn bản: đơn đăng ký đối tác, hợp đồng, đơn chấm dứt, biên bản thanh lý, công văn đơn phương, biên bản quyết toán. Mỗi loại có nhiều version, chỉ 1 version active.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID template | UUID-template |
+| 2 | template_code | varchar(100) | Không | - | Unique | Mã template duy nhất | TPL-HD-V1 |
+| 3 | document_type | varchar(100) | Không | - | Unique (cùng version), Index | Loại văn bản | partner_contract |
+| 4 | template_name | varchar(255) | Không | - | - | Tên hiển thị | Mẫu hợp đồng đối tác v1 |
+| 5 | version | unsigned int | Không | 1 | Unique (cùng document_type) | Phiên bản template | 1 |
+| 6 | file_name | varchar(255) | Không | - | - | Tên file gốc | hop-dong-doi-tac.docx |
+| 7 | file_path | varchar(1000) | Không | - | - | Đường dẫn trên storage | document-templates/hop-dong-doi-tac.docx |
+| 8 | output_format | enum | Không | docx | - | Định dạng đầu ra: docx, pdf | docx |
+| 9 | mime_type | varchar(150) | Không | application/vnd... | - | MIME type | application/vnd.openxmlformats-officedocument... |
+| 10 | storage_disk | varchar(50) | Không | local | - | Disk storage Laravel | local |
+| 11 | template_variables | json | Có | null | - | Danh sách biến placeholder | ["contract_code", "owner_full_name"] |
+| 12 | required_fields | json | Có | null | - | Các field bắt buộc phải có khi render | ["owner_full_name", "business_name"] |
+| 13 | render_engine | enum | Không | docx_placeholder | - | Engine render: docx_placeholder, manual_upload, pdf_static | docx_placeholder |
+| 14 | status | enum | Không | draft | Index | Trạng thái: draft, active, inactive, archived | active |
+| 15 | is_active | boolean | Không | false | Index | Đang được dùng cho văn bản mới | true |
+| 16 | created_by | char(36) | Có | null | FK | Người tạo template | UUID-admin |
+| 17 | uploaded_by | char(36) | Có | null | FK | Người upload file | UUID-admin |
+| 18 | activated_at | timestamp | Có | null | - | Thời điểm kích hoạt | 2026-06-08 |
+| 19 | replaced_template_id | char(36) | Có | null | FK (self) | Template version cũ bị thay thế | UUID-old-template |
+| 20 | note | text | Có | null | - | Ghi chú | Template ban đầu |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: template_code, (document_type, version)
+- FK: created_by → users.id (set null), uploaded_by → users.id (set null), replaced_template_id → document_templates.id (set null)
+- Index: (document_type, status, is_active)
+
+### 4. Quan hệ với bảng khác
+- 1-n với generated_documents qua template_id
+- Self-reference qua replaced_template_id (version cũ → mới)
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "id": "UUID-template",
+  "template_code": "TPL-HD-V1",
+  "document_type": "partner_contract",
+  "template_name": "Mẫu hợp đồng đối tác v1",
+  "version": 1,
+  "file_name": "hop-dong-doi-tac.docx",
+  "status": "active",
+  "is_active": true
+}
+```
+
+---
+
+## Tên bảng: generated_documents
+
+### 1. Mục đích bảng
+Lưu văn bản đã sinh từ template, bao gồm snapshot dữ liệu render, file path và trạng thái ký. Mỗi văn bản liên kết polymorphic hoặc FK trực tiếp tới hồ sơ/hợp đồng/chấm dứt/quyết toán.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID văn bản | UUID-doc |
+| 2 | document_code | varchar(50) | Không | - | Unique | Mã văn bản duy nhất | DOC-HD-CG-001 |
+| 3 | document_type | varchar(100) | Không | - | Index | Loại văn bản | partner_contract |
+| 4 | template_id | char(36) | Không | - | FK | Template dùng để sinh | UUID-template |
+| 5 | template_version | unsigned int | Không | - | - | Version template tại thời điểm sinh | 1 |
+| 6 | reference_type | varchar(100) | Có | null | Index | Polymorphic type | App\Models\PartnerApplication |
+| 7 | reference_id | varchar(100) | Có | null | Index | Polymorphic ID | UUID-app |
+| 8 | entity_type | varchar(100) | Có | null | Index | Entity type bổ sung | null |
+| 9 | entity_id | varchar(100) | Có | null | Index | Entity ID bổ sung | null |
+| 10 | partner_application_id | char(36) | Có | null | FK, Index | FK trực tiếp tới hồ sơ | UUID-app |
+| 11 | partner_contract_id | char(36) | Có | null | FK, Index | FK trực tiếp tới hợp đồng | UUID-contract |
+| 12 | partner_termination_request_id | char(36) | Có | null | FK, Index | FK trực tiếp tới yêu cầu chấm dứt | null |
+| 13 | partner_settlement_id | char(36) | Có | null | FK, Index | FK trực tiếp tới quyết toán | null |
+| 14 | owner_id | char(36) | Có | null | FK, Index | Chủ sân liên quan | UUID-owner |
+| 15 | venue_cluster_id | char(36) | Có | null | FK, Index | Cụm sân liên quan | UUID-cluster |
+| 16 | title | varchar(255) | Có | null | - | Tiêu đề văn bản | null |
+| 17 | status | enum | Không | generated | Index | Trạng thái: draft, generated, pending_owner_signature, pending_sportgo_signature, signed, completed, cancelled | completed |
+| 18 | render_data | json | Không | - | - | Snapshot toàn bộ dữ liệu render | {"contract_code": "HD-CG-001", ...} |
+| 19 | generated_file_media_id | char(36) | Có | null | FK | Media ID file đã sinh | UUID-media |
+| 20 | signed_file_media_id | char(36) | Có | null | FK | Media ID file đã ký | UUID-media |
+| 21 | final_file_media_id | char(36) | Có | null | FK | Media ID file hoàn tất | UUID-media |
+| 22 | generated_file_path | varchar(1000) | Có | null | - | Path file đã sinh | generated-documents/HD-CG-001.docx |
+| 23 | final_file_path | varchar(1000) | Có | null | - | Path file hoàn tất | null |
+| 24 | file_hash | varchar(128) | Có | null | - | Hash file để verify tính toàn vẹn | null |
+| 25 | generated_by | char(36) | Có | null | FK | Người sinh văn bản | UUID-admin |
+| 26 | generated_at | timestamp | Có | null | - | Thời điểm sinh | 2026-06-05 |
+| 27 | locked_at | timestamp | Có | null | - | Thời điểm lock (không sửa được) | 2026-06-06 |
+| 28 | completed_at | timestamp | Có | null | - | Thời điểm hoàn tất | 2026-06-07 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: document_code
+- FK: template_id → document_templates.id (restrict), partner_application_id → partner_applications.id (set null), owner_id → users.id (set null), venue_cluster_id → venue_clusters.id (set null), generated_file_media_id/signed_file_media_id/final_file_media_id → media.id (set null), generated_by → users.id (set null)
+- FK bổ sung (migration 000024): partner_contract_id → partner_contracts.id (set null), partner_termination_request_id → partner_termination_requests.id (set null), partner_settlement_id → partner_settlements.id (set null)
+- Index: (reference_type, reference_id), (entity_type, entity_id), partner_application_id, partner_contract_id, partner_termination_request_id, partner_settlement_id, (owner_id, venue_cluster_id), (document_type, status)
+
+### 4. Quan hệ với bảng khác
+- Thuộc document_templates (template dùng để sinh)
+- 1-n với generated_document_signatures (chữ ký trên văn bản)
+- Tham chiếu partner_applications, partner_contracts, partner_termination_requests, partner_settlements, users, venue_clusters, media
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "document_code": "DOC-HD-CG-001",
+  "document_type": "partner_contract",
+  "template_version": 1,
+  "status": "completed",
+  "render_data": {
+    "contract_code": "HD-CG-001",
+    "owner_full_name": "Nguyễn Văn Owner",
+    "business_name": "Hộ kinh doanh SportGo Cầu Giấy"
+  }
+}
+```
+
+---
+
+## Tên bảng: generated_document_signatures
+
+### 1. Mục đích bảng
+Lưu chữ ký/xác nhận của mỗi bên (owner, SportGo) trên văn bản đã sinh. Hỗ trợ nhiều phương thức ký: upload ảnh, vẽ tay, gõ xác nhận, OTP, ký số.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID chữ ký | UUID-sig |
+| 2 | generated_document_id | char(36) | Không | - | FK, Index | ID văn bản | UUID-doc |
+| 3 | signer_side | enum | Không | - | Index | Bên ký: owner, sportgo, witness, system | owner |
+| 4 | signer_user_id | char(36) | Có | null | FK | User thực hiện ký | UUID-owner |
+| 5 | signer_full_name | varchar(255) | Không | - | - | Họ tên người ký | Nguyễn Văn Owner |
+| 6 | signer_title | varchar(255) | Có | null | - | Chức danh | Chủ sân |
+| 7 | signer_organization | varchar(255) | Có | null | - | Tổ chức | Hộ kinh doanh SportGo CG |
+| 8 | signature_method | enum | Không | typed_confirm | - | Phương thức ký: uploaded_image, drawn, typed_confirm, otp_confirm, digital | typed_confirm |
+| 9 | signature_media_id | char(36) | Có | null | FK | Media ID ảnh chữ ký (nếu upload/vẽ) | null |
+| 10 | signed_at | timestamp | Có | null | - | Thời điểm ký | 2026-06-06 |
+| 11 | ip_address | varchar(45) | Có | null | - | IP lúc ký | 192.168.1.1 |
+| 12 | user_agent | varchar(500) | Có | null | - | User Agent lúc ký | Mozilla/5.0... |
+| 13 | status | enum | Không | pending | Index | Trạng thái: pending, signed, rejected, cancelled | signed |
+| 14 | reject_reason | text | Có | null | - | Lý do từ chối ký | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: generated_document_id → generated_documents.id (restrict), signer_user_id → users.id (set null), signature_media_id → media.id (set null)
+- Index: (generated_document_id, signer_side, status)
+
+### 4. Quan hệ với bảng khác
+- Thuộc generated_documents (1 văn bản có nhiều chữ ký)
+- Tham chiếu users (người ký), media (ảnh chữ ký)
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "generated_document_id": "UUID-doc",
+  "signer_side": "owner",
+  "signer_full_name": "Nguyễn Văn Owner",
+  "signer_title": "Chủ sân",
+  "signature_method": "typed_confirm",
+  "signed_at": "2026-06-06T10:00:00",
+  "status": "signed"
+}
+```
+
+---
+
+### MODULE: HỢP ĐỒNG ĐỐI TÁC (08/06/2026)
+
+## Tên bảng: partner_contracts
+
+### 1. Mục đích bảng
+Lưu hợp đồng giữa SportGo và chủ sân. Mỗi hợp đồng được sinh từ hồ sơ đối tác đã duyệt, link tới văn bản đã ký. Status: draft → generated → pending_owner_signature → pending_sportgo_signature → signed_active.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID hợp đồng | UUID-contract |
+| 2 | contract_code | varchar(50) | Không | - | Unique | Mã hợp đồng | HD-CG-001 |
+| 3 | partner_application_id | char(36) | Không | - | FK, Index | Hồ sơ đối tác sinh ra hợp đồng | UUID-app |
+| 4 | owner_id | char(36) | Không | - | FK, Index | Chủ sân ký hợp đồng | UUID-owner |
+| 5 | venue_cluster_id | char(36) | Có | null | FK | Cụm sân (nếu đã duyệt tạo) | UUID-cluster |
+| 6 | contract_title | varchar(255) | Không | - | - | Tiêu đề hợp đồng | Hợp đồng hợp tác đối tác SportGo CG |
+| 7 | status | enum | Không | draft | Index | Trạng thái: draft, generated, pending_owner_signature, pending_sportgo_signature, signed_active, cancelled, terminated | signed_active |
+| 8 | generated_document_id | char(36) | Có | null | FK | Văn bản hợp đồng đã sinh | UUID-doc |
+| 9 | generated_file_media_id | char(36) | Có | null | - | Media ID file đã sinh | null |
+| 10 | signed_file_media_id | char(36) | Có | null | - | Media ID file đã ký | null |
+| 11 | final_file_media_id | char(36) | Có | null | - | Media ID file hoàn tất | null |
+| 12 | generated_by | char(36) | Có | null | FK | Admin sinh hợp đồng | UUID-admin |
+| 13 | approved_by | char(36) | Có | null | FK | Admin duyệt | UUID-admin |
+| 14 | owner_signed_at | timestamp | Có | null | - | Thời điểm chủ sân ký | 2026-06-06 |
+| 15 | sportgo_signed_at | timestamp | Có | null | - | Thời điểm SportGo ký | 2026-06-07 |
+| 16 | effective_from | timestamp | Có | null | - | Ngày bắt đầu hiệu lực | 2026-06-07 |
+| 17 | effective_to | timestamp | Có | null | - | Ngày hết hạn (null = không thời hạn) | null |
+| 18 | terminated_at | timestamp | Có | null | - | Ngày chấm dứt sớm | null |
+| 19 | note | text | Có | null | - | Ghi chú | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: contract_code
+- FK: partner_application_id → partner_applications.id (restrict), owner_id → users.id (restrict), venue_cluster_id → venue_clusters.id (set null), generated_document_id → generated_documents.id (restrict), generated_by/approved_by → users.id (set null)
+- Index: (partner_application_id, status), (owner_id, status)
+
+### 4. Quan hệ với bảng khác
+- Thuộc partner_applications (1 hồ sơ → 1 hợp đồng)
+- Tham chiếu users (owner, admin), venue_clusters, generated_documents
+- 1-n với partner_termination_requests, partner_settlements
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "contract_code": "HD-CG-001",
+  "partner_application_id": "UUID-app",
+  "owner_id": "UUID-owner",
+  "contract_title": "Hợp đồng hợp tác đối tác SportGo Cầu Giấy",
+  "status": "signed_active",
+  "owner_signed_at": "2026-06-06T10:00:00",
+  "sportgo_signed_at": "2026-06-07T10:00:00"
+}
+```
+
+---
+
+### MODULE: CHẤM DỨT HỢP TÁC (08/06/2026)
+
+## Tên bảng: partner_termination_requests
+
+### 1. Mục đích bảng
+Quản lý yêu cầu chấm dứt hợp tác: hai bên đồng ý (mutual_agreement), đơn phương bởi owner (unilateral_by_owner) hoặc đơn phương bởi SportGo (unilateral_by_sportgo). Có thời gian chuyển tiếp trước khi thu quyền.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID yêu cầu | UUID-term |
+| 2 | termination_code | varchar(50) | Không | - | Unique | Mã yêu cầu chấm dứt | TERM-MUTUAL-CG-001 |
+| 3 | partner_contract_id | char(36) | Không | - | FK, Index | Hợp đồng bị chấm dứt | UUID-contract |
+| 4 | partner_application_id | char(36) | Có | null | FK | Hồ sơ đối tác gốc | UUID-app |
+| 5 | owner_id | char(36) | Không | - | FK, Index | Chủ sân | UUID-owner |
+| 6 | venue_cluster_id | char(36) | Có | null | FK | Cụm sân liên quan | UUID-cluster |
+| 7 | termination_type | enum | Không | - | Index | Loại chấm dứt: mutual_agreement, unilateral_by_owner, unilateral_by_sportgo | mutual_agreement |
+| 8 | requested_by | char(36) | Không | - | FK | Người gửi yêu cầu | UUID-owner |
+| 9 | requested_at | timestamp | Không | CURRENT | - | Thời điểm gửi | 2026-06-08 |
+| 10 | reason | text | Không | - | - | Lý do chấm dứt | Hai bên thống nhất chấm dứt hợp tác... |
+| 11 | requested_effective_date | date | Có | null | - | Ngày mong muốn hiệu lực | 2026-07-08 |
+| 12 | status | enum | Không | draft | Index | Trạng thái: draft, submitted, reviewing, approved, pending_signature, settlement_processing, settlement_completed, transition_period, completed, rejected, cancelled | settlement_completed |
+| 13 | approved_by | char(36) | Có | null | FK | Admin duyệt | UUID-admin |
+| 14 | approved_at | timestamp | Có | null | - | Thời điểm duyệt | 2026-06-09 |
+| 15 | reject_reason | text | Có | null | - | Lý do từ chối | null |
+| 16 | effective_termination_date | timestamp | Có | null | - | Ngày chấm dứt thực tế | 2026-07-08 |
+| 17 | transition_end_at | timestamp | Có | null | - | Hết thời gian chuyển tiếp | 2026-08-08 |
+| 18 | owner_access_revoked_at | timestamp | Có | null | - | Thời điểm thu quyền owner | null |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: termination_code
+- FK: partner_contract_id → partner_contracts.id (restrict), partner_application_id → partner_applications.id (set null), owner_id → users.id (restrict), venue_cluster_id → venue_clusters.id (set null), requested_by → users.id (restrict), approved_by → users.id (set null)
+- Index: (partner_contract_id, status), (owner_id, status), (termination_type, status)
+
+### 4. Quan hệ với bảng khác
+- Thuộc partner_contracts
+- 1-n với partner_termination_documents, partner_termination_status_histories, partner_settlements
+- Tham chiếu users, venue_clusters, partner_applications
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "termination_code": "TERM-MUTUAL-CG-001",
+  "termination_type": "mutual_agreement",
+  "status": "settlement_completed",
+  "reason": "Hai bên thống nhất chấm dứt hợp tác do thay đổi kế hoạch kinh doanh."
+}
+```
+
+---
+
+## Tên bảng: partner_termination_documents
+
+### 1. Mục đích bảng
+Lưu các văn bản liên quan đến yêu cầu chấm dứt: đơn chấm dứt, biên bản thanh lý, công văn đơn phương, biên bản quyết toán, file cuối cùng.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | bigint | Không | auto | PK | ID tự tăng | 1 |
+| 2 | partner_termination_request_id | char(36) | Không | - | FK, Index | ID yêu cầu chấm dứt | UUID-term |
+| 3 | generated_document_id | char(36) | Có | null | FK | Văn bản đã sinh từ template | UUID-doc |
+| 4 | document_type | enum | Không | - | Index | Loại: owner_termination_request, mutual_liquidation_minutes, unilateral_notice, settlement_minutes, final_termination_file | mutual_liquidation_minutes |
+| 5 | media_id | char(36) | Có | null | FK | File đính kèm bổ sung | null |
+| 6 | file_path | varchar(1000) | Có | null | - | Đường dẫn file | null |
+| 7 | status | enum | Không | generated | - | Trạng thái: generated, pending_signature, signed, completed, cancelled | completed |
+| 8 | generated_by | char(36) | Có | null | FK | Admin sinh văn bản | UUID-admin |
+| 9 | generated_at | timestamp | Có | null | - | Thời điểm sinh | 2026-06-08 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: partner_termination_request_id → partner_termination_requests.id (restrict), generated_document_id → generated_documents.id (restrict), media_id → media.id (set null), generated_by → users.id (set null)
+- Index: (partner_termination_request_id, document_type)
+
+### 4. Quan hệ với bảng khác
+- Thuộc partner_termination_requests
+- Tham chiếu generated_documents, media, users
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "partner_termination_request_id": "UUID-term",
+  "document_type": "mutual_liquidation_minutes",
+  "generated_document_id": "UUID-doc",
+  "status": "completed"
+}
+```
+
+---
+
+## Tên bảng: partner_termination_status_histories
+
+### 1. Mục đích bảng
+Ghi nhận từng bước xử lý yêu cầu chấm dứt hợp tác: submitted → reviewing → approved → settlement_processing → completed.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | bigint | Không | auto | PK | ID tự tăng | 1 |
+| 2 | partner_termination_request_id | char(36) | Không | - | FK, Index | ID yêu cầu chấm dứt | UUID-term |
+| 3 | old_status | varchar(50) | Có | null | - | Trạng thái cũ | submitted |
+| 4 | new_status | varchar(50) | Không | - | - | Trạng thái mới | reviewing |
+| 5 | changed_by | char(36) | Có | null | FK | Người thay đổi | UUID-admin |
+| 6 | actor_type | varchar(50) | Không | admin | - | Loại tác nhân | admin |
+| 7 | reason | text | Có | null | - | Lý do | Admin tiếp nhận yêu cầu |
+| 8 | metadata | json | Có | null | - | Dữ liệu bổ sung | null |
+| 9 | created_at | timestamp | Không | CURRENT | - | Thời điểm | 2026-06-08 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: partner_termination_request_id → partner_termination_requests.id (restrict), changed_by → users.id (set null)
+- Index: (partner_termination_request_id, created_at)
+
+### 4. Quan hệ với bảng khác
+- Thuộc partner_termination_requests.
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "partner_termination_request_id": "UUID-term",
+  "old_status": "submitted",
+  "new_status": "reviewing",
+  "changed_by": "UUID-admin",
+  "actor_type": "admin"
+}
+```
+
+---
+
+### MODULE: QUYẾT TOÁN (08/06/2026)
+
+## Tên bảng: partner_settlements
+
+### 1. Mục đích bảng
+Lưu kết quả quyết toán công nợ khi chấm dứt hợp tác. Tính toán: ví owner, phí nền tảng còn hoàn, phí nền tảng chưa đóng, phạt, điều chỉnh → ra final_payable_to_owner hoặc final_receivable_from_owner.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID quyết toán | UUID-settle |
+| 2 | settlement_code | varchar(50) | Không | - | Unique | Mã quyết toán | SETTLE-CG-001 |
+| 3 | partner_termination_request_id | char(36) | Không | - | FK, Index | Yêu cầu chấm dứt | UUID-term |
+| 4 | partner_contract_id | char(36) | Không | - | FK | Hợp đồng bị chấm dứt | UUID-contract |
+| 5 | owner_id | char(36) | Không | - | FK, Index | Chủ sân | UUID-owner |
+| 6 | venue_cluster_id | char(36) | Có | null | FK | Cụm sân | UUID-cluster |
+| 7 | owner_wallet_available_amount | decimal(14,2) | Không | 0 | - | Số dư ví owner khả dụng | 2000000.00 |
+| 8 | owner_wallet_pending_amount | decimal(14,2) | Không | 0 | - | Số dư ví owner đang chờ rút | 0.00 |
+| 9 | platform_fee_remaining_refund_amount | decimal(14,2) | Không | 0 | - | Phí nền tảng đã đóng thừa cần hoàn | 200000.00 |
+| 10 | unpaid_platform_fee_amount | decimal(14,2) | Không | 0 | - | Phí nền tảng chưa đóng | 0.00 |
+| 11 | penalty_amount | decimal(14,2) | Không | 0 | - | Tiền phạt (nếu đơn phương) | 0.00 |
+| 12 | adjustment_amount | decimal(14,2) | Không | 0 | - | Điều chỉnh thủ công bởi admin | 0.00 |
+| 13 | final_payable_to_owner | decimal(14,2) | Không | 0 | - | Số tiền cuối cùng trả cho owner | 2200000.00 |
+| 14 | final_receivable_from_owner | decimal(14,2) | Không | 0 | - | Số tiền owner còn nợ SportGo | 0.00 |
+| 15 | status | enum | Không | draft | Index | Trạng thái: draft, calculated, pending_approval, approved, payout_created, completed, cancelled | completed |
+| 16 | calculated_by | char(36) | Có | null | FK | Admin tính toán | UUID-admin |
+| 17 | approved_by | char(36) | Có | null | FK | Admin duyệt quyết toán | UUID-admin |
+| 18 | approved_at | timestamp | Có | null | - | Thời điểm duyệt | 2026-06-09 |
+| 19 | note | text | Có | null | - | Ghi chú quyết toán | Quyết toán mẫu cho test |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- Unique: settlement_code
+- FK: partner_termination_request_id → partner_termination_requests.id (restrict), partner_contract_id → partner_contracts.id (restrict), owner_id → users.id (restrict), venue_cluster_id → venue_clusters.id (set null), calculated_by/approved_by → users.id (set null)
+- Index: (partner_termination_request_id, status), (owner_id, status)
+
+### 4. Quan hệ với bảng khác
+- Thuộc partner_termination_requests (1 yêu cầu chấm dứt → 1 quyết toán)
+- 1-n với partner_settlement_items (chi tiết từng dòng)
+- Nếu final_payable_to_owner > 0 → tạo owner_withdrawal_requests tự động
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "settlement_code": "SETTLE-CG-001",
+  "owner_wallet_available_amount": 2000000.00,
+  "platform_fee_remaining_refund_amount": 200000.00,
+  "final_payable_to_owner": 2200000.00,
+  "final_receivable_from_owner": 0.00,
+  "status": "completed"
+}
+```
+
+---
+
+## Tên bảng: partner_settlement_items
+
+### 1. Mục đích bảng
+Lưu từng dòng chi tiết trong biên bản quyết toán: ví owner, rút tiền đang chờ, phí nền tảng hoàn, phí chưa đóng, phạt, điều chỉnh.
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | bigint | Không | auto | PK | ID tự tăng | 1 |
+| 2 | partner_settlement_id | char(36) | Không | - | FK, Index | ID quyết toán cha | UUID-settle |
+| 3 | item_type | enum | Không | - | Index | Loại: owner_wallet_balance, pending_withdrawal, platform_fee_remaining_refund, unpaid_platform_fee, penalty, adjustment | owner_wallet_balance |
+| 4 | description | text | Không | - | - | Mô tả dòng | Số dư ví owner hiện tại |
+| 5 | amount | decimal(14,2) | Không | - | - | Số tiền | 2000000.00 |
+| 6 | direction | enum | Không | - | - | Hướng: payable_to_owner hoặc receivable_from_owner | payable_to_owner |
+| 7 | reference_type | varchar(100) | Có | null | - | Polymorphic type | App\Models\OwnerWallet |
+| 8 | reference_id | varchar(100) | Có | null | - | Polymorphic ID | UUID-wallet |
+| 9 | created_at | timestamp | Không | CURRENT | - | Thời điểm tạo | 2026-06-08 |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: partner_settlement_id → partner_settlements.id (restrict)
+- Index: (partner_settlement_id, item_type)
+
+### 4. Quan hệ với bảng khác
+- Thuộc partner_settlements (1 quyết toán → nhiều items)
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "partner_settlement_id": "UUID-settle",
+  "item_type": "owner_wallet_balance",
+  "description": "Số dư ví owner hiện tại",
+  "amount": 2000000.00,
+  "direction": "payable_to_owner"
+}
+```
+
+---
+
+### MODULE: GIỚI HẠN QUYỀN OWNER (08/06/2026)
+
+## Tên bảng: venue_access_restrictions
+
+### 1. Mục đích bảng
+Giới hạn hoặc chặn quyền owner trên cụm sân. Ví dụ: quá hạn phí nền tảng → limited (hạn chế một số chức năng), chấm dứt hợp đồng → blocked (chặn toàn bộ).
+
+### 2. Danh sách trường
+
+| STT | Tên trường | Kiểu dữ liệu | Null | Default | Khóa/Ràng buộc | Mô tả tác dụng trường | Ví dụ |
+|---|---|---|---|---|---|---|---|
+| 1 | id | char(36) | Không | - | PK | UUID restriction | UUID-restriction |
+| 2 | venue_cluster_id | char(36) | Không | - | FK, Index | Cụm sân bị giới hạn | UUID-cluster |
+| 3 | restriction_type | enum | Không | - | Index | Loại: platform_fee_overdue, contract_termination, admin_manual | platform_fee_overdue |
+| 4 | access_mode | enum | Không | limited | Index | Mức độ: full, limited, transition, blocked | limited |
+| 5 | reason | text | Không | - | - | Lý do giới hạn | Phí duy trì nền tảng quá hạn 7 ngày |
+| 6 | starts_at | timestamp | Không | - | - | Bắt đầu hiệu lực | 2026-06-01 |
+| 7 | ends_at | timestamp | Có | null | - | Kết thúc (null = vô thời hạn) | null |
+| 8 | created_by | char(36) | Có | null | FK | Admin/system tạo | UUID-admin |
+| 9 | status | enum | Không | active | Index | Trạng thái: active, expired, cancelled | active |
+
+### 3. Khóa chính, khóa ngoại, index
+- PK: id
+- FK: venue_cluster_id → venue_clusters.id (restrict), created_by → users.id (set null)
+- Index: (venue_cluster_id, status), (restriction_type, access_mode)
+
+### 4. Quan hệ với bảng khác
+- Thuộc venue_clusters (1 cụm sân có thể nhiều restriction)
+- Tham chiếu users (admin tạo)
+
+### 5. Ví dụ bản ghi
+```json
+{
+  "venue_cluster_id": "UUID-cluster",
+  "restriction_type": "platform_fee_overdue",
+  "access_mode": "limited",
+  "reason": "Phí duy trì nền tảng quá hạn 7 ngày",
+  "starts_at": "2026-06-01T00:00:00",
+  "status": "active"
+}
+```
+
+---
+
+==================================================
+## CẬP NHẬT 08/06/2026 - TÁCH MIGRATION/SEEDER THEO TỪNG BẢNG
+==================================================
+
+Mục này chuẩn hóa DB nền cho các module chính sách hệ thống, chính sách sân override, refund, hồ sơ đối tác, template/văn bản, hợp đồng đối tác, chấm dứt hợp tác, quyết toán và khóa/giới hạn quyền owner. Nguyên tắc áp dụng: mỗi migration chỉ tạo hoặc sửa một bảng; mỗi seeder chỉ seed một bảng nghiệp vụ chính; dữ liệu seed phải idempotent và đủ trạng thái để test luồng thật.
+
+### Bảng mới
+
+| Bảng | Module | Mục đích | Migration | Seeder |
+|---|---|---|---|---|
+| `policy_rule_templates` | Chính sách hệ thống | Mẫu cấu hình rule để admin tạo rule nhanh | `create_policy_rule_templates_table` | `PolicyRuleTemplatesTableSeeder` |
+| `policy_override_constraints` | Chính sách sân override | Ràng buộc để chính sách sân không vượt khung hệ thống | `create_policy_override_constraints_table` | `PolicyOverrideConstraintsTableSeeder` |
+| `policy_status_histories` | Chính sách hệ thống | Lịch sử đổi trạng thái/version chính sách | `create_policy_status_histories_table` | `PolicyStatusHistoriesTableSeeder` |
+| `refund_status_histories` | Refund | Lịch sử chuyển trạng thái refund | `create_refund_status_histories_table` | `RefundStatusHistoriesTableSeeder` |
+| `partner_application_documents` | Hồ sơ đối tác | File/hồ sơ đính kèm của đơn đối tác | `create_partner_application_documents_table` | `PartnerApplicationDocumentsTableSeeder` |
+| `partner_application_status_histories` | Hồ sơ đối tác | Lịch sử trạng thái hồ sơ đối tác | `create_partner_application_status_histories_table` | `PartnerApplicationStatusHistoriesTableSeeder` |
+| `document_templates` | Template/văn bản | Template DOCX cho đơn, hợp đồng, thanh lý, công văn, quyết toán | `create_document_templates_table` | `DocumentTemplatesTableSeeder` |
+| `generated_documents` | Template/văn bản | Văn bản đã sinh từ template, có `render_data` snapshot | `create_generated_documents_table` | `GeneratedDocumentsTableSeeder` |
+| `generated_document_signatures` | Template/văn bản | Chữ ký/xác nhận của owner và SportGo trên văn bản | `create_generated_document_signatures_table` | `GeneratedDocumentSignaturesTableSeeder` |
+| `partner_contracts` | Hợp đồng đối tác | Hợp đồng giữa SportGo và chủ sân | `create_partner_contracts_table` | `PartnerContractsTableSeeder` |
+| `partner_termination_requests` | Chấm dứt hợp tác | Yêu cầu chấm dứt hợp tác hai bên/đơn phương | `create_partner_termination_requests_table` | `PartnerTerminationRequestsTableSeeder` |
+| `partner_termination_documents` | Chấm dứt hợp tác | Văn bản thanh lý/công văn/quyết toán của yêu cầu chấm dứt | `create_partner_termination_documents_table` | `PartnerTerminationDocumentsTableSeeder` |
+| `partner_termination_status_histories` | Chấm dứt hợp tác | Lịch sử trạng thái yêu cầu chấm dứt | `create_partner_termination_status_histories_table` | `PartnerTerminationStatusHistoriesTableSeeder` |
+| `partner_settlements` | Quyết toán | Kết quả quyết toán khi chấm dứt hợp tác | `create_partner_settlements_table` | `PartnerSettlementsTableSeeder` |
+| `partner_settlement_items` | Quyết toán | Từng dòng cộng/trừ trong quyết toán | `create_partner_settlement_items_table` | `PartnerSettlementItemsTableSeeder` |
+| `venue_access_restrictions` | Khóa/giới hạn owner | Trạng thái quyền owner theo cụm sân: full/limited/transition/blocked | `create_venue_access_restrictions_table` | `VenueAccessRestrictionsTableSeeder` |
+
+### Bảng cũ được bổ sung field
+
+| Bảng | Field chính bổ sung | Migration | Seeder liên quan |
+|---|---|---|---|
+| `venue_policy_rules` | `submitted_by`, `submitted_at`, `reviewed_by`, `reviewed_at`, `reject_reason`, `effective_from`, `effective_to`, `constraint_check_result`; status thêm `pending_review`, `rejected`, `archived` | `add_review_fields_to_venue_policy_rules_table` | `VenuePolicyRulesSeeder` |
+| `refunds` | `owner_confirmed_by`, `owner_confirmed_at`, `owner_confirm_note`, `admin_confirmed_by`, `admin_confirmed_at`, `completed_at`, `gateway_refund_txn_id`, `policy_id`, `policy_rule_id`, `policy_evaluation_log_id` | `add_refund_workflow_fields_to_refunds_table` | `RefundsTableSeeder` |
+| `partner_applications` | Hồ sơ/snapshot `applicant_*`, `representative_*`, `business_*`, `venue_*`, `amenities`, `court_count_total`, `current_contract_id`; status workflow đối tác mới | `add_workflow_statuses_to_partner_applications_table`, `add_partner_profile_fields_to_partner_applications_table`, `add_contract_fields_to_partner_applications_table` | `PartnerApplicationsTableSeeder` |
+| `partner_application_courts` | `court_type_name_snapshot`, `expected_court_count`, `note` | `add_snapshot_fields_to_partner_application_courts_table` | `PartnerApplicationCourtsTableSeeder` |
+| `owner_withdrawal_requests` | `source`, `partner_settlement_id`, `partner_termination_request_id`, `auto_created` | `add_settlement_fields_to_owner_withdrawal_requests_table` | `OwnerWithdrawalRequestsTableSeeder` |
+
+### Field/FK/index chính
+
+- `policy_rule_templates`: field chính `policy_type`, `rule_code`, `rule_name`, `action_code`, `condition_schema`, `result_schema`, `is_venue_overridable`, `risk_level`, `is_active`; unique `policy_type/rule_code`; index `policy_type/is_active`, `action_code`.
+- `policy_override_constraints`: field chính `system_policy_id`, `policy_rule_id`, `rule_code`, `constraint_key`, `constraint_name`, `comparison_direction`, `min_value`, `max_value`, `allowed_values`, `message_vi`, `is_active`; unique `system_policy_id/constraint_key`; FK `system_policy_id`, FK nullable `policy_rule_id`; index `rule_code/is_active`.
+- `policy_status_histories`: FK `system_policy_id`, FK nullable `changed_by`; index `system_policy_id/created_at`.
+- `refund_status_histories`: FK `refund_id`, FK nullable `changed_by`; index `refund_id/created_at`, `new_status`.
+- `partner_application_documents`: FK `partner_application_id`, FK nullable `media_id`, `reviewed_by`; index `partner_application_id/document_group/status`.
+- `partner_application_status_histories`: FK `partner_application_id`, FK nullable `changed_by`; index `partner_application_id/created_at`.
+- `document_templates`: unique `document_type/version`, unique `template_code`; FK nullable `uploaded_by`.
+- `generated_documents`: unique `document_code`; FK `template_id`; FK nullable `generated_by`; index `reference_type/reference_id`, `document_type/status`.
+- `generated_document_signatures`: FK `generated_document_id`, FK nullable `signer_user_id`, `signature_media_id`; index `generated_document_id/signer_side/status`.
+- `partner_contracts`: unique `contract_code`; FK tới `partner_applications`, `users`, `venue_clusters`, `generated_documents`; không cascade xóa hợp đồng.
+- `partner_termination_requests`: unique `termination_code`; FK tới hợp đồng, hồ sơ, owner, cụm sân; index `partner_contract_id/status`, `owner_id/status`, `termination_type/status`.
+- `partner_termination_documents`: FK tới yêu cầu chấm dứt, generated document, media; index `partner_termination_request_id/document_type`.
+- `partner_settlements`: unique `settlement_code`; FK tới yêu cầu chấm dứt, hợp đồng, owner, cụm sân; index `partner_termination_request_id/status`, `owner_id/status`.
+- `partner_settlement_items`: FK `partner_settlement_id`; index `partner_settlement_id/item_type`.
+- `venue_access_restrictions`: FK `venue_cluster_id`, FK nullable `created_by`; index `venue_cluster_id/status`, `restriction_type/access_mode`.
+
+### Luồng nghiệp vụ liên quan
+
+- Chính sách hệ thống: admin tạo/rà rule, dùng template nếu cần, publish chính sách và ghi `policy_status_histories`.
+- Chính sách sân override: owner gửi `venue_policy_rules`, hệ thống kiểm tra `policy_override_constraints`, admin duyệt hoặc từ chối.
+- Refund: khách yêu cầu hoàn, owner xác nhận, admin xử lý/API hoàn tiền; refund `completed` mới được coi là xong và phải có xác nhận owner/admin.
+- Hồ sơ đối tác: user gửi hồ sơ, nộp file đính kèm, admin chuyển trạng thái; duyệt xong sinh hợp đồng.
+- Template/văn bản: template DOCX được seed từ bộ biểu mẫu; văn bản sinh ra lưu snapshot `render_data`; chữ ký lưu riêng theo từng bên.
+- Hợp đồng: hợp đồng chỉ active khi đủ chữ ký owner và SportGo.
+- Chấm dứt hợp tác: `mutual_agreement` phải có biên bản thanh lý; `unilateral_by_owner`/`unilateral_by_sportgo` phải có công văn/đơn chấm dứt; có thời gian chuyển tiếp trước khi chặn quyền.
+- Quyết toán: settlement phải có items; nếu `final_payable_to_owner > 0` thì `OwnerWithdrawalRequestsTableSeeder` tạo withdrawal tự động với `source = partner_termination_settlement`, `auto_created = true`.
+- Khóa/giới hạn owner: seed đủ case `full`, `limited`, `transition`, `blocked` để test quyền owner.
+
+### Thứ tự migration đã chuẩn hóa
+
+1. `create_policy_rule_templates_table`
+2. `create_policy_override_constraints_table`
+3. `add_review_fields_to_venue_policy_rules_table`
+4. `create_policy_status_histories_table`
+5. `add_refund_workflow_fields_to_refunds_table`
+6. `create_refund_status_histories_table`
+7. `add_workflow_statuses_to_partner_applications_table`
+8. `add_partner_profile_fields_to_partner_applications_table`
+9. `add_contract_fields_to_partner_applications_table`
+10. `add_snapshot_fields_to_partner_application_courts_table`
+11. `create_partner_application_documents_table`
+12. `create_partner_application_status_histories_table`
+13. `create_document_templates_table`
+14. `create_generated_documents_table`
+15. `create_generated_document_signatures_table`
+16. `create_partner_contracts_table`
+17. `create_partner_termination_requests_table`
+18. `create_partner_termination_documents_table`
+19. `create_partner_termination_status_histories_table`
+20. `create_partner_settlements_table`
+21. `create_partner_settlement_items_table`
+22. `add_settlement_fields_to_owner_withdrawal_requests_table`
+23. `create_venue_access_restrictions_table`
+
+### Ràng buộc nghiệp vụ seed cần giữ
+
+- Refund `completed` phải có `owner_confirmed_by`, `owner_confirmed_at`, `admin_confirmed_by`, `admin_confirmed_at`.
+- Refund `pending_owner_confirmation` chưa được có owner/admin confirmed.
+- Contract `signed_active` phải có đủ chữ ký owner và SportGo.
+- Generated document `completed` phải có `render_data` snapshot.
+- Termination `mutual_agreement` phải có `mutual_liquidation_minutes`.
+- Termination `unilateral_by_owner` hoặc `unilateral_by_sportgo` phải có công văn/đơn chấm dứt.
+- Termination có thời gian chuyển tiếp thì `transition_end_at` phải sau ngày tạo.
+- Settlement phải có settlement items.
+- Settlement có `final_payable_to_owner > 0` phải tạo withdrawal tự động.
+- Owner access phải có data test `full`, `limited`, `transition`, `blocked`.
+
+### Rà soát bổ sung 08/06/2026 - Logic DB và seeder sau khi audit
+
+Các field bổ sung sau audit:
+
+- `partner_applications`: bổ sung snapshot tài khoản nhận tiền của hồ sơ đối tác gồm `bank_name`, `bank_code`, `account_number`, `account_holder_name`, `bank_branch`, `bank_verification_status`. Các field này nullable/default để không làm vỡ dữ liệu cũ và dùng làm snapshot lúc nộp hồ sơ.
+- `document_templates`: bổ sung `output_format`, `required_fields`, `created_by` để biết template sinh ra định dạng gì, cần dữ liệu nào và ai tạo template.
+- `generated_documents`: bổ sung `entity_type`, `entity_id`, các FK nghiệp vụ `partner_application_id`, `partner_contract_id`, `partner_termination_request_id`, `partner_settlement_id`, `owner_id`, `venue_cluster_id`, `title`, các media id `generated_file_media_id`, `signed_file_media_id`, `final_file_media_id`, `file_hash`; thêm trạng thái `signed`.
+- `generated_documents`: FK tới `partner_contracts`, `partner_termination_requests`, `partner_settlements` được tách sang migration riêng `add_business_foreign_keys_to_generated_documents_table` để tránh lỗi thứ tự tạo bảng.
+
+Seeder được siết lại theo ràng buộc nghiệp vụ:
+
+- `PartnerApplicationsTableSeeder`: đủ 9 trạng thái `submitted`, `reviewing`, `need_supplement`, `approved_pending_contract`, `contract_pending_owner_signature`, `contract_pending_sportgo_signature`, `completed`, `rejected`, `cancelled`; hồ sơ `completed` có `current_contract_id` trỏ tới hợp đồng `signed_active`.
+- `DocumentTemplatesTableSeeder`: có template active cho đơn đăng ký đối tác, hợp đồng, đơn chấm dứt, biên bản thanh lý, công văn đơn phương, biên bản quyết toán; có `partner_contract` v2 inactive để test version.
+- `GeneratedDocumentsTableSeeder`: có document cho đơn đăng ký, hợp đồng chờ owner ký, hợp đồng chờ SportGo ký, hợp đồng completed, đơn chấm dứt, biên bản thanh lý, công văn đơn phương, biên bản quyết toán; tất cả document `generated/signed/completed` có `template_id`, `template_version`, `render_data`.
+- `GeneratedDocumentSignaturesTableSeeder`: hợp đồng active có đủ chữ ký owner và SportGo; công văn đơn phương có chữ ký bên phát hành; biên bản thanh lý có chữ ký hai bên.
+- `PartnerTerminationRequestsTableSeeder`: có case `mutual_agreement`, `unilateral_by_owner`, `unilateral_by_sportgo`, `settlement_processing`, `transition_period`, `completed`.
+- `PartnerTerminationDocumentsTableSeeder`: mutual có `mutual_liquidation_minutes`; unilateral có đơn/công văn chấm dứt; settlement có biên bản quyết toán.
+- `PartnerSettlementsTableSeeder` và `PartnerSettlementItemsTableSeeder`: có case còn tiền trả owner, còn công nợ, đang quyết toán; settlement có item chi tiết và case payable tạo withdrawal tự động.
+- `VenueAccessRestrictionsTableSeeder`: có đủ dữ liệu test `full`, `limited`, `transition`, `blocked`.
+
+Kết quả kiểm bằng query sau seed:
+
+- Không có refund `completed` thiếu owner/admin confirm.
+- Không có admin confirm refund khi owner chưa confirm.
+- Không có refund amount lớn hơn payment amount.
+- Không có hồ sơ đối tác `completed` thiếu hợp đồng `signed_active`.
+- Không có generated document `generated/signed/completed` thiếu `template_id`, `template_version`, `render_data`.
+- Không có hợp đồng `signed_active` thiếu ngày ký owner/SportGo hoặc document completed.
+- Không có termination `mutual_agreement` thiếu biên bản thanh lý.
+- Không có termination đơn phương thiếu đơn/công văn chấm dứt.
+- Không có termination `completed` thiếu settlement `completed`.
+- Không có settlement thiếu item.
+- Không có settlement payable đã duyệt/đã tạo payout thiếu withdrawal tự động.
+# MODULE AMENITIES / TIỆN ÍCH SÂN
+
+## Mục tiêu nghiệp vụ
+
+SportGo dùng danh mục tiện ích chung của hệ thống để lọc/tìm sân theo tiện ích chuẩn. Chủ sân không tự tạo tiện ích riêng dùng ngay trên sân. Chủ sân chỉ được chọn tiện ích đã có trong danh mục chung và nhập mô tả riêng cho cụm sân của mình. Nếu tiện ích chưa có, chủ sân gửi yêu cầu thêm tiện ích với trạng thái `pending_review`; admin duyệt thì tiện ích chuyển thành `active` và dùng chung toàn hệ thống.
+
+Không tạo bảng `venue_custom_amenities`.
+
+## Bảng `amenities`
+
+Mục đích:
+
+- Lưu danh mục tiện ích chung của hệ thống.
+- Admin/system thêm trực tiếp thì tiện ích mặc định `active`.
+- Owner gửi yêu cầu thêm tiện ích thì trạng thái ban đầu là `pending_review`.
+- Admin duyệt/từ chối/hủy/ngưng sử dụng phải ghi người xử lý, thời điểm và lý do nếu trạng thái là `rejected`, `inactive`, `cancelled`.
+
+Field chính:
+
+- `id`: khóa chính (bigint auto-increment).
+- `name`: tên tiện ích hiển thị, ví dụ Wifi, Điều hòa, Bãi gửi xe.
+- `description`: mô tả chung của tiện ích.
+- `status`: enum `pending_review`, `active`, `rejected`, `inactive`, `cancelled`.
+- `created_by`: user tạo tiện ích hoặc yêu cầu, nullable FK tới `users.id`.
+- `reviewed_by`: admin duyệt/từ chối/hủy/ngưng, nullable FK tới `users.id`.
+- `reviewed_at`: thời điểm xử lý.
+- `status_reason`: lý do xử lý theo trạng thái:
+  * `rejected`: Nội dung từ chối
+  * `inactive`: Lý do ngưng sử dụng
+  * `cancelled`: Lý do hủy
+- `created_at`, `updated_at`, `deleted_at`.
+
+Index/FK/Constraints:
+
+- Virtual column `active_name` = `IF(status = 'active' AND deleted_at IS NULL, name, NULL)`.
+- Unique index trên `active_name` đảm bảo không có 2 tiện ích active trùng tên.
+- Check Constraint: `status NOT IN ('rejected', 'inactive', 'cancelled') OR status_reason IS NOT NULL` (khi status là rejected, inactive hoặc cancelled thì status_reason bắt buộc).
+- FK `created_by`, `reviewed_by` tới `users.id` dùng `nullOnDelete`.
+
+## Bảng `venue_cluster_amenities`
+
+Mục đích:
+
+- Gán tiện ích chung cho từng cụm sân.
+- Lưu mô tả riêng của tiện ích tại cụm sân đó.
+- Chỉ được gán tiện ích có `amenities.status = active`.
+
+Field chính:
+
+- `id`: khóa chính.
+- `venue_cluster_id`: cụm sân được gán tiện ích, FK tới `venue_clusters.id`.
+- `amenity_id`: tiện ích chung, FK tới `amenities.id`.
+- `description`: mô tả riêng tại cụm sân.
+- `is_visible`: có hiển thị tiện ích này trên trang chi tiết sân không (mặc định true).
+- `created_at`, `updated_at`.
+
+Index/FK/Triggers:
+
+- Unique `venue_cluster_id + amenity_id`.
+- Index `venue_cluster_id`, `amenity_id`.
+- FK `venue_cluster_id` tới `venue_clusters.id` dùng cascade delete.
+- FK `amenity_id` tới `amenities.id` dùng restrict delete.
+- Database Triggers: BEFORE INSERT và BEFORE UPDATE triggers trên `venue_cluster_amenities` để kiểm tra tiện ích được gán có status = 'active' hay không. Nếu không, ném lỗi và từ chối hành động.
+
+## Legacy `venue_clusters.amenities`
+
+`venue_clusters.amenities` dạng JSON là field legacy/tạm tương thích với code cũ. Chức năng tiện ích mới không dùng JSON này làm nguồn chính. Seeder mới không seed thêm dữ liệu vào JSON này. Filter/search tiện ích phải dùng `amenities` và `venue_cluster_amenities` theo `amenity_id`.
+
+## Seeder
+
+- `AmenitiesTableSeeder`: seed 14 tiện ích active chuẩn gồm Wifi, Bãi gửi xe, Điều hòa, Phòng thay đồ, Nhà vệ sinh, Căng tin, Tủ gửi đồ, Cho thuê vợt, Cho thuê bóng, Đèn chiếu sáng, Mái che, Khu nghỉ chờ, Nước uống, Camera an ninh. Seeder cũng seed case `pending_review`, `rejected`, `inactive` để test workflow duyệt tiện ích. Sử dụng cơ chế khôi phục từ soft-delete và updateOrCreate để không trùng lặp record khi chạy lại.
+- `VenueClusterAmenitiesTableSeeder`: gán tiện ích active cho 3 cụm sân demo, kèm mô tả riêng theo cụm sân. Seeder không gán tiện ích `pending_review`, `rejected`, `inactive`. Sử dụng updateOrCreate để tránh trùng lặp record.
+
+## Luồng nghiệp vụ
+
+- Admin thêm tiện ích: tạo record `amenities` với `status = active`.
+- Owner gửi yêu cầu: tạo record `amenities` với `status = pending_review`, `created_by = owner id`.
+- Admin duyệt: chuyển `status = active`, set `reviewed_by`, `reviewed_at = now`.
+- Admin từ chối: chuyển `status = rejected`, bắt buộc nhập `status_reason` (Nội dung từ chối), set `reviewed_by`, `reviewed_at = now`.
+- Admin ngưng sử dụng: chuyển `status = inactive`, bắt buộc nhập `status_reason` (Lý do ngưng sử dụng), set `reviewed_by`, `reviewed_at = now`.
+- Admin hủy: chuyển `status = cancelled`, bắt buộc nhập `status_reason` (Lý do hủy), set `reviewed_by`, `reviewed_at = now`.
+- Owner chọn tiện ích cho cụm sân: tạo/cập nhật `venue_cluster_amenities`, chỉ cho chọn tiện ích `active`, không cho trùng `venue_cluster_id + amenity_id`. Chủ sân chỉ được gán tiện ích cho cụm sân của mình.

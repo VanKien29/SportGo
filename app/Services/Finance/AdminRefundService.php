@@ -5,6 +5,7 @@ namespace App\Services\Finance;
 use App\Models\Payment;
 use App\Models\PaymentLog;
 use App\Models\Refund;
+use App\Services\Policies\RefundPolicyEvaluator;
 use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -14,6 +15,7 @@ class AdminRefundService
     public function __construct(
         private readonly OwnerWalletService $wallets,
         private readonly FinanceReceiptService $receipts,
+        private readonly RefundPolicyEvaluator $refundPolicies,
     ) {}
 
     public function updateStatus(Refund $refund, string $status, array $context): Refund
@@ -30,6 +32,15 @@ class AdminRefundService
             }
 
             $this->assertTransitionAllowed($refund->status, $status);
+
+            if (in_array($status, ['processing', 'completed'], true)) {
+                $this->refundPolicies->assertCompliant(
+                    $refund,
+                    $context['actor_id'] ?? null,
+                    ($context['actor_id'] ?? null) ? 'admin' : 'system',
+                );
+            }
+
             $statusBefore = $refund->status;
             $refund->status = $status;
             $refund->processed_by = $context['actor_id'] ?? null;
