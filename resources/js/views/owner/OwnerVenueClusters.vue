@@ -1,9 +1,14 @@
 <template>
     <div class="venue-clusters-container">
-        <section class="page-head">
+        <section class="page-head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <div>
                 <h2>Quản lý cụm sân</h2>
                 <p>Cập nhật thông tin vận hành, bản đồ, tiện ích và hình ảnh của cụm sân.</p>
+            </div>
+            <div>
+                <button class="btn btn-primary" @click="showNewClusterModal = true">
+                    <AppIcon name="plus" size="16" /> Đăng ký thêm cụm sân
+                </button>
             </div>
         </section>
 
@@ -365,6 +370,51 @@
                         </button>
                     </div>
                 </form>
+        <!-- Modal đăng ký cụm sân mới -->
+        <div v-if="showNewClusterModal" class="modal-backdrop">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Đăng ký cụm sân mới</h3>
+                    <button class="close-btn" @click="showNewClusterModal = false">
+                        <AppIcon name="x" size="20" />
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="submitNewCluster">
+                        <div class="form-group">
+                            <label>Tên cụm sân mới *</label>
+                            <input v-model="newClusterForm.venue_name" type="text" required class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Địa chỉ cụm sân *</label>
+                            <input v-model="newClusterForm.venue_address" type="text" required class="form-control" />
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Vĩ độ (Latitude) *</label>
+                                <input v-model="newClusterForm.venue_latitude" type="number" step="any" required class="form-control" />
+                            </div>
+                            <div class="form-group">
+                                <label>Kinh độ (Longitude) *</label>
+                                <input v-model="newClusterForm.venue_longitude" type="number" step="any" required class="form-control" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tổng số sân *</label>
+                            <input v-model="newClusterForm.court_count_total" type="number" min="1" required class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Mô tả tiện ích / dịch vụ</label>
+                            <textarea v-model="newClusterForm.venue_description" rows="3" class="form-control"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-outline" @click="showNewClusterModal = false">Hủy</button>
+                            <button type="submit" class="btn btn-primary" :disabled="submittingCluster">
+                                {{ submittingCluster ? 'Đang gửi...' : 'Gửi yêu cầu' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -374,6 +424,7 @@
 import AppIcon from "../../components/AppIcon.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
+import { api } from '../../services/api.js';
 
 export default {
     name: "OwnerVenueClusters",
@@ -392,6 +443,16 @@ export default {
             availableAmenities: [],
             imagesList: [],
             uploadingImage: false,
+            showNewClusterModal: false,
+            submittingCluster: false,
+            newClusterForm: {
+                venue_name: '',
+                venue_address: '',
+                venue_latitude: '',
+                venue_longitude: '',
+                court_count_total: 1,
+                venue_description: '',
+            },
             form: {
                 name: "",
                 phone_contact: "",
@@ -781,6 +842,31 @@ export default {
         'form.longitude'(newVal) {
             this.updateMapMarker();
         }
+        async submitNewCluster() {
+            this.submittingCluster = true;
+            try {
+                await api('/api/owner/partner-applications/new-cluster', {
+                    method: 'POST',
+                    body: JSON.stringify(this.newClusterForm)
+                });
+                alert('Đã gửi yêu cầu đăng ký cụm sân mới thành công! Vui lòng vào mục Hồ sơ & Hợp đồng để theo dõi trạng thái phê duyệt.');
+                this.showNewClusterModal = false;
+                
+                // Reset form
+                this.newClusterForm = {
+                    venue_name: '',
+                    venue_address: '',
+                    venue_latitude: '',
+                    venue_longitude: '',
+                    court_count_total: 1,
+                    venue_description: '',
+                };
+            } catch (err) {
+                alert(err.message || 'Có lỗi xảy ra khi gửi yêu cầu.');
+            } finally {
+                this.submittingCluster = false;
+            }
+        },
     },
     created() {
         this.fetchClusters();
@@ -1201,6 +1287,36 @@ export default {
     align-items: center;
     padding: 16px 20px;
     border-bottom: 1px solid var(--sg-border, #e2e8f0);
+/* Modal Styles */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.modal-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--sg-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .modal-header h3 {
@@ -1263,5 +1379,19 @@ export default {
     font-size: 12px;
     color: rgba(15, 23, 42, 0.5);
     margin-bottom: 8px;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.modal-body {
+    padding: 24px;
 }
 </style>

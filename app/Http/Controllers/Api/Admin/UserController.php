@@ -6,18 +6,39 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\UserPermissionRevoke;
+use App\Services\Admin\AdminAuditService;
 use App\Services\Auth\RoleRedirectService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
-    public function __construct(private readonly RoleRedirectService $roleRedirectService)
-    {
+    private const STAFF_ROLES = [
+        'super_admin',
+        'admin',
+        'system_staff',
+        'content_moderator',
+        'complaint_handler',
+        'venue_manager',
+        'partner_manager',
+        'booking_support',
+        'finance_operator',
+        'policy_manager',
+        'staff_manager',
+        'venue_owner',
+        'venue_staff',
+    ];
+
+    public function __construct(
+        private readonly RoleRedirectService $roleRedirectService,
+        private readonly AdminAuditService $audit
+    ) {
     }
 
     public function index(Request $request): JsonResponse
@@ -74,6 +95,7 @@ class UserController extends Controller
 
         return response()->json([
             'data' => $paginatedUsers->items(),
+            'summary' => $this->accountSummary(),
             'meta' => [
                 'current_page' => $paginatedUsers->currentPage(),
                 'last_page' => $paginatedUsers->lastPage(),
@@ -81,6 +103,17 @@ class UserController extends Controller
                 'total' => $paginatedUsers->total(),
             ],
         ]);
+    }
+
+    private function accountSummary(): array
+    {
+        return [
+            'total' => User::query()->count(),
+            'active' => User::query()->where('status', 'active')->count(),
+            'warning' => count($this->warningUserIds()),
+            'locked' => User::query()->where('status', 'locked')->count(),
+            'pending_verify' => User::query()->where('status', 'pending_verify')->count(),
+        ];
     }
 
     public function show(string $id): JsonResponse
@@ -92,8 +125,17 @@ class UserController extends Controller
         return response()->json([
             'data' => [
                 'profile' => $this->payload($user),
+                'status_summary' => $this->statusSummary($user),
+                'role_summary' => [
+                    'roles' => $this->roleDetails($user),
+                    'primary_role_label' => $this->primaryRoleLabel($user->roles->pluck('name')->all()),
+                ],
                 'roles' => $this->roleDetails($user),
                 'permission_revokes' => $this->permissionRevokes($user->id),
+                'permission_summary' => [
+                    'revoked_count' => count($this->permissionRevokes($user->id)),
+                    'revokes' => $this->permissionRevokes($user->id),
+                ],
                 'warning_summary' => $this->warningSummary($user->id),
                 'reports_summary' => $this->reportSummary($user->id),
                 'complaints_summary' => $this->complaintSummary($user->id),
@@ -226,7 +268,10 @@ class UserController extends Controller
             'complaints_count_recent' => $complaints,
             'warning_count' => $warningCount,
             'warning_summary' => $this->warningLevelText($reports, $complaints),
+            'warning_level' => $this->warningLevelText($reports, $complaints)['level'],
+            'warning_label' => $this->warningLevelText($reports, $complaints)['label'],
             'wallet_balance' => $extras['wallet_balance'] ?? ($this->walletSummary($user->id)['balance'] ?? 0),
+            'wallet_balance_formatted' => $this->money($extras['wallet_balance'] ?? ($this->walletSummary($user->id)['balance'] ?? 0)),
             'actions_allowed' => [
                 'view_detail' => true,
                 'lock' => $user->status !== 'locked',
@@ -323,9 +368,22 @@ class UserController extends Controller
             'id' => $role->id,
             'name' => $role->name,
             'label' => $role->display_name ?: $this->roleLabel($role->name),
-            'scope_type' => $role->pivot?->scope_type,
-            'scope_id' => $role->pivot?->scope_id,
+            'scope_label' => $this->scopeLabel($role->pivot?->scope_type, $role->pivot?->scope_id),
         ])->values()->all();
+    }
+
+    private function statusSummary(User $user): array
+    {
+        return [
+            'status' => $user->status,
+            'status_label' => $this->statusLabel($user->status),
+            'reason' => $user->status_reason,
+            'lock_type' => $user->lock_type,
+            'lock_type_label' => $this->lockTypeLabel($user->lock_type),
+            'locked_at' => $user->locked_at,
+            'locked_until' => $user->locked_until,
+            'locked_by_name' => $user->relationLoaded('lockedBy') ? ($user->lockedBy?->full_name ?: $user->lockedBy?->username) : null,
+        ];
     }
 
     private function permissionRevokes(string $userId): array
@@ -335,16 +393,15 @@ class UserController extends Controller
         }
 
         return UserPermissionRevoke::query()
-            ->with(['permission:id,name,display_name', 'revokedBy:id,username,full_name'])
+            ->with(['permission:id,name,code', 'revokedBy:id,username,full_name'])
             ->where('user_id', $userId)
             ->latest('created_at')
             ->limit(20)
             ->get()
             ->map(fn (UserPermissionRevoke $revoke): array => [
                 'id' => $revoke->id,
-                'permission' => $revoke->permission?->display_name ?: $revoke->permission?->name,
-                'scope_type' => $revoke->scope_type,
-                'scope_id' => $revoke->scope_id,
+                'permission' => $revoke->permission?->name ?: $this->permissionLabel($revoke->permission?->code),
+                'scope_label' => $this->scopeLabel($revoke->scope_type, $revoke->scope_id),
                 'reason' => $revoke->reason,
                 'revoked_by_name' => $revoke->revokedBy?->full_name ?: $revoke->revokedBy?->username,
                 'created_at' => $revoke->created_at,
@@ -426,12 +483,12 @@ class UserController extends Controller
     private function walletSummary(string $userId): array
     {
         if (! Schema::hasTable('user_wallets')) {
-            return ['balance' => 0, 'locked_balance' => 0, 'status' => 'none', 'status_label' => 'Chưa có ví', 'ledgers' => []];
+            return ['balance' => 0, 'locked_balance' => 0, 'balance_formatted' => $this->money(0), 'locked_balance_formatted' => $this->money(0), 'status' => 'none', 'status_label' => 'Chưa có ví', 'ledgers' => []];
         }
 
         $wallet = DB::table('user_wallets')->where('user_id', $userId)->first();
         if (! $wallet) {
-            return ['balance' => 0, 'locked_balance' => 0, 'status' => 'none', 'status_label' => 'Chưa có ví', 'ledgers' => []];
+            return ['balance' => 0, 'locked_balance' => 0, 'balance_formatted' => $this->money(0), 'locked_balance_formatted' => $this->money(0), 'status' => 'none', 'status_label' => 'Chưa có ví', 'ledgers' => []];
         }
 
         $ledgers = Schema::hasTable('user_wallet_ledgers')
@@ -441,6 +498,8 @@ class UserController extends Controller
         return [
             'balance' => (float) $wallet->balance,
             'locked_balance' => (float) $wallet->locked_balance,
+            'balance_formatted' => $this->money($wallet->balance),
+            'locked_balance_formatted' => $this->money($wallet->locked_balance),
             'status' => $wallet->status,
             'status_label' => $this->walletStatusLabel($wallet->status ?? null),
             'ledgers' => $ledgers->map(fn ($ledger) => [
@@ -450,7 +509,9 @@ class UserController extends Controller
                 'type_label' => $this->walletLedgerTypeLabel($ledger->type ?? null),
                 'direction' => $ledger->direction ?? null,
                 'amount' => (float) ($ledger->amount ?? 0),
+                'amount_formatted' => $this->money($ledger->amount ?? 0),
                 'balance_after' => (float) ($ledger->balance_after ?? 0),
+                'balance_after_formatted' => $this->money($ledger->balance_after ?? 0),
                 'status' => $ledger->status ?? null,
                 'status_label' => $this->walletStatusLabel($ledger->status ?? null),
                 'created_at' => $ledger->created_at ?? null,
@@ -471,6 +532,7 @@ class UserController extends Controller
             'completed' => (clone $base)->where('status', 'completed')->count(),
             'cancelled' => (clone $base)->where('status', 'cancelled')->count(),
             'paid_total' => (float) (clone $base)->whereIn('status', ['confirmed', 'checked_in', 'completed'])->sum('total_price'),
+            'paid_total_formatted' => $this->money((clone $base)->whereIn('status', ['confirmed', 'checked_in', 'completed'])->sum('total_price')),
         ];
     }
 
@@ -503,6 +565,7 @@ class UserController extends Controller
                 'booking_code' => $booking->booking_code,
                 'booking_date' => $booking->booking_date,
                 'total_price' => (float) $booking->total_price,
+                'total_price_formatted' => $this->money($booking->total_price),
                 'status' => $booking->status,
                 'status_label' => $this->bookingStatusLabel($booking->status),
                 'payment_option' => $booking->payment_option,
@@ -579,6 +642,47 @@ class UserController extends Controller
         }
 
         return (string) $value;
+    }
+
+    private function scopeLabel(?string $scopeType, ?string $scopeId): string
+    {
+        $zeroUuid = '00000000-0000-0000-0000-000000000000';
+        if (! $scopeType || $scopeType === 'system' || ! $scopeId || $scopeId === $zeroUuid) {
+            return 'Toàn hệ thống';
+        }
+
+        return match ($scopeType) {
+            'venue', 'venue_cluster' => 'Cụm sân: ' . ($this->lookupName('venue_clusters', $scopeId) ?: 'không xác định'),
+            'court_type' => 'Loại sân: ' . ($this->lookupName('court_types', $scopeId) ?: 'không xác định'),
+            'court', 'venue_court' => 'Sân con: ' . ($this->lookupName('venue_courts', $scopeId) ?: 'không xác định'),
+            default => 'Phạm vi nghiệp vụ',
+        };
+    }
+
+    private function lookupName(string $table, string $id): ?string
+    {
+        if (! Schema::hasTable($table)) {
+            return null;
+        }
+
+        return DB::table($table)->where('id', $id)->value('name');
+    }
+
+    private function permissionLabel(?string $code): string
+    {
+        if (! $code) {
+            return 'Quyền không xác định';
+        }
+
+        return [
+            'policy.view' => 'Xem chính sách',
+            'policy.create' => 'Tạo chính sách',
+            'policy.update' => 'Cập nhật chính sách',
+            'policy.publish' => 'Áp dụng chính sách',
+            'policy.rule.manage' => 'Cấu hình xử lý chính sách',
+            'user.view' => 'Xem người dùng',
+            'user.lock' => 'Khóa/mở tài khoản',
+        ][$code] ?? str_replace(['.', '_'], ' ', $code);
     }
 
     private function statusLabel(?string $status): string
@@ -694,6 +798,20 @@ class UserController extends Controller
         ][$type] ?? ($type ?: 'Biến động');
     }
 
+    private function lockTypeLabel(?string $type): string
+    {
+        return [
+            'temporary' => 'Khóa tạm thời',
+            'permanent' => 'Khóa vĩnh viễn',
+            'auto' => 'Khóa tự động',
+        ][$type] ?? ($type ?: 'Không áp dụng');
+    }
+
+    private function money(mixed $value): string
+    {
+        return number_format((float) $value, 0, ',', '.') . ' đ';
+    }
+
     private function bookingStatusLabel(?string $status): string
     {
         return [
@@ -756,7 +874,7 @@ class UserController extends Controller
 
         AuditLog::query()->create([
             'actor_id' => $actor->id,
-            'actor_type' => User::class,
+            'actor_type' => $this->adminActorType($actor),
             'module' => 'admin_users',
             'action' => $action,
             'entity_type' => 'users',
@@ -768,5 +886,208 @@ class UserController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 500),
         ]);
+    }
+
+    private function adminActorType(User $actor): string
+    {
+        return $this->hasRole($actor, 'super_admin') ? 'super_admin' : 'admin';
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'staff.create');
+
+        $data = $request->validate([
+            'username' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[a-zA-Z0-9_]+$/', 'unique:users,username'],
+            'full_name' => ['required', 'string', 'max:100'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:20', 'unique:users,phone'],
+            'password' => ['required', 'string', 'min:6'],
+            'roles' => ['required', 'array'],
+            'roles.*' => ['integer', 'exists:roles,id'],
+        ], [
+            'username.required' => 'Vui lòng nhập tên đăng nhập.',
+            'username.unique' => 'Tên đăng nhập đã tồn tại.',
+            'username.regex' => 'Tên đăng nhập chỉ bao gồm chữ, số và gạch dưới.',
+            'email.required' => 'Vui lòng nhập email.',
+            'email.unique' => 'Email đã tồn tại.',
+            'phone.unique' => 'Số điện thoại đã tồn tại.',
+            'password.required' => 'Vui lòng nhập mật khẩu.',
+            'password.min' => 'Mật khẩu phải có ít nhất 6 ký tự.',
+            'roles.required' => 'Vui lòng chọn vai trò.',
+        ]);
+
+        /** @var User $actor */
+        $actor = $request->user();
+        $actorRoles = $actor->roles()->pluck('roles.name')->all();
+
+        $targetRoleNames = DB::table('roles')
+            ->whereIn('id', $data['roles'])
+            ->pluck('name')
+            ->all();
+
+        $hasAdminRole = array_intersect($targetRoleNames, ['super_admin', 'admin']);
+        if ($hasAdminRole && !in_array('super_admin', $actorRoles, true)) {
+            throw ValidationException::withMessages([
+                'roles' => 'Chỉ Super Admin mới được phép tạo hoặc gán vai trò Admin.',
+            ]);
+        }
+
+        $user = DB::transaction(function () use ($data, $actor): User {
+            $created = User::query()->create([
+                'username' => $data['username'],
+                'full_name' => $data['full_name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'] ?? null,
+                'password' => Hash::make($data['password']),
+                'status' => 'active',
+            ]);
+
+            foreach ($data['roles'] as $roleId) {
+                DB::table('user_roles')->insert([
+                    'user_id' => $created->id,
+                    'role_id' => $roleId,
+                    'granted_by' => $actor->id,
+                    'created_at' => now(),
+                ]);
+            }
+
+            return $created;
+        });
+
+        $freshUser = $user->fresh('roles');
+        $payload = $this->payload($freshUser);
+
+        $this->audit->log(
+            $request,
+            'staff',
+            'user.created',
+            'users',
+            $freshUser->id,
+            [],
+            $payload,
+            ['severity' => 'warning']
+        );
+
+        return response()->json([
+            'message' => 'Tạo tài khoản nhân sự thành công.',
+            'data' => $payload,
+        ], 201);
+    }
+
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, ['staff.assign_role', 'staff.create']);
+
+        $user = User::query()->findOrFail($id);
+
+        $data = $request->validate([
+            'full_name' => ['required', 'string', 'max:100'],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['nullable', 'string', 'max:20', Rule::unique('users', 'phone')->ignore($user->id)],
+            'password' => ['nullable', 'string', 'min:6'],
+            'roles' => ['required', 'array'],
+            'roles.*' => ['integer', 'exists:roles,id'],
+        ], [
+            'full_name.required' => 'Vui lòng nhập họ tên.',
+            'email.required' => 'Vui lòng nhập email.',
+            'email.unique' => 'Email đã tồn tại.',
+            'phone.unique' => 'Số điện thoại đã tồn tại.',
+            'password.min' => 'Mật khẩu phải có ít nhất 6 ký tự.',
+            'roles.required' => 'Vui lòng chọn vai trò.',
+        ]);
+
+        /** @var User $actor */
+        $actor = $request->user();
+        $actorRoles = $actor->roles()->pluck('roles.name')->all();
+
+        $targetCurrentRoles = $user->roles()->pluck('roles.name')->all();
+        $targetNewRoleNames = DB::table('roles')
+            ->whereIn('id', $data['roles'])
+            ->pluck('name')
+            ->all();
+
+        $hasCurrentAdmin = array_intersect($targetCurrentRoles, ['super_admin', 'admin']);
+        $hasNewAdmin = array_intersect($targetNewRoleNames, ['super_admin', 'admin']);
+
+        if (($hasCurrentAdmin || $hasNewAdmin) && !in_array('super_admin', $actorRoles, true)) {
+            throw ValidationException::withMessages([
+                'roles' => 'Chỉ Super Admin mới được phép chỉnh sửa hoặc gán vai trò Admin.',
+            ]);
+        }
+
+        $oldValues = $this->payload($user);
+
+        DB::transaction(function () use ($user, $data, $actor): void {
+            $updateData = [
+                'full_name' => $data['full_name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'] ?? null,
+            ];
+
+            if (!empty($data['password'])) {
+                $updateData['password'] = Hash::make($data['password']);
+            }
+
+            $user->update($updateData);
+
+            DB::table('user_roles')->where('user_id', $user->id)->delete();
+            foreach ($data['roles'] as $roleId) {
+                DB::table('user_roles')->insert([
+                    'user_id' => $user->id,
+                    'role_id' => $roleId,
+                    'granted_by' => $actor->id,
+                    'created_at' => now(),
+                ]);
+            }
+        });
+
+        $freshUser = $user->fresh('roles');
+        $newValues = $this->payload($freshUser);
+
+        $this->audit->log(
+            $request,
+            'staff',
+            'user.updated',
+            'users',
+            $freshUser->id,
+            $oldValues,
+            $newValues,
+            ['severity' => 'warning']
+        );
+
+        return response()->json([
+            'message' => 'Cập nhật tài khoản nhân sự thành công.',
+            'data' => $newValues,
+        ]);
+    }
+
+    /**
+     * @throws AuthorizationException
+     */
+    private function authorizePermission(Request $request, string|array $permissions): void
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            throw new AuthorizationException('Bạn cần đăng nhập để thực hiện thao tác này.');
+        }
+
+        $roles = $user->roles()->pluck('roles.name')->all();
+
+        if (array_intersect($roles, ['super_admin', 'admin'])) {
+            return;
+        }
+
+        $hasPermission = DB::table('user_roles')
+            ->join('role_permissions', 'role_permissions.role_id', '=', 'user_roles.role_id')
+            ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('user_roles.user_id', $user->id)
+            ->whereIn('permissions.code', (array) $permissions)
+            ->exists();
+
+        if (! $hasPermission) {
+            throw new AuthorizationException('Bạn không có quyền thực hiện thao tác này.');
+        }
     }
 }

@@ -23,8 +23,10 @@ class StaffController extends Controller
     public function index(Request $request): JsonResponse
     {
         $cluster = $this->ownedCluster($request, $request->query('venue_cluster_id'));
+        $keyword = trim((string) $request->query('keyword', ''));
+        $status = $request->query('status');
 
-        $staff = VenueStaffAssignment::query()
+        $allStaff = VenueStaffAssignment::query()
             ->with(['user.roles:id,name,display_name', 'courtType:id,name'])
             ->where('venue_cluster_id', $cluster->id)
             ->latest()
@@ -41,19 +43,37 @@ class StaffController extends Controller
                     'email' => $user->email,
                     'phone' => $user->phone,
                     'status' => $user->status,
+                    'status_label' => $this->statusLabel($user->status),
                     'roles' => $user->roles->pluck('name')->values()->all(),
+                    'role_label' => 'Nhân viên sân',
                     'assignments' => $assignments->map(fn (VenueStaffAssignment $assignment): array => [
                         'id' => $assignment->id,
                         'scope_type' => $assignment->scope_type,
+                        'scope_type_label' => $assignment->scope_type === 'all_cluster' ? 'Toàn bộ cụm sân' : 'Theo loại sân',
                         'court_type_id' => $assignment->court_type_id,
                         'court_type_name' => $assignment->courtType?->name,
                         'scope_key' => $assignment->scope_key,
                         'status' => $assignment->status,
+                        'status_label' => $assignment->status === 'active' ? 'Đang phân công' : 'Ngưng phân công',
                         'created_at' => $assignment->created_at,
                     ])->values()->all(),
                 ];
             })
             ->values();
+
+        $staff = $allStaff
+            ->when($keyword !== '', fn ($items) => $items->filter(function (array $item) use ($keyword): bool {
+                $haystack = mb_strtolower(implode(' ', [
+                    $item['full_name'],
+                    $item['username'],
+                    $item['email'],
+                    $item['phone'],
+                    collect($item['assignments'])->pluck('court_type_name')->filter()->implode(' '),
+                ]));
+
+                return str_contains($haystack, mb_strtolower($keyword));
+            })->values())
+            ->when($status, fn ($items) => $items->where('status', $status)->values());
 
         $courtTypes = DB::table('venue_courts')
             ->join('court_types', 'court_types.id', '=', 'venue_courts.court_type_id')
@@ -65,6 +85,13 @@ class StaffController extends Controller
 
         return response()->json([
             'data' => $staff,
+            'summary' => [
+                'total' => $allStaff->count(),
+                'active' => $allStaff->where('status', 'active')->count(),
+                'locked' => $allStaff->where('status', 'locked')->count(),
+                'deactivated' => $allStaff->where('status', 'deactivated')->count(),
+                'all_cluster' => $allStaff->filter(fn (array $item): bool => collect($item['assignments'])->contains(fn ($assignment) => $assignment['scope_type'] === 'all_cluster' && $assignment['status'] === 'active'))->count(),
+            ],
             'meta' => [
                 'venue_cluster' => $cluster,
                 'court_types' => $courtTypes,
@@ -263,6 +290,16 @@ class StaffController extends Controller
                 'court_type_ids' => 'Loại sân được chọn không thuộc cụm sân này.',
             ]);
         }
+    }
+
+    private function statusLabel(?string $status): string
+    {
+        return [
+            'active' => 'Đang hoạt động',
+            'locked' => 'Đã khóa',
+            'deactivated' => 'Đã tạm ngưng',
+            'pending_verify' => 'Chờ xác thực',
+        ][$status] ?? 'Không xác định';
     }
 
     private function syncAssignments(Request $request, User $staff, string $clusterId, string $scopeType, array $courtTypeIds): void
