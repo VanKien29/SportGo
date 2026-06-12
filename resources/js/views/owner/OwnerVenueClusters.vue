@@ -553,6 +553,51 @@
                         </button>
                     </div>
                 </form>
+        <!-- Modal đăng ký cụm sân mới -->
+        <div v-if="showNewClusterModal" class="modal-backdrop">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Đăng ký cụm sân mới</h3>
+                    <button class="close-btn" @click="showNewClusterModal = false">
+                        <AppIcon name="x" size="20" />
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="submitNewCluster">
+                        <div class="form-group">
+                            <label>Tên cụm sân mới *</label>
+                            <input v-model="newClusterForm.venue_name" type="text" required class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Địa chỉ cụm sân *</label>
+                            <input v-model="newClusterForm.venue_address" type="text" required class="form-control" />
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Vĩ độ (Latitude) *</label>
+                                <input v-model="newClusterForm.venue_latitude" type="number" step="any" required class="form-control" />
+                            </div>
+                            <div class="form-group">
+                                <label>Kinh độ (Longitude) *</label>
+                                <input v-model="newClusterForm.venue_longitude" type="number" step="any" required class="form-control" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tổng số sân *</label>
+                            <input v-model="newClusterForm.court_count_total" type="number" min="1" required class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Mô tả tiện ích / dịch vụ</label>
+                            <textarea v-model="newClusterForm.venue_description" rows="3" class="form-control"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-outline" @click="showNewClusterModal = false">Hủy</button>
+                            <button type="submit" class="btn btn-primary" :disabled="submittingCluster">
+                                {{ submittingCluster ? 'Đang gửi...' : 'Gửi yêu cầu' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -594,6 +639,16 @@ export default {
             availableAmenities: [],
             imagesList: [],
             uploadingImage: false,
+            showNewClusterModal: false,
+            submittingCluster: false,
+            newClusterForm: {
+                venue_name: '',
+                venue_address: '',
+                venue_latitude: '',
+                venue_longitude: '',
+                court_count_total: 1,
+                venue_description: '',
+            },
             form: {
                 name: "",
                 phone_contact: "",

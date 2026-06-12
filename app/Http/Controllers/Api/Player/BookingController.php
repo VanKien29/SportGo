@@ -8,6 +8,7 @@ use App\Models\PriceSlot;
 use App\Models\SlotLock;
 use App\Models\VenueCourt;
 use App\Services\BookingService;
+use App\Services\Policies\RefundCancellationPolicyService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -16,10 +17,12 @@ use Illuminate\Validation\ValidationException;
 class BookingController extends Controller
 {
     protected BookingService $bookingService;
+    protected RefundCancellationPolicyService $refundCancellationPolicyService;
 
-    public function __construct(BookingService $bookingService)
+    public function __construct(BookingService $bookingService, RefundCancellationPolicyService $refundCancellationPolicyService)
     {
         $this->bookingService = $bookingService;
+        $this->refundCancellationPolicyService = $refundCancellationPolicyService;
     }
 
     /**
@@ -157,6 +160,35 @@ class BookingController extends Controller
         $bookingArray['time_left_seconds'] = $timeLeftSeconds;
 
         return response()->json($bookingArray);
+    }
+
+    public function cancel(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:1000',
+        ]);
+
+        $booking = Booking::findOrFail($id);
+
+        try {
+            $result = $this->refundCancellationPolicyService->cancelBooking(
+                $booking,
+                $request->user(),
+                null,
+                $validated['reason'] ?? null
+            );
+
+            return response()->json([
+                'message' => 'Đã hủy booking theo chính sách.',
+                ...$result,
+            ]);
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (Exception $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
     }
 
     private function ensureValidTimeRange(string $startTime, string $endTime): void

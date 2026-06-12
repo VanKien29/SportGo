@@ -17,8 +17,10 @@ import AdminLayout from "../views/admin/AdminLayout.vue";
 import AdminDashboard from "../views/admin/AdminDashboard.vue";
 import AdminProfile from "../views/admin/AdminProfile.vue";
 import AdminUsers from "../views/admin/AdminUsers.vue";
+import AdminStaffs from "../views/admin/AdminStaffs.vue";
 import AdminUserDetail from "../views/admin/AdminUserDetail.vue";
 import AdminVouchers from "../views/admin/AdminVouchers.vue";
+import AdminVoucherDetail from "../views/admin/AdminVoucherDetail.vue";
 import AdminPolicies from "../views/admin/AdminPolicies.vue";
 import AdminPolicyDetail from "../views/admin/AdminPolicyDetail.vue";
 import AdminRoles from "../views/admin/AdminRoles.vue";
@@ -89,8 +91,10 @@ const routes = [
             },
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
+            { path: "staffs", name: "admin-staffs", component: AdminStaffs },
             { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail },
             { path: "vouchers", name: "admin-vouchers", component: AdminVouchers },
+            { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail },
             {
                 path: "payments",
                 name: "admin-payments",
@@ -213,6 +217,16 @@ const routes = [
                 name: "owner-venue-courts",
                 redirect: { name: "owner-venue-clusters" },
             },
+            {
+                path: "bookings",
+                name: "owner-bookings",
+                component: () => import("../views/owner/OwnerBookings.vue"),
+            },
+            {
+                path: "counter-booking",
+                name: "owner-counter-booking",
+                component: () => import("../views/owner/OwnerCounterBooking.vue"),
+            },
             { path: "pricing", name: "owner-pricing", component: OwnerPricing },
             {
                 path: "platform-fees",
@@ -229,6 +243,16 @@ const routes = [
             { path: "wallet", name: "owner-wallet", component: OwnerWallet },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
             { path: "profile", name: "owner-profile", component: Profile },
+            {
+                path: "partner-profile",
+                name: "owner-partner-profile",
+                component: () => import("../views/owner/OwnerPartnerProfile.vue"),
+            },
+            {
+                path: "finance",
+                name: "owner-finance",
+                component: () => import("../views/owner/OwnerFinance.vue"),
+            },
             { path: "", redirect: { name: "owner-dashboard" } },
         ],
     },

@@ -16,34 +16,9 @@ class PolicyOverrideConstraintsTableSeeder extends Seeder
             return;
         }
 
-        $refundPolicy = SystemPolicy::query()->where('key', 'refund')->where('version', 1)->first();
         $platformFeePolicy = SystemPolicy::query()->where('key', 'platform_fee')->where('version', 1)->first();
 
         $constraints = [
-            [
-                $refundPolicy,
-                $this->findRule($refundPolicy, 'refund_percent_by_cancel_time'),
-                'refund_percent_by_cancel_time',
-                'refund_percent_minimum',
-                'Mức hoàn tiền tối thiểu',
-                'venue_can_be_more_favorable_to_customer',
-                80,
-                100,
-                null,
-                'Chính sách sân không được hoàn thấp hơn mức tối thiểu của hệ thống.',
-            ],
-            [
-                $refundPolicy,
-                $this->findRule($refundPolicy, 'owner_confirm_required_before_admin_transfer'),
-                'owner_confirm_required_before_admin_transfer',
-                'owner_confirm_required',
-                'Chủ sân phải xác nhận trước khi admin hoàn tiền',
-                'exact_only',
-                null,
-                null,
-                [true],
-                'Chủ sân phải xác nhận yêu cầu hoàn trước khi admin xử lý chuyển tiền.',
-            ],
             [
                 $platformFeePolicy,
                 $this->findRule($platformFeePolicy, 'platform_fee_overdue_lock'),

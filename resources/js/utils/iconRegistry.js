@@ -67,6 +67,12 @@ export const ICON_REGISTRY = {
     ['rect', { x: 2, y: 5, width: 20, height: 14, rx: 2 }],
     ['path', { d: 'M2 10h20' }],
   ],
+  qrCode: [
+    ['rect', { x: 3, y: 3, width: 7, height: 7, rx: 1 }],
+    ['rect', { x: 14, y: 3, width: 7, height: 7, rx: 1 }],
+    ['rect', { x: 3, y: 14, width: 7, height: 7, rx: 1 }],
+    ['path', { d: 'M14 14h2v2h-2zM18 14h3M14 18h3M19 18h2v3h-3M14 21h1' }],
+  ],
   banknote: [
     ['rect', { x: 2, y: 6, width: 20, height: 12, rx: 2 }],
     ['circle', { cx: 12, cy: 12, r: 3 }],

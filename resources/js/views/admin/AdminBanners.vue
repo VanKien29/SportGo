@@ -372,8 +372,8 @@ export default {
       this.message = '';
     },
     imageSrc(banner) {
-      if (banner.image_url) return banner.image_url;
       if (banner.image_path) return `/storage/${banner.image_path}`;
+      if (banner.image_url) return banner.image_url;
       return '';
     },
     positionLabel(position) {
