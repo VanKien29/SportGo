@@ -207,7 +207,7 @@ class BookingService
             $courtsQuery->where('court_type_id', $courtTypeId);
         }
 
-        $courts = $courtsQuery->get(['id', 'venue_cluster_id', 'court_type_id', 'name', 'status', 'sort_order']);
+        $courts = $courtsQuery->get(['id', 'venue_cluster_id', 'court_type_id', 'name', 'status', 'sort_order', 'layout_x', 'layout_y', 'layout_w', 'layout_h', 'layout_rotation']);
         $courtIds = $courts->pluck('id');
         $timeSlots = $this->buildTimeSlots();
         $busyIntervals = $this->busyIntervals($cluster->id, $courtIds, $bookingDate);

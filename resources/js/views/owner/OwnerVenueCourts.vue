@@ -33,30 +33,187 @@
       <button class="btn btn-primary" @click="openCreateModal">Thêm sân con ngay</button>
     </div>
 
-    <!-- Grid List of Courts -->
-    <div v-else class="courts-grid">
-      <div v-for="court in courts" :key="court.id" class="court-card card">
-        <div class="court-header">
-          <h3 class="court-name">{{ court.name }}</h3>
-          <span class="status-badge" :class="court.status">
-            {{ formatStatus(court.status) }}
-          </span>
+    <div v-else class="view-content-wrapper">
+      <!-- Tabs Toggle Bar -->
+      <div class="layout-toggle-tabs">
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeView === 'list' }" 
+          @click="activeView = 'list'"
+        >
+          <span>📋 Danh sách sân con</span>
+        </button>
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeView === 'layout' }" 
+          @click="activeView = 'layout'"
+        >
+          <span>📐 Sắp xếp sơ đồ trực quan</span>
+        </button>
+      </div>
+
+      <!-- Grid List of Courts -->
+      <div v-if="activeView === 'list'" class="courts-grid">
+        <div v-for="court in courts" :key="court.id" class="court-card card">
+          <div class="court-header">
+            <h3 class="court-name">{{ court.name }}</h3>
+            <span class="status-badge" :class="court.status">
+              {{ formatStatus(court.status) }}
+            </span>
+          </div>
+
+          <div class="court-body">
+            <div class="info-row">
+              <span class="label">Loại sân:</span>
+              <span class="value">{{ court.court_type?.name }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Sơ đồ:</span>
+              <span class="value">
+                <span v-if="court.layout_x !== null" class="badge-placed">📍 Đã xếp ({{ Math.round(court.layout_x) }}, {{ Math.round(court.layout_y) }})</span>
+                <span v-else class="badge-unplaced">⏳ Chưa xếp</span>
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="label">Thứ tự hiển thị:</span>
+              <span class="value">{{ court.sort_order }}</span>
+            </div>
+          </div>
+
+          <div class="court-actions">
+            <ActionIconButton icon="pencil" label="Sửa sân con" @click="openEditModal(court)" />
+            <ActionIconButton icon="trash" label="Xóa sân con" variant="danger" @click="confirmDelete(court)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Visual Layout Editor Workspace -->
+      <div v-else-if="activeView === 'layout'" class="layout-editor-workspace">
+        <div class="editor-toolbar">
+          <div class="toolbar-left">
+            <button class="btn btn-primary" @click="saveLayout" :disabled="savingLayout">
+              <span>💾 {{ savingLayout ? 'Đang lưu...' : 'Lưu sơ đồ' }}</span>
+            </button>
+            <button class="btn btn-outline" @click="autoArrange">
+              <span>⚡ Tự động sắp xếp</span>
+            </button>
+            <button class="btn btn-outline btn-danger-outline" @click="clearLayout">
+              <span>🗑️ Xóa toàn bộ</span>
+            </button>
+          </div>
+          <div class="toolbar-right">
+            <span class="info-badge">Bản đồ ảo: 1000 x 600 px | Kéo thả để di chuyển | Chọn để xoay/đổi cỡ</span>
+          </div>
         </div>
 
-        <div class="court-body">
-          <div class="info-row">
-            <span class="label">Loại sân:</span>
-            <span class="value">{{ court.court_type?.name }}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Thứ tự hiển thị:</span>
-            <span class="value">{{ court.sort_order }}</span>
-          </div>
-        </div>
+        <div class="editor-body">
+          <!-- Canvas area -->
+          <div 
+            class="canvas-container"
+            ref="canvasContainer"
+            @mousemove="handleDrag"
+            @mouseup="endDrag"
+            @mouseleave="endDrag"
+            @click="selectedCourtId = null"
+          >
+            <div class="canvas-grid-bg"></div>
 
-        <div class="court-actions">
-          <ActionIconButton icon="pencil" label="Sửa sân con" @click="openEditModal(court)" />
-          <ActionIconButton icon="trash" label="Xóa sân con" variant="danger" @click="confirmDelete(court)" />
+            <!-- Placed Courts -->
+            <div
+              v-for="court in placedCourts"
+              :key="court.id"
+              class="canvas-court-element"
+              :class="{ selected: selectedCourtId === court.id, dragging: draggingCourtId === court.id }"
+              :style="getCourtStyle(court)"
+              @mousedown.stop="startDrag($event, court)"
+              @click.stop="selectCourt(court)"
+            >
+              <CourtVisual
+                :name="court.name"
+                :court-type-name="court.court_type?.name"
+                status="active"
+                :width="court.layout_w || getDefaultWidth(court)"
+                :height="court.layout_h || getDefaultHeight(court)"
+                :rotation="court.layout_rotation || 0"
+                :show-type="false"
+              />
+            </div>
+          </div>
+
+          <!-- Sidebar (Unplaced + Inspector) -->
+          <div class="editor-sidebar">
+            <!-- Inspector Panel -->
+            <div v-if="selectedCourt" class="sidebar-section inspector-panel">
+              <h4 class="section-title">🔍 Thông tin: {{ selectedCourt.name }}</h4>
+              <div class="inspector-fields">
+                <div class="field-row">
+                  <span class="label">BỘ MÔN:</span>
+                  <span class="value">{{ selectedCourt.court_type?.name }}</span>
+                </div>
+                
+                <div class="field-group">
+                  <label>Kích thước (px):</label>
+                  <div class="input-row">
+                    <input type="number" v-model.number="selectedCourt.layout_w" placeholder="W" @input="validateSize(selectedCourt)" />
+                    <span class="x">x</span>
+                    <input type="number" v-model.number="selectedCourt.layout_h" placeholder="H" @input="validateSize(selectedCourt)" />
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <label>Tọa độ (X, Y):</label>
+                  <div class="input-row">
+                    <input type="number" v-model.number="selectedCourt.layout_x" placeholder="X" @input="validateCoords(selectedCourt)" />
+                    <span class="comma">,</span>
+                    <input type="number" v-model.number="selectedCourt.layout_y" placeholder="Y" @input="validateCoords(selectedCourt)" />
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <label>Góc xoay: {{ selectedCourt.layout_rotation || 0 }}°</label>
+                  <div class="rotation-control">
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="359" 
+                      v-model.number="selectedCourt.layout_rotation" 
+                      class="rotation-slider" 
+                    />
+                    <button type="button" class="btn btn-outline btn-xs btn-rotate" @click="rotateSelected90">
+                      <span>🔄 Xoay +90°</span>
+                    </button>
+                  </div>
+                </div>
+
+                <button type="button" class="btn btn-outline btn-danger-outline btn-block" @click="unplaceCourt(selectedCourt)">
+                  <span>🚫 Gỡ khỏi sơ đồ</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Unplaced list -->
+            <div class="sidebar-section unplaced-list-section">
+              <h4 class="section-title">📦 Sân chưa xếp ({{ unplacedCourts.length }})</h4>
+              <p class="section-desc">Click vào sân để đưa vào bản đồ rồi kéo thả sắp xếp:</p>
+              <div class="unplaced-items">
+                <div 
+                  v-for="court in unplacedCourts" 
+                  :key="court.id" 
+                  class="unplaced-court-item"
+                  @click="placeCourt(court)"
+                >
+                  <div class="item-header">
+                    <div class="item-name">{{ court.name }}</div>
+                    <span class="item-add-hint">📍 Xếp sân</span>
+                  </div>
+                  <div class="item-type">{{ court.court_type?.name }}</div>
+                </div>
+                <div v-if="unplacedCourts.length === 0" class="empty-unplaced">
+                  Đã xếp tất cả các sân vào sơ đồ.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -154,12 +311,13 @@
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import CourtVisual from '../../components/CourtVisual.vue';
 import { venueClusterService } from '../../services/venueClusters';
 import { courtTypeService } from '../../services/courtTypes';
 
 export default {
   name: 'OwnerVenueCourts',
-  components: { ActionIconButton, AppIcon },
+  components: { ActionIconButton, AppIcon, CourtVisual },
   data() {
     return {
       clusterId: this.$route.query.venue_cluster_id || localStorage.getItem('selected_cluster') || '',
@@ -179,6 +337,12 @@ export default {
         sort_order: 1,
       },
       showTypeDropdown: false,
+      activeView: 'list',
+      selectedCourtId: null,
+      draggingCourtId: null,
+      dragStartX: 0,
+      dragStartY: 0,
+      savingLayout: false,
     };
   },
   computed: {
@@ -200,6 +364,15 @@ export default {
 
       // Chỉ hiển thị các nhóm bộ môn có cấu hình sân con
       return groups.filter(g => g.children.length > 0);
+    },
+    placedCourts() {
+      return this.courts.filter(c => c.layout_x !== null && c.layout_y !== null);
+    },
+    unplacedCourts() {
+      return this.courts.filter(c => c.layout_x === null || c.layout_y === null);
+    },
+    selectedCourt() {
+      return this.courts.find(c => c.id === this.selectedCourtId) || null;
     }
   },
   methods: {
@@ -334,6 +507,150 @@ export default {
         } catch (err) {
           alert(err.message || 'Không thể xóa sân con.');
         }
+      }
+    },
+    placeCourt(court) {
+      court.layout_x = 420;
+      court.layout_y = 220;
+      court.layout_w = this.getDefaultWidth(court);
+      court.layout_h = this.getDefaultHeight(court);
+      court.layout_rotation = 0;
+      this.selectedCourtId = court.id;
+    },
+    unplaceCourt(court) {
+      court.layout_x = null;
+      court.layout_y = null;
+      if (this.selectedCourtId === court.id) {
+        this.selectedCourtId = null;
+      }
+    },
+    getDefaultWidth(court) {
+      const typeName = (court.court_type?.name || '').toLowerCase();
+      if (typeName.includes('bóng đá') || typeName.includes('football')) {
+        return typeName.includes('11') ? 240 : 160;
+      }
+      if (typeName.includes('cầu lông') || typeName.includes('badminton')) return 60;
+      if (typeName.includes('pickleball')) return 60;
+      if (typeName.includes('tennis')) return 70;
+      if (typeName.includes('bóng rổ') || typeName.includes('basketball')) return 140;
+      if (typeName.includes('bóng chuyền') || typeName.includes('volleyball')) return 120;
+      return 80;
+    },
+    getDefaultHeight(court) {
+      const typeName = (court.court_type?.name || '').toLowerCase();
+      if (typeName.includes('bóng đá') || typeName.includes('football')) {
+        return typeName.includes('11') ? 150 : 100;
+      }
+      if (typeName.includes('cầu lông') || typeName.includes('badminton')) return 130;
+      if (typeName.includes('pickleball')) return 130;
+      if (typeName.includes('tennis')) return 150;
+      if (typeName.includes('bóng rổ') || typeName.includes('basketball')) return 80;
+      if (typeName.includes('bóng chuyền') || typeName.includes('volleyball')) return 60;
+      return 80;
+    },
+    rotateSelected90() {
+      const court = this.selectedCourt;
+      if (court) {
+        court.layout_rotation = ((court.layout_rotation || 0) + 90) % 360;
+      }
+    },
+    getCourtStyle(court) {
+      return {
+        left: `${court.layout_x}px`,
+        top: `${court.layout_y}px`,
+        width: `${court.layout_w || this.getDefaultWidth(court)}px`,
+        height: `${court.layout_h || this.getDefaultHeight(court)}px`
+      };
+    },
+    startDrag(event, court) {
+      this.draggingCourtId = court.id;
+      this.selectedCourtId = court.id;
+      this.dragStartX = event.clientX - (court.layout_x || 0);
+      this.dragStartY = event.clientY - (court.layout_y || 0);
+    },
+    handleDrag(event) {
+      if (!this.draggingCourtId) return;
+      const court = this.courts.find(c => c.id === this.draggingCourtId);
+      if (!court) return;
+      
+      let newX = event.clientX - this.dragStartX;
+      let newY = event.clientY - this.dragStartY;
+      
+      const w = court.layout_w || this.getDefaultWidth(court);
+      const h = court.layout_h || this.getDefaultHeight(court);
+      
+      newX = Math.max(0, Math.min(1000 - w, newX));
+      newY = Math.max(0, Math.min(600 - h, newY));
+      
+      court.layout_x = newX;
+      court.layout_y = newY;
+    },
+    endDrag() {
+      this.draggingCourtId = null;
+    },
+    selectCourt(court) {
+      this.selectedCourtId = court.id;
+    },
+    validateSize(court) {
+      if (!court) return;
+      if (court.layout_w < 10) court.layout_w = 10;
+      if (court.layout_w > 1000) court.layout_w = 1000;
+      if (court.layout_h < 10) court.layout_h = 10;
+      if (court.layout_h > 600) court.layout_h = 600;
+    },
+    validateCoords(court) {
+      if (!court) return;
+      const w = court.layout_w || this.getDefaultWidth(court);
+      const h = court.layout_h || this.getDefaultHeight(court);
+      if (court.layout_x < 0) court.layout_x = 0;
+      if (court.layout_x > 1000 - w) court.layout_x = 1000 - w;
+      if (court.layout_y < 0) court.layout_y = 0;
+      if (court.layout_y > 600 - h) court.layout_y = 600 - h;
+    },
+    async saveLayout() {
+      this.savingLayout = true;
+      try {
+        const layoutData = {
+          courts: this.courts.map(c => ({
+            id: c.id,
+            layout_x: c.layout_x,
+            layout_y: c.layout_y,
+            layout_w: c.layout_w,
+            layout_h: c.layout_h,
+            layout_rotation: c.layout_rotation
+          }))
+        };
+        await venueClusterService.updateCourtsLayout(layoutData);
+        alert('Sơ đồ sân con đã được lưu thành công.');
+        await this.initData();
+      } catch (err) {
+        alert(err.message || 'Lỗi khi lưu sơ đồ.');
+      } finally {
+        this.savingLayout = false;
+      }
+    },
+    autoArrange() {
+      if (confirm('Bạn có chắc chắn muốn tự động sắp xếp tất cả các sân không? Thao tác này sẽ ghi đè các vị trí hiện tại.')) {
+        this.courts.forEach((court, index) => {
+          const w = this.getDefaultWidth(court);
+          const h = this.getDefaultHeight(court);
+          const col = index % 4;
+          const row = Math.floor(index / 4);
+          court.layout_x = 50 + col * 230;
+          court.layout_y = 50 + row * 180;
+          court.layout_w = w;
+          court.layout_h = h;
+          court.layout_rotation = 0;
+        });
+      }
+    },
+    clearLayout() {
+      if (confirm('Bạn có muốn gỡ bỏ toàn bộ sân con khỏi sơ đồ hiện tại không?')) {
+        this.courts.forEach(court => {
+          court.layout_x = null;
+          court.layout_y = null;
+        });
+        this.selectedCourtId = null;
       }
     },
   },
@@ -807,5 +1124,312 @@ export default {
   margin-left: auto;
   color: #000000;
   font-weight: 900;
+}
+
+/* Layout Editor CSS */
+.layout-toggle-tabs {
+  display: flex;
+  gap: 12px;
+  border-bottom: 2px solid var(--sg-border);
+  padding-bottom: 2px;
+  margin-bottom: 24px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.4);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.tab-btn:hover {
+  color: var(--sg-text);
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+
+.tab-btn.active {
+  color: #000000;
+  border-bottom-color: #000000;
+}
+
+.badge-placed {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.badge-unplaced {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.layout-editor-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid var(--sg-border);
+  padding: 12px 20px;
+  border-radius: 12px;
+}
+
+.toolbar-left {
+  display: flex;
+  gap: 10px;
+}
+
+.info-badge {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.5);
+}
+
+.editor-body {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.canvas-container {
+  position: relative;
+  width: 1000px;
+  height: 600px;
+  background-color: #f8fafc;
+  border: 1px solid var(--sg-border);
+  border-radius: 16px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+  cursor: default;
+}
+
+.canvas-grid-bg {
+  position: absolute;
+  inset: 0;
+  background-size: 30px 30px;
+  background-image: 
+    linear-gradient(to right, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+  pointer-events: none;
+}
+
+.canvas-court-element {
+  position: absolute;
+  z-index: 10;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.canvas-court-element:hover {
+  cursor: grab;
+}
+
+.canvas-court-element.dragging {
+  cursor: grabbing;
+  z-index: 50;
+  opacity: 0.85;
+}
+
+.canvas-court-element.selected {
+  outline: 3px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+.editor-sidebar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 280px;
+}
+
+.sidebar-section {
+  background: #ffffff;
+  border: 1px solid var(--sg-border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 800;
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: var(--sg-text);
+  border-bottom: 1px solid var(--sg-border);
+  padding-bottom: 8px;
+}
+
+.section-desc {
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.5);
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+/* Inspector styles */
+.inspector-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--sg-border);
+}
+
+.field-row .label {
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.5);
+}
+
+.field-row .value {
+  font-weight: 700;
+  color: var(--sg-text);
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-group label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--sg-text);
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-row input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--sg-border);
+  font-size: 13px;
+  outline: none;
+  font-weight: 700;
+}
+
+.input-row input:focus {
+  border-color: #000000;
+}
+
+.input-row .x, .input-row .comma {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.3);
+}
+
+.rotation-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rotation-slider {
+  flex: 1;
+  accent-color: #000000;
+  height: 4px;
+}
+
+.btn-rotate {
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.btn-block {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Unplaced list styles */
+.unplaced-items {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.unplaced-court-item {
+  padding: 10px 12px;
+  background: var(--sg-surface);
+  border: 1px solid var(--sg-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.unplaced-court-item:hover {
+  background: #ffffff;
+  border-color: #000000;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-name {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--sg-text);
+}
+
+.item-add-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: #000000;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.unplaced-court-item:hover .item-add-hint {
+  opacity: 1;
+}
+
+.item-type {
+  font-size: 11.5px;
+  color: rgba(15, 23, 42, 0.4);
+  margin-top: 2px;
+}
+
+.empty-unplaced {
+  font-size: 12.5px;
+  color: rgba(15, 23, 42, 0.4);
+  text-align: center;
+  padding: 20px 0;
+  font-style: italic;
 }
 </style>
