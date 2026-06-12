@@ -22,8 +22,13 @@ export const venueClusterService = {
   },
 
   // Venue Courts (Owner)
-  getCourts(clusterId) {
-    return api(`/api/owner/venue-courts?venue_cluster_id=${clusterId}`);
+  getCourts(clusterId, params = {}) {
+    const query = new URLSearchParams({
+      venue_cluster_id: clusterId,
+      ...params,
+    }).toString();
+
+    return api(`/api/owner/venue-courts?${query}`);
   },
   createCourt(data) {
     return api('/api/owner/venue-courts', {

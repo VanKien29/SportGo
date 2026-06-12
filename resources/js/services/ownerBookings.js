@@ -35,6 +35,13 @@ export const ownerBookingService = {
     });
   },
 
+  collectPayment(id, payload) {
+    return api(`/api/owner/bookings/${id}/payments/collect`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   updateStatus(id, payload) {
     return api(`/api/owner/bookings/${id}/status`, {
       method: 'PATCH',

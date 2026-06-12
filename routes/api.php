@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\Auth\SetPasswordController;
+use App\Http\Controllers\Api\Owner\BookingManagementController as OwnerBookingManagementController;
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
 use App\Http\Controllers\Api\Owner\PartnerApplicationController as OwnerPartnerApplicationController;
 use App\Http\Controllers\Api\Owner\PartnerContractController as OwnerPartnerContractController;
@@ -191,6 +192,13 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
         Route::get('/finance/ledgers', [OwnerFinanceController::class, 'ledgers']);
         Route::get('/finance/withdrawals', [OwnerFinanceController::class, 'withdrawals']);
         Route::post('/finance/withdrawals', [OwnerFinanceController::class, 'storeWithdrawal']);
+        Route::get('/bookings', [OwnerBookingManagementController::class, 'index']);
+        Route::post('/bookings/counter', [OwnerBookingManagementController::class, 'storeCounter']);
+        Route::post('/bookings/recurring', [OwnerBookingManagementController::class, 'storeRecurring']);
+        Route::get('/bookings/{id}', [OwnerBookingManagementController::class, 'show']);
+        Route::post('/bookings/{id}/payments/collect', [OwnerBookingManagementController::class, 'collectPayment']);
+        Route::patch('/bookings/{id}/status', [OwnerBookingManagementController::class, 'updateStatus']);
+        Route::patch('/bookings/{id}/court', [OwnerBookingManagementController::class, 'changeCourt']);
     });
 
 Route::middleware('auth:sanctum')
