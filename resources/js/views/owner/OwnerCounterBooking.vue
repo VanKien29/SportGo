@@ -100,15 +100,18 @@
                     {{ selectionError }}
                 </p>
 
-                <div v-if="scheduleLoading" class="state-card">
+                <div
+                    v-if="scheduleLoading || !scheduleCourts.length"
+                    class="state-card"
+                >
                     Đang tải lịch sân...
                 </div>
                 <div v-else-if="scheduleError" class="state-card error-state">
                     {{ scheduleError }}
                 </div>
-                <div v-else-if="!scheduleCourts.length" class="state-card">
+                <!-- <div v-else-if="!scheduleCourts.length" class="state-card">
                     Không có sân phù hợp với bộ lọc hiện tại.
-                </div>
+                </div> -->
                 <div v-else class="time-board">
                     <div class="selected-court-strip">
                         <div>

@@ -16,7 +16,9 @@ class OwnerWalletTest extends TestCase
     use RefreshDatabase;
 
     private User $owner;
+
     private OwnerWallet $wallet;
+
     private OwnerBankAccount $bankAccount;
 
     protected function setUp(): void
@@ -26,7 +28,7 @@ class OwnerWalletTest extends TestCase
         $ownerRole = Role::query()->create([
             'name' => 'venue_owner',
             'display_name' => 'Chủ sân',
-            'is_system' => true
+            'is_system' => true,
         ]);
 
         $this->owner = User::query()->create([
@@ -85,8 +87,8 @@ class OwnerWalletTest extends TestCase
                         'bank_name',
                         'account_number',
                         'account_holder_name',
-                    ]
-                ]
+                    ],
+                ],
             ]);
     }
 
@@ -151,8 +153,8 @@ class OwnerWalletTest extends TestCase
             ->getJson('/api/owner/dashboard');
 
         $response->assertOk()
-            ->assertJsonPath('wallet.available_balance', 150000.0)
-            ->assertJsonPath('wallet.pending_withdrawal_balance', 50000.0);
+            ->assertJsonPath('wallet.available_balance', 150000)
+            ->assertJsonPath('wallet.pending_withdrawal_balance', 50000);
     }
 
     public function test_cannot_withdraw_more_than_effective_balance(): void
@@ -202,8 +204,8 @@ class OwnerWalletTest extends TestCase
                         'amount',
                         'status',
                         'requested_at',
-                    ]
-                ]
+                    ],
+                ],
             ]);
     }
 }

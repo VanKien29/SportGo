@@ -203,6 +203,35 @@ class AdminFinanceOperationTest extends TestCase
             ->assertJsonValidationErrors('reason');
     }
 
+    public function test_admin_cannot_process_refund_before_owner_confirmation(): void
+    {
+        $refund = Refund::query()->create([
+            'payment_id' => $this->payment->id,
+            'booking_id' => $this->booking->id,
+            'customer_id' => $this->customer->id,
+            'amount' => 50000,
+            'reason' => 'Khách yêu cầu hoàn tiền.',
+            'refund_destination' => 'original_payment',
+            'status' => 'pending_owner_confirmation',
+        ]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", [
+                'status' => 'processing',
+                'reason' => 'Admin thử xử lý trước.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'message',
+                'Không thể chuyển trạng thái refund từ pending_owner_confirmation sang processing.'
+            );
+
+        $this->assertDatabaseHas('refunds', [
+            'id' => $refund->id,
+            'status' => 'pending_owner_confirmation',
+        ]);
+    }
+
     public function test_refund_processing_must_follow_active_refund_policy(): void
     {
         $this->createRefundPolicyRules();

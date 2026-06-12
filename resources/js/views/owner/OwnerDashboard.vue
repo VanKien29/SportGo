@@ -9,7 +9,7 @@
           <div class="section-title-wrapper">
             <h3 class="section-title">VÍ CỦA TÔI</h3>
           </div>
-          <router-link to="/owner/wallet" class="section-action-btn">
+          <router-link to="/owner/finance" class="section-action-btn">
             Quản lý ví
           </router-link>
         </div>

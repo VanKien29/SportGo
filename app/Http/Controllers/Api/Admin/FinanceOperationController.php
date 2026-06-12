@@ -37,7 +37,18 @@ class FinanceOperationController extends Controller
 
         $data = $request->validate([
             'keyword' => ['nullable', 'string', 'max:100'],
-            'status' => ['nullable', Rule::in(['pending_confirmation', 'processing', 'completed', 'failed', 'rejected'])],
+            'status' => ['nullable', Rule::in([
+                'pending_confirmation',
+                'pending_owner_confirmation',
+                'owner_confirmed',
+                'owner_rejected',
+                'admin_processing',
+                'processing',
+                'completed',
+                'failed',
+                'rejected',
+                'cancelled',
+            ])],
             'refund_destination' => ['nullable', Rule::in(['bank_account', 'user_wallet', 'original_payment'])],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'payment_kind' => ['nullable', Rule::in(['full', 'deposit', 'partial'])],
@@ -68,8 +79,8 @@ class FinanceOperationController extends Controller
 
         $summary = [
             'total' => (clone $query)->count(),
-            'pending_confirmation' => (clone $query)->where('status', 'pending_confirmation')->count(),
-            'processing' => (clone $query)->where('status', 'processing')->count(),
+            'pending_confirmation' => (clone $query)->whereIn('status', ['pending_confirmation', 'pending_owner_confirmation'])->count(),
+            'processing' => (clone $query)->whereIn('status', ['owner_confirmed', 'admin_processing', 'processing'])->count(),
             'completed' => (clone $query)->where('status', 'completed')->count(),
             'requested_amount' => (float) (clone $query)->sum('amount'),
         ];
@@ -495,6 +506,11 @@ class FinanceOperationController extends Controller
             'refund_destination' => $destination,
             'owner_confirmation' => [
                 'confirmed' => (bool) $refund->owner_confirmed_at,
+                'decision' => match ($refund->status) {
+                    'owner_rejected' => 'rejected',
+                    'owner_confirmed', 'admin_processing', 'processing', 'completed', 'failed' => 'approved',
+                    default => 'pending',
+                },
                 'confirmed_at' => $refund->owner_confirmed_at,
                 'confirmed_by' => $refund->ownerConfirmedBy,
                 'note' => $refund->owner_confirm_note,
@@ -511,6 +527,8 @@ class FinanceOperationController extends Controller
                 && filled($refund->payoutAccount?->bank_account_number),
             'allowed_statuses' => [
                 'pending_confirmation' => ['processing', 'rejected'],
+                'owner_confirmed' => ['processing', 'completed', 'rejected'],
+                'admin_processing' => ['completed', 'rejected'],
                 'processing' => ['completed', 'rejected'],
                 'failed' => ['processing', 'rejected'],
             ][$refund->status] ?? [],
