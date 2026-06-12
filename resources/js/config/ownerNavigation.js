@@ -121,6 +121,8 @@ export const ownerRouteTitles = {
   'owner-counter-booking': 'Booking tại quầy',
   'owner-pricing': 'Cấu hình giá',
   'owner-booking-settings': 'Cấu hình đặt sân',
+  'owner-schedule-locks': 'Khóa lịch theo khung giờ',
+  'owner-platform-fees': 'Phí nền tảng',
   'owner-finance': 'Ví tài chính',
   'owner-refunds': 'Yêu cầu hoàn/hủy',
   'owner-staff': 'Nhân viên sân',

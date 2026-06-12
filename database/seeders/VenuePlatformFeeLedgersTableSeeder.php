@@ -26,7 +26,7 @@ class VenuePlatformFeeLedgersTableSeeder extends Seeder
 
         $rows = [
             ['sportgo-cau-giay', 1, '2026-04-01', '2026-04-30', '2026-05-05', 'paid', 'approved', 1],
-            ['sportgo-cau-giay', 1, '2026-05-01', '2026-05-31', '2026-06-05', 'pending', 'none', 0],
+            ['sportgo-cau-giay', 1, '2026-05-01', '2026-05-31', now()->addDays(14)->toDateString(), 'pending', 'none', 0],
             ['sportgo-my-dinh', 3, '2026-02-01', '2026-04-30', '2026-05-05', 'overdue', 'rejected', 0],
             ['sportgo-my-dinh', 12, '2026-01-01', '2026-12-31', '2026-01-10', 'paid', 'approved', 1],
         ];

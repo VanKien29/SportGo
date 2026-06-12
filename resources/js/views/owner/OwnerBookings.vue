@@ -64,7 +64,7 @@
             <th>Loại</th>
             <th>Thanh toán</th>
             <th>Trạng thái</th>
-            <th></th>
+            <th class="actions-heading">Thao tác</th>
           </tr>
         </thead>
         <tbody>
@@ -75,42 +75,75 @@
               <small>{{ customerPhone(booking) }}</small>
             </td>
             <td>
-              <strong>{{ booking.venue_court?.name || '-' }}</strong>
-              <small v-if="booking.requested_venue_court_id !== booking.venue_court_id">
+              <span v-for="range in bookingRanges(booking)" :key="range.key" class="booking-range">
+                <strong>{{ range.courtName }}</strong>
+                <small>{{ formatTime(range.startTime) }} - {{ formatTime(range.endTime) }}</small>
+              </span>
+              <small v-if="bookingRanges(booking).length === 1 && booking.requested_venue_court_id !== booking.venue_court_id">
                 Yêu cầu: {{ booking.requested_venue_court?.name || '-' }}
               </small>
             </td>
             <td>
               <strong>{{ formatDate(booking.booking_date) }}</strong>
-              <small>{{ formatTime(booking.start_time) }} - {{ formatTime(booking.end_time) }}</small>
+              <small>{{ booking.duration_minutes }} phút · {{ bookingRanges(booking).length }} khung sân</small>
             </td>
             <td>{{ booking.booking_type === 'recurring' ? 'Cố định' : 'Lẻ' }}</td>
-            <td>
-              <strong>{{ paymentLabel(booking.payment_option) }}</strong>
-              <small>{{ paymentSummary(booking) }}</small>
+            <td class="payment-cell">
+              <span class="payment-chip" :class="paymentState(booking)">{{ paymentStateLabel(booking) }}</span>
+              <small>{{ paymentLabel(booking.payment_option) }} · {{ paymentSummary(booking) }}</small>
             </td>
             <td><span class="status-chip" :class="booking.status">{{ statusLabel(booking.status) }}</span></td>
-            <td class="actions">
-              <TableActionGroup>
-                <ActionIconButton v-if="canCollectPayment(booking)" icon="banknote" label="Thu tiền" variant="primary" @click="openCollectPayment(booking)" />
+            <td class="booking-actions-cell">
+              <div class="row-actions" @click.stop>
                 <ActionIconButton
-                  icon="check"
-                  label="Xác nhận"
-                  variant="success"
-                  :disabled="bookingHasPendingTransfer(booking)"
-                  @click="updateStatus(booking, 'confirm')"
+                  v-if="primaryAction(booking)"
+                  :icon="primaryAction(booking).icon"
+                  :label="primaryAction(booking).label"
+                  :variant="primaryAction(booking).variant"
+                  @click="runBookingAction(booking, primaryAction(booking).key)"
                 />
-                <ActionIconButton icon="clock" label="Check-in" @click="updateStatus(booking, 'check_in')" />
-                <ActionIconButton icon="circleCheck" label="Hoàn thành" @click="updateStatus(booking, 'complete')" />
-                <ActionIconButton icon="pencil" label="Đổi sân" @click="openChangeCourt(booking)" />
-                <ActionIconButton icon="x" label="Từ chối" variant="danger" @click="updateStatus(booking, 'reject')" />
-                <ActionIconButton icon="trash" label="Hủy" variant="danger" @click="updateStatus(booking, 'cancel')" />
-              </TableActionGroup>
+                <ActionIconButton
+                  v-if="secondaryActions(booking).length"
+                  icon="moreHorizontal"
+                  label="Thao tác khác"
+                  variant="secondary"
+                  @click="toggleActionMenu(booking, $event)"
+                />
+                <span v-if="!primaryAction(booking) && !secondaryActions(booking).length" class="no-actions">—</span>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
     </section>
+
+    <Teleport to="body">
+      <button
+        v-if="actionMenu.booking"
+        class="action-menu-dismiss"
+        type="button"
+        aria-label="Đóng menu thao tác"
+        @click="closeActionMenu"
+      ></button>
+      <div
+        v-if="actionMenu.booking"
+        class="row-action-menu"
+        :style="{ top: `${actionMenu.top}px`, left: `${actionMenu.left}px` }"
+        role="menu"
+      >
+        <button
+          v-for="action in secondaryActions(actionMenu.booking)"
+          :key="action.key"
+          type="button"
+          :class="{ danger: action.variant === 'danger' }"
+          role="menuitem"
+          @click="runBookingAction(actionMenu.booking, action.key)"
+        >
+          <AppIcon :name="action.icon" size="17" />
+          <span>{{ action.label }}</span>
+        </button>
+      </div>
+    </Teleport>
 
     <div v-if="changeCourtBooking" class="modal-backdrop" @click.self="closeChangeCourt">
       <form class="modal-panel" @submit.prevent="saveChangeCourt">
@@ -162,7 +195,13 @@
 
         <label>
           <span>Số tiền thu</span>
-          <input v-model.number="collectForm.amount" type="number" min="1000" step="1000" />
+          <input
+            v-model.number="collectForm.amount"
+            type="number"
+            min="1000"
+            step="1000"
+            :disabled="collectForm.payment_method === 'sepay' && !!pendingTransfer(collectBooking)"
+          />
         </label>
 
         <div class="method-row">
@@ -192,7 +231,34 @@
         <footer>
           <button type="button" class="ghost-btn" @click="closeCollectPayment">Đóng</button>
           <button class="primary-link" type="submit" :disabled="collectingPayment">
-            {{ collectForm.payment_method === 'sepay' ? 'Tạo thông tin chuyển khoản' : 'Xác nhận thu' }}
+            {{ collectSubmitLabel() }}
+          </button>
+        </footer>
+      </form>
+    </div>
+
+    <div v-if="statusActionBooking" class="modal-backdrop" @click.self="closeStatusAction">
+      <form class="modal-panel status-action-panel" @submit.prevent="submitStatusAction">
+        <header>
+          <div>
+            <h2>{{ statusActionTitle() }}</h2>
+            <p>{{ statusActionBooking.booking_code }} · {{ customerName(statusActionBooking) }}</p>
+          </div>
+          <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeStatusAction" />
+        </header>
+        <p class="status-action-warning">
+          {{ statusAction === 'reject'
+            ? 'Booking sẽ bị từ chối và giải phóng khung sân.'
+            : 'Booking sẽ bị hủy và giao dịch đang chờ, nếu có, sẽ không còn hiệu lực.' }}
+        </p>
+        <label>
+          <span>Lý do {{ statusAction === 'reject' ? 'từ chối' : 'hủy' }}</span>
+          <textarea v-model.trim="statusActionReason" rows="4" maxlength="1000" required></textarea>
+        </label>
+        <footer>
+          <button type="button" class="ghost-btn" @click="closeStatusAction">Đóng</button>
+          <button class="danger-btn" type="submit" :disabled="updatingStatus">
+            {{ statusAction === 'reject' ? 'Xác nhận từ chối' : 'Xác nhận hủy' }}
           </button>
         </footer>
       </form>
@@ -205,11 +271,17 @@ import { ownerBookingService } from '../../services/ownerBookings.js';
 import { venueClusterService } from '../../services/venueClusters.js';
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
-import TableActionGroup from '../../components/TableActionGroup.vue';
+
+function localIsoDate(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export default {
   name: 'OwnerBookings',
-  components: { ActionIconButton, AppIcon, TableActionGroup },
+  components: { ActionIconButton, AppIcon },
   data() {
     return {
       clusters: [],
@@ -218,7 +290,7 @@ export default {
       filters: {
         venue_cluster_id: '',
         venue_court_id: '',
-        booking_date: new Date().toISOString().split('T')[0],
+        booking_date: localIsoDate(),
         status: '',
       },
       loading: true,
@@ -239,14 +311,30 @@ export default {
       collectQr: null,
       collectingPayment: false,
       collectPollInterval: null,
+      holdClock: Date.now(),
+      holdClockInterval: null,
+      actionMenu: {
+        booking: null,
+        top: 0,
+        left: 0,
+      },
+      statusActionBooking: null,
+      statusAction: '',
+      statusActionReason: '',
+      updatingStatus: false,
     };
   },
   async created() {
     await this.loadClusters();
     await this.loadBookings();
+    this.holdClockInterval = setInterval(() => {
+      this.holdClock = Date.now();
+    }, 30000);
   },
   beforeUnmount() {
     this.clearCollectPolling();
+    this.closeActionMenu();
+    if (this.holdClockInterval) clearInterval(this.holdClockInterval);
   },
   methods: {
     async loadClusters() {
@@ -275,20 +363,122 @@ export default {
         this.loading = false;
       }
     },
-    async updateStatus(booking, action) {
-      const needsReason = ['reject', 'cancel'].includes(action);
-      const status_reason = needsReason ? prompt('Nhập lý do bắt buộc:') : null;
-      if (needsReason && !status_reason) return;
-
+    async updateStatus(booking, action, statusReason = null) {
+      if (this.updatingStatus) return;
+      this.updatingStatus = true;
       this.error = '';
       this.notice = '';
       try {
-        await ownerBookingService.updateStatus(booking.id, { action, status_reason });
+        await ownerBookingService.updateStatus(booking.id, {
+          action,
+          status_reason: statusReason,
+        });
         this.notice = 'Đã cập nhật trạng thái booking.';
         await this.loadBookings();
+        this.closeStatusAction();
       } catch (error) {
         this.error = error.message || 'Không thể cập nhật booking.';
+      } finally {
+        this.updatingStatus = false;
       }
+    },
+    primaryAction(booking) {
+      if (booking.status === 'pending_approval') {
+        return { key: 'confirm', label: 'Xác nhận booking', icon: 'check', variant: 'success' };
+      }
+      if (booking.status === 'confirmed') {
+        return { key: 'check_in', label: 'Check-in', icon: 'clock', variant: 'success' };
+      }
+      if (booking.status === 'checked_in') {
+        if (this.canCollectPayment(booking)) {
+          return { key: 'collect', label: 'Thu tiền trước khi hoàn thành', icon: 'banknote', variant: 'primary' };
+        }
+        return { key: 'complete', label: 'Hoàn thành', icon: 'circleCheck', variant: 'success' };
+      }
+      if (this.canCollectPayment(booking)) {
+        return { key: 'collect', label: 'Thu tiền', icon: 'banknote', variant: 'primary' };
+      }
+      return null;
+    },
+    secondaryActions(booking) {
+      const primaryKey = this.primaryAction(booking)?.key;
+      const actions = [];
+
+      if (this.canCollectPayment(booking) && primaryKey !== 'collect') {
+        actions.push({ key: 'collect', label: 'Thu tiền', icon: 'banknote', variant: 'primary' });
+      }
+      if (this.canChangeCourt(booking)) {
+        actions.push({ key: 'change_court', label: 'Đổi sân', icon: 'pencil', variant: 'secondary' });
+      }
+      if (booking.status === 'pending_approval') {
+        actions.push({ key: 'reject', label: 'Từ chối booking', icon: 'x', variant: 'danger' });
+      }
+      if (['pending_approval', 'pending_payment', 'confirmed'].includes(booking.status)) {
+        actions.push({ key: 'cancel', label: 'Hủy booking', icon: 'trash', variant: 'danger' });
+      }
+
+      return actions;
+    },
+    canChangeCourt(booking) {
+      return ['pending_approval', 'pending_payment', 'confirmed'].includes(booking.status)
+        && this.bookingRanges(booking).length <= 1;
+    },
+    runBookingAction(booking, action) {
+      this.closeActionMenu();
+
+      if (action === 'collect') {
+        this.openCollectPayment(booking);
+        return;
+      }
+      if (action === 'change_court') {
+        this.openChangeCourt(booking);
+        return;
+      }
+      if (['reject', 'cancel'].includes(action)) {
+        this.openStatusAction(booking, action);
+        return;
+      }
+
+      this.updateStatus(booking, action);
+    },
+    toggleActionMenu(booking, event) {
+      if (this.actionMenu.booking?.id === booking.id) {
+        this.closeActionMenu();
+        return;
+      }
+
+      const rect = event.currentTarget.getBoundingClientRect();
+      const menuWidth = 220;
+      const left = Math.min(
+        Math.max(12, rect.right - menuWidth),
+        window.innerWidth - menuWidth - 12,
+      );
+      const estimatedHeight = Math.max(this.secondaryActions(booking).length * 42 + 12, 54);
+      const openAbove = rect.bottom + estimatedHeight > window.innerHeight - 12;
+
+      this.actionMenu = {
+        booking,
+        top: openAbove ? Math.max(12, rect.top - estimatedHeight - 6) : rect.bottom + 6,
+        left,
+      };
+    },
+    closeActionMenu() {
+      this.actionMenu = { booking: null, top: 0, left: 0 };
+    },
+    openStatusAction(booking, action) {
+      this.statusActionBooking = booking;
+      this.statusAction = action;
+      this.statusActionReason = '';
+    },
+    closeStatusAction() {
+      if (this.updatingStatus) return;
+      this.statusActionBooking = null;
+      this.statusAction = '';
+      this.statusActionReason = '';
+    },
+    submitStatusAction() {
+      if (!this.statusActionBooking || !this.statusActionReason) return;
+      this.updateStatus(this.statusActionBooking, this.statusAction, this.statusActionReason);
     },
     async openChangeCourt(booking) {
       this.changeCourtBooking = booking;
@@ -321,10 +511,11 @@ export default {
       }
     },
     openCollectPayment(booking) {
+      const pendingTransfer = this.pendingTransfer(booking);
       this.collectBooking = booking;
       this.collectForm = {
-        payment_method: 'cash',
-        amount: this.outstandingAmount(booking),
+        payment_method: pendingTransfer ? 'sepay' : 'cash',
+        amount: pendingTransfer ? Number(pendingTransfer.amount) : this.outstandingAmount(booking),
       };
       this.collectQr = null;
       this.clearCollectPolling();
@@ -349,7 +540,9 @@ export default {
 
         if (this.collectForm.payment_method === 'sepay') {
           this.collectQr = response.payment_qr || null;
-          this.notice = 'Đã tạo thông tin chuyển khoản.';
+          this.notice = response.payment_qr?.reused
+            ? 'Đã mở lại thông tin chuyển khoản đang chờ.'
+            : 'Đã tạo thông tin chuyển khoản.';
           this.startCollectPolling();
         } else {
           this.notice = 'Đã ghi nhận thu tiền tại quầy.';
@@ -397,7 +590,10 @@ export default {
         && this.outstandingAmount(booking) > 0;
     },
     bookingHasPendingTransfer(booking) {
-      return (booking.payments || []).some((payment) => payment.method === 'sepay' && payment.status === 'pending');
+      return !!this.pendingTransfer(booking);
+    },
+    pendingTransfer(booking) {
+      return (booking?.payments || []).find((payment) => payment.method === 'sepay' && payment.status === 'pending') || null;
     },
     paidAmount(booking) {
       return (booking.payments || [])
@@ -411,10 +607,42 @@ export default {
       const paid = this.paidAmount(booking);
       const outstanding = this.outstandingAmount(booking);
 
-      if (outstanding <= 0) return `Đã thu đủ ${this.formatCurrency(paid)}`;
-      if (this.bookingHasPendingTransfer(booking)) return `Đang chờ chuyển khoản · còn ${this.formatCurrency(outstanding)}`;
-      if (paid > 0) return `Đã thu ${this.formatCurrency(paid)} · còn ${this.formatCurrency(outstanding)}`;
-      return `Còn phải thu ${this.formatCurrency(outstanding)}`;
+      if (outstanding <= 0) return this.formatCurrency(paid);
+      const amountText = paid > 0
+        ? `đã thu ${this.formatCurrency(paid)}, còn ${this.formatCurrency(outstanding)}`
+        : `còn ${this.formatCurrency(outstanding)}`;
+      const holdText = this.paymentHoldLabel(booking);
+
+      return holdText ? `${amountText} · ${holdText}` : amountText;
+    },
+    paymentHoldLabel(booking) {
+      if (booking.status !== 'pending_payment') return '';
+
+      const activeLock = (booking.slot_locks || [])
+        .filter((lock) => new Date(lock.expires_at).getTime() > this.holdClock)
+        .sort((a, b) => new Date(a.expires_at) - new Date(b.expires_at))[0];
+
+      if (!activeLock) return 'chưa có hạn giữ chỗ';
+
+      const seconds = Math.max(Math.ceil((new Date(activeLock.expires_at).getTime() - this.holdClock) / 1000), 0);
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+
+      return `giữ chỗ còn ${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+    },
+    paymentState(booking) {
+      if (this.outstandingAmount(booking) <= 0) return 'paid';
+      if (this.bookingHasPendingTransfer(booking)) return 'pending';
+      if (this.paidAmount(booking) > 0) return 'partial';
+      return 'unpaid';
+    },
+    paymentStateLabel(booking) {
+      return {
+        paid: 'Đã thanh toán',
+        pending: 'Chờ chuyển khoản',
+        partial: 'Thanh toán một phần',
+        unpaid: 'Chưa thanh toán',
+      }[this.paymentState(booking)];
     },
     async copyText(text) {
       if (!text) return;
@@ -432,6 +660,23 @@ export default {
     customerPhone(booking) {
       return booking.customer?.phone || booking.walk_in_phone || '-';
     },
+    bookingRanges(booking) {
+      if (booking.items?.length) {
+        return booking.items.map((item) => ({
+          key: item.id,
+          courtName: item.venue_court?.name || '-',
+          startTime: item.start_time,
+          endTime: item.end_time,
+        }));
+      }
+
+      return [{
+        key: booking.id,
+        courtName: booking.venue_court?.name || '-',
+        startTime: booking.start_time,
+        endTime: booking.end_time,
+      }];
+    },
     statusLabel(status) {
       return {
         pending_approval: 'Chờ duyệt',
@@ -446,10 +691,19 @@ export default {
     },
     paymentLabel(option) {
       return {
-        full_payment: 'Thanh toán hết',
+        full_payment: 'Thanh toán đủ',
         deposit: 'Đặt cọc',
-        no_prepay: 'Không trả trước',
+        no_prepay: 'Thu sau',
       }[option] || option;
+    },
+    statusActionTitle() {
+      return this.statusAction === 'reject' ? 'Từ chối booking' : 'Hủy booking';
+    },
+    collectSubmitLabel() {
+      if (this.collectForm.payment_method !== 'sepay') return 'Xác nhận thu';
+      return this.pendingTransfer(this.collectBooking)
+        ? 'Xem lại thông tin chuyển khoản'
+        : 'Tạo thông tin chuyển khoản';
     },
     formatDate(value) {
       if (!value) return '-';
@@ -516,6 +770,16 @@ export default {
   gap: 12px;
   align-items: end;
   padding: 16px;
+}
+
+.booking-range {
+  display: block;
+}
+
+.booking-range + .booking-range {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid #edf2ed;
 }
 
 label {
@@ -588,34 +852,43 @@ textarea {
 }
 
 .table-card {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
-table {
+.bookings-page table {
   width: 100%;
-  min-width: 1120px;
+  min-width: 940px !important;
   border-collapse: collapse;
 }
 
-th,
-td {
-  padding: 12px;
+.bookings-page th,
+.bookings-page td {
+  padding: 10px 12px !important;
   border-bottom: 1px solid #e2e8f0;
   text-align: left;
-  vertical-align: top;
+  vertical-align: top !important;
   font-size: 14px;
 }
 
 th {
-  background: #f8fafc;
-  color: #334155;
+  background: #f3f8f1;
+  color: #3f4f43;
   font-weight: 900;
+}
+
+tbody tr {
+  transition: background .16s ease;
+}
+
+tbody tr:hover {
+  background: #fbfdfb;
 }
 
 td small {
   display: block;
   margin-top: 4px;
-  color: #64748b;
+  color: #526056;
 }
 
 .strong,
@@ -632,6 +905,39 @@ td strong {
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.payment-cell {
+  min-width: 170px;
+}
+
+.payment-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.payment-chip.paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.payment-chip.pending,
+.payment-chip.partial {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.payment-chip.unpaid {
+  background: #fef2f2;
+  color: #991b1b;
 }
 
 .status-chip.confirmed,
@@ -653,11 +959,83 @@ td strong {
   color: #991b1b;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.actions-heading {
+  width: 84px;
+  text-align: right;
+}
+
+.booking-actions-cell {
+  width: 84px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.row-actions {
+  display: inline-flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 6px;
+}
+
+.no-actions {
+  color: #7a877d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.action-menu-dismiss {
+  position: fixed;
+  inset: 0;
+  z-index: 1190;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.row-action-menu {
+  position: fixed;
+  z-index: 1200;
+  width: 220px;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(22, 35, 26, 0.16);
+}
+
+.row-action-menu button {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #2f3d33;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-action-menu button:hover {
+  background: #eef8ef;
+  color: #216b34;
+}
+
+.row-action-menu button.danger {
+  color: #b42318;
+}
+
+.row-action-menu button.danger:hover {
+  background: #fef2f2;
 }
 
 .modal-backdrop {
@@ -675,6 +1053,41 @@ td strong {
   display: grid;
   gap: 16px;
   padding: 20px;
+}
+
+.status-action-panel {
+  width: min(500px, 100%);
+}
+
+.status-action-warning {
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 3px solid #dc2626;
+  background: #fef2f2;
+  color: #7f1d1d;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.danger-btn {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+  background: #dc2626;
+  color: #fff;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.danger-btn:disabled {
+  cursor: not-allowed;
+  opacity: .55;
 }
 
 .modal-panel header p {

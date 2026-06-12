@@ -8,12 +8,14 @@ use App\Models\CourtType;
 use App\Models\OwnerWallet;
 use App\Models\Payment;
 use App\Models\Role;
+use App\Models\SlotLock;
 use App\Models\SystemBankAccount;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
 class OwnerCounterPaymentTest extends TestCase
@@ -155,9 +157,26 @@ class OwnerCounterPaymentTest extends TestCase
             ->assertJsonPath('payment_qr.payment.method', 'sepay')
             ->assertJsonPath('payment_qr.payment.amount', '10000.00')
             ->assertJsonPath('payment_qr.payment_account.account_number', '1234567890')
+            ->assertJsonPath('payment_qr.reused', false)
             ->assertJsonPath('payment_qr.transfer_content', $qr->json('payment_qr.payment.payment_code'));
 
         $payment = Payment::query()->where('booking_id', $booking->id)->firstOrFail();
+
+        $reopened = $this->actingAs($this->owner, 'sanctum')
+            ->postJson("/api/owner/bookings/{$booking->id}/payments/collect", [
+                'payment_method' => 'sepay',
+            ]);
+
+        $reopened->assertOk()
+            ->assertJsonPath('payment_qr.reused', true)
+            ->assertJsonPath('payment_qr.payment.id', $payment->id)
+            ->assertJsonPath('payment_qr.transfer_content', $payment->payment_code);
+
+        $this->assertSame(1, Payment::query()
+            ->where('booking_id', $booking->id)
+            ->where('method', 'sepay')
+            ->where('status', 'pending')
+            ->count());
 
         $this->postJson('/api/sepay/ipn', [
             'id' => 192837,
@@ -220,6 +239,170 @@ class OwnerCounterPaymentTest extends TestCase
             ->assertJsonValidationErrors(['action']);
     }
 
+    public function test_pay_later_booking_can_be_played_then_paid_without_reverting_operational_status(): void
+    {
+        $booking = $this->createPayLaterCounterBooking();
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson("/api/owner/bookings/{$booking->id}/status", [
+                'action' => 'check_in',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'checked_in');
+
+        $this->assertDatabaseMissing('payments', ['booking_id' => $booking->id]);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson("/api/owner/bookings/{$booking->id}/status", [
+                'action' => 'complete',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['action']);
+
+        $this->assertDatabaseMissing('payments', ['booking_id' => $booking->id]);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson("/api/owner/bookings/{$booking->id}/payments/collect", [
+                'payment_method' => 'cash',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'checked_in');
+
+        $this->assertDatabaseHas('payments', [
+            'booking_id' => $booking->id,
+            'status' => 'paid',
+            'method' => 'cash',
+        ]);
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => 'checked_in',
+        ]);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson("/api/owner/bookings/{$booking->id}/status", [
+                'action' => 'complete',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'completed');
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => 'completed',
+        ]);
+    }
+
+    public function test_owner_cannot_skip_booking_operational_states(): void
+    {
+        $booking = $this->createPayLaterCounterBooking();
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson("/api/owner/bookings/{$booking->id}/status", [
+                'action' => 'complete',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['action']);
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => 'confirmed',
+        ]);
+    }
+
+    public function test_owner_cancelling_pending_transfer_invalidates_payment(): void
+    {
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => now()->addDay()->toDateString(),
+                'start_time' => '10:00:00',
+                'end_time' => '11:00:00',
+                'payment_option' => 'full_payment',
+                'payment_method' => 'sepay',
+                'walk_in_name' => 'Khách chuyển khoản',
+                'walk_in_phone' => '0901234567',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'pending_payment');
+
+        $bookingId = $response->json('data.id');
+        $paymentId = $response->json('payment_qr.payment.id');
+
+        $lock = SlotLock::query()->where('booking_id', $bookingId)->firstOrFail();
+        $remainingMinutes = now()->diffInMinutes($lock->expires_at);
+        $this->assertGreaterThanOrEqual(19, $remainingMinutes);
+        $this->assertLessThanOrEqual(20, $remainingMinutes);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson("/api/owner/bookings/{$bookingId}/status", [
+                'action' => 'cancel',
+                'status_reason' => 'Khách đổi lịch và không tiếp tục thanh toán.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'cancelled')
+            ->assertJsonPath('data.status_reason', 'Khách đổi lịch và không tiếp tục thanh toán.');
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $paymentId,
+            'status' => 'failed',
+        ]);
+        $this->assertDatabaseHas('payment_logs', [
+            'payment_id' => $paymentId,
+            'event_type' => 'owner_payment_cancelled',
+            'error_code' => 'owner_cancelled',
+            'error_message' => 'Khách đổi lịch và không tiếp tục thanh toán.',
+        ]);
+        $this->assertDatabaseMissing('slot_locks', ['booking_id' => $bookingId]);
+    }
+
+    public function test_pending_counter_transfer_expires_using_booking_hold_config(): void
+    {
+        BookingConfig::query()
+            ->where('venue_cluster_id', $this->cluster->id)
+            ->update(['slot_hold_minutes' => 35]);
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => now()->addDay()->toDateString(),
+                'start_time' => '12:00:00',
+                'end_time' => '13:00:00',
+                'payment_option' => 'full_payment',
+                'payment_method' => 'sepay',
+                'walk_in_name' => 'Khách hết hạn',
+                'walk_in_phone' => '0901234567',
+            ])
+            ->assertCreated();
+
+        $bookingId = $response->json('data.id');
+        $paymentId = $response->json('payment_qr.payment.id');
+
+        $lock = SlotLock::query()->where('booking_id', $bookingId)->firstOrFail();
+        $remainingMinutes = now()->diffInMinutes($lock->expires_at);
+        $this->assertGreaterThanOrEqual(34, $remainingMinutes);
+        $this->assertLessThanOrEqual(35, $remainingMinutes);
+
+        SlotLock::query()
+            ->where('booking_id', $bookingId)
+            ->update(['expires_at' => now()->subMinute()]);
+
+        $this->assertSame(0, Artisan::call('app:release-expired-slot-locks'));
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $bookingId,
+            'status' => 'expired',
+            'status_reason' => 'Thanh toán quá hạn 35 phút.',
+        ]);
+        $this->assertDatabaseHas('payments', [
+            'id' => $paymentId,
+            'status' => 'failed',
+        ]);
+        $this->assertDatabaseHas('payment_logs', [
+            'payment_id' => $paymentId,
+            'event_type' => 'payment_hold_expired',
+            'error_code' => 'slot_hold_expired',
+        ]);
+    }
+
     public function test_counter_booking_does_not_accept_deposit_option(): void
     {
         $this->actingAs($this->owner, 'sanctum')
@@ -234,6 +417,58 @@ class OwnerCounterPaymentTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['payment_option']);
+    }
+
+    public function test_counter_and_recurring_bookings_validate_and_normalize_walk_in_contact(): void
+    {
+        $bookingDate = now()->addDay()->toDateString();
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $bookingDate,
+                'start_time' => '13:00:00',
+                'end_time' => '14:00:00',
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => '1234',
+                'walk_in_phone' => '12345',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['walk_in_name', 'walk_in_phone']);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/recurring', [
+                'venue_court_id' => $this->court->id,
+                'recurring_start_date' => $bookingDate,
+                'recurring_end_date' => $bookingDate,
+                'recurrence_type' => 'daily',
+                'recurrence_interval' => 1,
+                'start_time' => '14:00:00',
+                'end_time' => '15:00:00',
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'A1',
+                'walk_in_phone' => '09012abc',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['walk_in_name', 'walk_in_phone']);
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $bookingDate,
+                'start_time' => '13:00:00',
+                'end_time' => '14:00:00',
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'Nguyễn   Văn A',
+                'walk_in_phone' => '0901 234 567',
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $response->json('data.id'),
+            'walk_in_name' => 'Nguyễn Văn A',
+            'walk_in_phone' => '0901234567',
+        ]);
     }
 
     public function test_owner_can_create_counter_booking_with_split_time_ranges(): void
@@ -347,6 +582,46 @@ class OwnerCounterPaymentTest extends TestCase
             'end_time' => '12:00:00',
         ]);
 
+        $schedule = $this->actingAs($this->owner, 'sanctum')
+            ->getJson('/api/bookings/schedule?'.http_build_query([
+                'venue_cluster_id' => $this->cluster->id,
+                'booking_date' => $bookingDate,
+            ]))
+            ->assertOk();
+
+        $bookingIntervals = collect($schedule->json('busy_intervals'))
+            ->where('source', 'booking')
+            ->values();
+
+        $this->assertCount(3, $bookingIntervals);
+        $this->assertTrue($bookingIntervals->contains(fn (array $interval): bool => $interval['venue_court_id'] === $this->court->id
+            && $interval['start_time'] === '08:00:00'
+            && $interval['end_time'] === '09:00:00'));
+        $this->assertTrue($bookingIntervals->contains(fn (array $interval): bool => $interval['venue_court_id'] === $this->secondCourt->id
+            && $interval['start_time'] === '08:00:00'
+            && $interval['end_time'] === '09:00:00'));
+        $this->assertTrue($bookingIntervals->contains(fn (array $interval): bool => $interval['venue_court_id'] === $this->secondCourt->id
+            && $interval['start_time'] === '11:00:00'
+            && $interval['end_time'] === '12:00:00'));
+        $this->assertFalse($bookingIntervals->contains(fn (array $interval): bool => $interval['venue_court_id'] === $this->court->id
+            && $interval['start_time'] === '11:00:00'
+            && $interval['end_time'] === '12:00:00'));
+
+        $list = $this->actingAs($this->owner, 'sanctum')
+            ->getJson('/api/owner/bookings?'.http_build_query([
+                'venue_court_id' => $this->secondCourt->id,
+                'booking_date' => $bookingDate,
+            ]))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $booking->id)
+            ->assertJsonCount(3, 'data.0.items');
+
+        $this->assertSame(
+            [$this->court->id, $this->secondCourt->id],
+            collect($list->json('data.0.items'))->pluck('venue_court_id')->unique()->sort()->values()->all(),
+        );
+
         $this->actingAs($this->owner, 'sanctum')
             ->postJson('/api/owner/bookings/counter', [
                 'venue_court_id' => $this->court->id,
@@ -371,6 +646,14 @@ class OwnerCounterPaymentTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['start_time']);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson("/api/owner/bookings/{$booking->id}/court", [
+                'venue_court_id' => $this->secondCourt->id,
+                'court_changed_reason' => 'Đổi toàn bộ booking nhiều sân.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['venue_court_id']);
     }
 
     private function createPayLaterCounterBooking(): Booking

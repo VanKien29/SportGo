@@ -25,6 +25,7 @@ class SlotLock extends Model
         'end_time',
         'locked_by',
         'booking_id',
+        'booking_item_id',
         'lock_type',
         'reason',
         'expires_at',
