@@ -16,6 +16,8 @@ class CourtType extends Model
         'description',
         'player_count',
         'is_active',
+        'default_layout_w',
+        'default_layout_h',
     ];
 
     protected function casts(): array
@@ -24,6 +26,8 @@ class CourtType extends Model
             'parent_id' => 'integer',
             'player_count' => 'integer',
             'is_active' => 'boolean',
+            'default_layout_w' => 'double',
+            'default_layout_h' => 'double',
         ];
     }
 

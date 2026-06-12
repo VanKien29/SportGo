@@ -31,6 +31,8 @@ class CourtTypeController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'player_count' => ['required', 'integer', 'min:1'],
             'is_active' => ['boolean'],
+            'default_layout_w' => ['nullable', 'numeric', 'min:0'],
+            'default_layout_h' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $courtType = CourtType::query()->create($data);
@@ -51,6 +53,8 @@ class CourtTypeController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'player_count' => ['required', 'integer', 'min:1'],
             'is_active' => ['boolean'],
+            'default_layout_w' => ['nullable', 'numeric', 'min:0'],
+            'default_layout_h' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $courtType->update($data);

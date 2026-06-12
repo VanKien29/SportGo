@@ -549,6 +549,35 @@
                             />
                         </div>
 
+                        <!-- Cấu hình quy chuẩn kích thước sơ đồ trực quan -->
+                        <div v-if="form.parent_id !== null" class="form-group">
+                            <label>Kích thước sơ đồ quy chuẩn (m)</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input
+                                    v-model.number="form.default_layout_w"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    class="form-control"
+                                    placeholder="Ngang (ví dụ: 6.1)"
+                                    style="flex: 1; min-width: 0;"
+                                />
+                                <span class="text-muted">x</span>
+                                <input
+                                    v-model.number="form.default_layout_h"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    class="form-control"
+                                    placeholder="Dọc (ví dụ: 13.4)"
+                                    style="flex: 1; min-width: 0;"
+                                />
+                            </div>
+                            <small class="text-muted" style="margin-top: 4px; display: block;">
+                                Cấu hình kích thước này giúp chủ sân có sẵn thông số chuẩn khi kéo thả sân con vào bản đồ ảo.
+                            </small>
+                        </div>
+
                         <div class="form-group">
                             <label for="description">Mô tả</label>
                             <textarea
@@ -618,6 +647,8 @@ export default {
                 player_count: 4,
                 description: "",
                 is_active: true,
+                default_layout_w: null,
+                default_layout_h: null,
             },
         };
     },
@@ -711,6 +742,8 @@ export default {
                 player_count: 0,
                 description: "",
                 is_active: true,
+                default_layout_w: null,
+                default_layout_h: null,
             };
             this.showModal = true;
         },
@@ -723,6 +756,8 @@ export default {
                 player_count: 4,
                 description: "",
                 is_active: true,
+                default_layout_w: null,
+                default_layout_h: null,
             };
             this.showModal = true;
         },
@@ -735,6 +770,8 @@ export default {
                 player_count: type.player_count,
                 description: type.description || "",
                 is_active: !!type.is_active,
+                default_layout_w: type.default_layout_w ? type.default_layout_w / 100 : null,
+                default_layout_h: type.default_layout_h ? type.default_layout_h / 100 : null,
             };
             this.showModal = true;
         },
@@ -752,11 +789,17 @@ export default {
                 this.form.player_count = 0;
             }
             
+            const payload = {
+                ...this.form,
+                default_layout_w: (this.form.parent_id !== null && this.form.default_layout_w) ? parseFloat(this.form.default_layout_w) * 10 : null,
+                default_layout_h: (this.form.parent_id !== null && this.form.default_layout_h) ? parseFloat(this.form.default_layout_h) * 10 : null,
+            };
+            
             try {
                 if (this.editingId) {
-                    await courtTypeService.update(this.editingId, this.form);
+                    await courtTypeService.update(this.editingId, payload);
                 } else {
-                    await courtTypeService.create(this.form);
+                    await courtTypeService.create(payload);
                 }
                 await this.fetchCourtTypes();
                 this.closeModal();
@@ -805,7 +848,9 @@ export default {
                     parent_id: newParentId,
                     player_count: child.player_count,
                     description: child.description || "",
-                    is_active: !!child.is_active
+                    is_active: !!child.is_active,
+                    default_layout_w: child.default_layout_w,
+                    default_layout_h: child.default_layout_h,
                 };
                 await courtTypeService.update(child.id, updatedForm);
                 // Đồng bộ dữ liệu mới nhất ngầm từ server mà không bật spinner loading

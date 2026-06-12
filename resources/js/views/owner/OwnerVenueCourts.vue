@@ -41,14 +41,14 @@
           :class="{ active: activeView === 'list' }" 
           @click="activeView = 'list'"
         >
-          <span>📋 Danh sách sân con</span>
+          <span>Danh sách sân con</span>
         </button>
         <button 
           class="tab-btn" 
           :class="{ active: activeView === 'layout' }" 
           @click="activeView = 'layout'"
         >
-          <span>📐 Sắp xếp sơ đồ trực quan</span>
+          <span>Sắp xếp sơ đồ trực quan</span>
         </button>
       </div>
 
@@ -70,8 +70,8 @@
             <div class="info-row">
               <span class="label">Sơ đồ:</span>
               <span class="value">
-                <span v-if="court.layout_x !== null" class="badge-placed">📍 Đã xếp ({{ Math.round(court.layout_x) }}, {{ Math.round(court.layout_y) }})</span>
-                <span v-else class="badge-unplaced">⏳ Chưa xếp</span>
+                <span v-if="court.layout_x !== null" class="badge-placed">Đã xếp ({{ formatToM(court.layout_x) }}m, {{ formatToM(court.layout_y) }}m)</span>
+                <span v-else class="badge-unplaced">Chưa xếp</span>
               </span>
             </div>
             <div class="info-row">
@@ -92,59 +92,74 @@
         <div class="editor-toolbar">
           <div class="toolbar-left">
             <button class="btn btn-primary" @click="saveLayout" :disabled="savingLayout">
-              <span>💾 {{ savingLayout ? 'Đang lưu...' : 'Lưu sơ đồ' }}</span>
+              <span>{{ savingLayout ? 'Đang lưu...' : 'Lưu sơ đồ' }}</span>
             </button>
             <button class="btn btn-outline" @click="autoArrange">
-              <span>⚡ Tự động sắp xếp</span>
+              <span>Tự động sắp xếp</span>
             </button>
             <button class="btn btn-outline btn-danger-outline" @click="clearLayout">
-              <span>🗑️ Xóa toàn bộ</span>
+              <span>Xóa toàn bộ</span>
             </button>
           </div>
           <div class="toolbar-right">
-            <span class="info-badge">Bản đồ ảo: 1000 x 600 px | Kéo thả để di chuyển | Chọn để xoay/đổi cỡ</span>
+            <span class="info-badge">Không giới hạn (Zoom/Pan) | Chọn sân để xoay & chỉnh cỡ</span>
           </div>
         </div>
 
         <div class="editor-body">
           <!-- Canvas area -->
           <div 
-            class="canvas-container"
-            ref="canvasContainer"
-            @mousemove="handleDrag"
-            @mouseup="endDrag"
-            @mouseleave="endDrag"
+            class="canvas-viewport"
+            ref="canvasViewport"
+            @wheel.prevent="handleZoom"
+            @mousedown="startPan"
+            @mousemove="handleGlobalMove"
+            @mouseup="handleGlobalUp"
+            @mouseleave="handleGlobalUp"
             @click="selectedCourtId = null"
           >
-            <div class="canvas-grid-bg"></div>
+            <!-- Zoom controls -->
+            <div class="zoom-controls">
+              <button class="btn-zoom" @click.stop="setZoom(zoom - 0.1)">-</button>
+              <span class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
+              <button class="btn-zoom" @click.stop="setZoom(zoom + 0.1)">+</button>
+              <button class="btn-zoom reset" @click.stop="resetView">Reset</button>
+            </div>
 
-            <!-- Placed Courts -->
-            <div
-              v-for="court in placedCourts"
-              :key="court.id"
-              class="canvas-court-element"
-              :class="{ selected: selectedCourtId === court.id, dragging: draggingCourtId === court.id, resizing: resizingCourtId === court.id }"
-              :style="getCourtStyle(court)"
-              @mousedown.stop="startDrag($event, court)"
-              @click.stop="selectCourt(court)"
-            >
-              <CourtVisual
-                :name="court.name"
-                :court-type-name="court.court_type?.name"
-                status="active"
-                :width="court.layout_w || getDefaultWidth(court)"
-                :height="court.layout_h || getDefaultHeight(court)"
-                :rotation="court.layout_rotation || 0"
-                :show-type="false"
-              />
-              
-              <!-- Resize Handles (Only for selected court) -->
-              <template v-if="selectedCourtId === court.id">
-                <div class="resize-handle tl" @mousedown.stop.prevent="startResize($event, court, 'tl')"></div>
-                <div class="resize-handle tr" @mousedown.stop.prevent="startResize($event, court, 'tr')"></div>
-                <div class="resize-handle bl" @mousedown.stop.prevent="startResize($event, court, 'bl')"></div>
-                <div class="resize-handle br" @mousedown.stop.prevent="startResize($event, court, 'br')"></div>
-              </template>
+            <div class="canvas-grid-bg" :style="{ 
+              backgroundSize: `${30 * zoom}px ${30 * zoom}px`,
+              backgroundPosition: `${panX}px ${panY}px`
+            }"></div>
+
+            <div class="canvas-content" :style="{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, transformOrigin: '0 0' }">
+              <!-- Placed Courts -->
+              <div
+                v-for="court in placedCourts"
+                :key="court.id"
+                class="canvas-court-element"
+                :class="{ selected: selectedCourtId === court.id, dragging: draggingCourtId === court.id, resizing: resizingCourtId === court.id }"
+                :style="getCourtStyle(court)"
+                @mousedown.stop="startDrag($event, court)"
+                @click.stop="selectCourt(court)"
+              >
+                <CourtVisual
+                  :name="court.name"
+                  :court-type-name="court.court_type?.name"
+                  status="active"
+                  :width="court.layout_w || getDefaultWidth(court)"
+                  :height="court.layout_h || getDefaultHeight(court)"
+                  :rotation="court.layout_rotation || 0"
+                  :show-type="false"
+                />
+                
+                <!-- Resize Handles -->
+                <template v-if="selectedCourtId === court.id">
+                  <div class="resize-handle tl" @mousedown.stop.prevent="startResize($event, court, 'tl')"></div>
+                  <div class="resize-handle tr" @mousedown.stop.prevent="startResize($event, court, 'tr')"></div>
+                  <div class="resize-handle bl" @mousedown.stop.prevent="startResize($event, court, 'bl')"></div>
+                  <div class="resize-handle br" @mousedown.stop.prevent="startResize($event, court, 'br')"></div>
+                </template>
+              </div>
             </div>
           </div>
 
@@ -152,7 +167,7 @@
           <div class="editor-sidebar">
             <!-- Inspector Panel -->
             <div v-if="selectedCourt" class="sidebar-section inspector-panel">
-              <h4 class="section-title">🔍 Thông tin: {{ selectedCourt.name }}</h4>
+              <h4 class="section-title">Thông tin: {{ selectedCourt.name }}</h4>
               <div class="inspector-fields">
                 <div class="field-row">
                   <span class="label">BỘ MÔN:</span>
@@ -160,20 +175,20 @@
                 </div>
                 
                 <div class="field-group">
-                  <label>Kích thước (px):</label>
+                  <label>Kích thước (m):</label>
                   <div class="input-row">
-                    <input type="number" v-model.number="selectedCourt.layout_w" placeholder="W" @input="validateSize(selectedCourt)" />
+                    <input type="number" step="0.1" :value="formatToM(selectedCourt.layout_w)" @input="updateW(selectedCourt, $event.target.value)" placeholder="Ngang" />
                     <span class="x">x</span>
-                    <input type="number" v-model.number="selectedCourt.layout_h" placeholder="H" @input="validateSize(selectedCourt)" />
+                    <input type="number" step="0.1" :value="formatToM(selectedCourt.layout_h)" @input="updateH(selectedCourt, $event.target.value)" placeholder="Dọc" />
                   </div>
                 </div>
 
                 <div class="field-group">
-                  <label>Tọa độ (X, Y):</label>
+                  <label>Vị trí cách lề Trái / Trên (m):</label>
                   <div class="input-row">
-                    <input type="number" v-model.number="selectedCourt.layout_x" placeholder="X" @input="validateCoords(selectedCourt)" />
+                    <input type="number" step="0.1" :value="formatToM(selectedCourt.layout_x)" @input="updateX(selectedCourt, $event.target.value)" placeholder="Trái (X)" />
                     <span class="comma">,</span>
-                    <input type="number" v-model.number="selectedCourt.layout_y" placeholder="Y" @input="validateCoords(selectedCourt)" />
+                    <input type="number" step="0.1" :value="formatToM(selectedCourt.layout_y)" @input="updateY(selectedCourt, $event.target.value)" placeholder="Trên (Y)" />
                   </div>
                 </div>
 
@@ -188,20 +203,20 @@
                       class="rotation-slider" 
                     />
                     <button type="button" class="btn btn-outline btn-xs btn-rotate" @click="rotateSelected90">
-                      <span>🔄 Xoay +90°</span>
+                      <span>Xoay +90°</span>
                     </button>
                   </div>
                 </div>
 
                 <button type="button" class="btn btn-outline btn-danger-outline btn-block" @click="unplaceCourt(selectedCourt)">
-                  <span>🚫 Gỡ khỏi sơ đồ</span>
+                  <span>Gỡ khỏi sơ đồ</span>
                 </button>
               </div>
             </div>
 
             <!-- Unplaced list -->
             <div class="sidebar-section unplaced-list-section">
-              <h4 class="section-title">📦 Sân chưa xếp ({{ unplacedCourts.length }})</h4>
+              <h4 class="section-title">Sân chưa xếp ({{ unplacedCourts.length }})</h4>
               <p class="section-desc">Click vào sân để đưa vào bản đồ rồi kéo thả sắp xếp:</p>
               <div class="unplaced-items">
                 <div 
@@ -212,7 +227,7 @@
                 >
                   <div class="item-header">
                     <div class="item-name">{{ court.name }}</div>
-                    <span class="item-add-hint">📍 Xếp sân</span>
+                    <span class="item-add-hint">Xếp sân</span>
                   </div>
                   <div class="item-type">{{ court.court_type?.name }}</div>
                 </div>
@@ -357,6 +372,13 @@ export default {
       resizeStartH: 0,
       resizeStartXCoord: 0,
       resizeStartYCoord: 0,
+      panX: 0,
+      panY: 0,
+      zoom: 1,
+      isPanning: false,
+      panStartX: 0,
+      panStartY: 0,
+      originalCourtState: null,
     };
   },
   computed: {
@@ -524,11 +546,26 @@ export default {
       }
     },
     placeCourt(court) {
-      court.layout_x = 420;
-      court.layout_y = 220;
       court.layout_w = this.getDefaultWidth(court);
       court.layout_h = this.getDefaultHeight(court);
       court.layout_rotation = 0;
+      
+      const rect = this.$refs.canvasViewport?.getBoundingClientRect();
+      const centerX = rect ? rect.width / 2 : 500;
+      const centerY = rect ? rect.height / 2 : 300;
+      let startX = (centerX - this.panX) / this.zoom - (court.layout_w / 2);
+      let startY = (centerY - this.panY) / this.zoom - (court.layout_h / 2);
+      
+      court.layout_x = startX;
+      court.layout_y = startY;
+      
+      let attempts = 0;
+      while (this.checkCollisionWithOthers(court) && attempts < 50) {
+        court.layout_x += 30;
+        court.layout_y += 30;
+        attempts++;
+      }
+      
       this.selectedCourtId = court.id;
     },
     unplaceCourt(court) {
@@ -539,33 +576,125 @@ export default {
       }
     },
     getDefaultWidth(court) {
-      const typeName = (court.court_type?.name || '').toLowerCase();
-      if (typeName.includes('bóng đá') || typeName.includes('football')) {
-        return typeName.includes('11') ? 240 : 160;
+      if (court?.court_type?.default_layout_w) {
+        return court.court_type.default_layout_w;
       }
-      if (typeName.includes('cầu lông') || typeName.includes('badminton')) return 60;
-      if (typeName.includes('pickleball')) return 60;
-      if (typeName.includes('tennis')) return 70;
-      if (typeName.includes('bóng rổ') || typeName.includes('basketball')) return 140;
-      if (typeName.includes('bóng chuyền') || typeName.includes('volleyball')) return 120;
-      return 80;
+      return 800; // Fallback an toàn nếu admin chưa nhập
     },
     getDefaultHeight(court) {
-      const typeName = (court.court_type?.name || '').toLowerCase();
-      if (typeName.includes('bóng đá') || typeName.includes('football')) {
-        return typeName.includes('11') ? 150 : 100;
+      if (court?.court_type?.default_layout_h) {
+        return court.court_type.default_layout_h;
       }
-      if (typeName.includes('cầu lông') || typeName.includes('badminton')) return 130;
-      if (typeName.includes('pickleball')) return 130;
-      if (typeName.includes('tennis')) return 150;
-      if (typeName.includes('bóng rổ') || typeName.includes('basketball')) return 80;
-      if (typeName.includes('bóng chuyền') || typeName.includes('volleyball')) return 60;
-      return 80;
+      return 800; // Fallback an toàn nếu admin chưa nhập
+    },
+    formatToM(val) {
+      if (val === null || val === undefined) return 0;
+      return Math.round(val) / 100;
+    },
+    updateW(court, value) {
+      const parsed = parseFloat(value);
+      court.layout_w = isNaN(parsed) ? 0 : parsed * 100;
+      this.validateSize(court);
+    },
+    updateH(court, value) {
+      const parsed = parseFloat(value);
+      court.layout_h = isNaN(parsed) ? 0 : parsed * 100;
+      this.validateSize(court);
+    },
+    updateX(court, value) {
+      const parsed = parseFloat(value);
+      court.layout_x = isNaN(parsed) ? 0 : parsed * 100;
+      this.validateCoords(court);
+    },
+    updateY(court, value) {
+      const parsed = parseFloat(value);
+      court.layout_y = isNaN(parsed) ? 0 : parsed * 100;
+      this.validateCoords(court);
+    },
+    getVertices(court) {
+      const w = court.layout_w || this.getDefaultWidth(court);
+      const h = court.layout_h || this.getDefaultHeight(court);
+      const cx = (court.layout_x || 0) + w / 2;
+      const cy = (court.layout_y || 0) + h / 2;
+      const angle = (court.layout_rotation || 0) * Math.PI / 180;
+      
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      
+      const points = [
+        { x: -w/2, y: -h/2 },
+        { x: w/2, y: -h/2 },
+        { x: w/2, y: h/2 },
+        { x: -w/2, y: h/2 }
+      ];
+      
+      return points.map(p => ({
+        x: cx + p.x * cos - p.y * sin,
+        y: cy + p.x * sin + p.y * cos
+      }));
+    },
+    polygonsIntersect(polyA, polyB) {
+      const getEdges = (poly) => {
+        const edges = [];
+        for (let i = 0; i < poly.length; i++) {
+          const p1 = poly[i];
+          const p2 = poly[(i + 1) % poly.length];
+          edges.push({ x: p2.x - p1.x, y: p2.y - p1.y });
+        }
+        return edges;
+      };
+
+      const getNormals = (edges) => {
+        return edges.map(edge => ({ x: -edge.y, y: edge.x }));
+      };
+
+      const project = (poly, axis) => {
+        const length = Math.sqrt(axis.x * axis.x + axis.y * axis.y);
+        const ax = axis.x / length;
+        const ay = axis.y / length;
+        let min = Infinity;
+        let max = -Infinity;
+        for (const p of poly) {
+          const dot = p.x * ax + p.y * ay;
+          if (dot < min) min = dot;
+          if (dot > max) max = dot;
+        }
+        return { min, max };
+      };
+
+      const edgesA = getEdges(polyA);
+      const edgesB = getEdges(polyB);
+      const axes = [...getNormals(edgesA), ...getNormals(edgesB)];
+      
+      for (const axis of axes) {
+        const projA = project(polyA, axis);
+        const projB = project(polyB, axis);
+        if (projA.max <= projB.min + 0.1 || projB.max <= projA.min + 0.1) {
+          return false;
+        }
+      }
+      return true;
+    },
+    checkCollisionWithOthers(targetCourt) {
+      const polyA = this.getVertices(targetCourt);
+      for (const court of this.placedCourts) {
+        if (court.id === targetCourt.id) continue;
+        const polyB = this.getVertices(court);
+        if (this.polygonsIntersect(polyA, polyB)) {
+          return true;
+        }
+      }
+      return false;
     },
     rotateSelected90() {
       const court = this.selectedCourt;
       if (court) {
+        const oldState = { ...court };
         court.layout_rotation = ((court.layout_rotation || 0) + 90) % 360;
+        if (this.checkCollisionWithOthers(court)) {
+          court.layout_rotation = oldState.layout_rotation;
+          alert('Không thể xoay vì sẽ bị đè lên sân khác.');
+        }
       }
     },
     getCourtStyle(court) {
@@ -576,11 +705,73 @@ export default {
         height: `${court.layout_h || this.getDefaultHeight(court)}px`
       };
     },
+    getLogicalCoords(event) {
+      const rect = this.$refs.canvasViewport?.getBoundingClientRect();
+      if (!rect) return { x: 0, y: 0 };
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      return {
+        x: (mouseX - this.panX) / this.zoom,
+        y: (mouseY - this.panY) / this.zoom
+      };
+    },
+    startPan(e) {
+      if (e.target.closest('.canvas-court-element') || e.target.closest('.zoom-controls')) return;
+      this.isPanning = true;
+      this.panStartX = e.clientX - this.panX;
+      this.panStartY = e.clientY - this.panY;
+    },
+    handleGlobalMove(e) {
+      if (this.isPanning) {
+        this.panX = e.clientX - this.panStartX;
+        this.panY = e.clientY - this.panStartY;
+        return;
+      }
+      if (this.draggingCourtId || this.resizingCourtId) {
+        this.handleDrag(e);
+      }
+    },
+    handleGlobalUp() {
+      this.isPanning = false;
+      if (this.draggingCourtId || this.resizingCourtId) {
+        this.endDrag();
+      }
+    },
+    handleZoom(e) {
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      this.setZoom(this.zoom + delta, e.clientX, e.clientY);
+    },
+    setZoom(val, clientX = null, clientY = null) {
+      const newZoom = Math.max(0.2, Math.min(3, val));
+      if (newZoom === this.zoom) return;
+      
+      const rect = this.$refs.canvasViewport?.getBoundingClientRect();
+      if (!rect) {
+        this.zoom = newZoom;
+        return;
+      }
+      
+      const targetX = clientX !== null ? clientX - rect.left : rect.width / 2;
+      const targetY = clientY !== null ? clientY - rect.top : rect.height / 2;
+      
+      const logicalX = (targetX - this.panX) / this.zoom;
+      const logicalY = (targetY - this.panY) / this.zoom;
+      
+      this.zoom = newZoom;
+      this.panX = targetX - logicalX * this.zoom;
+      this.panY = targetY - logicalY * this.zoom;
+    },
+    resetView() {
+      this.zoom = 1;
+      this.panX = 0;
+      this.panY = 0;
+    },
     startResize(event, court, direction) {
       this.resizingCourtId = court.id;
       this.resizeDirection = direction;
-      this.dragStartX = event.clientX;
-      this.dragStartY = event.clientY;
+      const logical = this.getLogicalCoords(event);
+      this.dragStartX = logical.x;
+      this.dragStartY = logical.y;
       this.resizeStartW = court.layout_w || this.getDefaultWidth(court);
       this.resizeStartH = court.layout_h || this.getDefaultHeight(court);
       this.resizeStartXCoord = court.layout_x || 0;
@@ -589,16 +780,20 @@ export default {
     startDrag(event, court) {
       this.draggingCourtId = court.id;
       this.selectedCourtId = court.id;
-      this.dragStartX = event.clientX - (court.layout_x || 0);
-      this.dragStartY = event.clientY - (court.layout_y || 0);
+      const logical = this.getLogicalCoords(event);
+      this.dragStartX = logical.x - (court.layout_x || 0);
+      this.dragStartY = logical.y - (court.layout_y || 0);
     },
     handleDrag(event) {
       if (this.resizingCourtId) {
         const court = this.courts.find(c => c.id === this.resizingCourtId);
         if (!court) return;
         
-        const dx = event.clientX - this.dragStartX;
-        const dy = event.clientY - this.dragStartY;
+        const logical = this.getLogicalCoords(event);
+        const dx = logical.x - this.dragStartX;
+        const dy = logical.y - this.dragStartY;
+        
+        const oldState = { layout_w: court.layout_w, layout_h: court.layout_h, layout_x: court.layout_x, layout_y: court.layout_y };
         
         if (this.resizeDirection === 'br') {
           court.layout_w = Math.max(30, this.resizeStartW + dx);
@@ -631,7 +826,13 @@ export default {
         }
         
         this.validateSize(court);
-        this.validateCoords(court);
+        
+        if (this.checkCollisionWithOthers(court)) {
+          court.layout_w = oldState.layout_w;
+          court.layout_h = oldState.layout_h;
+          court.layout_x = oldState.layout_x;
+          court.layout_y = oldState.layout_y;
+        }
         return;
       }
 
@@ -639,17 +840,18 @@ export default {
       const court = this.courts.find(c => c.id === this.draggingCourtId);
       if (!court) return;
       
-      let newX = event.clientX - this.dragStartX;
-      let newY = event.clientY - this.dragStartY;
+      const logical = this.getLogicalCoords(event);
+      let newX = logical.x - this.dragStartX;
+      let newY = logical.y - this.dragStartY;
       
-      const w = court.layout_w || this.getDefaultWidth(court);
-      const h = court.layout_h || this.getDefaultHeight(court);
-      
-      newX = Math.max(0, Math.min(1000 - w, newX));
-      newY = Math.max(0, Math.min(600 - h, newY));
-      
+      const oldState = { layout_x: court.layout_x, layout_y: court.layout_y };
       court.layout_x = newX;
       court.layout_y = newY;
+      
+      if (this.checkCollisionWithOthers(court)) {
+        court.layout_x = oldState.layout_x;
+        court.layout_y = oldState.layout_y;
+      }
     },
     endDrag() {
       this.draggingCourtId = null;
@@ -661,18 +863,7 @@ export default {
     validateSize(court) {
       if (!court) return;
       if (court.layout_w < 10) court.layout_w = 10;
-      if (court.layout_w > 1000) court.layout_w = 1000;
       if (court.layout_h < 10) court.layout_h = 10;
-      if (court.layout_h > 600) court.layout_h = 600;
-    },
-    validateCoords(court) {
-      if (!court) return;
-      const w = court.layout_w || this.getDefaultWidth(court);
-      const h = court.layout_h || this.getDefaultHeight(court);
-      if (court.layout_x < 0) court.layout_x = 0;
-      if (court.layout_x > 1000 - w) court.layout_x = 1000 - w;
-      if (court.layout_y < 0) court.layout_y = 0;
-      if (court.layout_y > 600 - h) court.layout_y = 600 - h;
     },
     async saveLayout() {
       this.savingLayout = true;
@@ -698,17 +889,32 @@ export default {
     },
     autoArrange() {
       if (confirm('Bạn có chắc chắn muốn tự động sắp xếp tất cả các sân không? Thao tác này sẽ ghi đè các vị trí hiện tại.')) {
+        let currentX = 50;
+        let currentY = 50;
+        let maxRowH = 0;
+        
         this.courts.forEach((court, index) => {
           const w = this.getDefaultWidth(court);
           const h = this.getDefaultHeight(court);
-          const col = index % 4;
-          const row = Math.floor(index / 4);
-          court.layout_x = 50 + col * 230;
-          court.layout_y = 50 + row * 180;
+          
+          if (currentX + w > 1500) {
+            currentX = 50;
+            currentY += maxRowH + 80;
+            maxRowH = 0;
+          }
+
           court.layout_w = w;
           court.layout_h = h;
+          court.layout_x = currentX;
+          court.layout_y = currentY;
           court.layout_rotation = 0;
+          
+          currentX += w + 80;
+          if (h > maxRowH) maxRowH = h;
         });
+        
+        this.panX = 0;
+        this.panY = 0;
       }
     },
     clearLayout() {
@@ -1276,7 +1482,7 @@ export default {
   align-items: flex-start;
 }
 
-.canvas-container {
+.canvas-viewport {
   position: relative;
   width: 1000px;
   height: 600px;
@@ -1285,13 +1491,69 @@ export default {
   border-radius: 16px;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
   overflow: hidden;
-  cursor: default;
+  cursor: grab;
+}
+
+.canvas-viewport:active {
+  cursor: grabbing;
+}
+
+.canvas-content {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.canvas-court-element {
+  pointer-events: auto;
+}
+
+.zoom-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--sg-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.btn-zoom {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--sg-text);
+  transition: background 0.2s;
+}
+
+.btn-zoom:hover {
+  background: #f1f5f9;
+}
+
+.btn-zoom.reset {
+  font-size: 13px;
+  border-left: 1px solid var(--sg-border);
+}
+
+.zoom-level {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 10px;
+  color: var(--sg-text);
+  min-width: 48px;
+  text-align: center;
 }
 
 .canvas-grid-bg {
   position: absolute;
   inset: 0;
-  background-size: 30px 30px;
   background-image: 
     linear-gradient(to right, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(15, 23, 42, 0.035) 1px, transparent 1px);

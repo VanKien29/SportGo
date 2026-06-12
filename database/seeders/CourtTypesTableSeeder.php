@@ -48,16 +48,17 @@ class CourtTypesTableSeeder extends Seeder
         }
 
         $childrenData = [
-            ['Bóng Đá (Sân 11)', 'Sân bóng đá 11 người.', 22, 'Bóng Đá'],
-            ['Bóng Đá (Sân 7)', 'Sân bóng đá 7 người.', 14, 'Bóng Đá'],
-            ['Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông tiêu chuẩn.', 4, 'Cầu lông'],
-            ['Pickleball (Sân tiêu chuẩn)', 'Sân pickleball tiêu chuẩn.', 4, 'Pickleball'],
-            ['Bóng rổ (Sân tiêu chuẩn)', 'Sân bóng rổ tiêu chuẩn.', 10, 'Bóng rổ'],
-            ['Bóng chuyền (Sân tiêu chuẩn)', 'Sân bóng chuyền tiêu chuẩn.', 12, 'Bóng chuyền'],
-            ['Tennis (Sân tiêu chuẩn)', 'Sân tennis tiêu chuẩn.', 4, 'Tennis'],
+            ['Bóng Đá (Sân 11)', 'Sân bóng đá 11 người theo chuẩn FIFA.', 22, 'Bóng Đá', 10500, 6800],
+            ['Bóng Đá (Sân 7)', 'Sân bóng đá 7 người theo chuẩn VFF.', 14, 'Bóng Đá', 5000, 4000],
+            ['Bóng Đá (Sân 5 - Futsal)', 'Sân bóng đá 5 người theo chuẩn Futsal.', 10, 'Bóng Đá', 4000, 2000],
+            ['Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông tiêu chuẩn.', 4, 'Cầu lông', 610, 1340],
+            ['Pickleball (Sân tiêu chuẩn)', 'Sân pickleball tiêu chuẩn.', 4, 'Pickleball', 610, 1340],
+            ['Bóng rổ (Sân tiêu chuẩn)', 'Sân bóng rổ tiêu chuẩn.', 10, 'Bóng rổ', 1500, 2800],
+            ['Bóng chuyền (Sân tiêu chuẩn)', 'Sân bóng chuyền tiêu chuẩn.', 12, 'Bóng chuyền', 900, 1800],
+            ['Tennis (Sân tiêu chuẩn)', 'Sân tennis tiêu chuẩn.', 4, 'Tennis', 1097, 2377],
         ];
 
-        foreach ($childrenData as [$name, $description, $playerCount, $parentName]) {
+        foreach ($childrenData as [$name, $description, $playerCount, $parentName, $defaultW, $defaultH]) {
             $child = CourtType::withTrashed()->updateOrCreate(
                 ['name' => $name],
                 [
@@ -65,6 +66,8 @@ class CourtTypesTableSeeder extends Seeder
                     'description' => $description,
                     'player_count' => $playerCount,
                     'is_active' => true,
+                    'default_layout_w' => $defaultW,
+                    'default_layout_h' => $defaultH,
                 ],
             );
 
