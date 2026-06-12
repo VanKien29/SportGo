@@ -114,26 +114,40 @@
             @mouseleave="handleGlobalUp"
             @click="selectedCourtId = null"
           >
-            <!-- Zoom controls -->
-            <div class="zoom-controls">
-              <button class="btn-zoom" @click.stop="setZoom(zoom - 0.1)">-</button>
-              <span class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
-              <button class="btn-zoom" @click.stop="setZoom(zoom + 0.1)">+</button>
-              <button class="btn-zoom reset" @click.stop="resetView">Reset</button>
+            <!-- Canvas Interaction Guide -->
+            <div class="canvas-interaction-guide">
+              <div class="guide-item">🖱️ <b>Cuộn chuột:</b> Zoom sơ đồ</div>
+              <div class="guide-item">🖐️ <b>Kéo nền trống:</b> Di chuyển góc nhìn</div>
+              <div class="guide-item">🎯 <b>Kéo thả sân:</b> Đổi vị trí sân con</div>
+              <div class="guide-item">📐 <b>Kéo các nút góc:</b> Thay đổi kích thước</div>
             </div>
 
-            <div class="canvas-grid-bg" :style="{ 
-              backgroundSize: `${30 * zoom}px ${30 * zoom}px`,
-              backgroundPosition: `${panX}px ${panY}px`
-            }"></div>
+            <!-- Zoom controls -->
+            <div class="zoom-controls">
+              <button class="btn-zoom" @click.stop="setZoom(zoom - 0.1)" title="Thu nhỏ">-</button>
+              <span class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
+              <button class="btn-zoom" @click.stop="setZoom(zoom + 0.1)" title="Phóng to">+</button>
+              <button class="btn-zoom fit" @click.stop="fitView" title="Căn giữa sơ đồ">
+                <span class="btn-icon">👁️</span> Căn giữa
+              </button>
+              <button class="btn-zoom reset" @click.stop="resetView" title="Đặt lại góc nhìn">Reset</button>
+            </div>
 
             <div class="canvas-content" :style="{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, transformOrigin: '0 0' }">
+              <!-- Grid Background inside canvas content -->
+              <div class="canvas-grid-bg"></div>
+
               <!-- Placed Courts -->
               <div
                 v-for="court in placedCourts"
                 :key="court.id"
                 class="canvas-court-element"
-                :class="{ selected: selectedCourtId === court.id, dragging: draggingCourtId === court.id, resizing: resizingCourtId === court.id }"
+                :class="{ 
+                  selected: selectedCourtId === court.id, 
+                  dragging: draggingCourtId === court.id, 
+                  resizing: resizingCourtId === court.id,
+                  'has-collision': collisions[court.id]
+                }"
                 :style="getCourtStyle(court)"
                 @mousedown.stop="startDrag($event, court)"
                 @click.stop="selectCourt(court)"
@@ -147,6 +161,11 @@
                   :rotation="court.layout_rotation || 0"
                   :show-type="false"
                 />
+
+                <!-- Collision Warning Badge -->
+                <div v-if="collisions[court.id]" class="collision-badge" title="Sân đang bị chồng lấn!">
+                  ⚠️ Chồng lấp
+                </div>
                 
                 <!-- Resize Handles -->
                 <template v-if="selectedCourtId === court.id">
@@ -164,6 +183,12 @@
             <!-- Inspector Panel -->
             <div v-if="selectedCourt" class="sidebar-section inspector-panel">
               <h4 class="section-title">Thông tin: {{ selectedCourt.name }}</h4>
+
+              <!-- Inspector Warning Box for Collisions -->
+              <div v-if="collisions[selectedCourt.id]" class="inspector-warning-box">
+                ⚠️ Sân đang chồng lấn lên sân khác! Vui lòng dịch chuyển hoặc thay đổi kích thước để tránh va chạm.
+              </div>
+
               <div class="inspector-fields">
                 <div class="field-row">
                   <span class="label">BỘ MÔN:</span>
@@ -405,6 +430,23 @@ export default {
     },
     selectedCourt() {
       return this.courts.find(c => c.id === this.selectedCourtId) || null;
+    },
+    collisions() {
+      const collisionMap = {};
+      const placed = this.placedCourts;
+      for (let i = 0; i < placed.length; i++) {
+        const courtA = placed[i];
+        const polyA = this.getVertices(courtA);
+        for (let j = i + 1; j < placed.length; j++) {
+          const courtB = placed[j];
+          const polyB = this.getVertices(courtB);
+          if (this.polygonsIntersect(polyA, polyB)) {
+            collisionMap[courtA.id] = true;
+            collisionMap[courtB.id] = true;
+          }
+        }
+      }
+      return collisionMap;
     }
   },
   methods: {
@@ -685,12 +727,7 @@ export default {
     rotateSelected90() {
       const court = this.selectedCourt;
       if (court) {
-        const oldState = { ...court };
         court.layout_rotation = ((court.layout_rotation || 0) + 90) % 360;
-        if (this.checkCollisionWithOthers(court)) {
-          court.layout_rotation = oldState.layout_rotation;
-          alert('Không thể xoay vì sẽ bị đè lên sân khác.');
-        }
       }
     },
     getCourtStyle(court) {
@@ -789,8 +826,6 @@ export default {
         const dx = logical.x - this.dragStartX;
         const dy = logical.y - this.dragStartY;
         
-        const oldState = { layout_w: court.layout_w, layout_h: court.layout_h, layout_x: court.layout_x, layout_y: court.layout_y };
-        
         if (this.resizeDirection === 'br') {
           court.layout_w = Math.max(30, this.resizeStartW + dx);
           court.layout_h = Math.max(30, this.resizeStartH + dy);
@@ -822,13 +857,6 @@ export default {
         }
         
         this.validateSize(court);
-        
-        if (this.checkCollisionWithOthers(court)) {
-          court.layout_w = oldState.layout_w;
-          court.layout_h = oldState.layout_h;
-          court.layout_x = oldState.layout_x;
-          court.layout_y = oldState.layout_y;
-        }
         return;
       }
 
@@ -840,14 +868,8 @@ export default {
       let newX = logical.x - this.dragStartX;
       let newY = logical.y - this.dragStartY;
       
-      const oldState = { layout_x: court.layout_x, layout_y: court.layout_y };
       court.layout_x = newX;
       court.layout_y = newY;
-      
-      if (this.checkCollisionWithOthers(court)) {
-        court.layout_x = oldState.layout_x;
-        court.layout_y = oldState.layout_y;
-      }
     },
     endDrag() {
       this.draggingCourtId = null;
@@ -862,6 +884,12 @@ export default {
       if (court.layout_h < 10) court.layout_h = 10;
     },
     async saveLayout() {
+      const collisionCount = Object.keys(this.collisions).length;
+      if (collisionCount > 0) {
+        if (!confirm(`Phát hiện có một số sân đang bị chồng lấn nhau (hiển thị màu đỏ). Bạn có chắc chắn vẫn muốn lưu sơ đồ này không?`)) {
+          return;
+        }
+      }
       this.savingLayout = true;
       try {
         const layoutData = {
@@ -909,9 +937,54 @@ export default {
           if (h > maxRowH) maxRowH = h;
         });
         
-        this.panX = 0;
-        this.panY = 0;
+        this.$nextTick(() => {
+          this.fitView();
+        });
       }
+    },
+    fitView() {
+      const placed = this.placedCourts;
+      if (placed.length === 0) {
+        this.resetView();
+        return;
+      }
+      
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      
+      placed.forEach(court => {
+        const vertices = this.getVertices(court);
+        vertices.forEach(v => {
+          if (v.x < minX) minX = v.x;
+          if (v.y < minY) minY = v.y;
+          if (v.x > maxX) maxX = v.x;
+          if (v.y > maxY) maxY = v.y;
+        });
+      });
+      
+      const padding = 60;
+      const contentW = (maxX - minX) + padding * 2;
+      const contentH = (maxY - minY) + padding * 2;
+      
+      const viewport = this.$refs.canvasViewport;
+      if (!viewport) return;
+      const viewW = viewport.clientWidth;
+      const viewH = viewport.clientHeight;
+      
+      const zoomX = viewW / contentW;
+      const zoomY = viewH / contentH;
+      let newZoom = Math.min(zoomX, zoomY);
+      
+      newZoom = Math.max(0.35, Math.min(1.5, newZoom));
+      this.zoom = newZoom;
+      
+      const centerLogicalX = minX + (maxX - minX) / 2;
+      const centerLogicalY = minY + (maxY - minY) / 2;
+      
+      this.panX = viewW / 2 - centerLogicalX * this.zoom;
+      this.panY = viewH / 2 - centerLogicalY * this.zoom;
     },
     clearLayout() {
       if (confirm('Bạn có muốn gỡ bỏ toàn bộ sân con khỏi sơ đồ hiện tại không?')) {
@@ -1399,7 +1472,6 @@ export default {
 .layout-toggle-tabs {
   display: flex;
   gap: 12px;
-  border-bottom: 2px solid var(--sg-border);
   padding-bottom: 2px;
   margin-bottom: 24px;
 }
@@ -1550,11 +1622,16 @@ export default {
 
 .canvas-grid-bg {
   position: absolute;
-  inset: 0;
+  width: 10000px;
+  height: 10000px;
+  left: -5000px;
+  top: -5000px;
   background-image: 
-    linear-gradient(to right, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 30px 30px;
   pointer-events: none;
+  z-index: 1;
 }
 
 .canvas-court-element {
@@ -1562,6 +1639,7 @@ export default {
   z-index: 10;
   border-radius: 10px;
   box-sizing: border-box;
+  transition: transform 0.1s ease-out, outline 0.2s, box-shadow 0.2s;
 }
 
 .canvas-court-element:hover {
@@ -1572,11 +1650,93 @@ export default {
   cursor: grabbing;
   z-index: 50;
   opacity: 0.85;
+  transition: none;
+}
+
+.canvas-court-element.resizing {
+  transition: none;
 }
 
 .canvas-court-element.selected {
-  outline: 2px dashed #000000;
-  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
+  outline: 2.5px solid #000000 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12) !important;
+}
+
+.canvas-court-element.has-collision {
+  outline: 2.5px solid #ef4444 !important;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.5) !important;
+}
+
+.collision-badge {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ef4444;
+  color: white;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  z-index: 30;
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+  pointer-events: none;
+  animation: pulseWarning 1.5s infinite;
+}
+
+@keyframes pulseWarning {
+  0% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.06); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+.canvas-interaction-guide {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--sg-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  z-index: 99;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.guide-item {
+  font-size: 11.5px;
+  color: var(--sg-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-zoom.fit {
+  font-size: 12.5px;
+  border-left: 1px solid var(--sg-border);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-zoom.fit .btn-icon {
+  font-size: 13px;
+}
+
+.inspector-warning-box {
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  color: #ef4444;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  line-height: 1.4;
 }
 
 .resize-handle {
