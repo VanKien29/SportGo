@@ -370,6 +370,8 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
         <!-- Modal đăng ký cụm sân mới -->
         <div v-if="showNewClusterModal" class="modal-backdrop">
             <div class="modal-content">
@@ -834,14 +836,6 @@ export default {
                 this.marker = null;
             }
         },
-    },
-    watch: {
-        'form.latitude'(newVal) {
-            this.updateMapMarker();
-        },
-        'form.longitude'(newVal) {
-            this.updateMapMarker();
-        }
         async submitNewCluster() {
             this.submittingCluster = true;
             try {
@@ -866,6 +860,14 @@ export default {
             } finally {
                 this.submittingCluster = false;
             }
+        },
+    },
+    watch: {
+        'form.latitude'() {
+            this.updateMapMarker();
+        },
+        'form.longitude'() {
+            this.updateMapMarker();
         },
     },
     created() {
@@ -1287,6 +1289,8 @@ export default {
     align-items: center;
     padding: 16px 20px;
     border-bottom: 1px solid var(--sg-border, #e2e8f0);
+}
+
 /* Modal Styles */
 .modal-backdrop {
     position: fixed;
