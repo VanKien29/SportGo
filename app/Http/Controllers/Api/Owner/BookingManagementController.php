@@ -7,18 +7,21 @@ use App\Models\Booking;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\BookingService;
+use App\Services\Payments\SepayPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class BookingManagementController extends Controller
 {
-    public function __construct(private readonly BookingService $bookingService)
-    {
-    }
+    public function __construct(
+        private readonly BookingService $bookingService,
+        private readonly SepayPaymentService $sepayPaymentService,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -61,23 +64,53 @@ class BookingManagementController extends Controller
     {
         $validated = $request->validate([
             'venue_court_id' => ['required', 'uuid', 'exists:venue_courts,id'],
-            'booking_date' => ['required', 'date_format:Y-m-d'],
-            'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
-            'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
-            'payment_option' => ['required', Rule::in(['full_payment', 'deposit', 'no_prepay'])],
+            'booking_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'start_time' => ['required_without:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'end_time' => ['required_without:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'time_ranges' => ['nullable', 'array', 'min:1', 'max:32'],
+            'time_ranges.*.venue_court_id' => ['nullable', 'uuid', 'exists:venue_courts,id'],
+            'time_ranges.*.start_time' => ['required_with:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'time_ranges.*.end_time' => ['required_with:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'payment_option' => ['required', Rule::in(['full_payment', 'no_prepay'])],
+            'is_paid' => ['nullable', 'boolean'],
+            'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer', 'sepay'])],
             'customer_id' => ['nullable', 'uuid', 'exists:users,id'],
             'walk_in_name' => ['required_without:customer_id', 'nullable', 'string', 'max:255'],
             'walk_in_phone' => ['required_without:customer_id', 'nullable', 'string', 'max:20'],
         ]);
 
+        if (($validated['payment_method'] ?? null) === 'sepay' && $validated['payment_option'] === 'no_prepay') {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Thu sau bằng chuyển khoản sẽ được tạo ở bước thu tiền sau trận.',
+            ]);
+        }
+
+        if (($validated['payment_method'] ?? null) === 'sepay') {
+            $validated['is_paid'] = false;
+        }
+
         $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
         $this->ensureClusterCanMutate($request, $court->venueCluster);
 
         $booking = $this->bookingService->createCounterBooking($validated, $request->user());
+        $paymentQr = null;
+
+        if (($validated['payment_method'] ?? null) === 'sepay') {
+            try {
+                $paymentQr = $this->sepayPaymentService->createCounterCollectionPayment(
+                    $booking,
+                    $request->user(),
+                    (float) $booking->required_payment_amount,
+                );
+            } catch (RuntimeException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+        }
 
         return response()->json([
             'message' => 'Đã tạo booking tại quầy.',
             'data' => $booking->load(['venueCourt.courtType', 'customer']),
+            'payment_qr' => $paymentQr,
         ], 201);
     }
 
@@ -85,7 +118,7 @@ class BookingManagementController extends Controller
     {
         $validated = $request->validate([
             'venue_court_id' => ['required', 'uuid', 'exists:venue_courts,id'],
-            'recurring_start_date' => ['required', 'date_format:Y-m-d'],
+            'recurring_start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'recurring_end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:recurring_start_date'],
             'recurrence_type' => ['required', Rule::in(['daily', 'weekly', 'monthly'])],
             'recurrence_interval' => ['required', 'integer', 'min:1', 'max:12'],
@@ -96,6 +129,8 @@ class BookingManagementController extends Controller
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => ['required', Rule::in(['full_payment', 'deposit', 'no_prepay'])],
+            'is_paid' => ['nullable', 'boolean'],
+            'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer'])],
             'customer_id' => ['nullable', 'uuid', 'exists:users,id'],
             'walk_in_name' => ['required_without:customer_id', 'nullable', 'string', 'max:255'],
             'walk_in_phone' => ['required_without:customer_id', 'nullable', 'string', 'max:20'],
@@ -129,6 +164,12 @@ class BookingManagementController extends Controller
             'action' => ['required', Rule::in(['confirm', 'reject', 'cancel', 'check_in', 'complete'])],
             'status_reason' => ['required_if:action,reject,cancel', 'nullable', 'string', 'max:1000'],
         ]);
+
+        if ($validated['action'] === 'confirm' && $this->hasPendingSepayPayment($booking)) {
+            throw ValidationException::withMessages([
+                'action' => 'Booking đang chờ chuyển khoản. Hệ thống sẽ tự xác nhận khi thanh toán thành công.',
+            ]);
+        }
 
         $status = match ($validated['action']) {
             'confirm' => 'confirmed',
@@ -189,6 +230,47 @@ class BookingManagementController extends Controller
         ]);
     }
 
+    public function collectPayment(Request $request, string $id): JsonResponse
+    {
+        $booking = Booking::query()->with(['venueCluster', 'payments'])->findOrFail($id);
+        $this->ensureClusterCanMutate($request, $booking->venueCluster);
+
+        $validated = $request->validate([
+            'payment_method' => ['required', Rule::in(['cash', 'bank_transfer', 'sepay'])],
+            'amount' => ['nullable', 'numeric', 'min:1000'],
+        ]);
+
+        if ($validated['payment_method'] === 'sepay') {
+            try {
+                $paymentQr = $this->sepayPaymentService->createCounterCollectionPayment(
+                    $booking,
+                    $request->user(),
+                    isset($validated['amount']) ? (float) $validated['amount'] : null,
+                );
+            } catch (RuntimeException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            return response()->json([
+                'message' => 'Đã tạo thông tin chuyển khoản.',
+                'payment_qr' => $paymentQr,
+                'data' => $booking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'payments']),
+            ]);
+        }
+
+        $updated = $this->bookingService->collectCounterPayment(
+            $booking,
+            $request->user(),
+            $validated['payment_method'],
+            isset($validated['amount']) ? (float) $validated['amount'] : null,
+        );
+
+        return response()->json([
+            'message' => 'Đã ghi nhận thu tiền tại quầy.',
+            'data' => $updated,
+        ]);
+    }
+
     private function ensureBookingAccess(Request $request, Booking $booking): void
     {
         abort_unless($this->visibleClusterIds($request->user()->id)->contains($booking->venue_cluster_id), 403);
@@ -220,5 +302,13 @@ class BookingManagementController extends Controller
             ->merge($assignedClusterIds)
             ->unique()
             ->values();
+    }
+
+    private function hasPendingSepayPayment(Booking $booking): bool
+    {
+        return $booking->payments()
+            ->where('method', 'sepay')
+            ->where('status', 'pending')
+            ->exists();
     }
 }

@@ -1,0 +1,1093 @@
+<template>
+  <div class="partner-app-page">
+    <header class="page-header">
+      <div>
+        <h2>Quản lý đơn đăng ký đối tác</h2>
+        <p>Rà soát hồ sơ chủ sân, trạng thái duyệt và thông tin kinh doanh gửi về hệ thống.</p>
+      </div>
+
+      <button class="icon-btn" type="button" title="Làm mới" aria-label="Làm mới" @click="refresh">
+        <AppIcon name="refresh" size="16" />
+      </button>
+    </header>
+
+    <div class="toolbar card">
+      <div class="filters">
+        <label class="field compact">
+          <span>Tìm kiếm</span>
+          <input
+            v-model="filters.search"
+            type="search"
+            placeholder="Tên sân, người nộp, MST"
+            @input="onFilterChange"
+          />
+        </label>
+        <label class="field compact">
+          <span>Trạng thái</span>
+          <select v-model="filters.status" @change="loadApplications(1)">
+            <option value="">Tất cả</option>
+            <option v-for="option in statusOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+        <label class="field compact">
+          <span>Từ ngày</span>
+          <input v-model="filters.date_from" type="date" @change="loadApplications(1)" />
+        </label>
+        <label class="field compact">
+          <span>Đến ngày</span>
+          <input v-model="filters.date_to" type="date" @change="loadApplications(1)" />
+        </label>
+      </div>
+    </div>
+
+    <div v-if="message" class="notice success">{{ message }}</div>
+    <div v-if="error" class="notice error">{{ error }}</div>
+
+    <div v-if="loading" class="state-box card">
+      <div class="spinner"></div>
+      <p>Đang tải đơn đăng kí...</p>
+    </div>
+
+    <div v-else-if="applications.length === 0" class="state-box card">
+      <p>Không có đơn đăng kí phù hợp.</p>
+    </div>
+
+    <div v-else class="applications-table card">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Hồ sơ</th>
+              <th>Người nộp</th>
+              <th>Sân con</th>
+              <th>Ngày gửi</th>
+              <th class="center">Trạng thái</th>
+              <th class="right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="application in applications" :key="application.id">
+              <td>
+                <div class="main-title">
+                  {{ application.venue_name }}
+                  <span v-if="application.type === 'new_cluster'" class="badge cluster-badge">Cụm mới</span>
+                  <span v-else class="badge partner-badge">Đối tác mới</span>
+                </div>
+                <div class="muted">{{ application.business_name }}</div>
+              </td>
+              <td>
+                <div class="main-title">{{ application.user?.full_name || application.user?.username || '-' }}</div>
+                <div class="muted">{{ application.user?.email || application.user?.phone || '' }}</div>
+              </td>
+              <td>{{ application.courts_count || 0 }}</td>
+              <td>{{ formatDate(application.submitted_at) }}</td>
+              <td class="center">
+                <span class="status" :class="`status-${application.status}`">
+                  {{ statusLabel(application.status) }}
+                </span>
+              </td>
+              <td class="right">
+                <div class="actions">
+                  <button class="icon-btn" type="button" title="Chi tiết" @click="openDetail(application)">
+                    <AppIcon name="eye" size="16" />
+                  </button>
+                  <button
+                    v-if="isReviewable(application.status)"
+                    class="icon-btn approve"
+                    type="button"
+                    title="Duyệt"
+                    @click="openApprove(application)"
+                  >
+                    <AppIcon name="check" size="16" />
+                  </button>
+                  <button
+                    v-if="isReviewable(application.status)"
+                    class="icon-btn danger"
+                    type="button"
+                    title="Từ chối"
+                    @click="openReject(application)"
+                  >
+                    <AppIcon name="x" size="16" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="pagination.last_page > 1" class="pagination">
+        <button class="icon-btn" type="button" title="Trang trước" aria-label="Trang trước" :disabled="pagination.current_page <= 1" @click="loadApplications(pagination.current_page - 1)">
+          <AppIcon name="chevronLeft" size="17" />
+        </button>
+        <span>{{ pagination.current_page }} / {{ pagination.last_page }}</span>
+        <button class="icon-btn" type="button" title="Trang sau" aria-label="Trang sau" :disabled="pagination.current_page >= pagination.last_page" @click="loadApplications(pagination.current_page + 1)">
+          <AppIcon name="chevronRight" size="17" />
+        </button>
+      </div>
+    </div>
+
+    <div v-if="detailModal.open" class="modal-backdrop" @click.self="closeDetail">
+      <div class="modal large">
+        <div class="modal-header">
+          <h3>Chi tiết đơn đăng kí</h3>
+          <button class="icon-btn" type="button" title="Đóng" @click="closeDetail">
+            <AppIcon name="x" size="18" />
+          </button>
+        </div>
+
+        <div v-if="detailLoading" class="modal-state">
+          <div class="spinner"></div>
+        </div>
+
+        <div v-else-if="activeApplication" class="modal-body detail-grid">
+          <section class="detail-section">
+            <h4>Người nộp</h4>
+            <dl>
+              <dt>Họ tên</dt>
+              <dd>{{ activeApplication.user?.full_name || '-' }}</dd>
+              <dt>Email</dt>
+              <dd>{{ activeApplication.user?.email || '-' }}</dd>
+              <dt>Điện thoại</dt>
+              <dd>{{ activeApplication.user?.phone || '-' }}</dd>
+            </dl>
+          </section>
+
+          <section class="detail-section">
+            <h4>Kinh doanh</h4>
+            <dl>
+              <dt>Loại hồ sơ</dt>
+              <dd>
+                <span v-if="activeApplication.type === 'new_cluster'" class="badge cluster-badge">Đăng ký thêm cụm sân</span>
+                <span v-else class="badge partner-badge">Đăng ký đối tác mới</span>
+              </dd>
+              <dt>Đơn vị</dt>
+              <dd>{{ activeApplication.business_name }}</dd>
+              <dt>Mã số thuế</dt>
+              <dd>{{ activeApplication.tax_code || '-' }}</dd>
+              <dt>Tên cụm sân</dt>
+              <dd>{{ activeApplication.venue_name }}</dd>
+              <dt>Mô tả dịch vụ</dt>
+              <dd>{{ activeApplication.venue_description || '-' }}</dd>
+              <dt>Tiện ích chọn sẵn</dt>
+              <dd>
+                <div v-if="activeApplication.amenities && activeApplication.amenities.length > 0" class="amenities-list">
+                  <span v-for="amenity in activeApplication.amenities" :key="amenity" class="amenity-tag">{{ amenity }}</span>
+                </div>
+                <span v-else>-</span>
+              </dd>
+            </dl>
+          </section>
+
+          <section class="detail-section full">
+            <h4>Địa điểm</h4>
+            <dl>
+              <dt>Địa chỉ</dt>
+              <dd>{{ activeApplication.venue_address }}</dd>
+              <dt>Bản đồ</dt>
+              <dd>
+                <a v-if="activeApplication.venue_map_url" :href="activeApplication.venue_map_url" target="_blank" rel="noopener noreferrer">
+                  {{ activeApplication.venue_map_url }}
+                </a>
+                <span v-else>-</span>
+              </dd>
+              <dt>Tọa độ</dt>
+              <dd>{{ activeApplication.venue_latitude }}, {{ activeApplication.venue_longitude }}</dd>
+            </dl>
+          </section>
+
+          <section class="detail-section">
+            <h4>Sân con đăng kí</h4>
+            <div v-if="activeApplication.courts?.length" class="mini-list">
+              <div v-for="court in activeApplication.courts" :key="court.id" class="mini-item">
+                <span>{{ court.name }}</span>
+                <strong>{{ court.court_type?.name || `Loại #${court.court_type_id}` }}</strong>
+              </div>
+            </div>
+            <p v-else class="muted">Chưa có sân con trong hồ sơ.</p>
+          </section>
+
+          <section class="detail-section">
+            <h4>Tài khoản nhận tiền</h4>
+            <div v-if="activeApplication.bank_accounts?.length" class="mini-list">
+              <div v-for="account in activeApplication.bank_accounts" :key="account.id" class="mini-item stacked">
+                <span>{{ account.account_holder_name }}</span>
+                <strong>{{ account.bank_name }} - {{ account.account_number }}</strong>
+              </div>
+            </div>
+            <p v-else class="muted">Chưa có tài khoản ngân hàng.</p>
+          </section>
+
+          <section class="detail-section full">
+            <h4>Hợp đồng hợp tác</h4>
+            <div v-if="activeApplication.contracts?.length" class="mini-list">
+              <div v-for="contract in activeApplication.contracts" :key="contract.id" class="mini-item stacked" style="align-items: flex-start;">
+                <span><strong>{{ contract.contract_number }}</strong></span>
+                <span class="status" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
+                <div v-if="contract.status === 'signed'" style="margin-top: 8px;">
+                  <button class="btn primary small" type="button" :disabled="signingAction" @click="approveSignature(contract.id)">
+                    Ký phê duyệt & Cấp quyền
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p v-else class="muted">Chưa có hợp đồng nào.</p>
+          </section>
+
+          <section class="detail-section full">
+            <h4>Xử lý</h4>
+            <dl>
+              <dt>Trạng thái</dt>
+              <dd>
+                <span class="status" :class="`status-${activeApplication.status}`">
+                  {{ statusLabel(activeApplication.status) }}
+                </span>
+              </dd>
+              <dt>Người xử lý</dt>
+              <dd>{{ activeApplication.reviewed_by?.full_name || '-' }}</dd>
+              <dt>Thời gian xử lý</dt>
+              <dd>{{ formatDate(activeApplication.reviewed_at) }}</dd>
+              <dt>Ghi chú</dt>
+              <dd>{{ activeApplication.status_reason || '-' }}</dd>
+            </dl>
+          </section>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn ghost" type="button" @click="closeDetail">Đóng</button>
+          <button
+            v-if="activeApplication && isReviewable(activeApplication.status)"
+            class="btn danger"
+            type="button"
+            @click="openReject(activeApplication)"
+          >
+            <AppIcon name="x" size="16" />
+            <span>Từ chối</span>
+          </button>
+          <button
+            v-if="activeApplication && isReviewable(activeApplication.status)"
+            class="btn primary"
+            type="button"
+            @click="openApprove(activeApplication)"
+          >
+            <AppIcon name="check" size="16" />
+            <span>Duyệt</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="approveModal.open" class="modal-backdrop" @click.self="closeApprove">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Duyệt đơn đăng kí</h3>
+          <button class="icon-btn" type="button" title="Đóng" @click="closeApprove">
+            <AppIcon name="x" size="18" />
+          </button>
+        </div>
+
+        <form class="modal-body" @submit.prevent="submitApprove">
+          <div v-if="activeApplication?.courts?.length" class="inline-summary">
+            <span>{{ activeApplication.courts.length }} sân con sẽ được tạo theo hồ sơ</span>
+          </div>
+
+          <div v-else class="form-grid">
+            <label class="field">
+              <span>Tên sân con ban đầu</span>
+              <input v-model.trim="approveForm.initial_court_name" type="text" maxlength="100" required />
+            </label>
+            <label class="field">
+              <span>Loại sân</span>
+              <select v-model="approveForm.court_type_id" required>
+                <option value="">Chọn loại sân</option>
+                <option v-for="courtType in courtTypes" :key="courtType.id" :value="courtType.id">
+                  {{ courtType.name }}
+                </option>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-grid">
+            <label class="field">
+              <span>Tên tài khoản</span>
+              <input v-model.trim="approveForm.bank_account_name" type="text" maxlength="150" disabled />
+            </label>
+            <label class="field">
+              <span>Số tài khoản</span>
+              <input v-model.trim="approveForm.bank_account_number" type="text" maxlength="50" disabled />
+            </label>
+            <label class="field">
+              <span>Ngân hàng</span>
+              <input v-model.trim="approveForm.bank_name" type="text" maxlength="100" disabled />
+            </label>
+            <label class="field">
+              <span>Mã ngân hàng</span>
+              <input v-model.trim="approveForm.bank_code" type="text" maxlength="50" disabled />
+            </label>
+          </div>
+
+          <label class="field full">
+            <span>Ghi chú</span>
+            <textarea v-model.trim="approveForm.review_note" rows="4" maxlength="2000"></textarea>
+          </label>
+
+          <div class="modal-footer inner">
+            <button class="btn ghost" type="button" @click="closeApprove">Hủy</button>
+            <button class="btn primary" type="submit" :disabled="savingAction">
+              <AppIcon name="check" size="16" />
+              <span>{{ savingAction ? 'Đang duyệt...' : 'Duyệt đơn' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="rejectModal.open" class="modal-backdrop" @click.self="closeReject">
+      <div class="modal small">
+        <div class="modal-header">
+          <h3>Từ chối đơn đăng kí</h3>
+          <button class="icon-btn" type="button" title="Đóng" @click="closeReject">
+            <AppIcon name="x" size="18" />
+          </button>
+        </div>
+
+        <form class="modal-body" @submit.prevent="submitReject">
+          <label class="field full">
+            <span>Lý do từ chối</span>
+            <textarea v-model.trim="rejectForm.reason" rows="6" maxlength="2000" required></textarea>
+          </label>
+
+          <div class="modal-footer inner">
+            <button class="btn ghost" type="button" @click="closeReject">Hủy</button>
+            <button class="btn danger" type="submit" :disabled="savingAction">
+              <AppIcon name="x" size="16" />
+              <span>{{ savingAction ? 'Đang xử lý...' : 'Từ chối' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import AppIcon from '../../components/AppIcon.vue';
+import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
+
+export default {
+  name: 'AdminPartnerApplications',
+  components: { AppIcon },
+  data() {
+    return {
+      applications: [],
+      courtTypes: [],
+      activeApplication: null,
+      loading: true,
+      detailLoading: false,
+      savingAction: false,
+      error: '',
+      message: '',
+      filterTimer: null,
+      filters: {
+        search: '',
+        status: '',
+        date_from: '',
+        date_to: '',
+      },
+      pagination: {
+        current_page: 1,
+        last_page: 1,
+        total: 0,
+      },
+      detailModal: { open: false },
+      approveModal: { open: false },
+      rejectModal: { open: false },
+      approveForm: this.emptyApproveForm(),
+      rejectForm: { reason: '' },
+      statusOptions: [
+        { value: 'pending', label: 'Chờ duyệt' },
+        { value: 'reviewing', label: 'Đang xem xét' },
+        { value: 'approved', label: 'Đã duyệt' },
+        { value: 'rejected', label: 'Từ chối' },
+        { value: 'cancelled', label: 'Đã hủy' },
+      ],
+    };
+  },
+  mounted() {
+    this.loadApplications();
+    this.loadCourtTypes();
+  },
+  methods: {
+    emptyApproveForm() {
+      return {
+        initial_court_name: '',
+        court_type_id: '',
+        bank_account_name: '',
+        bank_account_number: '',
+        bank_name: '',
+        bank_code: '',
+        review_note: '',
+      };
+    },
+    async loadApplications(page = 1) {
+      this.loading = true;
+      this.error = '';
+      try {
+        const response = await adminPartnerApplicationService.list({
+          ...this.filters,
+          page,
+        });
+        const paginator = response.data || {};
+        this.applications = paginator.data || [];
+        this.pagination = {
+          current_page: paginator.current_page || 1,
+          last_page: paginator.last_page || 1,
+          total: paginator.total || this.applications.length,
+        };
+      } catch (err) {
+        this.error = err.message || 'Không tải được đơn đăng kí.';
+      } finally {
+        this.loading = false;
+      }
+    },
+    async loadCourtTypes() {
+      try {
+        const response = await adminPartnerApplicationService.courtTypes();
+        this.courtTypes = response.data || [];
+      } catch {
+        this.courtTypes = [];
+      }
+    },
+    onFilterChange() {
+      clearTimeout(this.filterTimer);
+      this.filterTimer = setTimeout(() => this.loadApplications(1), 300);
+    },
+    refresh() {
+      this.loadApplications(this.pagination.current_page);
+    },
+    async fetchApplication(application) {
+      this.detailLoading = true;
+      try {
+        const response = await adminPartnerApplicationService.show(application.id);
+        this.activeApplication = response.data;
+        return response.data;
+      } catch (err) {
+        this.error = err.message || 'Không tải được chi tiết đơn.';
+        return null;
+      } finally {
+        this.detailLoading = false;
+      }
+    },
+    async openDetail(application) {
+      this.clearAlerts();
+      this.detailModal.open = true;
+      this.activeApplication = application;
+      await this.fetchApplication(application);
+    },
+    closeDetail() {
+      this.detailModal.open = false;
+    },
+    async openApprove(application) {
+      this.clearAlerts();
+      const detail = application.courts || application.bank_accounts
+        ? application
+        : await this.fetchApplication(application);
+      if (!detail) return;
+
+      this.activeApplication = detail;
+      this.approveForm = this.emptyApproveForm();
+      const bankAccount = detail.bank_accounts?.find((account) => account.is_default) || detail.bank_accounts?.[0];
+      if (bankAccount) {
+        this.approveForm.bank_account_name = bankAccount.account_holder_name || '';
+        this.approveForm.bank_account_number = bankAccount.account_number || '';
+        this.approveForm.bank_name = bankAccount.bank_name || '';
+        this.approveForm.bank_code = bankAccount.bank_code || '';
+      }
+      this.approveModal.open = true;
+    },
+    closeApprove() {
+      this.approveModal.open = false;
+    },
+    async openReject(application) {
+      this.clearAlerts();
+      const detail = application.status_reason !== undefined
+        ? application
+        : await this.fetchApplication(application);
+      if (!detail) return;
+
+      this.activeApplication = detail;
+      this.rejectForm.reason = '';
+      this.rejectModal.open = true;
+    },
+    closeReject() {
+      this.rejectModal.open = false;
+    },
+    async submitApprove() {
+      if (!this.activeApplication) return;
+
+      this.savingAction = true;
+      this.clearAlerts();
+      try {
+        const response = await adminPartnerApplicationService.approve(this.activeApplication.id, this.approveForm);
+        this.message = response.message || 'Duyệt đơn thành công.';
+        this.activeApplication = response.data || this.activeApplication;
+        this.closeApprove();
+        this.closeDetail();
+        await this.loadApplications(this.pagination.current_page);
+      } catch (err) {
+        this.error = err.message || 'Không duyệt được đơn.';
+      } finally {
+        this.savingAction = false;
+      }
+    },
+    async submitReject() {
+      if (!this.activeApplication) return;
+
+      this.savingAction = true;
+      this.clearAlerts();
+      try {
+        const response = await adminPartnerApplicationService.reject(this.activeApplication.id, this.rejectForm);
+        this.message = response.message || 'Từ chối đơn thành công.';
+        this.activeApplication = response.data || this.activeApplication;
+        this.closeReject();
+        this.closeDetail();
+        await this.loadApplications(this.pagination.current_page);
+      } catch (err) {
+        this.error = err.message || 'Có lỗi xảy ra khi từ chối đơn.';
+      } finally {
+        this.savingAction = false;
+      }
+    },
+    async approveSignature(contractId) {
+      if (!confirm('Xác nhận ký phê duyệt và cấp quyền Chủ sân cho đối tác này?')) return;
+      
+      this.clearAlerts();
+      this.signingAction = true;
+      try {
+        await adminPartnerApplicationService.approveSignature(contractId);
+        this.message = 'Phê duyệt hợp đồng thành công!';
+        await this.fetchApplication(this.activeApplication);
+        await this.loadApplications(this.pagination.current_page);
+      } catch (err) {
+        this.error = err.message || 'Có lỗi xảy ra khi phê duyệt hợp đồng.';
+      } finally {
+        this.signingAction = false;
+      }
+    },
+    clearAlerts() {
+      this.error = '';
+      this.message = '';
+    },
+    isReviewable(status) {
+      return ['pending', 'reviewing'].includes(status);
+    },
+    statusLabel(status) {
+      const labels = {
+        pending: 'Chờ duyệt',
+        reviewing: 'Đang xem xét',
+        approved: 'Đã duyệt',
+        rejected: 'Từ chối',
+        cancelled: 'Đã hủy',
+      };
+      return labels[status] || status || '-';
+    },
+    contractStatusLabel(status) {
+      const labels = {
+        draft: 'Nháp',
+        waiting_signature: 'Chờ đối tác ký',
+        signed: 'Đã ký (Chờ Admin duyệt)',
+        completed: 'Hoàn tất',
+      };
+      return labels[status] || status;
+    },
+    formatDate(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    },
+  },
+};
+</script>
+
+<style scoped>
+.partner-app-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--sg-border);
+  border-radius: 8px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.filters {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--sg-text);
+}
+
+.field.full {
+  grid-column: 1 / -1;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--sg-border);
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+  background: #fff;
+  color: var(--sg-text);
+}
+
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.field input,
+.field select {
+  height: 40px;
+}
+
+.field textarea {
+  min-height: 110px;
+  padding-top: 10px;
+  resize: vertical;
+}
+
+.btn,
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+
+.btn {
+  height: 40px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.btn.primary {
+  background: #0f172a;
+  color: #fff;
+}
+
+.btn.ghost {
+  background: #fff;
+  border-color: var(--sg-border);
+  color: var(--sg-text);
+}
+
+.btn.danger {
+  background: #dc2626;
+  color: #fff;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #334155;
+}
+
+.icon-btn.approve {
+  color: #15803d;
+}
+
+.icon-btn.danger {
+  color: #dc2626;
+}
+
+.notice {
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.notice.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.notice.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.state-box,
+.modal-state {
+  display: flex;
+  min-height: 240px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: rgba(15, 23, 42, 0.55);
+}
+
+.spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(15, 23, 42, 0.08);
+  border-top-color: #0f172a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.applications-table {
+  overflow: hidden;
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--sg-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 900;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.center {
+  text-align: center;
+}
+
+.right {
+  text-align: right;
+}
+
+.main-title {
+  color: var(--sg-text);
+  font-weight: 800;
+}
+
+.muted {
+  color: rgba(15, 23, 42, 0.5);
+  font-size: 13px;
+}
+
+.status {
+  display: inline-flex;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.status-pending,
+.status-reviewing {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-rejected,
+.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.modal {
+  width: min(760px, 100%);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 8px;
+  text-overflow: ellipsis;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.cluster-badge {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.partner-badge {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.amenities-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.amenity-tag {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.modal.large {
+  width: min(980px, 100%);
+}
+
+.modal.small {
+  width: min(560px, 100%);
+}
+
+.modal-header,
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--sg-border);
+}
+
+.modal-footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--sg-border);
+  border-bottom: 0;
+}
+
+.modal-footer.inner {
+  margin: 4px -18px -18px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.modal-body {
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.detail-section {
+  border: 1px solid var(--sg-border);
+  border-radius: 8px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.detail-section.full {
+  grid-column: 1 / -1;
+}
+
+.detail-section h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--sg-text);
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 8px 12px;
+  margin: 0;
+}
+
+dt {
+  color: rgba(15, 23, 42, 0.5);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--sg-text);
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mini-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.mini-item.stacked {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mini-item span {
+  font-weight: 800;
+}
+
+.mini-item strong {
+  color: rgba(15, 23, 42, 0.6);
+  font-size: 13px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.inline-summary {
+  padding: 12px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filters,
+  .detail-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-section.full {
+    grid-column: auto;
+  }
+
+  dl {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

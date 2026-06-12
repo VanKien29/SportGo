@@ -1,12 +1,15 @@
 <template>
   <div class="profile-wrapper">
     <template v-if="role === 'owner'">
-      <SidebarLayout brand-sub="Quản lý sân" dashboard-route="/owner/dashboard">
-        <template #topbar-title>Thông tin cá nhân</template>
-        <div class="profile-content">
-          <ProfileCard :user="user" @go-back="goBack" />
+      <section class="page-head">
+        <div>
+          <h2>Thông tin cá nhân</h2>
+          <p>Quản lý thông tin tài khoản chủ sân đang đăng nhập.</p>
         </div>
-      </SidebarLayout>
+      </section>
+      <div class="profile-content owner-profile-content">
+        <ProfileCard :user="user" @go-back="goBack" />
+      </div>
     </template>
 
     <template v-else>
@@ -19,14 +22,13 @@
 </template>
 
 <script>
-import SidebarLayout from '../components/SidebarLayout.vue';
 import PublicNavbar from '../components/PublicNavbar.vue';
 import ProfileCard from '../components/ProfileCard.vue';
 import { getAuth } from '../stores/auth.js';
 
 export default {
   name: 'ProfileView',
-  components: { SidebarLayout, PublicNavbar, ProfileCard },
+  components: { PublicNavbar, ProfileCard },
   data() {
     const user = getAuth();
     return {
@@ -59,6 +61,11 @@ export default {
 
 .profile-content {
   max-width: 600px;
+}
+
+.owner-profile-content {
+  display: flex;
+  align-items: flex-start;
 }
 
 .profile-public-container {

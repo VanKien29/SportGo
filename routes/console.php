@@ -9,4 +9,6 @@ Artisan::command('inspire', function () {
 
 use Illuminate\Support\Facades\Schedule;
 Schedule::command('app:release-expired-slot-locks')->everyMinute();
+Schedule::command('app:apply-policy-access-restrictions')->everyMinute();
+Schedule::command('app:revoke-expired-owner-roles')->daily();
 

@@ -1,0 +1,312 @@
+<template>
+  <section class="fee-page">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">TÀI CHÍNH CỤM SÂN</p>
+        <h2>Phí nền tảng</h2>
+        <p>Theo dõi kỳ phí, hạn đóng và trạng thái xác nhận của SportGo.</p>
+      </div>
+      <button class="refresh-btn" type="button" :disabled="loading" @click="loadFees">Làm mới</button>
+    </header>
+
+    <div v-if="error" class="alert error">{{ error }}</div>
+    <div v-if="success" class="alert success">{{ success }}</div>
+    <div v-if="loading" class="state-card">Đang tải dữ liệu phí nền tảng...</div>
+    <div v-else-if="!clusterId" class="state-card">Vui lòng chọn cụm sân ở thanh bên để xem phí.</div>
+
+    <template v-else>
+      <div v-if="summary.overdue" class="deadline-alert overdue-alert">
+        <span class="alert-icon">!</span>
+        <div>
+          <strong>{{ summary.overdue }} kỳ phí đã quá hạn</strong>
+          <p>Vui lòng thanh toán và gửi minh chứng. Trạng thái chỉ chuyển sang “Đã thanh toán” sau khi SportGo xác nhận.</p>
+        </div>
+      </div>
+      <div v-else-if="dueSoonCount" class="deadline-alert due-alert">
+        <span class="alert-icon">i</span>
+        <div>
+          <strong>{{ dueSoonCount }} kỳ phí sắp đến hạn</strong>
+          <p>Kiểm tra hạn đóng bên dưới để tránh gián đoạn hoạt động cụm sân.</p>
+        </div>
+      </div>
+
+      <div class="summary-grid">
+        <article class="summary-card primary-card">
+          <span>Tổng cần thanh toán</span>
+          <strong>{{ money(summary.outstanding_amount) }}</strong>
+          <small>{{ summary.pending + summary.overdue }} kỳ chưa hoàn tất</small>
+        </article>
+        <article class="summary-card">
+          <span>Chờ thanh toán</span>
+          <strong>{{ summary.pending }}</strong>
+          <small>Kỳ còn trong hạn</small>
+        </article>
+        <article class="summary-card">
+          <span>Quá hạn</span>
+          <strong class="danger-text">{{ summary.overdue }}</strong>
+          <small>Cần xử lý sớm</small>
+        </article>
+        <article class="summary-card">
+          <span>Tổng số kỳ</span>
+          <strong>{{ summary.total }}</strong>
+          <small>{{ venueName || 'Cụm sân đang chọn' }}</small>
+        </article>
+      </div>
+
+      <article v-if="paymentAccount" class="bank-card">
+        <div>
+          <p class="eyebrow">THÔNG TIN THANH TOÁN</p>
+          <h3>Chuyển khoản phí nền tảng</h3>
+          <p class="muted">Nội dung: PHI NEN TANG + tên cụm sân + kỳ phí</p>
+        </div>
+        <dl>
+          <div><dt>Ngân hàng</dt><dd>{{ paymentAccount.bank_name }}</dd></div>
+          <div><dt>Số tài khoản</dt><dd>{{ paymentAccount.account_number }}</dd></div>
+          <div><dt>Chủ tài khoản</dt><dd>{{ paymentAccount.account_holder_name }}</dd></div>
+        </dl>
+      </article>
+
+      <article class="table-card">
+        <div class="table-head">
+          <div>
+            <h3>Lịch sử kỳ phí</h3>
+            <p>Dữ liệu được tính theo kỳ phí và hạn đóng trên hệ thống.</p>
+          </div>
+          <select v-model="statusFilter">
+            <option value="">Tất cả trạng thái</option>
+            <option value="pending">Chờ thanh toán</option>
+            <option value="overdue">Quá hạn</option>
+            <option value="paid">Đã thanh toán</option>
+            <option value="cancelled">Đã hủy</option>
+          </select>
+        </div>
+
+        <div v-if="!filteredFees.length" class="empty-state">Chưa có kỳ phí phù hợp.</div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Kỳ phí</th>
+                <th>Hạn đóng</th>
+                <th>Số sân</th>
+                <th>Số tiền</th>
+                <th>Trạng thái</th>
+                <th>Minh chứng</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="fee in filteredFees" :key="fee.id">
+                <td>
+                  <strong>{{ date(fee.period_start) }} - {{ date(fee.period_end) }}</strong>
+                  <small>{{ cycleLabel(fee) }} · {{ fee.tier?.name || 'Theo cấu hình' }}</small>
+                </td>
+                <td>
+                  <strong :class="{ 'danger-text': fee.effective_status === 'overdue' }">{{ date(fee.due_date) }}</strong>
+                  <small v-if="fee.warning_level === 'due_soon'">Còn {{ fee.days_until_due }} ngày</small>
+                  <small v-if="fee.effective_status === 'overdue'" class="danger-text">Quá hạn {{ Math.abs(fee.days_until_due) }} ngày</small>
+                </td>
+                <td>{{ fee.court_count }}</td>
+                <td>
+                  <strong>{{ money(fee.amount_due) }}</strong>
+                  <small v-if="fee.amount_paid">Đã ghi nhận {{ money(fee.amount_paid) }}</small>
+                </td>
+                <td><span class="status-pill" :class="fee.effective_status">{{ statusLabel(fee.effective_status) }}</span></td>
+                <td>
+                  <span class="proof-status" :class="fee.payment_proof.status">{{ proofLabel(fee.payment_proof.status) }}</span>
+                  <small v-if="fee.payment_proof.reject_reason" class="reject-note">{{ fee.payment_proof.reject_reason }}</small>
+                  <a v-if="fee.payment_proof.file_url" :href="fee.payment_proof.file_url" target="_blank" rel="noopener">Xem tệp đã gửi</a>
+                </td>
+                <td class="action-cell">
+                  <button v-if="canSubmitProof(fee)" class="submit-btn" type="button" @click="openProofModal(fee)">
+                    {{ fee.payment_proof.status === 'rejected' ? 'Gửi lại' : 'Gửi minh chứng' }}
+                  </button>
+                  <span v-else-if="fee.payment_proof.status === 'submitted'" class="waiting-text">Đang chờ kiểm tra</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </template>
+
+    <div v-if="proofModal" class="modal-backdrop" @click.self="closeProofModal">
+      <form class="proof-modal" @submit.prevent="submitProof">
+        <header>
+          <div>
+            <p class="eyebrow">MINH CHỨNG THANH TOÁN</p>
+            <h3>{{ date(proofModal.period_start) }} - {{ date(proofModal.period_end) }}</h3>
+          </div>
+          <button type="button" class="close-btn" @click="closeProofModal">×</button>
+        </header>
+
+        <div class="amount-box">
+          <span>Số tiền còn lại</span>
+          <strong>{{ money(proofModal.amount_remaining) }}</strong>
+        </div>
+
+        <label>
+          Ảnh hoặc PDF giao dịch
+          <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required @change="proofFile = $event.target.files[0] || null">
+          <small>Tối đa 5 MB. File cần thể hiện rõ số tiền và nội dung giao dịch.</small>
+        </label>
+
+        <label>
+          Ghi chú
+          <textarea v-model.trim="proofNote" rows="3" maxlength="1000" placeholder="Ví dụ: Đã chuyển khoản lúc 10:30 ngày 11/06/2026" />
+        </label>
+
+        <p class="review-note">Gửi minh chứng không đồng nghĩa kỳ phí đã được xác nhận thanh toán. SportGo sẽ đối soát trước khi cập nhật trạng thái.</p>
+
+        <footer>
+          <button class="cancel-btn" type="button" :disabled="submitting" @click="closeProofModal">Hủy</button>
+          <button class="submit-btn" type="submit" :disabled="submitting || !proofFile">
+            {{ submitting ? 'Đang gửi...' : 'Gửi để kiểm tra' }}
+          </button>
+        </footer>
+      </form>
+    </div>
+  </section>
+</template>
+
+<script>
+import { ownerPlatformFeeService } from '../../services/ownerPlatformFees.js';
+
+export default {
+  name: 'OwnerPlatformFees',
+  data() {
+    return {
+      fees: [],
+      summary: { total: 0, pending: 0, overdue: 0, outstanding_amount: 0 },
+      paymentAccount: null,
+      venueName: '',
+      loading: true,
+      submitting: false,
+      error: '',
+      success: '',
+      statusFilter: '',
+      proofModal: null,
+      proofFile: null,
+      proofNote: '',
+      clusterId: localStorage.getItem('selected_cluster') || '',
+    };
+  },
+  computed: {
+    dueSoonCount() {
+      return this.fees.filter((fee) => fee.warning_level === 'due_soon').length;
+    },
+    filteredFees() {
+      if (!this.statusFilter) return this.fees;
+      return this.fees.filter((fee) => fee.effective_status === this.statusFilter);
+    },
+  },
+  async mounted() {
+    window.addEventListener('owner-cluster-changed', this.handleClusterChanged);
+    await this.loadFees();
+  },
+  beforeUnmount() {
+    window.removeEventListener('owner-cluster-changed', this.handleClusterChanged);
+  },
+  methods: {
+    async handleClusterChanged(event) {
+      this.clusterId = event.detail?.id || localStorage.getItem('selected_cluster') || '';
+      await this.loadFees();
+    },
+    async loadFees() {
+      this.loading = true;
+      this.error = '';
+      this.success = '';
+
+      if (!this.clusterId) {
+        this.loading = false;
+        return;
+      }
+
+      try {
+        const response = await ownerPlatformFeeService.list(this.clusterId);
+        this.fees = response.data || [];
+        this.summary = response.summary || this.summary;
+        this.paymentAccount = response.payment_account || null;
+        this.venueName = response.venue_cluster?.name || '';
+      } catch (error) {
+        this.error = error.message || 'Không thể tải dữ liệu phí nền tảng.';
+      } finally {
+        this.loading = false;
+      }
+    },
+    openProofModal(fee) {
+      this.proofModal = fee;
+      this.proofFile = null;
+      this.proofNote = '';
+      this.error = '';
+      this.success = '';
+    },
+    closeProofModal() {
+      if (this.submitting) return;
+      this.proofModal = null;
+      this.proofFile = null;
+      this.proofNote = '';
+    },
+    async submitProof() {
+      if (!this.proofModal || !this.proofFile) return;
+      this.submitting = true;
+      this.error = '';
+
+      const formData = new FormData();
+      formData.append('proof', this.proofFile);
+      if (this.proofNote) formData.append('note', this.proofNote);
+
+      try {
+        const response = await ownerPlatformFeeService.submitProof(this.proofModal.id, formData);
+        this.proofModal = null;
+        this.proofFile = null;
+        this.proofNote = '';
+        await this.loadFees();
+        this.success = response.message;
+      } catch (error) {
+        this.error = error.message || 'Không thể gửi minh chứng thanh toán.';
+      } finally {
+        this.submitting = false;
+      }
+    },
+    canSubmitProof(fee) {
+      return ['pending', 'overdue'].includes(fee.effective_status)
+        && ['none', 'rejected'].includes(fee.payment_proof.status);
+    },
+    money(value) {
+      return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+        maximumFractionDigits: 0,
+      }).format(value || 0);
+    },
+    date(value) {
+      if (!value) return 'Chưa cập nhật';
+      return new Intl.DateTimeFormat('vi-VN').format(new Date(`${value}T00:00:00`));
+    },
+    cycleLabel(fee) {
+      return fee.period_months === 12 ? 'Theo năm' : `${fee.period_months || 1} tháng`;
+    },
+    statusLabel(status) {
+      return {
+        pending: 'Chờ thanh toán',
+        overdue: 'Quá hạn',
+        paid: 'Đã thanh toán',
+        cancelled: 'Đã hủy',
+      }[status] || status;
+    },
+    proofLabel(status) {
+      return {
+        none: 'Chưa gửi',
+        submitted: 'Chờ xác nhận',
+        approved: 'Đã duyệt',
+        rejected: 'Bị từ chối',
+      }[status] || status;
+    },
+  },
+};
+</script>
+
+<style scoped>
+.fee-page{display:grid;gap:18px;max-width:1280px}.page-head,.table-head,.proof-modal header,.proof-modal footer{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.page-head h2,.table-head h3,.bank-card h3,.proof-modal h3{margin:0;color:#0f172a}.page-head p:not(.eyebrow),.table-head p,.muted{margin:6px 0 0;color:#64748b}.eyebrow{margin:0 0 6px;color:#059669;font-size:11px;font-weight:900;letter-spacing:.11em}.refresh-btn,.submit-btn,.cancel-btn,.close-btn{border:0;border-radius:9px;font:inherit;font-weight:800;cursor:pointer}.refresh-btn,.cancel-btn{padding:10px 14px;background:#f1f5f9;color:#334155}.submit-btn{padding:9px 13px;background:#059669;color:#fff}.submit-btn:disabled,.refresh-btn:disabled{opacity:.55;cursor:not-allowed}.state-card,.table-card,.bank-card,.summary-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px}.state-card{padding:34px;text-align:center;color:#64748b}.alert,.deadline-alert{border-radius:12px;padding:14px 16px}.alert{font-weight:750}.alert.error{background:#fee2e2;color:#991b1b}.alert.success{background:#dcfce7;color:#166534}.deadline-alert{display:flex;align-items:center;gap:13px}.deadline-alert strong{display:block;margin-bottom:4px}.deadline-alert p{margin:0;font-size:13px}.overdue-alert{background:#fff1f2;border:1px solid #fecdd3;color:#9f1239}.due-alert{background:#fffbeb;border:1px solid #fde68a;color:#92400e}.alert-icon{display:grid;place-items:center;width:30px;height:30px;flex:0 0 30px;border:2px solid currentColor;border-radius:50%;font-weight:900}.summary-grid{display:grid;grid-template-columns:1.45fr repeat(3,1fr);gap:14px}.summary-card{display:grid;gap:7px;padding:19px}.summary-card span,.summary-card small{color:#64748b}.summary-card strong{font-size:24px;color:#0f172a}.primary-card{border-color:#a7f3d0;background:linear-gradient(135deg,#ecfdf5,#fff)}.primary-card strong{color:#047857}.danger-text{color:#dc2626!important}.bank-card{display:flex;justify-content:space-between;gap:24px;padding:20px}.bank-card dl{display:grid;grid-template-columns:repeat(3,minmax(130px,1fr));gap:24px;margin:0}.bank-card dl div{display:grid;gap:5px}.bank-card dt{color:#64748b;font-size:12px}.bank-card dd{margin:0;color:#0f172a;font-weight:850}.table-card{overflow:hidden}.table-head{padding:18px 20px;border-bottom:1px solid #e2e8f0}.table-head select{border:1px solid #cbd5e1;border-radius:9px;padding:9px 12px;background:#fff;font:inherit;color:#334155}.table-wrap{overflow:auto}table{width:100%;min-width:1050px;border-collapse:collapse}th,td{padding:14px 16px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}th{background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em}td{color:#334155;font-size:13px}td strong,td small,td a{display:block}td small{margin-top:5px;color:#64748b}td a{margin-top:5px;color:#047857;font-weight:750;text-decoration:none}.status-pill,.proof-status{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:850}.status-pill.pending{background:#fef3c7;color:#92400e}.status-pill.overdue{background:#fee2e2;color:#991b1b}.status-pill.paid{background:#dcfce7;color:#166534}.status-pill.cancelled{background:#e2e8f0;color:#475569}.proof-status.none{background:#f1f5f9;color:#64748b}.proof-status.submitted{background:#dbeafe;color:#1d4ed8}.proof-status.approved{background:#dcfce7;color:#166534}.proof-status.rejected{background:#fee2e2;color:#991b1b}.reject-note{max-width:210px;color:#b91c1c!important}.action-cell{text-align:right}.waiting-text{color:#1d4ed8;font-size:12px;font-weight:800}.empty-state{padding:40px;text-align:center;color:#64748b}.modal-backdrop{position:fixed;inset:0;z-index:600;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.58)}.proof-modal{display:grid;gap:16px;width:min(570px,calc(100vw - 32px));padding:22px;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.28)}.close-btn{padding:2px 8px;background:transparent;color:#64748b;font-size:25px}.amount-box{display:flex;justify-content:space-between;align-items:center;padding:14px;border-radius:10px;background:#ecfdf5;color:#065f46}.amount-box strong{font-size:20px}.proof-modal label{display:grid;gap:7px;color:#334155;font-weight:800}.proof-modal input,.proof-modal textarea{border:1px solid #cbd5e1;border-radius:9px;padding:10px;font:inherit;font-weight:400}.proof-modal label small{color:#64748b;font-weight:400}.review-note{margin:0;padding:12px;border-radius:9px;background:#f8fafc;color:#475569;font-size:13px;line-height:1.5}.proof-modal footer{justify-content:flex-end}.proof-modal .cancel-btn{padding:9px 14px}@media(max-width:1050px){.summary-grid{grid-template-columns:repeat(2,1fr)}.bank-card{display:grid}.bank-card dl{grid-template-columns:repeat(3,1fr)}}@media(max-width:680px){.page-head,.table-head{display:grid}.summary-grid{grid-template-columns:1fr}.bank-card dl{grid-template-columns:1fr;gap:12px}.refresh-btn,.table-head select{width:100%}}
+</style>

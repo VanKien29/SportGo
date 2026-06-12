@@ -1,42 +1,37 @@
 <template>
-  <SidebarLayout brand-sub="Quản trị hệ thống" dashboard-route="/admin/dashboard">
-    <template #nav-items>
-      <router-link to="/admin/dashboard" class="nav-item" active-class="nav-active">
-        <span>Dashboard</span>
-      </router-link>
-      <router-link to="/admin/users" class="nav-item" active-class="nav-active">
-        <span>Quản lý tài khoản</span>
-      </router-link>
-      <router-link to="/admin/court-types" class="nav-item" active-class="nav-active">
-        <span>Quản lý loại sân</span>
-      </router-link>
-    </template>
-    <template #topbar-title>
-      <span>{{ currentTitle }}</span>
-    </template>
+  <AdminShell
+    :sections="adminNavigationSections"
+    :title="currentTitle"
+    :section-label="currentSectionLabel"
+    :active-route-name="String($route.name || '')"
+  >
     <router-view />
-  </SidebarLayout>
+  </AdminShell>
 </template>
 
 <script>
-import SidebarLayout from '../../components/SidebarLayout.vue';
+import AdminShell from '../../components/admin/AdminShell.vue';
+import {
+  adminNavigationSections,
+  adminRouteTitles,
+  findAdminNavigationSection,
+} from '../../config/adminNavigation.js';
 
 export default {
   name: 'AdminLayout',
-  components: { SidebarLayout },
+  components: { AdminShell },
+  data() {
+    return {
+      adminNavigationSections,
+    };
+  },
   computed: {
     currentTitle() {
-      const map = {
-        'admin-dashboard': 'Dashboard',
-        'admin-profile': 'Thông tin cá nhân',
-        'admin-users': 'Quản lý tài khoản',
-        'admin-court-types': 'Quản lý loại sân',
-      };
-
-      return map[this.$route.name] || 'Admin';
+      return adminRouteTitles[this.$route.name] || 'Admin';
+    },
+    currentSectionLabel() {
+      return findAdminNavigationSection(this.$route.name)?.label || 'Tổng quan';
     },
   },
 };
 </script>
-
-<style src="../../../css/admin/layout.css" scoped></style>

@@ -51,4 +51,9 @@ class InternalReceipt extends Model
     {
         return $this->belongsTo(User::class, 'issued_to_user_id');
     }
+
+    public function receiptable()
+    {
+        return $this->morphTo();
+    }
 }

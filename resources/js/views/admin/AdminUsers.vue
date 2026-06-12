@@ -1,206 +1,269 @@
-﻿<template>
+<template>
   <section class="admin-users">
-    <div class="toolbar">
+    <header class="page-head">
       <div>
         <h2>Quản lý tài khoản</h2>
-        <p>Khóa, mở khóa và kiểm tra trạng thái đăng nhập người dùng.</p>
+        <p>Theo dõi trạng thái, cảnh báo, vai trò và các thao tác nhạy cảm của tài khoản.</p>
       </div>
-      <button class="btn secondary" :disabled="loading" @click="loadUsers">Tải lại</button>
-    </div>
+      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadUsers" />
+    </header>
+
+    <nav class="tabs" aria-label="Lọc nhanh tài khoản">
+      <button
+        v-for="tab in tabs"
+        :key="tab.value"
+        :class="{ active: filters.status === tab.value }"
+        type="button"
+        @click="setStatus(tab.value)"
+      >
+        {{ tab.label }}
+      </button>
+    </nav>
+
+    <section class="filters">
+      <label>
+        <span>Tìm kiếm</span>
+        <input
+          v-model.trim="filters.keyword"
+          placeholder="Tên, username, email hoặc số điện thoại"
+          @input="scheduleSearch"
+          @keyup.enter="loadUsers"
+        />
+      </label>
+      <label>
+        <span>Vai trò</span>
+        <select v-model="filters.role" @change="reloadFromFirstPage">
+          <option value="">Tất cả vai trò</option>
+          <option v-for="role in roleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
+        </select>
+      </label>
+      <label v-if="filters.status === 'warning'">
+        <span>Mức cảnh báo</span>
+        <select v-model="filters.warning_level" @change="reloadFromFirstPage">
+          <option value="">Tất cả cảnh báo</option>
+          <option value="watch">Cần theo dõi</option>
+          <option value="near_lock">Gần ngưỡng khóa</option>
+          <option value="lock_suggested">Đề xuất khóa</option>
+        </select>
+      </label>
+      <ActionIconButton icon="refresh" label="Xóa lọc" @click="resetFilters" />
+    </section>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <div class="table-wrap">
-      <table>
+    <section class="table-card">
+      <div v-if="loading" class="state">Đang tải danh sách tài khoản...</div>
+      <table v-else>
         <thead>
           <tr>
             <th>Họ tên</th>
             <th>Username</th>
-            <th>Email</th>
-            <th>SĐT</th>
-            <th>Role/group</th>
+            <th>Email/SĐT</th>
+            <th>Vai trò chính</th>
             <th>Trạng thái</th>
-            <th>Lý do khóa</th>
-            <th>Thời hạn khóa</th>
-            <th>Hành động</th>
+            <th>Cảnh báo</th>
+            <th>Report/khiếu nại</th>
+            <th>Số dư ví</th>
+            <th>Ngày tạo</th>
+            <th class="actions-col">Thao tác</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading">
-            <td colspan="9" class="empty">Đang tải...</td>
-          </tr>
-          <tr v-else-if="users.length === 0">
-            <td colspan="9" class="empty">Chưa có tài khoản.</td>
+          <tr v-if="users.length === 0">
+            <td colspan="10" class="state">Không có tài khoản phù hợp với bộ lọc hiện tại.</td>
           </tr>
           <tr v-for="user in users" :key="user.id">
-            <td>{{ user.full_name }}</td>
-            <td>{{ user.username }}</td>
-            <td>{{ user.email || '-' }}</td>
-            <td>{{ user.phone || '-' }}</td>
             <td>
-              <div class="roles">{{ (user.roles || []).join(', ') || '-' }}</div>
-              <span class="muted">{{ user.role_group }}</span>
+              <strong>{{ user.full_name || '-' }}</strong>
+              <small>{{ user.warning_summary?.message }}</small>
             </td>
-            <td><span class="status" :class="user.status">{{ user.status }}</span></td>
-            <td>{{ user.status_reason || '-' }}</td>
-            <td>{{ formatDate(user.locked_until) }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.email || user.phone || '-' }}</td>
+            <td>{{ user.primary_role_label || '-' }}</td>
             <td>
-              <button v-if="user.status === 'locked'" class="btn secondary" @click="unlockUser(user)">
-                Mở khóa
-              </button>
-              <button v-else class="btn danger" @click="openLockModal(user)">
-                Khóa
-              </button>
+              <span class="status" :class="user.status">{{ user.status_label || statusLabel(user.status) }}</span>
+            </td>
+            <td>
+              <span class="warning" :class="user.warning_summary?.level || 'normal'">
+                {{ user.warning_summary?.label || 'Bình thường' }}
+              </span>
+            </td>
+            <td>{{ user.reports_count_recent || 0 }} / {{ user.complaints_count_recent || 0 }}</td>
+            <td>{{ money(user.wallet_balance) }}</td>
+            <td>{{ date(user.created_at) }}</td>
+            <td class="actions-col">
+              <TableActionGroup>
+                <RouterLink class="icon-btn" :to="{ name: 'admin-user-detail', params: { id: user.id } }" title="Xem chi tiết" aria-label="Xem chi tiết">
+                  <AppIcon name="eye" size="17" />
+                </RouterLink>
+                <ActionIconButton
+                  v-if="user.status === 'locked'"
+                  icon="unlock"
+                  label="Mở khóa tài khoản"
+                  @click="openUnlockModal(user)"
+                />
+                <ActionIconButton
+                  v-else
+                  icon="lock"
+                  label="Khóa tài khoản"
+                  variant="danger"
+                  @click="openLockModal(user)"
+                />
+              </TableActionGroup>
             </td>
           </tr>
         </tbody>
       </table>
-    </div>
+    </section>
 
-    <div v-if="lockTarget" class="modal-backdrop" @click.self="closeLockModal">
-      <form class="modal" @submit.prevent="lockUser">
-        <div class="modal-header">
-          <div>
-            <h3>Khóa tài khoản</h3>
-            <p class="muted">Chặn đăng nhập và thu hồi token hiện tại.</p>
-          </div>
-          <button type="button" class="icon-btn" @click="closeLockModal" aria-label="Đóng">×</button>
-        </div>
+    <footer class="pagination" v-if="meta.total > 0">
+      <span>Hiển thị {{ users.length }} / {{ meta.total }} tài khoản</span>
+      <div>
+        <ActionIconButton icon="chevronLeft" label="Trang trước" :disabled="meta.current_page <= 1 || loading" @click="goPage(meta.current_page - 1)" />
+        <span>Trang {{ meta.current_page }} / {{ meta.last_page }}</span>
+        <ActionIconButton icon="chevronRight" label="Trang sau" :disabled="meta.current_page >= meta.last_page || loading" @click="goPage(meta.current_page + 1)" />
+      </div>
+    </footer>
 
-        <div class="target-user">
-          <div class="target-avatar">{{ lockTarget.full_name?.charAt(0)?.toUpperCase() || '?' }}</div>
-          <div>
-            <strong>{{ lockTarget.full_name }}</strong>
-            <span>{{ lockTarget.username }} · {{ lockTarget.email || 'Chưa có email' }}</span>
-          </div>
-        </div>
+    <div v-if="actionTarget" class="modal-backdrop" @click.self="closeActionModal">
+      <form class="modal" @submit.prevent="submitAccountAction">
+        <h3>{{ actionType === 'lock' ? 'Khóa tài khoản' : 'Mở khóa tài khoản' }}</h3>
+        <p class="muted">
+          {{ actionTarget.full_name || actionTarget.username }} · {{ actionTarget.primary_role_label }}
+        </p>
 
-        <div class="field">
-          <span class="field-label">Loại khóa</span>
+        <template v-if="actionType === 'lock'">
           <div class="segmented">
             <button
               v-for="type in lockTypes"
               :key="type.value"
               type="button"
-              :class="{ active: lockForm.lock_type === type.value }"
-              @click="lockForm.lock_type = type.value"
+              :class="{ active: actionForm.lock_type === type.value }"
+              @click="actionForm.lock_type = type.value"
             >
               {{ type.label }}
             </button>
           </div>
-        </div>
+          <label v-if="actionForm.lock_type === 'temporary'">
+            <span>Khóa đến</span>
+            <input v-model="actionForm.locked_until" type="datetime-local" required />
+          </label>
+        </template>
 
         <label>
-          Lý do khóa
-          <textarea v-model="lockForm.status_reason" rows="4" required placeholder="Nhập lý do khóa"></textarea>
+          <span>{{ actionType === 'lock' ? 'Lý do khóa' : 'Lý do mở khóa' }}</span>
+          <textarea v-model.trim="actionForm.reason" rows="4" required placeholder="Nhập lý do để lưu audit log"></textarea>
         </label>
 
-        <div v-if="lockForm.lock_type === 'temporary'" class="field">
-          <span class="field-label">Thời hạn khóa</span>
-          <div class="duration-grid">
-            <button
-              v-for="duration in lockDurations"
-              :key="duration.value"
-              type="button"
-              :class="{ active: lockForm.lock_duration === duration.value }"
-              @click="lockForm.lock_duration = duration.value"
-            >
-              {{ duration.label }}
-            </button>
-          </div>
-          <div v-if="lockForm.lock_duration === 'custom'" class="custom-duration">
-            <label>
-              Số lượng
-              <input
-                v-model.number="lockForm.custom_amount"
-                type="number"
-                min="1"
-                max="365"
-                required
-                placeholder="VD: 3"
-              />
-            </label>
-            <label>
-              Đơn vị
-              <select v-model="lockForm.custom_unit">
-                <option value="hours">Giờ</option>
-                <option value="days">Ngày</option>
-              </select>
-            </label>
-          </div>
-          <p class="hint">{{ lockUntilPreview }}</p>
-        </div>
-
-        <div class="modal-actions">
-          <button type="button" class="btn secondary" @click="closeLockModal">Hủy</button>
-          <button type="submit" class="btn danger" :disabled="saving">Xác nhận khóa</button>
-        </div>
+        <footer>
+          <button type="button" class="btn secondary" @click="closeActionModal">Hủy</button>
+          <button type="submit" class="btn" :class="{ danger: actionType === 'lock' }" :disabled="saving">
+            {{ actionType === 'lock' ? 'Xác nhận khóa' : 'Xác nhận mở khóa' }}
+          </button>
+        </footer>
       </form>
     </div>
   </section>
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
 import { adminUserService } from '../../services/adminUserService.js';
 
 export default {
   name: 'AdminUsers',
+  components: { ActionIconButton, AppIcon, TableActionGroup },
   data() {
     return {
       users: [],
+      meta: { current_page: 1, last_page: 1, per_page: 15, total: 0 },
       loading: false,
       saving: false,
       error: '',
       success: '',
-      lockTarget: null,
-      lockForm: {
-        lock_type: 'temporary',
-        lock_duration: '1_day',
-        status_reason: '',
-        custom_amount: 1,
-        custom_unit: 'days',
+      searchTimer: null,
+      filters: {
+        keyword: '',
+        status: '',
+        role: '',
+        warning_level: '',
+        page: 1,
+        per_page: 15,
       },
+      actionTarget: null,
+      actionType: 'lock',
+      actionForm: {
+        lock_type: 'temporary',
+        locked_until: '',
+        reason: '',
+      },
+      tabs: [
+        { value: '', label: 'Tất cả tài khoản' },
+        { value: 'active', label: 'Đang hoạt động' },
+        { value: 'warning', label: 'Tài khoản cảnh báo' },
+        { value: 'locked', label: 'Tài khoản đã khóa' },
+        { value: 'pending_verify', label: 'Chờ xác thực' },
+      ],
+      roleOptions: [
+        { value: 'super_admin', label: 'Super admin' },
+        { value: 'admin', label: 'Quản trị viên' },
+        { value: 'system_staff', label: 'Nhân viên hệ thống' },
+        { value: 'venue_owner', label: 'Chủ sân' },
+        { value: 'venue_staff', label: 'Nhân viên sân' },
+        { value: 'user', label: 'Người dùng' },
+      ],
       lockTypes: [
         { value: 'temporary', label: 'Tạm thời' },
         { value: 'permanent', label: 'Vĩnh viễn' },
         { value: 'auto', label: 'Tự động' },
       ],
-      lockDurations: [
-        { value: '1_hour', label: '1 giờ', minutes: 60 },
-        { value: '1_day', label: '24 giờ', minutes: 1440 },
-        { value: '7_days', label: '7 ngày', minutes: 10080 },
-        { value: '30_days', label: '30 ngày', minutes: 43200 },
-        { value: 'custom', label: 'Tùy chỉnh', minutes: null },
-      ],
     };
-  },
-  computed: {
-    lockUntilPreview() {
-      if (this.lockForm.lock_duration === 'custom') {
-        const amount = Number(this.lockForm.custom_amount || 0);
-        const unitLabel = this.lockForm.custom_unit === 'hours' ? 'giờ' : 'ngày';
-
-        if (amount < 1) {
-          return 'Nhập số lượng lớn hơn 0 để tính thời hạn khóa.';
-        }
-
-        return `Khóa trong ${amount} ${unitLabel}, đến: ${this.formatDate(this.resolveLockedUntil())}`;
-      }
-
-      return `Khóa đến: ${this.formatDate(this.resolveLockedUntil())}`;
-    },
   },
   mounted() {
     this.loadUsers();
   },
+  beforeUnmount() {
+    clearTimeout(this.searchTimer);
+  },
   methods: {
+    setStatus(status) {
+      this.filters.status = status;
+      if (status !== 'warning') this.filters.warning_level = '';
+      this.reloadFromFirstPage();
+    },
+    scheduleSearch() {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => this.reloadFromFirstPage(), 350);
+    },
+    reloadFromFirstPage() {
+      this.filters.page = 1;
+      this.loadUsers();
+    },
+    resetFilters() {
+      this.filters = {
+        keyword: '',
+        status: '',
+        role: '',
+        warning_level: '',
+        page: 1,
+        per_page: 15,
+      };
+      this.loadUsers();
+    },
+    goPage(page) {
+      this.filters.page = page;
+      this.loadUsers();
+    },
     async loadUsers() {
       this.loading = true;
       this.error = '';
       try {
-        const response = await adminUserService.list();
+        const response = await adminUserService.list(this.filters);
         this.users = response.data || [];
+        this.meta = response.meta || this.meta;
       } catch (error) {
         this.error = error.message || 'Không tải được danh sách tài khoản.';
       } finally {
@@ -208,84 +271,64 @@ export default {
       }
     },
     openLockModal(user) {
-      this.lockTarget = user;
-      this.lockForm = {
+      this.actionTarget = user;
+      this.actionType = 'lock';
+      this.actionForm = {
         lock_type: 'temporary',
-        lock_duration: '1_day',
-        status_reason: '',
-        custom_amount: 1,
-        custom_unit: 'days',
+        locked_until: this.inputDate(new Date(Date.now() + 24 * 60 * 60 * 1000)),
+        reason: '',
       };
+    },
+    openUnlockModal(user) {
+      this.actionTarget = user;
+      this.actionType = 'unlock';
+      this.actionForm = {
+        lock_type: 'temporary',
+        locked_until: '',
+        reason: '',
+      };
+    },
+    closeActionModal() {
+      this.actionTarget = null;
       this.error = '';
-      this.success = '';
     },
-    closeLockModal() {
-      this.lockTarget = null;
-    },
-    async lockUser() {
-      if (!this.lockTarget) return;
+    async submitAccountAction() {
       this.saving = true;
       this.error = '';
-      this.success = '';
       try {
-        const payload = {
-          lock_type: this.lockForm.lock_type,
-          status_reason: this.lockForm.status_reason,
-          locked_until: this.lockForm.lock_type === 'temporary' ? this.resolveLockedUntil() : null,
-        };
-        const response = await adminUserService.lock(this.lockTarget.id, payload);
+        const response = this.actionType === 'lock'
+          ? await adminUserService.lock(this.actionTarget.id, {
+              lock_type: this.actionForm.lock_type,
+              status_reason: this.actionForm.reason,
+              locked_until: this.actionForm.lock_type === 'temporary' ? this.actionForm.locked_until : null,
+            })
+          : await adminUserService.unlock(this.actionTarget.id, { reason: this.actionForm.reason });
         this.success = response.message;
-        this.closeLockModal();
+        this.closeActionModal();
         await this.loadUsers();
       } catch (error) {
-        this.error = error.message || 'Khóa tài khoản không thành công.';
+        this.error = error.message || 'Không thể cập nhật trạng thái tài khoản.';
       } finally {
         this.saving = false;
       }
     },
-    async unlockUser(user) {
-      if (!confirm(`Mở khóa tài khoản ${user.username}?`)) return;
-      this.error = '';
-      this.success = '';
-      try {
-        const response = await adminUserService.unlock(user.id);
-        this.success = response.message;
-        await this.loadUsers();
-      } catch (error) {
-        this.error = error.message || 'Mở khóa tài khoản không thành công.';
-      }
+    statusLabel(status) {
+      return {
+        active: 'Đang hoạt động',
+        locked: 'Đã khóa',
+        pending_verify: 'Chờ xác thực',
+        deactivated: 'Đã vô hiệu hóa',
+      }[status] || 'Không xác định';
     },
-    formatDate(value) {
-      if (!value) return '-';
-      return new Date(value).toLocaleString('vi-VN');
+    money(value) {
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
     },
-    resolveLockedUntil() {
-      if (this.lockForm.lock_duration === 'custom') {
-        const amount = Math.max(1, Number(this.lockForm.custom_amount || 1));
-        const date = new Date();
-        const minutes = this.lockForm.custom_unit === 'hours' ? amount * 60 : amount * 1440;
-        date.setMinutes(date.getMinutes() + minutes);
-
-        return this.formatDateTimeForApi(date);
-      }
-
-      const duration = this.lockDurations.find((item) => item.value === this.lockForm.lock_duration);
-      const date = new Date();
-      date.setMinutes(date.getMinutes() + (duration?.minutes || 1440));
-
-      return this.formatDateTimeForApi(date);
+    date(value) {
+      return value ? new Date(value).toLocaleDateString('vi-VN') : '-';
     },
-    formatDateTimeForApi(date) {
-      const pad = (value) => String(value).padStart(2, '0');
-      return [
-        date.getFullYear(),
-        pad(date.getMonth() + 1),
-        pad(date.getDate()),
-      ].join('-') + ' ' + [
-        pad(date.getHours()),
-        pad(date.getMinutes()),
-        '00',
-      ].join(':');
+    inputDate(value) {
+      const date = new Date(value);
+      return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     },
   },
 };
@@ -293,261 +336,265 @@ export default {
 
 <style scoped>
 .admin-users {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+  display: grid;
+  gap: 16px;
 }
-.toolbar {
+
+.page-head,
+.filters,
+.pagination {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  align-items: center;
+  gap: 12px;
+  align-items: flex-start;
 }
-.toolbar h2 {
-  font-size: 22px;
-  margin: 0 0 4px;
+
+.page-head h2 {
+  margin: 0 0 6px;
 }
-.toolbar p,
-.muted {
-  color: var(--sg-text-muted);
+
+.page-head p,
+.muted,
+small {
+  margin: 0;
+  color: #64748b;
+}
+
+.tabs,
+.segmented {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tabs button,
+.segmented button {
+  border: 1px solid #dbe3ef;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tabs button.active,
+.segmented button.active {
+  background: #dcfce7;
+  border-color: #22c55e;
+  color: #166534;
+}
+
+.filters {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+  color: #334155;
+}
+
+label span {
   font-size: 13px;
 }
-.alert {
-  padding: 12px 14px;
+
+input,
+select,
+textarea {
+  border: 1px solid #dbe3ef;
   border-radius: 8px;
-  font-size: 14px;
-}
-.alert.error {
-  background: #fef2f2;
-  color: #b91c1c;
-}
-.alert.success {
-  background: #ecfdf5;
-  color: #047857;
-}
-.table-wrap {
-  overflow: auto;
-  border: 1px solid var(--sg-border);
-  border-radius: 8px;
+  padding: 10px;
+  font: inherit;
+  min-width: 220px;
   background: #fff;
 }
+
+textarea {
+  min-width: 100%;
+  resize: vertical;
+}
+
+.table-card,
+.modal {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.table-card {
+  overflow: auto;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1080px;
+  min-width: 1120px;
 }
+
 th,
 td {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--sg-border);
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
   text-align: left;
-  font-size: 14px;
   vertical-align: top;
 }
-th {
-  background: #f9fafb;
-  font-weight: 700;
+
+td:first-child {
+  display: grid;
+  gap: 4px;
 }
-.empty {
+
+.actions-col {
+  position: sticky;
+  right: 0;
+  background: #fff;
+  white-space: nowrap;
+}
+
+.state {
+  padding: 20px;
+  color: #64748b;
   text-align: center;
-  color: var(--sg-text-muted);
 }
-.roles {
-  font-weight: 600;
+
+.btn,
+.icon-btn {
+  border: 0;
+  border-radius: 8px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
 }
-.status {
+
+.btn {
+  padding: 10px 14px;
+}
+
+.icon-btn {
   display: inline-flex;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #e5e7eb;
-  font-size: 12px;
-  font-weight: 700;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 7px 10px;
+  margin-right: 6px;
+  background: #f1f5f9;
+  color: #0f172a;
 }
-.status.active {
+
+.secondary {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.danger,
+.icon-btn.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status,
+.warning {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 800;
+  background: #e2e8f0;
+}
+
+.status.active,
+.warning.normal {
   background: #dcfce7;
   color: #166534;
 }
-.status.locked {
+
+.status.locked,
+.status.deactivated,
+.warning.lock_suggested {
   background: #fee2e2;
-  color: #991b1b;
+  color: #b91c1c;
 }
-.btn {
-  border: 0;
-  border-radius: 8px;
-  padding: 9px 12px;
+
+.status.pending_verify,
+.warning.watch,
+.warning.near_lock {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.alert {
+  padding: 12px;
+  border-radius: 10px;
   font-weight: 700;
-  cursor: pointer;
 }
-.btn.secondary {
-  background: #f3f4f6;
-  color: #111827;
+
+.error {
+  background: #fee2e2;
+  color: #b91c1c;
 }
-.btn.danger {
-  background: #dc2626;
-  color: #fff;
+
+.success {
+  background: #dcfce7;
+  color: #166534;
 }
+
+.pagination {
+  align-items: center;
+  color: #64748b;
+}
+
+.pagination div {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, .56);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.56);
   display: grid;
   place-items: center;
   z-index: 500;
   padding: 20px;
 }
+
 .modal {
-  width: min(560px, calc(100vw - 32px));
-  background: #fff;
-  border-radius: 14px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
-}
-.modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  width: min(640px, calc(100vw - 32px));
+  padding: 22px;
+  display: grid;
   gap: 16px;
 }
+
 .modal h3 {
   margin: 0;
-  font-size: 22px;
-  color: #0f172a;
 }
-.icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 24px;
-  line-height: 1;
-}
-.icon-btn:hover {
-  background: #e2e8f0;
-}
-.target-user {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #f8fafc;
-}
-.target-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: #dcfce7;
-  color: #166534;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-}
-.target-user strong,
-.target-user span {
-  display: block;
-}
-.target-user span {
-  margin-top: 3px;
-  font-size: 13px;
-  color: #64748b;
-}
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.field-label {
-  font-weight: 700;
-  font-size: 14px;
-  color: #0f172a;
-}
-.modal label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 14px;
-}
-.modal input,
-.modal select,
-.modal textarea {
-  border: 1px solid var(--sg-border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font: inherit;
-  outline: none;
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
-  background: #fff;
-}
-.modal input:focus,
-.modal select:focus,
-.modal textarea:focus {
-  border-color: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
-}
-.segmented,
-.duration-grid {
-  display: grid;
-  gap: 8px;
-}
-.segmented {
-  grid-template-columns: repeat(3, 1fr);
-}
-.duration-grid {
-  grid-template-columns: repeat(5, 1fr);
-}
-.segmented button,
-.duration-grid button {
-  min-height: 40px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #f8fafc;
-  color: #334155;
-  font-weight: 700;
-}
-.segmented button:hover,
-.duration-grid button:hover {
-  border-color: #86efac;
-  background: #f0fdf4;
-}
-.segmented button.active,
-.duration-grid button.active {
-  border-color: #22c55e;
-  background: #dcfce7;
-  color: #166534;
-}
-.hint {
-  margin: 0;
-  color: #64748b;
-  font-size: 13px;
-}
-.custom-duration {
-  display: grid;
-  grid-template-columns: 1fr 150px;
-  gap: 10px;
-}
-.custom-duration label {
-  gap: 6px;
-}
-.modal-actions {
+
+.modal footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding-top: 4px;
 }
-@media (max-width: 640px) {
-  .segmented,
-  .duration-grid,
-  .custom-duration {
-    grid-template-columns: 1fr 1fr;
+
+@media (max-width: 720px) {
+  .page-head,
+  .filters,
+  .pagination,
+  .pagination div {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  input,
+  select {
+    min-width: 0;
+    width: 100%;
   }
 }
 </style>

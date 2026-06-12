@@ -170,6 +170,8 @@ class VenueController extends Controller
             'id' => $cluster->id,
             'name' => $cluster->name,
             'slug' => $cluster->slug,
+            'province' => $cluster->province,
+            'ward' => $cluster->ward,
             'address' => $cluster->address,
             'status' => $cluster->status,
             'rating_avg' => (float) $cluster->rating_avg,
@@ -181,14 +183,12 @@ class VenueController extends Controller
         ];
     }
 
-    private function coverImage(VenueCluster $cluster): string
+    private function coverImage(VenueCluster $cluster): ?string
     {
-        $mediaPath = DB::table('media')
+        return DB::table('media')
             ->where('mediable_type', VenueCluster::class)
             ->where('mediable_id', $cluster->id)
             ->value('file_path');
-
-        return $mediaPath ?: 'banners/default-home.jpg';
     }
 
     private function gallery(VenueCluster $cluster): array
@@ -199,7 +199,7 @@ class VenueController extends Controller
             ->pluck('file_path')
             ->all();
 
-        return $paths ?: [$this->coverImage($cluster)];
+        return $paths ?: [];
     }
 
     private function courtTypeSelfAndDescendants(int $courtTypeId): array

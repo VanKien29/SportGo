@@ -16,9 +16,7 @@ class GoogleAuthController extends Controller
 {
     private const ADMIN_ROLES = ['super_admin', 'admin', 'system_staff'];
 
-    public function __construct(private readonly RoleRedirectService $roleRedirectService)
-    {
-    }
+    public function __construct(private readonly RoleRedirectService $roleRedirectService) {}
 
     public function redirect(): RedirectResponse
     {
@@ -58,8 +56,8 @@ class GoogleAuthController extends Controller
 
         if ($this->isAdminUser($user)) {
             return $request->expectsJson()
-                ? response()->json(['message' => 'Tài khoản quản trị vui lòng đăng nhập tại trang Admin.'], 422)
-                : redirect('/admin/login?admin_login_required=1');
+                ? response()->json(['message' => 'Tài khoản không hợp lệ.'], 422)
+                : redirect('/login?google_error=invalid_account');
         }
 
         if ($user->status === 'locked') {
@@ -88,7 +86,7 @@ class GoogleAuthController extends Controller
             return response()->json($payload);
         }
 
-        return redirect('/auth/google/callback?'.http_build_query([
+        return redirect('/auth/google/callback?' . http_build_query([
             'token' => $token,
             'role_group' => $payload['role_group'],
             'redirect_to' => $payload['redirect_to'],
@@ -131,9 +129,9 @@ class GoogleAuthController extends Controller
                 return $username;
             }
 
-            $username = Str::limit($base, 40, '').'_'.Str::lower(Str::random(5));
+            $username = Str::limit($base, 40, '') . '_' . Str::lower(Str::random(5));
         }
 
-        return 'sportgo_'.Str::lower(Str::random(10));
+        return 'sportgo_' . Str::lower(Str::random(10));
     }
 }

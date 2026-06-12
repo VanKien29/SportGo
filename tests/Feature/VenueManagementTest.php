@@ -9,6 +9,8 @@ use App\Models\UserRole;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class VenueManagementTest extends TestCase
@@ -93,6 +95,13 @@ class VenueManagementTest extends TestCase
             'longitude' => 105.8542,
             'status' => 'active',
         ]);
+
+        // 5. Tạo Tiện ích mẫu để đồng bộ
+        \App\Models\Amenity::create(['name' => 'Wifi', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Water', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Parking', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Gửi xe', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Phòng tắm VIP', 'status' => 'active']);
     }
 
     // ==========================================
@@ -165,6 +174,8 @@ class VenueManagementTest extends TestCase
             ->putJson("/api/owner/venue-clusters/{$this->cluster1->id}", [
                 'name' => 'Updated Cluster Name',
                 'address' => 'Danang',
+                'province' => 'Danang Province',
+                'ward' => 'Danang Ward',
                 'phone_contact' => '0987654321',
                 'amenities' => ['Wifi', 'Water', 'Parking'],
                 'latitude' => 16.0544,
@@ -247,5 +258,211 @@ class VenueManagementTest extends TestCase
             ]);
 
         $response->assertStatus(403);
+    }
+
+    // ==========================================
+    // ADMIN VENUE CLUSTER MANAGEMENT TESTS
+    // ==========================================
+
+    public function test_admin_can_view_venue_clusters_list_with_fee_status(): void
+    {
+        // Tạo hóa đơn phí mẫu cho cluster1
+        \App\Models\VenuePlatformFeeLedger::create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'venue_cluster_id' => $this->cluster1->id,
+            'court_count' => 5,
+            'billing_cycle' => 'monthly',
+            'period_start' => now()->startOfMonth(),
+            'period_end' => now()->endOfMonth(),
+            'amount_due' => 500000,
+            'status' => 'paid',
+        ]);
+
+        // Tạo media mẫu
+        \App\Models\Media::create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'mediable_type' => \App\Models\VenueCluster::class,
+            'mediable_id' => $this->cluster1->id,
+            'collection' => 'gallery',
+            'file_name' => 'san-dep.jpg',
+            'file_path' => 'clusters/san-dep.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 102400,
+        ]);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/admin/venue-clusters');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.id', $this->cluster1->id)
+            ->assertJsonPath('data.0.fee_status', 'paid')
+            ->assertJsonPath('data.0.image_path', 'clusters/san-dep.jpg');
+    }
+
+    public function test_admin_can_view_venue_cluster_detail_with_images(): void
+    {
+        // Tạo media mẫu
+        \App\Models\Media::create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'mediable_type' => \App\Models\VenueCluster::class,
+            'mediable_id' => $this->cluster1->id,
+            'collection' => 'gallery',
+            'file_name' => 'san-dep.jpg',
+            'file_path' => 'clusters/san-dep.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 102400,
+        ]);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->getJson("/api/admin/venue-clusters/{$this->cluster1->id}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.cluster.id', $this->cluster1->id)
+            ->assertJsonCount(1, 'data.cluster.images')
+            ->assertJsonPath('data.cluster.images.0.file_path', 'clusters/san-dep.jpg');
+    }
+
+    public function test_admin_can_lock_and_unlock_venue_cluster(): void
+    {
+        // 1. Khóa cụm sân
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/venue-clusters/{$this->cluster1->id}/lock", [
+                'status_reason' => 'Vi phạm điều khoản thanh toán',
+            ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('venue_clusters', [
+            'id' => $this->cluster1->id,
+            'status' => 'locked',
+            'status_reason' => 'Vi phạm điều khoản thanh toán',
+        ]);
+
+        // 2. Mở khóa cụm sân
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/venue-clusters/{$this->cluster1->id}/unlock");
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('venue_clusters', [
+            'id' => $this->cluster1->id,
+            'status' => 'active',
+            'status_reason' => null,
+        ]);
+    }
+
+    public function test_admin_can_update_venue_cluster_amenities(): void
+    {
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/venue-clusters/{$this->cluster1->id}/amenities", [
+                'amenities' => ['Wifi', 'Gửi xe', 'Phòng tắm VIP'],
+            ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('venue_clusters', [
+            'id' => $this->cluster1->id,
+        ]);
+        $this->assertEquals(['Wifi', 'Gửi xe', 'Phòng tắm VIP'], $this->cluster1->fresh()->amenities);
+
+        // Validate lỗi
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/venue-clusters/{$this->cluster1->id}/amenities", [
+                'amenities' => '',
+            ]);
+        $response->assertStatus(422);
+    }
+
+    // ==========================================
+    // OWNER CLUSTER MEDIA TESTS
+    // ==========================================
+
+    public function test_owner_can_upload_and_delete_cluster_media(): void
+    {
+        Storage::fake('public');
+
+        // 1. Tải lên hình ảnh
+        $response = $this->actingAs($this->owner1, 'sanctum')
+            ->postJson("/api/owner/venue-clusters/{$this->cluster1->id}/media", [
+                'image' => UploadedFile::fake()->image('my-court.jpg'),
+            ]);
+
+        $response->assertStatus(200);
+        $mediaId = $response->json('data.id');
+        $filePath = $response->json('data.file_path');
+
+        $this->assertDatabaseHas('media', [
+            'id' => $mediaId,
+            'mediable_id' => $this->cluster1->id,
+        ]);
+
+        Storage::disk('public')->assertExists($filePath);
+
+        // 2. Xóa hình ảnh
+        $response = $this->actingAs($this->owner1, 'sanctum')
+            ->deleteJson("/api/owner/venue-clusters/{$this->cluster1->id}/media/{$mediaId}");
+
+        $response->assertStatus(200);
+        $this->assertDatabaseMissing('media', ['id' => $mediaId]);
+        Storage::disk('public')->assertMissing($filePath);
+    }
+
+    public function test_owner_cannot_upload_or_delete_other_owners_cluster_media(): void
+    {
+        Storage::fake('public');
+
+        // 1. Owner 2 không có quyền upload lên cluster1
+        $response = $this->actingAs($this->owner2, 'sanctum')
+            ->postJson("/api/owner/venue-clusters/{$this->cluster1->id}/media", [
+                'image' => UploadedFile::fake()->image('hack-court.jpg'),
+            ]);
+        $response->assertStatus(403);
+
+        // Tạo media mẫu của owner1
+        $media = \App\Models\Media::create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'mediable_type' => \App\Models\VenueCluster::class,
+            'mediable_id' => $this->cluster1->id,
+            'collection' => 'gallery',
+            'file_name' => 'owner1-court.jpg',
+            'file_path' => 'clusters/owner1-court.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 102400,
+        ]);
+
+        // 2. Owner 2 không có quyền xoá media của cluster1
+        $response = $this->actingAs($this->owner2, 'sanctum')
+            ->deleteJson("/api/owner/venue-clusters/{$this->cluster1->id}/media/{$media->id}");
+        $response->assertStatus(403);
+    }
+
+    public function test_owner_cannot_update_cluster_or_courts_when_locked(): void
+    {
+        // 1. Lock the cluster
+        $this->cluster1->update([
+            'status' => 'locked',
+            'status_reason' => 'Locked for testing',
+        ]);
+
+        // 2. Try to update cluster details as owner -> should be blocked by middleware
+        $response = $this->actingAs($this->owner1, 'sanctum')
+            ->putJson("/api/owner/venue-clusters/{$this->cluster1->id}", [
+                'name' => 'Should fail Name',
+                'address' => 'Danang',
+                'phone_contact' => '0987654321',
+                'latitude' => 16.0544,
+                'longitude' => 108.2022,
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['venue_cluster_id']);
+
+        // 3. Try to add a court to the locked cluster -> should be blocked
+        $response = $this->actingAs($this->owner1, 'sanctum')
+            ->postJson('/api/owner/venue-courts', [
+                'venue_cluster_id' => $this->cluster1->id,
+                'court_type_id' => $this->courtType->id,
+                'name' => 'Sân số 2',
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['venue_cluster_id']);
     }
 }

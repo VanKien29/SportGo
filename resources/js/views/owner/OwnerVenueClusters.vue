@@ -1,13 +1,16 @@
 <template>
     <div class="venue-clusters-container">
-        <div class="card header-card">
-            <div class="header-content">
+        <section class="page-head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
                 <h2>Quản lý cụm sân</h2>
-                <p class="subtitle">
-                    Xem và chỉnh sửa thông tin các cụm sân thể thao của bạn
-                </p>
+                <p>Cập nhật thông tin vận hành, bản đồ, tiện ích và hình ảnh của cụm sân.</p>
             </div>
-        </div>
+            <div>
+                <button class="btn btn-primary" @click="showNewClusterModal = true">
+                    <AppIcon name="plus" size="16" /> Đăng ký thêm cụm sân
+                </button>
+            </div>
+        </section>
 
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -41,7 +44,7 @@
                 >
                     <div class="cluster-info">
                         <h4 class="cluster-name">{{ cluster.name }}</h4>
-                        <p class="cluster-address">{{ cluster.address }}</p>
+                        <p class="cluster-address">{{ formatFullAddress(cluster) }}</p>
                     </div>
                 </div>
             </div>
@@ -57,7 +60,8 @@
                         }"
                         class="btn btn-outline btn-sm"
                     >
-                        Quản lý sân con
+                        <AppIcon name="layers" size="15" />
+                        <span>Quản lý sân con</span>
                     </router-link>
                 </div>
 
@@ -98,9 +102,40 @@
                         </div>
                     </div>
 
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="province"
+                                >Tỉnh/Thành phố
+                                <span class="required">*</span></label
+                            >
+                            <input
+                                id="province"
+                                v-model="form.province"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Hà Nội, TP. Hồ Chí Minh..."
+                                required
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="ward"
+                                >Xã/Phường/Thị trấn
+                                <span class="required">*</span></label
+                            >
+                            <input
+                                id="ward"
+                                v-model="form.ward"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Dịch Vọng, Phường Bến Nghé..."
+                                required
+                            />
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label for="address"
-                            >Địa chỉ cụm sân
+                            >Địa chỉ cụ thể (Số nhà, tên đường...)
                             <span class="required">*</span></label
                         >
                         <input
@@ -108,6 +143,7 @@
                             v-model="form.address"
                             type="text"
                             class="form-control"
+                            placeholder="Ví dụ: Số 15 ngõ 20..."
                             required
                         />
                     </div>
@@ -128,6 +164,7 @@
                                 :disabled="resolvingMap"
                                 @click="handleExtractCoordinates"
                             >
+                                <AppIcon name="search" size="15" />
                                 {{
                                     resolvingMap
                                         ? "Đang trích xuất..."
@@ -174,6 +211,15 @@
                         </div>
                     </div>
 
+                    <!-- Leaflet Map Integration -->
+                    <div class="form-group">
+                        <label>Vị trí bản đồ</label>
+                        <p class="map-help-text">
+                            Bạn có thể click trực tiếp lên bản đồ hoặc kéo marker để chọn vị trí chính xác của cụm sân.
+                        </p>
+                        <div id="cluster-map" class="map-container"></div>
+                    </div>
+
                     <div class="form-group">
                         <label>Tiện ích cụm sân (Amenities)</label>
                         <div class="amenities-grid">
@@ -188,6 +234,48 @@
                                     :value="item"
                                 />
                                 <span>{{ item }}</span>
+                            </label>
+                        </div>
+                        <div class="amenity-request-tip">
+                            Bạn không tìm thấy tiện ích mong muốn?
+                            <a href="#" class="link-request-amenity" @click.prevent="openRequestModal">
+                                Gửi yêu cầu thêm tiện ích mới
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Hình ảnh cụm sân (Album/Gallery)</label>
+                        
+                        <!-- Hiển thị lưới ảnh hiện tại -->
+                        <div class="owner-gallery-grid" v-if="imagesList.length > 0">
+                            <div v-for="img in imagesList" :key="img.id" class="owner-gallery-item">
+                                <img :src="imageUrl(img.file_path)" alt="Hình ảnh cụm sân" class="owner-gallery-img" />
+                                <button type="button" class="btn-delete-img" @click="handleDeleteImage(img.id)" title="Xóa hình ảnh này">×</button>
+                            </div>
+                        </div>
+                        <div v-else class="owner-gallery-empty">
+                            Chưa có hình ảnh nào được tải lên cho cụm sân này.
+                        </div>
+
+                        <!-- Khung upload ảnh mới -->
+                        <div class="owner-upload-zone">
+                            <input
+                                type="file"
+                                id="owner-image-upload"
+                                accept="image/*"
+                                multiple
+                                class="hidden-file-input"
+                                @change="handleImageUpload"
+                                :disabled="uploadingImage"
+                            />
+                            <label for="owner-image-upload" class="upload-label-zone">
+                                <span v-if="uploadingImage" class="upload-status-text">
+                                    <div class="spinner-sm"></div> Đang tải lên ảnh...
+                                </span>
+                                <span v-else class="upload-status-text">
+                                    Nhấp vào đây để tải lên ảnh mới (jpeg, png, webp, tối đa 5MB)
+                                </span>
                             </label>
                         </div>
                     </div>
@@ -208,6 +296,7 @@
                             class="btn btn-primary"
                             :disabled="updating"
                         >
+                            <AppIcon name="check" size="16" />
                             {{
                                 updating
                                     ? "Đang cập nhật..."
@@ -218,14 +307,130 @@
                 </form>
             </div>
         </div>
+
+        <!-- Request Amenity Modal -->
+        <div v-if="showRequestModal" class="modal-backdrop" @click.self="closeRequestModal">
+            <div class="modal card">
+                <div class="modal-header">
+                    <h3>Gửi yêu cầu thêm tiện ích</h3>
+                    <button class="btn-close" @click="closeRequestModal">
+                        &times;
+                    </button>
+                </div>
+                <form @submit.prevent="handleRequestSubmit">
+                    <div class="modal-body">
+                        <div v-if="requestError" class="alert alert-danger">
+                            {{ requestError }}
+                        </div>
+                        <div v-if="requestSuccessMsg" class="alert alert-success">
+                            {{ requestSuccessMsg }}
+                        </div>
+
+                        <div class="form-group">
+                            <label for="req-name">
+                                Tên tiện ích <span class="required">*</span>
+                            </label>
+                            <input
+                                id="req-name"
+                                v-model="requestForm.name"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Máy bắn cầu tự động..."
+                                required
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="req-description">
+                                Mô tả tiện ích
+                            </label>
+                            <textarea
+                                id="req-description"
+                                v-model="requestForm.description"
+                                class="form-control"
+                                placeholder="Nhập mô tả chi tiết của tiện ích..."
+                                rows="3"
+                            ></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-outline"
+                            @click="closeRequestModal"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            :disabled="requestSubmitting"
+                        >
+                            {{ requestSubmitting ? "Đang gửi..." : "Gửi yêu cầu" }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- Modal đăng ký cụm sân mới -->
+        <div v-if="showNewClusterModal" class="modal-backdrop">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Đăng ký cụm sân mới</h3>
+                    <button class="close-btn" @click="showNewClusterModal = false">
+                        <AppIcon name="x" size="20" />
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="submitNewCluster">
+                        <div class="form-group">
+                            <label>Tên cụm sân mới *</label>
+                            <input v-model="newClusterForm.venue_name" type="text" required class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Địa chỉ cụm sân *</label>
+                            <input v-model="newClusterForm.venue_address" type="text" required class="form-control" />
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Vĩ độ (Latitude) *</label>
+                                <input v-model="newClusterForm.venue_latitude" type="number" step="any" required class="form-control" />
+                            </div>
+                            <div class="form-group">
+                                <label>Kinh độ (Longitude) *</label>
+                                <input v-model="newClusterForm.venue_longitude" type="number" step="any" required class="form-control" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tổng số sân *</label>
+                            <input v-model="newClusterForm.court_count_total" type="number" min="1" required class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Mô tả tiện ích / dịch vụ</label>
+                            <textarea v-model="newClusterForm.venue_description" rows="3" class="form-control"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-outline" @click="showNewClusterModal = false">Hủy</button>
+                            <button type="submit" class="btn btn-primary" :disabled="submittingCluster">
+                                {{ submittingCluster ? 'Đang gửi...' : 'Gửi yêu cầu' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
 <script>
+import AppIcon from "../../components/AppIcon.vue";
 import { venueClusterService } from "../../services/venueClusters";
+import { amenityService } from "../../services/amenityService";
+import { api } from '../../services/api.js';
 
 export default {
     name: "OwnerVenueClusters",
+    components: { AppIcon },
     data() {
         return {
             clusters: [],
@@ -237,17 +442,24 @@ export default {
             updateError: null,
             resolvingMap: false,
             mapExtractMsg: null,
-            availableAmenities: [
-                "Wifi",
-                "Gửi xe",
-                "Căng tin",
-                "Tắm nóng lạnh",
-                "Cho thuê vợt",
-                "Nước uống free",
-            ],
+            availableAmenities: [],
+            imagesList: [],
+            uploadingImage: false,
+            showNewClusterModal: false,
+            submittingCluster: false,
+            newClusterForm: {
+                venue_name: '',
+                venue_address: '',
+                venue_latitude: '',
+                venue_longitude: '',
+                court_count_total: 1,
+                venue_description: '',
+            },
             form: {
                 name: "",
                 phone_contact: "",
+                province: "",
+                ward: "",
                 address: "",
                 map_url: "",
                 latitude: 21.0285,
@@ -255,8 +467,17 @@ export default {
                 amenities: [],
                 description: "",
             },
+            showRequestModal: false,
+            requestSubmitting: false,
+            requestError: null,
+            requestSuccessMsg: null,
+            requestForm: {
+                name: "",
+                description: "",
+            },
         };
     },
+
     methods: {
         async handleExtractCoordinates() {
             if (!this.form.map_url) {
@@ -277,6 +498,7 @@ export default {
             }
         },
         async parseCoordinatesFromMapUrl(url) {
+            let targetUrl = url;
             // Nếu là link rút gọn maps.app.goo.gl hoặc goo.gl/maps thì gọi API Server-side để giải mã
             if (
                 url.includes("maps.app.goo.gl") ||
@@ -284,14 +506,20 @@ export default {
             ) {
                 try {
                     const res = await venueClusterService.resolveMapUrl(url);
-                    if (res.latitude && res.longitude) {
-                        this.form.latitude = res.latitude;
-                        this.form.longitude = res.longitude;
-                        this.mapExtractMsg = {
-                            type: "success",
-                            text: `Trích xuất thành công: Vĩ độ ${res.latitude}, Kinh độ ${res.longitude}`,
-                        };
-                        return;
+                    const resolvedData = res.data;
+                    if (resolvedData) {
+                        if (resolvedData.latitude && resolvedData.longitude) {
+                            this.form.latitude = resolvedData.latitude;
+                            this.form.longitude = resolvedData.longitude;
+                            this.mapExtractMsg = {
+                                type: "success",
+                                text: `Trích xuất thành công: Vĩ độ ${resolvedData.latitude}, Kinh độ ${resolvedData.longitude}`,
+                            };
+                            return;
+                        }
+                        if (resolvedData.final_url) {
+                            targetUrl = resolvedData.final_url;
+                        }
                     }
                 } catch (e) {
                     console.warn(
@@ -308,7 +536,7 @@ export default {
 
             // Ví dụ URL: https://www.google.com/maps/place/21.028511,105.854167 hoặc @21.028511,105.854167,17z
             // Regex 1: Tìm mẫu @latitude,longitude
-            let match = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            let match = targetUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (match) {
                 this.form.latitude = parseFloat(match[1]);
                 this.form.longitude = parseFloat(match[2]);
@@ -320,7 +548,7 @@ export default {
             }
 
             // Regex 2: Tìm mẫu !3dlatitude!4dlongitude (phổ biến trong link share của Google Maps)
-            let match3d4d = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+            let match3d4d = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
             if (match3d4d) {
                 this.form.latitude = parseFloat(match3d4d[1]);
                 this.form.longitude = parseFloat(match3d4d[2]);
@@ -332,7 +560,7 @@ export default {
             }
 
             // Regex 3: Tìm query q=latitude,longitude
-            let matchQuery = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+            let matchQuery = targetUrl.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (matchQuery) {
                 this.form.latitude = parseFloat(matchQuery[1]);
                 this.form.longitude = parseFloat(matchQuery[2]);
@@ -344,7 +572,7 @@ export default {
             }
 
             // Regex 4: Tìm cặp tọa độ trực tiếp trong URL dạng /place/latitude,longitude
-            let matchCoords = url.match(/\/place\/(-?\d+\.\d+),(-?\d+\.\d+)/);
+            let matchCoords = targetUrl.match(/\/place\/(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (matchCoords) {
                 this.form.latitude = parseFloat(matchCoords[1]);
                 this.form.longitude = parseFloat(matchCoords[2]);
@@ -377,11 +605,18 @@ export default {
         },
         selectCluster(cluster) {
             this.selectedCluster = cluster;
+            localStorage.setItem("selected_cluster", cluster.id);
+            window.dispatchEvent(new CustomEvent("owner-cluster-changed", { detail: cluster }));
             this.updateSuccess = false;
             this.updateError = null;
+            this.imagesList = (cluster.media || []).filter(
+                (img) => img.file_path && !img.file_path.includes("default-home.jpg")
+            );
             this.form = {
                 name: cluster.name,
                 phone_contact: cluster.phone_contact || "",
+                province: cluster.province || "",
+                ward: cluster.ward || "",
                 address: cluster.address,
                 map_url: cluster.map_url || "",
                 latitude: parseFloat(cluster.latitude || 21.0285),
@@ -391,6 +626,18 @@ export default {
                     : [],
                 description: cluster.description || "",
             };
+            this.$nextTick(() => {
+                this.initMap();
+            });
+        },
+        formatFullAddress(cluster) {
+            if (!cluster) return "";
+            const parts = [
+                cluster.address,
+                cluster.ward,
+                cluster.province
+            ].filter(Boolean);
+            return parts.join(', ') || 'Chưa cấu hình địa chỉ';
         },
         async handleUpdate() {
             this.updating = true;
@@ -411,6 +658,9 @@ export default {
                         ...this.clusters[index],
                         ...res.data,
                     };
+                    // Cập nhật selectedCluster và phát event để đồng bộ dữ liệu giao diện
+                    this.selectedCluster = this.clusters[index];
+                    window.dispatchEvent(new CustomEvent("owner-cluster-changed", { detail: this.selectedCluster }));
                 }
             } catch (err) {
                 this.updateError = err.message || "Lỗi khi cập nhật cụm sân.";
@@ -418,9 +668,214 @@ export default {
                 this.updating = false;
             }
         },
+        imageUrl(path) {
+            if (!path || path.includes("default-home.jpg")) return "";
+            if (/^https?:\/\//.test(path)) return path;
+            return `/storage/${path}`;
+        },
+        async handleImageUpload(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            this.uploadingImage = true;
+            this.updateError = null;
+            
+            try {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    // Validate kích thước 5MB
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert(`File ${file.name} vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.`);
+                        continue;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append("image", file);
+                    
+                    const res = await venueClusterService.uploadMedia(this.selectedCluster.id, formData);
+                    this.imagesList.push(res.data);
+                }
+                // Đồng bộ lại media vào selectedCluster
+                this.selectedCluster.media = [...this.imagesList];
+            } catch (err) {
+                this.updateError = err.message || "Tải lên hình ảnh thất bại.";
+            } finally {
+                this.uploadingImage = false;
+                e.target.value = ""; // Clear input file
+            }
+        },
+        async handleDeleteImage(mediaId) {
+            if (!confirm("Bạn có chắc chắn muốn xóa hình ảnh này khỏi album?")) return;
+
+            this.updateError = null;
+            try {
+                await venueClusterService.deleteMedia(this.selectedCluster.id, mediaId);
+                this.imagesList = this.imagesList.filter((img) => img.id !== mediaId);
+                this.selectedCluster.media = [...this.imagesList];
+            } catch (err) {
+                this.updateError = err.message || "Xóa hình ảnh thất bại.";
+            }
+        },
+        async fetchAvailableAmenities() {
+            try {
+                const res = await amenityService.getAll(true); // Chỉ lấy active
+                this.availableAmenities = (res.data || []).map(a => a.name);
+            } catch (err) {
+                console.error("Lỗi khi tải danh sách tiện ích:", err.message);
+            }
+        },
+        openRequestModal() {
+            this.showRequestModal = true;
+            this.requestError = null;
+            this.requestSuccessMsg = null;
+            this.requestForm = {
+                name: "",
+                description: "",
+            };
+        },
+        closeRequestModal() {
+            this.showRequestModal = false;
+        },
+        async handleRequestSubmit() {
+            this.requestSubmitting = true;
+            this.requestError = null;
+            this.requestSuccessMsg = null;
+            try {
+                await amenityService.request(this.requestForm);
+                this.requestSuccessMsg = "Gửi yêu cầu thành công. Vui lòng chờ admin duyệt.";
+                setTimeout(() => {
+                    this.closeRequestModal();
+                }, 2000);
+            } catch (err) {
+                this.requestError = err.message || "Lỗi gửi yêu cầu.";
+            } finally {
+                this.requestSubmitting = false;
+            }
+        },
+        initMap() {
+            if (!window.L) {
+                console.error("Leaflet library is not loaded.");
+                return;
+            }
+
+            const container = document.getElementById('cluster-map');
+            if (!container) return;
+
+            // If map is initialized on a different/stale container, destroy it
+            if (this.map && this.map.getContainer() !== container) {
+                this.destroyMap();
+            }
+
+            const lat = parseFloat(this.form.latitude) || 21.0285;
+            const lng = parseFloat(this.form.longitude) || 105.8542;
+
+            // Fix Leaflet default icon issues in SPAs
+            const DefaultIcon = window.L.icon({
+                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+            window.L.Marker.prototype.options.icon = DefaultIcon;
+
+            if (!this.map) {
+                this.map = window.L.map('cluster-map').setView([lat, lng], 15);
+                window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(this.map);
+
+                this.marker = window.L.marker([lat, lng], { draggable: true }).addTo(this.map);
+
+                // Handle marker dragging
+                this.marker.on('dragend', (e) => {
+                    const position = e.target.getLatLng();
+                    this.form.latitude = parseFloat(position.lat.toFixed(7));
+                    this.form.longitude = parseFloat(position.lng.toFixed(7));
+                });
+
+                // Handle clicking on map to set position
+                this.map.on('click', (e) => {
+                    const position = e.latlng;
+                    this.marker.setLatLng(position);
+                    this.form.latitude = parseFloat(position.lat.toFixed(7));
+                    this.form.longitude = parseFloat(position.lng.toFixed(7));
+                });
+            } else {
+                // Map is already initialized, just update marker and view
+                this.map.setView([lat, lng], 15);
+                this.marker.setLatLng([lat, lng]);
+            }
+
+            // Invalidate size to ensure map tiles render correctly
+            setTimeout(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                }
+            }, 100);
+        },
+        updateMapMarker() {
+            if (this.map && this.marker) {
+                const lat = parseFloat(this.form.latitude);
+                const lng = parseFloat(this.form.longitude);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    const currentLatLng = this.marker.getLatLng();
+                    // Avoid updating if the difference is extremely small (e.g. from user dragging)
+                    if (Math.abs(currentLatLng.lat - lat) > 0.00001 || Math.abs(currentLatLng.lng - lng) > 0.00001) {
+                        this.marker.setLatLng([lat, lng]);
+                        this.map.setView([lat, lng], this.map.getZoom());
+                    }
+                }
+            }
+        },
+        destroyMap() {
+            if (this.map) {
+                this.map.remove();
+                this.map = null;
+                this.marker = null;
+            }
+        },
+        async submitNewCluster() {
+            this.submittingCluster = true;
+            try {
+                await api('/api/owner/partner-applications/new-cluster', {
+                    method: 'POST',
+                    body: JSON.stringify(this.newClusterForm)
+                });
+                alert('Đã gửi yêu cầu đăng ký cụm sân mới thành công! Vui lòng vào mục Hồ sơ & Hợp đồng để theo dõi trạng thái phê duyệt.');
+                this.showNewClusterModal = false;
+                
+                // Reset form
+                this.newClusterForm = {
+                    venue_name: '',
+                    venue_address: '',
+                    venue_latitude: '',
+                    venue_longitude: '',
+                    court_count_total: 1,
+                    venue_description: '',
+                };
+            } catch (err) {
+                alert(err.message || 'Có lỗi xảy ra khi gửi yêu cầu.');
+            } finally {
+                this.submittingCluster = false;
+            }
+        },
+    },
+    watch: {
+        'form.latitude'() {
+            this.updateMapMarker();
+        },
+        'form.longitude'() {
+            this.updateMapMarker();
+        },
     },
     created() {
         this.fetchClusters();
+        this.fetchAvailableAmenities();
+    },
+    beforeUnmount() {
+        this.destroyMap();
     },
 };
 </script>
@@ -442,22 +897,7 @@ export default {
     padding: 24px;
 }
 
-.header-card {
-    padding: 20px 24px;
-}
 
-.header-content h2 {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--sg-text);
-    margin: 0;
-}
-
-.subtitle {
-    margin-top: 4px;
-    color: rgba(15, 23, 42, 0.5);
-    font-size: 14px;
-}
 
 .clusters-grid {
     display: grid;
@@ -731,5 +1171,231 @@ export default {
     to {
         transform: rotate(360deg);
     }
+}
+
+/* Owner Image Gallery & Upload Zone */
+.owner-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.owner-gallery-item {
+    position: relative;
+    aspect-ratio: 4/3;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--sg-border);
+    background: #f8fafc;
+}
+.owner-gallery-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.btn-delete-img {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(220, 38, 38, 0.85);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    transition: background 0.18s;
+    z-index: 10;
+}
+.btn-delete-img:hover {
+    background: rgb(220, 38, 38);
+}
+.owner-gallery-empty {
+    padding: 18px;
+    background: #f8fafc;
+    border: 1px dashed var(--sg-border);
+    border-radius: 8px;
+    text-align: center;
+    color: rgba(15, 23, 42, 0.45);
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+.owner-upload-zone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+.owner-upload-zone:hover {
+    border-color: #000000;
+    background-color: #f8fafc;
+}
+.hidden-file-input {
+    display: none;
+}
+.upload-label-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    cursor: pointer;
+    width: 100%;
+    min-height: 60px;
+}
+.upload-status-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.spinner-sm {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-top-color: #000000;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* Modal styles for requesting amenity */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    display: grid;
+    place-items: center;
+    z-index: 999;
+}
+
+.modal {
+    width: min(450px, 95vw);
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--sg-border, #e2e8f0);
+}
+
+/* Modal Styles */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.modal-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--sg-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--sg-border, #e2e8f0);
+    background: #f8fafc;
+}
+
+.amenity-request-tip {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.link-request-amenity {
+    color: #000000;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.link-request-amenity:hover {
+    color: #333333;
+}
+
+.map-container {
+    width: 100%;
+    height: 320px;
+    border-radius: 8px;
+    border: 1px solid var(--sg-border);
+    margin-top: 8px;
+    margin-bottom: 8px;
+    z-index: 1;
+}
+
+.map-help-text {
+    font-size: 12px;
+    color: rgba(15, 23, 42, 0.5);
+    margin-bottom: 8px;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.modal-body {
+    padding: 24px;
 }
 </style>

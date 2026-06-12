@@ -22,8 +22,18 @@ class SystemPolicy extends Model
         'title',
         'content',
         'type',
+        'policy_type',
+        'status',
         'is_active',
+        'is_overridable',
+        'priority',
         'effective_from',
+        'effective_to',
+        'published_at',
+        'published_by',
+        'replaced_policy_id',
+        'require_reaccept',
+        'change_summary',
         'created_by',
         'updated_by',
     ];
@@ -33,7 +43,12 @@ class SystemPolicy extends Model
         return [
             'version' => 'integer',
             'is_active' => 'boolean',
+            'is_overridable' => 'boolean',
+            'priority' => 'integer',
+            'require_reaccept' => 'boolean',
             'effective_from' => 'datetime',
+            'effective_to' => 'datetime',
+            'published_at' => 'datetime',
         ];
     }
 
@@ -45,5 +60,40 @@ class SystemPolicy extends Model
     public function updatedBy()
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function publishedBy()
+    {
+        return $this->belongsTo(User::class, 'published_by');
+    }
+
+    public function replacedPolicy()
+    {
+        return $this->belongsTo(self::class, 'replaced_policy_id');
+    }
+
+    public function actionBindings()
+    {
+        return $this->hasMany(PolicyActionBinding::class, 'system_policy_id');
+    }
+
+    public function overrideConstraints()
+    {
+        return $this->hasMany(PolicyOverrideConstraint::class, 'system_policy_id');
+    }
+
+    public function rules()
+    {
+        return $this->hasMany(PolicyRule::class, 'system_policy_id');
+    }
+
+    public function statusHistories()
+    {
+        return $this->hasMany(PolicyStatusHistory::class, 'system_policy_id');
+    }
+
+    public function evaluationLogs()
+    {
+        return $this->hasMany(PolicyEvaluationLog::class, 'system_policy_id');
     }
 }

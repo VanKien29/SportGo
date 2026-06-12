@@ -22,8 +22,13 @@ export const venueClusterService = {
   },
 
   // Venue Courts (Owner)
-  getCourts(clusterId) {
-    return api(`/api/owner/venue-courts?venue_cluster_id=${clusterId}`);
+  getCourts(clusterId, params = {}) {
+    const query = new URLSearchParams({
+      venue_cluster_id: clusterId,
+      ...params,
+    }).toString();
+
+    return api(`/api/owner/venue-courts?${query}`);
   },
   createCourt(data) {
     return api('/api/owner/venue-courts', {
@@ -39,6 +44,23 @@ export const venueClusterService = {
   },
   deleteCourt(id) {
     return api(`/api/owner/venue-courts/${id}`, {
+      method: 'DELETE',
+    });
+  },
+  updateCourtsLayout(data) {
+    return api('/api/owner/venue-courts/bulk-layout', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+  uploadMedia(clusterId, formData) {
+    return api(`/api/owner/venue-clusters/${clusterId}/media`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+  deleteMedia(clusterId, mediaId) {
+    return api(`/api/owner/venue-clusters/${clusterId}/media/${mediaId}`, {
       method: 'DELETE',
     });
   },

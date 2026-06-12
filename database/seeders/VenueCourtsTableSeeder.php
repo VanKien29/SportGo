@@ -16,7 +16,11 @@ class VenueCourtsTableSeeder extends Seeder
             return;
         }
 
-        $clusters = VenueCluster::query()->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])->get()->keyBy('slug');
+        $clusters = VenueCluster::query()
+            ->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])
+            ->get()
+            ->keyBy('slug');
+
         $types = CourtType::query()->whereIn('name', [
             'Cầu lông (Sân tiêu chuẩn)',
             'Pickleball (Sân tiêu chuẩn)',
@@ -28,15 +32,15 @@ class VenueCourtsTableSeeder extends Seeder
         ])->pluck('id', 'name');
 
         $courts = [
-            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A1', 1],
-            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A2', 2],
-            ['sportgo-cau-giay', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P1', 3],
-            ['sportgo-cau-giay', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P2', 4],
-            ['sportgo-my-dinh', 'Bóng Đá (Sân 7)', 'Sân bóng đá F1', 1],
-            ['sportgo-my-dinh', 'Bóng Đá (Sân 11)', 'Sân bóng đá F2', 2],
+            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A1', 1, 100, 100, 60, 130, 0],
+            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A2', 2, 200, 100, 60, 130, 0],
+            ['sportgo-cau-giay', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P1', 3, 350, 100, 60, 130, 0],
+            ['sportgo-cau-giay', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P2', 4, 450, 100, 60, 130, 0],
+            ['sportgo-my-dinh', 'Bóng Đá (Sân 7)', 'Sân bóng đá F1', 1, 100, 100, 160, 100, 0],
+            ['sportgo-my-dinh', 'Bóng Đá (Sân 11)', 'Sân bóng đá F2', 2, 350, 100, 240, 150, 0],
         ];
 
-        foreach ($courts as [$clusterSlug, $courtTypeName, $courtName, $sortOrder]) {
+        foreach ($courts as [$clusterSlug, $courtTypeName, $courtName, $sortOrder, $x, $y, $w, $h, $rot]) {
             $cluster = $clusters[$clusterSlug] ?? null;
             $courtTypeId = $types[$courtTypeName] ?? null;
 
@@ -53,7 +57,12 @@ class VenueCourtsTableSeeder extends Seeder
                     'court_type_id' => $courtTypeId,
                     'status' => 'active',
                     'sort_order' => $sortOrder,
-                ]
+                    'layout_x' => $x,
+                    'layout_y' => $y,
+                    'layout_w' => $w,
+                    'layout_h' => $h,
+                    'layout_rotation' => $rot,
+                ],
             );
         }
     }

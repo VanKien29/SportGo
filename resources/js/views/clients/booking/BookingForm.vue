@@ -324,7 +324,7 @@
                                 v-if="paymentOption !== 'no_prepay'"
                             >
                                 * Hệ thống sẽ tạm giữ sân trong vòng
-                                <strong>20 phút</strong> để bạn thực hiện thanh
+                                <strong>{{ config.slot_hold_minutes || 20 }} phút</strong> để bạn thực hiện thanh
                                 toán trực tuyến.
                             </p>
                         </div>
@@ -464,6 +464,8 @@ export default {
                     allow_deposit: true,
                     allow_no_prepay: true,
                     deposit_percent: 30,
+                    slot_hold_minutes: 20,
+                    reminder_before_minutes: 30,
                 }
             );
         },

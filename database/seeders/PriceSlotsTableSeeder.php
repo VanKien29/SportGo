@@ -16,12 +16,15 @@ class PriceSlotsTableSeeder extends Seeder
             return;
         }
 
-        $clusters = VenueCluster::query()->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])->get()->keyBy('slug');
+        $clusters = VenueCluster::query()
+            ->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])
+            ->get()
+            ->keyBy('slug');
         $types = CourtType::query()->whereIn('name', array_keys($this->prices()))->pluck('id', 'name');
 
         $clusterTypes = [
-            'sportgo-cau-giay' => ['Cầu lông', 'Pickleball'],
-            'sportgo-my-dinh' => ['Bóng đá 5 người', 'Bóng đá 7 người'],
+            'sportgo-cau-giay' => ['Cầu lông (Sân tiêu chuẩn)', 'Pickleball (Sân tiêu chuẩn)'],
+            'sportgo-my-dinh' => ['Bóng Đá (Sân 7)', 'Bóng Đá (Sân 11)'],
         ];
 
         foreach ($clusterTypes as $clusterSlug => $courtTypeNames) {
@@ -51,7 +54,7 @@ class PriceSlotsTableSeeder extends Seeder
                             'price' => $price,
                             'apply_to_days' => [0, 1, 2, 3, 4, 5, 6],
                             'is_active' => true,
-                        ]
+                        ],
                     );
                 }
             }
@@ -61,21 +64,21 @@ class PriceSlotsTableSeeder extends Seeder
     private function prices(): array
     {
         return [
-            'Cầu lông' => [
-                ['06:00:00', '17:00:00', 10000],
-                ['17:00:00', '22:00:00', 10000],
+            'Cầu lông (Sân tiêu chuẩn)' => [
+                ['06:00:00', '17:00:00', 100000],
+                ['17:00:00', '22:00:00', 140000],
             ],
-            'Pickleball' => [
-                ['06:00:00', '17:00:00', 10000],
-                ['17:00:00', '22:00:00', 10000],
+            'Pickleball (Sân tiêu chuẩn)' => [
+                ['06:00:00', '17:00:00', 120000],
+                ['17:00:00', '22:00:00', 160000],
             ],
-            'Bóng đá 5 người' => [
-                ['06:00:00', '17:00:00', 10000],
-                ['17:00:00', '22:00:00', 10000],
+            'Bóng Đá (Sân 7)' => [
+                ['06:00:00', '17:00:00', 500000],
+                ['17:00:00', '22:00:00', 700000],
             ],
-            'Bóng đá 7 người' => [
-                ['06:00:00', '17:00:00', 10000],
-                ['17:00:00', '22:00:00', 10000],
+            'Bóng Đá (Sân 11)' => [
+                ['06:00:00', '17:00:00', 900000],
+                ['17:00:00', '22:00:00', 1200000],
             ],
         ];
     }

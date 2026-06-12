@@ -24,70 +24,32 @@ class OwnerBankAccountsTableSeeder extends Seeder
             return;
         }
 
-        $approvedApplication = PartnerApplication::query()->where('venue_name', 'SportGo Cầu Giấy')->first();
-        $reviewingApplication = PartnerApplication::query()->where('venue_name', 'SportGo Thanh Xuân')->first();
-        $rejectedApplication = PartnerApplication::query()->where('venue_name', 'Sân Demo Hồ Tây')->first();
-
         $accounts = [
-            [
-                $owner->id,
-                $approvedApplication?->id,
-                'Vietcombank',
-                'VCB',
-                '0123456789',
-                'CHU SAN SPORTGO',
-                'active',
-                true,
-                $admin?->id,
-                now()->subDays(23),
-                null,
-            ],
-            [
-                $user->id,
-                $reviewingApplication?->id,
-                'TPBank',
-                'TPB',
-                '0987654321',
-                'NGUYEN VAN USER',
-                'pending',
-                true,
-                null,
-                null,
-                null,
-            ],
-            [
-                $user->id,
-                $rejectedApplication?->id,
-                'Techcombank',
-                'TCB',
-                '1122334455',
-                'NGUYEN VAN USER',
-                'rejected',
-                false,
-                $admin?->id,
-                now()->subDays(10),
-                'Tên chủ tài khoản không khớp với hồ sơ đăng ký.',
-            ],
+            [$owner, 'SportGo Cầu Giấy', 'Vietcombank', 'VCB', '0123456789', 'CHU SAN SPORTGO', 'active', true, null],
+            [$user, 'SportGo Thanh Xuân', 'TPBank', 'TPB', '0987654321', 'NGUYEN VAN USER', 'pending', true, null],
+            [$user, 'SportGo Long Biên', 'Techcombank', 'TCB', '1122334455', 'NGUYEN VAN USER', 'rejected', false, 'Tên chủ tài khoản không khớp với hồ sơ đăng ký.'],
         ];
 
-        foreach ($accounts as [$ownerId, $applicationId, $bankName, $bankCode, $accountNumber, $holder, $status, $isDefault, $verifiedBy, $verifiedAt, $rejectedReason]) {
+        foreach ($accounts as [$accountOwner, $venueName, $bankName, $bankCode, $accountNumber, $holder, $status, $isDefault, $rejectedReason]) {
+            $application = PartnerApplication::query()->where('venue_name', $venueName)->first();
+
             OwnerBankAccount::query()->updateOrCreate(
                 [
-                    'owner_id' => $ownerId,
+                    'owner_id' => $accountOwner->id,
                     'bank_code' => $bankCode,
                     'account_number' => $accountNumber,
                 ],
                 [
-                    'partner_application_id' => $applicationId,
+                    'partner_application_id' => $application?->id,
                     'bank_name' => $bankName,
                     'account_holder_name' => $holder,
-                    'branch_name' => null,
+                    'branch_name' => 'Hà Nội',
                     'status' => $status,
                     'is_default' => $isDefault,
-                    'verified_by' => $verifiedBy,
-                    'verified_at' => $verifiedAt,
+                    'verified_by' => in_array($status, ['active', 'rejected'], true) ? $admin?->id : null,
+                    'verified_at' => in_array($status, ['active', 'rejected'], true) ? now()->subDays(10) : null,
                     'rejected_reason' => $rejectedReason,
-                ]
+                ],
             );
         }
     }

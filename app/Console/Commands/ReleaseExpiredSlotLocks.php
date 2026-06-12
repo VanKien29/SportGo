@@ -30,13 +30,16 @@ class ReleaseExpiredSlotLocks extends Command
     public function handle()
     {
         $now = Carbon::now();
-        $this->info("Đang bắt đầu quét các slot lock hết hạn tại thời điểm: " . $now->toDateTimeString());
+        $this->info('Đang bắt đầu quét các slot lock hết hạn tại thời điểm: '.$now->toDateTimeString());
 
         // Tìm tất cả các slot lock có expires_at bé hơn hoặc bằng thời điểm hiện tại
-        $expiredLocks = SlotLock::where('expires_at', '<=', $now)->get();
+        $expiredLocks = SlotLock::where('lock_type', 'auto')
+            ->where('expires_at', '<=', $now)
+            ->get();
 
         if ($expiredLocks->isEmpty()) {
-            $this->info("Không có slot lock nào hết hạn.");
+            $this->info('Không có slot lock nào hết hạn.');
+
             return 0;
         }
 
@@ -63,6 +66,7 @@ class ReleaseExpiredSlotLocks extends Command
         }
 
         $this->info("Đã giải phóng thành công {$processedCount} slot locks hết hạn.");
+
         return 0;
     }
 }

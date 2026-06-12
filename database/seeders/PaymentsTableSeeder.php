@@ -24,6 +24,10 @@ class PaymentsTableSeeder extends Seeder
         $payments = [
             ['PMADMPAID1', 'BKADMPAID1', 120000, 'full', 'sepay', 'SGDEMO0001', 'paid', now()->subHours(8)],
             ['PMADMREF1', 'BKADMREF1', 150000, 'full', 'sepay', 'SGDEMO0002', 'paid', now()->subDay()],
+            ['PMADMREFPROC1', 'BKADMREFPROC1', 180000, 'full', 'sepay', 'SGDEMO0003', 'paid', now()->subDays(2)],
+            ['PMADMREFCOMP1', 'BKADMREFCOMP1', 90000, 'full', 'sepay', 'SGDEMO0004', 'refunded', now()->subDays(3)],
+            ['PMADMREFFAIL1', 'BKADMREFFAIL1', 125000, 'full', 'sepay', 'SGDEMO0005', 'paid', now()->subDays(4)],
+            ['PMADMREFREJ1', 'BKADMREFREJ1', 110000, 'full', 'sepay', 'SGDEMO0006', 'paid', now()->subDays(5)],
             ['PMADMPEND1', 'BKADMPEND1', 30000, 'deposit', 'sepay', null, 'pending', null],
         ];
 
@@ -49,7 +53,7 @@ class PaymentsTableSeeder extends Seeder
                     ],
                     'status' => $status,
                     'paid_at' => $paidAt,
-                ]
+                ],
             );
         }
     }

@@ -50,6 +50,11 @@ class Complaint extends Model
         return $this->belongsTo(User::class, 'customer_id');
     }
 
+    public function evidence()
+    {
+        return $this->morphMany(Media::class, 'mediable')->orderBy('sort_order');
+    }
+
     public function resolvedBy()
     {
         return $this->belongsTo(User::class, 'resolved_by');

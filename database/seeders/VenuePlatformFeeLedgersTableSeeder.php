@@ -78,9 +78,9 @@ class VenuePlatformFeeLedgersTableSeeder extends Seeder
                     'payment_rejected_by' => $proofStatus === 'rejected' ? $admin?->id : null,
                     'payment_rejected_at' => $proofStatus === 'rejected' ? now()->subDays(12) : null,
                     'payment_reject_reason' => $proofStatus === 'rejected' ? 'Ảnh chuyển khoản không đọc được nội dung giao dịch.' : null,
-                    'locked_venue_at' => null,
+                    'locked_venue_at' => $status === 'overdue' ? now()->subDays(2) : null,
                     'internal_receipt_id' => null,
-                ]
+                ],
             );
         }
     }
@@ -90,7 +90,7 @@ class VenuePlatformFeeLedgersTableSeeder extends Seeder
         return PlatformFeeTier::query()
             ->where('is_active', true)
             ->where('min_courts', '<=', $courtCount)
-            ->where(function ($query) use ($courtCount) {
+            ->where(function ($query) use ($courtCount): void {
                 $query->whereNull('max_courts')
                     ->orWhere('max_courts', '>=', $courtCount);
             })
