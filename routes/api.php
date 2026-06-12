@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\Owner\StaffController as OwnerStaffController;
 use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyController;
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
+use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
@@ -229,6 +230,8 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/finance/ledgers', [OwnerFinanceController::class, 'ledgers']);
         Route::get('/finance/withdrawals', [OwnerFinanceController::class, 'withdrawals']);
         Route::post('/finance/withdrawals', [OwnerFinanceController::class, 'storeWithdrawal']);
+        Route::get('/refunds', [OwnerRefundController::class, 'index']);
+        Route::patch('/refunds/{id}/decision', [OwnerRefundController::class, 'decide']);
         Route::get('/bookings', [OwnerBookingManagementController::class, 'index']);
         Route::post('/bookings/counter', [OwnerBookingManagementController::class, 'storeCounter']);
         Route::post('/bookings/recurring', [OwnerBookingManagementController::class, 'storeRecurring']);

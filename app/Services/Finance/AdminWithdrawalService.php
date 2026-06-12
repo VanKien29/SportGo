@@ -47,7 +47,7 @@ class AdminWithdrawalService
             }
 
             if ($status === 'rejected') {
-                if ($statusBefore === 'approved') {
+                if ($this->wallets->hasWithdrawalHold($withdrawal)) {
                     $this->wallets->releaseWithdrawal($withdrawal, [
                         'reason' => $context['reason'],
                         'admin_id' => $context['actor_id'] ?? null,

@@ -38,6 +38,12 @@ export const ownerNavigationSections = [
         activeNames: ['owner-bookings'],
       },
       {
+        label: 'Khóa lịch sân',
+        icon: 'lock',
+        to: '/owner/schedule-locks',
+        activeNames: ['owner-schedule-locks'],
+      },
+      {
         label: 'Booking tại quầy',
         icon: 'plus',
         to: '/owner/counter-booking',
@@ -61,8 +67,20 @@ export const ownerNavigationSections = [
     label: 'Kinh doanh',
     items: [
       {
+        label: 'Phí nền tảng',
+        icon: 'layers',
+        to: '/owner/platform-fees',
+        activeNames: ['owner-platform-fees'],
+      },
+      {
+        label: 'Yêu cầu hoàn/hủy',
+        icon: 'refresh',
+        to: '/owner/refunds',
+        activeNames: ['owner-refunds'],
+      },
+      {
         label: 'Ví tài chính',
-        icon: 'dollarSign',
+        icon: 'banknote',
         to: '/owner/finance',
         activeNames: ['owner-finance'],
       },
@@ -104,6 +122,7 @@ export const ownerRouteTitles = {
   'owner-pricing': 'Cấu hình giá',
   'owner-booking-settings': 'Cấu hình đặt sân',
   'owner-finance': 'Ví tài chính',
+  'owner-refunds': 'Yêu cầu hoàn/hủy',
   'owner-staff': 'Nhân viên sân',
   'owner-vouchers': 'Voucher của sân',
   'owner-policies': 'Chính sách sân',
