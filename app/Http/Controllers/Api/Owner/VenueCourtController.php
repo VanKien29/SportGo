@@ -15,6 +15,7 @@ class VenueCourtController extends Controller
     {
         $request->validate([
             'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
+            'status' => ['nullable', Rule::in(['active', 'inactive', 'maintenance'])],
         ]);
 
         $cluster = VenueCluster::query()->findOrFail($request->query('venue_cluster_id'));
@@ -26,6 +27,7 @@ class VenueCourtController extends Controller
         $courts = VenueCourt::query()
             ->with(['courtType'])
             ->where('venue_cluster_id', $cluster->id)
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->query('status')))
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();

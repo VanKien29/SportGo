@@ -5,7 +5,10 @@
         <h1>Lịch booking</h1>
         <p>Theo dõi booking theo ngày, sân con và trạng thái; xử lý xác nhận, từ chối, hủy, check-in, hoàn thành, đổi sân.</p>
       </div>
-      <router-link class="primary-link" to="/owner/counter-booking">Tạo booking tại quầy</router-link>
+      <router-link class="primary-link" to="/owner/counter-booking">
+        <AppIcon name="plus" size="16" />
+        <span>Tạo booking tại quầy</span>
+      </router-link>
     </section>
 
     <section class="filters">
@@ -40,7 +43,9 @@
           <option value="rejected">Từ chối</option>
         </select>
       </label>
-      <button class="ghost-btn" type="button" @click="loadBookings">Tải lại</button>
+      <button class="icon-btn" type="button" title="Tải lại" aria-label="Tải lại" @click="loadBookings">
+        <AppIcon name="refresh" size="17" />
+      </button>
     </section>
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -86,12 +91,14 @@
             </td>
             <td><span class="status-chip" :class="booking.status">{{ statusLabel(booking.status) }}</span></td>
             <td class="actions">
-              <button type="button" @click="updateStatus(booking, 'confirm')">Xác nhận</button>
-              <button type="button" @click="updateStatus(booking, 'check_in')">Check-in</button>
-              <button type="button" @click="updateStatus(booking, 'complete')">Hoàn thành</button>
-              <button type="button" @click="openChangeCourt(booking)">Đổi sân</button>
-              <button type="button" class="danger" @click="updateStatus(booking, 'reject')">Từ chối</button>
-              <button type="button" class="danger" @click="updateStatus(booking, 'cancel')">Hủy</button>
+              <TableActionGroup>
+                <ActionIconButton icon="check" label="Xác nhận" variant="success" @click="updateStatus(booking, 'confirm')" />
+                <ActionIconButton icon="clock" label="Check-in" @click="updateStatus(booking, 'check_in')" />
+                <ActionIconButton icon="circleCheck" label="Hoàn thành" @click="updateStatus(booking, 'complete')" />
+                <ActionIconButton icon="pencil" label="Đổi sân" @click="openChangeCourt(booking)" />
+                <ActionIconButton icon="x" label="Từ chối" variant="danger" @click="updateStatus(booking, 'reject')" />
+                <ActionIconButton icon="trash" label="Hủy" variant="danger" @click="updateStatus(booking, 'cancel')" />
+              </TableActionGroup>
             </td>
           </tr>
         </tbody>
@@ -102,7 +109,7 @@
       <form class="modal-panel" @submit.prevent="saveChangeCourt">
         <header>
           <h2>Đổi sân thực tế</h2>
-          <button type="button" @click="closeChangeCourt">Đóng</button>
+          <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeChangeCourt" />
         </header>
         <label>
           <span>Sân mới</span>
@@ -126,9 +133,13 @@
 <script>
 import { ownerBookingService } from '../../services/ownerBookings.js';
 import { venueClusterService } from '../../services/venueClusters.js';
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
 
 export default {
   name: 'OwnerBookings',
+  components: { ActionIconButton, AppIcon, TableActionGroup },
   data() {
     return {
       clusters: [],
@@ -275,7 +286,8 @@ export default {
 .bookings-page {
   display: grid;
   gap: 18px;
-  max-width: 1280px;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
 }
 
@@ -348,6 +360,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   padding: 0 14px;
   border-radius: 8px;
   font-weight: 900;
@@ -457,19 +470,7 @@ td strong {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.actions button {
-  padding: 6px 8px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.actions .danger {
-  color: #b91c1c;
+  justify-content: flex-end;
 }
 
 .modal-backdrop {

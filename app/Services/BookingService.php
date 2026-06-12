@@ -3,10 +3,14 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\BookingItem;
 use App\Models\BookingConfig;
 use App\Models\HolidayPrice;
+use App\Models\Payment;
+use App\Models\PaymentLog;
 use App\Models\PriceSlot;
 use App\Models\SlotLock;
+use App\Models\User;
 use App\Models\VenueCourt;
 use App\Models\VenueCluster;
 use Carbon\Carbon;
@@ -14,6 +18,7 @@ use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class BookingService
 {
@@ -22,7 +27,7 @@ class BookingService
     /**
      * Kiểm tra xem sân con có trống trong khung giờ yêu cầu không.
      */
-    public function checkAvailability(string $venueCourtId, string $bookingDate, string $startTime, string $endTime): bool
+    public function checkAvailability(string $venueCourtId, string $bookingDate, string $startTime, string $endTime, ?string $ignoreBookingId = null): bool
     {
         $court = VenueCourt::findOrFail($venueCourtId);
         $venueClusterId = $court->venue_cluster_id;
@@ -31,6 +36,7 @@ class BookingService
         $hasOverlapBooking = Booking::where('venue_court_id', $venueCourtId)
             ->where('booking_date', $bookingDate)
             ->whereIn('status', self::BLOCKING_BOOKING_STATUSES)
+            ->when($ignoreBookingId, fn ($query) => $query->whereKeyNot($ignoreBookingId))
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where('start_time', '<', $endTime)
                     ->where('end_time', '>', $startTime);
@@ -45,6 +51,9 @@ class BookingService
         $hasOverlapCourtLock = SlotLock::where('venue_court_id', $venueCourtId)
             ->where('booking_date', $bookingDate)
             ->where('expires_at', '>', Carbon::now())
+            ->when($ignoreBookingId, fn ($query) => $query->where(function ($lockQuery) use ($ignoreBookingId) {
+                $lockQuery->whereNull('booking_id')->orWhere('booking_id', '!=', $ignoreBookingId);
+            }))
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where('start_time', '<', $endTime)
                     ->where('end_time', '>', $startTime);
@@ -60,6 +69,9 @@ class BookingService
             ->where('lock_scope', 'cluster')
             ->where('booking_date', $bookingDate)
             ->where('expires_at', '>', Carbon::now())
+            ->when($ignoreBookingId, fn ($query) => $query->where(function ($lockQuery) use ($ignoreBookingId) {
+                $lockQuery->whereNull('booking_id')->orWhere('booking_id', '!=', $ignoreBookingId);
+            }))
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where('start_time', '<', $endTime)
                     ->where('end_time', '>', $startTime);
@@ -192,6 +204,106 @@ class BookingService
         });
     }
 
+    public function createCounterBooking(array $data, User $actor): Booking
+    {
+        return DB::transaction(function () use ($data, $actor): Booking {
+            $court = $this->lockActiveCourt($data['venue_court_id']);
+            $this->validateTimeRange($data['start_time'], $data['end_time']);
+            $this->validateDurationAndPayment($court->venue_cluster_id, $data['start_time'], $data['end_time'], $data['payment_option']);
+
+            if (! $this->checkAvailability($court->id, $data['booking_date'], $data['start_time'], $data['end_time'])) {
+                throw ValidationException::withMessages([
+                    'start_time' => 'Khung giờ này đã có booking hoặc đang được giữ chỗ.',
+                ]);
+            }
+
+            $booking = $this->createOperationalBooking(
+                $court,
+                $data,
+                $actor,
+                $data['booking_date'],
+                'single',
+            );
+
+            return $booking->fresh(['venueCourt.courtType', 'customer', 'payments.logs']);
+        });
+    }
+
+    public function createRecurringBookings(array $data, User $actor): array
+    {
+        return DB::transaction(function () use ($data, $actor): array {
+            $court = $this->lockActiveCourt($data['venue_court_id']);
+            $this->validateTimeRange($data['start_time'], $data['end_time']);
+            $this->validateDurationAndPayment($court->venue_cluster_id, $data['start_time'], $data['end_time'], $data['payment_option']);
+
+            $dates = $this->recurringDates($data);
+
+            if ($dates->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'recurring_start_date' => 'Không có buổi nào phù hợp với lịch cố định đã chọn.',
+                ]);
+            }
+
+            if ($dates->count() > 130) {
+                throw ValidationException::withMessages([
+                    'recurring_end_date' => 'Lịch cố định tối đa 130 buổi mỗi lần tạo.',
+                ]);
+            }
+
+            $conflicts = $dates
+                ->filter(fn (Carbon $date) => ! $this->checkAvailability(
+                    $court->id,
+                    $date->toDateString(),
+                    $data['start_time'],
+                    $data['end_time'],
+                ))
+                ->values()
+                ->map(fn (Carbon $date) => $date->toDateString());
+
+            if ($conflicts->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'recurring_start_date' => 'Một số buổi trong lịch cố định đã bị trùng: '.$conflicts->take(8)->implode(', ').($conflicts->count() > 8 ? '...' : ''),
+                ]);
+            }
+
+            $groupCode = $this->uniqueRecurringGroupCode();
+            $bookings = collect();
+
+            foreach ($dates as $date) {
+                $bookings->push($this->createOperationalBooking(
+                    $court,
+                    array_merge($data, [
+                        'recurring_group_code' => $groupCode,
+                        'recurring_start_date' => $data['recurring_start_date'],
+                        'recurring_end_date' => $data['recurring_end_date'],
+                        'recurrence_type' => $data['recurrence_type'],
+                        'recurrence_interval' => $data['recurrence_interval'],
+                        'recurrence_days_of_week' => $data['recurrence_type'] === 'weekly' ? ($data['recurrence_days_of_week'] ?? []) : null,
+                        'recurrence_days_of_month' => $data['recurrence_type'] === 'monthly' ? ($data['recurrence_days_of_month'] ?? []) : null,
+                    ]),
+                    $actor,
+                    $date->toDateString(),
+                    'recurring',
+                ));
+            }
+
+            $loadedBookings = Booking::query()
+                ->with(['venueCourt.courtType', 'customer', 'payments'])
+                ->whereIn('id', $bookings->pluck('id'))
+                ->orderBy('booking_date')
+                ->orderBy('start_time')
+                ->get();
+
+            return [
+                'recurring_group_code' => $groupCode,
+                'created_count' => $loadedBookings->count(),
+                'total_price' => round($loadedBookings->sum(fn (Booking $booking) => (float) $booking->total_price), 2),
+                'required_payment_amount' => round($loadedBookings->sum(fn (Booking $booking) => (float) $booking->required_payment_amount), 2),
+                'bookings' => $loadedBookings->values(),
+            ];
+        });
+    }
+
     public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single'): array
     {
         $cluster = VenueCluster::query()->whereKey($venueClusterId)->where('status', 'active')->firstOrFail();
@@ -309,6 +421,248 @@ class BookingService
         ];
     }
 
+    private function createOperationalBooking(VenueCourt $court, array $data, User $actor, string $bookingDate, string $bookingType): Booking
+    {
+        $durationMinutes = $this->durationMinutes($data['start_time'], $data['end_time']);
+        $totalPrice = $this->calculateTotalPrice($court, $bookingDate, $data['start_time'], $data['end_time'], $bookingType);
+        $requiredPaymentAmount = $this->requiredPaymentAmount($court->venue_cluster_id, $totalPrice, $data['payment_option']);
+        $isPaid = (bool) ($data['is_paid'] ?? false);
+        $status = $this->initialCounterStatus($data['payment_option'], $isPaid);
+
+        $booking = Booking::query()->create([
+            'booking_code' => $this->uniqueBookingCode(),
+            'customer_id' => $data['customer_id'] ?? null,
+            'venue_court_id' => $court->id,
+            'requested_venue_court_id' => $court->id,
+            'venue_cluster_id' => $court->venue_cluster_id,
+            'booking_date' => $bookingDate,
+            'start_time' => $data['start_time'],
+            'end_time' => $data['end_time'],
+            'duration_minutes' => $durationMinutes,
+            'total_price' => $totalPrice,
+            'payment_option' => $data['payment_option'],
+            'required_payment_amount' => $requiredPaymentAmount,
+            'source' => 'counter',
+            'booking_type' => $bookingType,
+            'recurring_group_code' => $data['recurring_group_code'] ?? null,
+            'recurring_start_date' => $data['recurring_start_date'] ?? null,
+            'recurring_end_date' => $data['recurring_end_date'] ?? null,
+            'recurrence_type' => $data['recurrence_type'] ?? null,
+            'recurrence_interval' => $data['recurrence_interval'] ?? null,
+            'recurrence_days_of_week' => $data['recurrence_days_of_week'] ?? null,
+            'recurrence_days_of_month' => $data['recurrence_days_of_month'] ?? null,
+            'status' => $status,
+            'walk_in_name' => $data['walk_in_name'] ?? null,
+            'walk_in_phone' => $data['walk_in_phone'] ?? null,
+            'created_by' => $actor->id,
+        ]);
+
+        $this->createBookingItem($booking, $court, $durationMinutes, $totalPrice);
+        $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash');
+
+        return $booking;
+    }
+
+    private function createBookingItem(Booking $booking, VenueCourt $court, int $durationMinutes, float $totalPrice): BookingItem
+    {
+        $durationHours = max($durationMinutes / 60, 0.5);
+
+        return BookingItem::query()->create([
+            'booking_id' => $booking->id,
+            'venue_court_id' => $court->id,
+            'requested_venue_court_id' => $court->id,
+            'start_time' => $booking->start_time,
+            'end_time' => $booking->end_time,
+            'duration_minutes' => $durationMinutes,
+            'unit_price' => round($totalPrice / $durationHours, 2),
+            'subtotal' => $totalPrice,
+            'sort_order' => 1,
+        ]);
+    }
+
+    private function createCounterPayment(Booking $booking, User $actor, bool $isPaid, string $method): ?Payment
+    {
+        if ($booking->payment_option === 'no_prepay' || (float) $booking->required_payment_amount <= 0) {
+            return null;
+        }
+
+        $payment = Payment::query()->create([
+            'payment_code' => $this->uniquePaymentCode(),
+            'booking_id' => $booking->id,
+            'amount' => $booking->required_payment_amount,
+            'wallet_amount' => 0,
+            'gateway_amount' => $booking->required_payment_amount,
+            'payment_kind' => $booking->payment_option === 'full_payment' ? 'full' : 'deposit',
+            'method' => $method,
+            'gateway_response' => [
+                'source' => 'owner_counter',
+                'created_by' => $actor->id,
+                'recorded_as_paid' => $isPaid,
+            ],
+            'status' => $isPaid ? 'paid' : 'pending',
+            'paid_at' => $isPaid ? now() : null,
+        ]);
+
+        PaymentLog::query()->create([
+            'payment_id' => $payment->id,
+            'event_type' => $isPaid ? 'counter_payment_recorded' : 'counter_payment_pending',
+            'request_payload' => [
+                'actor_id' => $actor->id,
+                'booking_code' => $booking->booking_code,
+                'method' => $method,
+                'amount' => (float) $payment->amount,
+            ],
+            'status_before' => null,
+            'status_after' => $payment->status,
+        ]);
+
+        return $payment;
+    }
+
+    private function lockActiveCourt(string $venueCourtId): VenueCourt
+    {
+        $court = VenueCourt::query()
+            ->with('venueCluster')
+            ->whereKey($venueCourtId)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        if ($court->status !== 'active') {
+            throw ValidationException::withMessages([
+                'venue_court_id' => 'Sân này hiện không hoạt động.',
+            ]);
+        }
+
+        if ($court->venueCluster?->status === 'locked') {
+            throw ValidationException::withMessages([
+                'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
+            ]);
+        }
+
+        return $court;
+    }
+
+    private function validateDurationAndPayment(string $venueClusterId, string $startTime, string $endTime, string $paymentOption): void
+    {
+        $durationMinutes = $this->durationMinutes($startTime, $endTime);
+        $config = BookingConfig::query()->find($venueClusterId);
+        $minDuration = $config?->min_duration_minutes ?: 30;
+        $maxDuration = $config?->max_duration_minutes;
+
+        if ($durationMinutes < $minDuration) {
+            throw ValidationException::withMessages([
+                'end_time' => "Thời lượng đặt tối thiểu là {$minDuration} phút.",
+            ]);
+        }
+
+        if ($maxDuration && $durationMinutes > $maxDuration) {
+            throw ValidationException::withMessages([
+                'end_time' => "Thời lượng đặt tối đa là {$maxDuration} phút.",
+            ]);
+        }
+
+        $allowed = [
+            'full_payment' => $config?->allow_full_payment ?? true,
+            'deposit' => $config?->allow_deposit ?? true,
+            'no_prepay' => $config?->allow_no_prepay ?? true,
+        ];
+
+        if (! ($allowed[$paymentOption] ?? false)) {
+            throw ValidationException::withMessages([
+                'payment_option' => 'Hình thức thanh toán này không được cụm sân hỗ trợ.',
+            ]);
+        }
+    }
+
+    private function validateTimeRange(string $startTime, string $endTime): void
+    {
+        if ($this->durationMinutes($startTime, $endTime) <= 0) {
+            throw ValidationException::withMessages([
+                'end_time' => 'Giờ kết thúc phải lớn hơn giờ bắt đầu.',
+            ]);
+        }
+    }
+
+    private function requiredPaymentAmount(string $venueClusterId, float $totalPrice, string $paymentOption): float
+    {
+        if ($paymentOption === 'full_payment') {
+            return round($totalPrice, 2);
+        }
+
+        if ($paymentOption === 'deposit') {
+            $config = BookingConfig::query()->find($venueClusterId);
+            $depositPercent = (float) ($config?->deposit_percent ?? 30);
+
+            return round($totalPrice * ($depositPercent / 100), 2);
+        }
+
+        return 0.0;
+    }
+
+    private function initialCounterStatus(string $paymentOption, bool $isPaid): string
+    {
+        if ($paymentOption === 'no_prepay' || $isPaid) {
+            return 'confirmed';
+        }
+
+        return 'pending_payment';
+    }
+
+    private function recurringDates(array $data): Collection
+    {
+        $start = Carbon::parse($data['recurring_start_date'])->startOfDay();
+        $end = Carbon::parse($data['recurring_end_date'])->startOfDay();
+        $interval = max((int) $data['recurrence_interval'], 1);
+        $dates = collect();
+        $weekDays = collect($data['recurrence_days_of_week'] ?? [])->map(fn ($day) => (int) $day)->values();
+        $monthDays = collect($data['recurrence_days_of_month'] ?? [])->map(fn ($day) => (int) $day)->values();
+
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            $daysDiff = $start->diffInDays($date);
+            $weeksDiff = intdiv($daysDiff, 7);
+            $monthsDiff = (($date->year - $start->year) * 12) + ($date->month - $start->month);
+            $matches = match ($data['recurrence_type']) {
+                'daily' => $daysDiff % $interval === 0,
+                'weekly' => $weeksDiff % $interval === 0 && $weekDays->contains($date->dayOfWeekIso - 1),
+                'monthly' => $monthsDiff % $interval === 0 && $monthDays->contains($date->day),
+                default => false,
+            };
+
+            if ($matches) {
+                $dates->push($date->copy());
+            }
+        }
+
+        return $dates;
+    }
+
+    private function uniqueBookingCode(): string
+    {
+        do {
+            $code = 'BK'.Str::upper(Str::random(8));
+        } while (Booking::query()->where('booking_code', $code)->exists());
+
+        return $code;
+    }
+
+    private function uniqueRecurringGroupCode(): string
+    {
+        do {
+            $code = 'RG'.Str::upper(Str::random(8));
+        } while (Booking::query()->where('recurring_group_code', $code)->exists());
+
+        return $code;
+    }
+
+    private function uniquePaymentCode(): string
+    {
+        do {
+            $code = 'PM'.Str::upper(Str::random(10));
+        } while (Payment::query()->where('payment_code', $code)->exists());
+
+        return $code;
+    }
+
     private function busyIntervals(string $venueClusterId, Collection $courtIds, string $bookingDate): Collection
     {
         $bookings = Booking::query()
@@ -380,6 +734,11 @@ class BookingService
         [$hour, $minute] = array_map('intval', explode(':', substr($time, 0, 5)));
 
         return $hour * 60 + $minute;
+    }
+
+    private function durationMinutes(string $startTime, string $endTime): int
+    {
+        return $this->timeToMinutes($endTime) - $this->timeToMinutes($startTime);
     }
 
     private function minutesToTime(int $minutes): string

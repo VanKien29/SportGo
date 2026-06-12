@@ -61,10 +61,12 @@ class BookingManagementController extends Controller
     {
         $validated = $request->validate([
             'venue_court_id' => ['required', 'uuid', 'exists:venue_courts,id'],
-            'booking_date' => ['required', 'date_format:Y-m-d'],
+            'booking_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => ['required', Rule::in(['full_payment', 'deposit', 'no_prepay'])],
+            'is_paid' => ['nullable', 'boolean'],
+            'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer'])],
             'customer_id' => ['nullable', 'uuid', 'exists:users,id'],
             'walk_in_name' => ['required_without:customer_id', 'nullable', 'string', 'max:255'],
             'walk_in_phone' => ['required_without:customer_id', 'nullable', 'string', 'max:20'],
@@ -85,7 +87,7 @@ class BookingManagementController extends Controller
     {
         $validated = $request->validate([
             'venue_court_id' => ['required', 'uuid', 'exists:venue_courts,id'],
-            'recurring_start_date' => ['required', 'date_format:Y-m-d'],
+            'recurring_start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'recurring_end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:recurring_start_date'],
             'recurrence_type' => ['required', Rule::in(['daily', 'weekly', 'monthly'])],
             'recurrence_interval' => ['required', 'integer', 'min:1', 'max:12'],
@@ -96,6 +98,8 @@ class BookingManagementController extends Controller
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => ['required', Rule::in(['full_payment', 'deposit', 'no_prepay'])],
+            'is_paid' => ['nullable', 'boolean'],
+            'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer'])],
             'customer_id' => ['nullable', 'uuid', 'exists:users,id'],
             'walk_in_name' => ['required_without:customer_id', 'nullable', 'string', 'max:255'],
             'walk_in_phone' => ['required_without:customer_id', 'nullable', 'string', 'max:20'],

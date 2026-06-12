@@ -26,6 +26,18 @@ export const ownerNavigationSections = [
         activeNames: ['owner-venue-courts'],
       },
       {
+        label: 'Lịch sân',
+        icon: 'calendar',
+        to: '/owner/bookings',
+        activeNames: ['owner-bookings'],
+      },
+      {
+        label: 'Booking tại quầy',
+        icon: 'plus',
+        to: '/owner/counter-booking',
+        activeNames: ['owner-counter-booking'],
+      },
+      {
         label: 'Cấu hình giá',
         icon: 'settings',
         to: '/owner/pricing',
@@ -68,6 +80,8 @@ export const ownerRouteTitles = {
   'owner-profile': 'Thông tin cá nhân',
   'owner-venue-clusters': 'Quản lý cụm sân',
   'owner-venue-courts': 'Quản lý sân con',
+  'owner-bookings': 'Lịch sân',
+  'owner-counter-booking': 'Booking tại quầy',
   'owner-pricing': 'Cấu hình giá',
   'owner-staff': 'Nhân viên sân',
   'owner-vouchers': 'Voucher của sân',

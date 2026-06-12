@@ -207,6 +207,16 @@ const routes = [
                 name: "owner-venue-courts",
                 component: () => import("../views/owner/OwnerVenueCourts.vue"),
             },
+            {
+                path: "bookings",
+                name: "owner-bookings",
+                component: () => import("../views/owner/OwnerBookings.vue"),
+            },
+            {
+                path: "counter-booking",
+                name: "owner-counter-booking",
+                component: () => import("../views/owner/OwnerCounterBooking.vue"),
+            },
             { path: "pricing", name: "owner-pricing", component: OwnerPricing },
             { path: "staff", name: "owner-staff", component: OwnerStaff },
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
