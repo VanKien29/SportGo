@@ -91,6 +91,7 @@ class PartnerApplicationController extends Controller
                 'courts.courtType:id,name',
                 'bankAccounts',
                 'contracts.signatures',
+                'contracts.terminations',
             ])
             ->findOrFail($id);
 
@@ -145,8 +146,8 @@ class PartnerApplicationController extends Controller
                 'map_url' => $application->venue_map_url,
                 'latitude' => $application->venue_latitude,
                 'longitude' => $application->venue_longitude,
-                'status' => 'active',
-                'status_reason' => null,
+                'status' => 'pending_contract',
+                'status_reason' => 'Chờ ký kết hợp đồng đối tác',
                 'amenities' => $application->amenities,
             ]);
 
@@ -203,6 +204,7 @@ class PartnerApplicationController extends Controller
                 'courts.courtType:id,name',
                 'bankAccounts',
                 'contracts.signatures',
+                'contracts.terminations',
             ]);
         });
 
@@ -481,6 +483,11 @@ class PartnerApplicationController extends Controller
             'status_reason' => $application->status_reason,
             'reviewed_at' => $application->reviewed_at,
         ];
+
+        // Include contracts for Admin UI
+        if ($application->relationLoaded('contracts')) {
+            $payload['contracts'] = $application->contracts;
+        }
 
         return $payload;
     }

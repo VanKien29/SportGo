@@ -80,7 +80,7 @@
             </td>
             <td>{{ user.username }}</td>
             <td>{{ user.email || user.phone || '-' }}</td>
-            <td>{{ user.primary_role_label || '-' }}</td>
+            <td>{{ user.primary_role_label || (user.roles && user.roles[0]) || '-' }}</td>
             <td>
               <span class="status" :class="user.status">{{ user.status_label || statusLabel(user.status) }}</span>
             </td>

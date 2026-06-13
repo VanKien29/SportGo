@@ -15,19 +15,14 @@ class PartnerContract extends Model
 
     protected $keyType = 'string';
 
-    protected $appends = [
-        'contract_number',
-        'generated_file_path',
-        'final_signed_file_path',
-    ];
-
     protected $fillable = [
-        'contract_code',
+        'contract_number',
         'partner_application_id',
         'owner_id',
         'venue_cluster_id',
         'contract_title',
         'status',
+        'generated_file_path',
         'generated_document_id',
         'generated_file_media_id',
         'signed_file_media_id',
@@ -92,7 +87,7 @@ class PartnerContract extends Model
 
     public function terminations()
     {
-        return $this->hasMany(PartnerTerminationRequest::class, 'partner_contract_id');
+        return $this->hasMany(PartnerTerminationRequest::class, 'partner_application_id', 'partner_application_id');
     }
 
     public function venueCluster()
@@ -100,18 +95,4 @@ class PartnerContract extends Model
         return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
     }
 
-    public function getContractNumberAttribute(): ?string
-    {
-        return $this->contract_code;
-    }
-
-    public function getGeneratedFilePathAttribute(): ?string
-    {
-        return $this->generatedDocument?->generated_file_path;
-    }
-
-    public function getFinalSignedFilePathAttribute(): ?string
-    {
-        return $this->generatedDocument?->final_file_path;
-    }
 }

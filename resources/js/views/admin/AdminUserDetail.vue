@@ -269,7 +269,25 @@ export default {
       this.error = '';
       try {
         const response = await adminUserService.show(this.$route.params.id);
-        this.detail = response.data;
+        const data = response.data || {};
+        
+        // Map data.user to data.profile if missing (API compatibility)
+        if (!data.profile && data.user) {
+          data.profile = data.user;
+        }
+        
+        // Ensure summaries exist so the template doesn't crash
+        data.warning_summary = data.warning_summary || {};
+        data.reports_summary = data.reports_summary || { recent: [] };
+        data.complaints_summary = data.complaints_summary || { recent: [] };
+        data.wallet_summary = data.wallet_summary || { ledgers: [] };
+        data.booking_summary = data.booking_summary || {};
+        data.recent_bookings = data.recent_bookings || [];
+        data.roles = data.roles || [];
+        data.permission_revokes = data.permission_revokes || [];
+        data.audit_logs = data.audit_logs || [];
+        
+        this.detail = data;
       } catch (error) {
         this.error = error.message || 'Không tải được chi tiết tài khoản.';
       } finally {

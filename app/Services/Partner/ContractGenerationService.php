@@ -26,23 +26,18 @@ class ContractGenerationService
         $template = ContractTemplate::findOrFail($templateId);
 
         $contractCode = 'HD-' . strtoupper(Str::random(6)) . '-' . date('Y');
-        $filePath = 'contracts/' . $contractCode . '.docx';
+        $filePath = 'contracts/' . $contractCode . '.pdf';
 
         $contractData = [
             'partner_application_id' => $profileId,
             'owner_id' => $application->user_id,
             'venue_cluster_id' => $application->approved_venue_cluster_id,
-            'contract_code' => $contractCode,
+            'contract_number' => $contractCode,
             'contract_title' => 'Hợp đồng hợp tác đối tác ' . ($application->venue_name ?: $application->business_name ?: $contractCode),
             'status' => ContractStatus::GENERATED->value,
-            'note' => 'Sinh từ mẫu hợp đồng: ' . $template->name . '. File nháp: ' . $filePath,
+            'note' => 'Sinh từ mẫu hợp đồng: ' . $template->name,
+            'generated_file_path' => $template->file_path,
         ];
-
-        // Copy the real template from seeders to simulate contract generation
-        $sourceFile = base_path('database/seeders/templates/partner-documents/Mau_02_Hop_dong_hop_tac_doi_tac_SportGo.docx');
-        if (file_exists($sourceFile)) {
-            Storage::disk('public')->put($filePath, file_get_contents($sourceFile));
-        }
 
         $contract = $this->contractRepo->create($contractData);
 
