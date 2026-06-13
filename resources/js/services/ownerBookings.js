@@ -17,6 +17,11 @@ export const ownerBookingService = {
     return api(`/api/owner/bookings${query ? `?${query}` : ''}`);
   },
 
+  schedule(params = {}) {
+    const query = toQuery(params);
+    return api(`/api/owner/bookings/schedule${query ? `?${query}` : ''}`);
+  },
+
   show(id) {
     return api(`/api/owner/bookings/${id}`);
   },

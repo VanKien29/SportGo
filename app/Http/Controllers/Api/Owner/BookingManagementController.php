@@ -91,6 +91,26 @@ class BookingManagementController extends Controller
         return response()->json(['data' => $booking]);
     }
 
+    public function schedule(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
+            'booking_date' => ['required', 'date_format:Y-m-d'],
+            'court_type_id' => ['nullable', 'integer', 'exists:court_types,id'],
+            'booking_type' => ['nullable', Rule::in(['single', 'recurring'])],
+        ]);
+
+        abort_unless($this->visibleClusterIds($request->user()->id)->contains($validated['venue_cluster_id']), 403);
+
+        return response()->json($this->bookingService->getAvailabilitySchedule(
+            $validated['venue_cluster_id'],
+            $validated['booking_date'],
+            isset($validated['court_type_id']) ? (int) $validated['court_type_id'] : null,
+            $validated['booking_type'] ?? 'single',
+            includeBusyDetails: true,
+        ));
+    }
+
     public function storeCounter(Request $request): JsonResponse
     {
         $this->normalizeWalkInContact($request);

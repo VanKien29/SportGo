@@ -479,9 +479,15 @@ class BookingService
         ]));
     }
 
-    public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single'): array
+    public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single', bool $includeBusyDetails = false): array
     {
-        $cluster = VenueCluster::query()->whereKey($venueClusterId)->where('status', 'active')->firstOrFail();
+        $cluster = VenueCluster::query()->whereKey($venueClusterId)->where('status', 'active')->first();
+
+        if (! $cluster) {
+            throw ValidationException::withMessages([
+                'venue_cluster_id' => 'Cụm sân không tồn tại hoặc chưa hoạt động.',
+            ]);
+        }
 
         $courtsQuery = VenueCourt::query()
             ->with('courtType:id,name')
@@ -497,7 +503,7 @@ class BookingService
         $courts = $courtsQuery->get(['id', 'venue_cluster_id', 'court_type_id', 'name', 'status', 'sort_order', 'layout_x', 'layout_y', 'layout_w', 'layout_h', 'layout_rotation']);
         $courtIds = $courts->pluck('id');
         $timeSlots = $this->buildTimeSlots();
-        $busyIntervals = $this->busyIntervals($cluster->id, $courtIds, $bookingDate);
+        $busyIntervals = $this->busyIntervals($cluster->id, $courtIds, $bookingDate, $includeBusyDetails);
         $slotStatuses = [];
 
         foreach ($courts as $court) {
@@ -983,18 +989,32 @@ class BookingService
         return $code;
     }
 
-    private function busyIntervals(string $venueClusterId, Collection $courtIds, string $bookingDate): Collection
+    private function busyIntervals(string $venueClusterId, Collection $courtIds, string $bookingDate, bool $includeDetails = false): Collection
     {
-        $bookings = Booking::query()
-            ->with('items:id,booking_id,venue_court_id,start_time,end_time')
+        $bookingColumns = $includeDetails
+            ? ['id', 'booking_code', 'customer_id', 'venue_court_id', 'start_time', 'end_time', 'status', 'payment_option', 'total_price', 'required_payment_amount', 'source', 'walk_in_name', 'walk_in_phone']
+            : ['id', 'venue_court_id', 'start_time', 'end_time', 'status'];
+
+        $bookingQuery = Booking::query()
+            ->with('items:id,booking_id,venue_court_id,start_time,end_time');
+
+        if ($includeDetails) {
+            $bookingQuery->with([
+                'customer:id,username,full_name,phone,email',
+                'payments:id,booking_id,amount,status,method,payment_kind,paid_at',
+            ]);
+        }
+
+        $bookings = $bookingQuery
+            ->where('venue_cluster_id', $venueClusterId)
             ->where('booking_date', $bookingDate)
             ->whereIn('status', self::BLOCKING_BOOKING_STATUSES)
             ->where(function ($query) use ($courtIds) {
                 $query->whereIn('venue_court_id', $courtIds)
                     ->orWhereHas('items', fn ($itemQuery) => $itemQuery->whereIn('venue_court_id', $courtIds));
             })
-            ->get(['id', 'venue_court_id', 'start_time', 'end_time', 'status'])
-            ->flatMap(function (Booking $booking) use ($courtIds): Collection {
+            ->get($bookingColumns)
+            ->flatMap(function (Booking $booking) use ($courtIds, $includeDetails): Collection {
                 $ranges = $booking->items->isNotEmpty()
                     ? $booking->items->map(fn (BookingItem $item): array => [
                         'venue_court_id' => $item->venue_court_id,
@@ -1009,13 +1029,44 @@ class BookingService
 
                 return $ranges
                     ->filter(fn (array $range): bool => $courtIds->contains($range['venue_court_id']))
-                    ->map(fn (array $range): array => [
-                        ...$range,
-                        'source' => 'booking',
-                        'status' => $booking->status,
-                        'schedule_lock_id' => null,
-                        'reason' => null,
-                    ]);
+                    ->map(function (array $range) use ($booking, $includeDetails): array {
+                        $payload = [
+                            ...$range,
+                            'source' => 'booking',
+                            'status' => $booking->status,
+                            'schedule_lock_id' => null,
+                            'reason' => null,
+                        ];
+
+                        if (! $includeDetails) {
+                            return $payload;
+                        }
+
+                        $paidAmount = (float) $booking->payments
+                            ->where('status', 'paid')
+                            ->sum('amount');
+
+                        return [
+                            ...$payload,
+                            'booking_id' => $booking->id,
+                            'booking_code' => $booking->booking_code,
+                            'payment_option' => $booking->payment_option,
+                            'total_price' => (float) $booking->total_price,
+                            'required_payment_amount' => (float) $booking->required_payment_amount,
+                            'paid_amount' => $paidAmount,
+                            'outstanding_amount' => max((float) $booking->total_price - $paidAmount, 0),
+                            'booking_source' => $booking->source,
+                            'customer' => $booking->customer ? [
+                                'id' => $booking->customer->id,
+                                'username' => $booking->customer->username,
+                                'full_name' => $booking->customer->full_name,
+                                'phone' => $booking->customer->phone,
+                                'email' => $booking->customer->email,
+                            ] : null,
+                            'walk_in_name' => $booking->walk_in_name,
+                            'walk_in_phone' => $booking->walk_in_phone,
+                        ];
+                    });
             })
             ->toBase();
 

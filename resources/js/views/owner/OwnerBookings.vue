@@ -51,70 +51,143 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="notice" class="alert success">{{ notice }}</div>
 
-    <section class="table-card">
-      <div v-if="loading" class="state-card">Đang tải booking...</div>
-      <div v-else-if="bookings.length === 0" class="state-card">Chưa có booking phù hợp.</div>
-      <table v-else>
-        <thead>
-          <tr>
-            <th>Mã</th>
-            <th>Khách</th>
-            <th>Sân</th>
-            <th>Ngày / giờ</th>
-            <th>Loại</th>
-            <th>Thanh toán</th>
-            <th>Trạng thái</th>
-            <th class="actions-heading">Thao tác</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="booking in bookings" :key="booking.id">
-            <td class="strong">{{ booking.booking_code }}</td>
-            <td>
-              <strong>{{ customerName(booking) }}</strong>
-              <small>{{ customerPhone(booking) }}</small>
-            </td>
-            <td>
-              <span v-for="range in bookingRanges(booking)" :key="range.key" class="booking-range">
-                <strong>{{ range.courtName }}</strong>
-                <small>{{ formatTime(range.startTime) }} - {{ formatTime(range.endTime) }}</small>
-              </span>
-              <small v-if="bookingRanges(booking).length === 1 && booking.requested_venue_court_id !== booking.venue_court_id">
-                Yêu cầu: {{ booking.requested_venue_court?.name || '-' }}
-              </small>
-            </td>
-            <td>
-              <strong>{{ formatDate(booking.booking_date) }}</strong>
-              <small>{{ booking.duration_minutes }} phút · {{ bookingRanges(booking).length }} khung sân</small>
-            </td>
-            <td>{{ booking.booking_type === 'recurring' ? 'Cố định' : 'Lẻ' }}</td>
-            <td class="payment-cell">
-              <span class="payment-chip" :class="paymentState(booking)">{{ paymentStateLabel(booking) }}</span>
-              <small>{{ paymentLabel(booking.payment_option) }} · {{ paymentSummary(booking) }}</small>
-            </td>
-            <td><span class="status-chip" :class="booking.status">{{ statusLabel(booking.status) }}</span></td>
-            <td class="booking-actions-cell">
-              <div class="row-actions" @click.stop>
-                <ActionIconButton
-                  v-if="primaryAction(booking)"
-                  :icon="primaryAction(booking).icon"
-                  :label="primaryAction(booking).label"
-                  :variant="primaryAction(booking).variant"
-                  @click="runBookingAction(booking, primaryAction(booking).key)"
-                />
-                <ActionIconButton
-                  v-if="secondaryActions(booking).length"
-                  icon="moreHorizontal"
-                  label="Thao tác khác"
-                  variant="secondary"
-                  @click="toggleActionMenu(booking, $event)"
-                />
-                <span v-if="!primaryAction(booking) && !secondaryActions(booking).length" class="no-actions">—</span>
+    <section class="schedule-card">
+      <div class="schedule-head">
+        <div>
+          <h2>Lịch sân trong ngày</h2>
+          <p>{{ scheduleSubtitle }}</p>
+        </div>
+        <div class="legend">
+          <span><i class="status-confirmed"></i>Đã xác nhận</span>
+          <span><i class="status-pending"></i>Chờ xử lý</span>
+          <span><i class="status-playing"></i>Đang chơi</span>
+          <span><i class="status-lock"></i>Khóa sân</span>
+        </div>
+      </div>
+
+      <div class="period-row">
+        <button
+          v-for="period in timePeriods"
+          :key="period.key"
+          type="button"
+          :class="{ active: activeTimePeriod === period.key }"
+          @click="activeTimePeriod = period.key"
+        >
+          <strong>{{ period.label }}</strong>
+          <span>{{ period.range }}</span>
+        </button>
+      </div>
+
+      <div class="metric-row">
+        <div v-for="metric in scheduleMetrics" :key="metric.label" class="metric-card">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.value }}</strong>
+        </div>
+      </div>
+
+      <div v-if="loading || scheduleLoading" class="state-card">Đang tải lịch sân...</div>
+      <div v-else-if="scheduleError" class="state-card error-state">{{ scheduleError }}</div>
+      <div v-else-if="!timelineRows.length" class="state-card">Chưa có sân phù hợp với bộ lọc hiện tại.</div>
+      <div v-else class="timeline-layout">
+        <div class="timeline-board">
+          <div class="timeline-scroller">
+            <div class="timeline-axis" :style="{ minWidth: timelineMinWidth }">
+              <div class="axis-court">Sân / giờ</div>
+              <div class="axis-track">
+                <span
+                  v-for="tick in timelineTicks"
+                  :key="tick.value"
+                  class="axis-tick"
+                  :style="{ left: `${tick.left}%` }"
+                >
+                  {{ tick.label }}
+                </span>
               </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+
+            <article
+              v-for="row in timelineRows"
+              :key="row.court.id"
+              class="timeline-row"
+              :style="{ minWidth: timelineMinWidth }"
+            >
+              <div class="court-meta">
+                <strong>{{ row.court.name }}</strong>
+                <span>{{ courtOptionLabel(row.court) }}</span>
+              </div>
+              <div class="timeline-track">
+                <span
+                  v-for="tick in timelineTicks"
+                  :key="`${row.court.id}-${tick.value}`"
+                  class="track-gridline"
+                  :style="{ left: `${tick.left}%` }"
+                ></span>
+                <span v-if="!row.blocks.length" class="empty-track">Trống trong khoảng này</span>
+                <button
+                  v-for="block in row.blocks"
+                  :key="block.key"
+                  type="button"
+                  class="timeline-block"
+                  :class="[block.kindClass, { active: selectedTimelineItem?.key === block.key, compact: block.compact }]"
+                  :style="block.style"
+                  :title="block.titleText"
+                  @click="selectTimelineItem(block)"
+                >
+                  <span class="block-time">{{ block.timeLabel }}</span>
+                  <strong>{{ block.title }}</strong>
+                  <small>{{ block.subtitle }}</small>
+                </button>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <aside class="timeline-inspector">
+          <template v-if="selectedTimelineItem">
+            <p class="inspector-eyebrow">{{ selectedTimelineItem.type === 'booking' ? 'BOOKING' : 'KHÓA LỊCH' }}</p>
+            <h3>{{ selectedTimelineItem.title }}</h3>
+            <p class="inspector-subtitle">{{ selectedTimelineItem.timeLabel }} · {{ selectedTimelineItem.courtName }}</p>
+
+            <div v-if="selectedTimelineBooking" class="inspector-chips">
+              <span class="status-chip" :class="selectedTimelineBooking.status">{{ statusLabel(selectedTimelineBooking.status) }}</span>
+              <span class="payment-chip" :class="paymentState(selectedTimelineBooking)">{{ paymentStateLabel(selectedTimelineBooking) }}</span>
+            </div>
+
+            <dl class="inspector-list">
+              <div v-for="row in selectedTimelineRows" :key="row.label">
+                <dt>{{ row.label }}</dt>
+                <dd>{{ row.value }}</dd>
+              </div>
+            </dl>
+
+            <div v-if="selectedTimelineBooking" class="inspector-actions">
+              <ActionIconButton
+                v-if="primaryAction(selectedTimelineBooking)"
+                :icon="primaryAction(selectedTimelineBooking).icon"
+                :label="primaryAction(selectedTimelineBooking).label"
+                :variant="primaryAction(selectedTimelineBooking).variant"
+                @click="runBookingAction(selectedTimelineBooking, primaryAction(selectedTimelineBooking).key)"
+              />
+              <button
+                v-for="action in secondaryActions(selectedTimelineBooking)"
+                :key="action.key"
+                type="button"
+                class="inspector-action"
+                :class="{ danger: action.variant === 'danger' }"
+                @click="runBookingAction(selectedTimelineBooking, action.key)"
+              >
+                <AppIcon :name="action.icon" size="16" />
+                <span>{{ action.label }}</span>
+              </button>
+            </div>
+          </template>
+          <template v-else>
+            <p class="inspector-eyebrow">CHI TIẾT</p>
+            <h3>Chọn một block trên lịch</h3>
+            <p class="inspector-subtitle">Thông tin khách, trạng thái booking và thanh toán sẽ hiện ở đây.</p>
+          </template>
+        </aside>
+      </div>
     </section>
 
     <Teleport to="body">
@@ -294,6 +367,14 @@ export default {
         status: '',
       },
       loading: true,
+      scheduleLoading: false,
+      scheduleError: '',
+      scheduleSlots: [],
+      scheduleCourts: [],
+      scheduleBusyIntervals: [],
+      scheduleSlotStatuses: [],
+      selectedTimelineItem: null,
+      activeTimePeriod: 'business',
       error: '',
       notice: '',
       changeCourtBooking: null,
@@ -322,7 +403,119 @@ export default {
       statusAction: '',
       statusActionReason: '',
       updatingStatus: false,
+      timePeriods: [
+        { key: 'business', label: 'Cả ngày', start: 360, end: 1320, range: '06:00 - 22:00' },
+        { key: 'morning', label: 'Sáng', start: 360, end: 720, range: '06:00 - 12:00' },
+        { key: 'afternoon', label: 'Chiều', start: 720, end: 1080, range: '12:00 - 18:00' },
+        { key: 'evening', label: 'Tối', start: 1080, end: 1320, range: '18:00 - 22:00' },
+      ],
     };
+  },
+  computed: {
+    activePeriod() {
+      return this.timePeriods.find((period) => period.key === this.activeTimePeriod) || this.timePeriods[0];
+    },
+    timelineStart() {
+      return this.activePeriod.start;
+    },
+    timelineEnd() {
+      return this.activePeriod.end;
+    },
+    timelineDuration() {
+      return Math.max(this.timelineEnd - this.timelineStart, 30);
+    },
+    timelineMinWidth() {
+      return this.activeTimePeriod === 'business' ? '1180px' : '860px';
+    },
+    timelineTicks() {
+      const ticks = [];
+      const step = this.activeTimePeriod === 'business' ? 120 : 60;
+      for (let minutes = this.timelineStart; minutes <= this.timelineEnd; minutes += step) {
+        ticks.push({
+          value: minutes,
+          label: this.minutesToTime(minutes),
+          left: ((minutes - this.timelineStart) / this.timelineDuration) * 100,
+        });
+      }
+      return ticks;
+    },
+    scheduleSubtitle() {
+      const clusterText = this.filters.venue_cluster_id
+        ? this.clusters.find((cluster) => String(cluster.id) === String(this.filters.venue_cluster_id))?.name || 'Cụm sân'
+        : 'Tất cả cụm sân';
+      return `${clusterText} · ${this.formatDate(this.filters.booking_date)}`;
+    },
+    scheduleMetrics() {
+      const bookingBlocks = this.timelineBlocks.filter((block) => block.type === 'booking');
+      const paidCount = bookingBlocks.filter((block) => block.booking && this.paymentState(block.booking) === 'paid').length;
+      const pendingPaymentCount = bookingBlocks.filter((block) => block.booking && this.paymentState(block.booking) !== 'paid').length;
+
+      return [
+        { label: 'Khung booking', value: bookingBlocks.length },
+        { label: 'Đã thanh toán', value: paidCount },
+        { label: 'Cần thu/đợi CK', value: pendingPaymentCount },
+        { label: 'Khóa sân', value: this.timelineBlocks.filter((block) => block.type === 'lock').length },
+      ];
+    },
+    timelineBlocks() {
+      const bookingBlocks = this.bookings.flatMap((booking) => {
+        return this.bookingRanges(booking).map((range) => this.makeBookingBlock(booking, range)).filter(Boolean);
+      });
+
+      const bookingKeys = new Set(bookingBlocks.map((block) => `${block.courtId}|${block.start}|${block.end}`));
+      const lockBlocks = this.scheduleBusyIntervals
+        .filter((interval) => interval.source === 'slot_lock' && interval.status === 'manual')
+        .map((interval) => this.makeLockBlock(interval))
+        .filter((block) => block && !bookingKeys.has(`${block.courtId}|${block.start}|${block.end}`));
+
+      return [...bookingBlocks, ...lockBlocks]
+        .filter((block) => block.end > this.timelineStart && block.start < this.timelineEnd)
+        .sort((a, b) => a.start - b.start || a.end - b.end || a.title.localeCompare(b.title));
+    },
+    timelineRows() {
+      const visibleCourts = this.scheduleCourts.filter((court) => {
+        if (!this.filters.venue_court_id) return true;
+        return String(court.id) === String(this.filters.venue_court_id);
+      });
+
+      return visibleCourts.map((court) => ({
+        court,
+        blocks: this.timelineBlocks.filter((block) => String(block.courtId) === String(court.id)),
+      }));
+    },
+    selectedTimelineBooking() {
+      if (!this.selectedTimelineItem || this.selectedTimelineItem.type !== 'booking') return null;
+      return this.bookings.find((booking) => String(booking.id) === String(this.selectedTimelineItem.bookingId)) || this.selectedTimelineItem.booking || null;
+    },
+    selectedTimelineRows() {
+      const item = this.selectedTimelineItem;
+      if (!item) return [];
+
+      const booking = this.selectedTimelineBooking;
+      if (!booking) {
+        return [
+          { label: 'Sân', value: item.courtName },
+          { label: 'Khung giờ', value: item.timeLabel },
+          { label: 'Lý do', value: item.reason || '-' },
+        ];
+      }
+
+      return [
+        { label: 'Khách', value: `${this.customerName(booking)} · ${this.customerPhone(booking)}` },
+        { label: 'Sân', value: item.courtName },
+        { label: 'Khung giờ', value: item.timeLabel },
+        { label: 'Loại booking', value: booking.booking_type === 'recurring' ? 'Lịch cố định' : 'Lẻ' },
+        { label: 'Hình thức', value: this.paymentLabel(booking.payment_option) },
+        { label: 'Thanh toán', value: this.paymentSummary(booking) },
+        { label: 'Tổng tiền', value: this.formatCurrency(booking.total_price) },
+        { label: 'Nguồn', value: booking.source === 'counter' ? 'Tại quầy' : 'Online' },
+      ];
+    },
+  },
+  watch: {
+    activeTimePeriod() {
+      this.refreshSelectedTimeline();
+    },
   },
   async created() {
     await this.loadClusters();
@@ -357,11 +550,158 @@ export default {
       try {
         const response = await ownerBookingService.list(this.filters);
         this.bookings = response.data || [];
+        await this.loadSchedule();
+        this.refreshSelectedTimeline();
       } catch (error) {
         this.error = error.message || 'Không thể tải booking.';
       } finally {
         this.loading = false;
       }
+    },
+    async loadSchedule() {
+      this.scheduleLoading = true;
+      this.scheduleError = '';
+
+      try {
+        const clusterIds = this.filters.venue_cluster_id
+          ? [this.filters.venue_cluster_id]
+          : this.clusters
+            .filter((cluster) => cluster.status === 'active')
+            .map((cluster) => cluster.id);
+
+        if (!clusterIds.length) {
+          this.scheduleSlots = [];
+          this.scheduleCourts = [];
+          this.scheduleBusyIntervals = [];
+          this.scheduleSlotStatuses = [];
+          return;
+        }
+
+        const responses = await Promise.all(clusterIds.map((clusterId) => ownerBookingService.schedule({
+          venue_cluster_id: clusterId,
+          booking_date: this.filters.booking_date,
+          booking_type: 'single',
+        })));
+
+        const slotsByKey = new Map();
+        const courts = [];
+        const intervals = [];
+        const statuses = [];
+
+        responses.forEach((response, index) => {
+          const cluster = this.clusters.find((item) => String(item.id) === String(clusterIds[index]));
+          (response.time_slots || []).forEach((slot) => {
+            slotsByKey.set(`${slot.start_time}-${slot.end_time}`, slot);
+          });
+          (response.courts || []).forEach((court) => {
+            courts.push({ ...court, cluster_name: cluster?.name || court.cluster_name || '' });
+          });
+          (response.busy_intervals || []).forEach((interval) => {
+            intervals.push({ ...interval, cluster_name: cluster?.name || '' });
+          });
+          (response.slot_statuses || []).forEach((status) => statuses.push(status));
+        });
+
+        this.scheduleSlots = [...slotsByKey.values()].sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
+        this.scheduleCourts = courts;
+        this.scheduleBusyIntervals = intervals;
+        this.scheduleSlotStatuses = statuses;
+      } catch (error) {
+        this.scheduleSlots = [];
+        this.scheduleCourts = [];
+        this.scheduleBusyIntervals = [];
+        this.scheduleSlotStatuses = [];
+        this.scheduleError = error.message || 'Không thể tải lịch sân.';
+      } finally {
+        this.scheduleLoading = false;
+      }
+    },
+    makeBookingBlock(booking, range) {
+      const courtId = range.venueCourtId || booking.venue_court_id;
+      if (!courtId) return null;
+
+      const start = this.timeToMinutes(range.startTime);
+      const end = this.timeToMinutes(range.endTime);
+      if (end <= start) return null;
+
+      const metrics = this.timelineBlockMetrics(start, end);
+      const payment = this.paymentStateLabel(booking);
+      const status = this.statusLabel(booking.status);
+
+      return {
+        key: `booking-${booking.id}-${courtId}-${range.startTime}-${range.endTime}`,
+        type: 'booking',
+        bookingId: booking.id,
+        booking,
+        courtId,
+        courtName: range.courtName || this.courtName(courtId),
+        start,
+        end,
+        title: booking.booking_code || 'Booking',
+        subtitle: `${status} · ${payment}`,
+        timeLabel: `${this.formatTime(range.startTime)} - ${this.formatTime(range.endTime)}`,
+        titleText: `${booking.booking_code || 'Booking'} · ${range.courtName || this.courtName(courtId)} · ${status} · ${payment}`,
+        style: metrics.style,
+        compact: metrics.compact,
+        kindClass: this.timelineBookingClass(booking),
+      };
+    },
+    makeLockBlock(interval) {
+      const start = this.timeToMinutes(interval.start_time);
+      const end = this.timeToMinutes(interval.end_time);
+      if (!interval.venue_court_id || end <= start) return null;
+
+      const metrics = this.timelineBlockMetrics(start, end);
+
+      return {
+        key: `lock-${interval.schedule_lock_id || `${interval.venue_court_id}-${interval.start_time}`}`,
+        type: 'lock',
+        courtId: interval.venue_court_id,
+        courtName: this.courtName(interval.venue_court_id),
+        start,
+        end,
+        title: 'Khóa sân',
+        subtitle: interval.reason || 'Không nhận khách',
+        reason: interval.reason || '',
+        timeLabel: `${this.formatTime(interval.start_time)} - ${this.formatTime(interval.end_time)}`,
+        titleText: `Khóa sân · ${interval.reason || 'Không có lý do'}`,
+        style: metrics.style,
+        compact: metrics.compact,
+        kindClass: 'block-lock',
+      };
+    },
+    timelineBlockMetrics(start, end) {
+      const clippedStart = Math.max(start, this.timelineStart);
+      const clippedEnd = Math.min(end, this.timelineEnd);
+      const left = ((clippedStart - this.timelineStart) / this.timelineDuration) * 100;
+      const width = Math.max(((clippedEnd - clippedStart) / this.timelineDuration) * 100, 1.4);
+
+      return {
+        style: {
+          left: `${left}%`,
+          width: `calc(${width}% - 6px)`,
+        },
+        compact: width < 10,
+      };
+    },
+    timelineBookingClass(booking) {
+      if (booking.status === 'checked_in') return 'block-playing';
+      if (['pending_approval', 'pending_payment'].includes(booking.status)) return 'block-pending';
+      if (['cancelled', 'rejected', 'expired'].includes(booking.status)) return 'block-muted';
+      return 'block-confirmed';
+    },
+    selectTimelineItem(block) {
+      this.selectedTimelineItem = block;
+    },
+    refreshSelectedTimeline() {
+      const blocks = this.timelineBlocks;
+      if (!blocks.length) {
+        this.selectedTimelineItem = null;
+        return;
+      }
+
+      const currentKey = this.selectedTimelineItem?.key;
+      this.selectedTimelineItem = blocks.find((block) => block.key === currentKey) || blocks[0];
     },
     async updateStatus(booking, action, statusReason = null) {
       if (this.updatingStatus) return;
@@ -664,6 +1004,7 @@ export default {
       if (booking.items?.length) {
         return booking.items.map((item) => ({
           key: item.id,
+          venueCourtId: item.venue_court_id,
           courtName: item.venue_court?.name || '-',
           startTime: item.start_time,
           endTime: item.end_time,
@@ -672,10 +1013,17 @@ export default {
 
       return [{
         key: booking.id,
+        venueCourtId: booking.venue_court_id,
         courtName: booking.venue_court?.name || '-',
         startTime: booking.start_time,
         endTime: booking.end_time,
       }];
+    },
+    courtName(courtId) {
+      return this.scheduleCourts.find((court) => String(court.id) === String(courtId))?.name || '-';
+    },
+    courtOptionLabel(court) {
+      return [court.cluster_name, court.court_type?.name].filter(Boolean).join(' · ') || court.court_type?.name || '-';
     },
     statusLabel(status) {
       return {
@@ -712,6 +1060,15 @@ export default {
     formatTime(time) {
       return (time || '').slice(0, 5);
     },
+    timeToMinutes(value) {
+      const [hour, minute] = this.formatTime(value).split(':').map(Number);
+      return (hour || 0) * 60 + (minute || 0);
+    },
+    minutesToTime(totalMinutes) {
+      const hour = Math.floor(totalMinutes / 60);
+      const minute = totalMinutes % 60;
+      return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    },
     formatCurrency(amount) {
       return new Intl.NumberFormat('vi-VN', {
         style: 'currency',
@@ -734,6 +1091,7 @@ export default {
 
 .page-head,
 .filters,
+.schedule-card,
 .table-card,
 .state-card,
 .modal-panel,
@@ -780,6 +1138,423 @@ export default {
   margin-top: 7px;
   padding-top: 7px;
   border-top: 1px solid #edf2ed;
+}
+
+.schedule-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.schedule-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.schedule-head h2,
+.timeline-inspector h3 {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.schedule-head p,
+.inspector-subtitle {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.legend .status-confirmed {
+  background: #16a34a;
+}
+
+.legend .status-pending {
+  background: #f59e0b;
+}
+
+.legend .status-playing {
+  background: #2563eb;
+}
+
+.legend .status-lock {
+  background: #dc2626;
+}
+
+.period-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 12px;
+}
+
+.period-row button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #d7e4d7;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  cursor: pointer;
+}
+
+.period-row button.active {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+}
+
+.period-row span {
+  color: inherit;
+  opacity: .78;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.metric-card {
+  min-height: 68px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 12px 14px;
+  background: #fbfdfb;
+}
+
+.metric-card + .metric-card {
+  border-left: 1px solid #e2e8f0;
+}
+
+.metric-card span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.metric-card strong {
+  color: #0f172a;
+  font-size: 22px;
+}
+
+.timeline-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+.timeline-board {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.timeline-scroller {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.timeline-axis,
+.timeline-row {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+}
+
+.timeline-axis {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  min-height: 44px;
+  background: #f3f8f1;
+  border-bottom: 1px solid #dfe8df;
+}
+
+.axis-court,
+.court-meta {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  border-right: 1px solid #e2e8f0;
+  background: inherit;
+}
+
+.axis-court {
+  display: grid;
+  place-items: center;
+  color: #334238;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.axis-track,
+.timeline-track {
+  position: relative;
+}
+
+.axis-tick {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.timeline-row {
+  min-height: 76px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.timeline-row:last-child {
+  border-bottom: 0;
+}
+
+.court-meta {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.court-meta strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.court-meta span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.timeline-track {
+  min-height: 76px;
+  background: linear-gradient(180deg, #fff, #fbfdfb);
+}
+
+.track-gridline {
+  position: absolute;
+  inset-block: 0;
+  width: 1px;
+  background: #eef2f7;
+}
+
+.empty-track {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.timeline-block {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #0f172a;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+.timeline-block:hover,
+.timeline-block.active {
+  outline: 2px solid rgba(22, 163, 74, 0.28);
+  outline-offset: 2px;
+}
+
+.timeline-block strong,
+.timeline-block small,
+.block-time {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-block strong {
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.timeline-block small,
+.block-time {
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.timeline-block.compact small {
+  display: none;
+}
+
+.block-confirmed {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #14532d;
+}
+
+.block-pending {
+  background: #fef3c7;
+  border-color: #facc15;
+  color: #713f12;
+}
+
+.block-playing {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e3a8a;
+}
+
+.block-muted {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.block-lock {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #7f1d1d;
+}
+
+.timeline-inspector {
+  position: sticky;
+  top: 14px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.inspector-eyebrow {
+  margin: 0;
+  color: #16a34a;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.inspector-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inspector-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.inspector-list div {
+  display: grid;
+  grid-template-columns: 105px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.inspector-list dt {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.inspector-list dd {
+  min-width: 0;
+  margin: 0;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.inspector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inspector-action {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid #d9e8d9;
+  border-radius: 7px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.inspector-action.danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
 label {
@@ -1212,9 +1987,28 @@ td strong {
   .page-head,
   .filters,
   .collect-summary,
-  .method-row {
+  .method-row,
+  .timeline-layout,
+  .metric-row {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .schedule-head {
+    display: grid;
+  }
+
+  .legend {
+    justify-content: flex-start;
+  }
+
+  .metric-card + .metric-card {
+    border-left: 0;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .timeline-inspector {
+    position: static;
   }
 }
 </style>

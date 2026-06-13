@@ -245,6 +245,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/refunds', [OwnerRefundController::class, 'index']);
         Route::patch('/refunds/{id}/decision', [OwnerRefundController::class, 'decide']);
         Route::get('/bookings', [OwnerBookingManagementController::class, 'index']);
+        Route::get('/bookings/schedule', [OwnerBookingManagementController::class, 'schedule']);
         Route::post('/bookings/counter', [OwnerBookingManagementController::class, 'storeCounter']);
         Route::post('/bookings/recurring', [OwnerBookingManagementController::class, 'storeRecurring']);
         Route::get('/bookings/{id}', [OwnerBookingManagementController::class, 'show']);
