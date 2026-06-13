@@ -161,6 +161,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/venue-clusters/{id}/amenities', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'updateAmenities']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveRequest']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectRequest']);
+        // Venue Location Change Requests (Admin duyệt/từ chối thay đổi vị trí)
+        Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveLocationChange']);
+        Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectLocationChange']);
 
         // Content Moderation
         Route::get('/moderation/queue', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'queue']);
@@ -205,6 +208,10 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'index']);
         Route::post('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'store']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/cancel', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'cancel']);
+        // Venue Location Change Requests (Owner gửi yêu cầu thay đổi vị trí)
+        Route::get('/venue-clusters/{clusterId}/location-change-requests', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/location-change-requests', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'store']);
+        Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/cancel', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'cancel']);
 
         Route::get('/venue-policies', [OwnerVenuePolicyController::class, 'index']);
         Route::post('/venue-policies/rules', [OwnerVenuePolicyController::class, 'storeRule']);

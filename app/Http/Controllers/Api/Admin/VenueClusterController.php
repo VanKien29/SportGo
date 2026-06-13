@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Models\VenueCourtApprovalRequest;
+use App\Models\VenueLocationChangeRequest;
 use App\Models\VenuePlatformFeeLedger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -149,13 +150,25 @@ class VenueClusterController extends Controller
             ->get()
             ->map(fn ($r) => $this->approvalPayload($r));
 
+        // Yêu cầu thay đổi vị trí
+        $locationChangeRequests = VenueLocationChangeRequest::query()
+            ->where('venue_cluster_id', $id)
+            ->with([
+                'requestedBy:id,full_name,username',
+                'reviewedBy:id,full_name,username',
+            ])
+            ->latest()
+            ->get()
+            ->map(fn ($r) => $this->locationChangePayload($r));
+
         return response()->json([
             'data' => [
-                'cluster'          => $this->detailPayload($cluster),
-                'bookings'         => $bookings,
-                'fees'             => $fees,
-                'lock_history'     => $lockHistory,
-                'approval_requests' => $approvalRequests,
+                'cluster'                  => $this->detailPayload($cluster),
+                'bookings'                 => $bookings,
+                'fees'                     => $fees,
+                'lock_history'             => $lockHistory,
+                'approval_requests'        => $approvalRequests,
+                'location_change_requests' => $locationChangeRequests,
             ],
         ]);
     }
@@ -364,6 +377,113 @@ class VenueClusterController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────────
+    // Duyệt yêu cầu thay đổi vị trí
+    // ─────────────────────────────────────────────────────────────────
+    public function approveLocationChange(Request $request, string $clusterId, string $requestId): JsonResponse
+    {
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
+
+        $locationRequest = VenueLocationChangeRequest::query()
+            ->where('venue_cluster_id', $clusterId)
+            ->findOrFail($requestId);
+
+        if ($locationRequest->status !== 'pending') {
+            return response()->json(['message' => 'Yêu cầu này đã được xử lý.'], 422);
+        }
+
+        $cluster = VenueCluster::findOrFail($clusterId);
+
+        $oldValues = [
+            'address'   => $cluster->address,
+            'province'  => $cluster->province,
+            'ward'      => $cluster->ward,
+            'latitude'  => $cluster->latitude,
+            'longitude' => $cluster->longitude,
+            'map_url'   => $cluster->map_url,
+        ];
+
+        // Cập nhật vị trí cluster từ snapshot
+        $cluster->forceFill([
+            'address'   => $locationRequest->new_address,
+            'province'  => $locationRequest->new_province,
+            'ward'      => $locationRequest->new_ward,
+            'latitude'  => $locationRequest->new_latitude,
+            'longitude' => $locationRequest->new_longitude,
+            'map_url'   => $locationRequest->new_map_url,
+        ])->save();
+
+        $locationRequest->forceFill([
+            'status'      => 'approved',
+            'reviewed_by' => $actor->id,
+            'reviewed_at' => now(),
+            'status_reason' => null,
+        ])->save();
+
+        $this->audit(
+            $request, $actor,
+            'venue_cluster.location_changed',
+            $cluster,
+            $oldValues,
+            [
+                'address'   => $locationRequest->new_address,
+                'province'  => $locationRequest->new_province,
+                'ward'      => $locationRequest->new_ward,
+                'latitude'  => $locationRequest->new_latitude,
+                'longitude' => $locationRequest->new_longitude,
+            ]
+        );
+
+        return response()->json([
+            'message' => 'Duyệt yêu cầu thành công. Vị trí cụm sân đã được cập nhật.',
+            'request' => $this->locationChangePayload($locationRequest->fresh(['requestedBy', 'reviewedBy'])),
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // Từ chối yêu cầu thay đổi vị trí
+    // ─────────────────────────────────────────────────────────────────
+    public function rejectLocationChange(Request $request, string $clusterId, string $requestId): JsonResponse
+    {
+        $data = $request->validate([
+            'status_reason' => ['required', 'string', 'max:2000'],
+        ], [
+            'status_reason.required' => 'Vui lòng nhập lý do từ chối.',
+        ]);
+
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
+
+        $locationRequest = VenueLocationChangeRequest::query()
+            ->where('venue_cluster_id', $clusterId)
+            ->findOrFail($requestId);
+
+        if ($locationRequest->status !== 'pending') {
+            return response()->json(['message' => 'Yêu cầu này đã được xử lý.'], 422);
+        }
+
+        $locationRequest->forceFill([
+            'status'        => 'rejected',
+            'reviewed_by'   => $actor->id,
+            'reviewed_at'   => now(),
+            'status_reason' => $data['status_reason'],
+        ])->save();
+
+        $this->audit(
+            $request, $actor,
+            'venue_cluster.location_change_rejected',
+            VenueCluster::findOrFail($clusterId),
+            ['status' => 'pending'],
+            ['status' => 'rejected', 'reason' => $data['status_reason']]
+        );
+
+        return response()->json([
+            'message' => 'Đã từ chối yêu cầu.',
+            'request' => $this->locationChangePayload($locationRequest->fresh(['requestedBy', 'reviewedBy'])),
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
     // Private helpers
     // ─────────────────────────────────────────────────────────────────
 
@@ -442,6 +562,26 @@ class VenueClusterController extends Controller
             'approved_venue_court_id' => $r->approved_venue_court_id,
             'reviewed_at'             => $r->reviewed_at,
             'created_at'              => $r->created_at,
+        ];
+    }
+
+    private function locationChangePayload(VenueLocationChangeRequest $r): array
+    {
+        return [
+            'id'            => $r->id,
+            'status'        => $r->status,
+            'note'          => $r->note,
+            'status_reason' => $r->status_reason,
+            'new_address'   => $r->new_address,
+            'new_province'  => $r->new_province,
+            'new_ward'      => $r->new_ward,
+            'new_latitude'  => $r->new_latitude,
+            'new_longitude' => $r->new_longitude,
+            'new_map_url'   => $r->new_map_url,
+            'requested_by'  => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
+            'reviewed_by'   => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,
+            'reviewed_at'   => $r->reviewed_at,
+            'created_at'    => $r->created_at,
         ];
     }
 

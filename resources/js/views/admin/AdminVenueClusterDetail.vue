@@ -20,7 +20,12 @@
           class="tab-btn"
           :class="{ active: activeTab === tab.key }"
           @click="activeTab = tab.key"
-        >{{ tab.label }}</button>
+        >
+          {{ tab.label }}
+          <span v-if="tab.key === 'location_changes' && pendingLocationChangeCount > 0" class="tab-badge-admin">
+            {{ pendingLocationChangeCount }}
+          </span>
+        </button>
       </div>
 
       <!-- ┌ Tab: Thông tin ──────────────────────────────────────────── -->
@@ -543,69 +548,73 @@
         <h3 class="section-title">Yêu cầu mở rộng / thu hẹp quy mô</h3>
 
         <div class="approval-tabs">
-          <button
-            class="tab-sm"
-            :class="{ active: approvalFilter === '' }"
-            @click="approvalFilter = ''"
-          >Tất cả</button>
-          <button
-            class="tab-sm"
-            :class="{ active: approvalFilter === 'pending' }"
-            @click="approvalFilter = 'pending'"
-          >Chờ duyệt</button>
-          <button
-            class="tab-sm"
-            :class="{ active: approvalFilter === 'approved' }"
-            @click="approvalFilter = 'approved'"
-          >Đã duyệt</button>
-          <button
-            class="tab-sm"
-            :class="{ active: approvalFilter === 'rejected' }"
-            @click="approvalFilter = 'rejected'"
-          >Từ chối</button>
+          <button class="tab-sm" :class="{ active: approvalFilter === '' }" @click="approvalFilter = ''">Tất cả</button>
+          <button class="tab-sm" :class="{ active: approvalFilter === 'pending' }" @click="approvalFilter = 'pending'">Chờ duyệt</button>
+          <button class="tab-sm" :class="{ active: approvalFilter === 'approved' }" @click="approvalFilter = 'approved'">Đã duyệt</button>
+          <button class="tab-sm" :class="{ active: approvalFilter === 'rejected' }" @click="approvalFilter = 'rejected'">Từ chối</button>
         </div>
 
         <div v-if="filteredApprovals.length === 0" class="empty-section">Không có yêu cầu nào.</div>
 
         <div v-else class="approval-list">
-          <div
-            v-for="req in filteredApprovals"
-            :key="req.id"
-            class="approval-card"
-            :class="`approval-${req.status}`"
-          >
+          <div v-for="req in filteredApprovals" :key="req.id" class="approval-card" :class="`approval-${req.status}`">
             <div class="approval-row">
               <div>
                 <div class="approval-name fw-bold">{{ req.name }}</div>
                 <div class="muted">Loại: {{ req.court_type?.name || '—' }}</div>
                 <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
-                <div v-if="req.reviewed_by" class="muted">
-                  Xử lý bởi: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}
-                </div>
+                <div v-if="req.reviewed_by" class="muted">Xử lý bởi: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
                 <div v-if="req.status_reason" class="reason-text">Lý do: {{ req.status_reason }}</div>
               </div>
               <div class="approval-right">
-                <span class="status-badge" :class="`status-${req.status}`">
-                  {{ approvalStatusLabel(req.status) }}
-                </span>
+                <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
                 <div v-if="req.status === 'pending'" class="approval-btns">
-                  <button
-                    class="btn btn-success btn-sm"
-                    :disabled="processingId === req.id"
-                    @click="handleApprove(req)"
-                  >{{ processingId === req.id ? '...' : 'Duyệt' }}</button>
-                  <button
-                    class="btn btn-danger btn-sm"
-                    :disabled="processingId === req.id"
-                    @click="openRejectModal(req)"
-                  >Từ chối</button>
+                  <button class="btn btn-success btn-sm" :disabled="processingId === req.id" @click="handleApprove(req)">{{ processingId === req.id ? '...' : 'Duyệt' }}</button>
+                  <button class="btn btn-danger btn-sm" :disabled="processingId === req.id" @click="openRejectModal(req)">Từ chối</button>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </template>
+
+      <!-- ┌ Tab: Yêu cầu thay đổi vị trí ──────────────────────────────── -->
+      <div v-if="activeTab === 'location_changes'" class="avcd-card card">
+        <h3 class="section-title">Yêu cầu thay đổi vị trí cụm sân</h3>
+        <div class="approval-tabs">
+          <button class="tab-sm" :class="{ active: locationChangeFilter === '' }" @click="locationChangeFilter = ''">Tất cả</button>
+          <button class="tab-sm" :class="{ active: locationChangeFilter === 'pending' }" @click="locationChangeFilter = 'pending'">Chờ duyệt</button>
+          <button class="tab-sm" :class="{ active: locationChangeFilter === 'approved' }" @click="locationChangeFilter = 'approved'">Đã duyệt</button>
+          <button class="tab-sm" :class="{ active: locationChangeFilter === 'rejected' }" @click="locationChangeFilter = 'rejected'">Từ chối</button>
+        </div>
+        <div v-if="filteredLocationChanges.length === 0" class="empty-section">Không có yêu cầu nào.</div>
+        <div v-else class="approval-list">
+          <div v-for="req in filteredLocationChanges" :key="req.id" class="approval-card" :class="`approval-${req.status}`">
+            <div class="approval-row">
+              <div style="flex:1">
+                <div class="approval-name fw-bold">Yêu cầu thay đổi vị trí</div>
+                <div class="muted">🏠 Địa chỉ mới: {{ req.new_address }}, {{ req.new_ward }}, {{ req.new_province }}</div>
+                <div class="muted">🧭 Tọa độ mới: {{ req.new_latitude }}, {{ req.new_longitude }}</div>
+                <div v-if="req.new_map_url" class="muted">🗺️ Map URL: <a :href="req.new_map_url" target="_blank" style="color:#2563eb">Xem bản đồ</a></div>
+                <div class="muted">📝 Lý do: {{ req.note }}</div>
+                <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
+                <div v-if="req.reviewed_by" class="muted">Xử lý bởi: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
+                <div v-if="req.status_reason && req.status === 'rejected'" class="reason-text">Lý do từ chối: {{ req.status_reason }}</div>
+              </div>
+              <div class="approval-right">
+                <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
+                <div v-if="req.status === 'pending'" class="approval-btns">
+                  <button class="btn btn-success btn-sm" :disabled="processingLocationId === req.id" @click="handleApproveLocation(req)">
+                    {{ processingLocationId === req.id ? '...' : 'Duyệt' }}
+                  </button>
+                  <button class="btn btn-danger btn-sm" :disabled="processingLocationId === req.id" @click="openRejectLocationModal(req)">Từ chối</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
 
     <!-- ── Modal: Khóa cụm sân ── -->
     <div v-if="showLockModal" class="modal-backdrop" @click.self="closeLockModal">
@@ -674,6 +683,36 @@
       </form>
     </div>
 
+    <!-- ── Modal: Từ chối yêu cầu vị trí ── -->
+    <div v-if="rejectLocationTarget" class="modal-backdrop" @click.self="closeRejectLocationModal">
+      <form class="modal-box card" @submit.prevent="handleRejectLocation">
+        <div class="modal-header">
+          <h3>Từ chối yêu cầu thay đổi vị trí</h3>
+          <button type="button" class="btn-close" @click="closeRejectLocationModal">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="muted">Địa chỉ mới: <strong>{{ rejectLocationTarget.new_address }}, {{ rejectLocationTarget.new_province }}</strong></p>
+          <div v-if="rejectLocationError" class="alert-error">{{ rejectLocationError }}</div>
+          <label class="form-label">
+            Lý do từ chối <span class="required">*</span>
+            <textarea
+              v-model="rejectLocationReason"
+              rows="4"
+              required
+              placeholder="Nhập lý do từ chối..."
+              class="form-control"
+            ></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" @click="closeRejectLocationModal">Hủy</button>
+          <button type="submit" class="btn btn-danger" :disabled="rejectingLocation">
+            {{ rejectingLocation ? 'Đang từ chối...' : 'Xác nhận từ chối' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
 
 
     <!-- ── Global alert ── -->
@@ -708,10 +747,19 @@ export default {
         { key: 'fees', label: 'Phí' },
         { key: 'lock_history', label: 'Lịch sử khóa' },
         { key: 'approvals', label: 'Yêu cầu quy mô' },
+        { key: 'location_changes', label: 'Yêu cầu vị trí' },
       ],
 
       approvalFilter: '',
       processingId: null,
+
+      locationChangeRequests: [],
+      locationChangeFilter: '',
+      processingLocationId: null,
+      rejectLocationTarget: null,
+      rejectLocationReason: '',
+      rejectLocationError: '',
+      rejectingLocation: false,
 
       // Lock modal
       showLockModal: false,
@@ -741,7 +789,13 @@ export default {
       if (!this.approvalFilter) return this.approvalRequests;
       return this.approvalRequests.filter((r) => r.status === this.approvalFilter);
     },
-
+    filteredLocationChanges() {
+      if (!this.locationChangeFilter) return this.locationChangeRequests;
+      return this.locationChangeRequests.filter((r) => r.status === this.locationChangeFilter);
+    },
+    pendingLocationChangeCount() {
+      return this.locationChangeRequests.filter((r) => r.status === 'pending').length;
+    },
   },
   mounted() {
     this.loadDetail();
@@ -763,6 +817,7 @@ export default {
         this.fees = data.fees || [];
         this.lockHistory = data.lock_history || [];
         this.approvalRequests = data.approval_requests || [];
+        this.locationChangeRequests = data.location_change_requests || [];
       } catch (err) {
         this.error = err.message || 'Không tải được dữ liệu.';
       } finally {
@@ -853,6 +908,50 @@ export default {
         this.rejectError = err.message || 'Từ chối không thành công.';
       } finally {
         this.rejecting = false;
+      }
+    },
+
+    // ── Approve / Reject Location Change ──
+    async handleApproveLocation(req) {
+      if (!confirm('Duyệt yêu cầu thay đổi vị trí này? Vị trí cụm sân sẽ được cập nhật ngay.')) return;
+      this.processingLocationId = req.id;
+      try {
+        const res = await adminVenueClusterService.approveLocationChange(this.cluster.id, req.id);
+        const idx = this.locationChangeRequests.findIndex((r) => r.id === req.id);
+        if (idx !== -1) this.locationChangeRequests.splice(idx, 1, res.request);
+        this.showMsg('Duyệt yêu cầu thành công. Vị trí đã được cập nhật.', 'msg-success');
+        await this.loadDetail();
+      } catch (err) {
+        this.showMsg(err.message || 'Duyệt không thành công.', 'msg-error');
+      } finally {
+        this.processingLocationId = null;
+      }
+    },
+    openRejectLocationModal(req) {
+      this.rejectLocationTarget = req;
+      this.rejectLocationReason = '';
+      this.rejectLocationError = '';
+    },
+    closeRejectLocationModal() {
+      this.rejectLocationTarget = null;
+    },
+    async handleRejectLocation() {
+      this.rejectingLocation = true;
+      this.rejectLocationError = '';
+      try {
+        const res = await adminVenueClusterService.rejectLocationChange(
+          this.cluster.id,
+          this.rejectLocationTarget.id,
+          { status_reason: this.rejectLocationReason },
+        );
+        const idx = this.locationChangeRequests.findIndex((r) => r.id === this.rejectLocationTarget.id);
+        if (idx !== -1) this.locationChangeRequests.splice(idx, 1, res.request);
+        this.closeRejectLocationModal();
+        this.showMsg('Đã từ chối yêu cầu vị trí.', 'msg-success');
+      } catch (err) {
+        this.rejectLocationError = err.message || 'Từ chối không thành công.';
+      } finally {
+        this.rejectingLocation = false;
       }
     },
 
@@ -2154,4 +2253,20 @@ export default {
 @media (max-width: 640px) {
   .info-grid { grid-template-columns: 1fr; }
 }
+
+.tab-badge-admin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 5px;
+}
+
 </style>

@@ -81,5 +81,22 @@ export const venueClusterService = {
       method: 'PATCH',
     });
   },
+
+  // Venue Location Change Requests (Owner gửi yêu cầu thay đổi vị trí)
+  getLocationChangeRequests(clusterId, status = null) {
+    const qs = status ? `?status=${status}` : '';
+    return api(`/api/owner/venue-clusters/${clusterId}/location-change-requests${qs}`);
+  },
+  createLocationChangeRequest(clusterId, data) {
+    return api(`/api/owner/venue-clusters/${clusterId}/location-change-requests`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  cancelLocationChangeRequest(clusterId, requestId) {
+    return api(`/api/owner/venue-clusters/${clusterId}/location-change-requests/${requestId}/cancel`, {
+      method: 'PATCH',
+    });
+  },
 };
 
