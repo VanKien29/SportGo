@@ -215,7 +215,8 @@ const routes = [
             {
                 path: "venue-courts",
                 name: "owner-venue-courts",
-                redirect: { name: "owner-venue-clusters" },
+                component: () =>
+                    import("../views/owner/OwnerVenueCourts.vue"),
             },
             {
                 path: "bookings",

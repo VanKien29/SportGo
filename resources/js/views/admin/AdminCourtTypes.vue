@@ -791,8 +791,8 @@ export default {
             
             const payload = {
                 ...this.form,
-                default_layout_w: (this.form.parent_id !== null && this.form.default_layout_w) ? parseFloat(this.form.default_layout_w) * 10 : null,
-                default_layout_h: (this.form.parent_id !== null && this.form.default_layout_h) ? parseFloat(this.form.default_layout_h) * 10 : null,
+                default_layout_w: (this.form.parent_id !== null && this.form.default_layout_w) ? parseFloat(this.form.default_layout_w) * 100 : null,
+                default_layout_h: (this.form.parent_id !== null && this.form.default_layout_h) ? parseFloat(this.form.default_layout_h) * 100 : null,
             };
             
             try {

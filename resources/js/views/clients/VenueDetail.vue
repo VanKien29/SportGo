@@ -351,6 +351,23 @@
                                                 :show-type="true"
                                             />
                                         </div>
+
+                                        <!-- Placed Decorations on client view -->
+                                        <div
+                                            v-for="decor in venue.layout_decorations || []"
+                                            :key="decor.id"
+                                            class="absolute"
+                                            :style="getClientDecorStyle(decor)"
+                                        >
+                                            <DecorationVisual
+                                                :type="decor.type"
+                                                :name="decor.name"
+                                                :width="null"
+                                                :height="null"
+                                                :rotation="decor.layout_rotation || 0"
+                                                :interactive="false"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -710,12 +727,13 @@
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
+import DecorationVisual from "../../components/DecorationVisual.vue";
 import { getAuth } from "../../stores/auth.js";
 import { venueService } from "../../services/venues.js";
 
 export default {
     name: "VenueDetail",
-    components: { PublicNavbar, CourtVisual },
+    components: { PublicNavbar, CourtVisual, DecorationVisual },
     data() {
         return {
             venue: null,
@@ -1003,6 +1021,14 @@ export default {
                 top: `${court.layout_y / 6}%`,
                 width: `${court.layout_w / 10}%`,
                 height: `${court.layout_h / 6}%`,
+            };
+        },
+        getClientDecorStyle(decor) {
+            return {
+                left: `${decor.layout_x / 10}%`,
+                top: `${decor.layout_y / 6}%`,
+                width: `${decor.layout_w / 10}%`,
+                height: `${decor.layout_h / 6}%`,
             };
         },
         getCourtMapStatus(court) {

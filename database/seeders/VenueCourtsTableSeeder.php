@@ -32,12 +32,12 @@ class VenueCourtsTableSeeder extends Seeder
         ])->pluck('id', 'name');
 
         $courts = [
-            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A1', 1, 100, 100, 60, 130, 0],
-            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A2', 2, 200, 100, 60, 130, 0],
-            ['sportgo-cau-giay', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P1', 3, 350, 100, 60, 130, 0],
-            ['sportgo-cau-giay', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P2', 4, 450, 100, 60, 130, 0],
-            ['sportgo-my-dinh', 'Bóng Đá (Sân 7)', 'Sân bóng đá F1', 1, 100, 100, 160, 100, 0],
-            ['sportgo-my-dinh', 'Bóng Đá (Sân 11)', 'Sân bóng đá F2', 2, 350, 100, 240, 150, 0],
+            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A1', 1, null, null, null, null, 0],
+            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A2', 2, null, null, null, null, 0],
+            ['sportgo-cau-giay', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P1', 3, null, null, null, null, 0],
+            ['sportgo-cau-giay', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P2', 4, null, null, null, null, 0],
+            ['sportgo-my-dinh', 'Bóng Đá (Sân 7)', 'Sân bóng đá F1', 1, null, null, null, null, 0],
+            ['sportgo-my-dinh', 'Bóng Đá (Sân 11)', 'Sân bóng đá F2', 2, null, null, null, null, 0],
         ];
 
         foreach ($courts as [$clusterSlug, $courtTypeName, $courtName, $sortOrder, $x, $y, $w, $h, $rot]) {

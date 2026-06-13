@@ -95,6 +95,7 @@ class VenueController extends Controller
                 'map_url' => $cluster->map_url,
                 'latitude' => $cluster->latitude,
                 'longitude' => $cluster->longitude,
+                'layout_decorations' => $cluster->layout_decorations,
                 'amenities' => $cluster->amenities ?? [],
                 'booking_config' => $cluster->bookingConfig,
                 'venue_courts' => $cluster->venueCourts,

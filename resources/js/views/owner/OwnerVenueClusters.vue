@@ -427,6 +427,30 @@
                         >
                             <div class="editor-toolbar">
                                 <div class="toolbar-left">
+                                    <!-- Tool switcher (Figma-style) -->
+                                    <div class="tool-switcher" title="Chọn công cụ (V: chọn, H: kéo)">
+                                        <button
+                                            class="tool-btn"
+                                            :class="{ active: editorTool === 'select' }"
+                                            @click.stop="editorTool = 'select'"
+                                            title="Công cụ Chọn (V)"
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                                <path d="M2 1l12 6-6 2-2 6-4-14z"/>
+                                            </svg>
+                                        </button>
+                                        <button
+                                            class="tool-btn"
+                                            :class="{ active: editorTool === 'pan' }"
+                                            @click.stop="editorTool = 'pan'"
+                                            title="Công cụ Kéo (H)"
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                                <path d="M6 1.5a1 1 0 0 1 2 0V7h1V4.5a1 1 0 0 1 2 0V7h.5a1.5 1.5 0 0 1 1.5 1.5v1A4.5 4.5 0 0 1 9 14H7a4 4 0 0 1-4-4V6a1 1 0 0 1 1-1h.5V4.5a1 1 0 0 1 1-1V1.5z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="toolbar-divider"></div>
                                     <button
                                         class="btn btn-primary"
                                         @click="saveLayout"
@@ -453,39 +477,24 @@
                                 </div>
                                 <div class="toolbar-right">
                                     <span class="info-badge"
-                                        >Không giới hạn (Zoom/Pan) | Chọn sân để
-                                        xoay & chỉnh cỡ</span
+                                        >{{ editorTool === 'select' ? '🖱️ Chế độ Chọn — Click để chọn, kéo để di chuyển' : '✋ Chế độ Kéo — Kéo để di chuyển canvas' }}</span
                                     >
                                 </div>
                             </div>
                             <div class="editor-body">
                                 <div
                                     class="canvas-viewport"
+                                    :class="[`tool-${editorTool}`, { panning: isPanning }]"
                                     ref="canvasViewport"
                                     @wheel.prevent="handleZoom"
                                     @mousedown="startPan"
                                     @mousemove="handleGlobalMove"
                                     @mouseup="handleGlobalUp"
                                     @mouseleave="handleGlobalUp"
-                                    @click="selectedCourtId = null"
+                                    @click="onCanvasClick"
                                 >
-                                    <div class="canvas-interaction-guide">
-                                        <div class="guide-item">
-                                            🖱️ <b>Cuộn chuột:</b> Zoom sơ đồ
-                                        </div>
-                                        <div class="guide-item">
-                                            🖐️ <b>Kéo nền trống:</b> Di chuyển
-                                            góc nhìn
-                                        </div>
-                                        <div class="guide-item">
-                                            🎯 <b>Kéo thả sân:</b> Đổi vị trí
-                                            sân con
-                                        </div>
-                                        <div class="guide-item">
-                                            📐 <b>Kéo các nút góc:</b> Thay đổi
-                                            kích thước
-                                        </div>
-                                    </div>
+
+
                                     <div class="zoom-controls">
                                         <button
                                             class="btn-zoom"
@@ -550,6 +559,7 @@
                                                 startDrag($event, court)
                                             "
                                             @click.stop="selectCourt(court)"
+                                            data-type="court"
                                         >
                                             <CourtVisual
                                                 :name="court.name"
@@ -624,9 +634,89 @@
                                                 ></div>
                                             </template>
                                         </div>
+                                        <div
+                                            v-for="decor in decorations"
+                                            :key="decor.id"
+                                            class="canvas-decor-element"
+                                            :class="{
+                                                selected:
+                                                    selectedDecorationId ===
+                                                    decor.id,
+                                                dragging:
+                                                    draggingDecorationId ===
+                                                    decor.id,
+                                                resizing:
+                                                    resizingDecorationId ===
+                                                    decor.id,
+                                            }"
+                                            :style="getDecorStyle(decor)"
+                                            @mousedown.stop="
+                                                startDragDecor($event, decor)
+                                            "
+                                            @click.stop="selectDecor(decor)"
+                                            data-type="decor"
+                                        >
+                                            <DecorationVisual
+                                                :type="decor.type"
+                                                :name="decor.name"
+                                                :width="decor.layout_w"
+                                                :height="decor.layout_h"
+                                                :rotation="
+                                                    decor.layout_rotation || 0
+                                                "
+                                            />
+                                            <template
+                                                v-if="
+                                                    selectedDecorationId ===
+                                                    decor.id
+                                                "
+                                            >
+                                                <div
+                                                    class="resize-handle tl"
+                                                    @mousedown.stop.prevent="
+                                                        startResizeDecor(
+                                                            $event,
+                                                            decor,
+                                                            'tl',
+                                                        )
+                                                    "
+                                                ></div>
+                                                <div
+                                                    class="resize-handle tr"
+                                                    @mousedown.stop.prevent="
+                                                        startResizeDecor(
+                                                            $event,
+                                                            decor,
+                                                            'tr',
+                                                        )
+                                                    "
+                                                ></div>
+                                                <div
+                                                    class="resize-handle bl"
+                                                    @mousedown.stop.prevent="
+                                                        startResizeDecor(
+                                                            $event,
+                                                            decor,
+                                                            'bl',
+                                                        )
+                                                    "
+                                                ></div>
+                                                <div
+                                                    class="resize-handle br"
+                                                    @mousedown.stop.prevent="
+                                                        startResizeDecor(
+                                                            $event,
+                                                            decor,
+                                                            'br',
+                                                        )
+                                                    "
+                                                ></div>
+                                            </template>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="editor-sidebar">
+                                    <!-- Inspector: Sân con -->
                                     <div
                                         v-if="selectedCourt"
                                         class="sidebar-section inspector-panel"
@@ -649,7 +739,7 @@
                                                 ><span class="value">{{
                                                     selectedCourt.court_type
                                                         ?.name
-                                                }}</span>
+                                                 }}</span>
                                             </div>
                                             <div class="field-group">
                                                 <label>Kích thước (m):</label>
@@ -774,6 +864,121 @@
                                             </button>
                                         </div>
                                     </div>
+
+                                    <!-- Inspector: Vật phẩm trang trí -->
+                                    <div
+                                        v-else-if="selectedDecoration"
+                                        class="sidebar-section inspector-panel"
+                                    >
+                                        <h4 class="section-title">
+                                            Vật phẩm: {{ selectedDecoration.name }}
+                                        </h4>
+                                        <div class="inspector-fields">
+                                            <div class="field-row">
+                                                <span class="label">LOẠI:</span>
+                                                <span class="value font-bold uppercase">{{ selectedDecoration.type }}</span>
+                                            </div>
+                                            <div class="field-group">
+                                                <label>Tên nhãn hiển thị:</label>
+                                                <input
+                                                    type="text"
+                                                    v-model="selectedDecoration.name"
+                                                    class="form-control"
+                                                    placeholder="Nhãn hiển thị..."
+                                                />
+                                            </div>
+                                            <div class="field-group">
+                                                <label>Kích thước (px):</label>
+                                                <div class="input-row">
+                                                    <input
+                                                        type="number"
+                                                        v-model.number="selectedDecoration.layout_w"
+                                                        placeholder="Rộng"
+                                                        style="width: 70px;"
+                                                    />
+                                                    <span class="x">x</span>
+                                                    <input
+                                                        type="number"
+                                                        v-model.number="selectedDecoration.layout_h"
+                                                        placeholder="Dài"
+                                                        style="width: 70px;"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div class="field-group">
+                                                <label>Vị trí X / Y (px):</label>
+                                                <div class="input-row">
+                                                    <input
+                                                        type="number"
+                                                        v-model.number="selectedDecoration.layout_x"
+                                                        placeholder="X"
+                                                        style="width: 70px;"
+                                                    />
+                                                    <span class="comma">,</span>
+                                                    <input
+                                                        type="number"
+                                                        v-model.number="selectedDecoration.layout_y"
+                                                        placeholder="Y"
+                                                        style="width: 70px;"
+                                                     />
+                                                </div>
+                                            </div>
+                                            <div class="field-group">
+                                                <label>Góc xoay: {{ selectedDecoration.layout_rotation || 0 }}°</label>
+                                                <div class="rotation-control">
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max="359"
+                                                        v-model.number="selectedDecoration.layout_rotation"
+                                                        class="rotation-slider"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-outline btn-xs btn-rotate"
+                                                        @click="rotateSelectedDecor90"
+                                                    >
+                                                        Xoay +90°
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                class="btn btn-outline btn-danger-outline btn-block"
+                                                @click="deleteDecoration(selectedDecoration)"
+                                            >
+                                                Xóa khỏi sơ đồ
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Thư viện vật phẩm trang trí -->
+                                    <div class="sidebar-section decoration-library-section">
+                                        <h4 class="section-title">Thêm vật phẩm bổ trợ</h4>
+                                        <p class="section-desc">Click để thêm các vật phẩm định vị không gian:</p>
+                                        <div class="decor-library-grid">
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('entrance', 'Cửa ra vào')">
+                                                🚪 Cửa ra vào
+                                            </button>
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('reception', 'Lễ tân')">
+                                                👤 Quầy lễ tân
+                                            </button>
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('restroom', 'WC')">
+                                                🚻 Nhà vệ sinh
+                                            </button>
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('seating', 'Ghế chờ')">
+                                                🛋️ Ghế ngồi chờ
+                                            </button>
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('parking', 'Bãi đỗ xe')">
+                                                🅿️ Bãi đỗ xe
+                                            </button>
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('custom', 'Khác')">
+                                                📦 Vật thể khác
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Sân chưa xếp -->
                                     <div
                                         class="sidebar-section unplaced-list-section"
                                     >
@@ -1655,13 +1860,14 @@
 import AppIcon from "../../components/AppIcon.vue";
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
+import DecorationVisual from "../../components/DecorationVisual.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
 
 export default {
     name: "OwnerVenueClusters",
-    components: { AppIcon, ActionIconButton, CourtVisual },
+    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual },
     data() {
         return {
             // Cluster list
@@ -1669,16 +1875,15 @@ export default {
             selectedCluster: null,
             loading: true,
             error: null,
-
+ 
             // Tabs
             activeTab: "info",
             tabs: [
                 { key: "info", label: "Thông tin chung" },
-                { key: "courts", label: "Sân con" },
                 { key: "approvals", label: "Yêu cầu quy mô" },
                 { key: "location", label: "Yêu cầu vị trí" },
             ],
-
+ 
             // Info tab form
             updating: false,
             updateSuccess: false,
@@ -1702,35 +1907,39 @@ export default {
             },
             map: null,
             marker: null,
-
+ 
             // Amenity request modal
             showRequestModal: false,
             requestSubmitting: false,
             requestError: null,
             requestSuccessMsg: null,
             requestForm: { name: "", description: "" },
-
+ 
             // Courts tab
             courts: [],
             courtTypes: [],
             courtsLoading: false,
             courtsError: null,
             courtView: "list",
-
+ 
             // Edit court modal
             showEditCourtModal: false,
             editingCourtId: null,
             editCourtSubmitting: false,
             editCourtError: null,
             editCourtForm: { name: "", status: "active", sort_order: 0 },
-
+ 
             // Layout/Canvas
+            decorations: [],
             selectedCourtId: null,
+            selectedDecorationId: null,
             draggingCourtId: null,
+            draggingDecorationId: null,
             dragStartX: 0,
             dragStartY: 0,
             savingLayout: false,
             resizingCourtId: null,
+            resizingDecorationId: null,
             resizeDirection: "",
             resizeStartW: 0,
             resizeStartH: 0,
@@ -1742,6 +1951,7 @@ export default {
             isPanning: false,
             panStartX: 0,
             panStartY: 0,
+            editorTool: 'select',
 
             // Approvals tab
             approvalRequests: [],
@@ -1779,6 +1989,11 @@ export default {
     },
 
     computed: {
+        selectedDecoration() {
+            return (
+                this.decorations.find((d) => d.id === this.selectedDecorationId) || null
+            );
+        },
         selectedCourt() {
             return (
                 this.courts.find((c) => c.id === this.selectedCourtId) || null
@@ -1890,6 +2105,7 @@ export default {
             "owner-cluster-changed",
             this.onOwnerClusterChanged,
         );
+        window.addEventListener('keydown', this.handleCanvasKeydown);
     },
 
     beforeUnmount() {
@@ -1898,6 +2114,7 @@ export default {
             "owner-cluster-changed",
             this.onOwnerClusterChanged,
         );
+        window.removeEventListener('keydown', this.handleCanvasKeydown);
         this.destroyMap();
     },
 
@@ -1947,6 +2164,11 @@ export default {
                     : [],
                 description: cluster.description || "",
             };
+            this.decorations = Array.isArray(cluster.layout_decorations)
+                ? JSON.parse(JSON.stringify(cluster.layout_decorations))
+                : [];
+            this.selectedDecorationId = null;
+            this.selectedCourtId = null;
             // Reset location requests khi đổi cluster
             this.locationRequests = [];
             this.locationFilter = "";
@@ -2538,12 +2760,68 @@ export default {
             };
         },
 
-        startPan(e) {
-            if (
-                e.target.closest(".canvas-court-element") ||
-                e.target.closest(".zoom-controls")
-            )
+        onCanvasClick(e) {
+            // Nếu đang ở mode select và click vào nền trống → bỏ chọn
+            if (this.editorTool === 'select') {
+                const hitDecor  = e.target.closest('[data-type="decor"]');
+                const hitCourt  = e.target.closest('[data-type="court"]');
+                const hitZoom   = e.target.closest('.zoom-controls');
+                const hitResize = e.target.closest('.resize-handle');
+                if (!hitDecor && !hitCourt && !hitZoom && !hitResize) {
+                    this.selectedCourtId = null;
+                    this.selectedDecorationId = null;
+                }
+            }
+        },
+
+        handleCanvasKeydown(e) {
+            // Bỏ qua nếu đang focus vào input/textarea
+            const tag = document.activeElement?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+            // V → chế độ Select, H → chế độ Pan (giống Figma)
+            if (e.key === 'v' || e.key === 'V') {
+                this.editorTool = 'select';
                 return;
+            }
+            if (e.key === 'h' || e.key === 'H') {
+                this.editorTool = 'pan';
+                return;
+            }
+            // Escape → bỏ chọn
+            if (e.key === 'Escape') {
+                this.selectedCourtId = null;
+                this.selectedDecorationId = null;
+                return;
+            }
+            // Delete / Backspace → xóa vật phẩm bổ trợ được chọn
+            if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedDecorationId) {
+                const decor = this.selectedDecoration;
+                if (decor) this.deleteDecoration(decor);
+                return;
+            }
+        },
+
+        startPan(e) {
+            // Zoom controls không bao giờ pan
+            if (e.target.closest('.zoom-controls')) return;
+
+            if (this.editorTool === 'pan') {
+                // Chế độ Pan: kéo mọi nơi
+                this.isPanning = true;
+                this.panStartX = e.clientX - this.panX;
+                this.panStartY = e.clientY - this.panY;
+                return;
+            }
+
+            // Chế độ Select: chỉ pan khi click vào ĐÚNG nền trống (không phải court/decor)
+            if (
+                e.target.closest('[data-type="court"]') ||
+                e.target.closest('[data-type="decor"]') ||
+                e.target.closest('.resize-handle')
+            ) return;
+
+            // Kéo nền trống ở mode Select cũng cho pan (như Figma: Space+drag)
             this.isPanning = true;
             this.panStartX = e.clientX - this.panX;
             this.panStartY = e.clientY - this.panY;
@@ -2555,13 +2833,19 @@ export default {
                 this.panY = e.clientY - this.panStartY;
                 return;
             }
-            if (this.draggingCourtId || this.resizingCourtId)
+            if (this.draggingCourtId || this.resizingCourtId) {
                 this.handleDrag(e);
+                return;
+            }
+            if (this.draggingDecorationId || this.resizingDecorationId) {
+                this.handleDragDecor(e);
+            }
         },
 
         handleGlobalUp() {
             this.isPanning = false;
             if (this.draggingCourtId || this.resizingCourtId) this.endDrag();
+            if (this.draggingDecorationId || this.resizingDecorationId) this.endDragDecor();
         },
 
         handleZoom(e) {
@@ -2715,6 +2999,7 @@ export default {
             this.savingLayout = true;
             try {
                 await venueClusterService.updateCourtsLayout({
+                    venue_cluster_id: this.selectedCluster.id,
                     courts: this.courts.map((c) => ({
                         id: c.id,
                         layout_x: c.layout_x,
@@ -2723,14 +3008,158 @@ export default {
                         layout_h: c.layout_h,
                         layout_rotation: c.layout_rotation,
                     })),
+                    layout_decorations: this.decorations.map((d) => ({
+                        id: d.id,
+                        type: d.type,
+                        name: d.name,
+                        layout_x: d.layout_x,
+                        layout_y: d.layout_y,
+                        layout_w: d.layout_w,
+                        layout_h: d.layout_h,
+                        layout_rotation: d.layout_rotation || 0,
+                    })),
                 });
-                alert("Sơ đồ sân con đã được lưu thành công.");
+                alert("Sơ đồ sân con và vật phẩm bổ trợ đã được lưu thành công.");
+                this.selectedCluster.layout_decorations = JSON.parse(JSON.stringify(this.decorations));
                 await this.fetchCourts(this.selectedCluster.id);
             } catch (err) {
                 alert(err.message || "Lỗi khi lưu sơ đồ.");
             } finally {
                 this.savingLayout = false;
             }
+        },
+
+        addDecoration(type, defaultName) {
+            const rect = this.$refs.canvasViewport?.getBoundingClientRect();
+            const cx = rect ? rect.width / 2 : 500;
+            const cy = rect ? rect.height / 2 : 300;
+            
+            let defaultW = 100;
+            let defaultH = 100;
+            if (type === 'entrance') { defaultW = 120; defaultH = 60; }
+            else if (type === 'reception') { defaultW = 120; defaultH = 80; }
+            else if (type === 'restroom') { defaultW = 80; defaultH = 80; }
+            else if (type === 'seating') { defaultW = 120; defaultH = 50; }
+            
+            const newDecor = {
+                id: 'decor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                type: type,
+                name: defaultName,
+                layout_x: Math.round((cx - this.panX) / this.zoom - defaultW / 2),
+                layout_y: Math.round((cy - this.panY) / this.zoom - defaultH / 2),
+                layout_w: defaultW,
+                layout_h: defaultH,
+                layout_rotation: 0
+            };
+            
+            this.decorations.push(newDecor);
+            this.selectedDecorationId = newDecor.id;
+            this.selectedCourtId = null;
+        },
+
+        rotateSelectedDecor90() {
+            const decor = this.selectedDecoration;
+            if (decor) {
+                decor.layout_rotation = ((decor.layout_rotation || 0) + 90) % 360;
+            }
+        },
+
+        deleteDecoration(decor) {
+            if (!decor) return;
+            this.decorations = this.decorations.filter(d => d.id !== decor.id);
+            if (this.selectedDecorationId === decor.id) {
+                this.selectedDecorationId = null;
+            }
+        },
+
+        selectDecor(decor) {
+            this.selectedDecorationId = decor.id;
+            this.selectedCourtId = null;
+        },
+
+        startDragDecor(event, decor) {
+            this.draggingDecorationId = decor.id;
+            this.selectedDecorationId = decor.id;
+            this.selectedCourtId = null;
+            const l = this.getLogicalCoords(event);
+            this.dragStartX = l.x - (decor.layout_x || 0);
+            this.dragStartY = l.y - (decor.layout_y || 0);
+        },
+
+        startResizeDecor(event, decor, direction) {
+            this.resizingDecorationId = decor.id;
+            this.resizeDirection = direction;
+            const l = this.getLogicalCoords(event);
+            this.dragStartX = l.x;
+            this.dragStartY = l.y;
+            this.resizeStartW = decor.layout_w;
+            this.resizeStartH = decor.layout_h;
+            this.resizeStartXCoord = decor.layout_x || 0;
+            this.resizeStartYCoord = decor.layout_y || 0;
+        },
+
+        handleDragDecor(event) {
+            if (this.resizingDecorationId) {
+                const decor = this.decorations.find(
+                    (d) => d.id === this.resizingDecorationId,
+                );
+                if (!decor) return;
+                const l = this.getLogicalCoords(event);
+                const dx = l.x - this.dragStartX;
+                const dy = l.y - this.dragStartY;
+                if (this.resizeDirection === "br") {
+                    decor.layout_w = Math.max(30, this.resizeStartW + dx);
+                    decor.layout_h = Math.max(30, this.resizeStartH + dy);
+                } else if (this.resizeDirection === "bl") {
+                    const nw = this.resizeStartW - dx;
+                    if (nw >= 30) {
+                        decor.layout_x = this.resizeStartXCoord + dx;
+                        decor.layout_w = nw;
+                    }
+                    decor.layout_h = Math.max(30, this.resizeStartH + dy);
+                } else if (this.resizeDirection === "tr") {
+                    decor.layout_w = Math.max(30, this.resizeStartW + dx);
+                    const nh = this.resizeStartH - dy;
+                    if (nh >= 30) {
+                        decor.layout_y = this.resizeStartYCoord + dy;
+                        decor.layout_h = nh;
+                    }
+                } else if (this.resizeDirection === "tl") {
+                    const nw = this.resizeStartW - dx;
+                    const nh = this.resizeStartH - dy;
+                    if (nw >= 30) {
+                        decor.layout_x = this.resizeStartXCoord + dx;
+                        decor.layout_w = nw;
+                    }
+                    if (nh >= 30) {
+                        decor.layout_y = this.resizeStartYCoord + dy;
+                        decor.layout_h = nh;
+                    }
+                }
+                return;
+            }
+            if (!this.draggingDecorationId) return;
+            const decor = this.decorations.find(
+                (d) => d.id === this.draggingDecorationId,
+            );
+            if (!decor) return;
+            const l = this.getLogicalCoords(event);
+            decor.layout_x = l.x - this.dragStartX;
+            decor.layout_y = l.y - this.dragStartY;
+        },
+
+        endDragDecor() {
+            this.draggingDecorationId = null;
+            this.resizingDecorationId = null;
+        },
+
+        getDecorStyle(decor) {
+            return {
+                left: `${decor.layout_x}px`,
+                top: `${decor.layout_y}px`,
+                width: `${decor.layout_w}px`,
+                height: `${decor.layout_h}px`,
+            };
         },
 
         autoArrange() {
@@ -3552,6 +3981,44 @@ export default {
     color: rgba(15, 23, 42, 0.5);
     font-style: italic;
 }
+/* ─── Tool Switcher (Figma-style) ─── */
+.tool-switcher {
+    display: flex;
+    background: #f1f5f9;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+}
+.tool-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    transition: all 0.15s;
+}
+.tool-btn:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+.tool-btn.active {
+    background: #fff;
+    color: #3b82f6;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+.toolbar-divider {
+    width: 1px;
+    height: 28px;
+    background: #e2e8f0;
+    align-self: center;
+    margin: 0 2px;
+}
 .editor-body {
     display: flex;
     gap: 12px;
@@ -3565,10 +4032,23 @@ export default {
     border: 1px solid var(--sg-border);
     overflow: hidden;
     position: relative;
-    cursor: grab;
+    cursor: default;
     user-select: none;
 }
-.canvas-viewport:active {
+/* Mode: select → con trỏ chuẩn */
+.canvas-viewport.tool-select {
+    cursor: default;
+}
+/* Mode: pan → con trỏ bàn tay */
+.canvas-viewport.tool-pan {
+    cursor: grab;
+}
+.canvas-viewport.tool-pan:active,
+.canvas-viewport.tool-pan.panning {
+    cursor: grabbing;
+}
+/* Khi đang pan ở mode select (kéo nền trống) */
+.canvas-viewport.tool-select.panning {
     cursor: grabbing;
 }
 .canvas-interaction-guide {
@@ -3651,12 +4131,15 @@ export default {
 }
 .canvas-court-element {
     position: absolute;
-    cursor: grab;
+    cursor: pointer;
     box-sizing: border-box;
     transition: box-shadow 0.1s;
 }
+.canvas-court-element:hover {
+    cursor: pointer;
+}
 .canvas-court-element:active {
-    cursor: grabbing;
+    cursor: move;
 }
 .canvas-court-element.selected {
     outline: 2px solid #3b82f6;
@@ -4339,5 +4822,53 @@ export default {
     text-align: center;
     color: rgba(15, 23, 42, 0.45);
     font-size: 14px;
+}
+
+/* ─── Layout Decorations ─── */
+.canvas-decor-element {
+    position: absolute;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: box-shadow 0.1s;
+    z-index: 20;
+}
+.canvas-decor-element:hover {
+    cursor: pointer;
+}
+.canvas-decor-element.dragging {
+    cursor: move;
+    z-index: 60;
+}
+.canvas-decor-element.selected {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+    z-index: 30;
+}
+.decor-library-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.btn-add-decor {
+    padding: 8px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.btn-add-decor:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #1e293b;
 }
 </style>

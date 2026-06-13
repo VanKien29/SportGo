@@ -593,10 +593,10 @@
             <div class="approval-row">
               <div style="flex:1">
                 <div class="approval-name fw-bold">Yêu cầu thay đổi vị trí</div>
-                <div class="muted">🏠 Địa chỉ mới: {{ req.new_address }}, {{ req.new_ward }}, {{ req.new_province }}</div>
-                <div class="muted">🧭 Tọa độ mới: {{ req.new_latitude }}, {{ req.new_longitude }}</div>
-                <div v-if="req.new_map_url" class="muted">🗺️ Map URL: <a :href="req.new_map_url" target="_blank" style="color:#2563eb">Xem bản đồ</a></div>
-                <div class="muted">📝 Lý do: {{ req.note }}</div>
+                <div class="muted">Địa chỉ mới: {{ req.new_address }}, {{ req.new_ward }}, {{ req.new_province }}</div>
+                <div class="muted">Tọa độ mới: {{ req.new_latitude }}, {{ req.new_longitude }}</div>
+                <div v-if="req.new_map_url" class="muted">Map URL: <a :href="req.new_map_url" target="_blank" style="color:#2563eb">Xem bản đồ</a></div>
+                <div class="muted">Lý do: {{ req.note }}</div>
                 <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
                 <div v-if="req.reviewed_by" class="muted">Xử lý bởi: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
                 <div v-if="req.status_reason && req.status === 'rejected'" class="reason-text">Lý do từ chối: {{ req.status_reason }}</div>
@@ -714,6 +714,8 @@
     </div>
 
 
+
+    </template>
 
     <!-- ── Global alert ── -->
     <transition name="fade">
