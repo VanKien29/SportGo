@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
+use App\Models\OwnerBankAccount;
 use App\Models\OwnerWallet;
 use App\Models\OwnerWithdrawalRequest;
-use App\Models\OwnerBankAccount;
+use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,7 @@ class WalletController extends Controller
     public function getWallet(Request $request): JsonResponse
     {
         $wallet = OwnerWallet::firstOrCreate(
-            ['owner_id' => $request->user()->id],
+            ['owner_id' => $request->user()->id, 'venue_cluster_id' => null],
             [
                 'available_balance' => 0.0,
                 'pending_withdrawal_balance' => 0.0,
@@ -25,16 +26,28 @@ class WalletController extends Controller
             ]
         );
 
-        $pendingAmount = (float) OwnerWithdrawalRequest::where('owner_id', $request->user()->id)
-            ->whereIn('status', ['pending', 'reviewing'])
-            ->sum('amount');
-
-        $wallet->available_balance = (float) $wallet->available_balance - $pendingAmount;
-        $wallet->pending_withdrawal_balance = (float) $wallet->pending_withdrawal_balance + $pendingAmount;
-
         $bankAccounts = OwnerBankAccount::where('owner_id', $request->user()->id)
             ->where('status', 'active')
             ->get();
+
+        $legacyPendingAmount = (float) OwnerWithdrawalRequest::query()
+            ->where('owner_id', $request->user()->id)
+            ->where('owner_wallet_id', $wallet->id)
+            ->whereIn('status', ['pending', 'reviewing', 'approved'])
+            ->whereNotExists(function ($query): void {
+                $query
+                    ->selectRaw('1')
+                    ->from('owner_wallet_ledgers')
+                    ->whereColumn('owner_wallet_ledgers.reference_id', 'owner_withdrawal_requests.id')
+                    ->where('owner_wallet_ledgers.reference_type', 'withdrawal')
+                    ->where('owner_wallet_ledgers.type', 'hold');
+            })
+            ->sum('amount');
+
+        if ($legacyPendingAmount > 0) {
+            $wallet->available_balance = max(0, (float) $wallet->available_balance - $legacyPendingAmount);
+            $wallet->pending_withdrawal_balance = (float) $wallet->pending_withdrawal_balance + $legacyPendingAmount;
+        }
 
         return response()->json([
             'wallet' => $wallet,
@@ -42,7 +55,7 @@ class WalletController extends Controller
         ]);
     }
 
-    public function withdraw(Request $request): JsonResponse
+    public function withdraw(Request $request, OwnerWalletService $walletService): JsonResponse
     {
         $request->validate([
             'amount' => ['required', 'numeric', 'min:50000'],
@@ -60,31 +73,24 @@ class WalletController extends Controller
             ->whereKey($bankAccountId)
             ->first();
 
-        if (!$bankAccount) {
+        if (! $bankAccount) {
             return response()->json(['message' => 'Tài khoản ngân hàng không hợp lệ hoặc chưa được kích hoạt.'], 422);
         }
 
-        return DB::transaction(function () use ($userId, $amount, $bankAccountId, $request) {
+        return DB::transaction(function () use ($userId, $amount, $bankAccountId, $request, $walletService) {
             $wallet = OwnerWallet::where('owner_id', $userId)->lockForUpdate()->first();
 
-            if (!$wallet) {
+            if (! $wallet) {
                 return response()->json(['message' => 'Không tìm thấy thông tin ví của bạn.'], 422);
             }
 
-            // Calculate active pending withdrawals
-            $pendingAmount = OwnerWithdrawalRequest::where('owner_id', $userId)
-                ->whereIn('status', ['pending', 'reviewing'])
-                ->sum('amount');
-
-            $effectiveBalance = (float) $wallet->available_balance - (float) $pendingAmount;
-
-            if ($amount > $effectiveBalance) {
+            if ($amount > (float) $wallet->available_balance) {
                 return response()->json(['message' => 'Số dư khả dụng không đủ (sau khi trừ các yêu cầu rút tiền đang chờ duyệt khác).'], 422);
             }
 
             // Generate unique request code
             do {
-                $code = 'WR' . strtoupper(Str::random(10));
+                $code = 'WR'.strtoupper(Str::random(10));
             } while (OwnerWithdrawalRequest::where('request_code', $code)->exists());
 
             $withdrawal = OwnerWithdrawalRequest::create([
@@ -97,6 +103,11 @@ class WalletController extends Controller
                 'status' => 'pending',
                 'owner_note' => $request->input('owner_note'),
                 'requested_at' => now(),
+            ]);
+
+            $walletService->holdWithdrawal($withdrawal, [
+                'source' => 'legacy_owner_wallet',
+                'owner_id' => $userId,
             ]);
 
             return response()->json([

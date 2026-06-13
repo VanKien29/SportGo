@@ -5,14 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PartnerContract extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, SoftDeletes;
 
     public $incrementing = false;
 
     protected $keyType = 'string';
+
+    protected $appends = [
+        'contract_number',
+        'generated_file_path',
+        'final_signed_file_path',
+    ];
 
     protected $fillable = [
         'contract_code',
@@ -51,9 +58,31 @@ class PartnerContract extends Model
         return $this->belongsTo(PartnerApplication::class, 'partner_application_id');
     }
 
+    public function profile()
+    {
+        return $this->application();
+    }
+
     public function generatedDocument()
     {
         return $this->belongsTo(GeneratedDocument::class, 'generated_document_id');
+    }
+
+    public function signatures()
+    {
+        return $this->hasMany(GeneratedDocumentSignature::class, 'generated_document_id', 'generated_document_id');
+    }
+
+    public function template()
+    {
+        return $this->hasOneThrough(
+            DocumentTemplate::class,
+            GeneratedDocument::class,
+            'id',
+            'id',
+            'generated_document_id',
+            'template_id'
+        );
     }
 
     public function owner()
@@ -69,5 +98,20 @@ class PartnerContract extends Model
     public function venueCluster()
     {
         return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
+    }
+
+    public function getContractNumberAttribute(): ?string
+    {
+        return $this->contract_code;
+    }
+
+    public function getGeneratedFilePathAttribute(): ?string
+    {
+        return $this->generatedDocument?->generated_file_path;
+    }
+
+    public function getFinalSignedFilePathAttribute(): ?string
+    {
+        return $this->generatedDocument?->final_file_path;
     }
 }

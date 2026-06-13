@@ -8,6 +8,11 @@ export const ICON_REGISTRY = {
   menu: [
     ['path', { d: 'M4 6h16M4 12h16M4 18h16' }],
   ],
+  moreHorizontal: [
+    ['circle', { cx: 5, cy: 12, r: 1 }],
+    ['circle', { cx: 12, cy: 12, r: 1 }],
+    ['circle', { cx: 19, cy: 12, r: 1 }],
+  ],
   users: [
     ['path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' }],
     ['circle', { cx: 9, cy: 7, r: 4 }],

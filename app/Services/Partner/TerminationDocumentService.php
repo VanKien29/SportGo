@@ -13,10 +13,11 @@ class TerminationDocumentService
 {
     public function generateDocument(PartnerTerminationRequest $request, PartnerContract $contract, string $adminId): ?PartnerTerminationDocument
     {
-        $isMutual = $request->type === TerminationType::MUTUAL->value;
+        $isMutual = in_array($request->termination_type, ['mutual_agreement', TerminationType::MUTUAL->value], true);
         $documentType = $isMutual ? 'mutual_liquidation_minutes' : 'unilateral_notice';
         $prefix = $isMutual ? 'LIQ-' : 'UNI-';
-        $fileName = $prefix . $contract->contract_number . '-' . time() . '.docx';
+        $contractCode = $contract->contract_code ?: $contract->contract_number ?: $contract->id;
+        $fileName = $prefix . $contractCode . '-' . time() . '.docx';
         $filePath = 'liquidations/' . $fileName;
 
         // In a real application, we would use PHPWord or similar to generate a dynamic document.
@@ -26,7 +27,7 @@ class TerminationDocumentService
         if (file_exists($templatePath)) {
             Storage::disk('public')->put($filePath, file_get_contents($templatePath));
         } else {
-            Storage::disk('public')->put($filePath, 'Mock Termination Document for ' . $contract->contract_number);
+            Storage::disk('public')->put($filePath, 'Mock Termination Document for ' . $contractCode);
         }
 
         return PartnerTerminationDocument::create([

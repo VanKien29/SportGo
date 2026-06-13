@@ -11,13 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('partner_liquidations')) {
+            return;
+        }
+
         Schema::create('partner_liquidations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('partner_contract_id')->constrained('partner_contracts')->onDelete('cascade');
-            $table->foreignId('termination_request_id')->constrained('partner_termination_requests')->onDelete('cascade');
+            $table->char('partner_contract_id', 36);
+            $table->char('termination_request_id', 36);
             $table->string('file_path');
             $table->string('status')->default('completed');
             $table->timestamps();
+
+            $table->foreign('partner_contract_id')
+                ->references('id')->on('partner_contracts')->onDelete('cascade');
+            $table->foreign('termination_request_id')
+                ->references('id')->on('partner_termination_requests')->onDelete('cascade');
         });
     }
 

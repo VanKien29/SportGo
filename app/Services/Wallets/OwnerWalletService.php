@@ -47,7 +47,7 @@ class OwnerWalletService
             $wallet = OwnerWallet::query()->firstOrCreate(
                 [
                     'owner_id' => $cluster->owner_id,
-                    'venue_cluster_id' => $cluster->id
+                    'venue_cluster_id' => $cluster->id,
                 ],
                 [
                     'available_balance' => 0,
@@ -216,6 +216,11 @@ class OwnerWalletService
                 $metadata,
             );
         });
+    }
+
+    public function hasWithdrawalHold(OwnerWithdrawalRequest $withdrawal): bool
+    {
+        return $this->withdrawalLedger($withdrawal, 'hold') !== null;
     }
 
     public function releaseWithdrawal(OwnerWithdrawalRequest $withdrawal, array $metadata = []): OwnerWalletLedger

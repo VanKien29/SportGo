@@ -21,8 +21,10 @@ class PartnerTerminationRequestsTableSeeder extends Seeder
         $admin = User::query()->where('username', 'admin')->first();
         $application = PartnerApplication::query()->where('venue_name', 'SportGo Cầu Giấy')->first();
         $legacyContract = PartnerContract::query()->where('contract_code', 'HD-SG-CG-OLD')->first();
+        $blockedApplication = PartnerApplication::query()->where('venue_name', 'SportGo Ba Đình')->first();
+        $blockedContract = PartnerContract::query()->where('contract_code', 'HD-SG-BD-001')->first();
 
-        if (! $owner || ! $admin || ! $application || ! $legacyContract) {
+        if (! $owner || ! $admin || ! $application || ! $legacyContract || ! $blockedApplication || ! $blockedContract) {
             return;
         }
 
@@ -96,8 +98,8 @@ class PartnerTerminationRequestsTableSeeder extends Seeder
 
         $this->seedRequest(
             'TERM-SPORTGO-CG-DONE',
-            $legacyContract,
-            $application,
+            $blockedContract,
+            $blockedApplication,
             $owner,
             $admin,
             $admin,

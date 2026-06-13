@@ -3,7 +3,7 @@
 namespace App\Services\Partner;
 
 use App\Enums\ContractStatus;
-use App\Models\ContractSignature;
+use App\Models\GeneratedDocumentSignature;
 use App\Models\PartnerContract;
 use App\Models\PartnerHistory;
 use App\Models\User;
@@ -14,16 +14,31 @@ class ContractSignatureService
     public function processOwnerSignature(PartnerContract $contract, User $owner, string $ip, string $userAgent): void
     {
         DB::transaction(function () use ($contract, $owner, $ip, $userAgent) {
-            ContractSignature::create([
-                'partner_contract_id' => $contract->id,
-                'user_id' => $owner->id,
-                'sign_role' => 'owner',
-                'ip_address' => $ip,
-                'user_agent' => $userAgent,
-                'signed_at' => now(),
-            ]);
+            if ($contract->generated_document_id) {
+                GeneratedDocumentSignature::updateOrCreate(
+                    [
+                        'generated_document_id' => $contract->generated_document_id,
+                        'signer_side' => 'owner',
+                    ],
+                    [
+                        'signer_user_id' => $owner->id,
+                        'signer_full_name' => $owner->full_name,
+                        'signer_title' => 'Chủ sân',
+                        'signer_organization' => $contract->application?->business_name,
+                        'signature_method' => 'typed_confirm',
+                        'signed_at' => now(),
+                        'ip_address' => $ip,
+                        'user_agent' => $userAgent,
+                        'status' => 'signed',
+                    ]
+                );
+            }
 
-            $contract->update(['status' => ContractStatus::SIGNED->value]);
+            $contract->update([
+                'status' => ContractStatus::PENDING_SPORTGO_SIGNATURE->value,
+                'owner_signed_at' => now(),
+            ]);
+            $contract->application?->update(['status' => 'contract_pending_sportgo_signature']);
 
             PartnerHistory::create([
                 'partner_application_id' => $contract->partner_application_id,
@@ -36,20 +51,37 @@ class ContractSignatureService
     public function completeContract(PartnerContract $contract, User $admin, string $ip, string $userAgent): void
     {
         DB::transaction(function () use ($contract, $admin, $ip, $userAgent) {
-            ContractSignature::create([
-                'partner_contract_id' => $contract->id,
-                'user_id' => $admin->id,
-                'sign_role' => 'admin',
-                'ip_address' => $ip,
-                'user_agent' => $userAgent,
-                'signed_at' => now(),
-            ]);
+            if ($contract->generated_document_id) {
+                GeneratedDocumentSignature::updateOrCreate(
+                    [
+                        'generated_document_id' => $contract->generated_document_id,
+                        'signer_side' => 'sportgo',
+                    ],
+                    [
+                        'signer_user_id' => $admin->id,
+                        'signer_full_name' => $admin->full_name,
+                        'signer_title' => 'Đại diện SportGo',
+                        'signer_organization' => 'SportGo',
+                        'signature_method' => 'typed_confirm',
+                        'signed_at' => now(),
+                        'ip_address' => $ip,
+                        'user_agent' => $userAgent,
+                        'status' => 'signed',
+                    ]
+                );
+
+                $contract->generatedDocument?->update([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                ]);
+            }
 
             $contract->update([
-                'status' => ContractStatus::COMPLETED->value,
-                'completed_at' => now(),
-                'final_signed_file_path' => 'contracts/' . $contract->contract_number . '_final.pdf',
+                'status' => ContractStatus::SIGNED_ACTIVE->value,
+                'sportgo_signed_at' => now(),
+                'effective_from' => $contract->effective_from ?: now(),
             ]);
+            $contract->application?->update(['status' => 'completed']);
 
             PartnerHistory::create([
                 'partner_application_id' => $contract->partner_application_id,
@@ -74,6 +106,8 @@ class ContractSignatureService
                 \Illuminate\Support\Facades\DB::table('user_roles')->insertOrIgnore([
                     'user_id' => $owner->id,
                     'role_id' => $roleId,
+                    'scope_type' => 'system',
+                    'scope_id' => '00000000-0000-0000-0000-000000000000',
                     'granted_by' => $admin->id,
                     'created_at' => now(),
                 ]);

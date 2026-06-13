@@ -85,7 +85,7 @@ export const adminNavigationSections = [
         label: 'Voucher hệ thống',
         icon: 'tag',
         to: '/admin/vouchers',
-        activeNames: ['admin-vouchers'],
+        activeNames: ['admin-vouchers', 'admin-voucher-detail'],
       },
     ],
   },
@@ -122,6 +122,12 @@ export const adminNavigationSections = [
     label: 'Kiểm duyệt & hỗ trợ',
     items: [
       {
+        label: 'Kiểm duyệt nội dung',
+        icon: 'eye',
+        to: '/admin/moderation',
+        activeNames: ['admin-moderation'],
+      },
+      {
         label: 'Báo cáo',
         icon: 'messageWarning',
         to: '/admin/reports',
@@ -148,6 +154,7 @@ export const adminRouteTitles = {
   'admin-vouchers': 'Voucher hệ thống',
   'admin-partner-applications': 'Quản lý đơn đăng ký',
   'admin-banners': 'Quản lý banner',
+  'admin-moderation': 'Kiểm duyệt nội dung',
   'admin-roles': 'Quản lý nhóm quyền',
   'admin-role-detail': 'Chi tiết nhóm quyền',
   'admin-policies': 'Quản lý chính sách',

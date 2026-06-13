@@ -31,7 +31,6 @@ import OwnerPricing from "../views/owner/OwnerPricing.vue";
 import OwnerStaff from "../views/owner/OwnerStaff.vue";
 import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
-import OwnerWallet from "../views/owner/OwnerWallet.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
 
@@ -229,6 +228,11 @@ const routes = [
             },
             { path: "pricing", name: "owner-pricing", component: OwnerPricing },
             {
+                path: "booking-settings",
+                name: "owner-booking-settings",
+                component: () => import("../views/owner/OwnerBookingSettings.vue"),
+            },
+            {
                 path: "platform-fees",
                 name: "owner-platform-fees",
                 component: () => import("../views/owner/OwnerPlatformFees.vue"),
@@ -240,7 +244,7 @@ const routes = [
             },
             { path: "staff", name: "owner-staff", component: OwnerStaff },
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
-            { path: "wallet", name: "owner-wallet", component: OwnerWallet },
+            { path: "wallet", redirect: { name: "owner-finance" } },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
             { path: "profile", name: "owner-profile", component: Profile },
             {
@@ -252,6 +256,11 @@ const routes = [
                 path: "finance",
                 name: "owner-finance",
                 component: () => import("../views/owner/OwnerFinance.vue"),
+            },
+            {
+                path: "refunds",
+                name: "owner-refunds",
+                component: () => import("../views/owner/OwnerRefundRequests.vue"),
             },
             { path: "", redirect: { name: "owner-dashboard" } },
         ],

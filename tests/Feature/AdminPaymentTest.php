@@ -246,6 +246,31 @@ class AdminPaymentTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_record_pay_later_payment_without_reverting_completed_booking(): void
+    {
+        $this->booking->update([
+            'source' => 'counter',
+            'payment_option' => 'no_prepay',
+            'required_payment_amount' => 0,
+            'status' => 'completed',
+        ]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->patchJson("/api/admin/payments/{$this->payment->id}/status", [
+                'status' => 'paid',
+                'source' => 'admin',
+                'reason' => 'Đối soát khoản thu sau khi khách đã chơi.',
+                'gateway_txn_id' => 'POSTPLAY-ADMIN-PAY-01',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'paid');
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $this->booking->id,
+            'status' => 'completed',
+        ]);
+    }
+
     public function test_admin_cannot_mark_payment_refunded_directly(): void
     {
         $this->actingAs($this->finance, 'sanctum')
