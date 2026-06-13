@@ -104,6 +104,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         // Partner Contracts
         Route::post('/contracts/{id}/send-email', [AdminPartnerContractController::class, 'sendEmail']);
         Route::post('/contracts/{id}/approve-signature', [AdminPartnerContractController::class, 'approveSignature']);
+        Route::post('/contracts/{id}/terminate', [AdminPartnerContractController::class, 'terminate']);
+        Route::post('/contracts/{id}/approve-termination', [AdminPartnerContractController::class, 'approveTermination']);
 
         Route::get('/banners', [AdminBannerController::class, 'index']);
         Route::post('/banners', [AdminBannerController::class, 'store']);
@@ -191,6 +193,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/partner-application', [OwnerPartnerApplicationController::class, 'myApplication']);
         Route::post('/partner-applications/new-cluster', [OwnerPartnerApplicationController::class, 'storeNewCluster']);
         Route::post('/contracts/{id}/sign', [OwnerPartnerContractController::class, 'sign']);
+        Route::post('/contracts/{id}/request-termination', [OwnerPartnerContractController::class, 'requestTermination']);
 
         // Venue Clusters & Venue Courts
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);

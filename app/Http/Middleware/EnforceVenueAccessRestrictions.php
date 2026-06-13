@@ -22,9 +22,13 @@ class EnforceVenueAccessRestrictions
 
         if ($clusterId) {
             $cluster = DB::table('venue_clusters')->where('id', $clusterId)->first();
-            if ($cluster && $cluster->status === 'locked') {
+            if ($cluster && in_array($cluster->status, ['locked', 'pending_contract'], true)) {
+                $message = $cluster->status === 'locked' 
+                    ? 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.' 
+                    : 'Cụm sân đang chờ hoàn tất ký kết hợp đồng đối tác.';
+                
                 throw ValidationException::withMessages([
-                    'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
+                    'venue_cluster_id' => $message,
                 ]);
             }
         }

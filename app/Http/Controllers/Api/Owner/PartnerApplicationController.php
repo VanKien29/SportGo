@@ -12,6 +12,7 @@ class PartnerApplicationController extends Controller
     {
         $applications = PartnerApplication::with([
             'contracts.template',
+            'contracts.terminations',
             'courts',
             'terminationRequests',
             'liquidations'
@@ -32,6 +33,7 @@ class PartnerApplicationController extends Controller
             'bankAccounts',
             'documents',
             'contracts.template',
+            'contracts.terminations',
             'courts',
             'terminationRequests',
             'liquidations'

@@ -51,14 +51,25 @@
               <a v-if="contract.generated_file_path" :href="getFileUrl(contract.generated_file_path)" target="_blank" class="btn ghost">
                 <AppIcon name="eye" size="16" /> Xem Hợp đồng
               </a>
-              <button 
-                v-if="contract.status === 'waiting_signature'" 
-                class="btn primary" 
-                @click="signContract(contract.id)"
-                :disabled="signing"
-              >
-                <AppIcon name="edit2" size="16" /> {{ signing ? 'Đang xử lý...' : 'Ký Hợp đồng' }}
-              </button>
+                <button 
+                  v-if="contract.status === 'pending_owner_signature'" 
+                  class="btn primary" 
+                  @click="signContract(contract.id)"
+                  :disabled="signing"
+                >
+                  <AppIcon name="edit2" size="16" /> {{ signing ? 'Đang xử lý...' : 'Ký Hợp đồng' }}
+                </button>
+                <button 
+                  v-if="contract.status === 'signed_active' && !hasPendingTermination(contract)" 
+                  class="btn danger" 
+                  @click="requestTermination(contract.id)"
+                  :disabled="terminating"
+                >
+                  <AppIcon name="xCircle" size="16" /> {{ terminating ? 'Đang gửi...' : 'Yêu cầu thanh lý' }}
+                </button>
+                <span v-if="hasPendingTermination(contract)" class="status-badge status-reviewing">
+                  Đang chờ duyệt thanh lý
+                </span>
             </div>
           </div>
         </div>
@@ -130,7 +141,7 @@ export default {
       loading: true,
       error: '',
       signing: false,
-      signing: false
+      terminating: false
     };
   },
   mounted() {
@@ -167,6 +178,31 @@ export default {
         this.signing = false;
       }
     },
+      async requestTermination(contractId) {
+        const reason = prompt('Vui lòng nhập lý do yêu cầu thanh lý hợp đồng:');
+        if (!reason) return;
+
+        const type = confirm('Đây là thỏa thuận chấm dứt từ cả hai bên? (Chọn OK nếu đã thỏa thuận, chọn Cancel nếu đơn phương chấm dứt)') ? 'mutual' : 'unilateral_by_owner';
+
+        this.terminating = true;
+        try {
+          await api(`/api/owner/contracts/${contractId}/request-termination`, {
+            method: 'POST',
+            body: JSON.stringify({ reason, type }),
+            headers: { 'Content-Type': 'application/json' }
+          });
+          alert('Đã gửi yêu cầu thanh lý thành công! Vui lòng chờ phản hồi từ SportGo.');
+          this.fetchApplications();
+        } catch (err) {
+          alert(err.message || 'Có lỗi xảy ra khi gửi yêu cầu thanh lý.');
+        } finally {
+          this.terminating = false;
+        }
+      },
+      hasPendingTermination(contract) {
+        if (!contract.terminations) return false;
+        return contract.terminations.some(t => t.status === 'submitted');
+      },
     getFileUrl(path) {
       if (!path) return '#';
       if (path.startsWith('http')) return path;
@@ -183,13 +219,13 @@ export default {
       return map[status] || status;
     },
     contractStatusLabel(status) {
-      const map = {
-        draft: 'Nháp',
-        waiting_signature: 'Chờ ký',
-        signed: 'Đã ký',
-        completed: 'Hoàn tất',
-        terminated: 'Đã thanh lý',
-      };
+        const map = {
+          generated: 'Nháp',
+          pending_owner_signature: 'Chờ đối tác ký',
+          pending_sportgo_signature: 'Chờ SportGo ký',
+          signed_active: 'Đang hiệu lực',
+          terminated: 'Đã thanh lý',
+        };
       return map[status] || status;
     },
     documentTypeLabel(type) {

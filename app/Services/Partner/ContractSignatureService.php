@@ -89,28 +89,25 @@ class ContractSignatureService
                 'actor_id' => $admin->id,
             ]);
 
-            // Assign role
-            $user = User::find($contract->application->user_id);
+            // Activate VenueCluster
+            if ($contract->venue_cluster_id) {
+                DB::table('venue_clusters')
+                    ->where('id', $contract->venue_cluster_id)
+                    ->update(['status' => 'active']);
+            }
+
+            // Gửi email thông báo
+            $user = null;
+            if ($contract->application) {
+                $user = User::find($contract->application->user_id);
+            }
+            
             if ($user) {
                 try {
                     \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\PartnerRoleGrantedMail($user->full_name));
                 } catch (\Exception $e) {
                     // Log or ignore email error
                 }
-            }
-
-            $owner = clone $contract->application->user;
-            // Assuming we use custom DB table for roles:
-            $roleId = \Illuminate\Support\Facades\DB::table('roles')->where('name', 'venue_owner')->value('id');
-            if ($roleId) {
-                \Illuminate\Support\Facades\DB::table('user_roles')->insertOrIgnore([
-                    'user_id' => $owner->id,
-                    'role_id' => $roleId,
-                    'scope_type' => 'system',
-                    'scope_id' => '00000000-0000-0000-0000-000000000000',
-                    'granted_by' => $admin->id,
-                    'created_at' => now(),
-                ]);
             }
         });
     }

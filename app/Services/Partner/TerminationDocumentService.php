@@ -13,16 +13,22 @@ class TerminationDocumentService
 {
     public function generateDocument(PartnerTerminationRequest $request, PartnerContract $contract, string $adminId): ?PartnerTerminationDocument
     {
-        $isMutual = in_array($request->termination_type, ['mutual_agreement', TerminationType::MUTUAL->value], true);
+        $isMutual = in_array($request->type, ['mutual_agreement', TerminationType::MUTUAL->value], true);
         $documentType = $isMutual ? 'mutual_liquidation_minutes' : 'unilateral_notice';
         $prefix = $isMutual ? 'LIQ-' : 'UNI-';
         $contractCode = $contract->contract_code ?: $contract->contract_number ?: $contract->id;
-        $fileName = $prefix . $contractCode . '-' . time() . '.docx';
+        $fileName = $prefix . $contractCode . '-' . time() . '.pdf';
         $filePath = 'liquidations/' . $fileName;
 
-        // In a real application, we would use PHPWord or similar to generate a dynamic document.
-        // Here we simulate the generation process by copying a template or creating a placeholder file.
-        $templatePath = base_path('database/seeders/templates/partner-documents/Mau_02_Hop_dong_hop_tac_doi_tac_SportGo.docx');
+        // Choose the correct template based on termination type
+        $templateFile = 'Mau_04_Bien_ban_thanh_ly_hop_dong_hai_ben_SportGo.pdf';
+        if ($request->type === 'unilateral_by_owner') {
+            $templateFile = 'Mau_03_Don_yeu_cau_cham_dut_hop_tac_SportGo.pdf';
+        } elseif ($request->type === 'unilateral_by_admin') {
+            $templateFile = 'Mau_05_Cong_van_cham_dut_hop_dong_don_phuong_SportGo.pdf';
+        }
+
+        $templatePath = base_path('database/seeders/templates/partner-documents/' . $templateFile);
         
         if (file_exists($templatePath)) {
             Storage::disk('public')->put($filePath, file_get_contents($templatePath));

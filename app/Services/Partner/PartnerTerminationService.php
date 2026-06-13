@@ -28,14 +28,9 @@ class PartnerTerminationService
                 ->firstOrFail();
 
             $request = PartnerTerminationRequest::create([
-                'termination_code' => 'TERM-' . strtoupper(Str::random(10)),
-                'partner_contract_id' => $contract->id,
                 'partner_application_id' => $profileId,
-                'owner_id' => $contract->owner_id,
-                'venue_cluster_id' => $contract->venue_cluster_id,
-                'termination_type' => $type === TerminationType::MUTUAL->value ? 'mutual_agreement' : 'unilateral_by_owner',
                 'requested_by' => $requester->id,
-                'requested_at' => now(),
+                'type' => $type === TerminationType::MUTUAL->value ? 'mutual_agreement' : ($type === 'unilateral_by_admin' ? 'unilateral_by_admin' : 'unilateral_by_owner'),
                 'reason' => $reason,
                 'status' => 'submitted',
             ]);
@@ -74,7 +69,7 @@ class PartnerTerminationService
                 'partner_application_id' => $contract->partner_application_id,
                 'action' => 'termination_processed',
                 'actor_id' => $admin->id,
-                'new_values' => ['termination_type' => $request->termination_type],
+                'new_values' => ['type' => $request->type],
             ]);
 
             // Call Wallet Refund Service
