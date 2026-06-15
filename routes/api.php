@@ -31,8 +31,11 @@ use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Public\LocationController;
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
+Route::get('/locations/provinces', [LocationController::class, 'provinces']);
+Route::get('/locations/wards', [LocationController::class, 'wards']);
 
 Route::prefix('auth')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register']);

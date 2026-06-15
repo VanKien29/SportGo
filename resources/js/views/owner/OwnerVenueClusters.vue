@@ -174,13 +174,6 @@
                                         selectedCluster.address || "—"
                                     }}</span>
                                 </div>
-                                <div class="location-info-row">
-                                    <span class="location-label">Tọa độ:</span>
-                                    <span class="location-value location-coord"
-                                        >{{ selectedCluster.latitude }},
-                                        {{ selectedCluster.longitude }}</span
-                                    >
-                                </div>
                             </div>
                             <!-- Bản đồ chỉ xem -->
                             <div
@@ -1433,13 +1426,6 @@
                                     selectedCluster.address || "—"
                                 }}</span>
                             </div>
-                            <div class="location-info-row">
-                                <span class="location-label">Tọa độ:</span
-                                ><span class="location-value location-coord"
-                                    >{{ selectedCluster.latitude }},
-                                    {{ selectedCluster.longitude }}</span
-                                >
-                            </div>
                         </div>
                         <div class="location-actions">
                             <button
@@ -1709,26 +1695,65 @@
                                     >Tỉnh/Thành phố mới
                                     <span class="required">*</span></label
                                 >
-                                <input
-                                    v-model="locationForm.new_province"
-                                    type="text"
-                                    class="form-control"
-                                    placeholder="Ví dụ: Hà Nội"
-                                    required
-                                />
+                                <div class="searchable-select-container">
+                                    <input
+                                        type="text"
+                                        v-model="provinceSearch"
+                                        class="form-control searchable-select-input"
+                                        placeholder="Gõ để tìm Tỉnh/Thành..."
+                                        required
+                                        @focus="showProvinceDropdown = true"
+                                        @blur="closeProvinceDropdown"
+                                    />
+                                    <span class="searchable-select-arrow" :class="{ open: showProvinceDropdown }">▼</span>
+                                    <div v-if="showProvinceDropdown" class="searchable-select-dropdown">
+                                        <div
+                                            v-for="p in filteredProvinces"
+                                            :key="p.code"
+                                            class="searchable-select-option"
+                                            :class="{ selected: p.name === locationForm.new_province }"
+                                            @mousedown="selectProvince(p)"
+                                        >
+                                            {{ p.name }}
+                                        </div>
+                                        <div v-if="filteredProvinces.length === 0" class="searchable-select-option empty">
+                                            Không tìm thấy kết quả
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label
                                     >Phường/Xã mới
                                     <span class="required">*</span></label
                                 >
-                                <input
-                                    v-model="locationForm.new_ward"
-                                    type="text"
-                                    class="form-control"
-                                    placeholder="Ví dụ: Phường Bến Nghé"
-                                    required
-                                />
+                                <div class="searchable-select-container">
+                                    <input
+                                        type="text"
+                                        v-model="wardSearch"
+                                        class="form-control searchable-select-input"
+                                        placeholder="Gõ để tìm Phường/Xã..."
+                                        required
+                                        :disabled="!locationForm.new_province"
+                                        @focus="showWardDropdown = true"
+                                        @blur="closeWardDropdown"
+                                    />
+                                    <span class="searchable-select-arrow" :class="{ open: showWardDropdown }">▼</span>
+                                    <div v-if="showWardDropdown" class="searchable-select-dropdown">
+                                        <div
+                                            v-for="w in filteredWards"
+                                            :key="w.code"
+                                            class="searchable-select-option"
+                                            :class="{ selected: w.name === locationForm.new_ward }"
+                                            @mousedown="selectWard(w)"
+                                        >
+                                            {{ w.name }}
+                                        </div>
+                                        <div v-if="filteredWards.length === 0" class="searchable-select-option empty">
+                                            Không tìm thấy kết quả
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="form-group">
@@ -1985,6 +2010,12 @@ export default {
             },
             locationMap: null,
             locationMarker: null,
+            provincesList: [],
+            wardsList: [],
+            provinceSearch: "",
+            wardSearch: "",
+            showProvinceDropdown: false,
+            showWardDropdown: false,
         };
     },
 
@@ -2063,6 +2094,20 @@ export default {
             return this.locationRequests.filter((r) => r.status === "pending")
                 .length;
         },
+        filteredProvinces() {
+            const query = (this.provinceSearch || "").toLowerCase().trim();
+            if (!query) return this.provincesList;
+            return this.provincesList.filter(p => 
+                p.name.toLowerCase().includes(query)
+            );
+        },
+        filteredWards() {
+            const query = (this.wardSearch || "").toLowerCase().trim();
+            if (!query) return this.wardsList;
+            return this.wardsList.filter(w => 
+                w.name.toLowerCase().includes(query)
+            );
+        },
     },
 
     watch: {
@@ -2097,6 +2142,7 @@ export default {
     created() {
         this.fetchClusters();
         this.fetchAvailableAmenities();
+        this.fetchProvinces();
     },
 
     mounted() {
@@ -2296,6 +2342,70 @@ export default {
             }
         },
 
+        async fetchProvinces() {
+            try {
+                const res = await fetch("/api/locations/provinces").then((r) => r.json());
+                this.provincesList = res.data || [];
+            } catch (err) {
+                console.error("Lỗi khi tải danh mục tỉnh thành:", err);
+            }
+        },
+
+        async fetchWards(provinceCode) {
+            if (!provinceCode) {
+                this.wardsList = [];
+                return;
+            }
+            try {
+                const res = await fetch(`/api/locations/wards?province_code=${provinceCode}`).then((r) => r.json());
+                this.wardsList = res.data || [];
+            } catch (err) {
+                console.error("Lỗi khi tải danh mục xã phường:", err);
+                this.wardsList = [];
+            }
+        },
+
+        async onProvinceChange() {
+            const selectedProvinceName = this.locationForm.new_province;
+            const province = this.provincesList.find(
+                (p) => p.name === selectedProvinceName,
+            );
+            this.locationForm.new_ward = "";
+            this.wardSearch = "";
+            if (province) {
+                await this.fetchWards(province.code);
+            } else {
+                this.wardsList = [];
+            }
+        },
+
+        closeProvinceDropdown() {
+            setTimeout(() => {
+                this.showProvinceDropdown = false;
+                this.provinceSearch = this.locationForm.new_province;
+            }, 200);
+        },
+
+        closeWardDropdown() {
+            setTimeout(() => {
+                this.showWardDropdown = false;
+                this.wardSearch = this.locationForm.new_ward;
+            }, 200);
+        },
+
+        selectProvince(province) {
+            this.locationForm.new_province = province.name;
+            this.provinceSearch = province.name;
+            this.showProvinceDropdown = false;
+            this.onProvinceChange();
+        },
+
+        selectWard(ward) {
+            this.locationForm.new_ward = ward.name;
+            this.wardSearch = ward.name;
+            this.showWardDropdown = false;
+        },
+
         openRequestModal() {
             this.showRequestModal = true;
             this.requestError = null;
@@ -2416,7 +2526,7 @@ export default {
             });
             window.L.Marker.prototype.options.icon = DefaultIcon;
             if (!this.map) {
-                this.map = window.L.map("cluster-map").setView([lat, lng], 15);
+                this.map = window.L.map("cluster-map", { scrollWheelZoom: false }).setView([lat, lng], 15);
                 window.L.tileLayer(
                     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                     { attribution: "&copy; OpenStreetMap contributors" },
@@ -2799,6 +2909,32 @@ export default {
                 const decor = this.selectedDecoration;
                 if (decor) this.deleteDecoration(decor);
                 return;
+            }
+
+            // Phím mũi tên (Nudging) kiểu Figma
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                const amount = e.shiftKey ? 10 : 1;
+                let dx = 0;
+                let dy = 0;
+                if (e.key === 'ArrowLeft') dx = -amount;
+                if (e.key === 'ArrowRight') dx = amount;
+                if (e.key === 'ArrowUp') dy = -amount;
+                if (e.key === 'ArrowDown') dy = amount;
+
+                if (this.selectedCourtId) {
+                    const court = this.courts.find(c => c.id === this.selectedCourtId);
+                    if (court) {
+                        court.layout_x = (court.layout_x || 0) + dx;
+                        court.layout_y = (court.layout_y || 0) + dy;
+                    }
+                } else if (this.selectedDecorationId) {
+                    const decor = this.decorations.find(d => d.id === this.selectedDecorationId);
+                    if (decor) {
+                        decor.layout_x = (decor.layout_x || 0) + dx;
+                        decor.layout_y = (decor.layout_y || 0) + dy;
+                    }
+                }
             }
         },
 
@@ -3319,7 +3455,7 @@ export default {
             this.locationFilter = filter;
         },
 
-        openLocationChangeModal() {
+        async openLocationChangeModal() {
             this.locationModalError = null;
             this.locationMapMsg = null;
             this.locationForm = {
@@ -3334,6 +3470,20 @@ export default {
                 note: "",
             };
             this.showLocationModal = true;
+
+            this.provinceSearch = this.locationForm.new_province;
+            this.wardSearch = this.locationForm.new_ward;
+
+            this.wardsList = [];
+            if (this.locationForm.new_province) {
+                const province = this.provincesList.find(
+                    (p) => p.name === this.locationForm.new_province,
+                );
+                if (province) {
+                    await this.fetchWards(province.code);
+                }
+            }
+
             this.$nextTick(() => {
                 this.initLocationModalMap();
             });
@@ -4768,7 +4918,6 @@ export default {
     overflow: hidden;
 }
 .map-readonly {
-    pointer-events: none;
     opacity: 0.9;
 }
 
@@ -4870,5 +5019,62 @@ export default {
     background: #f1f5f9;
     border-color: #cbd5e1;
     color: #1e293b;
+}
+
+/* ─── Searchable Select Custom styles ─── */
+.searchable-select-container {
+    position: relative;
+    width: 100%;
+}
+.searchable-select-input {
+    width: 100%;
+    padding-right: 32px !important;
+}
+.searchable-select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    pointer-events: none;
+    transition: transform 0.2s;
+    font-size: 10px;
+}
+.searchable-select-arrow.open {
+    transform: translateY(-50%) rotate(180deg);
+}
+.searchable-select-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 999;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.searchable-select-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #1e293b;
+    transition: background-color 0.15s, color 0.15s;
+    text-align: left;
+}
+.searchable-select-option:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+.searchable-select-option.selected {
+    background-color: #e2e8f0;
+    font-weight: 600;
+}
+.searchable-select-option.empty {
+    color: #64748b;
+    text-align: center;
+    cursor: default;
 }
 </style>
