@@ -13,7 +13,6 @@ use App\Models\SlotLock;
 use App\Models\User;
 use App\Models\VenueCourt;
 use App\Models\VenueCluster;
-use App\Models\VenueCourt;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Collection;
