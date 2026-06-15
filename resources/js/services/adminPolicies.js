@@ -53,6 +53,13 @@ export const adminPolicyService = {
     });
   },
 
+  updatePolicyConfiguration(id, payload) {
+    return api(`/api/admin/policies/${id}/configuration`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
   saveCancelRefundTiers(id, payload) {
     return api(`/api/admin/policies/${id}/cancel-refund-tiers`, {
       method: 'PUT',

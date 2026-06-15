@@ -51,9 +51,9 @@ class PolicyUiText
             self::action('booking', 'Hủy booking', 'booking.cancel_by_customer', 'Khách hủy booking', 'Áp dụng khi khách yêu cầu hủy booking.', ['booking_cancellation']),
             self::action('booking', 'Hủy booking', 'booking.cancel_by_owner', 'Chủ sân hủy booking', 'Áp dụng khi chủ sân hoặc nhân viên sân hủy booking.', ['booking_cancellation']),
             self::action('booking', 'Hủy booking', 'booking.expire_unpaid', 'Hệ thống hủy booking do quá hạn thanh toán', 'Áp dụng khi booking hết thời gian giữ chỗ nhưng chưa thanh toán.', ['booking_cancellation']),
-            self::action('refund', 'Hoàn tiền', 'refund.request', 'Khách gửi yêu cầu hoàn tiền', 'Áp dụng khi khách gửi yêu cầu hoàn tiền.', ['booking_cancellation']),
-            self::action('refund', 'Hoàn tiền', 'refund.owner_confirm', 'Chủ sân xác nhận yêu cầu hoàn tiền', 'Áp dụng khi chủ sân đồng ý hoặc từ chối yêu cầu hoàn.', ['booking_cancellation']),
-            self::action('refund', 'Hoàn tiền', 'refund.admin_complete', 'Admin xác nhận hoàn tất hoàn tiền', 'Áp dụng khi admin xác nhận giao dịch hoàn tiền đã hoàn tất.', ['booking_cancellation']),
+            self::action('refund', 'Hoàn tiền', 'refund.request', 'Khách gửi yêu cầu hoàn tiền', 'Áp dụng khi khách gửi yêu cầu hoàn tiền.', ['booking_cancellation', 'refund']),
+            self::action('refund', 'Hoàn tiền', 'refund.owner_confirm', 'Chủ sân xác nhận yêu cầu hoàn tiền', 'Áp dụng khi chủ sân đồng ý hoặc từ chối yêu cầu hoàn.', ['booking_cancellation', 'refund']),
+            self::action('refund', 'Hoàn tiền', 'refund.admin_complete', 'Admin xác nhận hoàn tất hoàn tiền', 'Áp dụng khi admin xác nhận giao dịch hoàn tiền đã hoàn tất.', ['booking_cancellation', 'refund']),
             self::action('venue', 'Phí nền tảng', 'venue.platform_fee_due', 'Sắp đến hạn hoặc quá hạn phí nền tảng', 'Áp dụng khi hệ thống kiểm tra kỳ phí nền tảng của cụm sân.', ['platform_fee']),
             self::action('venue', 'Phí nền tảng', 'venue.lock_due_fee', 'Khóa/giới hạn cụm sân do quá hạn phí nền tảng', 'Áp dụng khi cụm sân quá hạn phí duy trì.', ['platform_fee']),
             self::action('owner', 'Phí nền tảng', 'owner.access_limited_due_fee', 'Giới hạn quyền chủ sân do quá hạn phí', 'Áp dụng khi owner chỉ được thao tác trong phạm vi cho phép.', ['platform_fee']),
@@ -99,7 +99,7 @@ class PolicyUiText
                 ['booking.cancel_by_customer', 'booking.cancel_by_owner', 'booking.expire_unpaid']
             ),
             'refund_percent_by_cancel_time' => self::template(
-                'booking_cancellation',
+                'refund',
                 'refund_percent_by_cancel_time',
                 'Tính phần trăm hoàn tiền theo thời gian hủy',
                 'Tính mức hoàn tiền theo số giờ khách hủy trước giờ chơi.',
@@ -112,7 +112,7 @@ class PolicyUiText
                 'high'
             ),
             'owner_confirm_required_before_admin_transfer' => self::template(
-                'booking_cancellation',
+                'refund',
                 'owner_confirm_required_before_admin_transfer',
                 'Bắt buộc chủ sân xác nhận trước khi admin hoàn tiền',
                 'Admin không được hoàn tất yêu cầu hoàn tiền nếu chủ sân chưa xác nhận.',
@@ -457,6 +457,11 @@ class PolicyUiText
         string $riskLevel,
         ?array $actionCodes = null
     ): array {
+        $policyTypes = [$policyType];
+        if (in_array($ruleType, ['refund_percent_by_cancel_time', 'owner_confirm_required_before_admin_transfer'], true)) {
+            $policyTypes = array_values(array_unique([...$policyTypes, 'booking_cancellation', 'refund']));
+        }
+
         return [
             'policy_type' => $policyType,
             'rule_type' => $ruleType,
@@ -474,7 +479,7 @@ class PolicyUiText
             'condition_summary_vi' => self::conditionSummary($ruleType, $condition),
             'result_summary_vi' => self::resultSummary($ruleType, $result),
             'business_summary_vi' => self::ruleSummary($ruleType, $condition, $result),
-            'policy_types' => [$policyType],
+            'policy_types' => $policyTypes,
             'action_codes' => $actionCodes ?: [$actionCode],
             'is_venue_overridable' => $venueOverridable,
             'risk_level' => $riskLevel,

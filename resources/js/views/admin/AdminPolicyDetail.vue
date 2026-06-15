@@ -129,6 +129,116 @@
         ></textarea>
       </div>
 
+      <!-- ─── TAB: Cấu hình xử lý ─── -->
+      <div v-if="activeTab === 'config'" class="tab-body">
+        <div class="section-row">
+          <div>
+            <strong>Cấu hình xử lý theo nghiệp vụ</strong>
+            <p>{{ configurationSummary }}</p>
+          </div>
+        </div>
+
+        <div v-if="policy.status === 'active'" class="info-notice warning">
+          <AppIcon name="lock" size="15" />
+          Chính sách đang áp dụng. Tạo phiên bản mới để chỉnh sửa cấu hình.
+        </div>
+
+        <div v-if="configurationType === 'text_only'" class="info-notice">
+          <AppIcon name="fileText" size="15" />
+          Chính sách này chỉ là nội dung hiển thị, không có xử lý tự động.
+        </div>
+
+        <article v-else-if="configurationType === 'cancel_refund_tiers'" class="config-card">
+          <div class="config-head">
+            <div>
+              <span class="config-kicker">Hủy & hoàn booking</span>
+              <h3>Bảng mốc thời gian hủy và hoàn</h3>
+              <p>{{ cancelRefundConfiguration?.summary || 'Chưa cấu hình bảng mốc hủy và hoàn.' }}</p>
+            </div>
+            <button class="btn primary" type="button" :disabled="!canEditConfig" @click="openCancelRefundModal">
+              <AppIcon name="pencil" size="15" />
+              Sửa bảng mốc
+            </button>
+          </div>
+          <div class="config-table-wrap">
+            <table class="config-table">
+              <thead>
+                <tr>
+                  <th>Mốc thời gian</th>
+                  <th>Điều kiện</th>
+                  <th>Kết quả</th>
+                  <th>Xác nhận</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="tier in cancelRefundRows" :key="tier.key">
+                  <td><strong>{{ tier.label }}</strong></td>
+                  <td>{{ tier.condition }}</td>
+                  <td><span class="badge" :class="tier.allow_cancel ? 'status-active' : 'status-rejected'">{{ tier.result }}</span></td>
+                  <td>{{ tier.confirmation }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article v-else-if="configurationType === 'moderation_thresholds'" class="config-card">
+          <div class="config-head">
+            <div>
+              <span class="config-kicker">Kiểm duyệt</span>
+              <h3>Ngưỡng báo cáo cần xử lý</h3>
+              <p>{{ moderationConfiguration?.summary || 'Chưa cấu hình ngưỡng báo cáo.' }}</p>
+            </div>
+            <button class="btn primary" type="button" :disabled="!canEditConfig" @click="openReportModal">
+              <AppIcon name="pencil" size="15" />
+              Sửa ngưỡng
+            </button>
+          </div>
+          <div class="config-table-wrap">
+            <table class="config-table">
+              <thead>
+                <tr>
+                  <th>Đối tượng</th>
+                  <th>Ngưỡng</th>
+                  <th>Thời gian xét</th>
+                  <th>Hành động</th>
+                  <th>Thông báo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="threshold in reportThresholdRows" :key="threshold.key">
+                  <td><strong>{{ threshold.object_type_label }}</strong></td>
+                  <td>{{ threshold.min_reports }} báo cáo / {{ threshold.min_distinct_reporters }} người</td>
+                  <td>{{ threshold.within_days }} ngày</td>
+                  <td>{{ threshold.action_label }}</td>
+                  <td>{{ threshold.notify_admin ? 'Có' : 'Không' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article v-else class="config-card">
+          <div class="config-head">
+            <div>
+              <span class="config-kicker">{{ genericConfigTitle }}</span>
+              <h3>{{ genericConfigHeading }}</h3>
+              <p>{{ genericConfigSummary }}</p>
+            </div>
+            <button class="btn primary" type="button" :disabled="!canEditConfig || !genericConfigFields.length" @click="openGenericConfigModal">
+              <AppIcon name="pencil" size="15" />
+              Sửa cấu hình
+            </button>
+          </div>
+          <div class="meta-grid">
+            <div v-for="entry in genericConfigEntries" :key="entry.key" class="meta-item">
+              <span class="meta-label">{{ entry.label }}</span>
+              <span class="meta-value">{{ entry.value }}</span>
+            </div>
+          </div>
+        </article>
+      </div>
+
       <!-- ─── TAB: Quy tắc ─── -->
       <div v-if="activeTab === 'rules'" class="tab-body">
         <div class="section-row">
@@ -429,6 +539,188 @@
     </div>
 
     <!-- ═══════════════════════════════
+         CONFIG MODALS
+    ════════════════════════════════════ -->
+    <div v-if="cancelRefundModal" class="modal-bg" @click.self="closeConfigModals">
+      <form class="modal-box wide" @submit.prevent="saveCancelRefundConfig">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">Hủy & hoàn booking</p>
+            <h3>Sửa bảng mốc hủy và hoàn</h3>
+          </div>
+          <button class="icon-btn" type="button" @click="closeConfigModals"><AppIcon name="x" size="18" /></button>
+        </div>
+        <div class="modal-body">
+          <div class="edit-toolbar">
+            <button class="btn secondary" type="button" @click="addCancelRefundTier">
+              <AppIcon name="plus" size="15" />
+              Thêm mốc
+            </button>
+          </div>
+          <article v-for="tier in cancelRefundDraft" :key="tier.key" class="config-edit-row">
+            <div class="config-edit-grid cancel-grid">
+              <label>
+                Từ giờ
+                <input v-model.number="tier.from_hours" type="number" min="0" step="0.5" />
+              </label>
+              <label>
+                Đến dưới giờ
+                <input v-model="tier.to_hours" type="number" min="0" step="0.5" placeholder="Không giới hạn" />
+              </label>
+              <label>
+                Cho hủy
+                <select v-model="tier.allow_cancel">
+                  <option :value="true">Có</option>
+                  <option :value="false">Không</option>
+                </select>
+              </label>
+              <label>
+                Hoàn %
+                <input v-model.number="tier.refund_percent" type="number" min="0" max="100" />
+              </label>
+              <label class="check-row">
+                <input v-model="tier.require_owner_confirm" type="checkbox" />
+                Chủ sân xác nhận
+              </label>
+              <label class="check-row">
+                <input v-model="tier.require_admin_confirm" type="checkbox" />
+                Admin hoàn tất
+              </label>
+              <label class="wide-field">
+                Nội dung cho khách
+                <input v-model.trim="tier.customer_message" maxlength="500" placeholder="Ví dụ: Yêu cầu hủy nằm ngoài khung được hoàn tiền." />
+              </label>
+              <button class="icon-btn danger" type="button" title="Xóa mốc" :disabled="cancelRefundDraft.length <= 2" @click="removeCancelRefundTier(tier.key)">
+                <AppIcon name="trash" size="15" />
+              </button>
+            </div>
+          </article>
+          <div class="preview-banner" :class="{ invalid: cancelRefundValidation }">
+            <p class="preview-label">{{ cancelRefundValidation ? 'Cần kiểm tra lại' : 'Bản xem trước' }}</p>
+            <p>{{ cancelRefundValidation || cancelRefundPreview }}</p>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn secondary" type="button" @click="closeConfigModals">Hủy</button>
+          <button class="btn primary" type="submit" :disabled="savingRule || !!cancelRefundValidation">
+            {{ savingRule ? 'Đang lưu...' : 'Lưu bảng mốc' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div v-if="reportModal" class="modal-bg" @click.self="closeConfigModals">
+      <form class="modal-box wide" @submit.prevent="saveReportConfig">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">Kiểm duyệt</p>
+            <h3>Sửa ngưỡng báo cáo</h3>
+          </div>
+          <button class="icon-btn" type="button" @click="closeConfigModals"><AppIcon name="x" size="18" /></button>
+        </div>
+        <div class="modal-body">
+          <div class="edit-toolbar">
+            <button class="btn secondary" type="button" @click="addReportThreshold">
+              <AppIcon name="plus" size="15" />
+              Thêm ngưỡng
+            </button>
+          </div>
+          <article v-for="threshold in reportThresholdDraft" :key="threshold.key" class="config-edit-row">
+            <div class="config-edit-grid report-grid">
+              <label>
+                Đối tượng
+                <select v-model="threshold.object_type" @change="normalizeThresholdAction(threshold)">
+                  <option v-for="option in reportTargetOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                </select>
+              </label>
+              <label>
+                Số báo cáo
+                <input v-model.number="threshold.min_reports" type="number" min="1" />
+              </label>
+              <label>
+                Số người
+                <input v-model.number="threshold.min_distinct_reporters" type="number" min="1" />
+              </label>
+              <label>
+                Trong ngày
+                <input v-model.number="threshold.within_days" type="number" min="1" />
+              </label>
+              <label>
+                Hành động
+                <select v-model="threshold.action">
+                  <option v-for="option in reportActionOptionsFor(threshold.object_type)" :key="option.value" :value="option.value">{{ option.label }}</option>
+                </select>
+              </label>
+              <label class="check-row">
+                <input v-model="threshold.notify_admin" type="checkbox" />
+                Báo admin
+              </label>
+              <label class="check-row">
+                <input v-model="threshold.notify_reported_user" type="checkbox" />
+                Báo người bị xử lý
+              </label>
+              <label class="check-row">
+                <input v-model="threshold.is_active" type="checkbox" />
+                Đang áp dụng
+              </label>
+              <button class="icon-btn danger" type="button" title="Xóa ngưỡng" :disabled="reportThresholdDraft.length <= 1" @click="removeReportThreshold(threshold.key)">
+                <AppIcon name="trash" size="15" />
+              </button>
+            </div>
+          </article>
+          <div class="preview-banner" :class="{ invalid: reportValidation }">
+            <p class="preview-label">{{ reportValidation ? 'Cần kiểm tra lại' : 'Bản xem trước' }}</p>
+            <p>{{ reportValidation || reportPreview }}</p>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn secondary" type="button" @click="closeConfigModals">Hủy</button>
+          <button class="btn primary" type="submit" :disabled="savingRule || !!reportValidation">
+            {{ savingRule ? 'Đang lưu...' : 'Lưu ngưỡng' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div v-if="genericConfigModal" class="modal-bg" @click.self="closeConfigModals">
+      <form class="modal-box wide" @submit.prevent="saveGenericConfig">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">{{ genericConfigTitle }}</p>
+            <h3>{{ genericConfigHeading }}</h3>
+          </div>
+          <button class="icon-btn" type="button" @click="closeConfigModals"><AppIcon name="x" size="18" /></button>
+        </div>
+        <div class="modal-body">
+          <div class="config-edit-grid generic-grid">
+            <label v-for="field in genericConfigFields" :key="field.key" :class="{ 'wide-field': field.type === 'textarea' || field.type === 'array' }">
+              <span>{{ field.label }}</span>
+              <template v-if="field.type === 'boolean'">
+                <span class="switch-row">
+                  <input v-model="genericConfigDraft[field.key]" type="checkbox" />
+                  {{ genericConfigDraft[field.key] ? 'Có' : 'Không' }}
+                </span>
+              </template>
+              <textarea v-else-if="field.type === 'textarea'" v-model.trim="genericConfigDraft[field.key]" rows="3"></textarea>
+              <input v-else-if="field.type === 'number'" v-model.number="genericConfigDraft[field.key]" type="number" min="0" />
+              <input v-else v-model.trim="genericConfigDraft[field.key]" type="text" :placeholder="field.placeholder || ''" />
+            </label>
+          </div>
+          <div class="preview-banner" :class="{ invalid: genericConfigValidation }">
+            <p class="preview-label">{{ genericConfigValidation ? 'Cần kiểm tra lại' : 'Bản xem trước' }}</p>
+            <p>{{ genericConfigValidation || 'Cấu hình sẽ được lưu vào rule của chính sách hiện tại.' }}</p>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn secondary" type="button" @click="closeConfigModals">Hủy</button>
+          <button class="btn primary" type="submit" :disabled="savingRule || !!genericConfigValidation">
+            {{ savingRule ? 'Đang lưu...' : 'Lưu cấu hình' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ═══════════════════════════════
          CONFIRM DELETE MODAL
     ════════════════════════════════════ -->
     <div v-if="confirmDelete.show" class="modal-bg" @click.self="confirmDelete.show = false">
@@ -477,6 +769,7 @@ export default {
       wizardError: '',
       loadingOptions: false,
       activeTab: this.$route.query.tab || 'overview',
+      detail: null,
       policy: null,
       rules: [],
       venueRules: [],
@@ -501,6 +794,12 @@ export default {
         owner_confirm_required: true,
         admin_can_complete_without_owner: false,
       },
+      cancelRefundModal: false,
+      reportModal: false,
+      genericConfigModal: false,
+      cancelRefundDraft: [],
+      reportThresholdDraft: [],
+      genericConfigDraft: {},
       confirmDelete: { show: false },
       tabs: [],
     };
@@ -546,6 +845,219 @@ export default {
       };
       return m[t] || this.selectedTemplate?.business_summary_vi || 'Chọn loại quy tắc để xem mô tả nghiệp vụ.';
     },
+    canEditConfig() {
+      return this.policy?.status !== 'active';
+    },
+    configurationType() {
+      return this.detail?.configuration_type || this.policy?.configuration_type || 'text_only';
+    },
+    configurationSummary() {
+      return this.detail?.business_summary || this.policy?.business_summary_vi || this.policy?.business_summary || 'Cấu hình cách hệ thống tự xử lý chính sách.';
+    },
+    cancelRefundConfiguration() {
+      return this.detail?.cancel_refund_tiers || null;
+    },
+    moderationConfiguration() {
+      return this.detail?.moderation_thresholds || this.detail?.report_configuration || null;
+    },
+    genericConfiguration() {
+      const byType = {
+        platform_fee: this.policy?.configuration_data,
+        permission_revoke: this.policy?.configuration_data || this.detail?.permission_revoke_configuration?.config,
+        partner_contract: this.policy?.configuration_data || this.detail?.partner_contract_configuration?.config,
+        account_policy: this.policy?.configuration_data || this.detail?.account_policy_configuration?.config,
+      };
+      return byType[this.configurationType] || {};
+    },
+    configCount() {
+      if (this.configurationType === 'cancel_refund_tiers') return this.cancelRefundConfiguration?.tiers?.length || this.rules.length;
+      if (this.configurationType === 'moderation_thresholds') return this.reportThresholdRows.length || this.rules.length;
+      if (this.configurationType === 'text_only') return 0;
+      return Object.keys(this.genericConfiguration || {}).length;
+    },
+    cancelRefundRows() {
+      return (this.cancelRefundConfiguration?.tiers || []).map((tier, index) => ({
+        key: tier.key || `tier_${index}`,
+        label: tier.label || this.dynamicTierLabel(tier),
+        condition: tier.condition_label || this.dynamicTierCondition(tier),
+        result: this.cancelRefundResult(tier),
+        allow_cancel: !!tier.allow_cancel,
+        confirmation: this.confirmationLabel(tier),
+      }));
+    },
+    reportTargetOptions() {
+      return this.moderationConfiguration?.target_type_options || [
+        { value: 'post', label: 'Bài viết' },
+        { value: 'comment', label: 'Bình luận' },
+        { value: 'user', label: 'Tài khoản' },
+      ];
+    },
+    reportThresholdRows() {
+      if (this.moderationConfiguration?.thresholds?.length) {
+        return this.moderationConfiguration.thresholds.map((threshold, index) => this.normalizeThresholdShape(threshold, index));
+      }
+
+      const config = this.moderationConfiguration?.config;
+      if (!config) return [];
+
+      return [this.normalizeThresholdShape({
+        key: 'legacy',
+        object_type: this.moderationConfiguration?.target_type || 'post',
+        object_type_label: this.moderationConfiguration?.target_type_label || 'Nội dung',
+        min_reports: config.minimum_reports,
+        min_distinct_reporters: config.minimum_unique_reporters,
+        within_days: config.window_days,
+        action: (config.actions || [])[0] || 'notify_admin',
+        action_label: (this.moderationConfiguration?.action_labels || []).join(', ') || 'Thông báo admin',
+        notify_admin: (config.actions || []).includes('notify_admin'),
+        notify_reported_user: false,
+        is_active: true,
+      }, 0)];
+    },
+    genericConfigTitle() {
+      const labels = {
+        platform_fee: 'Phí nền tảng',
+        permission_revoke: 'Thu hồi quyền',
+        partner_contract: 'Hợp đồng đối tác',
+        account_policy: 'Tài khoản',
+      };
+      return labels[this.configurationType] || 'Cấu hình';
+    },
+    genericConfigHeading() {
+      const labels = {
+        platform_fee: 'Quy trình nhắc nhở và xử lý nợ phí',
+        permission_revoke: 'Quy định thu hồi quyền sử dụng',
+        partner_contract: 'Quy định xử lý hợp đồng đối tác',
+        account_policy: 'Quy định xử lý vi phạm tài khoản',
+      };
+      return labels[this.configurationType] || 'Cấu hình xử lý';
+    },
+    genericConfigSummary() {
+      const config = this.genericConfiguration || {};
+      return config.summary_vi || config.message_template || this.detail?.permission_revoke_configuration?.summary || this.detail?.partner_contract_configuration?.summary || this.detail?.account_policy_configuration?.summary || 'Cấu hình này được lưu dưới dạng rule của chính sách.';
+    },
+    genericConfigFields() {
+      const fields = {
+        platform_fee: [
+          ['remind_before_days', 'Nhắc trước hạn', 'number'],
+          ['warn_overdue_days', 'Cảnh báo sau quá hạn', 'number'],
+          ['restrict_overdue_days', 'Hạn chế quản lý sau quá hạn', 'number'],
+          ['lock_overdue_days', 'Khóa cụm sân sau quá hạn', 'number'],
+          ['termination_review_overdue_days', 'Chuyển xử lý chấm dứt sau quá hạn', 'number'],
+          ['notify_owner', 'Thông báo chủ sân', 'boolean'],
+          ['notify_admin', 'Thông báo admin', 'boolean'],
+          ['message_template', 'Nội dung thông báo', 'textarea'],
+        ],
+        permission_revoke: [
+          ['target_type', 'Đối tượng', 'text'],
+          ['reason_type', 'Lý do', 'text'],
+          ['revoke_after_days', 'Thu hồi sau vi phạm', 'number'],
+          ['revoke_duration_days', 'Số ngày thu hồi', 'number'],
+          ['permissions_to_revoke', 'Quyền bị thu hồi', 'array', 'Ví dụ: manage_venue_cluster'],
+          ['requires_admin_confirm', 'Yêu cầu admin xác nhận', 'boolean'],
+          ['notify_target', 'Thông báo đối tượng', 'boolean'],
+          ['notify_admin', 'Thông báo admin', 'boolean'],
+          ['message_template', 'Nội dung thông báo', 'textarea'],
+        ],
+        partner_contract: [
+          ['warn_before_days', 'Nhắc gia hạn trước', 'number'],
+          ['lock_after_days', 'Khóa cụm sân sau hết hạn', 'number'],
+          ['revoke_after_days', 'Thu hồi quyền sau hết hạn', 'number'],
+          ['requires_admin_confirm', 'Yêu cầu admin xác nhận', 'boolean'],
+          ['notify_target', 'Thông báo chủ sân', 'boolean'],
+          ['notify_admin', 'Thông báo admin', 'boolean'],
+        ],
+        account_policy: [
+          ['warnings_to_restrict', 'Số cảnh báo trước khi hạn chế', 'number'],
+          ['violations_to_lock', 'Số vi phạm trước khi khóa', 'number'],
+          ['lock_days', 'Số ngày khóa tài khoản', 'number'],
+          ['admin_confirm', 'Yêu cầu admin xác nhận', 'boolean'],
+          ['notify_user', 'Thông báo người dùng', 'boolean'],
+          ['default_reason', 'Lý do mặc định', 'textarea'],
+        ],
+      };
+
+      return (fields[this.configurationType] || []).map(([key, label, type, placeholder]) => ({ key, label, type, placeholder }));
+    },
+    genericConfigEntries() {
+      const config = this.genericConfiguration || {};
+      return this.genericConfigFields.map((field) => ({
+        key: field.key,
+        label: field.label,
+        value: this.formatConfigValue(config[field.key], field.type),
+      }));
+    },
+    cancelRefundPreview() {
+      if (!this.cancelRefundDraft.length) return 'Thêm ít nhất 2 mốc thời gian để lưu chính sách.';
+      return this.sortedCancelRefundDraft.map((tier) => `${this.dynamicTierLabel(tier)}: ${this.cancelRefundResult(tier).toLowerCase()}`).join('. ') + '.';
+    },
+    sortedCancelRefundDraft() {
+      return [...this.cancelRefundDraft].sort((a, b) => Number(a.from_hours || 0) - Number(b.from_hours || 0));
+    },
+    cancelRefundValidation() {
+      if (this.cancelRefundDraft.length < 2) return 'Bảng mốc cần ít nhất 2 dòng.';
+      const sorted = this.sortedCancelRefundDraft.map((tier) => ({
+        from: Number(tier.from_hours),
+        to: tier.to_hours === '' || tier.to_hours === null || tier.to_hours === undefined ? null : Number(tier.to_hours),
+        allowCancel: !!tier.allow_cancel,
+        refundPercent: Number(tier.refund_percent),
+      }));
+      if (sorted.some((tier) => Number.isNaN(tier.from) || tier.from < 0)) return 'Giờ bắt đầu phải lớn hơn hoặc bằng 0.';
+      if (sorted.some((tier) => tier.to !== null && (Number.isNaN(tier.to) || tier.to <= tier.from))) return 'Giờ kết thúc phải lớn hơn giờ bắt đầu.';
+      if (sorted.some((tier) => Number.isNaN(tier.refundPercent) || tier.refundPercent < 0 || tier.refundPercent > 100)) return 'Tỷ lệ hoàn phải nằm trong khoảng 0-100%.';
+      if (sorted.some((tier) => !tier.allowCancel && tier.refundPercent !== 0)) return 'Mốc không cho hủy phải có tỷ lệ hoàn bằng 0%.';
+      if (sorted[0]?.from !== 0) return 'Bảng mốc phải bắt đầu từ 0 giờ.';
+      for (let index = 0; index < sorted.length; index += 1) {
+        const current = sorted[index];
+        const next = sorted[index + 1];
+        if (next && (current.to === null || current.to !== next.from)) return 'Các mốc phải liền nhau, không chồng hoặc hở khoảng.';
+        if (!next && current.to !== null) return 'Mốc cuối phải để trống giờ kết thúc để phủ đến vô hạn.';
+      }
+      return '';
+    },
+    reportPreview() {
+      if (!this.reportThresholdDraft.length) return 'Thêm ít nhất một ngưỡng báo cáo.';
+      return this.reportThresholdDraft.map((threshold) => {
+        const action = this.reportActionOptionsFor(threshold.object_type).find((item) => item.value === threshold.action)?.label || threshold.action;
+        return `${this.targetTypeLabel(threshold.object_type)} đạt ${threshold.min_reports} báo cáo bởi ${threshold.min_distinct_reporters} người trong ${threshold.within_days} ngày: ${action}`;
+      }).join('. ') + '.';
+    },
+    reportValidation() {
+      if (!this.reportThresholdDraft.length) return 'Vui lòng thêm ít nhất một ngưỡng báo cáo.';
+      for (const [index, threshold] of this.reportThresholdDraft.entries()) {
+        if (Number(threshold.min_reports) < 1 || Number(threshold.min_distinct_reporters) < 1 || Number(threshold.within_days) < 1) {
+          return `Dòng ${index + 1}: các ngưỡng phải lớn hơn 0.`;
+        }
+        if (Number(threshold.min_distinct_reporters) > Number(threshold.min_reports)) {
+          return `Dòng ${index + 1}: số người báo cáo không được lớn hơn số báo cáo.`;
+        }
+        if (!this.reportActionOptionsFor(threshold.object_type).some((option) => option.value === threshold.action)) {
+          return `Dòng ${index + 1}: hành động không phù hợp với đối tượng.`;
+        }
+      }
+      return '';
+    },
+    genericConfigValidation() {
+      if (!this.genericConfigModal) return '';
+      if (this.configurationType === 'platform_fee') {
+        const order = ['warn_overdue_days', 'restrict_overdue_days', 'lock_overdue_days', 'termination_review_overdue_days'];
+        for (const key of ['remind_before_days', ...order]) {
+          if (Number(this.genericConfigDraft[key]) < 0) return 'Các mốc ngày phải lớn hơn hoặc bằng 0.';
+        }
+        for (let index = 0; index < order.length - 1; index += 1) {
+          if (Number(this.genericConfigDraft[order[index]]) > Number(this.genericConfigDraft[order[index + 1]])) {
+            return 'Các mốc xử lý phí nền tảng phải tăng dần theo thời gian.';
+          }
+        }
+      }
+      if (this.configurationType === 'partner_contract' && Number(this.genericConfigDraft.lock_after_days) > Number(this.genericConfigDraft.revoke_after_days)) {
+        return 'Ngày khóa cụm sân không được lớn hơn ngày thu hồi quyền.';
+      }
+      if (this.configurationType === 'account_policy' && Number(this.genericConfigDraft.warnings_to_restrict) > Number(this.genericConfigDraft.violations_to_lock)) {
+        return 'Số cảnh báo hạn chế không được lớn hơn số vi phạm khóa tài khoản.';
+      }
+      return '';
+    },
   },
   watch: {
     activeTab(v) {
@@ -562,6 +1074,7 @@ export default {
       this.tabs = [
         { key: 'overview', label: 'Tổng quan', icon: 'eye' },
         { key: 'content', label: 'Nội dung', icon: 'fileText' },
+        { key: 'config', label: 'Cấu hình', icon: 'settings', count: this.configCount },
         { key: 'rules', label: 'Quy tắc', icon: 'sliders', count: this.rules.length },
         { key: 'audit', label: 'Lịch sử', icon: 'history' },
       ];
@@ -573,9 +1086,10 @@ export default {
       try {
         const res = await adminPolicyService.show(this.$route.params.id);
         const d = res.data || {};
-        this.policy = d.policy;
+        this.detail = d;
+        this.policy = d.policy_info || d.policy;
         this.rules = d.rules || [];
-        this.venueRules = d.venue_rules || [];
+        this.venueRules = d.venue_rules || d.venue_overrides || [];
         this.auditLogs = d.audit_logs || [];
         this.contentDraft = this.policy?.content || '';
         this.buildTabs();
@@ -677,6 +1191,304 @@ export default {
       } finally {
         this.savingContent = false;
       }
+    },
+
+    openCancelRefundModal() {
+      if (!this.canEditConfig) return;
+      const tiers = this.cancelRefundConfiguration?.tiers?.length
+        ? this.cancelRefundConfiguration.tiers
+        : [
+            this.defaultCancelRefundTier(0, 24, true, 50),
+            this.defaultCancelRefundTier(24, null, true, 100),
+          ];
+      this.cancelRefundDraft = JSON.parse(JSON.stringify(tiers)).map((tier, index) => ({
+        key: tier.key || `tier_${index}_${Date.now()}`,
+        label: tier.label || '',
+        from_hours: Number(tier.from_hours ?? 0),
+        to_hours: tier.to_hours ?? '',
+        allow_cancel: tier.allow_cancel !== false,
+        refund_percent: Number(tier.refund_percent ?? 0),
+        require_owner_confirm: tier.require_owner_confirm !== false,
+        require_admin_confirm: tier.require_admin_confirm !== false,
+        customer_message: tier.customer_message || '',
+      }));
+      this.cancelRefundModal = true;
+    },
+
+    addCancelRefundTier() {
+      const sorted = this.sortedCancelRefundDraft;
+      const last = sorted[sorted.length - 1];
+      if (!last) {
+        this.cancelRefundDraft = [this.defaultCancelRefundTier(0, null, true, 0)];
+        return;
+      }
+
+      const splitAt = Number(last.from_hours || 0) + 24;
+      last.to_hours = splitAt;
+      sorted.push(this.defaultCancelRefundTier(splitAt, null, true, Number(last.refund_percent || 0)));
+      this.cancelRefundDraft = sorted;
+    },
+
+    removeCancelRefundTier(key) {
+      const sorted = this.sortedCancelRefundDraft;
+      if (sorted.length <= 2) return;
+
+      const index = sorted.findIndex((tier) => tier.key === key);
+      if (index < 0) return;
+
+      const removed = sorted[index];
+      const previous = sorted[index - 1];
+      const next = sorted[index + 1];
+      if (previous) previous.to_hours = removed.to_hours;
+      if (!previous && next) next.from_hours = 0;
+      sorted.splice(index, 1);
+      this.cancelRefundDraft = sorted;
+    },
+
+    async saveCancelRefundConfig() {
+      if (this.cancelRefundValidation) return;
+      this.savingRule = true;
+      this.error = '';
+      try {
+        await adminPolicyService.saveCancelRefundTiers(this.policy.id, {
+          tiers: this.sortedCancelRefundDraft.map((tier) => ({
+            label: tier.label || this.dynamicTierLabel(tier),
+            from_hours: Number(tier.from_hours),
+            to_hours: tier.to_hours === '' || tier.to_hours === null || tier.to_hours === undefined ? null : Number(tier.to_hours),
+            allow_cancel: !!tier.allow_cancel,
+            refund_percent: Number(tier.refund_percent),
+            require_owner_confirm: !!tier.require_owner_confirm,
+            require_admin_confirm: !!tier.require_admin_confirm,
+            customer_message: tier.customer_message || '',
+          })),
+        });
+        this.success = 'Đã lưu bảng mốc hủy & hoàn booking.';
+        this.closeConfigModals();
+        await this.loadDetail();
+        this.activeTab = 'config';
+        this.autoHide();
+      } catch (e) {
+        this.error = e.message || 'Không thể lưu bảng mốc hủy & hoàn.';
+      } finally {
+        this.savingRule = false;
+      }
+    },
+
+    openReportModal() {
+      if (!this.canEditConfig) return;
+      this.reportThresholdDraft = (this.reportThresholdRows.length ? this.reportThresholdRows : [this.defaultReportThreshold()])
+        .map((threshold, index) => this.normalizeThresholdShape(threshold, index));
+      this.reportModal = true;
+    },
+
+    addReportThreshold() {
+      this.reportThresholdDraft.push(this.defaultReportThreshold());
+    },
+
+    removeReportThreshold(key) {
+      if (this.reportThresholdDraft.length <= 1) return;
+      this.reportThresholdDraft = this.reportThresholdDraft.filter((threshold) => threshold.key !== key);
+    },
+
+    async saveReportConfig() {
+      if (this.reportValidation) return;
+      this.savingRule = true;
+      this.error = '';
+      try {
+        await adminPolicyService.saveModerationThresholds(this.policy.id, {
+          thresholds: this.reportThresholdDraft.map((threshold) => ({
+            key: threshold.key,
+            object_type: threshold.object_type,
+            min_reports: Number(threshold.min_reports),
+            min_distinct_reporters: Number(threshold.min_distinct_reporters),
+            within_days: Number(threshold.within_days),
+            action: threshold.action,
+            notify_admin: !!threshold.notify_admin,
+            notify_reported_user: !!threshold.notify_reported_user,
+            is_active: threshold.is_active !== false,
+          })),
+        });
+        this.success = 'Đã lưu ngưỡng báo cáo.';
+        this.closeConfigModals();
+        await this.loadDetail();
+        this.activeTab = 'config';
+        this.autoHide();
+      } catch (e) {
+        this.error = e.message || 'Không thể lưu ngưỡng báo cáo.';
+      } finally {
+        this.savingRule = false;
+      }
+    },
+
+    openGenericConfigModal() {
+      if (!this.canEditConfig) return;
+      const draft = { ...(this.genericConfiguration || {}) };
+      this.genericConfigFields.forEach((field) => {
+        if (field.type === 'array' && Array.isArray(draft[field.key])) {
+          draft[field.key] = draft[field.key].join(', ');
+        }
+        if (field.type === 'boolean') {
+          draft[field.key] = !!draft[field.key];
+        }
+      });
+      this.genericConfigDraft = draft;
+      this.genericConfigModal = true;
+    },
+
+    async saveGenericConfig() {
+      if (this.genericConfigValidation) return;
+      this.savingRule = true;
+      this.error = '';
+      try {
+        const configurationData = {};
+        this.genericConfigFields.forEach((field) => {
+          const value = this.genericConfigDraft[field.key];
+          if (field.type === 'number') {
+            configurationData[field.key] = value === '' || value === undefined ? null : Number(value);
+            return;
+          }
+          if (field.type === 'boolean') {
+            configurationData[field.key] = !!value;
+            return;
+          }
+          if (field.type === 'array') {
+            configurationData[field.key] = String(value || '')
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean);
+            return;
+          }
+          configurationData[field.key] = value ?? '';
+        });
+
+        await adminPolicyService.updatePolicyConfiguration(this.policy.id, {
+          configuration_data: configurationData,
+        });
+        this.success = 'Đã lưu cấu hình nghiệp vụ chính sách.';
+        this.closeConfigModals();
+        await this.loadDetail();
+        this.activeTab = 'config';
+        this.autoHide();
+      } catch (e) {
+        this.error = e.message || 'Không thể lưu cấu hình chính sách.';
+      } finally {
+        this.savingRule = false;
+      }
+    },
+
+    closeConfigModals() {
+      this.cancelRefundModal = false;
+      this.reportModal = false;
+      this.genericConfigModal = false;
+    },
+
+    defaultCancelRefundTier(fromHours = 0, toHours = null, allowCancel = true, refundPercent = 0) {
+      return {
+        key: `tier_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        label: '',
+        from_hours: fromHours,
+        to_hours: toHours ?? '',
+        allow_cancel: allowCancel,
+        refund_percent: refundPercent,
+        require_owner_confirm: true,
+        require_admin_confirm: true,
+        customer_message: '',
+      };
+    },
+
+    defaultReportThreshold() {
+      const objectType = this.reportTargetOptions[0]?.value || 'post';
+      const action = this.reportActionOptionsFor(objectType)[0]?.value || 'notify_admin';
+      return {
+        key: `threshold_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        object_type: objectType,
+        object_type_label: this.targetTypeLabel(objectType),
+        min_reports: 5,
+        min_distinct_reporters: 2,
+        within_days: 14,
+        action,
+        action_label: this.reportActionOptionsFor(objectType)[0]?.label || action,
+        notify_admin: true,
+        notify_reported_user: false,
+        is_active: true,
+      };
+    },
+
+    normalizeThresholdShape(threshold, index = 0) {
+      const objectType = threshold.object_type || threshold.target_type || 'post';
+      const actions = this.reportActionOptionsFor(objectType);
+      const action = threshold.action || actions[0]?.value || 'notify_admin';
+      return {
+        key: threshold.key || `threshold_${index}_${Date.now()}`,
+        object_type: objectType,
+        object_type_label: threshold.object_type_label || this.targetTypeLabel(objectType),
+        min_reports: Number(threshold.min_reports || threshold.minimum_reports || 1),
+        min_distinct_reporters: Number(threshold.min_distinct_reporters || threshold.minimum_unique_reporters || 1),
+        within_days: Number(threshold.within_days || threshold.window_days || 1),
+        action,
+        action_label: threshold.action_label || actions.find((item) => item.value === action)?.label || action,
+        notify_admin: threshold.notify_admin !== false,
+        notify_reported_user: !!threshold.notify_reported_user,
+        is_active: threshold.is_active !== false,
+      };
+    },
+
+    normalizeThresholdAction(threshold) {
+      const options = this.reportActionOptionsFor(threshold.object_type);
+      if (!options.some((option) => option.value === threshold.action)) {
+        threshold.action = options[0]?.value || '';
+      }
+      threshold.object_type_label = this.targetTypeLabel(threshold.object_type);
+      threshold.action_label = options.find((option) => option.value === threshold.action)?.label || threshold.action;
+    },
+
+    reportActionOptionsFor(objectType) {
+      const options = this.moderationConfiguration?.action_options || [];
+      if (Array.isArray(options)) return options;
+      return options[objectType] || options.post || [
+        { value: 'notify_admin', label: 'Thông báo admin' },
+        { value: 'mark_pending_review', label: 'Đưa vào chờ duyệt' },
+        { value: 'hide_content', label: 'Ẩn nội dung' },
+      ];
+    },
+
+    targetTypeLabel(value) {
+      return this.reportTargetOptions.find((option) => option.value === value)?.label || value || 'Nội dung';
+    },
+
+    dynamicTierLabel(tier) {
+      const from = Number(tier.from_hours || 0);
+      const to = tier.to_hours === '' || tier.to_hours === null || tier.to_hours === undefined ? null : Number(tier.to_hours);
+      if (from === 0 && to !== null) return `Trong ${to} giờ trước giờ chơi`;
+      if (to === null) return `Từ ${from} giờ trở lên`;
+      return `Từ ${from} đến dưới ${to} giờ`;
+    },
+
+    dynamicTierCondition(tier) {
+      const from = Number(tier.from_hours || 0);
+      const to = tier.to_hours === '' || tier.to_hours === null || tier.to_hours === undefined ? null : Number(tier.to_hours);
+      if (to === null) return `Hủy trước giờ chơi từ ${from} giờ trở lên`;
+      return `Hủy trước giờ chơi từ ${from} đến dưới ${to} giờ`;
+    },
+
+    cancelRefundResult(tier) {
+      if (!tier.allow_cancel) return 'Không cho hủy';
+      const percent = Number(tier.refund_percent || 0);
+      return percent > 0 ? `Cho hủy, hoàn ${percent}%` : 'Cho hủy, không hoàn tiền';
+    },
+
+    confirmationLabel(tier) {
+      const labels = [];
+      if (tier.require_owner_confirm) labels.push('Chủ sân');
+      if (tier.require_admin_confirm) labels.push('Admin');
+      return labels.length ? labels.join(' + ') : 'Tự động';
+    },
+
+    formatConfigValue(value, type) {
+      if (type === 'boolean') return value ? 'Có' : 'Không';
+      if (type === 'array') return Array.isArray(value) ? value.join(', ') : (value || '-');
+      if (value === null || value === undefined || value === '') return '-';
+      return String(value);
     },
 
     openRuleWizard() {
@@ -1100,11 +1912,111 @@ export default {
 .confirm-warn { color: #dc2626 !important; font-weight: 700 !important; font-size: 13px !important; }
 .confirm-actions { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
 
+/* ── Configuration cards ── */
+.config-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px;
+  background: #fff;
+}
+.config-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.config-head h3 { margin: 4px 0 6px; font-size: 17px; color: #0f172a; }
+.config-head p { margin: 0; color: #64748b; font-size: 14px; line-height: 1.5; }
+.config-kicker {
+  color: #16a34a;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.config-table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+.config-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+.config-table th, .config-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  font-size: 13px;
+}
+.config-table th { background: #f8fafc; color: #334155; font-weight: 800; }
+.config-table tr:last-child td { border-bottom: 0; }
+.modal-box.wide { width: min(980px, calc(100vw - 32px)); }
+.edit-toolbar { display: flex; justify-content: flex-end; }
+.config-edit-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  background: #f8fafc;
+}
+.config-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+}
+.config-edit-grid.report-grid { grid-template-columns: 1.2fr repeat(4, minmax(100px, 1fr)) repeat(3, auto) auto; }
+.config-edit-grid.generic-grid { grid-template-columns: repeat(2, minmax(220px, 1fr)); align-items: start; }
+.config-edit-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #475569;
+}
+.config-edit-grid input,
+.config-edit-grid select,
+.config-edit-grid textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: #0f172a;
+  background: #fff;
+  box-sizing: border-box;
+}
+.config-edit-grid input:focus,
+.config-edit-grid select:focus,
+.config-edit-grid textarea:focus {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+.config-edit-grid .wide-field { grid-column: span 2; }
+.check-row,
+.switch-row {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+  color: #334155;
+}
+.check-row input,
+.switch-row input { width: auto; accent-color: #16a34a; }
+.icon-btn.danger { color: #dc2626; border-color: #fecaca; background: #fff1f2; }
+.preview-banner.invalid { background: #fff1f2; border-color: #fecaca; }
+.preview-banner.invalid .preview-label,
+.preview-banner.invalid p:last-child { color: #dc2626; }
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .meta-grid { grid-template-columns: repeat(2, 1fr); }
   .meta-item.span2 { grid-column: span 2; }
   .param-grid { grid-template-columns: 1fr; }
+  .config-head { flex-direction: column; }
+  .config-edit-grid,
+  .config-edit-grid.report-grid,
+  .config-edit-grid.generic-grid { grid-template-columns: 1fr; }
+  .config-edit-grid .wide-field { grid-column: span 1; }
   .param-field-check { grid-column: span 1; }
   .page-head { flex-direction: column; }
   .page-head-actions { flex-wrap: wrap; }

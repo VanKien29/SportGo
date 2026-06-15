@@ -144,6 +144,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/policies/{id}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'show']);
         Route::put('/policies/{id}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'update']);
         Route::delete('/policies/{id}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'destroy']);
+        Route::put('/policies/{id}/configuration', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateConfiguration']);
         Route::put('/policies/{id}/cancel-refund-tiers', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateCancelRefundTiers']);
         Route::put('/policies/{id}/moderation-thresholds', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateModerationThresholds']);
         Route::post('/policies/{id}/clone-version', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'cloneVersion']);
