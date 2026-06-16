@@ -1,8 +1,13 @@
 <template>
   <div class="owner-profile-page">
-    <div class="page-header">
-      <h2>Hồ sơ đối tác & Hợp đồng</h2>
-      <p class="muted">Thông tin đăng ký trở thành đối tác và các hợp đồng của bạn.</p>
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <h2>Hồ sơ đối tác & Hợp đồng</h2>
+        <p class="muted">Thông tin đăng ký trở thành đối tác và các hợp đồng của bạn.</p>
+      </div>
+      <button class="btn primary" @click="openNewClusterModal">
+        <AppIcon name="plus" size="16" /> Đăng ký Cụm sân mới
+      </button>
     </div>
 
     <div v-if="loading" class="state-box card">
@@ -45,12 +50,16 @@
               <div>
                 <strong>{{ contract.contract_number }}</strong>
                 <span class="status-badge" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
+                <div v-if="contract.owner_signed_at || contract.sportgo_signed_at" class="muted small" style="margin-top: 4px; font-size: 0.85em; color: #64748b;">
+                  <div v-if="contract.owner_signed_at">Bạn ký: {{ formatDate(contract.owner_signed_at) }}</div>
+                  <div v-if="contract.sportgo_signed_at">SportGo ký: {{ formatDate(contract.sportgo_signed_at) }}</div>
+                </div>
               </div>
             </div>
             <div class="contract-actions">
-              <a v-if="contract.generated_file_path" :href="getFileUrl(contract.generated_file_path)" target="_blank" class="btn ghost">
+              <button v-if="contract.generated_file_path" @click="viewFile(contract.generated_file_path)" type="button" class="btn ghost">
                 <AppIcon name="eye" size="16" /> Xem Hợp đồng
-              </a>
+              </button>
                 <button 
                   v-if="contract.status === 'pending_owner_signature'" 
                   class="btn primary" 
@@ -72,6 +81,102 @@
                 </span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Termination Modal -->
+      <div v-if="terminationModal.open" class="modal-backdrop" @click.self="closeTerminationModal">
+        <div class="modal-content" style="max-width: 500px;">
+          <div class="modal-header">
+            <h3>Yêu cầu thanh lý hợp đồng</h3>
+            <button class="close-btn" @click="closeTerminationModal">
+              <AppIcon name="x" size="20" />
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Lý do thanh lý</label>
+              <textarea 
+                v-model="terminationModal.reason" 
+                class="input" 
+                rows="4" 
+                placeholder="Nhập lý do thanh lý hợp đồng..."
+              ></textarea>
+            </div>
+            <div class="modal-footer">
+              <button class="btn ghost" @click="closeTerminationModal">Hủy</button>
+              <button class="btn danger" @click="submitTermination" :disabled="terminating">
+                {{ terminating ? 'Đang gửi...' : 'Gửi yêu cầu' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- New Cluster Modal -->
+      <div v-if="newClusterModal.open" class="modal-backdrop" @click.self="closeNewClusterModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Đăng ký Cụm sân mới</h3>
+            <button class="close-btn" @click="closeNewClusterModal">
+              <AppIcon name="x" size="20" />
+            </button>
+          </div>
+          <form class="modal-body" @submit.prevent="submitNewCluster">
+            <p class="muted" style="margin-bottom: 16px;">Thông tin pháp lý và kinh doanh sẽ được tự động lấy từ hồ sơ hiện tại của bạn.</p>
+            <div class="form-group">
+              <label>Tên cụm sân</label>
+              <input v-model="newClusterForm.venue_name" class="input" required />
+            </div>
+            <div class="form-group">
+              <label>Địa chỉ chi tiết</label>
+              <input v-model="newClusterForm.venue_address" class="input" required />
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Tỉnh/Thành phố</label>
+                <input v-model="newClusterForm.venue_province" class="input" required />
+              </div>
+              <div class="form-group">
+                <label>Quận/Huyện</label>
+                <input v-model="newClusterForm.venue_district" class="input" required />
+              </div>
+              <div class="form-group">
+                <label>Phường/Xã</label>
+                <input v-model="newClusterForm.venue_ward" class="input" required />
+              </div>
+              <div class="form-group">
+                <label>Số lượng sân dự kiến</label>
+                <input type="number" v-model="newClusterForm.court_count_total" class="input" required min="1" />
+              </div>
+              <div class="form-group">
+                <label>Tọa độ Latitude</label>
+                <input type="number" step="any" v-model="newClusterForm.venue_latitude" class="input" required />
+              </div>
+              <div class="form-group">
+                <label>Tọa độ Longitude</label>
+                <input type="number" step="any" v-model="newClusterForm.venue_longitude" class="input" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Link Google Maps</label>
+              <input type="url" v-model="newClusterForm.venue_map_url" class="input" />
+            </div>
+            <div class="form-group">
+              <label>Số điện thoại liên hệ cụm sân</label>
+              <input v-model="newClusterForm.venue_phone" class="input" />
+            </div>
+            <div class="form-group">
+              <label>Mô tả dịch vụ</label>
+              <textarea v-model="newClusterForm.venue_description" class="input" rows="3"></textarea>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn ghost" @click="closeNewClusterModal">Hủy</button>
+              <button type="submit" class="btn primary" :disabled="submittingCluster">
+                {{ submittingCluster ? 'Đang gửi...' : 'Gửi yêu cầu mở rộng' }}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -116,10 +221,10 @@
       <div class="card section-card" v-if="app.documents && app.documents.length > 0">
         <h3>Tài liệu đính kèm</h3>
         <div class="docs-list">
-          <a v-for="doc in app.documents" :key="doc.id" :href="getFileUrl(doc.file_path)" target="_blank" class="doc-item">
+          <button v-for="doc in app.documents" :key="doc.id" @click="viewFile(doc.file_path)" type="button" class="doc-item">
             <AppIcon name="paperclip" size="18" />
             <span>{{ documentTypeLabel(doc.type) }}</span>
-          </a>
+          </button>
         </div>
       </div>
       
@@ -141,7 +246,23 @@ export default {
       loading: true,
       error: '',
       signing: false,
-      terminating: false
+      terminating: false,
+      terminationModal: { open: false, contractId: null, reason: '' },
+      newClusterModal: { open: false },
+      submittingCluster: false,
+      newClusterForm: {
+        venue_name: '',
+        venue_address: '',
+        venue_province: '',
+        venue_district: '',
+        venue_ward: '',
+        court_count_total: 1,
+        venue_latitude: '',
+        venue_longitude: '',
+        venue_map_url: '',
+        venue_phone: '',
+        venue_description: '',
+      }
     };
   },
   mounted() {
@@ -162,6 +283,43 @@ export default {
         this.loading = false;
       }
     },
+    openNewClusterModal() {
+      this.newClusterForm = {
+        venue_name: '',
+        venue_address: '',
+        venue_province: '',
+        venue_district: '',
+        venue_ward: '',
+        court_count_total: 1,
+        venue_latitude: '',
+        venue_longitude: '',
+        venue_map_url: '',
+        venue_phone: '',
+        venue_description: '',
+      };
+      this.newClusterModal.open = true;
+    },
+    closeNewClusterModal() {
+      this.newClusterModal.open = false;
+    },
+    async submitNewCluster() {
+      if (!confirm('Bạn có chắc chắn muốn gửi yêu cầu đăng ký cụm sân mới?')) return;
+      
+      this.submittingCluster = true;
+      try {
+        await api('/api/owner/partner-applications/new-cluster', {
+          method: 'POST',
+          body: JSON.stringify(this.newClusterForm),
+        });
+        alert('Gửi yêu cầu thành công! Vui lòng chờ admin xét duyệt.');
+        this.closeNewClusterModal();
+        this.fetchApplications();
+      } catch (err) {
+        alert(err.message || 'Có lỗi xảy ra khi gửi yêu cầu.');
+      } finally {
+        this.submittingCluster = false;
+      }
+    },
     async signContract(contractId) {
       if (!confirm('Bạn có chắc chắn muốn ký xác nhận hợp đồng này? Thao tác này tương đương với việc chấp thuận các điều khoản trong hợp đồng.')) {
         return;
@@ -178,35 +336,61 @@ export default {
         this.signing = false;
       }
     },
-      async requestTermination(contractId) {
-        const reason = prompt('Vui lòng nhập lý do yêu cầu thanh lý hợp đồng:');
-        if (!reason) return;
+    requestTermination(contractId) {
+      this.terminationModal = {
+        open: true,
+        contractId: contractId,
+        reason: ''
+      };
+    },
+    closeTerminationModal() {
+      this.terminationModal.open = false;
+    },
+    async submitTermination() {
+      if (!this.terminationModal.reason) {
+        alert('Vui lòng nhập lý do thanh lý hợp đồng.');
+        return;
+      }
+      const type = confirm('Đây là thỏa thuận chấm dứt từ cả hai bên? (Chọn OK nếu đã thỏa thuận, chọn Cancel nếu đơn phương chấm dứt)') ? 'mutual' : 'unilateral_by_owner';
 
-        const type = confirm('Đây là thỏa thuận chấm dứt từ cả hai bên? (Chọn OK nếu đã thỏa thuận, chọn Cancel nếu đơn phương chấm dứt)') ? 'mutual' : 'unilateral_by_owner';
-
-        this.terminating = true;
-        try {
-          await api(`/api/owner/contracts/${contractId}/request-termination`, {
-            method: 'POST',
-            body: JSON.stringify({ reason, type }),
-            headers: { 'Content-Type': 'application/json' }
-          });
-          alert('Đã gửi yêu cầu thanh lý thành công! Vui lòng chờ phản hồi từ SportGo.');
-          this.fetchApplications();
-        } catch (err) {
-          alert(err.message || 'Có lỗi xảy ra khi gửi yêu cầu thanh lý.');
-        } finally {
-          this.terminating = false;
-        }
-      },
+      this.terminating = true;
+      try {
+        await api(`/api/contracts/${this.terminationModal.contractId}/request-termination`, {
+          method: 'POST',
+          body: JSON.stringify({ reason: this.terminationModal.reason, type }),
+        });
+        alert('Đã gửi yêu cầu thanh lý thành công.');
+        this.closeTerminationModal();
+        this.fetchApplications();
+      } catch (err) {
+        alert(err.message || 'Có lỗi xảy ra khi gửi yêu cầu thanh lý.');
+      } finally {
+        this.terminating = false;
+      }
+    },
       hasPendingTermination(contract) {
         if (!contract.terminations) return false;
         return contract.terminations.some(t => t.status === 'submitted');
       },
-    getFileUrl(path) {
-      if (!path) return '#';
-      if (path.startsWith('http')) return path;
-      return '/storage/' + path.replace('public/', '');
+    async viewFile(path) {
+      if (!path) return;
+      if (path.startsWith('http')) {
+        window.open(path, '_blank');
+        return;
+      }
+      try {
+        const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await fetch(`/api/files/download?path=${encodeURIComponent(path)}`, { headers });
+        if (!response.ok) throw new Error('Không thể tải file');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        // Optional: revoke URL after some time
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (err) {
+        alert(err.message || 'Lỗi tải file');
+      }
     },
     statusLabel(status) {
       const map = {

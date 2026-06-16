@@ -182,6 +182,17 @@
           </section>
 
           <section class="detail-section full">
+            <h4>Tài liệu đính kèm</h4>
+            <div v-if="activeApplication.documents && activeApplication.documents.length > 0" class="docs-list">
+              <button v-for="doc in activeApplication.documents" :key="doc.id" @click="viewFile(doc.file_path)" type="button" class="doc-item">
+                <AppIcon name="paperclip" size="18" />
+                <span>{{ doc.type }}</span>
+              </button>
+            </div>
+            <p v-else class="muted">Chưa có tài liệu đính kèm.</p>
+          </section>
+
+          <section class="detail-section full">
             <h4>Địa điểm</h4>
             <dl>
               <dt>Địa chỉ</dt>
@@ -226,10 +237,14 @@
               <div v-for="contract in activeApplication.contracts" :key="contract.id" class="mini-item stacked" style="align-items: flex-start;">
                 <span><strong>{{ contract.contract_number }}</strong></span>
                 <span class="status" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
+                <div v-if="contract.owner_signed_at || contract.sportgo_signed_at" class="muted small" style="margin-top: 4px; font-size: 0.85em; color: #64748b;">
+                  <div v-if="contract.owner_signed_at">Đối tác ký: {{ formatDate(contract.owner_signed_at) }}</div>
+                  <div v-if="contract.sportgo_signed_at">SportGo ký: {{ formatDate(contract.sportgo_signed_at) }}</div>
+                </div>
                 <div style="margin-top: 4px;">
-                  <a v-if="contract.generated_file_path" :href="getFileUrl(contract.generated_file_path)" target="_blank" class="btn ghost small">
+                  <button v-if="contract.generated_file_path" @click="viewFile(contract.generated_file_path)" type="button" class="btn ghost small">
                     <AppIcon name="eye" size="14" /> Xem Hợp đồng
-                  </a>
+                  </button>
                 </div>
                 <div v-if="contract.status === 'pending_sportgo_signature'" style="margin-top: 8px;">
                   <button class="btn primary small" type="button" :disabled="signingAction" @click="approveSignature(contract.id)">
@@ -441,10 +456,24 @@ export default {
     this.loadCourtTypes();
   },
   methods: {
-    getFileUrl(path) {
-      if (!path) return '#';
-      if (path.startsWith('http')) return path;
-      return '/storage/' + path.replace('public/', '');
+    async viewFile(path) {
+      if (!path) return;
+      if (path.startsWith('http')) {
+        window.open(path, '_blank');
+        return;
+      }
+      try {
+        const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await fetch(`/api/files/download?path=${encodeURIComponent(path)}`, { headers });
+        if (!response.ok) throw new Error('Không thể tải file');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (err) {
+        alert(err.message || 'Lỗi tải file');
+      }
     },
     emptyApproveForm() {
       return {
