@@ -20,19 +20,21 @@ class FileDownloadController extends Controller
             return response()->json(['message' => 'Path is required'], 400);
         }
 
-        // Handle paths that already start with public/
-        if (str_starts_with($path, 'public/')) {
+        // Normalize path by stripping common prefixes
+        if (str_starts_with($path, '/storage/')) {
+            $path = substr($path, 9);
+        } elseif (str_starts_with($path, 'storage/')) {
+            $path = substr($path, 8);
+        } elseif (str_starts_with($path, 'public/')) {
             $path = substr($path, 7);
-            if (Storage::disk('public')->exists($path)) {
-                $disk = 'public';
-            }
-        } else {
-            // Check if file exists in either private (local) or public disk
-            if (Storage::disk('local')->exists($path)) {
-                $disk = 'local';
-            } elseif (Storage::disk('public')->exists($path)) {
-                $disk = 'public';
-            }
+        }
+
+        // Check if file exists in either private (local) or public disk
+        $disk = null;
+        if (Storage::disk('local')->exists($path)) {
+            $disk = 'local';
+        } elseif (Storage::disk('public')->exists($path)) {
+            $disk = 'public';
         }
 
         if (!$disk) {
