@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PartnerTerminationRequest extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'partner_application_id',

@@ -585,7 +585,7 @@ class ModerationReportPolicyService
         $applied = [];
         $action = $threshold['action'];
 
-        if ($action === 'pending_review' && Schema::hasColumn($target->getTable(), 'status')) {
+        if ($action === 'pending_review' && $this->supportsStatusValue($target, 'pending_review')) {
             $updates = ['status' => 'pending_review'];
             if (Schema::hasColumn($target->getTable(), 'status_reason')) {
                 $updates['status_reason'] = 'Tự động chuyển chờ kiểm duyệt do đạt ngưỡng báo cáo.';
@@ -594,7 +594,7 @@ class ModerationReportPolicyService
             $applied[] = 'pending_review';
         }
 
-        if ($action === 'hide_temporarily' && Schema::hasColumn($target->getTable(), 'status')) {
+        if ($action === 'hide_temporarily' && $this->supportsStatusValue($target, 'hidden')) {
             $updates = ['status' => 'hidden'];
             if (Schema::hasColumn($target->getTable(), 'status_reason')) {
                 $updates['status_reason'] = 'Tự động ẩn tạm do đạt ngưỡng báo cáo.';
@@ -621,6 +621,19 @@ class ModerationReportPolicyService
         $this->auditAction($target, $oldValues, $target->fresh()->toArray(), $threshold, $policy, $rule, $actor, $applied);
 
         return array_values(array_unique($applied));
+    }
+
+    private function supportsStatusValue(Model $target, string $status): bool
+    {
+        if (! Schema::hasColumn($target->getTable(), 'status')) {
+            return false;
+        }
+
+        return match ($target->getTable()) {
+            'community_posts', 'venue_posts' => in_array($status, ['pending_review', 'hidden'], true),
+            'community_post_comments' => $status === 'hidden',
+            default => false,
+        };
     }
 
     private function notifyAdmins(Model $target, array $threshold, ?SystemPolicy $policy): void
@@ -707,13 +720,12 @@ class ModerationReportPolicyService
     {
         $applied = [];
 
-        if (in_array('pending_review', $actions, true) && Schema::hasColumn($target->getTable(), 'status')) {
-            $reviewStatus = $target->getTable() === 'community_post_comments' ? 'hidden' : 'pending_review';
-            $target->forceFill(['status' => $reviewStatus])->save();
+        if (in_array('pending_review', $actions, true) && $this->supportsStatusValue($target, 'pending_review')) {
+            $target->forceFill(['status' => 'pending_review'])->save();
             $applied[] = 'pending_review';
         }
 
-        if (in_array('hide_temporarily', $actions, true) && Schema::hasColumn($target->getTable(), 'status')) {
+        if (in_array('hide_temporarily', $actions, true) && $this->supportsStatusValue($target, 'hidden')) {
             $target->forceFill(['status' => 'hidden'])->save();
             $applied[] = 'hide_temporarily';
         }

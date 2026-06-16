@@ -141,7 +141,7 @@
         <div class="list-box">
           <article v-for="role in detail.roles" :key="role.id">
             <strong>{{ role.label }}</strong>
-            <span>Scope: {{ scopeText(role) }}</span>
+            <span>{{ scopeText(role) }}</span>
           </article>
           <p v-if="!detail.roles.length" class="muted">Tài khoản chưa có vai trò.</p>
         </div>
@@ -173,10 +173,6 @@
                 <p v-for="item in log.new_values_summary" :key="`new-${log.id}-${item.field}`">{{ item.field }}: {{ item.value }}</p>
               </div>
             </div>
-            <details>
-              <summary>Xem dữ liệu kỹ thuật</summary>
-              <pre>{{ formatJson({ old: log.technical_old_values, new: log.technical_new_values }) }}</pre>
-            </details>
           </article>
           <p v-if="!detail.audit_logs.length" class="muted">Chưa có audit log.</p>
         </div>
@@ -335,9 +331,13 @@ export default {
       return String(name || 'SG').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
     },
     scopeText(role) {
+      if (role.scope_label) return role.scope_label;
       if (!role.scope_type || role.scope_type === 'global') return 'Toàn hệ thống';
-      if (role.scope_type === 'venue') return `Cụm sân ${role.scope_id}`;
-      return `${role.scope_type}: ${role.scope_id || '-'}`;
+      if (role.scope_type === 'system') return 'Toàn hệ thống';
+      if (role.scope_type === 'venue' || role.scope_type === 'venue_cluster') return 'Cụm sân';
+      if (role.scope_type === 'court_type') return 'Loại sân';
+      if (role.scope_type === 'court') return 'Sân con';
+      return 'Phạm vi nghiệp vụ';
     },
     money(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
@@ -351,9 +351,6 @@ export default {
     inputDate(value) {
       const date = new Date(value);
       return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    },
-    formatJson(value) {
-      return JSON.stringify(value || {}, null, 2);
     },
   },
 };
@@ -516,26 +513,6 @@ small {
 .change-grid p {
   margin: 4px 0 0;
   color: #475569;
-}
-
-details {
-  border-top: 1px solid #e2e8f0;
-  padding-top: 8px;
-}
-
-summary {
-  cursor: pointer;
-  font-weight: 800;
-  color: #475569;
-}
-
-pre {
-  max-height: 260px;
-  overflow: auto;
-  background: #0f172a;
-  color: #e2e8f0;
-  border-radius: 8px;
-  padding: 12px;
 }
 
 .table-wrap {

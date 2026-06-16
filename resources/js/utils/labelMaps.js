@@ -9,6 +9,27 @@ export const POLICY_TYPE_LABELS = {
   general: 'Chung',
   booking: 'Đặt sân',
   account: 'Tài khoản',
+  text_only: 'Văn bản',
+};
+
+export const TARGET_TYPE_LABELS = {
+  community_post: 'Bài đăng cộng đồng',
+  venue_post: 'Bài đăng sân',
+  comment: 'Bình luận',
+  user: 'Người dùng',
+  venue_cluster: 'Cụm sân',
+};
+
+export const ESCALATION_ACTION_LABELS = {
+  warn: 'Cảnh báo',
+  hide_content: 'Ẩn nội dung',
+  delete_content: 'Xóa nội dung',
+  lock_temp: 'Khóa tạm thời',
+  lock_permanent: 'Khóa vĩnh viễn',
+  limit_venue: 'Giới hạn hoạt động sân',
+  block_venue: 'Đình chỉ sân',
+  terminate_contract: 'Chấm dứt hợp đồng',
+  manual_review: 'Admin xem xét thủ công',
 };
 
 export const STATUS_LABELS = {

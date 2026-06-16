@@ -20,6 +20,7 @@ class PolicyUiText
             'general' => 'Chung',
             'booking' => 'Đặt sân',
             'account' => 'Tài khoản',
+            'text_only' => 'Văn bản',
         ];
     }
 

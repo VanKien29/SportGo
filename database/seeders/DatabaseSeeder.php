@@ -38,6 +38,10 @@ class DatabaseSeeder extends Seeder
         $this->callIfTablesExist(SystemBankAccountSeeder::class, ['system_bank_accounts']);
 
         $this->callIfTablesExist(SystemPoliciesTableSeeder::class, ['users', 'system_policies']);
+        $this->callIfTablesExist(ViolationTypesSeeder::class, ['violation_types']);
+        $this->callIfTablesExist(SeverityLevelsSeeder::class, ['severity_levels']);
+        $this->callIfTablesExist(ModerationThresholdsSeeder::class, ['moderation_thresholds', 'system_policies']);
+        $this->callIfTablesExist(PenaltyEscalationRulesSeeder::class, ['penalty_escalation_rules', 'system_policies']);
         $this->callIfTablesExist(PolicyActionBindingsTableSeeder::class, ['policy_action_bindings']);
         $this->callIfTablesExist(PolicyRulesTableSeeder::class, [
             'users',

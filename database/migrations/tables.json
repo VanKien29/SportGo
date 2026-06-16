@@ -1,0 +1,363 @@
+﻿[
+    {
+        "Name":  "ai_conversations",
+        "File":  "2026_06_01_000003_create_ai_history_tables.php"
+    },
+    {
+        "Name":  "amenities",
+        "File":  "2026_06_05_154517_create_amenities_table.php"
+    },
+    {
+        "Name":  "audit_logs",
+        "File":  "2026_05_24_103525_create_audit_logs_table.php"
+    },
+    {
+        "Name":  "backup_jobs",
+        "File":  "2026_06_01_000006_create_backup_jobs_table.php"
+    },
+    {
+        "Name":  "banners",
+        "File":  "2026_05_24_103531_create_banners_table.php"
+    },
+    {
+        "Name":  "booking_configs",
+        "File":  "2026_05_24_103540_create_booking_configs_table.php"
+    },
+    {
+        "Name":  "booking_items",
+        "File":  "2026_05_30_000001_create_booking_items_table.php"
+    },
+    {
+        "Name":  "bookings",
+        "File":  "2026_05_24_103621_create_bookings_table.php"
+    },
+    {
+        "Name":  "cache",
+        "File":  "0001_01_01_000001_create_cache_table.php"
+    },
+    {
+        "Name":  "community_post_comments",
+        "File":  "2026_05_24_103622_create_community_post_comments_table.php"
+    },
+    {
+        "Name":  "community_post_likes",
+        "File":  "2026_05_24_103623_create_community_post_likes_table.php"
+    },
+    {
+        "Name":  "community_posts",
+        "File":  "2026_05_24_103616_create_community_posts_table.php"
+    },
+    {
+        "Name":  "complaints",
+        "File":  "2026_05_24_103623_create_complaints_table.php"
+    },
+    {
+        "Name":  "contract_signatures",
+        "File":  "2026_06_11_084626_create_contract_signatures_table.php"
+    },
+    {
+        "Name":  "contract_templates",
+        "File":  "2026_06_11_084623_create_contract_templates_table.php"
+    },
+    {
+        "Name":  "conversation_participants",
+        "File":  "2026_05_24_103618_create_conversation_participants_table.php"
+    },
+    {
+        "Name":  "conversations",
+        "File":  "2026_05_24_103617_create_conversations_table.php"
+    },
+    {
+        "Name":  "court_types",
+        "File":  "2026_05_24_103609_create_court_types_table.php"
+    },
+    {
+        "Name":  "document_templates",
+        "File":  "2026_06_08_000013_create_document_templates_table.php"
+    },
+    {
+        "Name":  "favorite_venues",
+        "File":  "2026_05_24_103625_create_favorite_venues_table.php"
+    },
+    {
+        "Name":  "generated_document_signatures",
+        "File":  "2026_06_08_000015_create_generated_document_signatures_table.php"
+    },
+    {
+        "Name":  "generated_documents",
+        "File":  "2026_06_08_000014_create_generated_documents_table.php"
+    },
+    {
+        "Name":  "hashtags",
+        "File":  "2026_05_24_103632_create_hashtags_table.php"
+    },
+    {
+        "Name":  "holiday_prices",
+        "File":  "2026_05_24_103626_create_holiday_prices_table.php"
+    },
+    {
+        "Name":  "internal_receipts",
+        "File":  "2026_05_30_000004_create_internal_receipts_table.php"
+    },
+    {
+        "Name":  "jobs",
+        "File":  "0001_01_01_000002_create_jobs_table.php"
+    },
+    {
+        "Name":  "media",
+        "File":  "2026_05_24_103626_create_media_table.php"
+    },
+    {
+        "Name":  "messages",
+        "File":  "2026_05_24_103626_create_messages_table.php"
+    },
+    {
+        "Name":  "moderation_configs",
+        "File":  "2026_05_24_103627_create_moderation_configs_table.php"
+    },
+    {
+        "Name":  "notifications",
+        "File":  "2026_05_24_103627_create_notifications_table.php"
+    },
+    {
+        "Name":  "owner_bank_accounts",
+        "File":  "2026_05_30_000002_create_owner_bank_accounts_table.php"
+    },
+    {
+        "Name":  "owner_wallet_ledgers",
+        "File":  "2026_05_29_000002_create_owner_wallet_ledgers_table.php"
+    },
+    {
+        "Name":  "owner_wallets",
+        "File":  "2026_05_29_000001_create_owner_wallets_table.php"
+    },
+    {
+        "Name":  "owner_withdrawal_requests",
+        "File":  "2026_05_30_000003_create_owner_withdrawal_requests_table.php"
+    },
+    {
+        "Name":  "partner_application_courts",
+        "File":  "2026_05_24_103619_create_partner_application_courts_table.php"
+    },
+    {
+        "Name":  "partner_application_documents",
+        "File":  "2026_06_08_000011_create_partner_application_documents_table.php"
+    },
+    {
+        "Name":  "partner_application_status_histories",
+        "File":  "2026_06_08_000012_create_partner_application_status_histories_table.php"
+    },
+    {
+        "Name":  "partner_applications",
+        "File":  "2026_05_24_103618_create_partner_applications_table.php"
+    },
+    {
+        "Name":  "partner_contracts",
+        "File":  "2026_06_08_000016_create_partner_contracts_table.php"
+    },
+    {
+        "Name":  "partner_documents",
+        "File":  "2026_06_11_084624_create_partner_documents_table.php"
+    },
+    {
+        "Name":  "partner_histories",
+        "File":  "2026_06_11_084629_create_partner_histories_table.php"
+    },
+    {
+        "Name":  "partner_liquidations",
+        "File":  "2026_06_11_084628_create_partner_liquidations_table.php"
+    },
+    {
+        "Name":  "partner_settlement_items",
+        "File":  "2026_06_08_000021_create_partner_settlement_items_table.php"
+    },
+    {
+        "Name":  "partner_settlements",
+        "File":  "2026_06_08_000020_create_partner_settlements_table.php"
+    },
+    {
+        "Name":  "partner_termination_documents",
+        "File":  "2026_06_08_000018_create_partner_termination_documents_table.php"
+    },
+    {
+        "Name":  "partner_termination_requests",
+        "File":  "2026_06_08_000017_create_partner_termination_requests_table.php"
+    },
+    {
+        "Name":  "partner_termination_status_histories",
+        "File":  "2026_06_08_000019_create_partner_termination_status_histories_table.php"
+    },
+    {
+        "Name":  "payment_logs",
+        "File":  "2026_05_24_103629_create_payment_logs_table.php"
+    },
+    {
+        "Name":  "payments",
+        "File":  "2026_05_24_103625_create_payments_table.php"
+    },
+    {
+        "Name":  "permissions",
+        "File":  "2026_05_24_103630_create_permissions_table.php"
+    },
+    {
+        "Name":  "personal_access_tokens",
+        "File":  "2026_05_25_063450_create_personal_access_tokens_table.php"
+    },
+    {
+        "Name":  "platform_fee_tiers",
+        "File":  "2026_05_24_103631_create_platform_fee_tiers_table.php"
+    },
+    {
+        "Name":  "player_post_participants",
+        "File":  "2026_05_24_103632_create_player_post_participants_table.php"
+    },
+    {
+        "Name":  "player_posts",
+        "File":  "2026_05_24_103631_create_player_posts_table.php"
+    },
+    {
+        "Name":  "player_preferences",
+        "File":  "2026_05_24_103632_create_player_preferences_table.php"
+    },
+    {
+        "Name":  "player_preferred_court_types",
+        "File":  "2026_05_24_103633_create_player_preferred_court_types_table.php"
+    },
+    {
+        "Name":  "player_ratings",
+        "File":  "2026_05_24_103633_create_player_ratings_table.php"
+    },
+    {
+        "Name":  "policy_action_bindings",
+        "File":  "2026_06_01_000001_add_policy_rule_tables_and_fields.php"
+    },
+    {
+        "Name":  "policy_override_constraints",
+        "File":  "2026_06_08_000002_create_policy_override_constraints_table.php"
+    },
+    {
+        "Name":  "policy_rule_templates",
+        "File":  "2026_06_08_000001_create_policy_rule_templates_table.php"
+    },
+    {
+        "Name":  "policy_status_histories",
+        "File":  "2026_06_08_000004_create_policy_status_histories_table.php"
+    },
+    {
+        "Name":  "post_hashtags",
+        "File":  "2026_05_24_103633_create_post_hashtags_table.php"
+    },
+    {
+        "Name":  "price_slots",
+        "File":  "2026_05_24_103634_create_price_slots_table.php"
+    },
+    {
+        "Name":  "refund_status_histories",
+        "File":  "2026_06_08_000006_create_refund_status_histories_table.php"
+    },
+    {
+        "Name":  "refunds",
+        "File":  "2026_05_24_103634_create_refunds_table.php"
+    },
+    {
+        "Name":  "reports",
+        "File":  "2026_05_24_103635_create_reports_table.php"
+    },
+    {
+        "Name":  "reviews",
+        "File":  "2026_05_24_103635_create_reviews_table.php"
+    },
+    {
+        "Name":  "role_permissions",
+        "File":  "2026_05_24_103636_create_role_permissions_table.php"
+    },
+    {
+        "Name":  "roles",
+        "File":  "2026_05_24_103620_create_roles_table.php"
+    },
+    {
+        "Name":  "slot_locks",
+        "File":  "2026_05_24_103637_create_slot_locks_table.php"
+    },
+    {
+        "Name":  "system_bank_accounts",
+        "File":  "2026_05_29_000000_create_system_bank_accounts_table.php"
+    },
+    {
+        "Name":  "system_policies",
+        "File":  "2026_05_24_103637_create_system_policies_table.php"
+    },
+    {
+        "Name":  "system_posts",
+        "File":  "2026_05_24_103638_create_system_posts_table.php"
+    },
+    {
+        "Name":  "user_permission_revokes",
+        "File":  "2026_05_24_103638_create_user_permission_revokes_table.php"
+    },
+    {
+        "Name":  "user_policy_acceptances",
+        "File":  "2026_05_24_103638_create_user_policy_acceptances_table.php"
+    },
+    {
+        "Name":  "user_roles",
+        "File":  "2026_05_24_103639_create_user_roles_table.php"
+    },
+    {
+        "Name":  "user_wallets",
+        "File":  "2026_06_01_000004_create_user_wallet_tables_and_extend_owner_ledger.php"
+    },
+    {
+        "Name":  "users",
+        "File":  "0001_01_01_000000_create_users_table.php"
+    },
+    {
+        "Name":  "venue_access_restrictions",
+        "File":  "2026_06_08_000023_create_venue_access_restrictions_table.php"
+    },
+    {
+        "Name":  "venue_cluster_amenities",
+        "File":  "2026_06_09_000002_create_venue_cluster_amenities_table.php"
+    },
+    {
+        "Name":  "venue_clusters",
+        "File":  "2026_05_24_103539_create_venue_clusters_table.php"
+    },
+    {
+        "Name":  "venue_court_approval_requests",
+        "File":  "2026_05_24_103616_create_venue_court_approval_requests_table.php"
+    },
+    {
+        "Name":  "venue_courts",
+        "File":  "2026_05_24_103615_create_venue_courts_table.php"
+    },
+    {
+        "Name":  "venue_location_change_requests",
+        "File":  "2026_06_13_000001_create_venue_location_change_requests_table.php"
+    },
+    {
+        "Name":  "venue_platform_fee_ledgers",
+        "File":  "2026_05_24_103632_create_venue_platform_fee_ledgers_table.php"
+    },
+    {
+        "Name":  "venue_policy_rules",
+        "File":  "2026_06_08_000003_add_review_fields_to_venue_policy_rules_table.php",
+        "Type":  "Alter"
+    },
+    {
+        "Name":  "venue_posts",
+        "File":  "2026_05_24_103624_create_venue_posts_table.php"
+    },
+    {
+        "Name":  "venue_staff_assignments",
+        "File":  "2026_05_24_103610_create_venue_staff_assignments_table.php"
+    },
+    {
+        "Name":  "verification_codes",
+        "File":  "2026_05_24_103642_create_verification_codes_table.php"
+    },
+    {
+        "Name":  "vouchers",
+        "File":  "2026_06_01_000005_create_voucher_tables_and_discount_snapshots.php"
+    }
+]

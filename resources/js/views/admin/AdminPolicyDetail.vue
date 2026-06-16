@@ -120,13 +120,21 @@
           <AppIcon name="lock" size="15" />
           Chính sách đang áp dụng. Hãy tạo phiên bản mới để chỉnh sửa.
         </div>
-        <textarea
-          v-model="contentDraft"
-          :readonly="!policy.can_edit_content"
-          class="content-textarea"
-          rows="16"
-          placeholder="Nhập nội dung chính sách..."
-        ></textarea>
+        <div class="content-editor-wrap">
+          <QuillEditor
+            v-if="policy.can_edit_content"
+            v-model:content="contentDraft"
+            contentType="html"
+            theme="snow"
+            :toolbar="[
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ 'header': [1, 2, 3, false] }],
+              [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+              ['link']
+            ]"
+          />
+          <div v-else class="content-readonly ql-editor" v-html="contentDraft"></div>
+        </div>
       </div>
 
       <!-- ─── TAB: Cấu hình xử lý ─── -->
@@ -182,41 +190,7 @@
           </div>
         </article>
 
-        <article v-else-if="configurationType === 'moderation_thresholds'" class="config-card">
-          <div class="config-head">
-            <div>
-              <span class="config-kicker">Kiểm duyệt</span>
-              <h3>Ngưỡng báo cáo cần xử lý</h3>
-              <p>{{ moderationConfiguration?.summary || 'Chưa cấu hình ngưỡng báo cáo.' }}</p>
-            </div>
-            <button class="btn primary" type="button" :disabled="!canEditConfig" @click="openReportModal">
-              <AppIcon name="pencil" size="15" />
-              Sửa ngưỡng
-            </button>
-          </div>
-          <div class="config-table-wrap">
-            <table class="config-table">
-              <thead>
-                <tr>
-                  <th>Đối tượng</th>
-                  <th>Ngưỡng</th>
-                  <th>Thời gian xét</th>
-                  <th>Hành động</th>
-                  <th>Thông báo</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="threshold in reportThresholdRows" :key="threshold.key">
-                  <td><strong>{{ threshold.object_type_label }}</strong></td>
-                  <td>{{ threshold.min_reports }} báo cáo / {{ threshold.min_distinct_reporters }} người</td>
-                  <td>{{ threshold.within_days }} ngày</td>
-                  <td>{{ threshold.action_label }}</td>
-                  <td>{{ threshold.notify_admin ? 'Có' : 'Không' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </article>
+        <AdminModerationConfig v-else-if="configurationType === 'moderation_thresholds'" :policy-id="policy.id" :can-edit-config="canEditConfig" />
 
         <article v-else class="config-card">
           <div class="config-head">
@@ -239,56 +213,7 @@
         </article>
       </div>
 
-      <!-- ─── TAB: Quy tắc ─── -->
-      <div v-if="activeTab === 'rules'" class="tab-body">
-        <div class="section-row">
-          <div>
-            <strong>Quy tắc xử lý tự động</strong>
-            <p>{{ rules.length }} quy tắc đã cấu hình cho chính sách này.</p>
-          </div>
-          <button
-            class="btn primary"
-            :disabled="policy.status === 'active'"
-            @click="openRuleWizard"
-          >
-            <AppIcon name="plus" size="15" />
-            Thêm quy tắc
-          </button>
-        </div>
 
-        <div v-if="policy.status === 'active'" class="info-notice warning">
-          <AppIcon name="alert" size="15" />
-          Chính sách đang áp dụng. Tạo phiên bản mới để thêm hoặc sửa quy tắc.
-        </div>
-
-        <div v-if="!rules.length" class="empty-state">
-          <AppIcon name="sliders" size="28" />
-          <span>Chưa có quy tắc nào. Bấm <strong>Thêm quy tắc</strong> để bắt đầu.</span>
-        </div>
-
-        <div class="rule-list">
-          <div v-for="rule in rules" :key="rule.id" class="rule-row" :class="{ inactive: !rule.is_active }">
-            <div class="rule-row-main">
-              <div>
-                <p class="rule-name">{{ rule.rule_name || getRuleTypeLabel(rule.rule_type) }}</p>
-                <p class="rule-sub">{{ getRuleSummary(rule) }}</p>
-                <span class="rule-action-tag">{{ rule.action_label_vi || getActionLabel(rule.action_code) }}</span>
-              </div>
-              <div class="rule-controls">
-                <span class="badge" :class="rule.is_active ? 'status-active' : 'status-archived'">{{ rule.is_active ? 'Bật' : 'Tắt' }}</span>
-                <button
-                  class="icon-btn"
-                  :title="rule.is_active ? 'Tắt quy tắc này' : 'Bật quy tắc này'"
-                  :disabled="policy.status === 'active'"
-                  @click="toggleRule(rule)"
-                >
-                  <AppIcon :name="rule.is_active ? 'power' : 'circleCheck'" size="16" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- ─── TAB: Lịch sử thay đổi ─── -->
       <div v-if="activeTab === 'audit'" class="tab-body">
@@ -609,78 +534,7 @@
       </form>
     </div>
 
-    <div v-if="reportModal" class="modal-bg" @click.self="closeConfigModals">
-      <form class="modal-box wide" @submit.prevent="saveReportConfig">
-        <div class="modal-head">
-          <div>
-            <p class="eyebrow">Kiểm duyệt</p>
-            <h3>Sửa ngưỡng báo cáo</h3>
-          </div>
-          <button class="icon-btn" type="button" @click="closeConfigModals"><AppIcon name="x" size="18" /></button>
-        </div>
-        <div class="modal-body">
-          <div class="edit-toolbar">
-            <button class="btn secondary" type="button" @click="addReportThreshold">
-              <AppIcon name="plus" size="15" />
-              Thêm ngưỡng
-            </button>
-          </div>
-          <article v-for="threshold in reportThresholdDraft" :key="threshold.key" class="config-edit-row">
-            <div class="config-edit-grid report-grid">
-              <label>
-                Đối tượng
-                <select v-model="threshold.object_type" @change="normalizeThresholdAction(threshold)">
-                  <option v-for="option in reportTargetOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-                </select>
-              </label>
-              <label>
-                Số báo cáo
-                <input v-model.number="threshold.min_reports" type="number" min="1" />
-              </label>
-              <label>
-                Số người
-                <input v-model.number="threshold.min_distinct_reporters" type="number" min="1" />
-              </label>
-              <label>
-                Trong ngày
-                <input v-model.number="threshold.within_days" type="number" min="1" />
-              </label>
-              <label>
-                Hành động
-                <select v-model="threshold.action">
-                  <option v-for="option in reportActionOptionsFor(threshold.object_type)" :key="option.value" :value="option.value">{{ option.label }}</option>
-                </select>
-              </label>
-              <label class="check-row">
-                <input v-model="threshold.notify_admin" type="checkbox" />
-                Báo admin
-              </label>
-              <label class="check-row">
-                <input v-model="threshold.notify_reported_user" type="checkbox" />
-                Báo người bị xử lý
-              </label>
-              <label class="check-row">
-                <input v-model="threshold.is_active" type="checkbox" />
-                Đang áp dụng
-              </label>
-              <button class="icon-btn danger" type="button" title="Xóa ngưỡng" :disabled="reportThresholdDraft.length <= 1" @click="removeReportThreshold(threshold.key)">
-                <AppIcon name="trash" size="15" />
-              </button>
-            </div>
-          </article>
-          <div class="preview-banner" :class="{ invalid: reportValidation }">
-            <p class="preview-label">{{ reportValidation ? 'Cần kiểm tra lại' : 'Bản xem trước' }}</p>
-            <p>{{ reportValidation || reportPreview }}</p>
-          </div>
-        </div>
-        <div class="modal-foot">
-          <button class="btn secondary" type="button" @click="closeConfigModals">Hủy</button>
-          <button class="btn primary" type="submit" :disabled="savingRule || !!reportValidation">
-            {{ savingRule ? 'Đang lưu...' : 'Lưu ngưỡng' }}
-          </button>
-        </div>
-      </form>
-    </div>
+
 
     <div v-if="genericConfigModal" class="modal-bg" @click.self="closeConfigModals">
       <form class="modal-box wide" @submit.prevent="saveGenericConfig">
@@ -755,9 +609,13 @@ import {
   getStatusLabel,
 } from '../../utils/labelMaps.js';
 
+import { QuillEditor } from '@vueup/vue-quill';
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
+import AdminModerationConfig from '../../components/admin/AdminModerationConfig.vue';
+
 export default {
   name: 'AdminPolicyDetail',
-  components: { AppIcon },
+  components: { AppIcon, QuillEditor, AdminModerationConfig },
   data() {
     return {
       loading: true,
@@ -939,14 +797,10 @@ export default {
     genericConfigFields() {
       const fields = {
         platform_fee: [
-          ['remind_before_days', 'Nhắc trước hạn', 'number'],
-          ['warn_overdue_days', 'Cảnh báo sau quá hạn', 'number'],
-          ['restrict_overdue_days', 'Hạn chế quản lý sau quá hạn', 'number'],
-          ['lock_overdue_days', 'Khóa cụm sân sau quá hạn', 'number'],
-          ['termination_review_overdue_days', 'Chuyển xử lý chấm dứt sau quá hạn', 'number'],
-          ['notify_owner', 'Thông báo chủ sân', 'boolean'],
-          ['notify_admin', 'Thông báo admin', 'boolean'],
-          ['message_template', 'Nội dung thông báo', 'textarea'],
+          ['remind_before_days', 'Thông báo trước hạn (ngày)', 'number'],
+          ['warn_overdue_days', 'Thông báo sau quá hạn (ngày)', 'number'],
+          ['restrict_overdue_days', 'Hạn chế quyền sau quá hạn (ngày)', 'number'],
+          ['termination_review_overdue_days', 'Chuyển Admin xử lý chấm dứt sau (ngày)', 'number'],
         ],
         permission_revoke: [
           ['target_type', 'Đối tượng', 'text'],
@@ -960,12 +814,9 @@ export default {
           ['message_template', 'Nội dung thông báo', 'textarea'],
         ],
         partner_contract: [
-          ['warn_before_days', 'Nhắc gia hạn trước', 'number'],
-          ['lock_after_days', 'Khóa cụm sân sau hết hạn', 'number'],
-          ['revoke_after_days', 'Thu hồi quyền sau hết hạn', 'number'],
-          ['requires_admin_confirm', 'Yêu cầu admin xác nhận', 'boolean'],
-          ['notify_target', 'Thông báo chủ sân', 'boolean'],
-          ['notify_admin', 'Thông báo admin', 'boolean'],
+          ['warn_before_days', 'Thông báo trước khi hết hạn (ngày)', 'number'],
+          ['lock_after_days', 'Khóa cụm sân sau quá hạn (ngày)', 'number'],
+          ['revoke_after_days', 'Chuyển Admin xử lý thu hồi quyền (ngày)', 'number'],
         ],
         account_policy: [
           ['warnings_to_restrict', 'Số cảnh báo trước khi hạn chế', 'number'],
@@ -1071,13 +922,15 @@ export default {
     getActionLabel, getPolicyTypeLabel, getRuleSummary, getRuleTypeLabel, getStatusBadgeClass, getStatusLabel,
 
     buildTabs() {
-      this.tabs = [
+      const newTabs = [
         { key: 'overview', label: 'Tổng quan', icon: 'eye' },
         { key: 'content', label: 'Nội dung', icon: 'fileText' },
-        { key: 'config', label: 'Cấu hình', icon: 'settings', count: this.configCount },
-        { key: 'rules', label: 'Quy tắc', icon: 'sliders', count: this.rules.length },
-        { key: 'audit', label: 'Lịch sử', icon: 'history' },
       ];
+      if (this.configurationType !== 'text_only') {
+        newTabs.push({ key: 'config', label: 'Cấu hình', icon: 'settings', count: this.configCount });
+      }
+      newTabs.push({ key: 'audit', label: 'Lịch sử', icon: 'history' });
+      this.tabs = newTabs;
     },
 
     async loadDetail() {
@@ -1360,6 +1213,17 @@ export default {
           }
           configurationData[field.key] = value ?? '';
         });
+
+        if (this.configurationType === 'platform_fee') {
+          configurationData.lock_overdue_days = configurationData.restrict_overdue_days || 0;
+          configurationData.notify_owner = true;
+          configurationData.notify_admin = true;
+          configurationData.message_template = 'Cụm sân của bạn đã đến hoặc quá hạn phí nền tảng.';
+        } else if (this.configurationType === 'partner_contract') {
+          configurationData.requires_admin_confirm = true;
+          configurationData.notify_target = true;
+          configurationData.notify_admin = true;
+        }
 
         await adminPolicyService.updatePolicyConfiguration(this.policy.id, {
           configuration_data: configurationData,

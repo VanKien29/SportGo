@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\ModerationThreshold;
 use App\Models\Notification;
+use App\Models\PenaltyEscalationRule;
 use App\Models\PolicyActionBinding;
 use App\Models\PolicyEvaluationLog;
 use App\Models\PolicyRule;
@@ -17,6 +19,7 @@ use App\Services\Admin\PolicyConflictService;
 use App\Services\Policies\ModerationReportPolicyService;
 use App\Services\Policies\RefundCancellationPolicyService;
 use App\Services\Policies\PolicyConfigurationService;
+use App\Services\Policy\PolicyRuleSyncService;
 use App\Support\PolicyUiText;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
@@ -257,6 +260,14 @@ class AdminPolicyController extends Controller
         }
 
         $configService = app(\App\Services\Policies\PolicyConfigurationService::class);
+        if ($request->has('score_thresholds') || $request->has('auto_hide_score')) {
+            return $this->updateScoreModerationThresholds($request, $policy);
+        }
+
+        if ($request->has('score_thresholds') || $request->has('auto_hide_score')) {
+            return $this->updateScoreModerationThresholds($request, $policy);
+        }
+
         $data = $request->validate([
             'configuration_data' => ['required', 'array'],
         ]);
@@ -601,87 +612,106 @@ class AdminPolicyController extends Controller
             ]);
         }
 
-        $data = $request->validate([
-            'thresholds' => ['required', 'array', 'min:1', 'max:20'],
-            'thresholds.*.key' => ['nullable', 'string', 'max:120'],
-            'thresholds.*.object_type' => ['required', 'string', 'max:50'],
-            'thresholds.*.min_reports' => ['required', 'integer', 'min:1'],
-            'thresholds.*.min_distinct_reporters' => ['required', 'integer', 'min:1'],
-            'thresholds.*.within_days' => ['required', 'integer', 'min:1'],
-            'thresholds.*.action' => ['required', 'string', 'max:80'],
-            'thresholds.*.notify_admin' => ['nullable', 'boolean'],
-            'thresholds.*.notify_reported_user' => ['nullable', 'boolean'],
-            'thresholds.*.is_active' => ['nullable', 'boolean'],
-        ]);
+        $payload = $request->has('score_thresholds')
+            ? $request->validate([
+                'score_thresholds' => ['required', 'array', 'min:1', 'max:20'],
+                'score_thresholds.*.target_type' => ['required', Rule::in(['community_post', 'venue_post', 'comment', 'user', 'venue_cluster'])],
+                'score_thresholds.*.auto_hide_score' => ['required', 'integer', 'min:1'],
+                'score_thresholds.*.admin_alert_score' => ['required', 'integer', 'min:1'],
+                'score_thresholds.*.score_window_days' => ['required', 'integer', 'min:1', 'max:365'],
+                'score_thresholds.*.score_reset_days' => ['nullable', 'integer', 'min:1', 'max:1000'],
+                'score_thresholds.*.action_type' => ['required', 'string', 'max:50'],
+                'score_thresholds.*.duration_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
+            ])['score_thresholds']
+            : [$request->validate([
+                'target_type' => ['required', Rule::in(['community_post', 'venue_post', 'comment', 'user', 'venue_cluster'])],
+                'auto_hide_score' => ['required', 'integer', 'min:1'],
+                'admin_alert_score' => ['required', 'integer', 'min:1'],
+                'score_window_days' => ['required', 'integer', 'min:1', 'max:365'],
+                'score_reset_days' => ['nullable', 'integer', 'min:1', 'max:1000'],
+                'action_type' => ['required', 'string', 'max:50'],
+                'duration_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
+            ])];
 
-        $thresholds = $this->reportPolicies->validateThresholds($data['thresholds']);
-
-        $rule = DB::transaction(function () use ($request, $policy, $thresholds): PolicyRule {
-            $policy->actionBindings()->updateOrCreate(
-                ['action_code' => 'post.report'],
-                [
-                    'module' => 'moderation',
-                    'description' => 'Người dùng báo cáo nội dung hoặc đối tượng cần kiểm duyệt.',
-                    'is_active' => true,
-                ]
-            );
-
-            $oldRule = PolicyRule::query()
-                ->where('system_policy_id', $policy->id)
-                ->where('rule_type', ModerationReportPolicyService::RULE_TYPE)
-                ->orderByDesc('priority')
-                ->first();
-
-            $payload = [
-                'action_code' => 'post.report',
-                'rule_code' => $oldRule?->rule_code ?: 'moderation_thresholds',
-                'rule_name' => 'Ngưỡng xử lý báo cáo & kiểm duyệt',
-                'rule_type' => ModerationReportPolicyService::RULE_TYPE,
-                'decision_key' => 'moderation_threshold_matched',
-                'conflict_group' => 'moderation_report_threshold',
-                'condition_json' => $this->reportPolicies->thresholdConditionJson($thresholds),
-                'result_json' => $this->reportPolicies->thresholdResultJson($thresholds),
-                'constraint_json' => ['dangerous_actions_disabled' => true],
-                'allowed_override_json' => [],
-                'priority' => 100,
-                'is_active' => true,
-                'updated_by' => $request->user()->id,
-            ];
-
-            if ($oldRule) {
-                $oldValues = $oldRule->toArray();
-                $oldRule->update($payload);
-                $this->audit->log($request, 'policy', 'policy.moderation_thresholds_saved', 'policy_rules', $oldRule->id, $oldValues, $oldRule->fresh()->toArray(), [
-                    'policy_id' => $policy->id,
-                    'policy_rule_id' => $oldRule->id,
+        foreach ($payload as $index => $row) {
+            if ((int) $row['auto_hide_score'] <= (int) $row['admin_alert_score']) {
+                throw ValidationException::withMessages([
+                    "score_thresholds.{$index}.auto_hide_score" => 'Điểm tự động xử lý phải lớn hơn điểm cảnh báo admin.',
                 ]);
+            }
+            if (in_array($row['action_type'] ?? '', ['lock_temp', 'limit_venue', 'block_venue'], true) && empty($row['duration_days'])) {
+                throw ValidationException::withMessages([
+                    "score_thresholds.{$index}.duration_days" => 'Hình phạt tạm thời phải có số ngày áp dụng.',
+                ]);
+            }
+        }
 
-                return $oldRule->fresh();
+        DB::transaction(function () use ($request, $policy, $payload): void {
+            foreach ($payload as $row) {
+                ModerationThreshold::query()->updateOrCreate(
+                    [
+                        'system_policy_id' => $policy->id,
+                        'target_type' => $row['target_type'],
+                    ],
+                    [
+                        'auto_hide_score' => (int) $row['auto_hide_score'],
+                        'admin_alert_score' => (int) $row['admin_alert_score'],
+                        'score_window_days' => (int) $row['score_window_days'],
+                        'score_reset_days' => (int) ($row['score_reset_days'] ?? 90),
+                        'action_type' => $row['action_type'],
+                        'duration_days' => $row['duration_days'] ?? null,
+                    ]
+                );
             }
 
-            $rule = $policy->rules()->create([
-                ...$payload,
-                'created_by' => $request->user()->id,
-            ]);
+            if (class_exists(\App\Services\Policy\PolicyRuleSyncService::class)) {
+                app(\App\Services\Policy\PolicyRuleSyncService::class)->syncFromThresholds($policy->fresh());
+            }
 
-            $this->audit->log($request, 'policy', 'policy.moderation_thresholds_saved', 'policy_rules', $rule->id, [], $rule->toArray(), [
-                'policy_id' => $policy->id,
-                'policy_rule_id' => $rule->id,
-            ]);
-
-            return $rule;
+            $this->audit->log($request, 'policy', 'policy.score_thresholds_saved', 'system_policies', $policy->id, [], [
+                'score_thresholds' => $payload,
+            ], ['policy_id' => $policy->id]);
         });
 
-        $policy->load(['rules', 'actionBindings']);
-
         return response()->json([
-            'message' => 'Đã lưu ngưỡng báo cáo & kiểm duyệt.',
+            'message' => 'Đã lưu ngưỡng điểm kiểm duyệt.',
             'data' => [
-                'rule' => $this->rulePayload($rule),
-                'moderation_thresholds' => $this->reportConfigurationPayload($policy),
+                'score_thresholds' => $policy->fresh('moderationThresholds')->moderationThresholds->values(),
             ],
         ]);
     }
+
+    public function scoreModerationThresholds(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'policy.view');
+
+        $policy = SystemPolicy::query()->with('moderationThresholds')->findOrFail($id);
+
+        return response()->json([
+            'data' => $policy->moderationThresholds
+                ->sortBy('target_type')
+                ->values()
+                ->map(fn (ModerationThreshold $threshold): array => [
+                    'id' => $threshold->id,
+                    'target_type' => $threshold->target_type,
+                    'target_type_label' => $this->moderationTargetLabel($threshold->target_type),
+                    'auto_hide_score' => (int) $threshold->auto_hide_score,
+                    'admin_alert_score' => (int) $threshold->admin_alert_score,
+                    'score_window_days' => (int) $threshold->score_window_days,
+                    'score_reset_days' => (int) $threshold->score_reset_days,
+                    'action_type' => $threshold->action_type,
+                    'duration_days' => $threshold->duration_days ? (int) $threshold->duration_days : null,
+                    'summary' => sprintf(
+                        '%s: ẩn tạm khi đạt %d điểm, cảnh báo admin khi đạt %d điểm trong %d ngày.',
+                        $this->moderationTargetLabel($threshold->target_type),
+                        (int) $threshold->auto_hide_score,
+                        (int) $threshold->admin_alert_score,
+                        (int) $threshold->score_window_days
+                    ),
+                ]),
+        ]);
+    }
+
 
     public function storeBinding(Request $request, string $id): JsonResponse
     {
@@ -1524,6 +1554,26 @@ class AdminPolicyController extends Controller
             ->filter(fn (array $item): bool => in_array($policyType, $item['policy_types'], true))
             ->keys()
             ->all();
+    }
+
+    private function validatePenaltyTargetType(string $targetType): void
+    {
+        if (! in_array($targetType, ['user', 'venue_cluster'], true)) {
+            throw ValidationException::withMessages([
+                'target_type' => 'Đối tượng leo thang xử lý vi phạm không hợp lệ.',
+            ]);
+        }
+    }
+
+    private function moderationTargetLabel(?string $targetType): string
+    {
+        return [
+            'community_post' => 'Bài viết cộng đồng',
+            'venue_post' => 'Bài viết sân',
+            'comment' => 'Bình luận',
+            'user' => 'Người dùng',
+            'venue_cluster' => 'Sân / cụm sân',
+        ][$targetType] ?? 'Đối tượng kiểm duyệt';
     }
 
     private function actionOptions(): array
