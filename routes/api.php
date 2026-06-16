@@ -49,6 +49,7 @@ Route::prefix('auth')->group(function (): void {
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
+        Route::get('/files/download', [\App\Http\Controllers\Api\FileDownloadController::class, 'download']);
         Route::post('/set-password', [SetPasswordController::class, 'store']);
     });
 });

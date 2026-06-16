@@ -614,7 +614,7 @@
           </div>
         </div>
       </div>
-
+    </template>
 
     <!-- ── Modal: Khóa cụm sân ── -->
     <div v-if="showLockModal" class="modal-backdrop" @click.self="closeLockModal">

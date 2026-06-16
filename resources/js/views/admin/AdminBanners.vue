@@ -180,7 +180,7 @@
 
             <label class="field">
               <span>Kết thúc</span>
-              <input v-model="form.ends_at" type="datetime-local" />
+              <input v-model="form.ends_at" type="datetime-local" :min="form.starts_at" />
             </label>
           </div>
 
