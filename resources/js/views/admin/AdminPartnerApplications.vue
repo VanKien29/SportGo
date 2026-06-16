@@ -37,7 +37,7 @@
         </label>
         <label class="field compact">
           <span>Đến ngày</span>
-          <input v-model="filters.date_to" type="date" @change="loadApplications(1)" />
+          <input v-model="filters.date_to" type="date" :min="filters.date_from" @change="loadApplications(1)" />
         </label>
       </div>
     </div>

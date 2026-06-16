@@ -118,6 +118,18 @@ class BookingManagementController extends Controller
             ]);
         }
 
+        if (empty($validated['time_ranges'])) {
+            if ($this->timeToMinutes($validated['start_time']) >= $this->timeToMinutes($validated['end_time'])) {
+                throw ValidationException::withMessages(['end_time' => 'Giờ kết thúc phải sau giờ bắt đầu.']);
+            }
+        } else {
+            foreach ($validated['time_ranges'] as $index => $range) {
+                if ($this->timeToMinutes($range['start_time']) >= $this->timeToMinutes($range['end_time'])) {
+                    throw ValidationException::withMessages(["time_ranges.$index.end_time" => 'Giờ kết thúc phải sau giờ bắt đầu.']);
+                }
+            }
+        }
+
         if (($validated['payment_method'] ?? null) === 'sepay') {
             $validated['is_paid'] = false;
         }
@@ -177,6 +189,10 @@ class BookingManagementController extends Controller
 
         if ($validated['recurrence_type'] === 'monthly' && empty($validated['recurrence_days_of_month'])) {
             throw ValidationException::withMessages(['recurrence_days_of_month' => 'Vui lòng chọn ngày trong tháng.']);
+        }
+
+        if ($this->timeToMinutes($validated['start_time']) >= $this->timeToMinutes($validated['end_time'])) {
+            throw ValidationException::withMessages(['end_time' => 'Giờ kết thúc phải sau giờ bắt đầu.']);
         }
 
         $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
@@ -421,6 +437,15 @@ class BookingManagementController extends Controller
             ->merge($assignedClusterIds)
             ->unique()
             ->values();
+    }
+
+    private function timeToMinutes(string $time): int
+    {
+        if (str_starts_with($time, '24:00')) {
+            return 24 * 60;
+        }
+        [$hours, $minutes] = explode(':', $time);
+        return (int) $hours * 60 + (int) $minutes;
     }
 
 }

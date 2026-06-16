@@ -53,7 +53,7 @@
       <div v-if="filters.date_range === 'custom'" class="date-range-fields" :aria-label="tab === 'refunds' ? 'Khoảng ngày yêu cầu hoàn tiền tùy chỉnh' : 'Khoảng ngày yêu cầu rút tiền tùy chỉnh'">
         <input v-model="filters.date_from" type="date" :title="tab === 'refunds' ? 'Yêu cầu hoàn tiền từ ngày' : 'Yêu cầu rút tiền từ ngày'" />
         <span>đến</span>
-        <input v-model="filters.date_to" type="date" :title="tab === 'refunds' ? 'Yêu cầu hoàn tiền đến ngày' : 'Yêu cầu rút tiền đến ngày'" />
+        <input v-model="filters.date_to" type="date" :title="tab === 'refunds' ? 'Yêu cầu hoàn tiền đến ngày' : 'Yêu cầu rút tiền đến ngày'" :min="filters.date_from" />
       </div>
       <button class="icon-only primary" type="submit" title="Lọc danh sách" aria-label="Lọc danh sách">
         <AppIcon name="filter" size="16" />

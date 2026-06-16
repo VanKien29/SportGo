@@ -50,7 +50,7 @@
       <div v-if="filters.paid_range === 'custom'" class="date-range-fields" aria-label="Khoảng ngày thanh toán tùy chỉnh">
         <input v-model="filters.paid_from" type="date" title="Thanh toán từ ngày" />
         <span>đến</span>
-        <input v-model="filters.paid_to" type="date" title="Thanh toán đến ngày" />
+        <input v-model="filters.paid_to" type="date" title="Thanh toán đến ngày" :min="filters.paid_from" />
       </div>
       <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" type="submit" />
       <ActionIconButton icon="refresh" label="Xóa lọc" @click="resetFilters" />

@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class BannerController extends Controller
 {
@@ -61,6 +62,14 @@ class BannerController extends Controller
     {
         $data = $request->validate($this->rules(requireImage: true), $this->messages());
 
+        $startsAt = $data['starts_at'] ?? null;
+        $endsAt = $data['ends_at'] ?? null;
+        if ($startsAt && $endsAt && strtotime($startsAt) > strtotime($endsAt)) {
+            throw ValidationException::withMessages([
+                'ends_at' => 'Thời gian kết thúc phải sau thời gian bắt đầu.',
+            ]);
+        }
+
         $imagePath = $request->file('image')->store('banners/' . now()->format('Y/m'), 'public');
         $actorId = $request->user()?->id;
 
@@ -88,6 +97,15 @@ class BannerController extends Controller
     {
         $banner = Banner::query()->findOrFail($id);
         $data = $request->validate($this->rules(requireImage: false), $this->messages());
+
+        $startsAt = array_key_exists('starts_at', $data) ? $data['starts_at'] : $banner->starts_at;
+        $endsAt = array_key_exists('ends_at', $data) ? $data['ends_at'] : $banner->ends_at;
+
+        if ($startsAt && $endsAt && strtotime($startsAt) > strtotime($endsAt)) {
+            throw ValidationException::withMessages([
+                'ends_at' => 'Thời gian kết thúc phải sau thời gian bắt đầu.',
+            ]);
+        }
 
         if ($request->hasFile('image')) {
             if ($banner->image_path) {
@@ -200,7 +218,7 @@ class BannerController extends Controller
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
             'starts_at' => ['nullable', 'date'],
-            'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'ends_at' => ['nullable', 'date'],
         ];
     }
 
