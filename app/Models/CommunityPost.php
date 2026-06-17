@@ -56,4 +56,14 @@ class CommunityPost extends Model
         return $this->belongsToMany(Hashtag::class, 'post_hashtags', 'post_id', 'hashtag_id')
             ->where('post_hashtags.post_type', 'community_posts');
     }
+
+    public function comments()
+    {
+        return $this->hasMany(CommunityPostComment::class, 'post_id');
+    }
+
+    public function likes()
+    {
+        return $this->hasMany(CommunityPostLike::class, 'post_id');
+    }
 }

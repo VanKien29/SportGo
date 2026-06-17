@@ -52,4 +52,47 @@ export const adminUserService = {
       body: JSON.stringify(payload),
     });
   },
+
+  // --- User Lock Management (new) ---
+
+  lockUser(id, payload) {
+    return api(`/api/admin/users/${id}/lock`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  unlockUser(id, payload) {
+    return api(`/api/admin/users/${id}/unlock`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  lockLogs(id, page = 1) {
+    return api(`/api/admin/users/${id}/lock-logs?page=${page}`);
+  },
+
+  // --- Comment & Post detail ---
+
+  commentDetail(id) {
+    return api(`/api/admin/comments/${id}`);
+  },
+
+  postDetail(id, page = 1) {
+    return api(`/api/admin/posts/${id}?page=${page}`);
+  },
+
+  // --- User Lock Policy ---
+
+  getLockPolicy() {
+    return api('/api/admin/user-lock-policy');
+  },
+
+  saveLockPolicy(payload) {
+    return api('/api/admin/user-lock-policy', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };

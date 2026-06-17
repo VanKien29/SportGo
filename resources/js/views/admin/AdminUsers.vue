@@ -77,12 +77,16 @@
             <td>
               <strong>{{ user.full_name || '-' }}</strong>
               <small>{{ user.warning_summary?.message }}</small>
+              <span v-if="(user.reports_count_recent || 0) >= 3" class="badge-report">⚠ {{ user.reports_count_recent }} báo cáo</span>
+              <span v-if="user.status === 'locked'" class="badge-locked">Đang khóa</span>
             </td>
             <td>{{ user.username }}</td>
             <td>{{ user.email || user.phone || '-' }}</td>
             <td>{{ user.primary_role_label || (user.roles && user.roles[0]) || '-' }}</td>
             <td>
               <span class="status" :class="user.status">{{ user.status_label || statusLabel(user.status) }}</span>
+              <small v-if="user.status === 'locked' && user.locked_until" class="lock-until">đến {{ dateTime(user.locked_until) }}</small>
+              <small v-else-if="user.status === 'locked'" class="lock-until">Vĩnh viễn</small>
             </td>
             <td>
               <span class="warning" :class="user.warning_summary?.level || 'normal'">
@@ -325,6 +329,9 @@ export default {
     },
     date(value) {
       return value ? new Date(value).toLocaleDateString('vi-VN') : '-';
+    },
+    dateTime(value) {
+      return value ? new Date(value).toLocaleString('vi-VN') : '-';
     },
     inputDate(value) {
       const date = new Date(value);
@@ -596,5 +603,31 @@ td:first-child {
     min-width: 0;
     width: 100%;
   }
+}
+
+.badge-report {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.badge-locked {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.lock-until {
+  display: block;
+  color: #b91c1c;
+  font-size: 11px;
 }
 </style>

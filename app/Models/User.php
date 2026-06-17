@@ -28,6 +28,7 @@ class User extends Authenticatable
         'avatar_url',
         'bio',
         'status',
+        'is_locked',
         'verification_channel',
         'lock_type',
         'status_reason',
@@ -49,8 +50,14 @@ class User extends Authenticatable
             'phone_verified_at' => 'datetime',
             'locked_at' => 'datetime',
             'locked_until' => 'datetime',
+            'is_locked' => 'boolean',
             'password' => 'hashed',
         ];
+    }
+
+    public function lockLogs()
+    {
+        return $this->hasMany(UserLockLog::class, 'user_id');
     }
 
     public function lockedBy()
