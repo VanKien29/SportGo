@@ -26,22 +26,36 @@
               <strong :class="{ 'text-red': (detail.reports_summary?.reports_14_days || 0) >= 3 }">
                 {{ detail.reports_summary?.reports_14_days || 0 }}
               </strong>
-              <span v-if="(detail.reports_summary?.reports_14_days || 0) >= 3" class="badge-report">⚠ Cảnh báo</span>
+              <span v-if="(detail.reports_summary?.reports_14_days || 0) >= 3" class="badge-report">
+                <AppIcon name="alert" size="12" style="margin-right: 4px;" /> Cảnh báo
+              </span>
             </div>
             <div class="sidebar-stat">
               <span>Trạng thái</span>
-              <span class="status" :class="profile.status">{{ profile.status_label }}</span>
+              <span class="status" :class="profile.status">{{ profile.status_label || getAccountStatusLabel(profile.status) }}</span>
               <small v-if="profile.status === 'locked' && profile.locked_until" class="lock-until">đến {{ dateTime(profile.locked_until) }}</small>
               <small v-else-if="profile.status === 'locked'" class="lock-until">Vĩnh viễn</small>
+            </div>
+            <div class="sidebar-stat">
+              <span>Tổng bình luận</span>
+              <strong>{{ commentsMeta.total || detail.comments?.length || 0 }}</strong>
+            </div>
+            <div class="sidebar-stat">
+              <span>Tổng bài đăng</span>
+              <strong>{{ postsMeta.total || detail.posts?.length || 0 }}</strong>
+            </div>
+            <div class="sidebar-stat">
+              <span>Lần bị khóa</span>
+              <strong>{{ lockLogsMeta.total || 0 }}</strong>
             </div>
           </div>
 
           <div class="sidebar-actions">
             <button v-if="profile.status !== 'locked'" class="btn danger" type="button" @click="openLockModal">
-              Khóa tài khoản
+              <AppIcon name="lock" size="16" style="margin-right: 6px; vertical-align: middle;" /> Khóa tài khoản
             </button>
             <button v-else class="btn" type="button" @click="openUnlockModal">
-              Mở khóa tài khoản
+              <AppIcon name="unlock" size="16" style="margin-right: 6px; vertical-align: middle;" /> Mở khóa tài khoản
             </button>
           </div>
         </aside>
@@ -62,7 +76,7 @@
               <InfoItem label="Username" :value="profile.username" />
               <InfoItem label="Email" :value="profile.email" />
               <InfoItem label="Số điện thoại" :value="profile.phone" />
-              <InfoItem label="Trạng thái" :value="profile.status_label" />
+              <InfoItem label="Trạng thái" :value="profile.status_label || getAccountStatusLabel(profile.status)" />
               <InfoItem label="Vai trò hiện tại" :value="profile.role_labels?.join(', ')" />
               <InfoItem label="Ngày tạo" :value="dateTime(profile.created_at)" />
               <InfoItem label="Cập nhật gần nhất" :value="dateTime(profile.updated_at)" />
@@ -87,13 +101,14 @@
                       <div v-if="comment.media.length > 3" class="media-more">+{{ comment.media.length - 3 }}</div>
                     </div>
                     <div class="content-meta">
+                      <span class="status" :class="comment.status">{{ getPostStatusLabel(comment.status) }}</span>
                       <span>Bài viết: {{ comment.post_content ? truncate(comment.post_content, 40) : '-' }}</span>
-                      <span>💬 {{ comment.replies_count || 0 }} trả lời</span>
-                      <span>📅 {{ dateTime(comment.created_at) }}</span>
+                      <span><AppIcon name="messageSquare" size="14" style="margin-right: 4px; vertical-align: middle;" /> {{ comment.replies_count || 0 }} trả lời</span>
+                      <span><AppIcon name="calendar" size="14" style="margin-right: 4px; vertical-align: middle;" /> {{ dateTime(comment.created_at) }}</span>
                     </div>
                   </div>
                   <div class="content-card-actions">
-                    <button class="btn-sm" type="button" @click="openCommentDetail(comment.id)">Xem chi tiết</button>
+                    <button class="btn-sm" type="button" @click="openContentViewer('comment', comment.id)">Xem ngữ cảnh & Xử lý</button>
                   </div>
                 </article>
                 <div v-if="comments.length === 0" class="state">Chưa có bình luận.</div>
@@ -123,14 +138,14 @@
                       <div v-if="post.media.length > 3" class="media-more">+{{ post.media.length - 3 }}</div>
                     </div>
                     <div class="content-meta">
-                      <span class="status" :class="post.status">{{ postStatusLabel(post.status) }}</span>
-                      <span>💬 {{ post.comment_count || 0 }}</span>
-                      <span>❤️ {{ post.like_count || 0 }}</span>
-                      <span>📅 {{ dateTime(post.created_at) }}</span>
+                      <span class="status" :class="post.status">{{ getPostStatusLabel(post.status) }}</span>
+                      <span><AppIcon name="messageSquare" size="14" style="margin-right: 4px; vertical-align: middle;" /> {{ post.comment_count || 0 }}</span>
+                      <span><AppIcon name="heart" size="14" style="margin-right: 4px; vertical-align: middle;" /> {{ post.like_count || 0 }}</span>
+                      <span><AppIcon name="calendar" size="14" style="margin-right: 4px; vertical-align: middle;" /> {{ dateTime(post.created_at) }}</span>
                     </div>
                   </div>
                   <div class="content-card-actions">
-                    <RouterLink class="btn-sm" :to="{ name: 'admin-post-detail', params: { id: post.id } }">Xem chi tiết</RouterLink>
+                    <button class="btn-sm" type="button" @click="openContentViewer('post', post.id)">Xem bài đăng & Xử lý</button>
                   </div>
                 </article>
                 <div v-if="posts.length === 0" class="state">Chưa có bài đăng.</div>
@@ -153,7 +168,9 @@
             <template v-else>
               <div class="timeline">
                 <article v-for="log in lockLogs" :key="log.id" class="timeline-item" :class="log.action">
-                  <div class="timeline-icon">{{ log.action === 'locked' ? '🔒' : '🔓' }}</div>
+                  <div class="timeline-icon">
+                    <AppIcon :name="log.action === 'locked' ? 'lock' : 'unlock'" size="20" />
+                  </div>
                   <div class="timeline-body">
                     <strong>{{ log.action_label }}</strong>
                     <span v-if="log.reason">{{ log.reason }}</span>
@@ -202,14 +219,13 @@
                   <span v-if="report.description" style="display: block; margin-top: 4px;">Chi tiết: {{ report.description }}</span>
                   <div class="content-meta" style="margin-top: 8px;">
                     <span class="status" :class="report.status === 'resolved' ? 'active' : 'pending'">
-                      {{ reportStatusLabel(report.status) }}
+                      {{ getReportStatusLabel(report.status) }}
                     </span>
-                    <span>📅 {{ dateTime(report.created_at) }}</span>
+                    <span><AppIcon name="calendar" size="14" style="margin-right: 4px; vertical-align: middle;" /> {{ dateTime(report.created_at) }}</span>
                   </div>
                 </div>
                 <div class="content-card-actions">
-                  <RouterLink v-if="report.type === 'post'" :to="{ name: 'admin-post-detail', params: { id: report.target_id } }" class="btn-sm">Xem bài đăng</RouterLink>
-                  <button v-else class="btn-sm" type="button" @click="openCommentDetail(report.target_id)">Xem bình luận</button>
+                  <button class="btn-sm" type="button" @click="openContentViewer(report.type, report.target_id)">Xem chi tiết & Xử lý</button>
                 </div>
               </article>
               <p v-if="!detail.content_reports_summary?.recent?.length" class="muted">Chưa có báo cáo về bài đăng/bình luận.</p>
@@ -275,39 +291,139 @@
       </form>
     </div>
 
-    <!-- Modal chi tiết comment -->
-    <div v-if="commentDetailData" class="modal-backdrop" @click.self="commentDetailData = null">
-      <div class="modal modal-lg">
-        <h3>Chi tiết bình luận</h3>
-        <div class="comment-detail-body">
-          <div class="comment-main">
-            <strong>{{ commentDetailData.user_name }}</strong>
-            <p>{{ commentDetailData.content }}</p>
-            <small>{{ dateTime(commentDetailData.created_at) }} {{ commentDetailData.is_edited ? '(đã chỉnh sửa)' : '' }}</small>
+    <!-- Modal Ngữ cảnh (Bài viết & Bình luận theo dạng Popup Dark UI) -->
+    <div v-if="contentViewerData" class="modal-backdrop fb-backdrop" @click.self="closeContentViewer">
+      <div class="fb-modal">
+        <header class="fb-header">
+          <div class="fb-header-spacer"></div>
+          <h3>Bài viết của {{ contentViewerData.post.author_name }}</h3>
+          <div class="fb-header-right">
+            <button class="fb-close-btn" type="button" @click="closeContentViewer" title="Đóng">
+              <AppIcon name="x" size="20" />
+            </button>
           </div>
-          <div v-if="commentDetailData.post" class="comment-post-link">
-            <span>Bài viết gốc:</span>
-            <p>{{ truncate(commentDetailData.post.content, 200) }}</p>
+        </header>
+        
+        <div class="fb-body">
+          <div class="fb-post">
+            <div class="fb-post-header">
+              <div class="fb-post-avatar">
+                {{ initials(contentViewerData.post.author_name) }}
+              </div>
+              <div class="fb-post-meta">
+                <strong>{{ contentViewerData.post.author_name }}</strong>
+                <span>{{ dateTime(contentViewerData.post.created_at) }}</span>
+              </div>
+              <span class="fb-post-status" :class="contentViewerData.post.status" v-if="contentViewerData.post.status !== 'visible' && contentViewerData.post.status !== 'published'">
+                {{ getPostStatusLabel(contentViewerData.post.status) }}
+              </span>
+            </div>
+            <p class="fb-post-text">{{ contentViewerData.post.content }}</p>
+            <div class="fb-media-container">
+              <template v-if="contentViewerData.post.media && contentViewerData.post.media.length">
+                <img v-for="m in contentViewerData.post.media" :key="m.url" :src="m.url" />
+              </template>
+              <template v-else>
+                <!-- Fake image if there is no media to match the requested look -->
+                <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Placeholder" class="fake-img" />
+              </template>
+            </div>
+            <div class="fb-stats">
+              <span><AppIcon name="heart" size="18" /> {{ contentViewerData.post.like_count || 0 }}</span>
+              <div class="fb-stats-right">
+                <span>{{ contentViewerData.post.comment_count || contentViewerData.comments.length }} bình luận</span>
+                <span>0 chia sẻ</span>
+              </div>
+            </div>
+            <div class="fb-actions">
+              <!-- Nút thao tác bài viết chỉ bằng ICON -->
+              <button 
+                v-if="contentViewerData.post.status === 'hidden'" 
+                class="fb-action-item" 
+                title="Mở ẩn bài viết" 
+                @click="quickContentAction('post', contentViewerData.post.id, 'unhide')"
+              >
+                <AppIcon name="eye" size="22" />
+              </button>
+              <button 
+                v-else 
+                class="fb-action-item" 
+                title="Ẩn bài viết" 
+                @click="quickContentAction('post', contentViewerData.post.id, 'hide')"
+              >
+                <AppIcon name="eyeOff" size="22" />
+              </button>
+
+              <button 
+                class="fb-action-item danger" 
+                title="Xóa bài viết" 
+                @click="quickContentAction('post', contentViewerData.post.id, 'delete')"
+              >
+                <AppIcon name="trash" size="22" />
+              </button>
+            </div>
           </div>
-          <div v-if="commentDetailData.replies && commentDetailData.replies.length" class="comment-replies">
-            <h4>Trả lời ({{ commentDetailData.replies.length }})</h4>
-            <article v-for="reply in commentDetailData.replies" :key="reply.id" class="reply-item">
-              <strong>{{ reply.user_name }}</strong>
-              <p>{{ reply.content }}</p>
-              <small>{{ dateTime(reply.created_at) }}</small>
-            </article>
+
+          <div class="fb-comments">
+            <div 
+              v-for="c in contentViewerData.comments" 
+              :key="c.id" 
+              class="fb-comment-row"
+              :class="{ 'highlighted': c.id === contentViewerData.target_comment_id }"
+              :id="`comment-${c.id}`"
+            >
+              <div class="fb-comment-avatar">
+                <img v-if="c.user_avatar" :src="c.user_avatar" />
+                <div v-else class="fb-avatar-text">{{ initials(c.user_name) }}</div>
+              </div>
+              <div class="fb-comment-content">
+                <div class="fb-bubble">
+                  <strong>{{ c.user_name }}</strong>
+                  <p>{{ c.content }}</p>
+                  <span class="fb-bubble-status" :class="c.status" v-if="c.status !== 'visible' && c.status !== 'published'">
+                    {{ getPostStatusLabel(c.status) }}
+                  </span>
+                </div>
+                <div class="fb-comment-footer">
+                  <span>{{ timeAgo(c.created_at) }}</span>
+                  <div class="fb-comment-tools">
+                    <button 
+                      v-if="c.status === 'hidden'" 
+                      title="Mở ẩn bình luận" 
+                      @click="quickContentAction('comment', c.id, 'unhide')"
+                    >
+                      <AppIcon name="eye" size="14" />
+                    </button>
+                    <button 
+                      v-else 
+                      title="Ẩn bình luận" 
+                      @click="quickContentAction('comment', c.id, 'hide')"
+                    >
+                      <AppIcon name="eyeOff" size="14" />
+                    </button>
+                    <button 
+                      title="Xóa bình luận" 
+                      class="tool-danger" 
+                      @click="quickContentAction('comment', c.id, 'delete')"
+                    >
+                      <AppIcon name="trash" size="14" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-if="contentViewerData.comments.length === 0" class="fb-no-comments">Chưa có bình luận nào.</div>
           </div>
         </div>
-        <footer>
-          <button type="button" class="btn secondary" @click="commentDetailData = null">Đóng</button>
-        </footer>
       </div>
     </div>
   </section>
 </template>
 
 <script>
+import AppIcon from '../../components/AppIcon.vue';
 import { adminUserService } from '../../services/adminUserService.js';
+import { getAccountStatusLabel, getPostStatusLabel, getReportStatusLabel } from '../../utils/labelMaps.js';
 
 const InfoItem = {
   props: { label: String, value: [String, Number] },
@@ -321,7 +437,7 @@ const Metric = {
 
 export default {
   name: 'AdminUserDetail',
-  components: { InfoItem, Metric },
+  components: { AppIcon, InfoItem, Metric },
   data() {
     return {
       detail: null,
@@ -331,30 +447,25 @@ export default {
       error: '',
       success: '',
 
-      // Lock/Unlock modals
       showLockModal: false,
       showUnlockModal: false,
       lockForm: { reason: '', duration_hours: 24 },
       unlockForm: { reason: '' },
 
-      // Comments tab
+      contentViewerData: null,
+      contentViewerLoading: false,
+
       comments: [],
       commentsMeta: { current_page: 1, last_page: 1, total: 0 },
       commentsLoading: false,
 
-      // Posts tab
       posts: [],
       postsMeta: { current_page: 1, last_page: 1, total: 0 },
       postsLoading: false,
 
-      // Lock logs tab
       lockLogs: [],
       lockLogsMeta: { current_page: 1, last_page: 1, total: 0 },
       lockLogsLoading: false,
-
-      // Comment detail modal
-      commentDetailData: null,
-      commentDetailLoading: false,
 
       tabs: [
         { value: 'overview', label: 'Tổng quan' },
@@ -373,6 +484,7 @@ export default {
   },
   mounted() {
     this.loadDetail();
+    this.loadLockLogs(1, true);
   },
   methods: {
     switchTab(tab) {
@@ -399,6 +511,9 @@ export default {
         data.permission_revokes = data.permission_revokes || [];
         data.audit_logs = data.audit_logs || [];
         this.detail = data;
+        
+        this.commentsMeta.total = data.comments?.length || 0;
+        this.postsMeta.total = data.posts?.length || 0;
       } catch (err) {
         this.error = err.message || 'Không tải được chi tiết tài khoản.';
       } finally {
@@ -409,11 +524,8 @@ export default {
     async loadComments(page = 1) {
       this.commentsLoading = true;
       try {
-        // Sử dụng API show để lấy comments (data đã có từ detail)
-        // Nếu chưa có API riêng /users/{id}/comments, dùng data từ detail
         const response = await adminUserService.show(this.$route.params.id);
         const allComments = response.data?.comments || [];
-        // Manual pagination
         const perPage = 20;
         const start = (page - 1) * perPage;
         this.comments = allComments.slice(start, start + perPage);
@@ -449,28 +561,113 @@ export default {
       }
     },
 
-    async loadLockLogs(page = 1) {
-      this.lockLogsLoading = true;
+    async loadLockLogs(page = 1, hiddenLoad = false) {
+      if (!hiddenLoad) this.lockLogsLoading = true;
       try {
         const response = await adminUserService.lockLogs(this.$route.params.id, page);
-        this.lockLogs = response.data || [];
+        if (!hiddenLoad) {
+          this.lockLogs = response.data || [];
+        }
         this.lockLogsMeta = response.meta || { current_page: 1, last_page: 1, total: 0 };
       } catch (err) {
-        this.error = err.message || 'Không tải được lịch sử khóa.';
+        if (!hiddenLoad) this.error = err.message || 'Không tải được lịch sử khóa.';
       } finally {
-        this.lockLogsLoading = false;
+        if (!hiddenLoad) this.lockLogsLoading = false;
       }
     },
 
-    async openCommentDetail(commentId) {
-      this.commentDetailLoading = true;
+    async openContentViewer(type, id) {
+      this.contentViewerLoading = true;
       try {
-        const response = await adminUserService.commentDetail(commentId);
-        this.commentDetailData = response.data || {};
+        let response;
+        if (type === 'comment') {
+          response = await adminUserService.commentDetail(id);
+          this.contentViewerData = {
+            target_comment_id: response.data.target_comment_id,
+            post: response.data.post,
+            comments: response.data.comments || [],
+          };
+        } else if (type === 'post') {
+          response = await adminUserService.postDetail(id);
+          const postData = response.data?.data || response.data;
+          this.contentViewerData = {
+            target_comment_id: null,
+            post: {
+              id: postData.id,
+              content: postData.content,
+              status: postData.status,
+              author_name: postData.author?.full_name || postData.author?.username || postData.author_name,
+              media: postData.media || [],
+              created_at: postData.created_at,
+              like_count: postData.like_count || 0,
+              comment_count: postData.comment_count || 0,
+            },
+            comments: postData.comments || response.comments || [],
+          };
+        }
+        
+        this.$nextTick(() => {
+          if (this.contentViewerData?.target_comment_id) {
+            const el = document.getElementById(`comment-${this.contentViewerData.target_comment_id}`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        });
       } catch (err) {
-        this.error = err.message || 'Không tải được chi tiết bình luận.';
+        this.error = err.message || 'Không tải được nội dung.';
       } finally {
-        this.commentDetailLoading = false;
+        this.contentViewerLoading = false;
+      }
+    },
+
+    closeContentViewer() {
+      this.contentViewerData = null;
+    },
+
+    async quickContentAction(type, id, action) {
+      const actionName = action === 'delete' ? 'xóa' : (action === 'unhide' ? 'mở ẩn' : 'ẩn');
+      if (!confirm(`Bạn có chắc chắn muốn ${actionName} nội dung này?`)) return;
+      
+      this.saving = true;
+      this.error = '';
+      try {
+        const response = await adminUserService.processContentAction(type, id, action);
+        this.success = response.message || 'Xử lý thành công.';
+        
+        if (type === 'post') {
+          if (action === 'delete') {
+            this.posts = this.posts.filter((p) => p.id !== id);
+            this.postsMeta.total = Math.max(0, this.postsMeta.total - 1);
+            if (this.contentViewerData?.post?.id === id) this.closeContentViewer();
+          } else {
+            const newStatus = action === 'unhide' ? 'published' : 'hidden';
+            const idx = this.posts.findIndex((p) => p.id === id);
+            if (idx !== -1) this.posts[idx].status = newStatus;
+            if (this.contentViewerData?.post?.id === id) this.contentViewerData.post.status = newStatus;
+          }
+        } else {
+          if (action === 'delete') {
+            this.comments = this.comments.filter((c) => c.id !== id);
+            this.commentsMeta.total = Math.max(0, this.commentsMeta.total - 1);
+            if (this.contentViewerData) {
+              this.contentViewerData.comments = this.contentViewerData.comments.filter((c) => c.id !== id);
+            }
+          } else {
+            const newStatus = action === 'unhide' ? 'published' : 'hidden';
+            const idx = this.comments.findIndex((c) => c.id === id);
+            if (idx !== -1) this.comments[idx].status = newStatus;
+            if (this.contentViewerData) {
+              const cIdx = this.contentViewerData.comments.findIndex((c) => c.id === id);
+              if (cIdx !== -1) this.contentViewerData.comments[cIdx].status = newStatus;
+            }
+          }
+        }
+        setTimeout(() => { this.success = ''; }, 3000);
+      } catch (err) {
+        this.error = err.message || 'Lỗi khi xử lý nội dung.';
+      } finally {
+        this.saving = false;
       }
     },
 
@@ -526,17 +723,11 @@ export default {
       if (!text) return '-';
       return text.length > length ? text.substring(0, length) + '...' : text;
     },
-    postStatusLabel(status) {
-      return { published: 'Công khai', draft: 'Nháp', hidden: 'Đã ẩn', visible: 'Công khai', pending: 'Chờ duyệt' }[status] || status || '-';
-    },
-    reportStatusLabel(status) {
-      return { pending: 'Chờ xử lý', resolved: 'Đã xử lý', dismissed: 'Đã bỏ qua', reviewing: 'Đang xem xét' }[status] || status || 'Chờ xử lý';
-    },
+    getAccountStatusLabel,
+    getPostStatusLabel,
+    getReportStatusLabel,
     initials(name) {
       return String(name || 'SG').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
-    },
-    money(value) {
-      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
     },
     date(value) {
       return value ? new Date(value).toLocaleDateString('vi-VN') : '-';
@@ -544,6 +735,20 @@ export default {
     dateTime(value) {
       return value ? new Date(value).toLocaleString('vi-VN') : '-';
     },
+    timeAgo(dateParam) {
+      if (!dateParam) return '';
+      const date = new Date(dateParam);
+      const now = new Date();
+      const seconds = Math.round((now - date) / 1000);
+      const minutes = Math.round(seconds / 60);
+      const hours = Math.round(minutes / 60);
+      const days = Math.round(hours / 24);
+      if (seconds < 60) return `${seconds} giây trước`;
+      if (minutes < 60) return `${minutes} phút trước`;
+      if (hours < 24) return `${hours} giờ trước`;
+      if (days < 7) return `${days} ngày trước`;
+      return date.toLocaleDateString('vi-VN');
+    }
   },
 };
 </script>
@@ -555,15 +760,9 @@ export default {
 .page-head p, .muted, small { margin: 0; color: #64748b; }
 .back-link { color: #15803d; font-weight: 800; text-decoration: none; }
 
-/* Layout sidebar + content */
 .detail-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
 
-/* Sidebar */
-.sidebar-panel {
-  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;
-  display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center;
-  position: sticky; top: 16px;
-}
+.sidebar-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; position: sticky; top: 16px; }
 .avatar { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: #16a34a; color: #fff; font-weight: 900; font-size: 22px; }
 .sidebar-name { font-size: 16px; }
 .sidebar-meta { font-size: 13px; color: #64748b; }
@@ -574,9 +773,7 @@ export default {
 .text-red { color: #b91c1c; }
 .sidebar-actions { width: 100%; display: grid; gap: 8px; }
 
-/* Content */
 .content-panel { display: grid; gap: 16px; min-width: 0; }
-
 .panel, .state-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; }
 .panel { display: grid; gap: 14px; }
 .panel h3, .panel h4 { margin: 0; }
@@ -594,12 +791,8 @@ export default {
 .list-box { display: grid; gap: 10px; }
 .list-box article { display: grid; gap: 6px; padding: 12px; background: #f8fafc; border-radius: 10px; }
 
-.table-wrap { overflow: auto; }
-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
 .state { color: #64748b; text-align: center; padding: 20px; }
 
-/* Content Cards (Posts/Comments/Reports) */
 .content-list { display: grid; gap: 12px; }
 .content-card { display: flex; justify-content: space-between; gap: 16px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; transition: box-shadow 0.2s; }
 .content-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
@@ -611,22 +804,22 @@ th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left;
 .content-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; flex-wrap: wrap; align-items: center; }
 .content-card-actions { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
 
-/* Timeline */
 .timeline { display: grid; gap: 12px; }
 .timeline-item { display: flex; gap: 12px; padding: 14px; background: #f8fafc; border-radius: 10px; border-left: 4px solid #e2e8f0; }
 .timeline-item.locked { border-left-color: #ef4444; }
 .timeline-item.unlocked { border-left-color: #22c55e; }
-.timeline-icon { font-size: 20px; }
+.timeline-icon { color: #64748b; margin-top: 2px; }
 .timeline-body { display: grid; gap: 4px; }
 .timeline-meta { font-size: 12px; color: #64748b; }
 .badge-auto { display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #dbeafe; color: #1e40af; width: fit-content; }
 .badge-report { display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #fee2e2; color: #b91c1c; }
 
-/* Buttons */
-.btn { border: 0; border-radius: 8px; font-weight: 800; cursor: pointer; padding: 10px 14px; background: #dcfce7; color: #166534; }
+.btn { border: 0; border-radius: 8px; font-weight: 800; cursor: pointer; padding: 10px 14px; background: #dcfce7; color: #166534; display: inline-flex; align-items: center; justify-content: center; }
 .btn.secondary { background: #f1f5f9; color: #0f172a; }
 .btn.danger { background: #fee2e2; color: #b91c1c; }
-.btn-sm { border: 1px solid #dbe3ef; background: #fff; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; color: #334155; }
+.btn-sm { border: 1px solid #dbe3ef; background: #fff; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; color: #334155; display: inline-flex; align-items: center; justify-content: center; }
+.btn-sm.danger { border-color: #fecaca; background: #fee2e2; color: #b91c1c; }
+.btn-sm.danger:hover { background: #fef2f2; }
 
 .status { border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 800; background: #e2e8f0; }
 .status.active, .status.visible, .status.published { background: #dcfce7; color: #166534; }
@@ -640,26 +833,120 @@ th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left;
 .pagination { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: #64748b; font-size: 13px; }
 .pagination div { display: flex; gap: 8px; align-items: center; }
 
-/* Modals */
+/* Modal Khóa / Mở khóa */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.56); display: grid; place-items: center; z-index: 500; padding: 20px; }
 .modal { width: min(640px, calc(100vw - 32px)); padding: 22px; background: #fff; border-radius: 12px; display: grid; gap: 16px; }
-.modal-lg { width: min(800px, calc(100vw - 32px)); max-height: 80vh; overflow-y: auto; }
 .modal h3 { margin: 0; }
 .modal footer { display: flex; justify-content: flex-end; gap: 10px; }
 label { display: grid; gap: 6px; font-weight: 800; }
 input, select, textarea { border: 1px solid #dbe3ef; border-radius: 8px; padding: 10px; font: inherit; }
 textarea { resize: vertical; }
 
-/* Comment detail modal */
-.comment-detail-body { display: grid; gap: 14px; }
-.comment-main { display: grid; gap: 6px; padding: 14px; background: #f8fafc; border-radius: 10px; }
-.comment-main p { margin: 0; white-space: pre-wrap; }
-.comment-post-link { padding: 12px; background: #f0fdf4; border-radius: 8px; }
-.comment-post-link p { margin: 4px 0 0; color: #334155; }
-.comment-replies { display: grid; gap: 8px; }
-.comment-replies h4 { margin: 0; }
-.reply-item { padding: 10px; background: #f8fafc; border-radius: 8px; display: grid; gap: 4px; }
-.reply-item p { margin: 0; }
+/* =========================================
+   DARK THEME POPUP (Like Facebook)
+   ========================================= */
+.fb-backdrop { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); }
+
+.fb-modal { 
+  width: min(720px, calc(100vw - 32px)); 
+  height: min(85vh, 900px); 
+  display: flex; 
+  flex-direction: column; 
+  background: #242526; 
+  color: #e4e6eb;
+  border-radius: 12px; 
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5); 
+  border: 1px solid #3e4042;
+  overflow: hidden;
+}
+
+/* Header */
+.fb-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 16px; 
+  border-bottom: 1px solid #3e4042; 
+  background: #242526;
+  flex-shrink: 0;
+}
+.fb-header-spacer { width: 36px; }
+.fb-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: #e4e6eb; text-align: center; flex: 1; }
+.fb-header-right { width: 36px; display: flex; justify-content: flex-end; }
+.fb-close-btn { 
+  width: 36px; height: 36px; 
+  border-radius: 50%; border: 0; 
+  background: #3a3b3c; 
+  display: grid; place-items: center; 
+  cursor: pointer; color: #b0b3b8; 
+  transition: all 0.2s; 
+}
+.fb-close-btn:hover { background: #4e4f50; color: #e4e6eb; }
+
+/* Body Area */
+.fb-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.fb-body::-webkit-scrollbar { width: 8px; }
+.fb-body::-webkit-scrollbar-track { background: transparent; }
+.fb-body::-webkit-scrollbar-thumb { background: #4e4f50; border-radius: 4px; }
+
+/* Post Details */
+.fb-post { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.fb-post-header { display: flex; gap: 10px; align-items: center; }
+.fb-post-avatar { width: 40px; height: 40px; border-radius: 50%; background: #3a3b3c; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #e4e6eb; }
+.fb-post-meta { display: flex; flex-direction: column; line-height: 1.4; }
+.fb-post-meta strong { font-size: 15px; color: #e4e6eb; }
+.fb-post-meta span { font-size: 13px; color: #b0b3b8; }
+.fb-post-status { margin-left: auto; background: #3a3b3c; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.fb-post-status.hidden { color: #f87171; background: rgba(248,113,113,0.1); }
+.fb-post-text { margin: 0; font-size: 16px; line-height: 1.5; color: #e4e6eb; white-space: pre-wrap; }
+
+/* Media Container */
+.fb-media-container { width: calc(100% + 32px); margin-left: -16px; margin-right: -16px; display: grid; gap: 2px; }
+.fb-media-container img { width: 100%; max-height: 500px; object-fit: contain; background: #000; }
+.fake-img { object-fit: cover !important; height: 400px; }
+
+/* Stats */
+.fb-stats { display: flex; justify-content: space-between; align-items: center; color: #b0b3b8; font-size: 15px; padding: 10px 0; border-bottom: 1px solid #3e4042; }
+.fb-stats-right { display: flex; gap: 12px; }
+
+/* Post Actions (Icons Only) */
+.fb-actions { display: flex; gap: 8px; justify-content: center; padding-top: 8px; }
+.fb-action-item { flex: 1; display: flex; justify-content: center; align-items: center; height: 40px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; color: #b0b3b8; transition: background 0.2s; }
+.fb-action-item:hover { background: #3a3b3c; color: #e4e6eb; }
+.fb-action-item.danger:hover { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+
+/* Comments Section */
+.fb-comments { padding: 16px; display: flex; flex-direction: column; gap: 16px; border-top: 1px solid #3e4042; }
+.fb-comment-row { display: flex; gap: 10px; align-items: flex-start; transition: all 0.3s; padding: 8px; border-radius: 8px; margin: -8px; }
+
+/* Highlight logic requested by user: đổi viền thành màu xanh */
+.fb-comment-row.highlighted { border: 1px solid #2d88ff; background: rgba(45, 136, 255, 0.1); box-shadow: 0 0 10px rgba(45,136,255,0.15); }
+
+.fb-comment-avatar { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: #3a3b3c; flex-shrink: 0; }
+.fb-comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.fb-avatar-text { width: 100%; height: 100%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #e4e6eb; }
+
+.fb-comment-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.fb-bubble { background: #3a3b3c; padding: 10px 14px; border-radius: 18px; display: inline-flex; flex-direction: column; width: fit-content; max-width: 100%; }
+.fb-comment-row.highlighted .fb-bubble { background: #1c2b36; border: 1px solid rgba(45,136,255,0.3); }
+
+.fb-bubble strong { font-size: 13px; color: #e4e6eb; margin-bottom: 3px; }
+.fb-bubble p { margin: 0; font-size: 15px; color: #e4e6eb; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+.fb-bubble-status { margin-top: 6px; font-size: 11px; padding: 2px 8px; background: rgba(0,0,0,0.3); border-radius: 999px; width: fit-content; }
+.fb-bubble-status.hidden { color: #f87171; }
+
+.fb-comment-footer { display: flex; gap: 16px; align-items: center; padding: 0 12px; font-size: 13px; color: #b0b3b8; font-weight: 600; }
+.fb-comment-tools { display: flex; gap: 14px; }
+.fb-comment-tools button { border: 0; background: transparent; padding: 0; cursor: pointer; color: #b0b3b8; display: flex; align-items: center; transition: color 0.2s; }
+.fb-comment-tools button:hover { color: #e4e6eb; }
+.fb-comment-tools button.tool-danger:hover { color: #f87171; }
+
+.fb-no-comments { text-align: center; color: #b0b3b8; padding: 20px 0; font-size: 15px; }
 
 @media (max-width: 900px) {
   .detail-layout { grid-template-columns: 1fr; }

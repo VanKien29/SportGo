@@ -20,6 +20,28 @@ export const TARGET_TYPE_LABELS = {
   venue_cluster: 'Cụm sân',
 };
 
+export const ACCOUNT_STATUS_LABELS = {
+  active: 'Hoạt động',
+  locked: 'Đang khóa',
+  pending_verify: 'Chờ xác thực',
+  deactivated: 'Đã vô hiệu hóa',
+};
+
+export const POST_STATUS_LABELS = {
+  published: 'Đã đăng',
+  draft: 'Bản nháp',
+  hidden: 'Đã ẩn',
+  visible: 'Công khai',
+  pending: 'Chờ duyệt',
+};
+
+export const REPORT_STATUS_LABELS = {
+  pending: 'Chờ xử lý',
+  resolved: 'Đã xử lý',
+  dismissed: 'Đã bỏ qua',
+  reviewing: 'Đang xem xét',
+};
+
 export const ESCALATION_ACTION_LABELS = {
   warn: 'Cảnh báo',
   hide_content: 'Ẩn nội dung',
@@ -152,6 +174,21 @@ export function getPolicyTypeLabel(type) {
 export function getStatusLabel(status) {
   if (!status) return 'Không xác định';
   return STATUS_LABELS[String(status).toLowerCase()] || status;
+}
+
+export function getAccountStatusLabel(status) {
+  if (!status) return 'Không xác định';
+  return ACCOUNT_STATUS_LABELS[String(status).toLowerCase()] || status;
+}
+
+export function getPostStatusLabel(status) {
+  if (!status) return 'Không xác định';
+  return POST_STATUS_LABELS[String(status).toLowerCase()] || status;
+}
+
+export function getReportStatusLabel(status) {
+  if (!status) return 'Không xác định';
+  return REPORT_STATUS_LABELS[String(status).toLowerCase()] || status;
 }
 
 export function getStatusBadgeClass(status) {

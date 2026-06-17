@@ -61,4 +61,44 @@ class AdminPostController extends Controller
             ],
         ]);
     }
+
+    /**
+     * POST /admin/posts/{post}/action
+     * Xử lý ẩn hoặc xóa bài đăng
+     */
+    public function processAction(Request $request, string $post): JsonResponse
+    {
+        $validated = $request->validate([
+            'action' => 'required|in:hide,delete,unhide',
+        ]);
+
+        $postModel = CommunityPost::findOrFail($post);
+
+        // Audit logging could be added here if there's a generic audit mechanism
+
+        if ($validated['action'] === 'delete') {
+            $postModel->delete();
+            return response()->json(['message' => 'Đã xóa bài đăng thành công.']);
+        }
+
+        if ($validated['action'] === 'hide') {
+            $postModel->update([
+                'status' => 'hidden',
+                'reviewed_by' => $request->user()->id,
+                'reviewed_at' => now(),
+            ]);
+            return response()->json(['message' => 'Đã ẩn bài đăng thành công.']);
+        }
+
+        if ($validated['action'] === 'unhide') {
+            $postModel->update([
+                'status' => 'published',
+                'reviewed_by' => $request->user()->id,
+                'reviewed_at' => now(),
+            ]);
+            return response()->json(['message' => 'Đã mở ẩn bài đăng thành công.']);
+        }
+
+        return response()->json(['message' => 'Hành động không hợp lệ.'], 400);
+    }
 }

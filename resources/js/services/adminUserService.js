@@ -83,6 +83,14 @@ export const adminUserService = {
     return api(`/api/admin/posts/${id}?page=${page}`);
   },
 
+  processContentAction(type, id, action) {
+    const endpoint = type === 'post' ? `/api/admin/posts/${id}/action` : `/api/admin/comments/${id}/action`;
+    return api(endpoint, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    });
+  },
+
   // --- User Lock Policy ---
 
   getLockPolicy() {

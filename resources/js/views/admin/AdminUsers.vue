@@ -82,14 +82,16 @@
             <td>
               <strong>{{ user.full_name || '-' }}</strong>
               <small>{{ user.warning_summary?.message }}</small>
-              <span v-if="(user.reports_count_recent || 0) >= 3" class="badge-report">⚠ {{ user.reports_count_recent }} báo cáo</span>
+              <span v-if="(user.reports_count_recent || 0) >= 3" class="badge-report">
+                <AppIcon name="alert" size="12" style="margin-right: 4px;" /> {{ user.reports_count_recent }} báo cáo
+              </span>
               <span v-if="user.status === 'locked'" class="badge-locked">Đang khóa</span>
             </td>
             <td>{{ user.username }}</td>
             <td>{{ user.email || user.phone || '-' }}</td>
             <td>{{ user.primary_role_label || (user.roles && user.roles[0]) || '-' }}</td>
             <td>
-              <span class="status" :class="user.status">{{ user.status_label || statusLabel(user.status) }}</span>
+              <span class="status" :class="user.status">{{ user.status_label || getAccountStatusLabel(user.status) }}</span>
               <small v-if="user.status === 'locked' && user.locked_until" class="lock-until">đến {{ dateTime(user.locked_until) }}</small>
               <small v-else-if="user.status === 'locked'" class="lock-until">Vĩnh viễn</small>
             </td>
@@ -223,6 +225,7 @@ import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import { adminUserService } from '../../services/adminUserService.js';
+import { getAccountStatusLabel } from '../../utils/labelMaps.js';
 
 export default {
   name: 'AdminUsers',
@@ -406,14 +409,7 @@ export default {
         this.saving = false;
       }
     },
-    statusLabel(status) {
-      return {
-        active: 'Đang hoạt động',
-        locked: 'Đã khóa',
-        pending_verify: 'Chờ xác thực',
-        deactivated: 'Đã vô hiệu hóa',
-      }[status] || 'Không xác định';
-    },
+    getAccountStatusLabel,
     money(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
     },
