@@ -83,7 +83,7 @@ class ViolationScoreService
 
         return (int) Report::query()
             ->where('reportable_id', $targetId)
-            ->where('status', '!=', 'dismissed')
+            ->whereNotIn('status', ['dismissed', 'resolved'])
             ->where('created_at', '>=', now()->subDays($windowDays))
             ->where(function ($query) use ($targetType): void {
                 foreach ($this->reportableTypesFor($targetType) as $type) {

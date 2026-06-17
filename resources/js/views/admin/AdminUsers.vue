@@ -185,15 +185,19 @@
           <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-top: 16px;">
             <div style="font-weight: 700; color: #334155; margin-bottom: 10px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.3px;">Ngưỡng từ chính sách</div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo để cảnh báo:</span>
-              <strong style="color: #d97706;">{{ policyConfig.warning_threshold }} người</strong>
+              <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng cảnh báo:</span>
+              <strong style="color: #d97706;">{{ policyConfig.warning_threshold }}</strong>
             </div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo để khóa:</span>
-              <strong style="color: #dc2626;">{{ policyConfig.lock_threshold }} người</strong>
+              <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
+              <strong style="color: #dc2626;">{{ policyConfig.lock_threshold }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
+              <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo khác nhau:</span>
+              <strong style="color: #2563eb;">{{ policyConfig.unique_reporters_threshold }} người</strong>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Trong khoảng thời gian:</span>
+              <span style="color: #64748b; font-size: 0.9rem;">Thời gian theo dõi (Ngày):</span>
               <strong style="color: #334155;">{{ policyConfig.window_days }} ngày</strong>
             </div>
           </div>

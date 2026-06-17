@@ -629,9 +629,7 @@ export default {
       if (!hiddenLoad) this.lockLogsLoading = true;
       try {
         const response = await adminUserService.lockLogs(this.$route.params.id, page);
-        if (!hiddenLoad) {
-          this.lockLogs = response.data || [];
-        }
+        this.lockLogs = response.data || [];
         this.lockLogsMeta = response.meta || { current_page: 1, last_page: 1, total: 0 };
       } catch (err) {
         if (!hiddenLoad) this.error = err.message || 'Không tải được lịch sử khóa.';

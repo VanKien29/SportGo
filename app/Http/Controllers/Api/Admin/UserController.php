@@ -126,7 +126,11 @@ class UserController extends Controller
         $warnThreshold = 3;
         $lockThreshold = 10;
         $windowDays = 7;
-        
+        $uniqueReportersThreshold = 3;
+
+        $warnRule = $rules->firstWhere('rule_code', 'user_report_warning_threshold');
+        $lockRule = $rules->firstWhere('rule_code', 'user_report_lock_threshold');
+
         if ($activePolicy) {
             $userThreshold = \App\Models\ModerationThreshold::where('system_policy_id', $activePolicy->id)
                 ->where('target_type', 'user')
@@ -136,6 +140,20 @@ class UserController extends Controller
                 $warnThreshold = $userThreshold->warning_threshold;
                 $lockThreshold = $userThreshold->action_threshold;
                 $windowDays = $userThreshold->timeframe_days;
+                $uniqueReportersThreshold = $userThreshold->unique_reporters_threshold;
+            } else {
+                if ($warnRule) {
+                    $c = $warnRule->condition_json ?? [];
+                    $warnThreshold = $c['threshold'] ?? $warnThreshold;
+                    $windowDays = $c['window_days'] ?? $windowDays;
+                }
+
+                if ($lockRule) {
+                    $c = $lockRule->condition_json ?? [];
+                    $lockThreshold = $c['threshold'] ?? $lockThreshold;
+                    $windowDays = $c['window_days'] ?? $windowDays;
+                    $uniqueReportersThreshold = $c['threshold'] ?? $lockThreshold;
+                }
             }
         }
 
@@ -144,15 +162,24 @@ class UserController extends Controller
         $autoLockReason = 'Vi phạm tiêu chuẩn cộng đồng';
         $isAutoLockEnabled = false;
 
-        foreach ($rules as $rule) {
-            $c = $rule->condition_json ?? [];
-            if (in_array($c['reportable_type'] ?? '', ['user', 'users']) || ($c['target_type'] ?? '') === 'user') {
-                $r = $rule->result_json ?? [];
-                if (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
-                    $actionType = 'lock_temp';
-                    $durationDays = $r['lock_duration_days'] ?? 7;
-                    $autoLockReason = $r['reason'] ?? 'Vi phạm tiêu chuẩn cộng đồng';
-                    $isAutoLockEnabled = $r['is_auto_lock_enabled'] ?? false;
+        if ($lockRule) {
+            $r = $lockRule->result_json ?? [];
+            $actionType = 'lock_temp';
+            $durationDays = $r['lock_duration_days'] ?? 7;
+            $autoLockReason = $r['reason'] ?? 'Vi phạm tiêu chuẩn cộng đồng';
+            $isAutoLockEnabled = $r['is_auto_lock_enabled'] ?? false;
+        } else {
+            // Fallback to legacy rule search
+            foreach ($rules as $rule) {
+                $c = $rule->condition_json ?? [];
+                if (in_array($c['reportable_type'] ?? '', ['user', 'users']) || ($c['target_type'] ?? '') === 'user') {
+                    $r = $rule->result_json ?? [];
+                    if (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
+                        $actionType = 'lock_temp';
+                        $durationDays = $r['lock_duration_days'] ?? 7;
+                        $autoLockReason = $r['reason'] ?? 'Vi phạm tiêu chuẩn cộng đồng';
+                        $isAutoLockEnabled = $r['is_auto_lock_enabled'] ?? false;
+                    }
                 }
             }
         }
@@ -162,6 +189,7 @@ class UserController extends Controller
                 'policy_id' => $activePolicy?->id,
                 'warning_threshold' => $warnThreshold,
                 'lock_threshold' => $lockThreshold,
+                'unique_reporters_threshold' => $uniqueReportersThreshold ?? $lockThreshold,
                 'window_days' => $windowDays,
                 'action_type' => $actionType,
                 'duration_days' => $durationDays,
@@ -187,7 +215,13 @@ class UserController extends Controller
         }
 
         $rules = $activePolicy->rules()->get();
-        $actionRule = $rules->firstWhere('rule_code', 'moderation_score_user');
+        
+        // Target user_report_lock_threshold first
+        $actionRule = $rules->firstWhere('rule_code', 'user_report_lock_threshold');
+
+        if (!$actionRule) {
+            $actionRule = $rules->firstWhere('rule_code', 'moderation_score_user');
+        }
 
         if (!$actionRule) {
             // Try to find legacy rule
@@ -210,8 +244,6 @@ class UserController extends Controller
             $r['is_auto_lock_enabled'] = $data['is_auto_lock_enabled'];
             $actionRule->update([
                 'result_json' => $r,
-                // We shouldn't disable the whole rule, because we still need warning thresholds.
-                // We save it in result_json.
             ]);
         }
 
@@ -395,6 +427,18 @@ class UserController extends Controller
             'locked_by' => $actor->id,
         ])->save();
 
+        if (class_exists(\App\Models\UserLockLog::class)) {
+            \App\Models\UserLockLog::create([
+                'user_id' => $user->id,
+                'action' => 'locked',
+                'reason' => $data['status_reason'],
+                'locked_by' => $actor->id,
+                'auto_triggered' => false,
+                'lock_until' => $data['locked_until'] ?? null,
+                'created_at' => now(),
+            ]);
+        }
+
         $user->tokens()->delete();
         $this->audit($request, $actor, 'user.locked', $user, $oldValues, $this->lockSnapshot($user), $data['status_reason']);
 
@@ -433,6 +477,18 @@ class UserController extends Controller
             'locked_by' => null,
         ])->save();
 
+        if (class_exists(\App\Models\UserLockLog::class)) {
+            \App\Models\UserLockLog::create([
+                'user_id' => $user->id,
+                'action' => 'unlocked',
+                'reason' => $data['reason'],
+                'locked_by' => $actor->id,
+                'auto_triggered' => false,
+                'lock_until' => null,
+                'created_at' => now(),
+            ]);
+        }
+
         $this->audit($request, $actor, 'user.unlocked', $user, $oldValues, $this->lockSnapshot($user), $data['reason']);
 
         return response()->json([
@@ -448,9 +504,11 @@ class UserController extends Controller
         }
 
         $roles = $user->roles->pluck('name')->values()->all();
-        $reports = $extras['reports_count_recent'] ?? $this->reportSummary($user->id)['reports_14_days'];
-        $complaints = $extras['complaints_count_recent'] ?? $this->complaintSummary($user->id)['open_count'];
-        $warningCount = $extras['warning_count'] ?? ($reports + $complaints);
+        $isAdmin = $user->role_group === 'admin';
+
+        $reports = $isAdmin ? 0 : ($extras['reports_count_recent'] ?? $this->reportSummary($user->id)['reports_14_days']);
+        $complaints = $isAdmin ? 0 : ($extras['complaints_count_recent'] ?? $this->complaintSummary($user->id)['open_count']);
+        $warningCount = $isAdmin ? 0 : ($extras['warning_count'] ?? ($reports + $complaints));
 
         return [
             'id' => $user->id,
@@ -495,14 +553,29 @@ class UserController extends Controller
         $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
         $warnThreshold = 3;
         $lockThreshold = 10;
-        $windowDays = 14;
+        $windowDays = 7;
 
         if ($activePolicy) {
-            $threshold = \App\Models\ModerationThreshold::where('system_policy_id', $activePolicy->id)->where('target_type', 'user')->first();
-            if ($threshold) {
-                $warnThreshold = $threshold->warning_threshold;
-                $lockThreshold = $threshold->action_threshold;
-                $windowDays = $threshold->timeframe_days;
+            $userThreshold = \App\Models\ModerationThreshold::where('system_policy_id', $activePolicy->id)
+                ->where('target_type', 'user')
+                ->first();
+                
+            if ($userThreshold) {
+                $warnThreshold = $userThreshold->warning_threshold;
+                $lockThreshold = $userThreshold->action_threshold;
+                $windowDays = $userThreshold->timeframe_days;
+            } else {
+                $warnRule = $activePolicy->rules()->where('rule_code', 'user_report_warning_threshold')->first();
+                if ($warnRule) {
+                    $warnThreshold = $warnRule->condition_json['threshold'] ?? $warnThreshold;
+                    $windowDays = $warnRule->condition_json['window_days'] ?? $windowDays;
+                }
+
+                $lockRule = $activePolicy->rules()->where('rule_code', 'user_report_lock_threshold')->first();
+                if ($lockRule) {
+                    $lockThreshold = $lockRule->condition_json['threshold'] ?? $lockThreshold;
+                    $windowDays = $lockRule->condition_json['window_days'] ?? $windowDays;
+                }
             }
         }
         return [$warnThreshold, $lockThreshold, $windowDays];
@@ -519,6 +592,7 @@ class UserController extends Controller
         return DB::table('reports')
             ->whereIn('reportable_type', ['users', 'user', User::class])
             ->whereIn('reportable_id', $userIds)
+            ->whereNotIn('status', ['dismissed', 'resolved'])
             ->where('created_at', '>=', now()->subDays($windowDays))
             ->select('reportable_id', DB::raw('COUNT(DISTINCT reporter_id) as total'))
             ->groupBy('reportable_id')
@@ -560,11 +634,35 @@ class UserController extends Controller
     {
         $ids = collect();
 
+        // Get admin user IDs to exclude them from warnings
+        $adminRoleIds = DB::table('roles')
+            ->whereIn('name', [
+                'super_admin',
+                'admin',
+                'system_staff',
+                'content_moderator',
+                'complaint_handler',
+                'venue_manager',
+                'partner_manager',
+                'booking_support',
+                'finance_operator',
+                'policy_manager',
+                'staff_manager',
+            ])
+            ->pluck('id');
+
+        $adminUserIds = DB::table('user_roles')
+            ->whereIn('role_id', $adminRoleIds)
+            ->pluck('user_id')
+            ->all();
+
         if (Schema::hasTable('reports')) {
             [$warnThreshold, $lockThreshold, $windowDays] = $this->activeUserModerationConfig();
 
             $query = DB::table('reports')
                 ->whereIn('reportable_type', ['users', 'user', User::class])
+                ->whereNotIn('reportable_id', $adminUserIds)
+                ->whereNotIn('status', ['dismissed', 'resolved'])
                 ->where('created_at', '>=', now()->subDays($windowDays))
                 ->select('reportable_id', DB::raw('COUNT(DISTINCT reporter_id) as total'))
                 ->groupBy('reportable_id');
@@ -584,6 +682,7 @@ class UserController extends Controller
             $ids = $ids->merge(
                 DB::table('complaints')
                     ->whereIn('status', ['open', 'processing'])
+                    ->whereNotIn('customer_id', $adminUserIds)
                     ->pluck('customer_id')
             );
         }
@@ -666,7 +765,8 @@ class UserController extends Controller
 
         $base = DB::table('reports')
             ->whereIn('reportable_type', ['users', 'user', User::class])
-            ->where('reportable_id', $userId);
+            ->where('reportable_id', $userId)
+            ->whereNotIn('status', ['dismissed', 'resolved']);
             
         [$warn, $lock, $windowDays] = $this->activeUserModerationConfig();
         $reportsWindowDays = (clone $base)->where('created_at', '>=', now()->subDays($windowDays))->distinct('reporter_id')->count('reporter_id');

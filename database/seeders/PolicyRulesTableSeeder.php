@@ -136,6 +136,7 @@ class PolicyRulesTableSeeder extends Seeder
                         'action' => 'auto_lock',
                         'lock_duration_days' => 7,
                         'notify_admin' => true,
+                        'is_auto_lock_enabled' => false,
                         'summary_vi' => 'Nếu tài khoản nhận từ 10 người báo cáo khác nhau trong 7 ngày, hệ thống sẽ tự động khóa tạm thời 7 ngày và thông báo admin.',
                     ],
                 ]),

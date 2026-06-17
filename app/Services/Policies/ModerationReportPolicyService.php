@@ -341,6 +341,17 @@ class ModerationReportPolicyService
     {
         [$type, $id, $target] = $this->resolveTarget($reportable, $reportableId);
         $objectType = $this->objectTypeAlias($type);
+
+        if ($target instanceof User && $target->role_group === 'admin') {
+            return [
+                'matched' => false,
+                'reportable_type' => $type,
+                'reportable_id' => $id,
+                'object_type' => $objectType,
+                'results' => [],
+                'applied_actions' => [],
+            ];
+        }
         $policy = SystemPolicy::query()
             ->where('key', 'moderation')
             ->where('status', 'active')
@@ -354,7 +365,13 @@ class ModerationReportPolicyService
         if ($policy) {
             $dbThresholds = \App\Models\ModerationThreshold::where('system_policy_id', $policy->id)->get();
             foreach ($dbThresholds as $dbThreshold) {
-                $rule = $policy->rules->firstWhere('rule_code', 'moderation_score_' . $dbThreshold->target_type);
+                // Exclude user target type here since we retrieve it directly from the policy rules below
+                if ($dbThreshold->target_type === 'user') {
+                    continue;
+                }
+
+                $rule = $policy->rules->firstWhere('rule_code', 'moderation_score_' . $dbThreshold->target_type)
+                     ?? $policy->rules->firstWhere('rule_code', $dbThreshold->target_type . '_report_lock_threshold');
                 $isActionActive = true;
                 if ($dbThreshold->target_type === 'user') {
                     $isActionActive = $rule ? ($rule->result_json['is_auto_lock_enabled'] ?? false) : false;
@@ -405,6 +422,47 @@ class ModerationReportPolicyService
                         'notify_admin' => true,
                     ]),
                     '_rule' => $rule,
+                ]);
+            }
+
+            // Load user warning and lock rules directly from policy rules
+            $warnRule = $policy->rules->firstWhere('rule_code', 'user_report_warning_threshold');
+            $lockRule = $policy->rules->firstWhere('rule_code', 'user_report_lock_threshold');
+
+            if ($warnRule) {
+                $c = $warnRule->condition_json ?? [];
+                $r = $warnRule->result_json ?? [];
+                $thresholds->push([
+                    'key' => 'user_warning',
+                    'object_type' => 'user',
+                    'object_type_label' => 'Người dùng',
+                    'min_reports' => $c['threshold'] ?? 3,
+                    'min_distinct_reporters' => $c['threshold'] ?? 3,
+                    'within_days' => $c['window_days'] ?? 7,
+                    'action' => 'warning',
+                    'notify_admin' => true,
+                    'is_active' => $warnRule->is_active ?? true,
+                    'summary' => $r['summary_vi'] ?? '',
+                    '_rule' => $warnRule,
+                ]);
+            }
+
+            if ($lockRule) {
+                $c = $lockRule->condition_json ?? [];
+                $r = $lockRule->result_json ?? [];
+                $thresholds->push([
+                    'key' => 'user_lock',
+                    'object_type' => 'user',
+                    'object_type_label' => 'Người dùng',
+                    'min_reports' => $c['threshold'] ?? 10,
+                    'min_distinct_reporters' => $c['threshold'] ?? 10,
+                    'within_days' => $c['window_days'] ?? 7,
+                    'action' => 'auto_lock',
+                    'lock_duration_days' => $r['lock_duration_days'] ?? 7,
+                    'notify_admin' => true,
+                    'is_active' => $r['is_auto_lock_enabled'] ?? false,
+                    'summary' => $r['summary_vi'] ?? '',
+                    '_rule' => $lockRule,
                 ]);
             }
             
@@ -649,7 +707,7 @@ class ModerationReportPolicyService
         $query = DB::table('reports')
             ->where('reportable_type', $type)
             ->where('reportable_id', $id)
-            ->where('status', '!=', 'dismissed')
+            ->whereNotIn('status', ['dismissed', 'resolved'])
             ->where('created_at', '>=', now()->subDays($windowDays));
 
         return [

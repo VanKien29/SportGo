@@ -12,6 +12,19 @@ class PolicyRuleSyncService
         $policy->loadMissing('moderationThresholds');
 
         foreach ($policy->moderationThresholds as $threshold) {
+            $existingRule = PolicyRule::query()
+                ->where('system_policy_id', $policy->id)
+                ->where('rule_code', 'moderation_score_' . $threshold->target_type)
+                ->first();
+
+            $existingResult = $existingRule ? ($existingRule->result_json ?? []) : [];
+
+            $resultJson = array_merge($existingResult, [
+                'action_threshold' => $threshold->action_threshold,
+                'warning_threshold' => $threshold->warning_threshold,
+                'unique_reporters_threshold' => $threshold->unique_reporters_threshold,
+            ]);
+
             PolicyRule::query()->updateOrCreate(
                 [
                     'system_policy_id' => $policy->id,
@@ -27,11 +40,7 @@ class PolicyRuleSyncService
                         'target_type' => $threshold->target_type,
                         'timeframe_days' => $threshold->timeframe_days,
                     ],
-                    'result_json' => [
-                        'action_threshold' => $threshold->action_threshold,
-                        'warning_threshold' => $threshold->warning_threshold,
-                        'unique_reporters_threshold' => $threshold->unique_reporters_threshold,
-                    ],
+                    'result_json' => $resultJson,
                     'priority' => $policy->priority,
                     'is_active' => true,
                 ]
