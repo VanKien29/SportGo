@@ -44,20 +44,8 @@
                 <strong>{{ currentScoreConfig.admin_alert_score }}</strong>
               </div>
               <div class="stat-box">
-                <span>Thời gian lưu (Ngày)</span>
+                <span>Thời gian tính (Ngày)</span>
                 <strong>{{ currentScoreConfig.score_window_days }}</strong>
-              </div>
-              <div class="stat-box">
-                <span>Tự động Reset sau (Ngày)</span>
-                <strong>{{ currentScoreConfig.score_reset_days }}</strong>
-              </div>
-            </div>
-            
-            <h5 v-if="currentScoreConfig" style="margin-top: 24px; margin-bottom: 12px; color: #475569; font-size: 0.95rem;">Hình phạt áp dụng khi vi phạm</h5>
-            <div class="score-grid" v-if="currentScoreConfig">
-              <div class="stat-box" v-if="currentScoreConfig.duration_days">
-                <span>Thời hạn phạt</span>
-                <strong>{{ currentScoreConfig.duration_days }} ngày</strong>
               </div>
             </div>
             
@@ -86,20 +74,9 @@
             <input class="mod-input" type="number" v-model.number="scoreDraft.admin_alert_score" required min="1" />
           </div>
           <div class="mod-form-group">
-            <label>Thời gian lưu điểm (Ngày)</label>
+            <label>Thời gian tính (Ngày)</label>
             <input class="mod-input" type="number" v-model.number="scoreDraft.score_window_days" required min="1" />
           </div>
-          <div class="mod-form-group">
-            <label>Thời gian reset (Ngày)</label>
-            <input class="mod-input" type="number" v-model.number="scoreDraft.score_reset_days" required min="1" />
-          </div>
-          <template v-if="['user', 'venue_cluster'].includes(activeTarget)">
-            <h4 style="margin: 24px 0 16px; color: #1e293b; font-size: 1rem; padding-top: 16px; border-top: 1px dashed #e2e8f0;">Thời hạn áp dụng khi vi phạm</h4>
-            <div class="mod-form-group">
-              <label>Thời hạn (Ngày)</label>
-              <input class="mod-input" type="number" v-model.number="scoreDraft.duration_days" min="1" placeholder="Nhập số ngày phạt (để trống nếu vĩnh viễn)..." />
-            </div>
-          </template>
           <p class="mod-error-text" v-if="scoreError">{{ scoreError }}</p>
         </div>
         <div class="mod-modal-foot">
@@ -215,9 +192,7 @@ export default {
           target_type: this.activeTarget,
           auto_hide_score: 5,
           admin_alert_score: 3,
-          score_window_days: 7,
-          score_reset_days: 30,
-          duration_days: 7
+          score_window_days: 7
         };
       }
       this.showScoreModal = true;
@@ -240,6 +215,8 @@ export default {
             {
               ...this.scoreDraft,
               action_type: action_type,
+              duration_days: this.scoreDraft.duration_days || 7,
+              score_reset_days: this.scoreDraft.score_reset_days || 30
             }
           ] 
         };
