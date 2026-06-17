@@ -121,10 +121,24 @@ class UserController extends Controller
         $this->authorizePermission($request, 'user.view');
         
         $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
-        $rules = $activePolicy ? $activePolicy->rules()->get() : collect(); // Load all to get thresholds even if disabled
+        $rules = $activePolicy ? $activePolicy->rules()->get() : collect();
 
         $warnThreshold = 3;
         $lockThreshold = 10;
+        $windowDays = 7;
+        
+        if ($activePolicy) {
+            $userThreshold = \App\Models\ModerationThreshold::where('system_policy_id', $activePolicy->id)
+                ->where('target_type', 'user')
+                ->first();
+                
+            if ($userThreshold) {
+                $warnThreshold = $userThreshold->warning_threshold;
+                $lockThreshold = $userThreshold->action_threshold;
+                $windowDays = $userThreshold->timeframe_days;
+            }
+        }
+
         $actionType = 'lock_temp';
         $durationDays = 7;
         $autoLockReason = 'Vi phạm tiêu chuẩn cộng đồng';
@@ -132,12 +146,9 @@ class UserController extends Controller
 
         foreach ($rules as $rule) {
             $c = $rule->condition_json ?? [];
-            if (in_array($c['reportable_type'] ?? '', ['user', 'users'])) {
+            if (in_array($c['reportable_type'] ?? '', ['user', 'users']) || ($c['target_type'] ?? '') === 'user') {
                 $r = $rule->result_json ?? [];
-                if (($r['action'] ?? '') === 'warning') {
-                    $warnThreshold = $c['threshold'] ?? $warnThreshold;
-                } elseif (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
-                    $lockThreshold = $c['threshold'] ?? $lockThreshold;
+                if (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
                     $actionType = 'lock_temp';
                     $durationDays = $r['lock_duration_days'] ?? 7;
                     $autoLockReason = $r['reason'] ?? 'Vi phạm tiêu chuẩn cộng đồng';
@@ -153,7 +164,7 @@ class UserController extends Controller
                 'policy_id' => $activePolicy?->id,
                 'warning_threshold' => $warnThreshold,
                 'lock_threshold' => $lockThreshold,
-                'window_days' => $windowDays ?? 7,
+                'window_days' => $windowDays,
                 'action_type' => $actionType,
                 'duration_days' => $durationDays,
                 'reason' => $autoLockReason,
@@ -178,30 +189,31 @@ class UserController extends Controller
         }
 
         $rules = $activePolicy->rules()->get();
-        $warnRule = null;
-        $actionRule = null;
-        
-        foreach ($rules as $rule) {
-            $c = $rule->condition_json ?? [];
-            if (in_array($c['reportable_type'] ?? '', ['user', 'users'])) {
-                $r = $rule->result_json ?? [];
-                if (($r['action'] ?? '') === 'warning') {
-                    $warnRule = $rule;
-                } elseif (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
-                    $actionRule = $rule;
+        $actionRule = $rules->firstWhere('rule_code', 'moderation_score_user');
+
+        if (!$actionRule) {
+            // Try to find legacy rule
+            foreach ($rules as $rule) {
+                $c = $rule->condition_json ?? [];
+                if (in_array($c['reportable_type'] ?? '', ['user', 'users'])) {
+                    $r = $rule->result_json ?? [];
+                    if (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
+                        $actionRule = $rule;
+                        break;
+                    }
                 }
             }
         }
 
         if ($actionRule) {
-            $c = $actionRule->condition_json;
-            $r = $actionRule->result_json;
+            $r = $actionRule->result_json ?? [];
             $r['lock_duration_days'] = $data['duration_days'];
             $r['reason'] = $data['reason'];
+            $r['is_auto_lock_enabled'] = $data['is_auto_lock_enabled'];
             $actionRule->update([
-                'condition_json' => $c,
                 'result_json' => $r,
-                'is_active' => $data['is_auto_lock_enabled'],
+                // We shouldn't disable the whole rule, because we still need warning thresholds.
+                // We save it in result_json.
             ]);
         }
 
@@ -483,22 +495,16 @@ class UserController extends Controller
     private function activeUserModerationConfig(): array
     {
         $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
-        $rules = $activePolicy ? $activePolicy->rules()->where('is_active', true)->get() : collect();
         $warnThreshold = 3;
         $lockThreshold = 10;
         $windowDays = 14;
 
-        foreach ($rules as $rule) {
-            $c = $rule->condition_json ?? [];
-            if (in_array($c['reportable_type'] ?? '', ['user', 'users'])) {
-                $r = $rule->result_json ?? [];
-                if (($r['action'] ?? '') === 'warning') {
-                    $warnThreshold = $c['threshold'] ?? $warnThreshold;
-                    $windowDays = $c['window_days'] ?? $windowDays;
-                } elseif (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
-                    $lockThreshold = $c['threshold'] ?? $lockThreshold;
-                    $windowDays = $c['window_days'] ?? $windowDays;
-                }
+        if ($activePolicy) {
+            $threshold = \App\Models\ModerationThreshold::where('system_policy_id', $activePolicy->id)->where('target_type', 'user')->first();
+            if ($threshold) {
+                $warnThreshold = $threshold->warning_threshold;
+                $lockThreshold = $threshold->action_threshold;
+                $windowDays = $threshold->timeframe_days;
             }
         }
         return [$warnThreshold, $lockThreshold, $windowDays];
@@ -963,8 +969,8 @@ class UserController extends Controller
             'label' => [
                 'normal' => 'Bình thường',
                 'watch' => 'Cần theo dõi',
-                'near_lock' => 'Cảnh báo (≥' . $warnThreshold . ' người báo cáo)',
-                'lock_suggested' => 'Đề xuất khóa (≥' . $lockThreshold . ' người báo cáo)',
+                'near_lock' => 'Cảnh báo',
+                'lock_suggested' => 'Cảnh báo',
             ][$level],
             'message' => $reports > 0 || $complaints > 0
                 ? "Tài khoản có {$reports} người báo cáo và {$complaints} khiếu nại đang mở trong {$windowDays} ngày gần đây."

@@ -91,8 +91,6 @@
             <td>{{ user.primary_role_label || (user.roles && user.roles[0]) || '-' }}</td>
             <td>
               <span class="status" :class="user.status">{{ user.status_label || getAccountStatusLabel(user.status) }}</span>
-              <small v-if="user.status === 'locked' && user.locked_until" class="lock-until">đến {{ dateTime(user.locked_until) }}</small>
-              <small v-else-if="user.status === 'locked'" class="lock-until">Vĩnh viễn</small>
             </td>
             <td>
               <span class="warning" :class="user.warning_summary?.level || 'normal'">

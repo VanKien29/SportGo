@@ -345,16 +345,79 @@ class ModerationReportPolicyService
             ->where('key', 'moderation')
             ->where('status', 'active')
             ->where('is_active', true)
-            ->with(['rules' => fn ($query) => $query->where('rule_type', self::RULE_TYPE)->where('is_active', true)->orderByDesc('priority')])
+            ->with(['rules' => fn ($query) => $query->whereIn('rule_type', [self::RULE_TYPE, 'moderation_score_threshold'])->where('is_active', true)->orderByDesc('priority')])
             ->orderByDesc('version')
             ->first();
 
-        $rules = $policy?->rules ?? collect();
         $thresholds = collect();
-        foreach ($rules as $rule) {
-            foreach ($this->thresholdsFromRule($rule) as $t) {
-                $t['_rule'] = $rule;
-                $thresholds->push($t);
+
+        if ($policy) {
+            $dbThresholds = \App\Models\ModerationThreshold::where('system_policy_id', $policy->id)->get();
+            foreach ($dbThresholds as $dbThreshold) {
+                $rule = $policy->rules->firstWhere('rule_code', 'moderation_score_' . $dbThreshold->target_type);
+                $isActionActive = true;
+                if ($dbThreshold->target_type === 'user') {
+                    $isActionActive = \App\Models\ModerationConfig::where('key', 'auto_lock_enabled')->value('value') == '1';
+                }
+
+                // Action threshold
+                $action = in_array($dbThreshold->target_type, ['community_post', 'venue_post', 'comment']) ? 'hide_temporarily' : 'auto_lock';
+                $thresholds->push([
+                    'key' => "mod_{$dbThreshold->target_type}_action",
+                    'object_type' => $dbThreshold->target_type,
+                    'object_type_label' => $this->targetTypeLabels()[$dbThreshold->target_type] ?? $dbThreshold->target_type,
+                    'min_reports' => $dbThreshold->action_threshold,
+                    'min_distinct_reporters' => $dbThreshold->unique_reporters_threshold,
+                    'within_days' => $dbThreshold->timeframe_days,
+                    'action' => $action,
+                    'lock_duration_days' => $rule ? ($rule->result_json['lock_duration_days'] ?? 7) : 7,
+                    'notify_admin' => true,
+                    'is_active' => $isActionActive,
+                    'summary' => $this->thresholdSummary([
+                        'object_type' => $dbThreshold->target_type,
+                        'min_reports' => $dbThreshold->action_threshold,
+                        'min_distinct_reporters' => $dbThreshold->unique_reporters_threshold,
+                        'within_days' => $dbThreshold->timeframe_days,
+                        'action' => $action,
+                        'notify_admin' => true,
+                    ]),
+                    '_rule' => $rule,
+                ]);
+
+                // Warning threshold
+                $warnAction = in_array($dbThreshold->target_type, ['community_post', 'venue_post', 'comment']) ? 'notify_admin' : 'warning';
+                $thresholds->push([
+                    'key' => "mod_{$dbThreshold->target_type}_warning",
+                    'object_type' => $dbThreshold->target_type,
+                    'object_type_label' => $this->targetTypeLabels()[$dbThreshold->target_type] ?? $dbThreshold->target_type,
+                    'min_reports' => $dbThreshold->warning_threshold,
+                    'min_distinct_reporters' => $dbThreshold->unique_reporters_threshold,
+                    'within_days' => $dbThreshold->timeframe_days,
+                    'action' => $warnAction,
+                    'notify_admin' => true,
+                    'is_active' => true,
+                    'summary' => $this->thresholdSummary([
+                        'object_type' => $dbThreshold->target_type,
+                        'min_reports' => $dbThreshold->warning_threshold,
+                        'min_distinct_reporters' => $dbThreshold->unique_reporters_threshold,
+                        'within_days' => $dbThreshold->timeframe_days,
+                        'action' => $warnAction,
+                        'notify_admin' => true,
+                    ]),
+                    '_rule' => $rule,
+                ]);
+            }
+            
+            if ($thresholds->isEmpty()) {
+                $rules = $policy->rules;
+                foreach ($rules as $rule) {
+                    if ($rule->rule_type === self::RULE_TYPE) {
+                        foreach ($this->thresholdsFromRule($rule) as $t) {
+                            $t['_rule'] = $rule;
+                            $thresholds->push($t);
+                        }
+                    }
+                }
             }
         }
 
@@ -662,7 +725,7 @@ class ModerationReportPolicyService
         }
 
         if ($action === 'warning') {
-            if (Schema::hasColumn($target->getTable(), 'status_reason')) {
+            if (Schema::hasColumn($target->getTable(), 'status_reason') && $target->status !== 'locked' && $target->status !== 'deactivated') {
                 $target->forceFill(['status_reason' => 'Đang trong diện cảnh báo do đạt ngưỡng báo cáo.'])->save();
             }
             $applied[] = 'warning';
