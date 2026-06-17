@@ -179,13 +179,31 @@
     <div v-if="showPolicyModal" class="modal-backdrop" @click.self="closePolicyModal">
       <div class="modal" style="max-width: 500px;">
         <h3>Cấu hình khóa tự động</h3>
-        <p class="muted" style="margin-top: 4px;">Ngưỡng điểm cảnh báo và tự động khóa tài khoản được đồng bộ từ Chính sách hệ thống.</p>
+        <p class="muted" style="margin-top: 4px;">Cấu hình tự động khóa tài khoản khi bị nhiều người báo cáo.</p>
         
         <div v-if="policyLoading" class="state">Đang tải cấu hình...</div>
         <template v-else-if="policyConfig">
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-top: 16px;">
+          <!-- Thông tin chính sách (chỉ đọc) -->
+          <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-top: 16px;">
+            <div style="font-weight: 700; color: #334155; margin-bottom: 10px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.3px;">Ngưỡng từ chính sách</div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
+              <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo để cảnh báo:</span>
+              <strong style="color: #d97706;">{{ policyConfig.warning_threshold }} người</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
+              <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo để khóa:</span>
+              <strong style="color: #dc2626;">{{ policyConfig.lock_threshold }} người</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: #64748b; font-size: 0.9rem;">Trong khoảng thời gian:</span>
+              <strong style="color: #334155;">{{ policyConfig.window_days }} ngày</strong>
+            </div>
+          </div>
+
+          <!-- Cấu hình chỉnh sửa -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-top: 12px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Tự động khóa:</span>
+              <span style="color: #334155; font-size: 0.9rem; font-weight: 600;">Tự động khóa:</span>
               <div class="toggle-slider" :class="{ on: policyConfig.is_auto_lock_enabled }" @click="policyConfig.is_auto_lock_enabled = !policyConfig.is_auto_lock_enabled"></div>
             </div>
             <div v-if="policyConfig.is_auto_lock_enabled" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
@@ -193,7 +211,7 @@
                 <span style="color: #64748b; font-size: 0.9rem;">Lý do khóa tự động:</span>
                 <input type="text" v-model="policyConfig.reason" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" placeholder="Ví dụ: Vi phạm tiêu chuẩn cộng đồng nhiều lần" />
               </label>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #64748b; font-size: 0.9rem;">Thời hạn khóa:</span>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <input type="number" v-model.number="policyConfig.duration_days" style="width: 80px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px;" min="1" />
@@ -203,18 +221,17 @@
             </div>
           </div>
           
-          <div style="margin-top: 16px; padding: 12px; background: #ecfdf5; border-radius: 8px; font-size: 0.9rem; color: #065f46; display: flex; align-items: flex-start; gap: 8px;">
-            <AppIcon name="info" size="18" style="flex-shrink: 0; margin-top: 2px;" />
+          <div style="margin-top: 12px; padding: 10px 12px; background: #eff6ff; border-radius: 8px; font-size: 0.85rem; color: #1e40af; display: flex; align-items: flex-start; gap: 8px;">
+            <AppIcon name="info" size="16" style="flex-shrink: 0; margin-top: 2px;" />
             <div>
-              Hệ thống sẽ tự động đối chiếu số lượng báo cáo hợp lệ của người dùng với các ngưỡng này để hiển thị cảnh báo. Nếu tính năng <strong>Tự động khóa</strong> được bật, hệ thống sẽ tự động khóa tài khoản khi vượt ngưỡng đỏ.
+              Khi số người báo cáo khác nhau đạt <strong>ngưỡng cảnh báo</strong>, tài khoản sẽ hiển thị cảnh báo vàng. Khi đạt <strong>ngưỡng khóa</strong> và tự động khóa đang bật, hệ thống sẽ tự động khóa tài khoản.
             </div>
           </div>
           
-          <div style="margin-top: 16px; text-align: center;">
-            <router-link v-if="policyConfig.policy_id" :to="`/admin/policies/${policyConfig.policy_id}`" class="btn primary outline" style="text-decoration: none; display: inline-block;">
-              Đến trang cấu hình Chính sách
+          <div style="margin-top: 12px; text-align: center;">
+            <router-link v-if="policyConfig.policy_id" :to="`/admin/policies/${policyConfig.policy_id}`" class="btn secondary" style="text-decoration: none; display: inline-block; font-size: 0.85rem;">
+              Chỉnh ngưỡng tại Chính sách hệ thống →
             </router-link>
-            <span v-else class="muted">Chưa có chính sách kiểm duyệt nào đang Active.</span>
           </div>
         </template>
 

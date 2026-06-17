@@ -601,6 +601,16 @@ class ModerationReportPolicyService
             return false;
         }
 
+        // For auto_lock: check if the user is currently locked, not just if we applied it before
+        // If the user was unlocked by an admin, allow re-evaluation
+        if ($threshold['action'] === 'auto_lock') {
+            $target = class_exists($type) ? $type::find($id) : null;
+            if ($target && ($target->status ?? null) === 'locked') {
+                return true; // Already locked, skip
+            }
+            return false; // Not locked, allow re-evaluation
+        }
+
         return PolicyEvaluationLog::query()
             ->where('policy_rule_id', $rule->id)
             ->where('entity_type', $type)
@@ -636,13 +646,16 @@ class ModerationReportPolicyService
         }
 
         if ($action === 'auto_lock') {
+            $ruleResult = $rule ? ($rule->result_json ?? []) : [];
+            $lockReason = $ruleResult['reason'] ?? 'Tự động khóa tài khoản do đạt ngưỡng báo cáo.';
             $updates = [
                 'status' => 'locked',
                 'lock_type' => 'auto',
+                'locked_at' => now(),
                 'locked_until' => isset($threshold['lock_duration_days']) && $threshold['lock_duration_days'] ? now()->addDays((int) $threshold['lock_duration_days']) : null,
             ];
             if (Schema::hasColumn($target->getTable(), 'status_reason')) {
-                $updates['status_reason'] = 'Tự động khóa tài khoản do đạt ngưỡng báo cáo.';
+                $updates['status_reason'] = $lockReason;
             }
             $target->forceFill($updates)->save();
             $applied[] = 'auto_lock';

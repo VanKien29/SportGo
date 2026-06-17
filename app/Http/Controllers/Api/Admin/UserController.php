@@ -151,6 +151,9 @@ class UserController extends Controller
         return response()->json([
             'data' => [
                 'policy_id' => $activePolicy?->id,
+                'warning_threshold' => $warnThreshold,
+                'lock_threshold' => $lockThreshold,
+                'window_days' => $windowDays ?? 7,
                 'action_type' => $actionType,
                 'duration_days' => $durationDays,
                 'reason' => $autoLockReason,
@@ -492,7 +495,7 @@ class UserController extends Controller
                 if (($r['action'] ?? '') === 'warning') {
                     $warnThreshold = $c['threshold'] ?? $warnThreshold;
                     $windowDays = $c['window_days'] ?? $windowDays;
-                } elseif (($r['action'] ?? '') === 'auto_lock') {
+                } elseif (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
                     $lockThreshold = $c['threshold'] ?? $lockThreshold;
                     $windowDays = $c['window_days'] ?? $windowDays;
                 }
@@ -946,11 +949,12 @@ class UserController extends Controller
 
     private function warningLevelText(int $reports, int $complaints): array
     {
-        $score = $reports + $complaints;
+        [$warnThreshold, $lockThreshold, $windowDays] = $this->activeUserModerationConfig();
+
         $level = match (true) {
-            $reports >= 5 || $score >= 7 => 'lock_suggested',
-            $reports >= 4 || $score >= 5 => 'near_lock',
-            $score > 0 => 'watch',
+            $reports >= $lockThreshold => 'lock_suggested',
+            $reports >= $warnThreshold => 'near_lock',
+            $reports > 0 || $complaints > 0 => 'watch',
             default => 'normal',
         };
 
@@ -959,11 +963,11 @@ class UserController extends Controller
             'label' => [
                 'normal' => 'Bình thường',
                 'watch' => 'Cần theo dõi',
-                'near_lock' => 'Gần ngưỡng khóa',
-                'lock_suggested' => 'Đề xuất khóa/tạm khóa',
+                'near_lock' => 'Cảnh báo (≥' . $warnThreshold . ' người báo cáo)',
+                'lock_suggested' => 'Đề xuất khóa (≥' . $lockThreshold . ' người báo cáo)',
             ][$level],
-            'message' => $score > 0
-                ? "Tài khoản có {$reports} báo cáo và {$complaints} khiếu nại đang mở gần đây."
+            'message' => $reports > 0 || $complaints > 0
+                ? "Tài khoản có {$reports} người báo cáo và {$complaints} khiếu nại đang mở trong {$windowDays} ngày gần đây."
                 : 'Tài khoản chưa có dấu hiệu rủi ro gần đây.',
         ];
     }
