@@ -245,6 +245,61 @@ class UserController extends Controller
             $actionRule->update([
                 'result_json' => $r,
             ]);
+
+            if ($data['is_auto_lock_enabled']) {
+                $lockThreshold = $actionRule->condition_json['threshold'] ?? 10;
+                $windowDays = $actionRule->condition_json['window_days'] ?? 7;
+
+                $adminRoleIds = DB::table('roles')
+                    ->whereIn('name', [
+                        'super_admin', 'admin', 'system_staff', 'content_moderator',
+                        'complaint_handler', 'venue_manager', 'partner_manager',
+                        'booking_support', 'finance_operator', 'policy_manager', 'staff_manager'
+                    ])
+                    ->pluck('id');
+
+                $adminUserIds = DB::table('user_roles')
+                    ->whereIn('role_id', $adminRoleIds)
+                    ->pluck('user_id')
+                    ->all();
+
+                $exceededUserIds = DB::table('reports')
+                    ->whereIn('reportable_type', ['users', 'user', User::class])
+                    ->whereNotIn('reportable_id', $adminUserIds)
+                    ->whereNotIn('status', ['dismissed', 'resolved'])
+                    ->where('created_at', '>=', now()->subDays($windowDays))
+                    ->select('reportable_id', DB::raw('COUNT(DISTINCT reporter_id) as total'))
+                    ->groupBy('reportable_id')
+                    ->having('total', '>=', $lockThreshold)
+                    ->pluck('reportable_id')
+                    ->all();
+
+                foreach ($exceededUserIds as $userId) {
+                    $user = User::query()->find($userId);
+                    if ($user && $user->status === 'active') {
+                        $user->forceFill([
+                            'status' => 'locked',
+                            'lock_type' => 'auto',
+                            'status_reason' => $data['reason'],
+                            'locked_at' => now(),
+                            'locked_until' => now()->addDays($data['duration_days']),
+                            'locked_by' => $request->user()?->id,
+                        ])->save();
+
+                        if (class_exists(\App\Models\UserLockLog::class)) {
+                            \App\Models\UserLockLog::create([
+                                'user_id' => $user->id,
+                                'action' => 'locked',
+                                'reason' => $data['reason'],
+                                'locked_by' => $request->user()?->id,
+                                'auto_triggered' => true,
+                                'lock_until' => now()->addDays($data['duration_days']),
+                                'created_at' => now(),
+                            ]);
+                        }
+                    }
+                }
+            }
         }
 
         return response()->json(['message' => 'Lưu cấu hình thành công.']);
