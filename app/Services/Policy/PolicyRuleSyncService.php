@@ -25,12 +25,12 @@ class PolicyRuleSyncService
                     'conflict_group' => 'moderation_score_' . $threshold->target_type,
                     'condition_json' => [
                         'target_type' => $threshold->target_type,
-                        'score_window_days' => $threshold->score_window_days,
+                        'timeframe_days' => $threshold->timeframe_days,
                     ],
                     'result_json' => [
-                        'auto_hide_score' => $threshold->auto_hide_score,
-                        'admin_alert_score' => $threshold->admin_alert_score,
-                        'score_reset_days' => $threshold->score_reset_days,
+                        'action_threshold' => $threshold->action_threshold,
+                        'warning_threshold' => $threshold->warning_threshold,
+                        'unique_reporters_threshold' => $threshold->unique_reporters_threshold,
                     ],
                     'priority' => $policy->priority,
                     'is_active' => true,

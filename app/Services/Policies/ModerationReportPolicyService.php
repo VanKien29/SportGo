@@ -357,7 +357,7 @@ class ModerationReportPolicyService
                 $rule = $policy->rules->firstWhere('rule_code', 'moderation_score_' . $dbThreshold->target_type);
                 $isActionActive = true;
                 if ($dbThreshold->target_type === 'user') {
-                    $isActionActive = \App\Models\ModerationConfig::where('key', 'auto_lock_enabled')->value('value') == '1';
+                    $isActionActive = $rule ? ($rule->result_json['is_auto_lock_enabled'] ?? false) : false;
                 }
 
                 // Action threshold
@@ -711,17 +711,29 @@ class ModerationReportPolicyService
         if ($action === 'auto_lock') {
             $ruleResult = $rule ? ($rule->result_json ?? []) : [];
             $lockReason = $ruleResult['reason'] ?? 'Tự động khóa tài khoản do đạt ngưỡng báo cáo.';
+            $lockUntil = isset($threshold['lock_duration_days']) && $threshold['lock_duration_days'] ? now()->addDays((int) $threshold['lock_duration_days']) : null;
             $updates = [
                 'status' => 'locked',
                 'lock_type' => 'auto',
                 'locked_at' => now(),
-                'locked_until' => isset($threshold['lock_duration_days']) && $threshold['lock_duration_days'] ? now()->addDays((int) $threshold['lock_duration_days']) : null,
+                'locked_until' => $lockUntil,
             ];
             if (Schema::hasColumn($target->getTable(), 'status_reason')) {
                 $updates['status_reason'] = $lockReason;
             }
             $target->forceFill($updates)->save();
             $applied[] = 'auto_lock';
+
+            if (class_exists(\App\Models\UserLockLog::class)) {
+                \App\Models\UserLockLog::create([
+                    'user_id' => $target->id,
+                    'action' => 'locked',
+                    'reason' => $lockReason,
+                    'auto_triggered' => true,
+                    'lock_until' => $lockUntil,
+                    'created_at' => now(),
+                ]);
+            }
         }
 
         if ($action === 'warning') {

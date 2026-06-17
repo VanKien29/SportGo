@@ -36,16 +36,20 @@
             </div>
             <div class="score-grid" v-if="currentScoreConfig">
               <div class="stat-box">
-                <span>{{ dynamicLabels.autoHide }}</span>
-                <strong>{{ currentScoreConfig.auto_hide_score }}</strong>
+                <span>Ngưỡng cảnh báo</span>
+                <strong>{{ currentScoreConfig.warning_threshold }}</strong>
               </div>
               <div class="stat-box">
-                <span>{{ dynamicLabels.adminAlert }}</span>
-                <strong>{{ currentScoreConfig.admin_alert_score }}</strong>
+                <span>Ngưỡng thực hiện thao tác (Ẩn/Khóa)</span>
+                <strong>{{ currentScoreConfig.action_threshold }}</strong>
               </div>
               <div class="stat-box">
-                <span>Thời gian tính (Ngày)</span>
-                <strong>{{ currentScoreConfig.score_window_days }}</strong>
+                <span>Số người báo cáo khác nhau</span>
+                <strong>{{ currentScoreConfig.unique_reporters_threshold }}</strong>
+              </div>
+              <div class="stat-box">
+                <span>Thời gian theo dõi (Ngày)</span>
+                <strong>{{ currentScoreConfig.timeframe_days }}</strong>
               </div>
             </div>
             
@@ -66,16 +70,20 @@
         </div>
         <div class="mod-modal-body">
           <div class="mod-form-group">
-            <label>{{ dynamicLabels.autoHide }}</label>
-            <input class="mod-input" type="number" v-model.number="scoreDraft.auto_hide_score" required min="1" />
+            <label>Ngưỡng cảnh báo (Số báo cáo tối thiểu)</label>
+            <input class="mod-input" type="number" v-model.number="scoreDraft.warning_threshold" required min="1" />
           </div>
           <div class="mod-form-group">
-            <label>{{ dynamicLabels.adminAlert }}</label>
-            <input class="mod-input" type="number" v-model.number="scoreDraft.admin_alert_score" required min="1" />
+            <label>Ngưỡng thực hiện thao tác Ẩn/Khóa (Số báo cáo)</label>
+            <input class="mod-input" type="number" v-model.number="scoreDraft.action_threshold" required min="1" />
           </div>
           <div class="mod-form-group">
-            <label>Thời gian tính (Ngày)</label>
-            <input class="mod-input" type="number" v-model.number="scoreDraft.score_window_days" required min="1" />
+            <label>Ngưỡng số người báo cáo khác nhau</label>
+            <input class="mod-input" type="number" v-model.number="scoreDraft.unique_reporters_threshold" required min="1" />
+          </div>
+          <div class="mod-form-group">
+            <label>Thời gian theo dõi (Ngày)</label>
+            <input class="mod-input" type="number" v-model.number="scoreDraft.timeframe_days" required min="1" />
           </div>
           <p class="mod-error-text" v-if="scoreError">{{ scoreError }}</p>
         </div>
@@ -90,7 +98,7 @@
 </template>
 
 <script>
-import { TARGET_TYPE_LABELS, ESCALATION_ACTION_LABELS } from '../../utils/labelMaps.js';
+import { TARGET_TYPE_LABELS } from '../../utils/labelMaps.js';
 import { api } from '../../services/api.js';
 
 export default {
@@ -117,37 +125,6 @@ export default {
     },
     currentScoreConfig() {
       return this.scoreThresholds.find(s => s.target_type === this.activeTarget);
-    },
-    allowedActionsForTarget() {
-      const all = Object.entries(ESCALATION_ACTION_LABELS).map(([key, label]) => ({ key, label }));
-      if (['community_post', 'venue_post', 'comment'].includes(this.activeTarget)) {
-        return all.filter(a => ['warn', 'hide_content', 'delete_content'].includes(a.key));
-      }
-      if (this.activeTarget === 'user') {
-        return all.filter(a => ['warn', 'lock_temp', 'lock_permanent'].includes(a.key));
-      }
-      if (this.activeTarget === 'venue_cluster') {
-        return all.filter(a => ['warn', 'limit_venue', 'block_venue', 'terminate_contract'].includes(a.key));
-      }
-      return all;
-    },
-    dynamicLabels() {
-      const target = this.activeTarget;
-      let autoHide = 'Số lượt báo cáo (tối thiểu)';
-      let adminAlert = 'Số người báo cáo khác nhau';
-      
-      if (['community_post', 'venue_post', 'comment'].includes(target)) {
-        autoHide = 'Số lượt báo cáo (để tự động ẩn)';
-        adminAlert = 'Số người báo cáo khác nhau (cảnh báo)';
-      } else if (target === 'user') {
-        autoHide = 'Ngưỡng tự động khóa (Số người báo cáo khác nhau)';
-        adminAlert = 'Ngưỡng cảnh báo Admin (Số người báo cáo khác nhau)';
-      } else if (target === 'venue_cluster') {
-        autoHide = 'Ngưỡng tự động phạt sân (Số người báo cáo khác nhau)';
-        adminAlert = 'Ngưỡng cảnh báo Admin (Số người báo cáo khác nhau)';
-      }
-      
-      return { autoHide, adminAlert };
     }
   },
   mounted() {
@@ -156,19 +133,6 @@ export default {
   methods: {
     getTargetLabel(key) {
       return TARGET_TYPE_LABELS[key] || key;
-    },
-    getActionLabel(key) {
-      return ESCALATION_ACTION_LABELS[key] || key;
-    },
-    requiresDuration(actionType) {
-      return ['lock_temp', 'limit_venue', 'block_venue'].includes(actionType);
-    },
-    getDisabledDurationLabel(actionType) {
-      if (['lock_permanent', 'terminate_contract'].includes(actionType)) return 'Vĩnh viễn (Cả đời)';
-      if (actionType === 'warn') return '1 lần (Chỉ thông báo)';
-      if (['hide_content', 'delete_content'].includes(actionType)) return 'Xử lý ngay lập tức';
-      if (actionType === 'manual_review') return 'Chờ Admin duyệt';
-      return 'Không áp dụng';
     },
     async fetchScoreThresholds() {
       this.loading = true;
@@ -190,9 +154,10 @@ export default {
       } else {
         this.scoreDraft = {
           target_type: this.activeTarget,
-          auto_hide_score: 5,
-          admin_alert_score: 3,
-          score_window_days: 7
+          warning_threshold: 3,
+          action_threshold: 5,
+          unique_reporters_threshold: 2,
+          timeframe_days: 7
         };
       }
       this.showScoreModal = true;
@@ -201,22 +166,14 @@ export default {
       this.savingScore = true;
       this.scoreError = '';
       try {
-        let action_type = 'warn';
-        if (['community_post', 'venue_post', 'comment'].includes(this.scoreDraft.target_type)) {
-          action_type = 'hide_content';
-        } else if (this.scoreDraft.target_type === 'user') {
-          action_type = 'lock_temp';
-        } else if (this.scoreDraft.target_type === 'venue_cluster') {
-          action_type = 'limit_venue';
-        }
-
         const payload = { 
           score_thresholds: [
             {
-              ...this.scoreDraft,
-              action_type: action_type,
-              duration_days: this.scoreDraft.duration_days || 7,
-              score_reset_days: this.scoreDraft.score_reset_days || 30
+              target_type: this.scoreDraft.target_type,
+              warning_threshold: this.scoreDraft.warning_threshold,
+              action_threshold: this.scoreDraft.action_threshold,
+              unique_reporters_threshold: this.scoreDraft.unique_reporters_threshold,
+              timeframe_days: this.scoreDraft.timeframe_days
             }
           ] 
         };

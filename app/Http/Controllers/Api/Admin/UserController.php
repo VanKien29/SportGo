@@ -152,9 +152,7 @@ class UserController extends Controller
                     $actionType = 'lock_temp';
                     $durationDays = $r['lock_duration_days'] ?? 7;
                     $autoLockReason = $r['reason'] ?? 'Vi phạm tiêu chuẩn cộng đồng';
-                    if ($rule->is_active) {
-                        $isAutoLockEnabled = true;
-                    }
+                    $isAutoLockEnabled = $r['is_auto_lock_enabled'] ?? false;
                 }
             }
         }
