@@ -25,7 +25,7 @@ class AdminPostController extends Controller
 
         // Paginate comments riêng
         $comments = $postModel->comments()
-            ->with('user:id,username,full_name,avatar_url')
+            ->with(['user:id,username,full_name,avatar_url', 'media'])
             ->withCount('replies')
             ->whereNull('parent_id') // Chỉ lấy comment gốc, không lấy reply
             ->orderByDesc('created_at')
@@ -43,6 +43,10 @@ class AdminPostController extends Controller
                 'user_name' => $comment->user?->full_name ?: $comment->user?->username,
                 'user_avatar' => $comment->user?->avatar_url,
                 'replies_count' => $comment->replies_count ?? 0,
+                'media' => $comment->media->map(fn ($m) => [
+                    'id' => $m->id,
+                    'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
+                ]),
                 'created_at' => $comment->created_at,
             ])
             : [];

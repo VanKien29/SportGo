@@ -78,32 +78,25 @@
             <h3>Bình luận của người dùng</h3>
             <div v-if="commentsLoading" class="state">Đang tải bình luận...</div>
             <template v-else>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Nội dung</th>
-                      <th>Bài viết</th>
-                      <th>Số reply</th>
-                      <th>Ngày đăng</th>
-                      <th>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-if="comments.length === 0">
-                      <td colspan="5" class="state">Chưa có bình luận.</td>
-                    </tr>
-                    <tr v-for="comment in comments" :key="comment.id">
-                      <td>{{ truncate(comment.content, 100) }}</td>
-                      <td>{{ comment.post_content ? truncate(comment.post_content, 50) : '-' }}</td>
-                      <td>{{ comment.replies_count || 0 }}</td>
-                      <td>{{ dateTime(comment.created_at) }}</td>
-                      <td>
-                        <button class="btn-sm" type="button" @click="openCommentDetail(comment.id)">Xem chi tiết</button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="content-list">
+                <article v-for="comment in comments" :key="comment.id" class="content-card">
+                  <div class="content-card-body">
+                    <p class="content-text">{{ truncate(comment.content, 150) }}</p>
+                    <div v-if="comment.media && comment.media.length" class="content-media-preview">
+                      <img v-for="m in comment.media.slice(0, 3)" :key="m.id" :src="m.url" class="media-thumb" />
+                      <div v-if="comment.media.length > 3" class="media-more">+{{ comment.media.length - 3 }}</div>
+                    </div>
+                    <div class="content-meta">
+                      <span>Bài viết: {{ comment.post_content ? truncate(comment.post_content, 40) : '-' }}</span>
+                      <span>💬 {{ comment.replies_count || 0 }} trả lời</span>
+                      <span>📅 {{ dateTime(comment.created_at) }}</span>
+                    </div>
+                  </div>
+                  <div class="content-card-actions">
+                    <button class="btn-sm" type="button" @click="openCommentDetail(comment.id)">Xem chi tiết</button>
+                  </div>
+                </article>
+                <div v-if="comments.length === 0" class="state">Chưa có bình luận.</div>
               </div>
               <footer class="pagination" v-if="commentsMeta.total > 0">
                 <span>{{ comments.length }} / {{ commentsMeta.total }}</span>
@@ -121,36 +114,26 @@
             <h3>Bài đăng của người dùng</h3>
             <div v-if="postsLoading" class="state">Đang tải bài đăng...</div>
             <template v-else>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Nội dung (tiêu đề)</th>
-                      <th>Số bình luận</th>
-                      <th>Số like</th>
-                      <th>Trạng thái</th>
-                      <th>Ngày đăng</th>
-                      <th>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-if="posts.length === 0">
-                      <td colspan="6" class="state">Chưa có bài đăng.</td>
-                    </tr>
-                    <tr v-for="post in posts" :key="post.id">
-                      <td>{{ truncate(post.content, 80) }}</td>
-                      <td>{{ post.comment_count || 0 }}</td>
-                      <td>{{ post.like_count || 0 }}</td>
-                      <td>
-                        <span class="status" :class="post.status">{{ postStatusLabel(post.status) }}</span>
-                      </td>
-                      <td>{{ dateTime(post.created_at) }}</td>
-                      <td>
-                        <RouterLink class="btn-sm" :to="{ name: 'admin-post-detail', params: { id: post.id } }">Xem chi tiết</RouterLink>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="content-list">
+                <article v-for="post in posts" :key="post.id" class="content-card">
+                  <div class="content-card-body">
+                    <p class="content-text">{{ truncate(post.content, 150) }}</p>
+                    <div v-if="post.media && post.media.length" class="content-media-preview">
+                      <img v-for="m in post.media.slice(0, 3)" :key="m.id" :src="m.url" class="media-thumb" />
+                      <div v-if="post.media.length > 3" class="media-more">+{{ post.media.length - 3 }}</div>
+                    </div>
+                    <div class="content-meta">
+                      <span class="status" :class="post.status">{{ postStatusLabel(post.status) }}</span>
+                      <span>💬 {{ post.comment_count || 0 }}</span>
+                      <span>❤️ {{ post.like_count || 0 }}</span>
+                      <span>📅 {{ dateTime(post.created_at) }}</span>
+                    </div>
+                  </div>
+                  <div class="content-card-actions">
+                    <RouterLink class="btn-sm" :to="{ name: 'admin-post-detail', params: { id: post.id } }">Xem chi tiết</RouterLink>
+                  </div>
+                </article>
+                <div v-if="posts.length === 0" class="state">Chưa có bài đăng.</div>
               </div>
               <footer class="pagination" v-if="postsMeta.total > 0">
                 <span>{{ posts.length }} / {{ postsMeta.total }}</span>
@@ -194,15 +177,42 @@
             </template>
           </section>
 
-          <!-- Tab Cảnh báo & Báo cáo (giữ nguyên từ bản cũ) -->
           <section v-if="activeTab === 'warnings'" class="panel">
-            <h3>Cảnh báo & báo cáo</h3>
-            <p class="notice">{{ detail.warning_summary?.message }}</p>
+            <h3>Cảnh báo & báo cáo về tài khoản</h3>
+            <p class="notice">{{ detail.warning_summary?.near_lock_message || detail.warning_summary?.message }}</p>
             <div class="metric-row">
               <Metric label="Report 7 ngày" :value="detail.warning_summary?.reports_7_days || 0" />
               <Metric label="Report 14 ngày" :value="detail.warning_summary?.reports_14_days || 0" />
               <Metric label="Report 30 ngày" :value="detail.warning_summary?.reports_30_days || 0" />
               <Metric label="Khiếu nại mở" :value="detail.warning_summary?.complaints_open || 0" />
+            </div>
+
+            <h3 style="margin-top: 20px;">Báo cáo về Bài đăng & Bình luận</h3>
+            <div class="metric-row">
+              <Metric label="Báo cáo bài đăng" :value="detail.content_reports_summary?.total_post_reports || 0" />
+              <Metric label="Báo cáo bình luận" :value="detail.content_reports_summary?.total_comment_reports || 0" />
+            </div>
+            
+            <div class="list-box" style="margin-top: 14px;">
+              <article v-for="report in detail.content_reports_summary?.recent || []" :key="report.id" class="content-card">
+                <div class="content-card-body">
+                  <strong style="color: #b91c1c;">
+                    {{ report.type === 'post' ? 'Bài đăng' : 'Bình luận' }} - {{ report.reason }}
+                  </strong>
+                  <span v-if="report.description" style="display: block; margin-top: 4px;">Chi tiết: {{ report.description }}</span>
+                  <div class="content-meta" style="margin-top: 8px;">
+                    <span class="status" :class="report.status === 'resolved' ? 'active' : 'pending'">
+                      {{ reportStatusLabel(report.status) }}
+                    </span>
+                    <span>📅 {{ dateTime(report.created_at) }}</span>
+                  </div>
+                </div>
+                <div class="content-card-actions">
+                  <RouterLink v-if="report.type === 'post'" :to="{ name: 'admin-post-detail', params: { id: report.target_id } }" class="btn-sm">Xem bài đăng</RouterLink>
+                  <button v-else class="btn-sm" type="button" @click="openCommentDetail(report.target_id)">Xem bình luận</button>
+                </div>
+              </article>
+              <p v-if="!detail.content_reports_summary?.recent?.length" class="muted">Chưa có báo cáo về bài đăng/bình luận.</p>
             </div>
           </section>
 
@@ -519,6 +529,9 @@ export default {
     postStatusLabel(status) {
       return { published: 'Công khai', draft: 'Nháp', hidden: 'Đã ẩn', visible: 'Công khai', pending: 'Chờ duyệt' }[status] || status || '-';
     },
+    reportStatusLabel(status) {
+      return { pending: 'Chờ xử lý', resolved: 'Đã xử lý', dismissed: 'Đã bỏ qua', reviewing: 'Đang xem xét' }[status] || status || 'Chờ xử lý';
+    },
     initials(name) {
       return String(name || 'SG').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
     },
@@ -585,6 +598,18 @@ export default {
 table { width: 100%; border-collapse: collapse; min-width: 600px; }
 th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
 .state { color: #64748b; text-align: center; padding: 20px; }
+
+/* Content Cards (Posts/Comments/Reports) */
+.content-list { display: grid; gap: 12px; }
+.content-card { display: flex; justify-content: space-between; gap: 16px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; transition: box-shadow 0.2s; }
+.content-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+.content-card-body { display: grid; gap: 8px; flex: 1; min-width: 0; }
+.content-text { margin: 0; color: #1e293b; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.content-media-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.media-thumb { width: 80px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; }
+.media-more { width: 80px; height: 60px; display: grid; place-items: center; background: #e2e8f0; border-radius: 6px; font-weight: 800; color: #475569; font-size: 14px; }
+.content-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; flex-wrap: wrap; align-items: center; }
+.content-card-actions { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
 
 /* Timeline */
 .timeline { display: grid; gap: 12px; }

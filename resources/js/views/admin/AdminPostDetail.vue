@@ -31,13 +31,20 @@
       <section class="comments-section">
         <h3>Bình luận ({{ commentsMeta.total }})</h3>
         <div class="comments-list">
-          <article v-for="comment in comments" :key="comment.id" class="comment-item">
-            <div class="comment-body">
-              <strong>{{ comment.user_name || 'Người dùng' }}</strong>
-              <p>{{ comment.content }}</p>
-              <div class="comment-meta">
-                <span>{{ dateTime(comment.created_at) }}</span>
-                <span v-if="comment.replies_count">· {{ comment.replies_count }} trả lời</span>
+          <article v-for="comment in comments" :key="comment.id" class="comment-item content-card">
+            <div class="content-card-body">
+              <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 4px;">
+                <img v-if="comment.user_avatar" :src="comment.user_avatar" class="avatar-sm" />
+                <div v-else class="avatar-sm-placeholder">{{ initials(comment.user_name) }}</div>
+                <strong>{{ comment.user_name || 'Người dùng' }}</strong>
+              </div>
+              <p class="content-text">{{ comment.content }}</p>
+              <div v-if="comment.media && comment.media.length" class="content-media-preview">
+                <img v-for="m in comment.media" :key="m.id" :src="m.url" class="media-thumb" />
+              </div>
+              <div class="content-meta">
+                <span>📅 {{ dateTime(comment.created_at) }}</span>
+                <span v-if="comment.replies_count">· 💬 {{ comment.replies_count }} trả lời</span>
               </div>
             </div>
           </article>
@@ -97,6 +104,9 @@ export default {
     dateTime(value) {
       return value ? new Date(value).toLocaleString('vi-VN') : '-';
     },
+    initials(name) {
+      return String(name || 'SG').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+    },
   },
 };
 </script>
@@ -119,11 +129,19 @@ export default {
 
 .comments-section { display: grid; gap: 14px; }
 .comments-section h3 { margin: 0; }
-.comments-list { display: grid; gap: 10px; }
-.comment-item { padding: 14px; background: #f8fafc; border-radius: 10px; }
-.comment-body { display: grid; gap: 6px; }
-.comment-body p { margin: 0; }
-.comment-meta { font-size: 12px; color: #64748b; }
+.comments-list { display: grid; gap: 12px; }
+
+/* Content Cards */
+.content-card { display: flex; justify-content: space-between; gap: 16px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; transition: box-shadow 0.2s; }
+.content-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+.content-card-body { display: grid; gap: 8px; flex: 1; min-width: 0; }
+.content-text { margin: 0; color: #1e293b; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.content-media-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.media-thumb { width: 80px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; }
+.content-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; flex-wrap: wrap; align-items: center; }
+
+.avatar-sm { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+.avatar-sm-placeholder { width: 24px; height: 24px; border-radius: 50%; background: #16a34a; color: #fff; font-size: 10px; font-weight: 800; display: grid; place-items: center; }
 
 .status { border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 800; background: #e2e8f0; }
 .status.active, .status.visible, .status.published { background: #dcfce7; color: #166534; }

@@ -5,7 +5,12 @@
         <h2>Quản lý tài khoản</h2>
         <p>Theo dõi trạng thái, cảnh báo, vai trò và các thao tác nhạy cảm của tài khoản.</p>
       </div>
-      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadUsers" />
+      <div class="head-actions" style="display: flex; gap: 10px;">
+        <button type="button" class="btn" style="display: inline-flex; align-items: center; gap: 6px;" @click="openPolicyModal">
+          <AppIcon name="settings" size="16" /> Cấu hình khóa tự động
+        </button>
+        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadUsers" />
+      </div>
     </header>
 
     <nav class="tabs" aria-label="Lọc nhanh tài khoản">
@@ -168,6 +173,48 @@
         </footer>
       </form>
     </div>
+
+    <!-- Modal Cấu hình khóa tự động -->
+    <div v-if="showPolicyModal" class="modal-backdrop" @click.self="closePolicyModal">
+      <form class="modal" @submit.prevent="savePolicy">
+        <h3>Cấu hình khóa tự động</h3>
+        <p class="muted">Thiết lập ngưỡng và thời hạn tự động khóa tài khoản khi vượt số lượt báo cáo.</p>
+        
+        <div v-if="policyLoading" class="state">Đang tải cấu hình...</div>
+        <template v-else>
+          <label class="toggle-label" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span>Bật khóa tự động</span>
+            <div class="toggle-wrap" style="position: relative;">
+              <input type="checkbox" v-model="policyForm.auto_lock_enabled" style="opacity: 0; position: absolute;" />
+              <div class="toggle-slider" :class="{ on: policyForm.auto_lock_enabled }"></div>
+            </div>
+          </label>
+
+          <div :style="{ opacity: policyForm.auto_lock_enabled ? 1 : 0.5, pointerEvents: policyForm.auto_lock_enabled ? 'auto' : 'none' }">
+            <label style="margin-bottom: 12px; display: block;">
+              <span>Số lượt báo cáo để khóa</span>
+              <input type="number" v-model.number="policyForm.report_threshold" min="1" :disabled="!policyForm.auto_lock_enabled" style="width: 100%; margin-top: 6px;" />
+            </label>
+
+            <label style="display: block;">
+              <span>Thời hạn khóa tự động</span>
+              <select v-model="policyForm.lock_duration_hours" :disabled="!policyForm.auto_lock_enabled" style="width: 100%; margin-top: 6px;">
+                <option :value="1">1 giờ</option>
+                <option :value="24">24 giờ</option>
+                <option :value="168">7 ngày</option>
+                <option :value="720">30 ngày</option>
+                <option :value="null">Vĩnh viễn</option>
+              </select>
+            </label>
+          </div>
+        </template>
+
+        <footer>
+          <button type="button" class="btn secondary" @click="closePolicyModal">Đóng</button>
+          <button type="submit" class="btn" :disabled="saving || policyLoading">Lưu cấu hình</button>
+        </footer>
+      </form>
+    </div>
   </section>
 </template>
 
@@ -224,6 +271,13 @@ export default {
         { value: 'permanent', label: 'Vĩnh viễn' },
         { value: 'auto', label: 'Tự động' },
       ],
+      showPolicyModal: false,
+      policyLoading: false,
+      policyForm: {
+        auto_lock_enabled: false,
+        report_threshold: 5,
+        lock_duration_hours: 24,
+      },
     };
   },
   mounted() {
@@ -312,6 +366,42 @@ export default {
         await this.loadUsers();
       } catch (error) {
         this.error = error.message || 'Không thể cập nhật trạng thái tài khoản.';
+      } finally {
+        this.saving = false;
+      }
+    },
+    async openPolicyModal() {
+      this.showPolicyModal = true;
+      this.policyLoading = true;
+      this.error = '';
+      try {
+        const response = await adminUserService.getLockPolicy();
+        const data = response.data || {};
+        this.policyForm = {
+          auto_lock_enabled: data.auto_lock_enabled || false,
+          report_threshold: data.report_threshold || 5,
+          lock_duration_hours: data.lock_duration_hours ?? null,
+        };
+      } catch (err) {
+        this.error = 'Không tải được cấu hình chính sách.';
+      } finally {
+        this.policyLoading = false;
+      }
+    },
+    closePolicyModal() {
+      this.showPolicyModal = false;
+    },
+    async savePolicy() {
+      this.saving = true;
+      this.error = '';
+      this.success = '';
+      try {
+        const response = await adminUserService.saveLockPolicy(this.policyForm);
+        this.success = response.message || 'Lưu cấu hình thành công.';
+        this.closePolicyModal();
+        setTimeout(() => { this.success = ''; }, 3000);
+      } catch (err) {
+        this.error = err.message || 'Không thể lưu cấu hình.';
       } finally {
         this.saving = false;
       }
@@ -587,6 +677,37 @@ td:first-child {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.toggle-slider {
+  width: 48px;
+  height: 26px;
+  border-radius: 13px;
+  background: #e2e8f0;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle-slider.on {
+  background: #16a34a;
+}
+
+.toggle-slider.on::after {
+  transform: translateX(22px);
 }
 
 @media (max-width: 720px) {

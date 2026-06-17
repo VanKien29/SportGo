@@ -143,8 +143,113 @@ class UserController extends Controller
                 'booking_summary' => $this->bookingSummary($user->id),
                 'recent_bookings' => $this->bookingHistory($user->id),
                 'audit_logs' => $this->auditLogs($user->id),
+                'posts' => $this->userPosts($user->id),
+                'comments' => $this->userComments($user->id),
+                'content_reports_summary' => $this->contentReportSummary($user->id),
             ],
         ]);
+    }
+
+    private function userPosts(string $userId)
+    {
+        if (! Schema::hasTable('community_posts')) {
+            return [];
+        }
+        return \App\Models\CommunityPost::query()
+            ->with('media')
+            ->where('author_id', $userId)
+            ->latest('created_at')
+            ->limit(100)
+            ->get()
+            ->map(fn ($post) => [
+                'id' => $post->id,
+                'content' => $post->content,
+                'status' => $post->status,
+                'comment_count' => $post->comment_count ?? 0,
+                'like_count' => $post->like_count ?? 0,
+                'created_at' => $post->created_at,
+                'media' => $post->media->map(fn ($m) => [
+                    'id' => $m->id,
+                    'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
+                    'mime_type' => $m->mime_type,
+                ]),
+            ])
+            ->all();
+    }
+
+    private function userComments(string $userId)
+    {
+        if (! Schema::hasTable('community_post_comments')) {
+            return [];
+        }
+        return \App\Models\CommunityPostComment::query()
+            ->with(['post:id,content', 'media'])
+            ->where('user_id', $userId)
+            ->latest('created_at')
+            ->limit(100)
+            ->get()
+            ->map(fn ($comment) => [
+                'id' => $comment->id,
+                'content' => $comment->content,
+                'post_content' => $comment->post?->content,
+                'replies_count' => $comment->replies()->count(),
+                'created_at' => $comment->created_at,
+                'media' => $comment->media->map(fn ($m) => [
+                    'id' => $m->id,
+                    'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
+                    'mime_type' => $m->mime_type,
+                ]),
+            ])
+            ->all();
+    }
+
+    private function contentReportSummary(string $userId)
+    {
+        if (! Schema::hasTable('reports')) {
+            return ['total_post_reports' => 0, 'total_comment_reports' => 0, 'recent' => []];
+        }
+        $postIds = Schema::hasTable('community_posts') ? \App\Models\CommunityPost::query()->where('author_id', $userId)->pluck('id') : collect();
+        $commentIds = Schema::hasTable('community_post_comments') ? \App\Models\CommunityPostComment::query()->where('user_id', $userId)->pluck('id') : collect();
+        
+        $postReports = \App\Models\Report::query()
+            ->where('reportable_type', \App\Models\CommunityPost::class)
+            ->whereIn('reportable_id', $postIds)
+            ->latest('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'type' => 'post',
+                'target_id' => $r->reportable_id,
+                'reason' => $this->reportReasonLabel($r->reason ?? null),
+                'description' => $r->description,
+                'status' => $r->status,
+                'status_label' => $this->reportStatusLabel($r->status ?? null),
+                'created_at' => $r->created_at,
+            ]);
+            
+        $commentReports = \App\Models\Report::query()
+            ->where('reportable_type', \App\Models\CommunityPostComment::class)
+            ->whereIn('reportable_id', $commentIds)
+            ->latest('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'type' => 'comment',
+                'target_id' => $r->reportable_id,
+                'reason' => $this->reportReasonLabel($r->reason ?? null),
+                'description' => $r->description,
+                'status' => $r->status,
+                'status_label' => $this->reportStatusLabel($r->status ?? null),
+                'created_at' => $r->created_at,
+            ]);
+            
+        return [
+            'total_post_reports' => \App\Models\Report::query()->where('reportable_type', \App\Models\CommunityPost::class)->whereIn('reportable_id', $postIds)->count(),
+            'total_comment_reports' => \App\Models\Report::query()->where('reportable_type', \App\Models\CommunityPostComment::class)->whereIn('reportable_id', $commentIds)->count(),
+            'recent' => $postReports->merge($commentReports)->sortByDesc('created_at')->take(20)->values()->all(),
+        ];
     }
 
     public function lock(Request $request, string $id): JsonResponse
