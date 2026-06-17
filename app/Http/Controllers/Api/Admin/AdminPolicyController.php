@@ -332,7 +332,7 @@ class AdminPolicyController extends Controller
     {
         $this->authorizePermission($request, 'policy.create');
 
-        $source = SystemPolicy::query()->with(['actionBindings', 'rules'])->findOrFail($id);
+        $source = SystemPolicy::query()->with(['actionBindings', 'rules', 'moderationThresholds'])->findOrFail($id);
         $nextVersion = (int) SystemPolicy::query()->where('key', $source->key)->max('version') + 1;
 
         $newPolicy = DB::transaction(function () use ($request, $source, $nextVersion): SystemPolicy {
@@ -378,6 +378,16 @@ class AdminPolicyController extends Controller
                     'created_by' => $request->user()->id,
                     'updated_by' => $request->user()->id,
                 ]);
+            }
+
+            foreach ($source->moderationThresholds as $threshold) {
+                $policy->moderationThresholds()->create($threshold->only([
+                    'target_type',
+                    'warning_threshold',
+                    'action_threshold',
+                    'unique_reporters_threshold',
+                    'timeframe_days',
+                ]));
             }
 
             return $policy;
