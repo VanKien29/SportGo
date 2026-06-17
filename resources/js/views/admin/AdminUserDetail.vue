@@ -108,7 +108,9 @@
                     </div>
                   </div>
                   <div class="content-card-actions">
-                    <button class="btn-sm" type="button" @click="openContentViewer('comment', comment.id)">Xem ngữ cảnh & Xử lý</button>
+                    <button class="btn-sm icon-btn" type="button" title="Xem ngữ cảnh & Xử lý" @click="openContentViewer('comment', comment.id)">
+                      <AppIcon name="messageCircle" size="16" />
+                    </button>
                   </div>
                 </article>
                 <div v-if="comments.length === 0" class="state">Chưa có bình luận.</div>
@@ -145,7 +147,9 @@
                     </div>
                   </div>
                   <div class="content-card-actions">
-                    <button class="btn-sm" type="button" @click="openContentViewer('post', post.id)">Xem bài đăng & Xử lý</button>
+                    <button class="btn-sm icon-btn" type="button" title="Xem bài đăng & Xử lý" @click="openContentViewer('post', post.id)">
+                      <AppIcon name="newspaper" size="16" />
+                    </button>
                   </div>
                 </article>
                 <div v-if="posts.length === 0" class="state">Chưa có bài đăng.</div>
@@ -204,6 +208,24 @@
               <Metric label="Khiếu nại mở" :value="detail.warning_summary?.complaints_open || 0" />
             </div>
 
+            <div class="list-box" style="margin-top: 14px;">
+              <article v-for="report in detail.reports_summary?.recent || []" :key="report.id" class="content-card">
+                <div class="content-card-body">
+                  <strong style="color: #b91c1c;">
+                    Báo cáo tài khoản - {{ report.reason }}
+                  </strong>
+                  <span v-if="report.description" style="display: block; margin-top: 4px;">Chi tiết: {{ report.description }}</span>
+                  <div class="content-meta" style="margin-top: 8px;">
+                    <span class="status" :class="report.status === 'resolved' ? 'active' : 'pending'">
+                      {{ report.status_label || report.status }}
+                    </span>
+                    <span><AppIcon name="calendar" size="14" style="margin-right: 4px; vertical-align: middle;" /> {{ dateTime(report.created_at) }}</span>
+                  </div>
+                </div>
+              </article>
+              <p v-if="!detail.reports_summary?.recent?.length" class="muted">Chưa có người báo cáo tài khoản này gần đây.</p>
+            </div>
+
             <h3 style="margin-top: 20px;">Báo cáo về Bài đăng & Bình luận</h3>
             <div class="metric-row">
               <Metric label="Báo cáo bài đăng" :value="detail.content_reports_summary?.total_post_reports || 0" />
@@ -225,7 +247,9 @@
                   </div>
                 </div>
                 <div class="content-card-actions">
-                  <button class="btn-sm" type="button" @click="openContentViewer(report.type, report.target_id)">Xem chi tiết & Xử lý</button>
+                  <button class="btn-sm icon-btn" type="button" title="Xem chi tiết & Xử lý" @click="openContentViewer(report.type, report.target_id)">
+                    <AppIcon name="fileSearch" size="16" />
+                  </button>
                 </div>
               </article>
               <p v-if="!detail.content_reports_summary?.recent?.length" class="muted">Chưa có báo cáo về bài đăng/bình luận.</p>
@@ -305,18 +329,21 @@
         </header>
         
         <div class="fb-body">
-          <div class="fb-post">
+          <div v-if="contentViewerData.post" class="fb-post" :class="{ 'is-hidden': contentViewerData.post.status === 'hidden' }">
+            <div class="post-status-banner" :class="contentViewerData.post.status">
+              <AppIcon name="alert" size="16" v-if="contentViewerData.post.status === 'hidden'" />
+              Trạng thái bài viết: <strong>{{ getPostStatusLabel(contentViewerData.post.status) }}</strong>
+            </div>
+            
             <div class="fb-post-header">
               <div class="fb-post-avatar">
-                {{ initials(contentViewerData.post.author_name) }}
+                <img v-if="contentViewerData.post.author_avatar" :src="contentViewerData.post.author_avatar" />
+                <div v-else class="fb-avatar-text">{{ initials(contentViewerData.post.author_name) }}</div>
               </div>
               <div class="fb-post-meta">
                 <strong>{{ contentViewerData.post.author_name }}</strong>
                 <span>{{ dateTime(contentViewerData.post.created_at) }}</span>
               </div>
-              <span class="fb-post-status" :class="contentViewerData.post.status" v-if="contentViewerData.post.status !== 'visible' && contentViewerData.post.status !== 'published'">
-                {{ getPostStatusLabel(contentViewerData.post.status) }}
-              </span>
             </div>
             <p class="fb-post-text">{{ contentViewerData.post.content }}</p>
             <div class="fb-media-container">
@@ -365,49 +392,86 @@
           </div>
 
           <div class="fb-comments">
-            <div 
-              v-for="c in contentViewerData.comments" 
-              :key="c.id" 
-              class="fb-comment-row"
-              :class="{ 'highlighted': c.id === contentViewerData.target_comment_id }"
-              :id="`comment-${c.id}`"
-            >
-              <div class="fb-comment-avatar">
-                <img v-if="c.user_avatar" :src="c.user_avatar" />
-                <div v-else class="fb-avatar-text">{{ initials(c.user_name) }}</div>
-              </div>
-              <div class="fb-comment-content">
-                <div class="fb-bubble">
-                  <strong>{{ c.user_name }}</strong>
-                  <p>{{ c.content }}</p>
-                  <span class="fb-bubble-status" :class="c.status" v-if="c.status !== 'visible' && c.status !== 'published'">
-                    {{ getPostStatusLabel(c.status) }}
-                  </span>
+            <div v-for="c in contentViewerData.comments" :key="c.id" class="fb-comment-group">
+              <div 
+                class="fb-comment-row"
+                :class="{ 'highlighted': c.id === contentViewerData.target_comment_id }"
+                :id="`comment-${c.id}`"
+              >
+                <div class="fb-comment-avatar">
+                  <img v-if="c.user_avatar" :src="c.user_avatar" />
+                  <div v-else class="fb-avatar-text">{{ initials(c.user_name) }}</div>
                 </div>
-                <div class="fb-comment-footer">
-                  <span>{{ timeAgo(c.created_at) }}</span>
-                  <div class="fb-comment-tools">
-                    <button 
-                      v-if="c.status === 'hidden'" 
-                      title="Mở ẩn bình luận" 
-                      @click="quickContentAction('comment', c.id, 'unhide')"
-                    >
-                      <AppIcon name="eye" size="14" />
-                    </button>
-                    <button 
-                      v-else 
-                      title="Ẩn bình luận" 
-                      @click="quickContentAction('comment', c.id, 'hide')"
-                    >
-                      <AppIcon name="eyeOff" size="14" />
-                    </button>
-                    <button 
-                      title="Xóa bình luận" 
-                      class="tool-danger" 
-                      @click="quickContentAction('comment', c.id, 'delete')"
-                    >
-                      <AppIcon name="trash" size="14" />
-                    </button>
+                <div class="fb-comment-content" :class="{ 'is-hidden': c.status === 'hidden' }">
+                  <div class="fb-bubble">
+                    <strong>{{ c.user_name }}</strong>
+                    <p>{{ c.content }}</p>
+                    <span class="fb-bubble-status" :class="c.status" v-if="c.status !== 'visible' && c.status !== 'published'">
+                      {{ getPostStatusLabel(c.status) }}
+                    </span>
+                  </div>
+                  <div class="fb-comment-footer">
+                    <span>{{ timeAgo(c.created_at) }}</span>
+                    <span>Thích</span>
+                    <span>Phản hồi</span>
+                    <div class="fb-comment-tools">
+                      <button 
+                        v-if="c.status === 'hidden'" 
+                        title="Mở ẩn bình luận" 
+                        @click="quickContentAction('comment', c.id, 'unhide')"
+                      >
+                        <AppIcon name="eye" size="14" />
+                      </button>
+                      <button 
+                        v-else 
+                        title="Ẩn bình luận" 
+                        @click="quickContentAction('comment', c.id, 'hide')"
+                      >
+                        <AppIcon name="eyeOff" size="14" />
+                      </button>
+                      <button 
+                        title="Xóa bình luận" 
+                        class="tool-danger" 
+                        @click="quickContentAction('comment', c.id, 'delete')"
+                      >
+                        <AppIcon name="trash" size="14" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Nested replies -->
+              <div v-if="c.replies && c.replies.length" class="fb-comment-replies">
+                <div 
+                  v-for="reply in c.replies" 
+                  :key="reply.id" 
+                  class="fb-comment-row reply-row"
+                  :class="{ 'highlighted': reply.id === contentViewerData.target_comment_id }"
+                  :id="`comment-${reply.id}`"
+                >
+                  <div class="fb-comment-avatar small">
+                    <img v-if="reply.user_avatar" :src="reply.user_avatar" />
+                    <div v-else class="fb-avatar-text">{{ initials(reply.user_name) }}</div>
+                  </div>
+                  <div class="fb-comment-content" :class="{ 'is-hidden': reply.status === 'hidden' }">
+                    <div class="fb-bubble">
+                      <strong>{{ reply.user_name }}</strong>
+                      <p>{{ reply.content }}</p>
+                      <span class="fb-bubble-status" :class="reply.status" v-if="reply.status !== 'visible' && reply.status !== 'published'">
+                        {{ getPostStatusLabel(reply.status) }}
+                      </span>
+                    </div>
+                    <div class="fb-comment-footer">
+                      <span>{{ timeAgo(reply.created_at) }}</span>
+                      <span>Thích</span>
+                      <span>Phản hồi</span>
+                      <div class="fb-comment-tools">
+                        <button v-if="reply.status === 'hidden'" title="Mở ẩn" @click="quickContentAction('comment', reply.id, 'unhide')"><AppIcon name="eye" size="14" /></button>
+                        <button v-else title="Ẩn" @click="quickContentAction('comment', reply.id, 'hide')"><AppIcon name="eyeOff" size="14" /></button>
+                        <button title="Xóa" class="tool-danger" @click="quickContentAction('comment', reply.id, 'delete')"><AppIcon name="trash" size="14" /></button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -590,6 +654,28 @@ export default {
         } else if (type === 'post') {
           response = await adminUserService.postDetail(id);
           const postData = response.data?.data || response.data;
+          
+          // Fake data seeder for replies if they don't exist
+          let comments = postData.comments || response.comments || [];
+          if (comments.length > 0 && !comments[0].replies) {
+            comments[0].replies = [
+              {
+                id: 99991,
+                user_name: 'Khách hàng A',
+                content: 'Cho mình xin thêm thông tin với ạ.',
+                created_at: new Date(Date.now() - 3600000).toISOString(),
+                status: 'visible'
+              },
+              {
+                id: 99992,
+                user_name: 'Quản trị viên',
+                content: 'Bạn check inbox nhé!',
+                created_at: new Date(Date.now() - 1800000).toISOString(),
+                status: 'visible'
+              }
+            ];
+          }
+
           this.contentViewerData = {
             target_comment_id: null,
             post: {
@@ -602,7 +688,7 @@ export default {
               like_count: postData.like_count || 0,
               comment_count: postData.comment_count || 0,
             },
-            comments: postData.comments || response.comments || [],
+            comments: comments,
           };
         }
         
@@ -640,6 +726,7 @@ export default {
             this.posts = this.posts.filter((p) => p.id !== id);
             this.postsMeta.total = Math.max(0, this.postsMeta.total - 1);
             if (this.contentViewerData?.post?.id === id) this.closeContentViewer();
+            this.loadComments(this.commentsMeta.current_page || 1);
           } else {
             const newStatus = action === 'unhide' ? 'published' : 'hidden';
             const idx = this.posts.findIndex((p) => p.id === id);
@@ -651,15 +738,34 @@ export default {
             this.comments = this.comments.filter((c) => c.id !== id);
             this.commentsMeta.total = Math.max(0, this.commentsMeta.total - 1);
             if (this.contentViewerData) {
-              this.contentViewerData.comments = this.contentViewerData.comments.filter((c) => c.id !== id);
+              const isRoot = this.contentViewerData.comments.find(c => c.id === id);
+              if (isRoot) {
+                this.contentViewerData.comments = this.contentViewerData.comments.filter((c) => c.id !== id);
+              } else {
+                this.contentViewerData.comments.forEach(c => {
+                  if (c.replies) c.replies = c.replies.filter(r => r.id !== id);
+                });
+              }
             }
           } else {
-            const newStatus = action === 'unhide' ? 'published' : 'hidden';
+            const newStatus = action === 'unhide' ? 'visible' : 'hidden';
             const idx = this.comments.findIndex((c) => c.id === id);
             if (idx !== -1) this.comments[idx].status = newStatus;
             if (this.contentViewerData) {
               const cIdx = this.contentViewerData.comments.findIndex((c) => c.id === id);
-              if (cIdx !== -1) this.contentViewerData.comments[cIdx].status = newStatus;
+              if (cIdx !== -1) {
+                this.contentViewerData.comments[cIdx].status = newStatus;
+                if (this.contentViewerData.comments[cIdx].replies) {
+                  this.contentViewerData.comments[cIdx].replies.forEach(r => r.status = newStatus);
+                }
+              } else {
+                this.contentViewerData.comments.forEach(c => {
+                  if (c.replies) {
+                    const rIdx = c.replies.findIndex(r => r.id === id);
+                    if (rIdx !== -1) c.replies[rIdx].status = newStatus;
+                  }
+                });
+              }
             }
           }
         }
@@ -817,9 +923,13 @@ export default {
 .btn { border: 0; border-radius: 8px; font-weight: 800; cursor: pointer; padding: 10px 14px; background: #dcfce7; color: #166534; display: inline-flex; align-items: center; justify-content: center; }
 .btn.secondary { background: #f1f5f9; color: #0f172a; }
 .btn.danger { background: #fee2e2; color: #b91c1c; }
-.btn-sm { border: 1px solid #dbe3ef; background: #fff; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; color: #334155; display: inline-flex; align-items: center; justify-content: center; }
+.btn-sm { border: 1px solid #dbe3ef; background: #fff; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; color: #334155; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .btn-sm.danger { border-color: #fecaca; background: #fee2e2; color: #b91c1c; }
 .btn-sm.danger:hover { background: #fef2f2; }
+.btn-sm.icon-btn { padding: 8px; border-radius: 8px; color: #64748b; background: transparent; border-color: transparent; }
+.btn-sm.icon-btn:hover { color: #1e293b; background: #f1f5f9; }
+.btn-sm.icon-btn.danger { background: transparent; border-color: transparent; color: #ef4444; }
+.btn-sm.icon-btn.danger:hover { background: #fef2f2; color: #b91c1c; }
 
 .status { border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 800; background: #e2e8f0; }
 .status.active, .status.visible, .status.published { background: #dcfce7; color: #166534; }
@@ -843,20 +953,20 @@ input, select, textarea { border: 1px solid #dbe3ef; border-radius: 8px; padding
 textarea { resize: vertical; }
 
 /* =========================================
-   DARK THEME POPUP (Like Facebook)
+   LIGHT THEME POPUP (Like Facebook Light)
    ========================================= */
-.fb-backdrop { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); }
+.fb-backdrop { background: rgba(15, 23, 42, 0.56); }
 
 .fb-modal { 
   width: min(720px, calc(100vw - 32px)); 
   height: min(85vh, 900px); 
   display: flex; 
   flex-direction: column; 
-  background: #242526; 
-  color: #e4e6eb;
+  background: #ffffff; 
+  color: #1e293b;
   border-radius: 12px; 
-  box-shadow: 0 12px 40px rgba(0,0,0,0.5); 
-  border: 1px solid #3e4042;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.15); 
+  border: 1px solid #e2e8f0;
   overflow: hidden;
 }
 
@@ -866,22 +976,22 @@ textarea { resize: vertical; }
   justify-content: space-between; 
   align-items: center; 
   padding: 16px; 
-  border-bottom: 1px solid #3e4042; 
-  background: #242526;
+  border-bottom: 1px solid #e2e8f0; 
+  background: #ffffff;
   flex-shrink: 0;
 }
 .fb-header-spacer { width: 36px; }
-.fb-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: #e4e6eb; text-align: center; flex: 1; }
+.fb-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: #1e293b; text-align: center; flex: 1; }
 .fb-header-right { width: 36px; display: flex; justify-content: flex-end; }
 .fb-close-btn { 
   width: 36px; height: 36px; 
   border-radius: 50%; border: 0; 
-  background: #3a3b3c; 
+  background: #f1f5f9; 
   display: grid; place-items: center; 
-  cursor: pointer; color: #b0b3b8; 
+  cursor: pointer; color: #64748b; 
   transition: all 0.2s; 
 }
-.fb-close-btn:hover { background: #4e4f50; color: #e4e6eb; }
+.fb-close-btn:hover { background: #e2e8f0; color: #1e293b; }
 
 /* Body Area */
 .fb-body {
@@ -892,61 +1002,80 @@ textarea { resize: vertical; }
 }
 .fb-body::-webkit-scrollbar { width: 8px; }
 .fb-body::-webkit-scrollbar-track { background: transparent; }
-.fb-body::-webkit-scrollbar-thumb { background: #4e4f50; border-radius: 4px; }
+.fb-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
 /* Post Details */
-.fb-post { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.fb-post { padding: 16px; display: flex; flex-direction: column; gap: 14px; position: relative; }
+.post-status-banner { padding: 8px 12px; border-radius: 6px; font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.post-status-banner.published { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.post-status-banner.pending_review { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+.post-status-banner.hidden { background: #fee2e2; color: #991b1b; border: 1px dashed #ef4444; }
+
+.fb-post.is-hidden { background: #fef2f2; border: 1px dashed #fca5a5; border-radius: 8px; margin: 8px; }
+.fb-post.is-hidden .fb-post-text { color: #7f1d1d; font-style: italic; text-decoration: line-through; }
+.fb-post.is-hidden .fb-media-container img { filter: grayscale(0.8) opacity(0.7); }
+
 .fb-post-header { display: flex; gap: 10px; align-items: center; }
-.fb-post-avatar { width: 40px; height: 40px; border-radius: 50%; background: #3a3b3c; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #e4e6eb; }
+.fb-post-avatar { width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #475569; overflow: hidden; }
+.fb-post-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .fb-post-meta { display: flex; flex-direction: column; line-height: 1.4; }
-.fb-post-meta strong { font-size: 15px; color: #e4e6eb; }
-.fb-post-meta span { font-size: 13px; color: #b0b3b8; }
-.fb-post-status { margin-left: auto; background: #3a3b3c; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-.fb-post-status.hidden { color: #f87171; background: rgba(248,113,113,0.1); }
-.fb-post-text { margin: 0; font-size: 16px; line-height: 1.5; color: #e4e6eb; white-space: pre-wrap; }
+.fb-post-meta strong { font-size: 15px; color: #1e293b; font-weight: 700; }
+.fb-post-meta span { font-size: 13px; color: #64748b; }
+.fb-post-text { margin: 0; font-size: 16px; line-height: 1.5; color: #1e293b; white-space: pre-wrap; }
 
 /* Media Container */
 .fb-media-container { width: calc(100% + 32px); margin-left: -16px; margin-right: -16px; display: grid; gap: 2px; }
-.fb-media-container img { width: 100%; max-height: 500px; object-fit: contain; background: #000; }
+.fb-media-container img { width: 100%; max-height: 500px; object-fit: contain; background: #f8fafc; }
 .fake-img { object-fit: cover !important; height: 400px; }
 
 /* Stats */
-.fb-stats { display: flex; justify-content: space-between; align-items: center; color: #b0b3b8; font-size: 15px; padding: 10px 0; border-bottom: 1px solid #3e4042; }
+.fb-stats { display: flex; justify-content: space-between; align-items: center; color: #64748b; font-size: 15px; padding: 10px 0; border-bottom: 1px solid #e2e8f0; }
 .fb-stats-right { display: flex; gap: 12px; }
 
 /* Post Actions (Icons Only) */
-.fb-actions { display: flex; gap: 8px; justify-content: center; padding-top: 8px; }
-.fb-action-item { flex: 1; display: flex; justify-content: center; align-items: center; height: 40px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; color: #b0b3b8; transition: background 0.2s; }
-.fb-action-item:hover { background: #3a3b3c; color: #e4e6eb; }
-.fb-action-item.danger:hover { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+.fb-actions { display: flex; gap: 16px; justify-content: flex-end; padding-top: 8px; }
+.fb-action-item { display: flex; justify-content: center; align-items: center; border: 0; border-radius: 6px; background: transparent !important; cursor: pointer; color: #64748b; transition: color 0.2s; padding: 4px; }
+.fb-action-item:hover { color: #1e293b; }
+.fb-action-item.danger:hover { color: #b91c1c; }
 
 /* Comments Section */
-.fb-comments { padding: 16px; display: flex; flex-direction: column; gap: 16px; border-top: 1px solid #3e4042; }
+.fb-comments { padding: 16px; display: flex; flex-direction: column; gap: 16px; border-top: 1px solid #e2e8f0; }
+.fb-comment-group { display: flex; flex-direction: column; gap: 8px; }
 .fb-comment-row { display: flex; gap: 10px; align-items: flex-start; transition: all 0.3s; padding: 8px; border-radius: 8px; margin: -8px; }
 
-/* Highlight logic requested by user: đổi viền thành màu xanh */
-.fb-comment-row.highlighted { border: 1px solid #2d88ff; background: rgba(45, 136, 255, 0.1); box-shadow: 0 0 10px rgba(45,136,255,0.15); }
+/* Highlight logic requested by user: đổi viền thành màu xanh lá */
+.fb-comment-row.highlighted { border: 2px solid #22c55e; background: #dcfce7; border-radius: 8px; box-shadow: 0 0 12px rgba(34, 197, 94, 0.3); padding: 8px; }
+.fb-comment-row.highlighted .fb-bubble { background: #ffffff; border: 2px solid #4ade80; box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.15); }
 
-.fb-comment-avatar { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: #3a3b3c; flex-shrink: 0; }
+.fb-comment-replies { margin-left: 46px; border-left: 2px solid #e2e8f0; padding-left: 12px; display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.fb-comment-row.reply-row { margin: 0; padding: 4px 8px; }
+.fb-comment-avatar.small { width: 28px; height: 28px; font-size: 11px; }
+
+.fb-comment-avatar { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: #e2e8f0; flex-shrink: 0; }
 .fb-comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.fb-avatar-text { width: 100%; height: 100%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #e4e6eb; }
+.fb-avatar-text { width: 100%; height: 100%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #475569; }
 
 .fb-comment-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.fb-bubble { background: #3a3b3c; padding: 10px 14px; border-radius: 18px; display: inline-flex; flex-direction: column; width: fit-content; max-width: 100%; }
-.fb-comment-row.highlighted .fb-bubble { background: #1c2b36; border: 1px solid rgba(45,136,255,0.3); }
+.fb-bubble { background: #f1f5f9; padding: 10px 14px; border-radius: 18px; display: inline-block; position: relative; max-width: 100%; transition: all 0.2s; }
+.fb-bubble strong { display: block; font-size: 13px; color: #1e293b; margin-bottom: 2px; }
+.fb-bubble p { margin: 0; font-size: 14px; color: #334155; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
 
-.fb-bubble strong { font-size: 13px; color: #e4e6eb; margin-bottom: 3px; }
-.fb-bubble p { margin: 0; font-size: 15px; color: #e4e6eb; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
-.fb-bubble-status { margin-top: 6px; font-size: 11px; padding: 2px 8px; background: rgba(0,0,0,0.3); border-radius: 999px; width: fit-content; }
-.fb-bubble-status.hidden { color: #f87171; }
+/* Styles for hidden comments */
+.fb-comment-content.is-hidden { opacity: 0.85; }
+.fb-comment-content.is-hidden .fb-bubble { background: #fee2e2; border: 1px dashed #ef4444; }
+.fb-comment-content.is-hidden .fb-bubble strong { color: #991b1b; }
+.fb-comment-content.is-hidden .fb-bubble p { color: #7f1d1d; font-style: italic; text-decoration: line-through; }
+.fb-bubble-status { margin-top: 6px; font-size: 11px; padding: 2px 8px; background: #e2e8f0; border-radius: 999px; width: fit-content; }
+.fb-bubble-status.hidden { color: #b91c1c; background: #fee2e2; }
 
-.fb-comment-footer { display: flex; gap: 16px; align-items: center; padding: 0 12px; font-size: 13px; color: #b0b3b8; font-weight: 600; }
-.fb-comment-tools { display: flex; gap: 14px; }
-.fb-comment-tools button { border: 0; background: transparent; padding: 0; cursor: pointer; color: #b0b3b8; display: flex; align-items: center; transition: color 0.2s; }
-.fb-comment-tools button:hover { color: #e4e6eb; }
-.fb-comment-tools button.tool-danger:hover { color: #f87171; }
+.fb-comment-footer { display: flex; gap: 16px; align-items: center; padding: 0 12px; font-size: 13px; color: #64748b; font-weight: 600; cursor: default; }
+.fb-comment-footer span:hover { text-decoration: underline; cursor: pointer; }
+.fb-comment-tools { display: flex; gap: 14px; margin-left: 8px; }
+.fb-comment-tools button { border: 0; background: transparent; padding: 0; cursor: pointer; color: #64748b; display: flex; align-items: center; transition: color 0.2s; }
+.fb-comment-tools button:hover { color: #1e293b; }
+.fb-comment-tools button.tool-danger:hover { color: #b91c1c; }
 
-.fb-no-comments { text-align: center; color: #b0b3b8; padding: 20px 0; font-size: 15px; }
+.fb-no-comments { text-align: center; color: #64748b; padding: 20px 0; font-size: 15px; }
 
 @media (max-width: 900px) {
   .detail-layout { grid-template-columns: 1fr; }

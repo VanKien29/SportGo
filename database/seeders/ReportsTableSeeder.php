@@ -63,5 +63,30 @@ class ReportsTableSeeder extends Seeder
                 ]
             );
         }
+
+        // Tạo 30 reports cho user testlocked
+        $testLockedUser = User::query()->where('username', 'testlocked')->first();
+        if ($testLockedUser) {
+            // Need to create random users to be reporters because reporter_target is unique
+            for ($i = 0; $i < 30; $i++) {
+                $tempReporter = User::factory()->create([
+                    'status' => 'active'
+                ]);
+                Report::query()->create([
+                    'id' => (string) \Illuminate\Support\Str::uuid(),
+                    'reporter_id' => $tempReporter->id,
+                    'reportable_type' => User::class,
+                    'reportable_id' => $testLockedUser->id,
+                    'reason' => 'spam',
+                    'description' => 'Spam comment ' . $i,
+                    'status' => 'resolved',
+                    'action_taken' => null,
+                    'action_note' => 'Đã xử lý ' . $i,
+                    'reviewed_by' => $staff?->id,
+                    'reviewed_at' => now(),
+                    'created_at' => now()->subMinutes(rand(1, 1000)),
+                ]);
+            }
+        }
     }
 }

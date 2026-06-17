@@ -94,7 +94,7 @@ export const adminUserService = {
   // --- User Lock Policy ---
 
   getLockPolicy() {
-    return api('/api/admin/user-lock-policy');
+    return api('/api/admin/users/auto-lock-config');
   },
 
   saveLockPolicy(payload) {

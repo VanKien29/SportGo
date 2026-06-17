@@ -29,11 +29,11 @@ class ModerationThresholdsSeeder extends Seeder
         }
 
         $rows = [
-            ['target_type' => 'community_post', 'auto_hide_score' => 10, 'admin_alert_score' => 20, 'score_window_days' => 30, 'score_reset_days' => 90],
-            ['target_type' => 'venue_post', 'auto_hide_score' => 15, 'admin_alert_score' => 25, 'score_window_days' => 30, 'score_reset_days' => 90],
-            ['target_type' => 'comment', 'auto_hide_score' => 8, 'admin_alert_score' => 15, 'score_window_days' => 30, 'score_reset_days' => 60],
-            ['target_type' => 'user', 'auto_hide_score' => 30, 'admin_alert_score' => 50, 'score_window_days' => 30, 'score_reset_days' => 180],
-            ['target_type' => 'venue_cluster', 'auto_hide_score' => 25, 'admin_alert_score' => 40, 'score_window_days' => 30, 'score_reset_days' => 180],
+            ['target_type' => 'community_post', 'auto_hide_score' => 20, 'admin_alert_score' => 10, 'score_window_days' => 30, 'score_reset_days' => 90],
+            ['target_type' => 'venue_post', 'auto_hide_score' => 15, 'admin_alert_score' => 8, 'score_window_days' => 30, 'score_reset_days' => 90],
+            ['target_type' => 'comment', 'auto_hide_score' => 5, 'admin_alert_score' => 3, 'score_window_days' => 30, 'score_reset_days' => 60],
+            ['target_type' => 'user', 'auto_hide_score' => 50, 'admin_alert_score' => 30, 'score_window_days' => 30, 'score_reset_days' => 180],
+            ['target_type' => 'venue_cluster', 'auto_hide_score' => 40, 'admin_alert_score' => 25, 'score_window_days' => 30, 'score_reset_days' => 180],
         ];
 
         foreach ($rows as $row) {

@@ -109,5 +109,20 @@ class User extends Authenticatable
 
         return 'user';
     }
+
+    protected static function booted(): void
+    {
+        static::created(function (User $user) {
+            $role = Role::query()->where('name', 'user')->first();
+            if ($role) {
+                UserRole::query()->firstOrCreate([
+                    'user_id' => $user->id,
+                    'role_id' => $role->id,
+                    'scope_type' => 'system',
+                    'scope_id' => '00000000-0000-0000-0000-000000000000',
+                ]);
+            }
+        });
+    }
 }
 

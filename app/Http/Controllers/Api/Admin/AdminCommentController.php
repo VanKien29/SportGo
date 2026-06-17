@@ -86,7 +86,7 @@ class AdminCommentController extends Controller
 
         if ($validated['action'] === 'unhide') {
             $commentModel->update([
-                'status' => 'published',
+                'status' => 'visible',
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
             ]);

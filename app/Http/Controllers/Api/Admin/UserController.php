@@ -116,6 +116,95 @@ class UserController extends Controller
         ];
     }
 
+    public function autoLockConfig(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'user.view');
+        
+        $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
+        $rules = $activePolicy ? $activePolicy->rules()->get() : collect(); // Load all to get thresholds even if disabled
+
+        $warnThreshold = 3;
+        $lockThreshold = 10;
+        $actionType = 'lock_temp';
+        $durationDays = 7;
+        $autoLockReason = 'Vi phạm tiêu chuẩn cộng đồng';
+        $isAutoLockEnabled = false;
+
+        foreach ($rules as $rule) {
+            $c = $rule->condition_json ?? [];
+            if (in_array($c['reportable_type'] ?? '', ['user', 'users'])) {
+                $r = $rule->result_json ?? [];
+                if (($r['action'] ?? '') === 'warning') {
+                    $warnThreshold = $c['threshold'] ?? $warnThreshold;
+                } elseif (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
+                    $lockThreshold = $c['threshold'] ?? $lockThreshold;
+                    $actionType = 'lock_temp';
+                    $durationDays = $r['lock_duration_days'] ?? 7;
+                    $autoLockReason = $r['reason'] ?? 'Vi phạm tiêu chuẩn cộng đồng';
+                    if ($rule->is_active) {
+                        $isAutoLockEnabled = true;
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'data' => [
+                'policy_id' => $activePolicy?->id,
+                'action_type' => $actionType,
+                'duration_days' => $durationDays,
+                'reason' => $autoLockReason,
+                'is_auto_lock_enabled' => $isAutoLockEnabled,
+            ]
+        ]);
+    }
+
+    public function saveAutoLockConfig(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'policy.rule.manage');
+
+        $data = $request->validate([
+            'is_auto_lock_enabled' => ['required', 'boolean'],
+            'duration_days' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'max:255'],
+        ]);
+
+        $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
+        if (!$activePolicy) {
+            throw ValidationException::withMessages(['policy' => 'Không có chính sách kiểm duyệt nào đang Active.']);
+        }
+
+        $rules = $activePolicy->rules()->get();
+        $warnRule = null;
+        $actionRule = null;
+        
+        foreach ($rules as $rule) {
+            $c = $rule->condition_json ?? [];
+            if (in_array($c['reportable_type'] ?? '', ['user', 'users'])) {
+                $r = $rule->result_json ?? [];
+                if (($r['action'] ?? '') === 'warning') {
+                    $warnRule = $rule;
+                } elseif (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
+                    $actionRule = $rule;
+                }
+            }
+        }
+
+        if ($actionRule) {
+            $c = $actionRule->condition_json;
+            $r = $actionRule->result_json;
+            $r['lock_duration_days'] = $data['duration_days'];
+            $r['reason'] = $data['reason'];
+            $actionRule->update([
+                'condition_json' => $c,
+                'result_json' => $r,
+                'is_active' => $data['is_auto_lock_enabled'],
+            ]);
+        }
+
+        return response()->json(['message' => 'Lưu cấu hình thành công.']);
+    }
+
     public function show(string $id): JsonResponse
     {
         $user = User::query()
@@ -388,17 +477,43 @@ class UserController extends Controller
         ];
     }
 
+    private function activeUserModerationConfig(): array
+    {
+        $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
+        $rules = $activePolicy ? $activePolicy->rules()->where('is_active', true)->get() : collect();
+        $warnThreshold = 3;
+        $lockThreshold = 10;
+        $windowDays = 14;
+
+        foreach ($rules as $rule) {
+            $c = $rule->condition_json ?? [];
+            if (in_array($c['reportable_type'] ?? '', ['user', 'users'])) {
+                $r = $rule->result_json ?? [];
+                if (($r['action'] ?? '') === 'warning') {
+                    $warnThreshold = $c['threshold'] ?? $warnThreshold;
+                    $windowDays = $c['window_days'] ?? $windowDays;
+                } elseif (($r['action'] ?? '') === 'auto_lock') {
+                    $lockThreshold = $c['threshold'] ?? $lockThreshold;
+                    $windowDays = $c['window_days'] ?? $windowDays;
+                }
+            }
+        }
+        return [$warnThreshold, $lockThreshold, $windowDays];
+    }
+
     private function reportCountsForUsers(array $userIds): array
     {
         if (! Schema::hasTable('reports') || $userIds === []) {
             return [];
         }
 
+        [$warn, $lock, $windowDays] = $this->activeUserModerationConfig();
+
         return DB::table('reports')
             ->whereIn('reportable_type', ['users', 'user', User::class])
             ->whereIn('reportable_id', $userIds)
-            ->where('created_at', '>=', now()->subDays(14))
-            ->select('reportable_id', DB::raw('COUNT(*) as total'))
+            ->where('created_at', '>=', now()->subDays($windowDays))
+            ->select('reportable_id', DB::raw('COUNT(DISTINCT reporter_id) as total'))
             ->groupBy('reportable_id')
             ->pluck('total', 'reportable_id')
             ->map(fn ($value) => (int) $value)
@@ -439,16 +554,18 @@ class UserController extends Controller
         $ids = collect();
 
         if (Schema::hasTable('reports')) {
+            [$warnThreshold, $lockThreshold, $windowDays] = $this->activeUserModerationConfig();
+
             $query = DB::table('reports')
                 ->whereIn('reportable_type', ['users', 'user', User::class])
-                ->where('created_at', '>=', now()->subDays(14))
-                ->select('reportable_id', DB::raw('COUNT(*) as total'))
+                ->where('created_at', '>=', now()->subDays($windowDays))
+                ->select('reportable_id', DB::raw('COUNT(DISTINCT reporter_id) as total'))
                 ->groupBy('reportable_id');
 
             if ($level === 'near_lock') {
-                $query->having('total', '>=', 4);
+                $query->having('total', '>=', $warnThreshold)->having('total', '<', $lockThreshold);
             } elseif ($level === 'lock_suggested') {
-                $query->having('total', '>=', 5);
+                $query->having('total', '>=', $lockThreshold);
             } else {
                 $query->having('total', '>=', 1);
             }
@@ -543,17 +660,19 @@ class UserController extends Controller
         $base = DB::table('reports')
             ->whereIn('reportable_type', ['users', 'user', User::class])
             ->where('reportable_id', $userId);
-        $reports14Days = (clone $base)->where('created_at', '>=', now()->subDays(14))->count();
+            
+        [$warn, $lock, $windowDays] = $this->activeUserModerationConfig();
+        $reportsWindowDays = (clone $base)->where('created_at', '>=', now()->subDays($windowDays))->distinct('reporter_id')->count('reporter_id');
 
         return [
-            'total' => (clone $base)->count(),
-            'reports_7_days' => (clone $base)->where('created_at', '>=', now()->subDays(7))->count(),
-            'reports_14_days' => $reports14Days,
-            'reports_30_days' => (clone $base)->where('created_at', '>=', now()->subDays(30))->count(),
-            'near_lock_message' => $reports14Days > 0
-                ? "Tài khoản này có {$reports14Days} báo cáo trong 14 ngày gần đây."
-                : 'Tài khoản chưa có báo cáo gần đây.',
-            'recent' => (clone $base)->latest('created_at')->limit(5)->get()->map(fn ($report) => [
+            'total' => (clone $base)->distinct('reporter_id')->count('reporter_id'),
+            'reports_7_days' => (clone $base)->where('created_at', '>=', now()->subDays(7))->distinct('reporter_id')->count('reporter_id'),
+            'reports_14_days' => $reportsWindowDays, // using this for UI legacy
+            'reports_30_days' => (clone $base)->where('created_at', '>=', now()->subDays(30))->distinct('reporter_id')->count('reporter_id'),
+            'near_lock_message' => $reportsWindowDays > 0
+                ? "Tài khoản này có {$reportsWindowDays} người báo cáo trong {$windowDays} ngày gần đây."
+                : "Tài khoản chưa có người báo cáo trong {$windowDays} ngày gần đây.",
+            'recent' => (clone $base)->latest('created_at')->limit(10)->get()->map(fn ($report) => [
                 'id' => $report->id,
                 'reason' => $this->reportReasonLabel($report->reason ?? null),
                 'status' => $report->status ?? null,
