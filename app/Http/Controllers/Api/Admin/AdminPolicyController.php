@@ -261,11 +261,7 @@ class AdminPolicyController extends Controller
 
         $configService = app(\App\Services\Policies\PolicyConfigurationService::class);
         if ($request->has('score_thresholds') || $request->has('auto_hide_score')) {
-            return $this->updateScoreModerationThresholds($request, $policy);
-        }
-
-        if ($request->has('score_thresholds') || $request->has('auto_hide_score')) {
-            return $this->updateScoreModerationThresholds($request, $policy);
+            return $this->updateModerationThresholds($request, $policy->id);
         }
 
         $data = $request->validate([
@@ -1813,15 +1809,24 @@ class AdminPolicyController extends Controller
             $this->ensureActionCompatible($policy, $binding->action_code);
         }
 
+        // Rule types that are auto-synced from system tables (ModerationThreshold, PenaltyEscalationRule)
+        // and don't require manual action binding activation
+        $autoSyncedRuleTypes = ['moderation_score_threshold', 'penalty_escalation'];
+
         foreach ($policy->rules->where('is_active', true) as $rule) {
             $this->ensureRuleCompatible($policy, $rule->rule_type);
-            $this->ensureActionCompatible($policy, $rule->action_code);
-            $this->ensureRuleActionPairCompatible($rule->rule_type, $rule->action_code);
 
-            if (! in_array($rule->action_code, $activeActionCodes, true)) {
-                throw ValidationException::withMessages([
-                    'action_bindings' => 'Quy tắc "' . $rule->rule_name . '" đang dùng thao tác chưa được bật trong chính sách.',
-                ]);
+            $isAutoSynced = in_array($rule->rule_type, $autoSyncedRuleTypes, true);
+
+            if (! $isAutoSynced) {
+                $this->ensureActionCompatible($policy, $rule->action_code);
+                $this->ensureRuleActionPairCompatible($rule->rule_type, $rule->action_code);
+
+                if (! in_array($rule->action_code, $activeActionCodes, true)) {
+                    throw ValidationException::withMessages([
+                        'action_bindings' => 'Quy tắc "' . $rule->rule_name . '" đang dùng thao tác chưa được bật trong chính sách.',
+                    ]);
+                }
             }
 
             if (! in_array($rule->rule_type, $this->allowedRuleTypes($policyType), true)) {
