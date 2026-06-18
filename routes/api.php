@@ -220,6 +220,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::delete('/venue-clusters/{clusterId}/media/{mediaId}', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'deleteMedia']);
         Route::put('/venue-courts/bulk-layout', [\App\Http\Controllers\Api\Owner\VenueCourtController::class, 'updateLayoutBulk']);
         Route::apiResource('venue-courts', \App\Http\Controllers\Api\Owner\VenueCourtController::class);
+        Route::apiResource('posts', \App\Http\Controllers\Api\Owner\OwnerPostController::class);
         Route::get('/staff', [OwnerStaffController::class, 'index']);
         Route::post('/staff', [OwnerStaffController::class, 'store']);
         Route::put('/staff/{id}', [OwnerStaffController::class, 'update']);
@@ -274,6 +275,19 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/bookings/{id}/payments/collect', [OwnerBookingManagementController::class, 'collectPayment']);
         Route::patch('/bookings/{id}/status', [OwnerBookingManagementController::class, 'updateStatus']);
         Route::patch('/bookings/{id}/court', [OwnerBookingManagementController::class, 'changeCourt']);
+
+        // Booking Management
+        Route::get('/bookings', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'index']);
+        Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'show']);
+        Route::post('/bookings/counter', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'storeCounter']);
+        Route::post('/bookings/recurring', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'storeRecurring']);
+        Route::patch('/bookings/{id}/status', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'updateStatus']);
+        Route::patch('/bookings/{id}/court', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'changeCourt']);
+
+        // Matchmaking Posts (Giao lưu tại sân)
+        Route::get('/matchmaking-posts', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'index']);
+        Route::patch('/matchmaking-posts/{id}/hide', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'hide']);
+        Route::post('/matchmaking-posts/{id}/report', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'report']);
     });
 
 Route::middleware('auth:sanctum')
