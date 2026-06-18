@@ -29,6 +29,8 @@
           <option value="">Tất cả trạng thái</option>
           <option v-for="item in statuses" :key="item.value" :value="item.value">{{ item.label }}</option>
         </select>
+        <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadReports" />
+        <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadReports" />
         <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadReports" />
       </div>
     </section>
@@ -163,7 +165,7 @@ export default {
     return {
       reports: [],
       summary: {},
-      filters: { keyword: '', target_type: '', reason: '', status: '' },
+      filters: { keyword: '', target_type: '', reason: '', status: '', date_from: '', date_to: '' },
       targetTypes: [
         { value: 'post', label: 'Bài viết cộng đồng' },
         { value: 'comment', label: 'Bình luận' },
