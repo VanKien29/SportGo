@@ -175,6 +175,26 @@
           </div>
         </section>
 
+        <hr class="divider" />
+
+        <!-- Tài liệu đính kèm -->
+        <section class="form-section">
+          <h3>5. Tài liệu đính kèm</h3>
+          <p class="muted mb-4">Vui lòng tải lên Giấy phép kinh doanh, CCCD, Ảnh sân (Tối đa 5MB/file. Định dạng: PDF, JPG, PNG)</p>
+          <div class="form-group full-width">
+            <input type="file" ref="fileInput" @change="onFileChange" multiple accept=".pdf,image/jpeg,image/png" class="input" />
+          </div>
+          <div v-if="selectedFiles.length" class="selected-files mt-4">
+            <h4>Files đã chọn:</h4>
+            <ul>
+              <li v-for="(file, index) in selectedFiles" :key="index">
+                {{ file.name }} ({{ (file.size / 1024 / 1024).toFixed(2) }} MB)
+                <button type="button" @click="removeFile(index)" class="btn-remove">Xóa</button>
+              </li>
+            </ul>
+          </div>
+        </section>
+
         <div class="form-actions mt-4">
           <button type="submit" class="btn primary btn-large full-width" :disabled="submitting">
             {{ submitting ? 'Đang gửi hồ sơ...' : 'Nộp hồ sơ đăng ký' }}
@@ -231,6 +251,7 @@ export default {
           branch_name: '',
         }
       },
+      selectedFiles: [],
       provincesData: [],
       availableDistricts: [],
       availableWards: []
@@ -269,20 +290,62 @@ export default {
       const district = this.availableDistricts.find(d => d.name === this.form.venue_district);
       this.availableWards = district ? district.wards : [];
     },
+    onFileChange(e) {
+      const files = Array.from(e.target.files);
+      const validFiles = files.filter(file => file.size <= 5 * 1024 * 1024);
+      if (files.length !== validFiles.length) {
+        alert('Một số file vượt quá dung lượng cho phép 5MB và đã bị loại bỏ.');
+      }
+      this.selectedFiles.push(...validFiles);
+      e.target.value = ''; // Reset input
+    },
+    removeFile(index) {
+      this.selectedFiles.splice(index, 1);
+    },
     async submitApplication() {
       this.error = '';
       this.submitting = true;
       try {
-        const payload = { ...this.form };
-        payload.bank_accounts = [this.form.bank_account];
-        delete payload.bank_account;
-
-        const response = await api('/api/partner-applications', {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
+        const formData = new FormData();
         
-        this.successMessage = response.message || 'Hồ sơ đã được gửi thành công.';
+        // Append nested bank_accounts
+        formData.append('bank_accounts[0][bank_name]', this.form.bank_account.bank_name);
+        formData.append('bank_accounts[0][bank_code]', this.form.bank_account.bank_code);
+        formData.append('bank_accounts[0][account_number]', this.form.bank_account.account_number);
+        formData.append('bank_accounts[0][account_holder_name]', this.form.bank_account.account_holder_name);
+        if (this.form.bank_account.branch_name) {
+          formData.append('bank_accounts[0][branch_name]', this.form.bank_account.branch_name);
+        }
+
+        // Append regular form fields
+        for (const [key, value] of Object.entries(this.form)) {
+          if (key !== 'bank_account' && value !== null && value !== '') {
+            formData.append(key, value);
+          }
+        }
+
+        // Append files
+        this.selectedFiles.forEach((file) => {
+          formData.append('documents[]', file);
+        });
+
+        // Use custom fetch approach directly because API helper might default to application/json
+        const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
+        const headers = { Accept: 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const res = await fetch('/api/partner-applications', {
+          method: 'POST',
+          headers,
+          body: formData
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Có lỗi xảy ra khi nộp hồ sơ đăng ký.');
+        }
+
+        this.successMessage = data.message || 'Hồ sơ đã được gửi thành công.';
         window.scrollTo(0, 0);
       } catch (err) {
         this.error = err.message || 'Có lỗi xảy ra khi nộp hồ sơ đăng ký.';
@@ -453,5 +516,33 @@ export default {
 
 .text-center {
   text-align: center;
+}
+
+.selected-files ul {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+}
+
+.selected-files li {
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-remove {
+  background: #fee2e2;
+  color: #ef4444;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-remove:hover {
+  background: #fca5a5;
 }
 </style>

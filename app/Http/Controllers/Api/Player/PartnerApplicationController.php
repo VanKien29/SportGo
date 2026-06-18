@@ -55,6 +55,9 @@ class PartnerApplicationController extends Controller
             'bank_accounts.*.account_number' => 'required_with:bank_accounts|string|max:50',
             'bank_accounts.*.account_holder_name' => 'required_with:bank_accounts|string|max:150',
             'bank_accounts.*.branch_name' => 'nullable|string|max:150',
+
+            'documents' => 'nullable|array',
+            'documents.*' => 'file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
         $user = $request->user();
@@ -99,6 +102,21 @@ class PartnerApplicationController extends Controller
                         'status' => 'pending',
                     ]
                 );
+            }
+        }
+
+        if ($request->hasFile('documents')) {
+            foreach ($request->file('documents') as $index => $file) {
+                $path = $file->store('partner-documents', 'public');
+                $originalName = $file->getClientOriginalName();
+                \App\Models\PartnerApplicationDocument::create([
+                    'partner_application_id' => $application->id,
+                    'document_type' => 'other',
+                    'title' => $originalName,
+                    'file_path' => $path,
+                    'status' => 'pending',
+                    'sort_order' => $index + 1,
+                ]);
             }
         }
 
