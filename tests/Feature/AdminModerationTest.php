@@ -166,6 +166,34 @@ class AdminModerationTest extends TestCase
             ->assertJsonValidationErrors('date_to');
     }
 
+    public function test_report_cannot_be_taken_over_by_another_admin(): void
+    {
+        $otherAdmin = $this->createUser('other_moderation_admin', 'other-admin@sportgo.test');
+        $this->assignRole($otherAdmin, Role::query()->where('name', 'admin')->firstOrFail());
+        $report = Report::query()->create([
+            'reporter_id' => $this->reporter->id,
+            'reportable_type' => User::class,
+            'reportable_id' => $this->author->id,
+            'reason' => 'harassment',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/reports/{$report->id}/review")
+            ->assertOk();
+
+        $this->actingAs($otherAdmin, 'sanctum')
+            ->patchJson("/api/admin/reports/{$report->id}/review")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $this->assertDatabaseHas('reports', [
+            'id' => $report->id,
+            'status' => 'reviewing',
+            'reviewed_by' => $this->admin->id,
+        ]);
+    }
+
     private function createUser(string $username, string $email): User
     {
         return User::query()->create([

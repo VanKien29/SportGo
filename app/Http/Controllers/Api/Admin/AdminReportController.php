@@ -152,6 +152,19 @@ class AdminReportController extends Controller
             throw ValidationException::withMessages(['status' => 'Báo cáo này đã được xử lý.']);
         }
 
+        if ($report->status === 'reviewing') {
+            if ($report->reviewed_by !== $request->user()->id) {
+                throw ValidationException::withMessages([
+                    'status' => 'Báo cáo đang được quản trị viên khác kiểm duyệt.',
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Bạn đang kiểm duyệt báo cáo này.',
+                'data' => $this->detailPayload($report->load(['reporter', 'reviewedBy', 'reportable', 'evidence'])),
+            ]);
+        }
+
         $oldValues = $report->only(['status', 'reviewed_by', 'reviewed_at']);
         $report->forceFill([
             'status' => 'reviewing',
