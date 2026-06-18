@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -53,7 +54,7 @@ class AdminRoleController extends Controller
 
         $sensitivePermissions = Permission::query()
             ->get()
-            ->filter(fn (Permission $permission): bool => $this->permissionMeta($permission->code)['risk_level'] !== 'normal')
+            ->filter(fn (Permission $permission): bool => $this->permissionRiskLevel($permission->code) !== 'normal')
             ->count();
 
         return response()->json([
@@ -221,6 +222,30 @@ class AdminRoleController extends Controller
         return response()->json(['data' => $this->permissionGroups()]);
     }
 
+    public function matrix(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'role.view');
+
+        $roles = Role::query()
+            ->with('permissions:id')
+            ->whereNotIn('name', self::FIXED_CLIENT_ROLES)
+            ->orderByDesc('is_system')
+            ->orderBy('display_name')
+            ->get()
+            ->map(fn (Role $role): array => [
+                ...$this->rolePayload($role),
+                'permission_ids' => $role->permissions->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+            ])
+            ->values();
+
+        return response()->json([
+            'data' => [
+                'roles' => $roles,
+                'permission_groups' => $this->permissionGroups(),
+            ],
+        ]);
+    }
+
     public function updatePermissions(Request $request, string $id): JsonResponse
     {
         $this->authorizePermission($request, 'role.permission.manage');
@@ -269,6 +294,56 @@ class AdminRoleController extends Controller
         ]);
     }
 
+    public function togglePermission(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'role.permission.manage');
+
+        $role = Role::query()->with('permissions')->findOrFail($id);
+
+        if (! $this->canEditPermissions($role)) {
+            throw ValidationException::withMessages([
+                'permission_id' => 'Nhóm quyền này bị khóa chỉnh sửa quyền.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'permission_id' => ['required', 'integer', 'exists:permissions,id'],
+            'action' => ['required', Rule::in(['grant', 'revoke'])],
+        ]);
+
+        $permissionId = (int) $data['permission_id'];
+        $this->ensureActorCanGrantPermissions($request, [$permissionId]);
+
+        $oldValues = [
+            'permissions' => $role->permissions->pluck('code')->values()->all(),
+        ];
+
+        if ($data['action'] === 'grant') {
+            $role->permissions()->syncWithoutDetaching([$permissionId]);
+        } else {
+            $role->permissions()->detach($permissionId);
+        }
+
+        $freshRole = $role->fresh(['permissions'])->loadCount(['permissions', 'users']);
+        $newPermissions = $freshRole->permissions->pluck('code')->values()->all();
+
+        $this->audit->log($request, 'role', 'role.permissions_updated', 'roles', (string) $role->id, $oldValues, [
+            'permissions' => $newPermissions,
+        ], [
+            'severity' => 'warning',
+            'permission_id' => $permissionId,
+            'toggle_action' => $data['action'],
+        ]);
+
+        return response()->json([
+            'message' => $data['action'] === 'grant' ? 'Đã cấp quyền cho nhóm.' : 'Đã thu hồi quyền khỏi nhóm.',
+            'data' => [
+                'role' => $this->rolePayload($freshRole),
+                'permission_ids' => $freshRole->permissions->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+            ],
+        ]);
+    }
+
     public function users(Request $request, string $id): JsonResponse
     {
         $this->authorizePermission($request, 'role.view');
@@ -311,10 +386,10 @@ class AdminRoleController extends Controller
             ->orderBy('code')
             ->get()
             ->map(fn (Permission $permission): array => $this->permissionPayload($permission))
-            ->groupBy('module_key')
+            ->groupBy('group_name')
             ->map(fn ($permissions, $moduleKey): array => [
-                'group_name' => $moduleKey,
-                'module_label' => $this->moduleLabel((string) $moduleKey),
+                'group_name' => (string) $moduleKey,
+                'module_label' => (string) $moduleKey,
                 'module_description' => $this->moduleDescription((string) $moduleKey),
                 'permissions' => $permissions->values(),
             ])
@@ -324,126 +399,48 @@ class AdminRoleController extends Controller
 
     private function permissionPayload(Permission $permission): array
     {
-        $meta = $this->permissionMeta($permission->code);
+        $groupName = (string) ($permission->group_name ?: 'Khác');
+        $riskLevel = $this->permissionRiskLevel($permission->code);
 
         return [
             'id' => $permission->id,
             'code' => $permission->code,
             'name' => $permission->name,
-            'group_name' => $permission->group_name,
-            'label' => $meta['label'],
-            'description' => $meta['description'],
-            'risk_level' => $meta['risk_level'],
-            'risk_label' => $this->riskLabel($meta['risk_level']),
-            'module_key' => $meta['module_key'],
-            'module_label' => $this->moduleLabel($meta['module_key']),
+            'group_name' => $groupName,
+            'label' => $permission->name,
+            'description' => 'Quyền thao tác trong nhóm ' . $groupName . '.',
+            'risk_level' => $riskLevel,
+            'risk_label' => $this->riskLabel($riskLevel),
+            'module_key' => Str::slug($groupName, '_'),
+            'module_label' => $groupName,
         ];
+    }
+
+    private function permissionRiskLevel(string $code): string
+    {
+        if (str_contains($code, 'payment') || str_contains($code, 'refund') || str_contains($code, 'wallet') || str_contains($code, 'withdrawal') || str_contains($code, 'reconciliation')) {
+            return 'finance';
+        }
+
+        if (str_contains($code, 'permission') || str_contains($code, 'role') || str_contains($code, 'policy.publish')) {
+            return 'permission';
+        }
+
+        if (str_contains($code, 'lock') || str_contains($code, 'unlock')) {
+            return 'account_lock';
+        }
+
+        if (str_contains($code, 'delete') || str_contains($code, 'manage') || str_contains($code, 'approve') || str_contains($code, 'resolve') || str_contains($code, 'publish')) {
+            return 'sensitive';
+        }
+
+        return 'normal';
     }
 
     private function canEditPermissions(Role $role): bool
     {
         return ! in_array($role->name, self::LOCKED_PERMISSION_ROLES, true)
             && ! in_array($role->name, self::FIXED_CLIENT_ROLES, true);
-    }
-
-    private function permissionMeta(string $code): array
-    {
-        $map = [
-            'dashboard.view' => ['Xem tổng quan hệ thống', 'Xem dashboard và các số liệu tổng quan.', 'normal', 'dashboard'],
-            'profile.view' => ['Xem hồ sơ cá nhân', 'Xem thông tin hồ sơ của chính nhân sự đang đăng nhập.', 'normal', 'profile'],
-            'profile.update' => ['Cập nhật hồ sơ cá nhân', 'Cập nhật thông tin cá nhân của chính nhân sự đang đăng nhập.', 'normal', 'profile'],
-            'user.view' => ['Xem tài khoản', 'Xem danh sách và thông tin tài khoản trong hệ thống.', 'normal', 'user'],
-            'user.lock' => ['Khóa tài khoản', 'Khóa tài khoản và thu hồi token đăng nhập hiện tại.', 'account_lock', 'user'],
-            'user.unlock' => ['Mở khóa tài khoản', 'Mở khóa tài khoản để người dùng có thể đăng nhập lại.', 'account_lock', 'user'],
-            'staff.view' => ['Xem nhân sự hệ thống', 'Xem danh sách tài khoản nhân sự nội bộ.', 'normal', 'staff'],
-            'staff.create' => ['Tạo nhân sự hệ thống', 'Tạo tài khoản nhân sự nội bộ thấp hơn Admin.', 'permission', 'staff'],
-            'staff.assign_role' => ['Gán nhóm quyền nhân sự', 'Gán nhóm quyền phù hợp cho nhân sự hệ thống.', 'permission', 'staff'],
-            'staff.lock' => ['Khóa/mở khóa nhân sự', 'Khóa hoặc mở khóa tài khoản nhân sự nội bộ.', 'account_lock', 'staff'],
-            'role.view' => ['Xem nhóm quyền', 'Xem danh sách và chi tiết nhóm quyền nhân sự hệ thống.', 'normal', 'role'],
-            'role.create' => ['Tạo nhóm quyền', 'Tạo nhóm quyền mới cho nhân sự quản trị.', 'permission', 'role'],
-            'role.update' => ['Sửa nhóm quyền', 'Cập nhật tên và mô tả nhóm quyền.', 'permission', 'role'],
-            'role.delete' => ['Xóa nhóm quyền', 'Xóa nhóm quyền tùy chỉnh khi chưa có nhân sự sử dụng.', 'permission', 'role'],
-            'role.permission.manage' => ['Phân quyền nhóm', 'Cấp hoặc thu hồi quyền của một nhóm nhân sự hệ thống.', 'permission', 'role'],
-            'role.manage' => ['Quản lý vai trò', 'Quản lý thông tin và phân quyền của nhóm quyền.', 'permission', 'role'],
-            'policy.view' => ['Xem chính sách', 'Xem danh sách, nội dung và lịch sử chính sách.', 'normal', 'policy'],
-            'policy.create' => ['Tạo chính sách', 'Tạo bản nháp chính sách mới.', 'system', 'policy'],
-            'policy.update' => ['Sửa chính sách', 'Cập nhật thông tin bản nháp chính sách.', 'system', 'policy'],
-            'policy.publish' => ['Publish chính sách', 'Đưa chính sách vào áp dụng trên hệ thống.', 'system', 'policy'],
-            'policy.rule.manage' => ['Quản lý quy tắc chính sách', 'Cấu hình quy tắc xử lý tự động theo chính sách.', 'system', 'policy'],
-            'moderation.view' => ['Xem nội dung chờ duyệt', 'Xem bài viết, bình luận hoặc nội dung cần kiểm duyệt.', 'normal', 'moderation'],
-            'moderation.manage' => ['Quản lý kiểm duyệt', 'Duyệt, từ chối hoặc ẩn nội dung vi phạm.', 'sensitive', 'moderation'],
-            'moderation.approve' => ['Duyệt nội dung', 'Cho phép nội dung chờ duyệt được hiển thị công khai.', 'sensitive', 'moderation'],
-            'moderation.reject' => ['Từ chối nội dung', 'Từ chối nội dung không đạt yêu cầu hiển thị.', 'sensitive', 'moderation'],
-            'report.view' => ['Xem báo cáo vi phạm', 'Xem danh sách báo cáo vi phạm từ người dùng.', 'normal', 'report'],
-            'report.resolve' => ['Xử lý báo cáo vi phạm', 'Nhận xử lý, bỏ qua hoặc xử lý nội dung vi phạm.', 'sensitive', 'report'],
-            'complaint.view' => ['Xem khiếu nại', 'Xem danh sách khiếu nại và dữ liệu liên quan.', 'normal', 'complaint'],
-            'complaint.handle' => ['Xử lý khiếu nại', 'Nhận xử lý, phản hồi, giải quyết hoặc từ chối khiếu nại.', 'sensitive', 'complaint'],
-            'content.view' => ['Xem nội dung', 'Xem nội dung công khai và nội dung cần kiểm duyệt.', 'normal', 'moderation'],
-            'content.manage' => ['Quản lý nội dung', 'Ẩn, duyệt hoặc xử lý nội dung trong hệ thống.', 'sensitive', 'moderation'],
-            'venue.view' => ['Xem đối tác và cụm sân', 'Xem hồ sơ đối tác, cụm sân và sân con.', 'normal', 'venue'],
-            'venue.manage' => ['Quản lý đối tác và cụm sân', 'Duyệt, khóa hoặc cập nhật thông tin cụm sân.', 'sensitive', 'venue'],
-            'venue.lock' => ['Khóa/mở khóa cụm sân', 'Khóa hoặc mở khóa cụm sân khi có lý do hợp lệ.', 'sensitive', 'venue'],
-            'partner.view' => ['Xem hồ sơ đối tác', 'Xem hồ sơ đăng ký chủ sân và giấy tờ liên quan.', 'normal', 'partner'],
-            'partner.review' => ['Duyệt hồ sơ đối tác', 'Chuyển trạng thái, duyệt hoặc từ chối hồ sơ đối tác.', 'sensitive', 'partner'],
-            'court.view' => ['Xem sân con', 'Xem danh sách sân con và loại sân.', 'normal', 'venue'],
-            'court.manage' => ['Quản lý sân con', 'Cập nhật trạng thái, thông tin và loại sân.', 'sensitive', 'venue'],
-            'booking.view' => ['Xem lịch đặt sân', 'Xem danh sách booking trong hệ thống.', 'normal', 'booking'],
-            'booking.manage' => ['Quản lý lịch đặt sân', 'Xử lý booking, xác nhận, hủy hoặc cập nhật trạng thái.', 'sensitive', 'booking'],
-            'booking.support' => ['Hỗ trợ xử lý booking', 'Hỗ trợ cập nhật trạng thái booking trong phạm vi được cấp.', 'sensitive', 'booking'],
-            'price.view' => ['Xem bảng giá', 'Xem giá theo cụm sân, loại sân và khung giờ.', 'normal', 'pricing'],
-            'price.manage' => ['Quản lý bảng giá', 'Cập nhật giá sân và giá ngày lễ.', 'sensitive', 'pricing'],
-            'audit.view' => ['Xem nhật ký hệ thống', 'Xem audit log của các thao tác nhạy cảm.', 'system', 'audit'],
-            'refund.view' => ['Xem yêu cầu hoàn tiền', 'Xem danh sách yêu cầu hoàn tiền.', 'finance', 'finance'],
-            'refund.approve' => ['Duyệt hoàn tiền', 'Xác nhận hoàn tiền cho khách hàng.', 'finance', 'finance'],
-            'payment.view' => ['Xem thanh toán', 'Xem giao dịch thanh toán và log cổng thanh toán.', 'finance', 'finance'],
-            'payment.manage' => ['Quản lý thanh toán', 'Xử lý giao dịch thanh toán, đối soát hoặc lỗi thanh toán.', 'finance', 'finance'],
-            'wallet.view' => ['Xem ví người dùng/chủ sân', 'Xem số dư và lịch sử ví phục vụ đối soát.', 'finance', 'finance'],
-            'withdrawal.manage' => ['Xử lý yêu cầu rút tiền', 'Tiếp nhận và xử lý yêu cầu rút tiền của chủ sân.', 'finance', 'finance'],
-            'reconciliation.manage' => ['Xử lý đối soát', 'Thực hiện đối soát tài chính và ghi nhận kết quả.', 'finance', 'finance'],
-        ];
-
-        if (isset($map[$code])) {
-            [$label, $description, $riskLevel, $moduleKey] = $map[$code];
-
-            return [
-                'label' => $label,
-                'description' => $description,
-                'risk_level' => $riskLevel,
-                'module_key' => $moduleKey,
-            ];
-        }
-
-        $parts = explode('.', $code);
-        $action = array_pop($parts);
-        $moduleKey = $parts[0] ?? 'other';
-
-        return [
-            'label' => ucfirst(str_replace('_', ' ', $action . ' ' . implode(' ', $parts))),
-            'description' => 'Quyền thao tác trong module ' . $this->moduleLabel($moduleKey) . '.',
-            'risk_level' => str_contains($code, 'delete') || str_contains($code, 'lock') ? 'sensitive' : 'normal',
-            'module_key' => $moduleKey,
-        ];
-    }
-
-    private function moduleLabel(string $moduleKey): string
-    {
-        return [
-            'dashboard' => 'Tổng quan hệ thống',
-            'profile' => 'Hồ sơ cá nhân',
-            'user' => 'Tài khoản',
-            'staff' => 'Tài khoản nhân sự',
-            'role' => 'Nhóm quyền',
-            'policy' => 'Chính sách',
-            'moderation' => 'Bài viết và kiểm duyệt',
-            'report' => 'Báo cáo vi phạm',
-            'complaint' => 'Khiếu nại',
-            'partner' => 'Đối tác',
-            'venue' => 'Đối tác và sân',
-            'booking' => 'Đặt sân',
-            'pricing' => 'Bảng giá',
-            'finance' => 'Tài chính và đối soát',
-            'audit' => 'Nhật ký hệ thống',
-        ][$moduleKey] ?? ucfirst(str_replace('_', ' ', $moduleKey));
     }
 
     private function moduleDescription(string $moduleKey): string

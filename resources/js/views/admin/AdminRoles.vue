@@ -15,6 +15,12 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
+    <nav class="view-tabs">
+      <button type="button" :class="{ active: currentView === 'list' }" @click="currentView = 'list'">Danh sách nhóm quyền</button>
+      <button type="button" :class="{ active: currentView === 'matrix' }" @click="currentView = 'matrix'">Ma trận phân quyền</button>
+    </nav>
+
+    <template v-if="currentView === 'list'">
     <section class="filter-panel">
       <div class="filter-head">
         <strong>Bộ lọc</strong>
@@ -121,6 +127,9 @@
         </table>
       </div>
     </div>
+    </template>
+
+    <AdminPermissionMatrix v-else />
 
     <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
       <form class="modal" @submit.prevent="saveRole">
@@ -186,13 +195,15 @@ import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import ConfirmModal from '../../components/ConfirmModal.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
+import AdminPermissionMatrix from '../../components/admin/AdminPermissionMatrix.vue';
 import { adminRoleService } from '../../services/adminRoles.js';
 
 export default {
   name: 'AdminRoles',
-  components: { ActionIconButton, AppIcon, ConfirmModal, TableActionGroup },
+  components: { ActionIconButton, AppIcon, ConfirmModal, TableActionGroup, AdminPermissionMatrix },
   data() {
     return {
+      currentView: 'list',
       roles: [],
       summary: {},
       filters: { keyword: '', is_system: '' },
@@ -405,6 +416,28 @@ p {
   margin-top: 6px;
   color: #64748b;
   line-height: 1.55;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 2px;
+}
+
+.view-tabs button {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  padding: 10px 14px;
+  color: #64748b;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.view-tabs button.active {
+  border-color: #16a34a;
+  color: #16a34a;
 }
 
 .filter-panel,
