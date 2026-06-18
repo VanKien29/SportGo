@@ -302,9 +302,67 @@ export default {
       };
       return map[status] || status;
     },
-    viewFile(path) {
+    async viewFile(path) {
       if (!path) return;
-      window.open(`/api/download?path=${encodeURIComponent(path)}`, '_blank');
+      if (path.startsWith('http')) {
+        window.open(path, '_blank');
+        return;
+      }
+      try {
+        const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
+        const headers = { Accept: 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch(`/api/auth/files/download?path=${encodeURIComponent(path)}`, { headers });
+        if (!response.ok) {
+          let serverMessage = '';
+          try {
+            const errorBody = await response.json();
+            serverMessage = errorBody?.message || '';
+          } catch {
+            serverMessage = '';
+          }
+          throw new Error(serverMessage || 'Không thể tải file');
+        }
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        if (response.redirected || contentType.includes('text/html')) {
+          const htmlBody = await response.text();
+          const compactHtml = htmlBody.replace(/\s+/g, ' ').slice(0, 120);
+          throw new Error(`File trả về không hợp lệ (${compactHtml || 'HTML response'})`);
+        }
+        const blob = await response.blob();
+        const disposition = response.headers.get('content-disposition') || '';
+        const filenameFromHeader = disposition.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i)?.[1];
+        const fallbackName = decodeURIComponent(String(path).split('/').pop() || 'downloaded-file');
+        const filename = decodeURIComponent((filenameFromHeader || fallbackName).replace(/"/g, ''));
+
+        const canPreviewInBrowser =
+          contentType.includes('pdf') ||
+          contentType.startsWith('image/');
+
+        const url = URL.createObjectURL(blob);
+        if (canPreviewInBrowser) {
+          const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
+          if (!openedWindow) {
+            const tempLink = document.createElement('a');
+            tempLink.href = url;
+            tempLink.target = '_blank';
+            tempLink.rel = 'noopener noreferrer';
+            document.body.appendChild(tempLink);
+            tempLink.click();
+            document.body.removeChild(tempLink);
+          }
+        } else {
+          const downloadLink = document.createElement('a');
+          downloadLink.href = url;
+          downloadLink.download = filename;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (err) {
+        alert(err.message || 'Lỗi tải file');
+      }
     },
     openTerminationModal(contract) {
       this.terminationModal = {
