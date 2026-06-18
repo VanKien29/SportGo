@@ -29,11 +29,11 @@ class ModerationThresholdsSeeder extends Seeder
         }
 
         $rows = [
-            ['target_type' => 'community_post', 'auto_hide_score' => 10, 'admin_alert_score' => 20, 'score_window_days' => 30, 'score_reset_days' => 90],
-            ['target_type' => 'venue_post', 'auto_hide_score' => 15, 'admin_alert_score' => 25, 'score_window_days' => 30, 'score_reset_days' => 90],
-            ['target_type' => 'comment', 'auto_hide_score' => 8, 'admin_alert_score' => 15, 'score_window_days' => 30, 'score_reset_days' => 60],
-            ['target_type' => 'user', 'auto_hide_score' => 30, 'admin_alert_score' => 50, 'score_window_days' => 30, 'score_reset_days' => 180],
-            ['target_type' => 'venue_cluster', 'auto_hide_score' => 25, 'admin_alert_score' => 40, 'score_window_days' => 30, 'score_reset_days' => 180],
+            ['target_type' => 'community_post', 'warning_threshold' => 3, 'action_threshold' => 5, 'unique_reporters_threshold' => 2, 'timeframe_days' => 7],
+            ['target_type' => 'venue_post', 'warning_threshold' => 3, 'action_threshold' => 5, 'unique_reporters_threshold' => 2, 'timeframe_days' => 7],
+            ['target_type' => 'comment', 'warning_threshold' => 2, 'action_threshold' => 3, 'unique_reporters_threshold' => 2, 'timeframe_days' => 7],
+            ['target_type' => 'user', 'warning_threshold' => 5, 'action_threshold' => 10, 'unique_reporters_threshold' => 3, 'timeframe_days' => 30],
+            ['target_type' => 'venue_cluster', 'warning_threshold' => 5, 'action_threshold' => 10, 'unique_reporters_threshold' => 3, 'timeframe_days' => 30],
         ];
 
         foreach ($rows as $row) {

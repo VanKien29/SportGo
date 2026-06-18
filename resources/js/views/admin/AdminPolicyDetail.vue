@@ -911,6 +911,11 @@ export default {
     },
   },
   watch: {
+    '$route.params.id'(newId, oldId) {
+      if (newId && newId !== oldId) {
+        this.loadDetail();
+      }
+    },
     activeTab(v) {
       this.$router.replace({ query: { ...this.$route.query, tab: v } }).catch(() => {});
     },
@@ -946,6 +951,7 @@ export default {
         this.auditLogs = d.audit_logs || [];
         this.contentDraft = this.policy?.content || '';
         this.buildTabs();
+        this.activeTab = this.$route.query.tab || 'overview';
       } catch (e) {
         this.error = e.message || 'Không thể tải chi tiết chính sách.';
       } finally {
@@ -974,7 +980,7 @@ export default {
       this.saving = true;
       try {
         const res = await adminPolicyService.cloneVersion(this.policy.id);
-        this.$router.push({ name: 'admin-policy-detail', params: { id: res.data.id }, query: { tab: 'rules' } });
+        this.$router.push({ name: 'admin-policy-detail', params: { id: res.data.id }, query: { tab: 'config' } });
       } catch (e) {
         this.error = e.message || 'Không thể tạo phiên bản mới.';
       } finally {

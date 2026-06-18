@@ -71,6 +71,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
         Route::get('/users', [AdminUserController::class, 'index']);
+        Route::get('/users/auto-lock-config', [\App\Http\Controllers\Api\Admin\UserController::class, 'autoLockConfig']);
         Route::get('/users/{id}', [AdminUserController::class, 'show']);
         Route::post('/users', [AdminUserController::class, 'store']);
         Route::put('/users/{id}', [AdminUserController::class, 'update']);
@@ -184,6 +185,18 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/moderation/posts/{type}/{id}/hide', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'hidePost']);
         Route::delete('/moderation/posts/{type}/{id}', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'deletePost']);
         Route::post('/moderation/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'resolveReport']);
+
+        // User Lock Management
+        Route::post('/user-lock-policy', [\App\Http\Controllers\Api\Admin\UserController::class, 'saveAutoLockConfig']);
+        Route::post('/users/{user}/lock', [\App\Http\Controllers\Api\Admin\UserLockController::class, 'lock']);
+        Route::post('/users/{user}/unlock', [\App\Http\Controllers\Api\Admin\UserLockController::class, 'unlock']);
+        Route::get('/users/{user}/lock-logs', [\App\Http\Controllers\Api\Admin\UserLockController::class, 'lockLogs']);
+
+        // Admin Comment & Post Detail (phục vụ chi tiết user)
+        Route::get('/comments/{comment}', [\App\Http\Controllers\Api\Admin\AdminCommentController::class, 'show']);
+        Route::post('/comments/{comment}/action', [\App\Http\Controllers\Api\Admin\AdminCommentController::class, 'processAction']);
+        Route::get('/posts/{post}', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'show']);
+        Route::post('/posts/{post}/action', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'processAction']);
     });
 
 Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRestrictions::class])

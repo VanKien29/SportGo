@@ -62,6 +62,8 @@ class PolicyUiText
             self::action('venue_policy', 'Chính sách sân', 'venue_policy.activate', 'Kích hoạt chính sách sân hợp lệ', 'Áp dụng khi chính sách sân vượt kiểm tra ràng buộc.', ['venue_policy']),
             self::action('moderation', 'Kiểm duyệt', 'post.report', 'Người dùng báo cáo nội dung', 'Áp dụng khi người dùng báo cáo bài viết hoặc bình luận.', ['moderation']),
             self::action('moderation', 'Kiểm duyệt', 'post.hide', 'Ẩn nội dung vi phạm', 'Áp dụng khi hệ thống hoặc admin ẩn nội dung vi phạm.', ['moderation']),
+            self::action('moderation', 'Kiểm duyệt', 'report.score_evaluated', 'Đánh giá điểm vi phạm nội dung/người dùng', 'Áp dụng khi hệ thống tính điểm vi phạm dựa trên báo cáo.', ['moderation']),
+            self::action('moderation', 'Kiểm duyệt', 'report.resolve', 'Xử lý vi phạm theo mức leo thang', 'Áp dụng khi hệ thống xử lý vi phạm theo quy tắc leo thang.', ['moderation']),
             self::action('partner', 'Đối tác & hợp đồng', 'partner_application.approve', 'Admin duyệt hồ sơ đối tác', 'Áp dụng khi admin duyệt hồ sơ đăng ký làm chủ sân.', ['partner_contract']),
             self::action('partner', 'Đối tác & hợp đồng', 'partner_contract.generate', 'Hệ thống sinh hợp đồng đối tác', 'Áp dụng khi hệ thống tạo hợp đồng từ template.', ['partner_contract']),
             self::action('partner', 'Đối tác & hợp đồng', 'partner_contract.sign', 'Chủ sân và SportGo ký hợp đồng', 'Áp dụng khi hai bên ký xác nhận hợp đồng.', ['partner_contract']),
@@ -180,6 +182,34 @@ class PolicyUiText
                 false,
                 'medium',
                 ['post.report', 'post.hide']
+            ),
+            'moderation_score_threshold' => self::template(
+                'moderation',
+                'moderation_score_threshold',
+                'Ngưỡng điểm vi phạm theo đối tượng kiểm duyệt',
+                'Xác định ngưỡng điểm cảnh báo và xử lý cho từng loại đối tượng (bài viết, bình luận, người dùng, sân).',
+                'report.score_evaluated',
+                ['target_type' => 'content', 'timeframe_days' => 30],
+                ['action_threshold' => 10, 'warning_threshold' => 5, 'unique_reporters_threshold' => 3],
+                'moderation_score',
+                'moderation_score_threshold',
+                false,
+                'high',
+                ['report.score_evaluated']
+            ),
+            'penalty_escalation' => self::template(
+                'moderation',
+                'penalty_escalation',
+                'Leo thang xử lý vi phạm theo số lần vi phạm',
+                'Tự động áp dụng mức xử lý tăng dần khi đối tượng tái phạm nhiều lần.',
+                'report.resolve',
+                ['target_type' => 'user', 'violation_count' => 1],
+                ['action' => 'warning', 'duration_days' => null],
+                'penalty_action',
+                'penalty_escalation',
+                false,
+                'critical',
+                ['report.resolve']
             ),
             'contract_signing_required' => self::template(
                 'partner_contract',
@@ -348,7 +378,20 @@ class PolicyUiText
                 self::scalar($result['transition_days'] ?? 30)
             ),
             'partner_application_approve_requires_contract' => 'Sau khi admin duyệt hồ sơ đối tác, hệ thống phải sinh hợp đồng để chủ sân và SportGo ký trước khi hoàn tất hồ sơ.',
-            default => self::ruleTemplateOptions()[$ruleType]['label'] ?? $ruleType,
+            'moderation_score_threshold' => sprintf(
+                'Xác định ngưỡng xử lý và cảnh báo cho đối tượng kiểm duyệt trong vòng %s ngày (Cảnh báo khi đạt %s điểm từ %s người báo cáo, xử lý vi phạm khi đạt %s điểm).',
+                self::scalar($condition['timeframe_days'] ?? '?'),
+                self::scalar($result['warning_threshold'] ?? '?'),
+                self::scalar($result['unique_reporters_threshold'] ?? '?'),
+                self::scalar($result['action_threshold'] ?? '?')
+            ),
+            'penalty_escalation' => sprintf(
+                'Tự động áp dụng hình phạt %s (%s ngày) khi tài khoản tái phạm lần thứ %s.',
+                self::resultActionLabel($result['action'] ?? '?'),
+                self::scalar($result['duration_days'] ?? 'vô thời hạn'),
+                self::scalar($condition['violation_count'] ?? '?')
+            ),
+            default => $ruleType,
         };
     }
 

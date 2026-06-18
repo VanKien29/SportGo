@@ -27,6 +27,11 @@ class UsersTableSeeder extends Seeder
             ['owner', 'Chủ sân SportGo', 'owner@sportgo.vn', '0901000004'],
             ['venuestaff', 'Nhân viên sân SportGo', 'venuestaff@sportgo.vn', '0901000005'],
             ['user', 'Người dùng SportGo', 'user@sportgo.vn', '0901000006'],
+            ['user1', 'Người dùng fake 1', 'user1@example.com', '0901000021'],
+            ['user2', 'Người dùng fake 2', 'user2@example.com', '0901000022'],
+            ['user3', 'Người dùng fake 3', 'user3@example.com', '0901000023'],
+            ['user4', 'Người dùng fake 4', 'user4@example.com', '0901000024'],
+            ['testlocked', 'Người dùng test tự khóa', 'testlocked@example.com', '0901000099'],
         ];
 
         foreach ($users as [$username, $fullName, $email, $phone]) {

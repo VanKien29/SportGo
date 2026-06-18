@@ -261,11 +261,7 @@ class AdminPolicyController extends Controller
 
         $configService = app(\App\Services\Policies\PolicyConfigurationService::class);
         if ($request->has('score_thresholds') || $request->has('auto_hide_score')) {
-            return $this->updateScoreModerationThresholds($request, $policy);
-        }
-
-        if ($request->has('score_thresholds') || $request->has('auto_hide_score')) {
-            return $this->updateScoreModerationThresholds($request, $policy);
+            return $this->updateModerationThresholds($request, $policy->id);
         }
 
         $data = $request->validate([
@@ -332,7 +328,7 @@ class AdminPolicyController extends Controller
     {
         $this->authorizePermission($request, 'policy.create');
 
-        $source = SystemPolicy::query()->with(['actionBindings', 'rules'])->findOrFail($id);
+        $source = SystemPolicy::query()->with(['actionBindings', 'rules', 'moderationThresholds'])->findOrFail($id);
         $nextVersion = (int) SystemPolicy::query()->where('key', $source->key)->max('version') + 1;
 
         $newPolicy = DB::transaction(function () use ($request, $source, $nextVersion): SystemPolicy {
@@ -378,6 +374,16 @@ class AdminPolicyController extends Controller
                     'created_by' => $request->user()->id,
                     'updated_by' => $request->user()->id,
                 ]);
+            }
+
+            foreach ($source->moderationThresholds as $threshold) {
+                $policy->moderationThresholds()->create($threshold->only([
+                    'target_type',
+                    'warning_threshold',
+                    'action_threshold',
+                    'unique_reporters_threshold',
+                    'timeframe_days',
+                ]));
             }
 
             return $policy;
@@ -616,32 +622,28 @@ class AdminPolicyController extends Controller
             ? $request->validate([
                 'score_thresholds' => ['required', 'array', 'min:1', 'max:20'],
                 'score_thresholds.*.target_type' => ['required', Rule::in(['community_post', 'venue_post', 'comment', 'user', 'venue_cluster'])],
-                'score_thresholds.*.auto_hide_score' => ['required', 'integer', 'min:1'],
-                'score_thresholds.*.admin_alert_score' => ['required', 'integer', 'min:1'],
-                'score_thresholds.*.score_window_days' => ['required', 'integer', 'min:1', 'max:365'],
-                'score_thresholds.*.score_reset_days' => ['nullable', 'integer', 'min:1', 'max:1000'],
-                'score_thresholds.*.action_type' => ['required', 'string', 'max:50'],
-                'score_thresholds.*.duration_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
+                'score_thresholds.*.warning_threshold' => ['required', 'integer', 'min:1'],
+                'score_thresholds.*.action_threshold' => ['required', 'integer', 'min:1'],
+                'score_thresholds.*.unique_reporters_threshold' => ['required', 'integer', 'min:1'],
+                'score_thresholds.*.timeframe_days' => ['required', 'integer', 'min:1', 'max:365'],
             ])['score_thresholds']
             : [$request->validate([
                 'target_type' => ['required', Rule::in(['community_post', 'venue_post', 'comment', 'user', 'venue_cluster'])],
-                'auto_hide_score' => ['required', 'integer', 'min:1'],
-                'admin_alert_score' => ['required', 'integer', 'min:1'],
-                'score_window_days' => ['required', 'integer', 'min:1', 'max:365'],
-                'score_reset_days' => ['nullable', 'integer', 'min:1', 'max:1000'],
-                'action_type' => ['required', 'string', 'max:50'],
-                'duration_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
+                'warning_threshold' => ['required', 'integer', 'min:1'],
+                'action_threshold' => ['required', 'integer', 'min:1'],
+                'unique_reporters_threshold' => ['required', 'integer', 'min:1'],
+                'timeframe_days' => ['required', 'integer', 'min:1', 'max:365'],
             ])];
 
         foreach ($payload as $index => $row) {
-            if ((int) $row['auto_hide_score'] <= (int) $row['admin_alert_score']) {
+            if ((int) $row['action_threshold'] <= (int) $row['warning_threshold']) {
                 throw ValidationException::withMessages([
-                    "score_thresholds.{$index}.auto_hide_score" => 'Điểm tự động xử lý phải lớn hơn điểm cảnh báo admin.',
+                    "score_thresholds.{$index}.action_threshold" => 'Ngưỡng thực hiện thao tác phải lớn hơn ngưỡng cảnh báo.',
                 ]);
             }
-            if (in_array($row['action_type'] ?? '', ['lock_temp', 'limit_venue', 'block_venue'], true) && empty($row['duration_days'])) {
+            if ((int) $row['unique_reporters_threshold'] > (int) $row['warning_threshold']) {
                 throw ValidationException::withMessages([
-                    "score_thresholds.{$index}.duration_days" => 'Hình phạt tạm thời phải có số ngày áp dụng.',
+                    "score_thresholds.{$index}.unique_reporters_threshold" => 'Ngưỡng số người báo cáo không được lớn hơn ngưỡng cảnh báo.',
                 ]);
             }
         }
@@ -660,12 +662,10 @@ class AdminPolicyController extends Controller
                         'target_type' => $row['target_type'],
                     ],
                     [
-                        'auto_hide_score' => (int) $row['auto_hide_score'],
-                        'admin_alert_score' => (int) $row['admin_alert_score'],
-                        'score_window_days' => (int) $row['score_window_days'],
-                        'score_reset_days' => (int) ($row['score_reset_days'] ?? 90),
-                        'action_type' => $row['action_type'],
-                        'duration_days' => $row['duration_days'] ?? null,
+                        'warning_threshold' => (int) $row['warning_threshold'],
+                        'action_threshold' => (int) $row['action_threshold'],
+                        'unique_reporters_threshold' => (int) $row['unique_reporters_threshold'],
+                        'timeframe_days' => (int) $row['timeframe_days'],
                     ]
                 );
             }
@@ -692,7 +692,7 @@ class AdminPolicyController extends Controller
         });
 
         return response()->json([
-            'message' => 'Đã lưu ngưỡng điểm kiểm duyệt.',
+            'message' => 'Đã lưu cấu hình ngưỡng báo cáo.',
             'data' => [
                 'score_thresholds' => $policy->fresh('moderationThresholds')->moderationThresholds->values(),
             ],
@@ -714,18 +714,17 @@ class AdminPolicyController extends Controller
                     'id' => $threshold->id,
                     'target_type' => $threshold->target_type,
                     'target_type_label' => $this->moderationTargetLabel($threshold->target_type),
-                    'auto_hide_score' => (int) $threshold->auto_hide_score,
-                    'admin_alert_score' => (int) $threshold->admin_alert_score,
-                    'score_window_days' => (int) $threshold->score_window_days,
-                    'score_reset_days' => (int) $threshold->score_reset_days,
-                    'action_type' => $threshold->action_type,
-                    'duration_days' => $threshold->duration_days ? (int) $threshold->duration_days : null,
+                    'warning_threshold' => (int) $threshold->warning_threshold,
+                    'action_threshold' => (int) $threshold->action_threshold,
+                    'unique_reporters_threshold' => (int) $threshold->unique_reporters_threshold,
+                    'timeframe_days' => (int) $threshold->timeframe_days,
                     'summary' => sprintf(
-                        '%s: ẩn tạm khi đạt %d điểm, cảnh báo admin khi đạt %d điểm trong %d ngày.',
+                        '%s: cảnh báo khi đạt %d báo cáo, xử lý (ẩn/khóa) khi đạt %d báo cáo (từ ít nhất %d người khác nhau) trong %d ngày.',
                         $this->moderationTargetLabel($threshold->target_type),
-                        (int) $threshold->auto_hide_score,
-                        (int) $threshold->admin_alert_score,
-                        (int) $threshold->score_window_days
+                        (int) $threshold->warning_threshold,
+                        (int) $threshold->action_threshold,
+                        (int) $threshold->unique_reporters_threshold,
+                        (int) $threshold->timeframe_days
                     ),
                 ]),
             'auto_lock_enabled' => $autoLockEnabled,
@@ -1830,15 +1829,24 @@ class AdminPolicyController extends Controller
             $this->ensureActionCompatible($policy, $binding->action_code);
         }
 
+        // Rule types that are auto-synced from system tables (ModerationThreshold, PenaltyEscalationRule)
+        // and don't require manual action binding activation
+        $autoSyncedRuleTypes = ['moderation_score_threshold', 'penalty_escalation'];
+
         foreach ($policy->rules->where('is_active', true) as $rule) {
             $this->ensureRuleCompatible($policy, $rule->rule_type);
-            $this->ensureActionCompatible($policy, $rule->action_code);
-            $this->ensureRuleActionPairCompatible($rule->rule_type, $rule->action_code);
 
-            if (! in_array($rule->action_code, $activeActionCodes, true)) {
-                throw ValidationException::withMessages([
-                    'action_bindings' => 'Quy tắc "' . $rule->rule_name . '" đang dùng thao tác chưa được bật trong chính sách.',
-                ]);
+            $isAutoSynced = in_array($rule->rule_type, $autoSyncedRuleTypes, true);
+
+            if (! $isAutoSynced) {
+                $this->ensureActionCompatible($policy, $rule->action_code);
+                $this->ensureRuleActionPairCompatible($rule->rule_type, $rule->action_code);
+
+                if (! in_array($rule->action_code, $activeActionCodes, true)) {
+                    throw ValidationException::withMessages([
+                        'action_bindings' => 'Quy tắc "' . $rule->rule_name . '" đang dùng thao tác chưa được bật trong chính sách.',
+                    ]);
+                }
             }
 
             if (! in_array($rule->rule_type, $this->allowedRuleTypes($policyType), true)) {

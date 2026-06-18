@@ -201,6 +201,12 @@ const routes = [
                 component: () =>
                     import("../views/admin/AdminPlatformFeeSettings.vue"),
             },
+            {
+                path: "posts/:id",
+                name: "admin-post-detail",
+                component: () =>
+                    import("../views/admin/AdminPostDetail.vue"),
+            },
             { path: "", redirect: { name: "admin-dashboard" } },
         ],
     },
