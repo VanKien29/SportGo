@@ -168,6 +168,12 @@ class AdminComplaintController extends Controller
                 'status' => 'Khiếu nại đã kết thúc và không thể cập nhật lại.',
             ]);
         }
+        $isSuperAdmin = $request->user()->roles()->where('roles.name', 'super_admin')->exists();
+        if ($complaint->assigned_to && $complaint->assigned_to !== $request->user()->id && ! $isSuperAdmin) {
+            throw ValidationException::withMessages([
+                'assigned_to' => 'Khiếu nại đang được phân công cho nhân sự khác.',
+            ]);
+        }
         $oldValues = $complaint->toArray();
         $isFinished = in_array($data['status'], ['resolved', 'rejected', 'closed'], true);
 

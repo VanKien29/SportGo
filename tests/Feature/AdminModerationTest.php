@@ -291,6 +291,33 @@ class AdminModerationTest extends TestCase
         ]);
     }
 
+    public function test_only_assigned_staff_can_process_complaint(): void
+    {
+        $otherAdmin = $this->createUser('assigned_complaint_admin', 'assigned-complaint-admin@sportgo.test');
+        $this->assignRole($otherAdmin, Role::query()->where('name', 'admin')->firstOrFail());
+        $complaint = Complaint::query()->create([
+            'complaint_type' => 'venue',
+            'customer_id' => $this->reporter->id,
+            'content' => 'Khiếu nại đã phân công cho người khác.',
+            'status' => 'processing',
+            'assigned_to' => $otherAdmin->id,
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/complaints/{$complaint->id}/resolve", [
+                'status' => 'resolved',
+                'resolve_note' => 'Không được xử lý thay người được phân công.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_to');
+
+        $this->assertDatabaseHas('complaints', [
+            'id' => $complaint->id,
+            'status' => 'processing',
+            'assigned_to' => $otherAdmin->id,
+        ]);
+    }
+
     private function createUser(string $username, string $email): User
     {
         return User::query()->create([
