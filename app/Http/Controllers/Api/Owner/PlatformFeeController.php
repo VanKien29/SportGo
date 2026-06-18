@@ -80,6 +80,11 @@ class PlatformFeeController extends Controller
                 'message' => 'Minh chứng đang chờ quản trị viên kiểm tra.',
             ], 422);
         }
+        if ((float) $ledger->amount_due <= (float) $ledger->amount_paid) {
+            return response()->json([
+                'message' => 'Kỳ phí này không còn số tiền cần thanh toán.',
+            ], 422);
+        }
 
         $data = $request->validate([
             'proof' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:5120'],
@@ -181,6 +186,7 @@ class PlatformFeeController extends Controller
             'amount_due' => (float) $ledger->amount_due,
             'amount_paid' => (float) $ledger->amount_paid,
             'amount_remaining' => round($amountRemaining, 2),
+            'payment_reference' => 'SPORTGO-PF-'.strtoupper(substr(str_replace('-', '', $ledger->id), 0, 12)),
             'status' => $ledger->status,
             'effective_status' => $effectiveStatus,
             'paid_at' => $ledger->paid_at?->toISOString(),

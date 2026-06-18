@@ -119,7 +119,7 @@
                 </td>
                 <td class="action-cell">
                   <button v-if="canSubmitProof(fee)" class="submit-btn" type="button" @click="openProofModal(fee)">
-                    {{ fee.payment_proof.status === 'rejected' ? 'Gửi lại' : 'Gửi minh chứng' }}
+                    {{ fee.payment_proof.status === 'rejected' ? 'Xác nhận lại' : 'Xác nhận thanh toán' }}
                   </button>
                   <span v-else-if="fee.payment_proof.status === 'submitted'" class="waiting-text">Đang chờ kiểm tra</span>
                 </td>
@@ -145,8 +145,17 @@
           <strong>{{ money(proofModal.amount_remaining) }}</strong>
         </div>
 
+        <div v-if="paymentQrUrl" class="qr-payment">
+          <img :src="paymentQrUrl" alt="QR thanh toán phí nền tảng">
+          <div>
+            <strong>Quét QR để chuyển khoản</strong>
+            <span>{{ paymentAccount.bank_name }} · {{ paymentAccount.account_number }}</span>
+            <span>Nội dung: {{ proofModal.payment_reference }}</span>
+          </div>
+        </div>
+
         <label>
-          Ảnh hoặc PDF giao dịch
+          Ảnh hoặc PDF xác nhận giao dịch
           <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required @change="proofFile = $event.target.files[0] || null">
           <small>Tối đa 5 MB. File cần thể hiện rõ số tiền và nội dung giao dịch.</small>
         </label>
@@ -161,7 +170,7 @@
         <footer>
           <button class="cancel-btn" type="button" :disabled="submitting" @click="closeProofModal">Hủy</button>
           <button class="submit-btn" type="submit" :disabled="submitting || !proofFile">
-            {{ submitting ? 'Đang gửi...' : 'Gửi để kiểm tra' }}
+            {{ submitting ? 'Đang gửi...' : 'Gửi xác nhận thanh toán' }}
           </button>
         </footer>
       </form>
@@ -198,6 +207,15 @@ export default {
     filteredFees() {
       if (!this.statusFilter) return this.fees;
       return this.fees.filter((fee) => fee.effective_status === this.statusFilter);
+    },
+    paymentQrUrl() {
+      if (!this.proofModal || !this.paymentAccount?.bank_code || !this.paymentAccount?.account_number) return '';
+      const bank = encodeURIComponent(this.paymentAccount.bank_code);
+      const account = encodeURIComponent(this.paymentAccount.account_number);
+      const amount = Math.max(0, Math.round(Number(this.proofModal.amount_remaining || 0)));
+      const content = encodeURIComponent(this.proofModal.payment_reference || '');
+      const holder = encodeURIComponent(this.paymentAccount.account_holder_name || '');
+      return `https://img.vietqr.io/image/${bank}-${account}-compact2.png?amount=${amount}&addInfo=${content}&accountName=${holder}`;
     },
   },
   async mounted() {
@@ -309,4 +327,5 @@ export default {
 
 <style scoped>
 .fee-page{display:grid;gap:18px;max-width:1280px}.page-head,.table-head,.proof-modal header,.proof-modal footer{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.page-head h2,.table-head h3,.bank-card h3,.proof-modal h3{margin:0;color:#0f172a}.page-head p:not(.eyebrow),.table-head p,.muted{margin:6px 0 0;color:#64748b}.eyebrow{margin:0 0 6px;color:#059669;font-size:11px;font-weight:900;letter-spacing:.11em}.refresh-btn,.submit-btn,.cancel-btn,.close-btn{border:0;border-radius:9px;font:inherit;font-weight:800;cursor:pointer}.refresh-btn,.cancel-btn{padding:10px 14px;background:#f1f5f9;color:#334155}.submit-btn{padding:9px 13px;background:#059669;color:#fff}.submit-btn:disabled,.refresh-btn:disabled{opacity:.55;cursor:not-allowed}.state-card,.table-card,.bank-card,.summary-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px}.state-card{padding:34px;text-align:center;color:#64748b}.alert,.deadline-alert{border-radius:12px;padding:14px 16px}.alert{font-weight:750}.alert.error{background:#fee2e2;color:#991b1b}.alert.success{background:#dcfce7;color:#166534}.deadline-alert{display:flex;align-items:center;gap:13px}.deadline-alert strong{display:block;margin-bottom:4px}.deadline-alert p{margin:0;font-size:13px}.overdue-alert{background:#fff1f2;border:1px solid #fecdd3;color:#9f1239}.due-alert{background:#fffbeb;border:1px solid #fde68a;color:#92400e}.alert-icon{display:grid;place-items:center;width:30px;height:30px;flex:0 0 30px;border:2px solid currentColor;border-radius:50%;font-weight:900}.summary-grid{display:grid;grid-template-columns:1.45fr repeat(3,1fr);gap:14px}.summary-card{display:grid;gap:7px;padding:19px}.summary-card span,.summary-card small{color:#64748b}.summary-card strong{font-size:24px;color:#0f172a}.primary-card{border-color:#a7f3d0;background:linear-gradient(135deg,#ecfdf5,#fff)}.primary-card strong{color:#047857}.danger-text{color:#dc2626!important}.bank-card{display:flex;justify-content:space-between;gap:24px;padding:20px}.bank-card dl{display:grid;grid-template-columns:repeat(3,minmax(130px,1fr));gap:24px;margin:0}.bank-card dl div{display:grid;gap:5px}.bank-card dt{color:#64748b;font-size:12px}.bank-card dd{margin:0;color:#0f172a;font-weight:850}.table-card{overflow:hidden}.table-head{padding:18px 20px;border-bottom:1px solid #e2e8f0}.table-head select{border:1px solid #cbd5e1;border-radius:9px;padding:9px 12px;background:#fff;font:inherit;color:#334155}.table-wrap{overflow:auto}table{width:100%;min-width:1050px;border-collapse:collapse}th,td{padding:14px 16px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}th{background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em}td{color:#334155;font-size:13px}td strong,td small,td a{display:block}td small{margin-top:5px;color:#64748b}td a{margin-top:5px;color:#047857;font-weight:750;text-decoration:none}.status-pill,.proof-status{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:850}.status-pill.pending{background:#fef3c7;color:#92400e}.status-pill.overdue{background:#fee2e2;color:#991b1b}.status-pill.paid{background:#dcfce7;color:#166534}.status-pill.cancelled{background:#e2e8f0;color:#475569}.proof-status.none{background:#f1f5f9;color:#64748b}.proof-status.submitted{background:#dbeafe;color:#1d4ed8}.proof-status.approved{background:#dcfce7;color:#166534}.proof-status.rejected{background:#fee2e2;color:#991b1b}.reject-note{max-width:210px;color:#b91c1c!important}.action-cell{text-align:right}.waiting-text{color:#1d4ed8;font-size:12px;font-weight:800}.empty-state{padding:40px;text-align:center;color:#64748b}.modal-backdrop{position:fixed;inset:0;z-index:600;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.58)}.proof-modal{display:grid;gap:16px;width:min(570px,calc(100vw - 32px));padding:22px;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.28)}.close-btn{padding:2px 8px;background:transparent;color:#64748b;font-size:25px}.amount-box{display:flex;justify-content:space-between;align-items:center;padding:14px;border-radius:10px;background:#ecfdf5;color:#065f46}.amount-box strong{font-size:20px}.proof-modal label{display:grid;gap:7px;color:#334155;font-weight:800}.proof-modal input,.proof-modal textarea{border:1px solid #cbd5e1;border-radius:9px;padding:10px;font:inherit;font-weight:400}.proof-modal label small{color:#64748b;font-weight:400}.review-note{margin:0;padding:12px;border-radius:9px;background:#f8fafc;color:#475569;font-size:13px;line-height:1.5}.proof-modal footer{justify-content:flex-end}.proof-modal .cancel-btn{padding:9px 14px}@media(max-width:1050px){.summary-grid{grid-template-columns:repeat(2,1fr)}.bank-card{display:grid}.bank-card dl{grid-template-columns:repeat(3,1fr)}}@media(max-width:680px){.page-head,.table-head{display:grid}.summary-grid{grid-template-columns:1fr}.bank-card dl{grid-template-columns:1fr;gap:12px}.refresh-btn,.table-head select{width:100%}}
+.qr-payment{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center;padding:14px;border:1px solid #a7f3d0;border-radius:12px;background:#f0fdf4}.qr-payment img{display:block;width:150px;height:150px;border-radius:8px;background:#fff;object-fit:contain}.qr-payment div{display:grid;gap:7px;color:#475569;font-size:13px}.qr-payment strong{color:#065f46;font-size:15px}@media(max-width:560px){.qr-payment{grid-template-columns:1fr}.qr-payment img{margin:auto}}
 </style>

@@ -95,6 +95,7 @@ class OwnerPlatformFeeTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.effective_status', 'overdue')
             ->assertJsonPath('data.0.amount_remaining', 200000)
+            ->assertJsonPath('data.0.payment_reference', 'SPORTGO-PF-'.strtoupper(substr(str_replace('-', '', $this->ledger->id), 0, 12)))
             ->assertJsonPath('summary.overdue', 1)
             ->assertJsonPath('summary.outstanding_amount', 200000)
             ->assertJsonPath('payment_account.account_number', '123456789');
@@ -159,6 +160,22 @@ class OwnerPlatformFeeTest extends TestCase
             ], ['Accept' => 'application/json'])
             ->assertUnprocessable()
             ->assertJsonPath('message', 'Kỳ phí này đã hoàn tất hoặc đã hủy, không thể gửi thêm minh chứng.');
+    }
+
+    public function test_owner_cannot_confirm_fee_without_remaining_balance(): void
+    {
+        Storage::fake('public');
+        $this->ledger->update([
+            'amount_paid' => 200000,
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->post('/api/owner/platform-fees/'.$this->ledger->id.'/payment-proof', [
+                'proof' => UploadedFile::fake()->image('proof.jpg'),
+            ], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Kỳ phí này không còn số tiền cần thanh toán.');
     }
 
     private function createOwner(string $username): User
