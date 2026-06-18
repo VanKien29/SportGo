@@ -219,6 +219,7 @@ export default {
             },
             selectedSlots: [],
             quickRanges: [
+                { key: "early", label: "Đêm", start: "00:00", end: "06:00" },
                 { key: "morning", label: "Sáng", start: "06:00", end: "12:00" },
                 {
                     key: "afternoon",
@@ -227,6 +228,7 @@ export default {
                     end: "18:00",
                 },
                 { key: "evening", label: "Tối", start: "18:00", end: "22:00" },
+                { key: "late", label: "Khuya", start: "22:00", end: "24:00" },
             ],
             activeTimePeriod: "morning",
         };
