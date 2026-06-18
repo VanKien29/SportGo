@@ -122,7 +122,10 @@
 
           <aside class="side-panel">
             <h4>Thao tác xử lý</h4>
-            <div class="form-stack">
+            <p v-if="isTerminalStatus(selected.status)" class="content-box">
+              Báo cáo đã kết thúc với trạng thái “{{ statusLabel(selected.status) }}”. Nội dung xử lý được giữ lại trong lịch sử.
+            </p>
+            <div v-else class="form-stack">
               <button v-if="selected.status === 'pending'" class="btn secondary" type="button" :disabled="saving" @click="takeReview">
                 Nhận kiểm duyệt
               </button>
@@ -283,6 +286,9 @@ export default {
     },
     statusLabel(value) {
       return this.statuses.find((item) => item.value === value)?.label || value || '-';
+    },
+    isTerminalStatus(value) {
+      return ['resolved', 'dismissed'].includes(value);
     },
     actionLabel(value) {
       return {
