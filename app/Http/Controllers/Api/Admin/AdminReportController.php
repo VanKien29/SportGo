@@ -47,6 +47,14 @@ class AdminReportController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizePermission($request, 'report.view');
+        $request->validate([
+            'status' => ['nullable', Rule::in(['pending', 'reviewing', 'resolved', 'dismissed'])],
+            'reason' => ['nullable', Rule::in(['spam', 'offensive', 'fake', 'harassment', 'other'])],
+            'target_type' => ['nullable', Rule::in(array_keys(self::TARGET_TYPES))],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'keyword' => ['nullable', 'string', 'max:100'],
+        ]);
 
         $query = Report::query()
             ->with(['reporter:id,username,full_name,email', 'reviewedBy:id,username,full_name'])
