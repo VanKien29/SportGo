@@ -163,6 +163,11 @@ class AdminComplaintController extends Controller
         ]);
 
         $complaint = Complaint::query()->with(['customer', 'venueCluster.owner'])->findOrFail($id);
+        if (in_array($complaint->status, ['resolved', 'rejected', 'closed'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Khiếu nại đã kết thúc và không thể cập nhật lại.',
+            ]);
+        }
         $oldValues = $complaint->toArray();
         $isFinished = in_array($data['status'], ['resolved', 'rejected', 'closed'], true);
 

@@ -263,6 +263,34 @@ class AdminModerationTest extends TestCase
         ]);
     }
 
+    public function test_finished_complaint_cannot_be_processed_again(): void
+    {
+        $complaint = Complaint::query()->create([
+            'complaint_type' => 'system',
+            'customer_id' => $this->reporter->id,
+            'content' => 'Khiếu nại đã được giải quyết.',
+            'status' => 'resolved',
+            'assigned_to' => $this->admin->id,
+            'resolved_by' => $this->admin->id,
+            'resolve_note' => 'Đã xử lý trước đó.',
+            'resolved_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/complaints/{$complaint->id}/resolve", [
+                'status' => 'processing',
+                'resolve_note' => 'Thử mở lại trái nghiệp vụ.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $this->assertDatabaseHas('complaints', [
+            'id' => $complaint->id,
+            'status' => 'resolved',
+            'resolve_note' => 'Đã xử lý trước đó.',
+        ]);
+    }
+
     private function createUser(string $username, string $email): User
     {
         return User::query()->create([
