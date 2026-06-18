@@ -71,6 +71,7 @@ class AdminComplaintController extends Controller
             ->get();
 
         $staff = User::query()
+            ->where('status', 'active')
             ->whereHas('roles', fn ($query) => $query->whereIn('roles.name', ['super_admin', 'admin', 'complaint_handler', 'system_staff']))
             ->orderBy('full_name')
             ->get(['id', 'username', 'full_name']);
@@ -124,6 +125,7 @@ class AdminComplaintController extends Controller
 
         $assignee = User::query()
             ->whereKey($data['assigned_to'])
+            ->where('status', 'active')
             ->whereHas('roles', fn ($query) => $query->whereIn('roles.name', ['super_admin', 'admin', 'complaint_handler', 'system_staff']))
             ->first();
 

@@ -237,6 +237,32 @@ class AdminModerationTest extends TestCase
             ->assertJsonValidationErrors('date_to');
     }
 
+    public function test_complaint_cannot_be_assigned_to_locked_staff(): void
+    {
+        $lockedAdmin = $this->createUser('locked_complaint_admin', 'locked-complaint-admin@sportgo.test');
+        $this->assignRole($lockedAdmin, Role::query()->where('name', 'admin')->firstOrFail());
+        $lockedAdmin->update(['status' => 'locked']);
+        $complaint = Complaint::query()->create([
+            'complaint_type' => 'system',
+            'customer_id' => $this->reporter->id,
+            'content' => 'Cần phân công người xử lý đang hoạt động.',
+            'status' => 'open',
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/complaints/{$complaint->id}/assign", [
+                'assigned_to' => $lockedAdmin->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_to');
+
+        $this->assertDatabaseHas('complaints', [
+            'id' => $complaint->id,
+            'status' => 'open',
+            'assigned_to' => null,
+        ]);
+    }
+
     private function createUser(string $username, string $email): User
     {
         return User::query()->create([
