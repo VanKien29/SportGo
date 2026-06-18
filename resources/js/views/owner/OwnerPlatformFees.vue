@@ -19,14 +19,14 @@
         <span class="alert-icon">!</span>
         <div>
           <strong>{{ summary.overdue }} kỳ phí đã quá hạn</strong>
-          <p>Vui lòng thanh toán và gửi minh chứng. Trạng thái chỉ chuyển sang “Đã thanh toán” sau khi SportGo xác nhận.</p>
+          <p>Vui lòng thanh toán ngay.</p>
         </div>
       </div>
       <div v-else-if="dueSoonCount" class="deadline-alert due-alert">
         <span class="alert-icon">i</span>
         <div>
           <strong>{{ dueSoonCount }} kỳ phí sắp đến hạn</strong>
-          <p>Kiểm tra hạn đóng bên dưới để tránh gián đoạn hoạt động cụm sân.</p>
+          <p>Vui lòng thanh toán trước hạn đóng để tránh gián đoạn hoạt động cụm sân.</p>
         </div>
       </div>
 
@@ -56,8 +56,8 @@
       <article v-if="paymentAccount" class="bank-card">
         <div>
           <p class="eyebrow">THÔNG TIN THANH TOÁN</p>
-          <h3>Chuyển khoản phí nền tảng</h3>
-          <p class="muted">Nội dung: PHI NEN TANG + tên cụm sân + kỳ phí</p>
+          <h3>Tài khoản nhận phí của SportGo</h3>
+          <p class="muted">Mỗi kỳ phí sẽ có QR và mã chuyển khoản riêng để hệ thống tự xác nhận.</p>
         </div>
         <dl>
           <div><dt>Ngân hàng</dt><dd>{{ paymentAccount.bank_name }}</dd></div>
@@ -91,7 +91,7 @@
                 <th>Số sân</th>
                 <th>Số tiền</th>
                 <th>Trạng thái</th>
-                <th>Minh chứng</th>
+                <th>Thanh toán</th>
                 <th></th>
               </tr>
             </thead>
@@ -113,15 +113,15 @@
                 </td>
                 <td><span class="status-pill" :class="fee.effective_status">{{ statusLabel(fee.effective_status) }}</span></td>
                 <td>
-                  <span class="proof-status" :class="fee.payment_proof.status">{{ proofLabel(fee.payment_proof.status) }}</span>
-                  <small v-if="fee.payment_proof.reject_reason" class="reject-note">{{ fee.payment_proof.reject_reason }}</small>
-                  <a v-if="fee.payment_proof.file_url" :href="fee.payment_proof.file_url" target="_blank" rel="noopener">Xem tệp đã gửi</a>
+                  <span v-if="fee.effective_status === 'paid'" class="auto-status paid">Tự động xác nhận</span>
+                  <span v-else class="auto-status">QR ngân hàng</span>
+                  <small v-if="fee.payment?.code">Mã: {{ fee.payment.code }}</small>
                 </td>
                 <td class="action-cell">
-                  <button v-if="canSubmitProof(fee)" class="submit-btn" type="button" @click="openProofModal(fee)">
-                    {{ fee.payment_proof.status === 'rejected' ? 'Xác nhận lại' : 'Xác nhận thanh toán' }}
+                  <button v-if="canPay(fee)" class="submit-btn" type="button" :disabled="submitting" @click="openPaymentModal(fee)">
+                    Thanh toán
                   </button>
-                  <span v-else-if="fee.payment_proof.status === 'submitted'" class="waiting-text">Đang chờ kiểm tra</span>
+                  <span v-else-if="fee.effective_status === 'paid'" class="paid-at">{{ paidAt(fee.paid_at) }}</span>
                 </td>
               </tr>
             </tbody>
@@ -130,50 +130,41 @@
       </article>
     </template>
 
-    <div v-if="proofModal" class="modal-backdrop" @click.self="closeProofModal">
-      <form class="proof-modal" @submit.prevent="submitProof">
+    <div v-if="paymentModal" class="modal-backdrop" @click.self="closePaymentModal">
+      <section class="payment-modal">
         <header>
           <div>
-            <p class="eyebrow">MINH CHỨNG THANH TOÁN</p>
-            <h3>{{ date(proofModal.period_start) }} - {{ date(proofModal.period_end) }}</h3>
+            <p class="eyebrow">THANH TOÁN TỰ ĐỘNG</p>
+            <h3>{{ date(paymentModal.fee.period_start) }} - {{ date(paymentModal.fee.period_end) }}</h3>
           </div>
-          <button type="button" class="close-btn" @click="closeProofModal">×</button>
+          <button type="button" class="close-btn" @click="closePaymentModal">×</button>
         </header>
 
         <div class="amount-box">
-          <span>Số tiền còn lại</span>
-          <strong>{{ money(proofModal.amount_remaining) }}</strong>
+          <span>Số tiền cần chuyển</span>
+          <strong>{{ money(paymentModal.amount) }}</strong>
         </div>
 
-        <div v-if="paymentQrUrl" class="qr-payment">
-          <img :src="paymentQrUrl" alt="QR thanh toán phí nền tảng">
+        <div class="qr-payment">
+          <img :src="paymentModal.qr_url" alt="QR thanh toán phí nền tảng">
           <div>
             <strong>Quét QR để chuyển khoản</strong>
-            <span>{{ paymentAccount.bank_name }} · {{ paymentAccount.account_number }}</span>
-            <span>Nội dung: {{ proofModal.payment_reference }}</span>
+            <span>{{ paymentModal.payment_account.bank_name }} · {{ paymentModal.payment_account.account_number }}</span>
+            <span>Chủ tài khoản: {{ paymentModal.payment_account.account_holder_name }}</span>
+            <span>Nội dung: <b>{{ paymentModal.transfer_content }}</b></span>
+            <button class="copy-btn" type="button" @click="copyTransferContent">Sao chép nội dung</button>
           </div>
         </div>
 
-        <label>
-          Ảnh hoặc PDF xác nhận giao dịch
-          <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required @change="proofFile = $event.target.files[0] || null">
-          <small>Tối đa 5 MB. File cần thể hiện rõ số tiền và nội dung giao dịch.</small>
-        </label>
-
-        <label>
-          Ghi chú
-          <textarea v-model.trim="proofNote" rows="3" maxlength="1000" placeholder="Ví dụ: Đã chuyển khoản lúc 10:30 ngày 11/06/2026" />
-        </label>
-
-        <p class="review-note">Gửi minh chứng không đồng nghĩa kỳ phí đã được xác nhận thanh toán. SportGo sẽ đối soát trước khi cập nhật trạng thái.</p>
+        <p class="review-note auto-note">
+          <span class="poll-dot"></span>
+          Đang chờ giao dịch từ ngân hàng. Sau khi chuyển đúng số tiền và nội dung, kỳ phí sẽ tự chuyển sang “Đã thanh toán”.
+        </p>
 
         <footer>
-          <button class="cancel-btn" type="button" :disabled="submitting" @click="closeProofModal">Hủy</button>
-          <button class="submit-btn" type="submit" :disabled="submitting || !proofFile">
-            {{ submitting ? 'Đang gửi...' : 'Gửi xác nhận thanh toán' }}
-          </button>
+          <button class="cancel-btn" type="button" @click="closePaymentModal">Đóng</button>
         </footer>
-      </form>
+      </section>
     </div>
   </section>
 </template>
@@ -194,9 +185,8 @@ export default {
       error: '',
       success: '',
       statusFilter: '',
-      proofModal: null,
-      proofFile: null,
-      proofNote: '',
+      paymentModal: null,
+      paymentPollInterval: null,
       clusterId: localStorage.getItem('selected_cluster') || '',
     };
   },
@@ -208,15 +198,6 @@ export default {
       if (!this.statusFilter) return this.fees;
       return this.fees.filter((fee) => fee.effective_status === this.statusFilter);
     },
-    paymentQrUrl() {
-      if (!this.proofModal || !this.paymentAccount?.bank_code || !this.paymentAccount?.account_number) return '';
-      const bank = encodeURIComponent(this.paymentAccount.bank_code);
-      const account = encodeURIComponent(this.paymentAccount.account_number);
-      const amount = Math.max(0, Math.round(Number(this.proofModal.amount_remaining || 0)));
-      const content = encodeURIComponent(this.proofModal.payment_reference || '');
-      const holder = encodeURIComponent(this.paymentAccount.account_holder_name || '');
-      return `https://img.vietqr.io/image/${bank}-${account}-compact2.png?amount=${amount}&addInfo=${content}&accountName=${holder}`;
-    },
   },
   async mounted() {
     window.addEventListener('owner-cluster-changed', this.handleClusterChanged);
@@ -224,9 +205,11 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.handleClusterChanged);
+    this.clearPaymentPolling();
   },
   methods: {
     async handleClusterChanged(event) {
+      this.closePaymentModal();
       this.clusterId = event.detail?.id || localStorage.getItem('selected_cluster') || '';
       await this.loadFees();
     },
@@ -252,44 +235,66 @@ export default {
         this.loading = false;
       }
     },
-    openProofModal(fee) {
-      this.proofModal = fee;
-      this.proofFile = null;
-      this.proofNote = '';
-      this.error = '';
-      this.success = '';
-    },
-    closeProofModal() {
-      if (this.submitting) return;
-      this.proofModal = null;
-      this.proofFile = null;
-      this.proofNote = '';
-    },
-    async submitProof() {
-      if (!this.proofModal || !this.proofFile) return;
+    async openPaymentModal(fee) {
       this.submitting = true;
       this.error = '';
-
-      const formData = new FormData();
-      formData.append('proof', this.proofFile);
-      if (this.proofNote) formData.append('note', this.proofNote);
+      this.success = '';
 
       try {
-        const response = await ownerPlatformFeeService.submitProof(this.proofModal.id, formData);
-        this.proofModal = null;
-        this.proofFile = null;
-        this.proofNote = '';
-        await this.loadFees();
-        this.success = response.message;
+        const response = await ownerPlatformFeeService.createPayment(fee.id);
+        this.paymentModal = {
+          fee: response.data,
+          amount: response.amount,
+          qr_url: response.qr_url,
+          transfer_content: response.transfer_content,
+          payment_account: response.payment_account,
+        };
+        this.startPaymentPolling();
       } catch (error) {
-        this.error = error.message || 'Không thể gửi minh chứng thanh toán.';
+        this.error = error.message || 'Không thể tạo QR thanh toán phí nền tảng.';
       } finally {
         this.submitting = false;
       }
     },
-    canSubmitProof(fee) {
-      return ['pending', 'overdue'].includes(fee.effective_status)
-        && ['none', 'rejected'].includes(fee.payment_proof.status);
+    closePaymentModal() {
+      this.clearPaymentPolling();
+      this.paymentModal = null;
+    },
+    startPaymentPolling() {
+      this.clearPaymentPolling();
+      this.paymentPollInterval = window.setInterval(this.refreshPaymentStatus, 4000);
+    },
+    clearPaymentPolling() {
+      if (!this.paymentPollInterval) return;
+      window.clearInterval(this.paymentPollInterval);
+      this.paymentPollInterval = null;
+    },
+    async refreshPaymentStatus() {
+      if (!this.paymentModal?.fee?.id) return;
+
+      try {
+        const response = await ownerPlatformFeeService.detail(this.paymentModal.fee.id);
+        const fee = response.data;
+        if (fee.effective_status !== 'paid') return;
+
+        this.clearPaymentPolling();
+        this.paymentModal = null;
+        await this.loadFees();
+        this.success = 'Thanh toán đã được ngân hàng xác nhận tự động.';
+      } catch {
+        // Giữ polling; lỗi mạng tạm thời không làm gián đoạn QR đang hiển thị.
+      }
+    },
+    async copyTransferContent() {
+      try {
+        await navigator.clipboard.writeText(this.paymentModal?.transfer_content || '');
+        this.success = 'Đã sao chép nội dung chuyển khoản.';
+      } catch {
+        this.error = 'Không thể sao chép nội dung chuyển khoản.';
+      }
+    },
+    canPay(fee) {
+      return ['pending', 'overdue'].includes(fee.effective_status) && Number(fee.amount_remaining) > 0;
     },
     money(value) {
       return new Intl.NumberFormat('vi-VN', {
@@ -313,19 +318,18 @@ export default {
         cancelled: 'Đã hủy',
       }[status] || status;
     },
-    proofLabel(status) {
-      return {
-        none: 'Chưa gửi',
-        submitted: 'Chờ xác nhận',
-        approved: 'Đã duyệt',
-        rejected: 'Bị từ chối',
-      }[status] || status;
+    paidAt(value) {
+      if (!value) return 'Đã hoàn tất';
+      return new Intl.DateTimeFormat('vi-VN', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }).format(new Date(value));
     },
   },
 };
 </script>
 
 <style scoped>
-.fee-page{display:grid;gap:18px;max-width:1280px}.page-head,.table-head,.proof-modal header,.proof-modal footer{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.page-head h2,.table-head h3,.bank-card h3,.proof-modal h3{margin:0;color:#0f172a}.page-head p:not(.eyebrow),.table-head p,.muted{margin:6px 0 0;color:#64748b}.eyebrow{margin:0 0 6px;color:#059669;font-size:11px;font-weight:900;letter-spacing:.11em}.refresh-btn,.submit-btn,.cancel-btn,.close-btn{border:0;border-radius:9px;font:inherit;font-weight:800;cursor:pointer}.refresh-btn,.cancel-btn{padding:10px 14px;background:#f1f5f9;color:#334155}.submit-btn{padding:9px 13px;background:#059669;color:#fff}.submit-btn:disabled,.refresh-btn:disabled{opacity:.55;cursor:not-allowed}.state-card,.table-card,.bank-card,.summary-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px}.state-card{padding:34px;text-align:center;color:#64748b}.alert,.deadline-alert{border-radius:12px;padding:14px 16px}.alert{font-weight:750}.alert.error{background:#fee2e2;color:#991b1b}.alert.success{background:#dcfce7;color:#166534}.deadline-alert{display:flex;align-items:center;gap:13px}.deadline-alert strong{display:block;margin-bottom:4px}.deadline-alert p{margin:0;font-size:13px}.overdue-alert{background:#fff1f2;border:1px solid #fecdd3;color:#9f1239}.due-alert{background:#fffbeb;border:1px solid #fde68a;color:#92400e}.alert-icon{display:grid;place-items:center;width:30px;height:30px;flex:0 0 30px;border:2px solid currentColor;border-radius:50%;font-weight:900}.summary-grid{display:grid;grid-template-columns:1.45fr repeat(3,1fr);gap:14px}.summary-card{display:grid;gap:7px;padding:19px}.summary-card span,.summary-card small{color:#64748b}.summary-card strong{font-size:24px;color:#0f172a}.primary-card{border-color:#a7f3d0;background:linear-gradient(135deg,#ecfdf5,#fff)}.primary-card strong{color:#047857}.danger-text{color:#dc2626!important}.bank-card{display:flex;justify-content:space-between;gap:24px;padding:20px}.bank-card dl{display:grid;grid-template-columns:repeat(3,minmax(130px,1fr));gap:24px;margin:0}.bank-card dl div{display:grid;gap:5px}.bank-card dt{color:#64748b;font-size:12px}.bank-card dd{margin:0;color:#0f172a;font-weight:850}.table-card{overflow:hidden}.table-head{padding:18px 20px;border-bottom:1px solid #e2e8f0}.table-head select{border:1px solid #cbd5e1;border-radius:9px;padding:9px 12px;background:#fff;font:inherit;color:#334155}.table-wrap{overflow:auto}table{width:100%;min-width:1050px;border-collapse:collapse}th,td{padding:14px 16px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}th{background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em}td{color:#334155;font-size:13px}td strong,td small,td a{display:block}td small{margin-top:5px;color:#64748b}td a{margin-top:5px;color:#047857;font-weight:750;text-decoration:none}.status-pill,.proof-status{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:850}.status-pill.pending{background:#fef3c7;color:#92400e}.status-pill.overdue{background:#fee2e2;color:#991b1b}.status-pill.paid{background:#dcfce7;color:#166534}.status-pill.cancelled{background:#e2e8f0;color:#475569}.proof-status.none{background:#f1f5f9;color:#64748b}.proof-status.submitted{background:#dbeafe;color:#1d4ed8}.proof-status.approved{background:#dcfce7;color:#166534}.proof-status.rejected{background:#fee2e2;color:#991b1b}.reject-note{max-width:210px;color:#b91c1c!important}.action-cell{text-align:right}.waiting-text{color:#1d4ed8;font-size:12px;font-weight:800}.empty-state{padding:40px;text-align:center;color:#64748b}.modal-backdrop{position:fixed;inset:0;z-index:600;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.58)}.proof-modal{display:grid;gap:16px;width:min(570px,calc(100vw - 32px));padding:22px;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.28)}.close-btn{padding:2px 8px;background:transparent;color:#64748b;font-size:25px}.amount-box{display:flex;justify-content:space-between;align-items:center;padding:14px;border-radius:10px;background:#ecfdf5;color:#065f46}.amount-box strong{font-size:20px}.proof-modal label{display:grid;gap:7px;color:#334155;font-weight:800}.proof-modal input,.proof-modal textarea{border:1px solid #cbd5e1;border-radius:9px;padding:10px;font:inherit;font-weight:400}.proof-modal label small{color:#64748b;font-weight:400}.review-note{margin:0;padding:12px;border-radius:9px;background:#f8fafc;color:#475569;font-size:13px;line-height:1.5}.proof-modal footer{justify-content:flex-end}.proof-modal .cancel-btn{padding:9px 14px}@media(max-width:1050px){.summary-grid{grid-template-columns:repeat(2,1fr)}.bank-card{display:grid}.bank-card dl{grid-template-columns:repeat(3,1fr)}}@media(max-width:680px){.page-head,.table-head{display:grid}.summary-grid{grid-template-columns:1fr}.bank-card dl{grid-template-columns:1fr;gap:12px}.refresh-btn,.table-head select{width:100%}}
-.qr-payment{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center;padding:14px;border:1px solid #a7f3d0;border-radius:12px;background:#f0fdf4}.qr-payment img{display:block;width:150px;height:150px;border-radius:8px;background:#fff;object-fit:contain}.qr-payment div{display:grid;gap:7px;color:#475569;font-size:13px}.qr-payment strong{color:#065f46;font-size:15px}@media(max-width:560px){.qr-payment{grid-template-columns:1fr}.qr-payment img{margin:auto}}
+.fee-page{display:grid;gap:18px;max-width:1280px}.page-head,.table-head,.payment-modal header,.payment-modal footer{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.page-head h2,.table-head h3,.bank-card h3,.payment-modal h3{margin:0;color:#0f172a}.page-head p:not(.eyebrow),.table-head p,.muted{margin:6px 0 0;color:#64748b}.eyebrow{margin:0 0 6px;color:#059669;font-size:11px;font-weight:900;letter-spacing:.11em}.refresh-btn,.submit-btn,.cancel-btn,.close-btn{border:0;border-radius:9px;font:inherit;font-weight:800;cursor:pointer}.refresh-btn,.cancel-btn{padding:10px 14px;background:#f1f5f9;color:#334155}.submit-btn{padding:9px 13px;background:#059669;color:#fff}.submit-btn:disabled,.refresh-btn:disabled{opacity:.55;cursor:not-allowed}.state-card,.table-card,.bank-card,.summary-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px}.state-card{padding:34px;text-align:center;color:#64748b}.alert,.deadline-alert{border-radius:12px;padding:14px 16px}.alert{font-weight:750}.alert.error{background:#fee2e2;color:#991b1b}.alert.success{background:#dcfce7;color:#166534}.deadline-alert{display:flex;align-items:center;gap:13px}.deadline-alert strong{display:block;margin-bottom:4px}.deadline-alert p{margin:0;font-size:13px}.overdue-alert{background:#fff1f2;border:1px solid #fecdd3;color:#9f1239}.due-alert{background:#fffbeb;border:1px solid #fde68a;color:#92400e}.alert-icon{display:grid;place-items:center;width:30px;height:30px;flex:0 0 30px;border:2px solid currentColor;border-radius:50%;font-weight:900}.summary-grid{display:grid;grid-template-columns:1.45fr repeat(3,1fr);gap:14px}.summary-card{display:grid;gap:7px;padding:19px}.summary-card span,.summary-card small{color:#64748b}.summary-card strong{font-size:24px;color:#0f172a}.primary-card{border-color:#a7f3d0;background:linear-gradient(135deg,#ecfdf5,#fff)}.primary-card strong{color:#047857}.danger-text{color:#dc2626!important}.bank-card{display:flex;justify-content:space-between;gap:24px;padding:20px}.bank-card dl{display:grid;grid-template-columns:repeat(3,minmax(130px,1fr));gap:24px;margin:0}.bank-card dl div{display:grid;gap:5px}.bank-card dt{color:#64748b;font-size:12px}.bank-card dd{margin:0;color:#0f172a;font-weight:850}.table-card{overflow:hidden}.table-head{padding:18px 20px;border-bottom:1px solid #e2e8f0}.table-head select{border:1px solid #cbd5e1;border-radius:9px;padding:9px 12px;background:#fff;font:inherit;color:#334155}.table-wrap{overflow:auto}table{width:100%;min-width:1050px;border-collapse:collapse}th,td{padding:14px 16px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}th{background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em}td{color:#334155;font-size:13px}td strong,td small,td a{display:block}td small{margin-top:5px;color:#64748b}td a{margin-top:5px;color:#047857;font-weight:750;text-decoration:none}.status-pill{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:850}.status-pill.pending{background:#fef3c7;color:#92400e}.status-pill.overdue{background:#fee2e2;color:#991b1b}.status-pill.paid{background:#dcfce7;color:#166534}.status-pill.cancelled{background:#e2e8f0;color:#475569}.action-cell{text-align:right}.empty-state{padding:40px;text-align:center;color:#64748b}.modal-backdrop{position:fixed;inset:0;z-index:600;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.58)}.payment-modal{display:grid;gap:16px;width:min(570px,calc(100vw - 32px));padding:22px;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.28)}.close-btn{padding:2px 8px;background:transparent;color:#64748b;font-size:25px}.amount-box{display:flex;justify-content:space-between;align-items:center;padding:14px;border-radius:10px;background:#ecfdf5;color:#065f46}.amount-box strong{font-size:20px}.review-note{margin:0;padding:12px;border-radius:9px;background:#f8fafc;color:#475569;font-size:13px;line-height:1.5}.payment-modal footer{justify-content:flex-end}.payment-modal .cancel-btn{padding:9px 14px}@media(max-width:1050px){.summary-grid{grid-template-columns:repeat(2,1fr)}.bank-card{display:grid}.bank-card dl{grid-template-columns:repeat(3,1fr)}}@media(max-width:680px){.page-head,.table-head{display:grid}.summary-grid{grid-template-columns:1fr}.bank-card dl{grid-template-columns:1fr;gap:12px}.refresh-btn,.table-head select{width:100%}}
+.qr-payment{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center;padding:14px;border:1px solid #a7f3d0;border-radius:12px;background:#f0fdf4}.qr-payment img{display:block;width:150px;height:150px;border-radius:8px;background:#fff;object-fit:contain}.qr-payment div{display:grid;gap:7px;color:#475569;font-size:13px}.qr-payment strong{color:#065f46;font-size:15px}.copy-btn{justify-self:start;border:0;padding:0;background:transparent;color:#047857;font:inherit;font-weight:850;text-decoration:underline;cursor:pointer}.auto-status{display:inline-flex;border-radius:999px;padding:5px 9px;background:#dbeafe;color:#1d4ed8;font-size:11px;font-weight:850}.auto-status.paid{background:#dcfce7;color:#166534}.paid-at{color:#64748b;font-size:12px;font-weight:750}.auto-note{display:flex;align-items:center;gap:9px;background:#eff6ff;color:#1e40af}.poll-dot{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#2563eb;box-shadow:0 0 0 0 rgba(37,99,235,.45);animation:poll-pulse 1.5s infinite}@keyframes poll-pulse{70%{box-shadow:0 0 0 8px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}@media(max-width:560px){.qr-payment{grid-template-columns:1fr}.qr-payment img{margin:auto}}
 </style>

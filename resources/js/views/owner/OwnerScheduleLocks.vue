@@ -228,7 +228,6 @@ export default {
                     end: "18:00",
                 },
                 { key: "evening", label: "Tối", start: "18:00", end: "22:00" },
-                { key: "late", label: "Khuya", start: "22:00", end: "24:00" },
             ],
             activeTimePeriod: "morning",
         };
