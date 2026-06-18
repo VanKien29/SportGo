@@ -442,20 +442,22 @@ export function updateTier(id, payload) {
 }
 
 export function deactivateTier(id, reason = 'Ngừng sử dụng') {
-  const tier = platformFeeStore.state.tiers.find((item) => item.id === id);
+  const oldTiers = cloneValue(platformFeeStore.state.tiers);
+  const proposed = cloneValue(platformFeeStore.state.tiers);
+  const tier = proposed.find((item) => item.id === id);
   if (!tier) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
 
-  const oldTier = cloneValue(tier);
+  const oldTier = oldTiers.find((item) => item.id === id);
   tier.is_active = false;
   tier.inactive_reason = reason;
   tier.updated_at = new Date().toISOString();
-  const rangeAdjustments = rebalanceTierRanges(platformFeeStore.state.tiers);
-  const coverage = validateTierCoverage(platformFeeStore.state.tiers);
+  const rangeAdjustments = rebalanceTierRanges(proposed);
+  const coverage = validateTierCoverage(proposed);
   if (!coverage.isValid) {
-    Object.assign(tier, oldTier);
     return Promise.reject(Object.assign(new Error('Ngừng dùng bậc phí sẽ làm thiếu khoảng áp dụng.'), { coverage }));
   }
 
+  platformFeeStore.state.tiers = proposed;
   platformFeeStore.save();
   addAuditLog('platform_fee_tier.deactivated', 'platform_fee_tier', id, oldTier, tier, 'platform_fee_tier');
   return Promise.resolve(cloneValue({ ...tier, range_adjustments: rangeAdjustments }));
