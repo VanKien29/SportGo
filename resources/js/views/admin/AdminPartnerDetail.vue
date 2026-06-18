@@ -111,6 +111,9 @@
                     <AppIcon name="xCircle" size="14" /> Đơn phương chấm dứt
                   </button>
                 </div>
+                <button v-if="contract.status === 'pending_sportgo_signature'" @click="approveSignature(contract.id)" class="btn primary small" :disabled="savingAction">
+                  <AppIcon name="check" size="16" /> Ký duyệt Hợp đồng
+                </button>
               </div>
 
               <!-- Danh sách yêu cầu thanh lý nếu có -->
@@ -402,6 +405,19 @@ export default {
         alert('Đã duyệt yêu cầu thanh lý!');
       } catch (err) {
         alert(err.message || 'Lỗi khi duyệt yêu cầu thanh lý.');
+      } finally {
+        this.savingAction = false;
+      }
+    },
+    async approveSignature(contractId) {
+      if (!confirm('Xác nhận ký phê duyệt và cấp quyền cho đối tác này?')) return;
+      this.savingAction = true;
+      try {
+        await api.post(`/admin/contracts/${contractId}/approve-signature`);
+        await this.fetchData();
+        alert('Đã ký phê duyệt hợp đồng thành công!');
+      } catch (err) {
+        alert(err.message || 'Lỗi khi ký phê duyệt hợp đồng.');
       } finally {
         this.savingAction = false;
       }
