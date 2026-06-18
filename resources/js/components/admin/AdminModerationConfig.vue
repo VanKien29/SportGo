@@ -36,32 +36,20 @@
             </div>
             <div class="score-grid" v-if="currentScoreConfig">
               <div class="stat-box">
-                <span>{{ dynamicLabels.autoHide }}</span>
-                <strong>{{ currentScoreConfig.auto_hide_score }}</strong>
+                <span>Ngưỡng cảnh báo</span>
+                <strong>{{ currentScoreConfig.warning_threshold }}</strong>
               </div>
               <div class="stat-box">
-                <span>{{ dynamicLabels.adminAlert }}</span>
-                <strong>{{ currentScoreConfig.admin_alert_score }}</strong>
+                <span>Ngưỡng thực hiện thao tác (Ẩn/Khóa)</span>
+                <strong>{{ currentScoreConfig.action_threshold }}</strong>
               </div>
               <div class="stat-box">
-                <span>Thời gian lưu (Ngày)</span>
-                <strong>{{ currentScoreConfig.score_window_days }}</strong>
+                <span>Số người báo cáo khác nhau</span>
+                <strong>{{ currentScoreConfig.unique_reporters_threshold }}</strong>
               </div>
               <div class="stat-box">
-                <span>Tự động Reset sau (Ngày)</span>
-                <strong>{{ currentScoreConfig.score_reset_days }}</strong>
-              </div>
-            </div>
-            
-            <h5 v-if="currentScoreConfig" style="margin-top: 24px; margin-bottom: 12px; color: #475569; font-size: 0.95rem;">Hình phạt áp dụng khi vi phạm</h5>
-            <div class="score-grid" v-if="currentScoreConfig">
-              <div class="stat-box">
-                <span>Hành động xử lý</span>
-                <strong>{{ getActionLabel(currentScoreConfig.action_type) }}</strong>
-              </div>
-              <div class="stat-box">
-                <span>Thời hạn phạt</span>
-                <strong>{{ currentScoreConfig.duration_days ? `${currentScoreConfig.duration_days} ngày` : getDisabledDurationLabel(currentScoreConfig.action_type) }}</strong>
+                <span>Thời gian theo dõi (Ngày)</span>
+                <strong>{{ currentScoreConfig.timeframe_days }}</strong>
               </div>
             </div>
             
@@ -82,32 +70,20 @@
         </div>
         <div class="mod-modal-body">
           <div class="mod-form-group">
-            <label>{{ dynamicLabels.autoHide }}</label>
-            <input class="mod-input" type="number" v-model.number="scoreDraft.auto_hide_score" required min="1" />
+            <label>Ngưỡng cảnh báo (Số báo cáo tối thiểu)</label>
+            <input class="mod-input" type="number" v-model.number="scoreDraft.warning_threshold" required min="1" />
           </div>
           <div class="mod-form-group">
-            <label>{{ dynamicLabels.adminAlert }}</label>
-            <input class="mod-input" type="number" v-model.number="scoreDraft.admin_alert_score" required min="1" />
+            <label>Ngưỡng thực hiện thao tác Ẩn/Khóa (Số báo cáo)</label>
+            <input class="mod-input" type="number" v-model.number="scoreDraft.action_threshold" required min="1" />
           </div>
           <div class="mod-form-group">
-            <label>Thời gian lưu điểm (Ngày)</label>
-            <input class="mod-input" type="number" v-model.number="scoreDraft.score_window_days" required min="1" />
+            <label>Ngưỡng số người báo cáo khác nhau</label>
+            <input class="mod-input" type="number" v-model.number="scoreDraft.unique_reporters_threshold" required min="1" />
           </div>
           <div class="mod-form-group">
-            <label>Thời gian reset (Ngày)</label>
-            <input class="mod-input" type="number" v-model.number="scoreDraft.score_reset_days" required min="1" />
-          </div>
-          <h4 style="margin: 24px 0 16px; color: #1e293b; font-size: 1rem; padding-top: 16px; border-top: 1px dashed #e2e8f0;">Hình phạt áp dụng khi vi phạm</h4>
-          <div class="mod-form-group">
-            <label>Hành động xử lý</label>
-            <select class="mod-input" v-model="scoreDraft.action_type" required @change="scoreDraft.duration_days = null">
-              <option v-for="opt in allowedActionsForTarget" :key="opt.key" :value="opt.key">{{ opt.label }}</option>
-            </select>
-          </div>
-          <div class="mod-form-group">
-            <label>Thời hạn (Ngày)</label>
-            <input v-if="requiresDuration(scoreDraft.action_type)" class="mod-input" type="number" v-model.number="scoreDraft.duration_days" required min="1" placeholder="Nhập số ngày..." />
-            <div v-else class="mod-input-disabled">{{ getDisabledDurationLabel(scoreDraft.action_type) }}</div>
+            <label>Thời gian theo dõi (Ngày)</label>
+            <input class="mod-input" type="number" v-model.number="scoreDraft.timeframe_days" required min="1" />
           </div>
           <p class="mod-error-text" v-if="scoreError">{{ scoreError }}</p>
         </div>
@@ -122,7 +98,7 @@
 </template>
 
 <script>
-import { TARGET_TYPE_LABELS, ESCALATION_ACTION_LABELS } from '../../utils/labelMaps.js';
+import { TARGET_TYPE_LABELS } from '../../utils/labelMaps.js';
 import { api } from '../../services/api.js';
 
 export default {
@@ -149,35 +125,6 @@ export default {
     },
     currentScoreConfig() {
       return this.scoreThresholds.find(s => s.target_type === this.activeTarget);
-    },
-    allowedActionsForTarget() {
-      const all = Object.entries(ESCALATION_ACTION_LABELS).map(([key, label]) => ({ key, label }));
-      if (['community_post', 'venue_post', 'comment'].includes(this.activeTarget)) {
-        return all.filter(a => ['warn', 'hide_content', 'delete_content'].includes(a.key));
-      }
-      if (this.activeTarget === 'user') {
-        return all.filter(a => ['warn', 'lock_temp', 'lock_permanent'].includes(a.key));
-      }
-      if (this.activeTarget === 'venue_cluster') {
-        return all.filter(a => ['warn', 'limit_venue', 'block_venue', 'terminate_contract'].includes(a.key));
-      }
-      return all;
-    },
-    dynamicLabels() {
-      const target = this.activeTarget;
-      let autoHide = 'Điểm tự động xử lý';
-      let adminAlert = 'Điểm cảnh báo Admin';
-      
-      if (['community_post', 'venue_post', 'comment'].includes(target)) {
-        autoHide = 'Điểm tự động ẩn nội dung';
-      } else if (target === 'user') {
-        autoHide = 'Điểm tự động khóa tài khoản';
-      } else if (target === 'venue_cluster') {
-        autoHide = 'Ngưỡng tự động gửi công văn / khóa sân';
-        adminAlert = 'Ngưỡng điểm cảnh báo chủ sân';
-      }
-      
-      return { autoHide, adminAlert };
     }
   },
   mounted() {
@@ -186,19 +133,6 @@ export default {
   methods: {
     getTargetLabel(key) {
       return TARGET_TYPE_LABELS[key] || key;
-    },
-    getActionLabel(key) {
-      return ESCALATION_ACTION_LABELS[key] || key;
-    },
-    requiresDuration(actionType) {
-      return ['lock_temp', 'limit_venue', 'block_venue'].includes(actionType);
-    },
-    getDisabledDurationLabel(actionType) {
-      if (['lock_permanent', 'terminate_contract'].includes(actionType)) return 'Vĩnh viễn (Cả đời)';
-      if (actionType === 'warn') return '1 lần (Chỉ thông báo)';
-      if (['hide_content', 'delete_content'].includes(actionType)) return 'Xử lý ngay lập tức';
-      if (actionType === 'manual_review') return 'Chờ Admin duyệt';
-      return 'Không áp dụng';
     },
     async fetchScoreThresholds() {
       this.loading = true;
@@ -214,35 +148,35 @@ export default {
     
     // --- Score Modal ---
     openScoreModal() {
+      this.scoreError = '';
       if (this.currentScoreConfig) {
         this.scoreDraft = { ...this.currentScoreConfig };
       } else {
         this.scoreDraft = {
           target_type: this.activeTarget,
-          auto_hide_score: 10,
-          admin_alert_score: 20,
-          score_window_days: 30,
-          score_reset_days: 90,
-          action_type: 'warn',
-          duration_days: null
+          warning_threshold: 3,
+          action_threshold: 5,
+          unique_reporters_threshold: 2,
+          timeframe_days: 7
         };
       }
-      this.scoreError = '';
       this.showScoreModal = true;
     },
     async saveScoreConfig() {
-      if (this.scoreDraft.auto_hide_score <= this.scoreDraft.admin_alert_score) {
-        this.scoreError = `${this.dynamicLabels.autoHide} phải lớn hơn ${this.dynamicLabels.adminAlert}.`;
-        return;
-      }
-      if (this.requiresDuration(this.scoreDraft.action_type) && !this.scoreDraft.duration_days) {
-        this.scoreError = 'Vui lòng nhập số ngày áp dụng cho hình phạt tạm thời.';
-        return;
-      }
       this.savingScore = true;
       this.scoreError = '';
       try {
-        const payload = { score_thresholds: [this.scoreDraft] };
+        const payload = { 
+          score_thresholds: [
+            {
+              target_type: this.scoreDraft.target_type,
+              warning_threshold: this.scoreDraft.warning_threshold,
+              action_threshold: this.scoreDraft.action_threshold,
+              unique_reporters_threshold: this.scoreDraft.unique_reporters_threshold,
+              timeframe_days: this.scoreDraft.timeframe_days
+            }
+          ] 
+        };
         await api(`/api/admin/policies/${this.policyId}/moderation-thresholds`, {
           method: 'PUT',
           body: JSON.stringify(payload)

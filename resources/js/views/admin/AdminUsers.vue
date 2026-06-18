@@ -5,7 +5,12 @@
         <h2>Quản lý tài khoản</h2>
         <p>Theo dõi trạng thái, cảnh báo, vai trò và các thao tác nhạy cảm của tài khoản.</p>
       </div>
-      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadUsers" />
+      <div class="head-actions" style="display: flex; gap: 10px;">
+        <button type="button" class="btn" style="display: inline-flex; align-items: center; gap: 6px;" @click="openPolicyModal">
+          <AppIcon name="settings" size="16" /> Cấu hình khóa tự động
+        </button>
+        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadUsers" />
+      </div>
     </header>
 
     <nav class="tabs" aria-label="Lọc nhanh tài khoản">
@@ -41,9 +46,8 @@
         <span>Mức cảnh báo</span>
         <select v-model="filters.warning_level" @change="reloadFromFirstPage">
           <option value="">Tất cả cảnh báo</option>
-          <option value="watch">Cần theo dõi</option>
-          <option value="near_lock">Gần ngưỡng khóa</option>
-          <option value="lock_suggested">Đề xuất khóa</option>
+          <option value="near_lock">Cần theo dõi</option>
+          <option value="lock_suggested">Cần xử lý</option>
         </select>
       </label>
       <ActionIconButton icon="refresh" label="Xóa lọc" @click="resetFilters" />
@@ -77,16 +81,16 @@
             <td>
               <strong>{{ user.full_name || '-' }}</strong>
               <small>{{ user.warning_summary?.message }}</small>
-              <span v-if="(user.reports_count_recent || 0) >= 3" class="badge-report">⚠ {{ user.reports_count_recent }} báo cáo</span>
+              <span v-if="(user.reports_count_recent || 0) >= 3" class="badge-report">
+                <AppIcon name="alert" size="12" style="margin-right: 4px;" /> {{ user.reports_count_recent }} báo cáo
+              </span>
               <span v-if="user.status === 'locked'" class="badge-locked">Đang khóa</span>
             </td>
             <td>{{ user.username }}</td>
             <td>{{ user.email || user.phone || '-' }}</td>
             <td>{{ user.primary_role_label || (user.roles && user.roles[0]) || '-' }}</td>
             <td>
-              <span class="status" :class="user.status">{{ user.status_label || statusLabel(user.status) }}</span>
-              <small v-if="user.status === 'locked' && user.locked_until" class="lock-until">đến {{ dateTime(user.locked_until) }}</small>
-              <small v-else-if="user.status === 'locked'" class="lock-until">Vĩnh viễn</small>
+              <span class="status" :class="user.status">{{ user.status_label || getAccountStatusLabel(user.status) }}</span>
             </td>
             <td>
               <span class="warning" :class="user.warning_summary?.level || 'normal'">
@@ -168,6 +172,77 @@
         </footer>
       </form>
     </div>
+
+    <!-- Modal Cấu hình khóa tự động -->
+    <div v-if="showPolicyModal" class="modal-backdrop" @click.self="closePolicyModal">
+      <div class="modal" style="max-width: 500px;">
+        <h3>Cấu hình khóa tự động</h3>
+        <p class="muted" style="margin-top: 4px;">Cấu hình tự động khóa tài khoản khi bị nhiều người báo cáo.</p>
+        
+        <div v-if="policyLoading" class="state">Đang tải cấu hình...</div>
+        <template v-else-if="policyConfig">
+          <!-- Thông tin chính sách (chỉ đọc) -->
+          <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-top: 16px;">
+            <div style="font-weight: 700; color: #334155; margin-bottom: 10px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.3px;">Ngưỡng từ chính sách</div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
+              <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng cảnh báo:</span>
+              <strong style="color: #d97706;">{{ policyConfig.warning_threshold }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
+              <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
+              <strong style="color: #dc2626;">{{ policyConfig.lock_threshold }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
+              <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo khác nhau:</span>
+              <strong style="color: #2563eb;">{{ policyConfig.unique_reporters_threshold }} người</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: #64748b; font-size: 0.9rem;">Thời gian theo dõi (Ngày):</span>
+              <strong style="color: #334155;">{{ policyConfig.window_days }} ngày</strong>
+            </div>
+          </div>
+
+          <!-- Cấu hình chỉnh sửa -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-top: 12px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center;">
+              <span style="color: #334155; font-size: 0.9rem; font-weight: 600;">Tự động khóa:</span>
+              <div class="toggle-slider" :class="{ on: policyConfig.is_auto_lock_enabled }" @click="policyConfig.is_auto_lock_enabled = !policyConfig.is_auto_lock_enabled"></div>
+            </div>
+            <div v-if="policyConfig.is_auto_lock_enabled" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+              <label style="display: flex; flex-direction: column; gap: 6px;">
+                <span style="color: #64748b; font-size: 0.9rem;">Lý do khóa tự động:</span>
+                <input type="text" v-model="policyConfig.reason" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" placeholder="Ví dụ: Vi phạm tiêu chuẩn cộng đồng nhiều lần" />
+              </label>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #64748b; font-size: 0.9rem;">Thời hạn khóa:</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input type="number" v-model.number="policyConfig.duration_days" style="width: 80px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px;" min="1" />
+                  <span class="muted">ngày</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 12px; padding: 10px 12px; background: #eff6ff; border-radius: 8px; font-size: 0.85rem; color: #1e40af; display: flex; align-items: flex-start; gap: 8px;">
+            <AppIcon name="info" size="16" style="flex-shrink: 0; margin-top: 2px;" />
+            <div>
+              Khi số người báo cáo khác nhau đạt <strong>ngưỡng cảnh báo</strong>, tài khoản sẽ hiển thị cảnh báo vàng. Khi đạt <strong>ngưỡng khóa</strong> và tự động khóa đang bật, hệ thống sẽ tự động khóa tài khoản.
+            </div>
+          </div>
+          
+          <div style="margin-top: 12px; text-align: center;">
+            <router-link v-if="policyConfig.policy_id" :to="`/admin/policies/${policyConfig.policy_id}`" class="btn secondary" style="text-decoration: none; display: inline-block; font-size: 0.85rem;">
+              Chỉnh ngưỡng tại Chính sách hệ thống →
+            </router-link>
+          </div>
+        </template>
+
+        <footer style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn secondary" @click="closePolicyModal">Hủy</button>
+          <button type="button" class="btn primary" style="background: #10b981; color: white;" @click="savePolicyConfig" :disabled="policySaving">Lưu cấu hình</button>
+        </footer>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -176,6 +251,7 @@ import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import { adminUserService } from '../../services/adminUserService.js';
+import { getAccountStatusLabel } from '../../utils/labelMaps.js';
 
 export default {
   name: 'AdminUsers',
@@ -222,8 +298,11 @@ export default {
       lockTypes: [
         { value: 'temporary', label: 'Tạm thời' },
         { value: 'permanent', label: 'Vĩnh viễn' },
-        { value: 'auto', label: 'Tự động' },
       ],
+      showPolicyModal: false,
+      policyConfig: null,
+      policyLoading: false,
+      policySaving: false,
     };
   },
   mounted() {
@@ -316,14 +395,38 @@ export default {
         this.saving = false;
       }
     },
-    statusLabel(status) {
-      return {
-        active: 'Đang hoạt động',
-        locked: 'Đã khóa',
-        pending_verify: 'Chờ xác thực',
-        deactivated: 'Đã vô hiệu hóa',
-      }[status] || 'Không xác định';
+    async openPolicyModal() {
+      this.showPolicyModal = true;
+      await this.fetchPolicy();
     },
+    async fetchPolicy() {
+      this.policyLoading = true;
+      try {
+        const res = await adminUserService.getLockPolicy();
+        this.policyConfig = res.data;
+      } catch (e) {
+        this.error = 'Không thể tải cấu hình khóa tự động.';
+      } finally {
+        this.policyLoading = false;
+      }
+    },
+    async savePolicyConfig() {
+      this.policySaving = true;
+      this.error = '';
+      try {
+        await adminUserService.saveLockPolicy(this.policyConfig);
+        this.success = 'Lưu cấu hình thành công.';
+        this.closePolicyModal();
+      } catch (e) {
+        this.error = e.message || 'Lỗi khi lưu cấu hình.';
+      } finally {
+        this.policySaving = false;
+      }
+    },
+    closePolicyModal() {
+      this.showPolicyModal = false;
+    },
+    getAccountStatusLabel,
     money(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
     },
@@ -587,6 +690,37 @@ td:first-child {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.toggle-slider {
+  width: 48px;
+  height: 26px;
+  border-radius: 13px;
+  background: #e2e8f0;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle-slider.on {
+  background: #16a34a;
+}
+
+.toggle-slider.on::after {
+  transform: translateX(22px);
 }
 
 @media (max-width: 720px) {

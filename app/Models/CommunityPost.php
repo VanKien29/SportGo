@@ -36,6 +36,22 @@ class CommunityPost extends Model
         ];
     }
 
+    protected static function booted()
+    {
+        static::deleting(function ($post) {
+            // Cascade delete comments
+            $post->comments()->delete();
+            
+            // Cascade delete likes
+            $post->likes()->delete();
+            
+            // Cascade delete reports
+            \App\Models\Report::where('reportable_type', self::class)
+                ->where('reportable_id', $post->id)
+                ->delete();
+        });
+    }
+
     public function author()
     {
         return $this->belongsTo(User::class, 'author_id');

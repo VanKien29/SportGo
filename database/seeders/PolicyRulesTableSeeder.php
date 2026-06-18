@@ -108,6 +108,38 @@ class PolicyRulesTableSeeder extends Seeder
                         'summary_vi' => 'Nếu nội dung nhận từ 5 báo cáo hợp lệ bởi ít nhất 2 người khác nhau trong 14 ngày, hệ thống chuyển nội dung sang chờ kiểm duyệt và thông báo admin.',
                     ],
                 ]),
+                $this->fromTemplate($templates['report_threshold_requires_review'], 80, [
+                    'rule_code' => 'user_report_warning_threshold',
+                    'rule_name' => 'Ngưỡng cảnh báo tài khoản người dùng',
+                    'condition_json' => [
+                        'reportable_type' => 'user',
+                        'threshold' => 3,
+                        'count_mode' => 'distinct_reporters',
+                        'window_days' => 7,
+                    ],
+                    'result_json' => [
+                        'action' => 'warning',
+                        'notify_admin' => true,
+                        'summary_vi' => 'Nếu tài khoản nhận từ 3 người báo cáo khác nhau trong 7 ngày, hệ thống sẽ đưa vào diện cảnh báo và thông báo admin.',
+                    ],
+                ]),
+                $this->fromTemplate($templates['report_threshold_requires_review'], 100, [
+                    'rule_code' => 'user_report_lock_threshold',
+                    'rule_name' => 'Ngưỡng tự động khóa tài khoản người dùng',
+                    'condition_json' => [
+                        'reportable_type' => 'user',
+                        'threshold' => 10,
+                        'count_mode' => 'distinct_reporters',
+                        'window_days' => 7,
+                    ],
+                    'result_json' => [
+                        'action' => 'auto_lock',
+                        'lock_duration_days' => 7,
+                        'notify_admin' => true,
+                        'is_auto_lock_enabled' => false,
+                        'summary_vi' => 'Nếu tài khoản nhận từ 10 người báo cáo khác nhau trong 7 ngày, hệ thống sẽ tự động khóa tạm thời 7 ngày và thông báo admin.',
+                    ],
+                ]),
             ],
             'partner_contract' => [
                 $this->fromTemplate($templates['partner_application_approve_requires_contract'], 90),

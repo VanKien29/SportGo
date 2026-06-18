@@ -30,7 +30,7 @@ class PostDetailResource extends JsonResource
             ])),
             'media' => $this->whenLoaded('media', fn () => $this->media->map(fn ($m) => [
                 'id' => $m->id,
-                'url' => $m->url ?? $m->file_path,
+                'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
                 'type' => $m->type ?? $m->mime_type,
             ])),
             'created_at' => $this->created_at,

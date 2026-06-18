@@ -365,7 +365,19 @@ export default {
       await this.runAction(() => adminPolicyService.updateStatus(policy.id, { status: 'archived' }), 'Đã ngưng áp dụng chính sách.');
     },
     async clonePolicy(policy) {
-      await this.runAction(() => adminPolicyService.cloneVersion(policy.id), 'Đã tạo phiên bản mới.');
+      this.error = '';
+      this.success = '';
+      try {
+        const response = await adminPolicyService.cloneVersion(policy.id);
+        this.success = response.message || 'Đã tạo phiên bản mới.';
+        this.$router.push({
+          name: 'admin-policy-detail',
+          params: { id: response.data.id },
+          query: { tab: 'config' },
+        });
+      } catch (error) {
+        this.error = error.message || 'Thao tác không thành công.';
+      }
     },
     async runAction(action, fallbackMessage) {
       this.error = '';

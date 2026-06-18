@@ -198,12 +198,6 @@ const routes = [
                 component: () =>
                     import("../views/admin/AdminPostDetail.vue"),
             },
-            {
-                path: "settings/user-lock-policy",
-                name: "admin-user-lock-policy",
-                component: () =>
-                    import("../views/admin/AdminUserLockPolicy.vue"),
-            },
             { path: "", redirect: { name: "admin-dashboard" } },
         ],
     },

@@ -30,16 +30,26 @@ class ReportObserver
             report($exception);
         }
 
-        // Kiểm tra và tự động khóa nếu đủ điều kiện (chỉ với report về user)
-        try {
-            if (in_array($report->reportable_type, ['users', 'user', User::class], true)) {
-                $targetUser = User::query()->find($report->reportable_id);
-                if ($targetUser) {
-                    app(UserLockService::class)->checkAndAutoLock($targetUser);
-                }
+        // UserLockService::checkAndAutoLock is no longer used here as ModerationReportPolicyService handles it
+    }
+
+    public function updated(Report $report): void
+    {
+        if ($report->wasChanged('status')) {
+            try {
+                $target = class_exists($report->reportable_type)
+                    ? ($report->reportable ?: $report->reportable_type)
+                    : $report->reportable_type;
+
+                app(ModerationReportPolicyService::class)->evaluate(
+                    $target,
+                    $target instanceof Model ? null : (string) $report->reportable_id,
+                    $report->reporter
+                );
+            } catch (Throwable $exception) {
+                report($exception);
             }
-        } catch (Throwable $exception) {
-            report($exception);
+            
         }
     }
 }

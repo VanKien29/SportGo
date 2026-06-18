@@ -12,22 +12,19 @@ class ModerationThreshold extends Model
     protected $fillable = [
         'system_policy_id',
         'target_type',
-        'auto_hide_score',
-        'admin_alert_score',
-        'score_window_days',
-        'score_reset_days',
-        'action_type',
-        'duration_days',
+        'warning_threshold',
+        'action_threshold',
+        'unique_reporters_threshold',
+        'timeframe_days',
     ];
 
     protected function casts(): array
     {
         return [
-            'auto_hide_score' => 'integer',
-            'admin_alert_score' => 'integer',
-            'score_window_days' => 'integer',
-            'score_reset_days' => 'integer',
-            'duration_days' => 'integer',
+            'warning_threshold' => 'integer',
+            'action_threshold' => 'integer',
+            'unique_reporters_threshold' => 'integer',
+            'timeframe_days' => 'integer',
         ];
     }
 
