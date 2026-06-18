@@ -383,9 +383,12 @@ export default {
       
       this.savingAction = true;
       try {
-        await api.post(`/admin/contracts/${this.terminationModal.contractId}/terminate`, {
-          type: 'unilateral_by_admin',
-          reason: this.terminationModal.reason
+        await api(`/api/admin/contracts/${this.terminationModal.contractId}/terminate`, {
+          method: 'POST',
+          body: JSON.stringify({
+            type: 'unilateral_by_admin',
+            reason: this.terminationModal.reason
+          })
         });
         this.closeTerminationModal();
         await this.fetchData();
@@ -400,7 +403,7 @@ export default {
       if (!confirm('Xác nhận đồng ý thanh lý hợp đồng này theo yêu cầu của đối tác?')) return;
       this.savingAction = true;
       try {
-        await api.post(`/admin/contracts/${contractId}/approve-termination`);
+        await api(`/api/admin/contracts/${contractId}/approve-termination`, { method: 'POST' });
         await this.fetchData();
         alert('Đã duyệt yêu cầu thanh lý!');
       } catch (err) {
@@ -413,7 +416,7 @@ export default {
       if (!confirm('Xác nhận ký phê duyệt và cấp quyền cho đối tác này?')) return;
       this.savingAction = true;
       try {
-        await api.post(`/admin/contracts/${contractId}/approve-signature`);
+        await api(`/api/admin/contracts/${contractId}/approve-signature`, { method: 'POST' });
         await this.fetchData();
         alert('Đã ký phê duyệt hợp đồng thành công!');
       } catch (err) {
