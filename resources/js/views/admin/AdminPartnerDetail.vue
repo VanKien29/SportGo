@@ -102,7 +102,7 @@
                 <div v-if="contract.sportgo_signed_at">SportGo ký: {{ formatDate(contract.sportgo_signed_at) }}</div>
               </div>
               <div class="contract-actions">
-                <button v-if="contract.generated_document?.generated_file_path" @click="viewFile(contract.generated_document.generated_file_path)" class="btn ghost small">
+                <button v-if="contract.generated_file_path" @click="viewFile(contract.generated_file_path)" class="btn ghost small">
                   <AppIcon name="eye" size="16" /> Xem Hợp đồng
                 </button>
                 <div class="flex-actions" v-if="contract.status === 'signed_active'">
