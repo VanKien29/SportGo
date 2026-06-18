@@ -26,6 +26,17 @@ class AdminComplaintController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizePermission($request, 'complaint.view');
+        $request->validate([
+            'complaint_type' => ['nullable', Rule::in(['venue', 'system'])],
+            'status' => ['nullable', Rule::in(['open', 'processing', 'resolved', 'rejected', 'closed'])],
+            'assigned_to' => ['nullable', Rule::when(
+                $request->query('assigned_to') !== 'unassigned',
+                ['uuid', 'exists:users,id']
+            )],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'keyword' => ['nullable', 'string', 'max:100'],
+        ]);
 
         $complaints = Complaint::query()
             ->with([

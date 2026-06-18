@@ -224,6 +224,19 @@ class AdminModerationTest extends TestCase
         ]);
     }
 
+    public function test_complaint_filters_reject_invalid_values_and_reversed_dates(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/admin/complaints?complaint_type=unknown')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('complaint_type');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/admin/complaints?date_from=2026-06-20&date_to=2026-06-10')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('date_to');
+    }
+
     private function createUser(string $username, string $email): User
     {
         return User::query()->create([
