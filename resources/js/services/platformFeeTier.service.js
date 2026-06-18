@@ -532,11 +532,23 @@ export function calculatePlatformFee({ court_count, period_months, tier }) {
   if (!ALLOWED_PERIOD_MONTHS.includes(months)) throw new Error('Kỳ đóng phí không hợp lệ.');
   if (!tier) throw new Error('Chưa có bậc phí để tính phí.');
 
+  const courtCount = Number(court_count);
+  const monthlyPrice = Number(tier.price_per_court_month);
+  if (!Number.isInteger(courtCount) || courtCount < 1) {
+    throw new Error('Số sân phải là số nguyên lớn hơn hoặc bằng 1.');
+  }
+  if (!Number.isFinite(monthlyPrice) || monthlyPrice <= 0) {
+    throw new Error('Giá phí theo sân mỗi tháng phải lớn hơn 0.');
+  }
+
   const field = months === 1
     ? 'discount_1_month'
     : `discount_${months}_months`;
   const discountPercent = toNumber(tier[field]);
-  const baseAmount = Number(court_count) * Number(tier.price_per_court_month) * months;
+  if (discountPercent < 0 || discountPercent > 100) {
+    throw new Error('Mức giảm giá phải nằm trong khoảng 0 - 100%.');
+  }
+  const baseAmount = courtCount * monthlyPrice * months;
   const discountAmount = Math.round(baseAmount * discountPercent / 100);
   const amountDue = Math.max(0, Math.round(baseAmount - discountAmount));
   const warnings = [];
@@ -545,7 +557,7 @@ export function calculatePlatformFee({ court_count, period_months, tier }) {
   if (discountPercent === 100 || amountDue === 0) warnings.push('Giảm giá 100%, số tiền phải đóng bằng 0.');
 
   return {
-    court_count: Number(court_count),
+    court_count: courtCount,
     period_months: months,
     tier,
     discount_percent: discountPercent,
