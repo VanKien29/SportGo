@@ -387,7 +387,7 @@ export function deleteDiscountProfile(id) {
 }
 
 export function createTier(payload) {
-  const validation = validateTier(payload);
+  const validation = validateTier(payload, getTiers(), { skipCoverage: true });
   if (!validation.isValid) return Promise.reject(Object.assign(new Error('Dữ liệu bậc phí chưa hợp lệ.'), { validation }));
 
   const now = new Date().toISOString();
@@ -397,8 +397,17 @@ export function createTier(payload) {
     created_at: now,
     updated_at: now,
   };
-  platformFeeStore.state.tiers.push(tier);
-  const rangeAdjustments = rebalanceTierRanges(platformFeeStore.state.tiers);
+  const proposed = [...cloneValue(platformFeeStore.state.tiers), tier];
+  const rangeAdjustments = rebalanceTierRanges(proposed);
+  const coverage = validateTierCoverage(proposed);
+
+  if (tier.is_active && !coverage.isValid) {
+    return Promise.reject(Object.assign(new Error('Cấu hình bậc phí sau khi tự cân khoảng chưa hợp lệ.'), {
+      validation: { isValid: false, errors: { _coverage: coverage.errors }, normalized: tier, coverage },
+    }));
+  }
+
+  platformFeeStore.state.tiers = proposed;
   platformFeeStore.save();
   addAuditLog('platform_fee_tier.created', 'platform_fee_tier', tier.id, null, tier, 'platform_fee_tier');
   return Promise.resolve(cloneValue({ ...tier, range_adjustments: rangeAdjustments }));
