@@ -464,26 +464,27 @@ export function deactivateTier(id, reason = 'Ngừng sử dụng') {
 }
 
 export function reactivateTier(id) {
-  const tier = platformFeeStore.state.tiers.find((item) => item.id === id);
+  const oldTiers = cloneValue(platformFeeStore.state.tiers);
+  const proposed = cloneValue(platformFeeStore.state.tiers);
+  const tier = proposed.find((item) => item.id === id);
   if (!tier) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
 
-  const oldTier = cloneValue(tier);
+  const oldTier = oldTiers.find((item) => item.id === id);
   tier.is_active = true;
   tier.updated_at = new Date().toISOString();
-  const activeWithSameMinimum = platformFeeStore.state.tiers.some(
+  const activeWithSameMinimum = proposed.some(
     (item) => item.id !== id && item.is_active && item.min_courts === tier.min_courts,
   );
   if (activeWithSameMinimum) {
-    Object.assign(tier, oldTier);
     return Promise.reject(new Error('Không thể bật vì số sân tối thiểu đang trùng với bậc khác.'));
   }
-  const rangeAdjustments = rebalanceTierRanges(platformFeeStore.state.tiers);
-  const coverage = validateTierCoverage(platformFeeStore.state.tiers);
+  const rangeAdjustments = rebalanceTierRanges(proposed);
+  const coverage = validateTierCoverage(proposed);
   if (!coverage.isValid) {
-    Object.assign(tier, oldTier);
     return Promise.reject(Object.assign(new Error('Kích hoạt lại bậc phí sẽ làm khoảng áp dụng chưa hợp lệ.'), { coverage }));
   }
 
+  platformFeeStore.state.tiers = proposed;
   platformFeeStore.save();
   addAuditLog('platform_fee_tier.reactivated', 'platform_fee_tier', id, oldTier, tier, 'platform_fee_tier');
   return Promise.resolve(cloneValue({ ...tier, range_adjustments: rangeAdjustments }));
