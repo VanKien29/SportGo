@@ -471,7 +471,6 @@ export default {
         this.message = response.message || 'Duyệt đơn thành công.';
         this.activeApplication = response.data || this.activeApplication;
         this.closeApprove();
-        this.closeDetail();
         await this.loadApplications(this.pagination.current_page);
       } catch (err) {
         this.error = err.message || 'Không duyệt được đơn.';
@@ -489,7 +488,6 @@ export default {
         this.message = response.message || 'Từ chối đơn thành công.';
         this.activeApplication = response.data || this.activeApplication;
         this.closeReject();
-        this.closeDetail();
         await this.loadApplications(this.pagination.current_page);
       } catch (err) {
         this.error = err.message || 'Có lỗi xảy ra khi từ chối đơn.';
