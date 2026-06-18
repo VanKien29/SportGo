@@ -98,7 +98,7 @@ export default {
           to: '/admin/venue-clusters',
         },
         {
-          label: 'Đơn đối tác',
+          label: 'Hồ sơ đối tác',
           description: 'Hồ sơ đăng ký và tài liệu xác minh',
           icon: 'fileText',
           to: '/admin/partner-applications',

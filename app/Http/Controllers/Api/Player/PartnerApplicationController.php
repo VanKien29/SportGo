@@ -84,16 +84,21 @@ class PartnerApplicationController extends Controller
 
         if (!empty($validated['bank_accounts'])) {
             foreach ($validated['bank_accounts'] as $index => $bankAccount) {
-                $application->bankAccounts()->create([
-                    'owner_id' => $user->id,
-                    'bank_name' => $bankAccount['bank_name'],
-                    'bank_code' => $bankAccount['bank_code'],
-                    'account_number' => $bankAccount['account_number'],
-                    'account_holder_name' => $bankAccount['account_holder_name'],
-                    'branch_name' => $bankAccount['branch_name'] ?? null,
-                    'is_default' => $index === 0,
-                    'status' => 'pending',
-                ]);
+                \App\Models\OwnerBankAccount::updateOrCreate(
+                    [
+                        'owner_id' => $user->id,
+                        'bank_code' => $bankAccount['bank_code'],
+                        'account_number' => $bankAccount['account_number'],
+                    ],
+                    [
+                        'partner_application_id' => $application->id,
+                        'bank_name' => $bankAccount['bank_name'],
+                        'account_holder_name' => $bankAccount['account_holder_name'],
+                        'branch_name' => $bankAccount['branch_name'] ?? null,
+                        'is_default' => $index === 0,
+                        'status' => 'pending',
+                    ]
+                );
             }
         }
 

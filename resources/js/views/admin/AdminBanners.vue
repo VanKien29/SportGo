@@ -170,7 +170,7 @@
 
             <label class="field">
               <span>Thứ tự</span>
-              <input v-model.number="form.sort_order" type="number" min="0" />
+              <input v-model.number="form.sort_order" type="number" min="1" />
             </label>
 
             <label class="field">

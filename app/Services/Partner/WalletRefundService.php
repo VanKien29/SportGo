@@ -42,7 +42,7 @@ class WalletRefundService
                 $totalDays = max(1, $start->diffInDays($end));
                 
                 if ($start->gt($now)) {
-                    // ChÆ°a Ä‘áº¿n kÃ½ hoáº¡t Ä‘á»™ng -> hoÃ n 100%
+                    // Chưa đến kỳ hoạt động -> hoàn 100%
                     $unusedDays = $totalDays;
                 } else {
                     $unusedDays = max(0, $now->diffInDays($end));
@@ -62,7 +62,7 @@ class WalletRefundService
                         'balance_before' => $wallet->available_balance,
                         'balance_after' => $wallet->available_balance + $refundAmount,
                         'reference_code' => 'REF-' . strtoupper(Str::random(8)),
-                        'description' => "HoÃ n tiá» n phÃ­ há»‡ thá»‘ng chÆ°a sá» dá»¥ng ($unusedDays/ $totalDays ngÃ y) do cháº¥m dá»©t há»£p Ä‘á»“ng.",
+                        'description' => "Hoàn tiền phí hệ thống chưa sử dụng ($unusedDays/ $totalDays ngày) do chấm dứt hợp đồng.",
                         'metadata' => [
                             'reference_type' => 'platform_fee_refund',
                             'reference_id' => $feeLedger->id,
@@ -70,17 +70,17 @@ class WalletRefundService
                     ]);
                 }
 
-                // CÃ³ thá»ƒ cáº­p nháº­t ledger status thÃ nh refunded
+                // Có thể cập nhật ledger status thành cancelled
                 $feeLedger->update(['status' => 'cancelled']);
             }
 
             if ($totalRefundAmount > 0) {
                 $wallet->available_balance += $totalRefundAmount;
-                $wallet->total_earned += $totalRefundAmount; // Tuá»³ nghiá»‡p vá»¥
+                $wallet->total_earned += $totalRefundAmount; // Tuỳ nghiệp vụ
                 $wallet->save();
             }
 
-            // 2. RÃºt toÃ n bá»™ sá»‘ dÆ°
+            // 2. Rút toàn bộ số dư
             if ($wallet->available_balance <= 0) {
                 return null;
             }
@@ -125,7 +125,7 @@ class WalletRefundService
                 'balance_before' => $amount,
                 'balance_after' => 0,
                 'reference_code' => 'WDR-' . strtoupper(Str::random(8)),
-                'description' => "RÃºt tiá» n tá»± Ä‘á»™ng do cháº¥m dá»©t há»£p Ä‘á»“ng.",
+                'description' => "Rút tiền tự động do chấm dứt hợp đồng.",
                 'metadata' => [
                     'reference_type' => 'withdrawal',
                     'reference_id' => $withdrawal->id,

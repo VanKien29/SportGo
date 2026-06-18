@@ -89,41 +89,34 @@
               </div>
             </td>
             <td>
-              <div class="actions-cell">
-                <button 
-                  type="button"
-                  class="btn-action view" 
-                  title="Xem chi tiết & Audit Logs" 
-                  style="white-space: nowrap; flex-shrink: 0; min-width: max-content;"
+              <TableActionGroup>
+                <ActionIconButton
+                  icon="eye"
+                  label="Xem chi tiết"
                   @click="$router.push({ name: 'admin-staff-detail', params: { id: user.id } })"
-                >
-                  Chi&nbsp;tiết
-                </button>
-                <button 
-                  class="btn-action edit" 
-                  title="Chỉnh sửa thông tin và vai trò" 
+                />
+                <ActionIconButton
+                  icon="edit"
+                  label="Chỉnh sửa"
                   :disabled="!canManageUser(user)"
                   @click="openEditModal(user)"
-                >
-                  Sửa
-                </button>
-                <button 
-                  v-if="user.status === 'locked'" 
-                  class="btn-action unlock" 
+                />
+                <ActionIconButton
+                  v-if="user.status === 'locked'"
+                  icon="unlock"
+                  label="Mở khóa tài khoản"
                   :disabled="!canManageUser(user) || user.id === currentUserId"
                   @click="openUnlockModal(user)"
-                >
-                  Mở khóa
-                </button>
-                <button 
-                  v-else 
-                  class="btn-action lock" 
+                />
+                <ActionIconButton
+                  v-else
+                  icon="lock"
+                  label="Khóa tài khoản"
+                  variant="danger"
                   :disabled="!canManageUser(user) || user.id === currentUserId"
                   @click="openLockModal(user)"
-                >
-                  Khóa
-                </button>
-              </div>
+                />
+              </TableActionGroup>
             </td>
           </tr>
         </tbody>
@@ -342,12 +335,15 @@
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
 import { adminUserService } from '../../services/adminUserService.js';
 import { adminRoleService } from '../../services/adminRoles.js';
 import { getAuth } from '../../stores/auth.js';
 
 export default {
   name: 'AdminStaffs',
+  components: { ActionIconButton, TableActionGroup },
   data() {
     return {
       users: [],

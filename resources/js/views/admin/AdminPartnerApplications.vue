@@ -2,7 +2,7 @@
   <div class="partner-app-page">
     <header class="page-header">
       <div>
-        <h2>Quản lý đơn đăng ký đối tác</h2>
+        <h2>Quản lý Đơn đăng ký & Hồ sơ đối tác</h2>
         <p>Rà soát hồ sơ chủ sân, trạng thái duyệt và thông tin kinh doanh gửi về hệ thống.</p>
       </div>
 
@@ -10,6 +10,32 @@
         <AppIcon name="refresh" size="16" />
       </button>
     </header>
+
+    <div class="tabs-container">
+      <div class="tabs">
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'danh-sach' }" 
+          @click="setTab('danh-sach')"
+        >
+          Danh sách
+        </button>
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'cho-duyet' }" 
+          @click="setTab('cho-duyet')"
+        >
+          Chờ duyệt
+        </button>
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'da-tu-choi' }" 
+          @click="setTab('da-tu-choi')"
+        >
+          Đã từ chối
+        </button>
+      </div>
+    </div>
 
     <div class="toolbar card">
       <div class="filters">
@@ -21,15 +47,6 @@
             placeholder="Tên sân, người nộp, MST"
             @input="onFilterChange"
           />
-        </label>
-        <label class="field compact">
-          <span>Trạng thái</span>
-          <select v-model="filters.status" @change="loadApplications(1)">
-            <option value="">Tất cả</option>
-            <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
         </label>
         <label class="field compact">
           <span>Từ ngày</span>
@@ -126,190 +143,6 @@
         <button class="icon-btn" type="button" title="Trang sau" aria-label="Trang sau" :disabled="pagination.current_page >= pagination.last_page" @click="loadApplications(pagination.current_page + 1)">
           <AppIcon name="chevronRight" size="17" />
         </button>
-      </div>
-    </div>
-
-    <div v-if="detailModal.open" class="modal-backdrop" @click.self="closeDetail">
-      <div class="modal large">
-        <div class="modal-header">
-          <h3>Chi tiết đơn đăng kí</h3>
-          <button class="icon-btn" type="button" title="Đóng" @click="closeDetail">
-            <AppIcon name="x" size="18" />
-          </button>
-        </div>
-
-        <div v-if="detailLoading" class="modal-state">
-          <div class="spinner"></div>
-        </div>
-
-        <div v-else-if="activeApplication" class="modal-body detail-grid">
-          <section class="detail-section">
-            <h4>Người nộp</h4>
-            <dl>
-              <dt>Họ tên</dt>
-              <dd>{{ activeApplication.user?.full_name || '-' }}</dd>
-              <dt>Email</dt>
-              <dd>{{ activeApplication.user?.email || '-' }}</dd>
-              <dt>Điện thoại</dt>
-              <dd>{{ activeApplication.user?.phone || '-' }}</dd>
-            </dl>
-          </section>
-
-          <section class="detail-section">
-            <h4>Kinh doanh</h4>
-            <dl>
-              <dt>Loại hồ sơ</dt>
-              <dd>
-                <span v-if="activeApplication.type === 'new_cluster'" class="badge cluster-badge">Đăng ký thêm cụm sân</span>
-                <span v-else class="badge partner-badge">Đăng ký đối tác mới</span>
-              </dd>
-              <dt>Đơn vị</dt>
-              <dd>{{ activeApplication.business_name }}</dd>
-              <dt>Mã số thuế</dt>
-              <dd>{{ activeApplication.tax_code || '-' }}</dd>
-              <dt>Tên cụm sân</dt>
-              <dd>{{ activeApplication.venue_name }}</dd>
-              <dt>Mô tả dịch vụ</dt>
-              <dd>{{ activeApplication.venue_description || '-' }}</dd>
-              <dt>Tiện ích chọn sẵn</dt>
-              <dd>
-                <div v-if="activeApplication.amenities && activeApplication.amenities.length > 0" class="amenities-list">
-                  <span v-for="amenity in activeApplication.amenities" :key="amenity" class="amenity-tag">{{ amenity }}</span>
-                </div>
-                <span v-else>-</span>
-              </dd>
-            </dl>
-          </section>
-
-          <section class="detail-section full">
-            <h4>Tài liệu đính kèm</h4>
-            <div v-if="activeApplication.documents && activeApplication.documents.length > 0" class="docs-list">
-              <button v-for="doc in activeApplication.documents" :key="doc.id" @click="viewFile(doc.file_path)" type="button" class="doc-item">
-                <AppIcon name="paperclip" size="18" />
-                <span>{{ doc.type }}</span>
-              </button>
-            </div>
-            <p v-else class="muted">Chưa có tài liệu đính kèm.</p>
-          </section>
-
-          <section class="detail-section full">
-            <h4>Địa điểm</h4>
-            <dl>
-              <dt>Địa chỉ</dt>
-              <dd>{{ activeApplication.venue_address }}</dd>
-              <dt>Bản đồ</dt>
-              <dd>
-                <a v-if="activeApplication.venue_map_url" :href="activeApplication.venue_map_url" target="_blank" rel="noopener noreferrer">
-                  {{ activeApplication.venue_map_url }}
-                </a>
-                <span v-else>-</span>
-              </dd>
-              <dt>Tọa độ</dt>
-              <dd>{{ activeApplication.venue_latitude }}, {{ activeApplication.venue_longitude }}</dd>
-            </dl>
-          </section>
-
-          <section class="detail-section">
-            <h4>Sân con đăng kí</h4>
-            <div v-if="activeApplication.courts?.length" class="mini-list">
-              <div v-for="court in activeApplication.courts" :key="court.id" class="mini-item">
-                <span>{{ court.name }}</span>
-                <strong>{{ court.court_type?.name || `Loại #${court.court_type_id}` }}</strong>
-              </div>
-            </div>
-            <p v-else class="muted">Chưa có sân con trong hồ sơ.</p>
-          </section>
-
-          <section class="detail-section">
-            <h4>Tài khoản nhận tiền</h4>
-            <div v-if="activeApplication.bank_accounts?.length" class="mini-list">
-              <div v-for="account in activeApplication.bank_accounts" :key="account.id" class="mini-item stacked">
-                <span>{{ account.account_holder_name }}</span>
-                <strong>{{ account.bank_name }} - {{ account.account_number }}</strong>
-              </div>
-            </div>
-            <p v-else class="muted">Chưa có tài khoản ngân hàng.</p>
-          </section>
-
-          <section class="detail-section full">
-            <h4>Hợp đồng hợp tác</h4>
-            <div v-if="activeApplication.contracts?.length" class="mini-list">
-              <div v-for="contract in activeApplication.contracts" :key="contract.id" class="mini-item stacked" style="align-items: flex-start;">
-                <span><strong>{{ contract.contract_number }}</strong></span>
-                <span class="status" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
-                <div v-if="contract.owner_signed_at || contract.sportgo_signed_at" class="muted small" style="margin-top: 4px; font-size: 0.85em; color: #64748b;">
-                  <div v-if="contract.owner_signed_at">Ngày đối tác ký: {{ formatDate(contract.owner_signed_at) }}</div>
-                  <div v-if="contract.sportgo_signed_at">Ngày SportGo ký: {{ formatDate(contract.sportgo_signed_at) }}</div>
-                </div>
-                <div style="margin-top: 4px;">
-                  <button v-if="contract.generated_file_path" @click="viewFile(contract.generated_file_path)" type="button" class="btn ghost small">
-                    <AppIcon name="eye" size="14" /> Xem Hợp đồng
-                  </button>
-                </div>
-                <div v-if="contract.status === 'pending_sportgo_signature'" style="margin-top: 8px;">
-                  <button class="btn primary small" type="button" :disabled="signingAction" @click="approveSignature(contract.id)">
-                    Ký phê duyệt & Cấp quyền
-                  </button>
-                </div>
-                <div v-if="contract.status === 'signed_active'" style="margin-top: 8px; display: flex; gap: 8px;">
-                  <button 
-                    v-if="hasPendingTermination(contract)" 
-                    class="btn warning small" 
-                    type="button" 
-                    :disabled="signingAction" 
-                    @click="approveTermination(contract.id)"
-                  >
-                    Duyệt yêu cầu kết thúc
-                  </button>
-                  <button class="btn danger small" type="button" :disabled="signingAction" @click="unilateralTerminate(contract.id)">
-                    Đơn phương kết thúc
-                  </button>
-                </div>
-              </div>
-            </div>
-            <p v-else class="muted">Chưa có hợp đồng nào.</p>
-          </section>
-
-          <section class="detail-section full">
-            <h4>Xử lý</h4>
-            <dl>
-              <dt>Trạng thái</dt>
-              <dd>
-                <span class="status" :class="`status-${activeApplication.status}`">
-                  {{ statusLabel(activeApplication.status) }}
-                </span>
-              </dd>
-              <dt>Người xử lý</dt>
-              <dd>{{ activeApplication.reviewed_by?.full_name || '-' }}</dd>
-              <dt>Thời gian xử lý</dt>
-              <dd>{{ formatDate(activeApplication.reviewed_at) }}</dd>
-              <dt>Ghi chú</dt>
-              <dd>{{ activeApplication.status_reason || '-' }}</dd>
-            </dl>
-          </section>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn ghost" type="button" @click="closeDetail">Đóng</button>
-          <button
-            v-if="activeApplication && isReviewable(activeApplication.status)"
-            class="btn danger"
-            type="button"
-            @click="openReject(activeApplication)"
-          >
-            <AppIcon name="x" size="16" />
-            <span>Từ chối</span>
-          </button>
-          <button
-            v-if="activeApplication && isReviewable(activeApplication.status)"
-            class="btn primary"
-            type="button"
-            @click="openApprove(activeApplication)"
-          >
-            <AppIcon name="check" size="16" />
-            <span>Duyệt</span>
-          </button>
-        </div>
       </div>
     </div>
 
@@ -426,6 +259,7 @@ export default {
       error: '',
       message: '',
       filterTimer: null,
+      activeTab: 'danh-sach',
       filters: {
         search: '',
         status: '',
@@ -437,7 +271,6 @@ export default {
         last_page: 1,
         total: 0,
       },
-      detailModal: { open: false },
       approveModal: { open: false },
       rejectModal: { open: false },
       approveForm: this.emptyApproveForm(),
@@ -565,6 +398,18 @@ export default {
     refresh() {
       this.loadApplications(this.pagination.current_page);
     },
+    setTab(tab) {
+      this.activeTab = tab;
+      if (tab === 'danh-sach') {
+        this.filters.status = ''; // Empty means all
+      } else if (tab === 'cho-duyet') {
+        // Bao gồm hồ sơ mới gửi, đang xem xét, và đang chờ ký hợp đồng (các loại)
+        this.filters.status = 'pending,reviewing,approved_pending_contract,contract_pending_owner_signature,contract_pending_sportgo_signature';
+      } else if (tab === 'da-tu-choi') {
+        this.filters.status = 'rejected,cancelled';
+      }
+      this.loadApplications(1);
+    },
     async fetchApplication(application) {
       this.detailLoading = true;
       try {
@@ -578,14 +423,8 @@ export default {
         this.detailLoading = false;
       }
     },
-    async openDetail(application) {
-      this.clearAlerts();
-      this.detailModal.open = true;
-      this.activeApplication = application;
-      await this.fetchApplication(application);
-    },
-    closeDetail() {
-      this.detailModal.open = false;
+    openDetail(application) {
+      this.$router.push(`/admin/partners/${application.id}`);
     },
     async openApprove(application) {
       this.clearAlerts();
@@ -726,7 +565,12 @@ export default {
       const labels = {
         pending: 'Chờ duyệt',
         reviewing: 'Đang xem xét',
-        approved: 'Đã duyệt',
+        approved: 'Hoàn tất',
+        approved_pending_contract: 'Chờ tạo HĐ',
+        contract_pending_owner_signature: 'Chờ ĐT ký HĐ',
+        contract_pending_sportgo_signature: 'Chờ SportGo ký HĐ',
+        active: 'Đang hoạt động',
+        completed: 'Hoàn tất',
         rejected: 'Từ chối',
         cancelled: 'Đã hủy',
       };
@@ -990,12 +834,17 @@ th {
 }
 
 .status-pending,
-.status-reviewing {
+.status-reviewing,
+.status-approved_pending_contract,
+.status-contract_pending_owner_signature,
+.status-contract_pending_sportgo_signature {
   background: #fef3c7;
   color: #92400e;
 }
 
-.status-approved {
+.status-approved,
+.status-active,
+.status-completed {
   background: #dcfce7;
   color: #166534;
 }

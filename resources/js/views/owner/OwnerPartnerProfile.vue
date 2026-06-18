@@ -458,7 +458,11 @@ export default {
       const map = {
         pending: 'Chờ duyệt',
         reviewing: 'Đang xem xét',
-        approved: 'Đã duyệt',
+        approved: 'Hoàn tất',
+        approved_pending_contract: 'Chờ tạo hợp đồng',
+        contract_pending_owner_signature: 'Chờ đối tác ký hợp đồng',
+        contract_pending_sportgo_signature: 'Chờ SportGo ký hợp đồng',
+        completed: 'Hoàn tất',
         rejected: 'Từ chối',
         cancelled: 'Đã hủy',
       };
@@ -561,7 +565,7 @@ export default {
 .status-approved { background: #dcfce7; color: #166534; }
 .status-pending, .status-reviewing { background: #fef08a; color: #854d0e; }
 .status-rejected, .status-cancelled { background: #fee2e2; color: #991b1b; }
-.status-waiting_signature { background: #e0e7ff; color: #3730a3; }
+.status-waiting_signature, .status-contract_pending_owner_signature, .status-contract_pending_sportgo_signature { background: #e0e7ff; color: #3730a3; }
 .status-completed, .status-signed { background: #dcfce7; color: #166534; }
 
 .section-card h3 {

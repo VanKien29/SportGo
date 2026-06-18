@@ -29,6 +29,6 @@ class SendContractEmailJob implements ShouldQueue
     public function handle(): void
     {
         // Mock email sending
-        \Log::info("Sending contract {$this->contract->contract_number} to " . $this->contract->application?->applicant_email);
+        \Log::info("Sending contract {$this->contract->contract_code} to " . $this->contract->application?->applicant_email);
     }
 }
