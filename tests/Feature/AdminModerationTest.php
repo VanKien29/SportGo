@@ -194,6 +194,36 @@ class AdminModerationTest extends TestCase
         ]);
     }
 
+    public function test_only_assigned_admin_can_resolve_reviewing_report(): void
+    {
+        $otherAdmin = $this->createUser('resolving_admin', 'resolving-admin@sportgo.test');
+        $this->assignRole($otherAdmin, Role::query()->where('name', 'admin')->firstOrFail());
+        $report = Report::query()->create([
+            'reporter_id' => $this->reporter->id,
+            'reportable_type' => User::class,
+            'reportable_id' => $this->author->id,
+            'reason' => 'spam',
+            'status' => 'reviewing',
+            'reviewed_by' => $this->admin->id,
+            'reviewed_at' => now(),
+        ]);
+
+        $this->actingAs($otherAdmin, 'sanctum')
+            ->patchJson("/api/admin/reports/{$report->id}/resolve", [
+                'decision' => 'resolved',
+                'action_taken' => 'warning',
+                'action_note' => 'Không được phép xử lý thay người đang kiểm duyệt.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $this->assertDatabaseHas('reports', [
+            'id' => $report->id,
+            'status' => 'reviewing',
+            'reviewed_by' => $this->admin->id,
+        ]);
+    }
+
     private function createUser(string $username, string $email): User
     {
         return User::query()->create([
