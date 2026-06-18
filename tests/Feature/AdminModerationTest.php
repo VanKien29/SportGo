@@ -153,6 +153,171 @@ class AdminModerationTest extends TestCase
         ]);
     }
 
+    public function test_report_filters_reject_invalid_values_and_reversed_dates(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/admin/reports?target_type=unknown')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('target_type');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/admin/reports?date_from=2026-06-20&date_to=2026-06-10')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('date_to');
+    }
+
+    public function test_report_cannot_be_taken_over_by_another_admin(): void
+    {
+        $otherAdmin = $this->createUser('other_moderation_admin', 'other-admin@sportgo.test');
+        $this->assignRole($otherAdmin, Role::query()->where('name', 'admin')->firstOrFail());
+        $report = Report::query()->create([
+            'reporter_id' => $this->reporter->id,
+            'reportable_type' => User::class,
+            'reportable_id' => $this->author->id,
+            'reason' => 'harassment',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/reports/{$report->id}/review")
+            ->assertOk();
+
+        $this->actingAs($otherAdmin, 'sanctum')
+            ->patchJson("/api/admin/reports/{$report->id}/review")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $this->assertDatabaseHas('reports', [
+            'id' => $report->id,
+            'status' => 'reviewing',
+            'reviewed_by' => $this->admin->id,
+        ]);
+    }
+
+    public function test_only_assigned_admin_can_resolve_reviewing_report(): void
+    {
+        $otherAdmin = $this->createUser('resolving_admin', 'resolving-admin@sportgo.test');
+        $this->assignRole($otherAdmin, Role::query()->where('name', 'admin')->firstOrFail());
+        $report = Report::query()->create([
+            'reporter_id' => $this->reporter->id,
+            'reportable_type' => User::class,
+            'reportable_id' => $this->author->id,
+            'reason' => 'spam',
+            'status' => 'reviewing',
+            'reviewed_by' => $this->admin->id,
+            'reviewed_at' => now(),
+        ]);
+
+        $this->actingAs($otherAdmin, 'sanctum')
+            ->patchJson("/api/admin/reports/{$report->id}/resolve", [
+                'decision' => 'resolved',
+                'action_taken' => 'warning',
+                'action_note' => 'Không được phép xử lý thay người đang kiểm duyệt.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $this->assertDatabaseHas('reports', [
+            'id' => $report->id,
+            'status' => 'reviewing',
+            'reviewed_by' => $this->admin->id,
+        ]);
+    }
+
+    public function test_complaint_filters_reject_invalid_values_and_reversed_dates(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/admin/complaints?complaint_type=unknown')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('complaint_type');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/admin/complaints?date_from=2026-06-20&date_to=2026-06-10')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('date_to');
+    }
+
+    public function test_complaint_cannot_be_assigned_to_locked_staff(): void
+    {
+        $lockedAdmin = $this->createUser('locked_complaint_admin', 'locked-complaint-admin@sportgo.test');
+        $this->assignRole($lockedAdmin, Role::query()->where('name', 'admin')->firstOrFail());
+        $lockedAdmin->update(['status' => 'locked']);
+        $complaint = Complaint::query()->create([
+            'complaint_type' => 'system',
+            'customer_id' => $this->reporter->id,
+            'content' => 'Cần phân công người xử lý đang hoạt động.',
+            'status' => 'open',
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/complaints/{$complaint->id}/assign", [
+                'assigned_to' => $lockedAdmin->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_to');
+
+        $this->assertDatabaseHas('complaints', [
+            'id' => $complaint->id,
+            'status' => 'open',
+            'assigned_to' => null,
+        ]);
+    }
+
+    public function test_finished_complaint_cannot_be_processed_again(): void
+    {
+        $complaint = Complaint::query()->create([
+            'complaint_type' => 'system',
+            'customer_id' => $this->reporter->id,
+            'content' => 'Khiếu nại đã được giải quyết.',
+            'status' => 'resolved',
+            'assigned_to' => $this->admin->id,
+            'resolved_by' => $this->admin->id,
+            'resolve_note' => 'Đã xử lý trước đó.',
+            'resolved_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/complaints/{$complaint->id}/resolve", [
+                'status' => 'processing',
+                'resolve_note' => 'Thử mở lại trái nghiệp vụ.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $this->assertDatabaseHas('complaints', [
+            'id' => $complaint->id,
+            'status' => 'resolved',
+            'resolve_note' => 'Đã xử lý trước đó.',
+        ]);
+    }
+
+    public function test_only_assigned_staff_can_process_complaint(): void
+    {
+        $otherAdmin = $this->createUser('assigned_complaint_admin', 'assigned-complaint-admin@sportgo.test');
+        $this->assignRole($otherAdmin, Role::query()->where('name', 'admin')->firstOrFail());
+        $complaint = Complaint::query()->create([
+            'complaint_type' => 'venue',
+            'customer_id' => $this->reporter->id,
+            'content' => 'Khiếu nại đã phân công cho người khác.',
+            'status' => 'processing',
+            'assigned_to' => $otherAdmin->id,
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->patchJson("/api/admin/complaints/{$complaint->id}/resolve", [
+                'status' => 'resolved',
+                'resolve_note' => 'Không được xử lý thay người được phân công.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_to');
+
+        $this->assertDatabaseHas('complaints', [
+            'id' => $complaint->id,
+            'status' => 'processing',
+            'assigned_to' => $otherAdmin->id,
+        ]);
+    }
+
     private function createUser(string $username, string $email): User
     {
         return User::query()->create([
@@ -167,7 +332,7 @@ class AdminModerationTest extends TestCase
 
     private function assignRole(User $user, Role $role): void
     {
-        UserRole::query()->create([
+        UserRole::query()->firstOrCreate([
             'user_id' => $user->id,
             'role_id' => $role->id,
             'scope_type' => 'system',

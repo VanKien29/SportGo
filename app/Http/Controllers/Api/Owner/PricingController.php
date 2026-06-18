@@ -80,8 +80,8 @@ class PricingController extends Controller
         $this->ensureClusterAccess($request, $venueClusterId);
 
         $validated = $request->validate([
-            'min_duration_minutes' => ['required', 'integer', 'min:30'],
-            'max_duration_minutes' => ['nullable', 'integer', 'gte:min_duration_minutes'],
+            'min_duration_minutes' => ['required', 'integer', 'min:30', 'multiple_of:30'],
+            'max_duration_minutes' => ['nullable', 'integer', 'gte:min_duration_minutes', 'max:1440', 'multiple_of:30'],
         ]);
 
         $oldValues = BookingConfig::query()->where('venue_cluster_id', $venueClusterId)->first()?->toArray() ?? [];

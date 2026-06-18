@@ -39,9 +39,9 @@ class BookingConfigController extends Controller
 
         $validated = $request->validate([
             'min_duration_minutes' => ['required', 'integer', 'min:30', 'multiple_of:30'],
-            'max_duration_minutes' => ['nullable', 'integer', 'gte:min_duration_minutes', 'multiple_of:30'],
-            'slot_hold_minutes' => ['required', 'integer', 'min:5', 'max:120'],
-            'reminder_before_minutes' => ['required', 'integer', 'min:0', 'max:10080'],
+            'max_duration_minutes' => ['nullable', 'integer', 'gte:min_duration_minutes', 'max:1440', 'multiple_of:30'],
+            'slot_hold_minutes' => ['required', 'integer', 'min:5', 'max:120', 'multiple_of:5'],
+            'reminder_before_minutes' => ['required', 'integer', 'min:0', 'max:10080', 'multiple_of:5'],
             'allow_full_payment' => ['required', 'boolean'],
             'allow_deposit' => ['required', 'boolean'],
             'allow_no_prepay' => ['required', 'boolean'],
