@@ -8,7 +8,7 @@ class PartnerContractRepository
 {
     public function findById(string $id): ?PartnerContract
     {
-        return PartnerContract::with(['profile', 'template', 'signatures'])->find($id);
+        return PartnerContract::with(['application', 'template', 'signatures'])->find($id);
     }
 
     public function create(array $data): PartnerContract

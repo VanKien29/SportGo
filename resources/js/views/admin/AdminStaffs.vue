@@ -230,7 +230,7 @@
           <div class="detail-grid">
             <!-- Thẻ thông tin cá nhân -->
             <div class="detail-info-card">
-              <div class="detail-avatar">{{ detailData.user.full_name?.charAt(0).toUpperCase() }}</div>
+              <div class="detail-avatar">{{ getAvatar(detailData.user) }}</div>
               <h4>{{ detailData.user.full_name }}</h4>
               <p class="detail-username">@{{ detailData.user.username }}</p>
               
@@ -351,10 +351,10 @@
         </div>
 
         <div class="target-user">
-          <div class="target-avatar">{{ lockTarget.full_name?.charAt(0)?.toUpperCase() || '?' }}</div>
+          <div class="target-avatar">{{ getAvatar(lockTarget) }}</div>
           <div>
-            <strong>{{ lockTarget.full_name }}</strong>
-            <span>{{ lockTarget.username }} · {{ lockTarget.email || 'Chưa có email' }}</span>
+            <strong>{{ lockTarget?.full_name }}</strong>
+            <span>{{ lockTarget?.username }} · {{ lockTarget?.email || 'Chưa có email' }}</span>
           </div>
         </div>
 
@@ -692,7 +692,19 @@ export default {
 
       try {
         const response = await adminUserService.get(userId);
-        this.detailData = response.data || { user: {}, audit_logs: [] };
+        const data = response.data || {};
+        
+        // Map profile to user for compatibility with template
+        if (data.profile && !data.user) {
+          data.user = data.profile;
+        }
+        
+        this.detailData = {
+          user: data.user || {},
+          audit_logs: data.audit_logs || [],
+          roles: data.roles || [],
+          permission_summary: data.permission_summary || { revokes: [] }
+        };
       } catch (err) {
         this.detailError = err.message || 'Không tải được chi tiết tài khoản.';
       } finally {
@@ -796,6 +808,10 @@ export default {
     },
     
     // Tiện ích định dạng
+    getAvatar(user) {
+      if (!user || !user.full_name) return '?';
+      return String(user.full_name).charAt(0).toUpperCase();
+    },
     formatDate(value) {
       if (!value) return '-';
       return new Date(value).toLocaleString('vi-VN', {

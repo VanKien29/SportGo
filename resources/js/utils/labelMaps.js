@@ -9,6 +9,49 @@ export const POLICY_TYPE_LABELS = {
   general: 'Chung',
   booking: 'Đặt sân',
   account: 'Tài khoản',
+  text_only: 'Văn bản',
+};
+
+export const TARGET_TYPE_LABELS = {
+  community_post: 'Bài đăng cộng đồng',
+  venue_post: 'Bài đăng sân',
+  comment: 'Bình luận',
+  user: 'Người dùng',
+  venue_cluster: 'Cụm sân',
+};
+
+export const ACCOUNT_STATUS_LABELS = {
+  active: 'Hoạt động',
+  locked: 'Đang khóa',
+  pending_verify: 'Chờ xác thực',
+  deactivated: 'Đã vô hiệu hóa',
+};
+
+export const POST_STATUS_LABELS = {
+  published: 'Đã đăng',
+  draft: 'Bản nháp',
+  hidden: 'Đã ẩn',
+  visible: 'Công khai',
+  pending: 'Chờ duyệt',
+};
+
+export const REPORT_STATUS_LABELS = {
+  pending: 'Chờ xử lý',
+  resolved: 'Đã xử lý',
+  dismissed: 'Đã bỏ qua',
+  reviewing: 'Đang xem xét',
+};
+
+export const ESCALATION_ACTION_LABELS = {
+  warn: 'Cảnh báo',
+  hide_content: 'Ẩn nội dung',
+  delete_content: 'Xóa nội dung',
+  lock_temp: 'Khóa tạm thời',
+  lock_permanent: 'Khóa vĩnh viễn',
+  limit_venue: 'Giới hạn hoạt động sân',
+  block_venue: 'Đình chỉ sân',
+  terminate_contract: 'Chấm dứt hợp đồng',
+  manual_review: 'Admin xem xét thủ công',
 };
 
 export const STATUS_LABELS = {
@@ -131,6 +174,21 @@ export function getPolicyTypeLabel(type) {
 export function getStatusLabel(status) {
   if (!status) return 'Không xác định';
   return STATUS_LABELS[String(status).toLowerCase()] || status;
+}
+
+export function getAccountStatusLabel(status) {
+  if (!status) return 'Không xác định';
+  return ACCOUNT_STATUS_LABELS[String(status).toLowerCase()] || status;
+}
+
+export function getPostStatusLabel(status) {
+  if (!status) return 'Không xác định';
+  return POST_STATUS_LABELS[String(status).toLowerCase()] || status;
+}
+
+export function getReportStatusLabel(status) {
+  if (!status) return 'Không xác định';
+  return REPORT_STATUS_LABELS[String(status).toLowerCase()] || status;
 }
 
 export function getStatusBadgeClass(status) {

@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Owner\BookingManagementController as OwnerBookingMa
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
 use App\Http\Controllers\Api\Owner\PartnerApplicationController as OwnerPartnerApplicationController;
 use App\Http\Controllers\Api\Owner\PartnerContractController as OwnerPartnerContractController;
+use App\Http\Controllers\Api\Owner\BookingConfigController as OwnerBookingConfigController;
 use App\Http\Controllers\Api\Payment\SepayPaymentController;
 use App\Http\Controllers\Api\PolicyAcceptanceController;
 use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
@@ -27,6 +28,7 @@ use App\Http\Controllers\Api\Owner\StaffController as OwnerStaffController;
 use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyController;
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
+use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
@@ -71,6 +73,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
         Route::get('/users', [AdminUserController::class, 'index']);
+        Route::get('/users/auto-lock-config', [\App\Http\Controllers\Api\Admin\UserController::class, 'autoLockConfig']);
         Route::get('/users/{id}', [AdminUserController::class, 'show']);
         Route::post('/users', [AdminUserController::class, 'store']);
         Route::put('/users/{id}', [AdminUserController::class, 'update']);
@@ -105,6 +108,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         // Partner Contracts
         Route::post('/contracts/{id}/send-email', [AdminPartnerContractController::class, 'sendEmail']);
         Route::post('/contracts/{id}/approve-signature', [AdminPartnerContractController::class, 'approveSignature']);
+        Route::post('/contracts/{id}/terminate', [AdminPartnerContractController::class, 'terminate']);
+        Route::post('/contracts/{id}/approve-termination', [AdminPartnerContractController::class, 'approveTermination']);
 
         Route::get('/banners', [AdminBannerController::class, 'index']);
         Route::post('/banners', [AdminBannerController::class, 'store']);
@@ -116,6 +121,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/reports/{id}', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'show']);
         Route::patch('/reports/{id}/review', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'review']);
         Route::patch('/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'resolve']);
+        Route::post('/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'resolve']);
+        Route::get('/violation-records/{targetType}/{targetId}', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'violationRecord']);
+        Route::apiResource('violation-types', \App\Http\Controllers\Api\Admin\ViolationTypeController::class)->only(['index', 'store', 'update', 'destroy']);
 
         Route::get('/complaints', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'index']);
         Route::get('/complaints/{id}', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'show']);
@@ -127,7 +135,6 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/amenities/{id}/review', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'review']);
         Route::apiResource('amenities', \App\Http\Controllers\Api\Admin\AmenityController::class);
 
-        
         Route::get('/permissions', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'permissions']);
         Route::get('/roles/{id}/users', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'users']);
         Route::get('/roles', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'index']);
@@ -144,8 +151,11 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/policies/{id}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'show']);
         Route::put('/policies/{id}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'update']);
         Route::delete('/policies/{id}', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'destroy']);
+        Route::put('/policies/{id}/configuration', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateConfiguration']);
         Route::put('/policies/{id}/cancel-refund-tiers', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateCancelRefundTiers']);
+        Route::get('/policies/{id}/moderation-thresholds', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'scoreModerationThresholds']);
         Route::put('/policies/{id}/moderation-thresholds', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateModerationThresholds']);
+
         Route::post('/policies/{id}/clone-version', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'cloneVersion']);
         Route::post('/policies/{id}/publish', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'publish']);
         Route::patch('/policies/{id}/status', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'updateStatus']);
@@ -175,12 +185,26 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/moderation/posts/{type}/{id}/hide', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'hidePost']);
         Route::delete('/moderation/posts/{type}/{id}', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'deletePost']);
         Route::post('/moderation/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'resolveReport']);
+
+        // User Lock Management
+        Route::post('/user-lock-policy', [\App\Http\Controllers\Api\Admin\UserController::class, 'saveAutoLockConfig']);
+        Route::post('/users/{user}/lock', [\App\Http\Controllers\Api\Admin\UserLockController::class, 'lock']);
+        Route::post('/users/{user}/unlock', [\App\Http\Controllers\Api\Admin\UserLockController::class, 'unlock']);
+        Route::get('/users/{user}/lock-logs', [\App\Http\Controllers\Api\Admin\UserLockController::class, 'lockLogs']);
+
+        // Admin Comment & Post Detail (phục vụ chi tiết user)
+        Route::get('/comments/{comment}', [\App\Http\Controllers\Api\Admin\AdminCommentController::class, 'show']);
+        Route::post('/comments/{comment}/action', [\App\Http\Controllers\Api\Admin\AdminCommentController::class, 'processAction']);
+        Route::get('/posts/{post}', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'show']);
+        Route::post('/posts/{post}/action', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'processAction']);
     });
 
 Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRestrictions::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
+        Route::get('/booking-configs', [OwnerBookingConfigController::class, 'index']);
+        Route::put('/booking-configs/{venueClusterId}', [OwnerBookingConfigController::class, 'update']);
 
         // Wallet & Withdrawals
         Route::get('/wallet', [\App\Http\Controllers\Api\Owner\WalletController::class, 'getWallet']);
@@ -191,6 +215,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/partner-application', [OwnerPartnerApplicationController::class, 'myApplication']);
         Route::post('/partner-applications/new-cluster', [OwnerPartnerApplicationController::class, 'storeNewCluster']);
         Route::post('/contracts/{id}/sign', [OwnerPartnerContractController::class, 'sign']);
+        Route::post('/contracts/{id}/request-termination', [OwnerPartnerContractController::class, 'requestTermination']);
 
         // Venue Clusters & Venue Courts
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);
@@ -226,6 +251,9 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/price-slots', [OwnerPricingController::class, 'storePriceSlot']);
         Route::patch('/price-slots/{id}', [OwnerPricingController::class, 'updatePriceSlot']);
         Route::delete('/price-slots/{id}', [OwnerPricingController::class, 'destroyPriceSlot']);
+        Route::post('/holiday-prices', [OwnerPricingController::class, 'storeHolidayPrice']);
+        Route::patch('/holiday-prices/{id}', [OwnerPricingController::class, 'updateHolidayPrice']);
+        Route::delete('/holiday-prices/{id}', [OwnerPricingController::class, 'destroyHolidayPrice']);
         Route::get('/platform-fees', [OwnerPlatformFeeController::class, 'index']);
         Route::get('/platform-fees/{id}', [OwnerPlatformFeeController::class, 'show']);
         Route::post('/platform-fees/{id}/payment-proof', [OwnerPlatformFeeController::class, 'submitProof']);
@@ -239,7 +267,10 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/finance/ledgers', [OwnerFinanceController::class, 'ledgers']);
         Route::get('/finance/withdrawals', [OwnerFinanceController::class, 'withdrawals']);
         Route::post('/finance/withdrawals', [OwnerFinanceController::class, 'storeWithdrawal']);
+        Route::get('/refunds', [OwnerRefundController::class, 'index']);
+        Route::patch('/refunds/{id}/decision', [OwnerRefundController::class, 'decide']);
         Route::get('/bookings', [OwnerBookingManagementController::class, 'index']);
+        Route::get('/bookings/schedule', [OwnerBookingManagementController::class, 'schedule']);
         Route::post('/bookings/counter', [OwnerBookingManagementController::class, 'storeCounter']);
         Route::post('/bookings/recurring', [OwnerBookingManagementController::class, 'storeRecurring']);
         Route::get('/bookings/{id}', [OwnerBookingManagementController::class, 'show']);

@@ -138,14 +138,23 @@ export default {
             } catch (error) {
                 this.isLeaving = false;
                 const details = error.data || {};
+                let lockedUntilFormatted = null;
+                if (details.locked_until) {
+                    try {
+                        const d = new Date(details.locked_until);
+                        const pad = (n) => (n < 10 ? '0' + n : n);
+                        lockedUntilFormatted = `Khóa đến: ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                    } catch (e) {
+                        lockedUntilFormatted = `Khóa đến: ${details.locked_until}`;
+                    }
+                }
+
                 const lockDetails = [
                     details.status_reason,
                     details.lock_type
                         ? `Loại khóa: ${details.lock_type}`
                         : null,
-                    details.locked_until
-                        ? `Khóa đến: ${details.locked_until}`
-                        : null,
+                    lockedUntilFormatted,
                 ]
                     .filter(Boolean)
                     .join(" - ");

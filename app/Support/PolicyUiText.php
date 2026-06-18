@@ -20,6 +20,7 @@ class PolicyUiText
             'general' => 'Chung',
             'booking' => 'Đặt sân',
             'account' => 'Tài khoản',
+            'text_only' => 'Văn bản',
         ];
     }
 
@@ -51,9 +52,9 @@ class PolicyUiText
             self::action('booking', 'Hủy booking', 'booking.cancel_by_customer', 'Khách hủy booking', 'Áp dụng khi khách yêu cầu hủy booking.', ['booking_cancellation']),
             self::action('booking', 'Hủy booking', 'booking.cancel_by_owner', 'Chủ sân hủy booking', 'Áp dụng khi chủ sân hoặc nhân viên sân hủy booking.', ['booking_cancellation']),
             self::action('booking', 'Hủy booking', 'booking.expire_unpaid', 'Hệ thống hủy booking do quá hạn thanh toán', 'Áp dụng khi booking hết thời gian giữ chỗ nhưng chưa thanh toán.', ['booking_cancellation']),
-            self::action('refund', 'Hoàn tiền', 'refund.request', 'Khách gửi yêu cầu hoàn tiền', 'Áp dụng khi khách gửi yêu cầu hoàn tiền.', ['booking_cancellation']),
-            self::action('refund', 'Hoàn tiền', 'refund.owner_confirm', 'Chủ sân xác nhận yêu cầu hoàn tiền', 'Áp dụng khi chủ sân đồng ý hoặc từ chối yêu cầu hoàn.', ['booking_cancellation']),
-            self::action('refund', 'Hoàn tiền', 'refund.admin_complete', 'Admin xác nhận hoàn tất hoàn tiền', 'Áp dụng khi admin xác nhận giao dịch hoàn tiền đã hoàn tất.', ['booking_cancellation']),
+            self::action('refund', 'Hoàn tiền', 'refund.request', 'Khách gửi yêu cầu hoàn tiền', 'Áp dụng khi khách gửi yêu cầu hoàn tiền.', ['booking_cancellation', 'refund']),
+            self::action('refund', 'Hoàn tiền', 'refund.owner_confirm', 'Chủ sân xác nhận yêu cầu hoàn tiền', 'Áp dụng khi chủ sân đồng ý hoặc từ chối yêu cầu hoàn.', ['booking_cancellation', 'refund']),
+            self::action('refund', 'Hoàn tiền', 'refund.admin_complete', 'Admin xác nhận hoàn tất hoàn tiền', 'Áp dụng khi admin xác nhận giao dịch hoàn tiền đã hoàn tất.', ['booking_cancellation', 'refund']),
             self::action('venue', 'Phí nền tảng', 'venue.platform_fee_due', 'Sắp đến hạn hoặc quá hạn phí nền tảng', 'Áp dụng khi hệ thống kiểm tra kỳ phí nền tảng của cụm sân.', ['platform_fee']),
             self::action('venue', 'Phí nền tảng', 'venue.lock_due_fee', 'Khóa/giới hạn cụm sân do quá hạn phí nền tảng', 'Áp dụng khi cụm sân quá hạn phí duy trì.', ['platform_fee']),
             self::action('owner', 'Phí nền tảng', 'owner.access_limited_due_fee', 'Giới hạn quyền chủ sân do quá hạn phí', 'Áp dụng khi owner chỉ được thao tác trong phạm vi cho phép.', ['platform_fee']),
@@ -61,6 +62,8 @@ class PolicyUiText
             self::action('venue_policy', 'Chính sách sân', 'venue_policy.activate', 'Kích hoạt chính sách sân hợp lệ', 'Áp dụng khi chính sách sân vượt kiểm tra ràng buộc.', ['venue_policy']),
             self::action('moderation', 'Kiểm duyệt', 'post.report', 'Người dùng báo cáo nội dung', 'Áp dụng khi người dùng báo cáo bài viết hoặc bình luận.', ['moderation']),
             self::action('moderation', 'Kiểm duyệt', 'post.hide', 'Ẩn nội dung vi phạm', 'Áp dụng khi hệ thống hoặc admin ẩn nội dung vi phạm.', ['moderation']),
+            self::action('moderation', 'Kiểm duyệt', 'report.score_evaluated', 'Đánh giá điểm vi phạm nội dung/người dùng', 'Áp dụng khi hệ thống tính điểm vi phạm dựa trên báo cáo.', ['moderation']),
+            self::action('moderation', 'Kiểm duyệt', 'report.resolve', 'Xử lý vi phạm theo mức leo thang', 'Áp dụng khi hệ thống xử lý vi phạm theo quy tắc leo thang.', ['moderation']),
             self::action('partner', 'Đối tác & hợp đồng', 'partner_application.approve', 'Admin duyệt hồ sơ đối tác', 'Áp dụng khi admin duyệt hồ sơ đăng ký làm chủ sân.', ['partner_contract']),
             self::action('partner', 'Đối tác & hợp đồng', 'partner_contract.generate', 'Hệ thống sinh hợp đồng đối tác', 'Áp dụng khi hệ thống tạo hợp đồng từ template.', ['partner_contract']),
             self::action('partner', 'Đối tác & hợp đồng', 'partner_contract.sign', 'Chủ sân và SportGo ký hợp đồng', 'Áp dụng khi hai bên ký xác nhận hợp đồng.', ['partner_contract']),
@@ -99,7 +102,7 @@ class PolicyUiText
                 ['booking.cancel_by_customer', 'booking.cancel_by_owner', 'booking.expire_unpaid']
             ),
             'refund_percent_by_cancel_time' => self::template(
-                'booking_cancellation',
+                'refund',
                 'refund_percent_by_cancel_time',
                 'Tính phần trăm hoàn tiền theo thời gian hủy',
                 'Tính mức hoàn tiền theo số giờ khách hủy trước giờ chơi.',
@@ -112,7 +115,7 @@ class PolicyUiText
                 'high'
             ),
             'owner_confirm_required_before_admin_transfer' => self::template(
-                'booking_cancellation',
+                'refund',
                 'owner_confirm_required_before_admin_transfer',
                 'Bắt buộc chủ sân xác nhận trước khi admin hoàn tiền',
                 'Admin không được hoàn tất yêu cầu hoàn tiền nếu chủ sân chưa xác nhận.',
@@ -179,6 +182,34 @@ class PolicyUiText
                 false,
                 'medium',
                 ['post.report', 'post.hide']
+            ),
+            'moderation_score_threshold' => self::template(
+                'moderation',
+                'moderation_score_threshold',
+                'Ngưỡng điểm vi phạm theo đối tượng kiểm duyệt',
+                'Xác định ngưỡng điểm cảnh báo và xử lý cho từng loại đối tượng (bài viết, bình luận, người dùng, sân).',
+                'report.score_evaluated',
+                ['target_type' => 'content', 'timeframe_days' => 30],
+                ['action_threshold' => 10, 'warning_threshold' => 5, 'unique_reporters_threshold' => 3],
+                'moderation_score',
+                'moderation_score_threshold',
+                false,
+                'high',
+                ['report.score_evaluated']
+            ),
+            'penalty_escalation' => self::template(
+                'moderation',
+                'penalty_escalation',
+                'Leo thang xử lý vi phạm theo số lần vi phạm',
+                'Tự động áp dụng mức xử lý tăng dần khi đối tượng tái phạm nhiều lần.',
+                'report.resolve',
+                ['target_type' => 'user', 'violation_count' => 1],
+                ['action' => 'warning', 'duration_days' => null],
+                'penalty_action',
+                'penalty_escalation',
+                false,
+                'critical',
+                ['report.resolve']
             ),
             'contract_signing_required' => self::template(
                 'partner_contract',
@@ -347,7 +378,20 @@ class PolicyUiText
                 self::scalar($result['transition_days'] ?? 30)
             ),
             'partner_application_approve_requires_contract' => 'Sau khi admin duyệt hồ sơ đối tác, hệ thống phải sinh hợp đồng để chủ sân và SportGo ký trước khi hoàn tất hồ sơ.',
-            default => self::ruleTemplateOptions()[$ruleType]['label'] ?? $ruleType,
+            'moderation_score_threshold' => sprintf(
+                'Xác định ngưỡng xử lý và cảnh báo cho đối tượng kiểm duyệt trong vòng %s ngày (Cảnh báo khi đạt %s điểm từ %s người báo cáo, xử lý vi phạm khi đạt %s điểm).',
+                self::scalar($condition['timeframe_days'] ?? '?'),
+                self::scalar($result['warning_threshold'] ?? '?'),
+                self::scalar($result['unique_reporters_threshold'] ?? '?'),
+                self::scalar($result['action_threshold'] ?? '?')
+            ),
+            'penalty_escalation' => sprintf(
+                'Tự động áp dụng hình phạt %s (%s ngày) khi tài khoản tái phạm lần thứ %s.',
+                self::resultActionLabel($result['action'] ?? '?'),
+                self::scalar($result['duration_days'] ?? 'vô thời hạn'),
+                self::scalar($condition['violation_count'] ?? '?')
+            ),
+            default => $ruleType,
         };
     }
 
@@ -457,6 +501,11 @@ class PolicyUiText
         string $riskLevel,
         ?array $actionCodes = null
     ): array {
+        $policyTypes = [$policyType];
+        if (in_array($ruleType, ['refund_percent_by_cancel_time', 'owner_confirm_required_before_admin_transfer'], true)) {
+            $policyTypes = array_values(array_unique([...$policyTypes, 'booking_cancellation', 'refund']));
+        }
+
         return [
             'policy_type' => $policyType,
             'rule_type' => $ruleType,
@@ -474,7 +523,7 @@ class PolicyUiText
             'condition_summary_vi' => self::conditionSummary($ruleType, $condition),
             'result_summary_vi' => self::resultSummary($ruleType, $result),
             'business_summary_vi' => self::ruleSummary($ruleType, $condition, $result),
-            'policy_types' => [$policyType],
+            'policy_types' => $policyTypes,
             'action_codes' => $actionCodes ?: [$actionCode],
             'is_venue_overridable' => $venueOverridable,
             'risk_level' => $riskLevel,

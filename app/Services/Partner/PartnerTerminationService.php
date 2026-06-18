@@ -7,22 +7,32 @@ use App\Enums\PartnerProfileStatus;
 use App\Enums\TerminationType;
 use App\Models\PartnerContract;
 use App\Models\PartnerHistory;
-use App\Models\PartnerLiquidation;
 use App\Models\PartnerTerminationRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PartnerTerminationService
 {
     public function requestTermination(string $profileId, User $requester, string $type, string $reason): PartnerTerminationRequest
     {
         return DB::transaction(function () use ($profileId, $requester, $type, $reason) {
+            $contract = PartnerContract::query()
+                ->where('partner_application_id', $profileId)
+                ->whereIn('status', [
+                    ContractStatus::PENDING_OWNER_SIGNATURE->value,
+                    ContractStatus::PENDING_SPORTGO_SIGNATURE->value,
+                    ContractStatus::SIGNED_ACTIVE->value,
+                ])
+                ->latest()
+                ->firstOrFail();
+
             $request = PartnerTerminationRequest::create([
                 'partner_application_id' => $profileId,
                 'requested_by' => $requester->id,
-                'type' => $type,
+                'type' => $type === TerminationType::MUTUAL->value ? 'mutual_agreement' : ($type === 'unilateral_by_admin' ? 'unilateral_by_admin' : 'unilateral_by_owner'),
                 'reason' => $reason,
-                'status' => 'pending',
+                'status' => 'submitted',
             ]);
 
             PartnerHistory::create([
@@ -45,10 +55,10 @@ class PartnerTerminationService
                 'approved_by' => $admin->id,
             ]);
 
-            $isMutual = $request->type === TerminationType::MUTUAL->value;
-            $newStatus = $isMutual ? ContractStatus::LIQUIDATED->value : ContractStatus::TERMINATED->value;
-
-            $contract->update(['status' => $newStatus]);
+            $contract->update([
+                'status' => ContractStatus::TERMINATED->value,
+                'terminated_at' => now(),
+            ]);
             $contract->application->update([
                 'terminated_at' => now(),
             ]);
@@ -59,7 +69,7 @@ class PartnerTerminationService
                 'partner_application_id' => $contract->partner_application_id,
                 'action' => 'termination_processed',
                 'actor_id' => $admin->id,
-                'new_values' => ['termination_type' => $request->type],
+                'new_values' => ['type' => $request->type],
             ]);
 
             // Call Wallet Refund Service

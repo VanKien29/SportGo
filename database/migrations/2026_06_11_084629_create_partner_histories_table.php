@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('partner_histories')) {
+            return;
+        }
+
         Schema::create('partner_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignUuid('partner_application_id')->constrained('partner_applications')->onDelete('cascade');

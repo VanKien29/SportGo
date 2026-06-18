@@ -89,7 +89,7 @@ class AdminPaymentService
 
             $statusBefore = $payment->status;
 
-            if ($status === 'paid' && ! in_array($payment->booking?->status, ['pending_payment', 'confirmed'], true)) {
+            if ($status === 'paid' && ! in_array($payment->booking?->status, ['pending_payment', 'confirmed', 'checked_in', 'completed'], true)) {
                 throw new RuntimeException('Booking không còn ở trạng thái cho phép xác nhận thanh toán. Hãy xử lý hoàn tiền hoặc đối soát riêng.');
             }
 
@@ -118,7 +118,10 @@ class AdminPaymentService
             $payment->save();
 
             if ($status === 'paid') {
-                $payment->booking()->update(['status' => 'confirmed']);
+                if ($payment->booking?->status === 'pending_payment') {
+                    $payment->booking()->update(['status' => 'confirmed']);
+                }
+
                 SlotLock::query()->where('booking_id', $payment->booking_id)->delete();
                 $this->ownerWalletService->creditBookingPayment($payment, [
                     'source' => $context['source'],

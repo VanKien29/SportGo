@@ -5,8 +5,10 @@ namespace App\Services\Partner;
 use App\Enums\ContractStatus;
 use App\Models\ContractTemplate;
 use App\Models\PartnerContract;
+use App\Models\PartnerApplication;
 use App\Models\PartnerHistory;
 use App\Repositories\PartnerContractRepository;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ContractGenerationService
@@ -20,26 +22,29 @@ class ContractGenerationService
 
     public function generate(string $profileId, string $templateId): PartnerContract
     {
-        // For simplicity, we create a mock file path. In a real scenario, we use PHPWord to generate DOCX.
+        $application = PartnerApplication::findOrFail($profileId);
         $template = ContractTemplate::findOrFail($templateId);
-        
-        $contractNumber = 'HD-' . strtoupper(Str::random(6)) . '-' . date('Y');
-        
+
+        $contractCode = 'HD-' . strtoupper(Str::random(6)) . '-' . date('Y');
+        $filePath = 'contracts/' . $contractCode . '.pdf';
+
         $contractData = [
             'partner_application_id' => $profileId,
-            'contract_template_id' => $templateId,
-            'contract_number' => $contractNumber,
-            'status' => ContractStatus::DRAFT->value,
-            'generated_file_path' => 'contracts/' . $contractNumber . '.docx', // Using DOCX
+            'owner_id' => $application->user_id,
+            'venue_cluster_id' => $application->approved_venue_cluster_id,
+            'contract_number' => $contractCode,
+            'contract_title' => 'Hợp đồng hợp tác đối tác ' . ($application->venue_name ?: $application->business_name ?: $contractCode),
+            'status' => ContractStatus::GENERATED->value,
+            'note' => 'Sinh từ mẫu hợp đồng: ' . $template->name,
+            'generated_file_path' => $template->file_path,
         ];
 
-        // Copy the real template from seeders to simulate contract generation
-        $sourceFile = base_path('database/seeders/templates/partner-documents/Mau_02_Hop_dong_hop_tac_doi_tac_SportGo.docx');
-        if (file_exists($sourceFile)) {
-            \Illuminate\Support\Facades\Storage::disk('public')->put($contractData['generated_file_path'], file_get_contents($sourceFile));
-        }
-
         $contract = $this->contractRepo->create($contractData);
+
+        $application->update([
+            'current_contract_id' => $contract->id,
+            'status' => 'approved_pending_contract',
+        ]);
 
         PartnerHistory::create([
             'partner_application_id' => $profileId,
@@ -52,8 +57,9 @@ class ContractGenerationService
 
     public function sendEmail(PartnerContract $contract): void
     {
-        $contract->update(['status' => ContractStatus::WAITING_SIGNATURE->value]);
-        
+        $contract->update(['status' => ContractStatus::PENDING_OWNER_SIGNATURE->value]);
+        $contract->application?->update(['status' => 'contract_pending_owner_signature']);
+
         // Push to queue
         \App\Jobs\SendContractEmailJob::dispatch($contract);
 

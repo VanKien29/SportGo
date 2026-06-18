@@ -11,6 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('partner_contracts')) {
+            if (! Schema::hasColumn('partner_contracts', 'deleted_at')) {
+                Schema::table('partner_contracts', function (Blueprint $table) {
+                    $table->softDeletes();
+                });
+            }
+
+            return;
+        }
+
         Schema::create('partner_contracts', function (Blueprint $table) {
             $table->id();
             $table->foreignUuid('partner_application_id')->constrained('partner_applications')->onDelete('cascade');

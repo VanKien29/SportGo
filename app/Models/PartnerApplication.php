@@ -56,6 +56,7 @@ class PartnerApplication extends Model
         'current_contract_id',
         'submitted_at',
         'reviewed_at',
+        'terminated_at',
     ];
 
     protected function casts(): array
@@ -68,6 +69,7 @@ class PartnerApplication extends Model
             'court_count_total' => 'integer',
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'terminated_at' => 'datetime',
         ];
     }
 
@@ -104,6 +106,23 @@ class PartnerApplication extends Model
     public function statusHistories()
     {
         return $this->hasMany(PartnerApplicationStatusHistory::class, 'partner_application_id');
+    }
+
+    public function terminationRequests()
+    {
+        return $this->hasMany(PartnerTerminationRequest::class, 'partner_application_id');
+    }
+
+    public function liquidations()
+    {
+        return $this->hasManyThrough(
+            PartnerLiquidation::class,
+            PartnerContract::class,
+            'partner_application_id',
+            'partner_contract_id',
+            'id',
+            'id'
+        );
     }
 
     public function user()

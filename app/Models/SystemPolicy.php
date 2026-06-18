@@ -18,6 +18,7 @@ class SystemPolicy extends Model
 
     protected $fillable = [
         'key',
+        'policy_category',
         'version',
         'title',
         'content',
@@ -86,6 +87,12 @@ class SystemPolicy extends Model
     {
         return $this->hasMany(PolicyRule::class, 'system_policy_id');
     }
+
+    public function moderationThresholds()
+    {
+        return $this->hasMany(ModerationThreshold::class, 'system_policy_id');
+    }
+
 
     public function statusHistories()
     {

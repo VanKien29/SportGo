@@ -35,9 +35,9 @@
         <option value="original_payment">Phương thức gốc</option>
       </select>
       <select v-if="tab === 'refunds'" v-model="filters.owner_confirmed">
-        <option value="">Owner xác nhận</option>
-        <option value="yes">Đã xác nhận</option>
-        <option value="no">Chưa xác nhận</option>
+        <option value="">Phản hồi chủ sân</option>
+        <option value="yes">Đã phản hồi</option>
+        <option value="no">Chưa phản hồi</option>
       </select>
       <select v-model="filters.date_range">
         <option value="">{{ tab === 'refunds' ? 'Ngày yêu cầu' : 'Ngày rút' }}</option>
@@ -99,8 +99,8 @@
             <td><strong>{{ personName(refund.customer) }}</strong><span class="sub-line">{{ refund.customer?.email || refund.customer?.phone || '-' }}</span></td>
             <td><strong>{{ refund.refund_destination?.label || '-' }}</strong><span class="sub-line">{{ refund.refund_destination?.account_number || refund.refund_destination?.account_holder || '-' }}</span></td>
             <td>
-              <span class="status-pill" :class="refund.owner_confirmation?.confirmed ? 'completed' : 'pending'">
-                {{ refund.owner_confirmation?.confirmed ? 'Đã xác nhận' : 'Chưa xác nhận' }}
+              <span class="status-pill" :class="ownerDecisionClass(refund)">
+                {{ ownerDecisionLabel(refund) }}
               </span>
               <span class="sub-line">{{ formatDate(refund.owner_confirmation?.confirmed_at) }}</span>
             </td>
@@ -282,7 +282,17 @@ export default {
   computed: {
     statusOptions() {
       return this.tab === 'refunds'
-        ? ['pending_confirmation', 'processing', 'completed', 'failed', 'rejected']
+        ? [
+            'pending_confirmation',
+            'pending_owner_confirmation',
+            'owner_confirmed',
+            'owner_rejected',
+            'admin_processing',
+            'processing',
+            'completed',
+            'failed',
+            'rejected',
+          ]
         : ['pending', 'reviewing', 'approved', 'rejected', 'completed', 'cancelled'];
     },
     pendingSummary() {
@@ -551,9 +561,34 @@ export default {
     },
     statusLabel(value) {
       return {
-        pending_confirmation: 'Chờ xác nhận', processing: 'Đang xử lý', completed: 'Hoàn tất', failed: 'Thất bại',
-        rejected: 'Từ chối', pending: 'Chờ duyệt', reviewing: 'Đang duyệt', approved: 'Đã duyệt', cancelled: 'Đã hủy',
+        pending_confirmation: 'Chờ xác nhận',
+        pending_owner_confirmation: 'Chờ chủ sân',
+        owner_confirmed: 'Chủ sân đồng ý',
+        owner_rejected: 'Chủ sân từ chối',
+        admin_processing: 'SportGo đang xử lý',
+        processing: 'Đang hoàn tiền',
+        completed: 'Hoàn tất',
+        failed: 'Thất bại',
+        rejected: 'Từ chối',
+        pending: 'Chờ duyệt',
+        reviewing: 'Đang duyệt',
+        approved: 'Đã duyệt',
+        cancelled: 'Đã hủy',
       }[value] || value;
+    },
+    ownerDecisionLabel(refund) {
+      return {
+        approved: 'Đã đồng ý',
+        rejected: 'Đã từ chối',
+        pending: 'Chưa xác nhận',
+      }[refund.owner_confirmation?.decision || 'pending'];
+    },
+    ownerDecisionClass(refund) {
+      return {
+        approved: 'completed',
+        rejected: 'rejected',
+        pending: 'pending',
+      }[refund.owner_confirmation?.decision || 'pending'];
     },
     formatCurrency(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0));
@@ -601,10 +636,10 @@ th, td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vert
 th { background: #f8fafc; color: #334155; font-weight: 800; }
 .empty { padding: 28px; text-align: center; color: #64748b; }
 .status-pill { display: inline-flex; padding: 4px 8px; border-radius: 999px; background: #e2e8f0; color: #334155; font-size: 11px; font-weight: 800; text-transform: uppercase; }
-.status-pill.pending, .status-pill.pending_confirmation, .status-pill.reviewing { background: #fef3c7; color: #92400e; }
-.status-pill.processing, .status-pill.approved { background: #dbeafe; color: #1e40af; }
+.status-pill.pending, .status-pill.pending_confirmation, .status-pill.pending_owner_confirmation, .status-pill.reviewing { background: #fef3c7; color: #92400e; }
+.status-pill.processing, .status-pill.admin_processing, .status-pill.owner_confirmed, .status-pill.approved { background: #dbeafe; color: #1e40af; }
 .status-pill.completed { background: #dcfce7; color: #166534; }
-.status-pill.failed, .status-pill.rejected, .status-pill.cancelled { background: #fee2e2; color: #991b1b; }
+.status-pill.failed, .status-pill.rejected, .status-pill.owner_rejected, .status-pill.cancelled { background: #fee2e2; color: #991b1b; }
 .policy-line { display: block; margin-top: 5px; color: #15803d; font-size: 12px; font-weight: 700; }
 .policy-line.warning { color: #b91c1c; }
 .policy-line.muted { color: #64748b; font-weight: 600; }

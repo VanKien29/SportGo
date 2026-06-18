@@ -723,6 +723,7 @@
         {{ globalMsg }}
       </div>
     </transition>
+    </template>
   </div>
 </template>
 

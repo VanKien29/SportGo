@@ -33,7 +33,7 @@ class AdminAuditService
             'entity_id' => $entityId,
             'old_values' => $oldValues ?: null,
             'new_values' => $newValues ?: null,
-            'context' => 'admin',
+            'context' => $extra['context'] ?? 'admin',
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 500),
         ];

@@ -226,9 +226,28 @@
               <div v-for="contract in activeApplication.contracts" :key="contract.id" class="mini-item stacked" style="align-items: flex-start;">
                 <span><strong>{{ contract.contract_number }}</strong></span>
                 <span class="status" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
-                <div v-if="contract.status === 'signed'" style="margin-top: 8px;">
+                <div style="margin-top: 4px;">
+                  <a v-if="contract.generated_file_path" :href="getFileUrl(contract.generated_file_path)" target="_blank" class="btn ghost small">
+                    <AppIcon name="eye" size="14" /> Xem Hợp đồng
+                  </a>
+                </div>
+                <div v-if="contract.status === 'pending_sportgo_signature'" style="margin-top: 8px;">
                   <button class="btn primary small" type="button" :disabled="signingAction" @click="approveSignature(contract.id)">
                     Ký phê duyệt & Cấp quyền
+                  </button>
+                </div>
+                <div v-if="contract.status === 'signed_active'" style="margin-top: 8px; display: flex; gap: 8px;">
+                  <button 
+                    v-if="hasPendingTermination(contract)" 
+                    class="btn warning small" 
+                    type="button" 
+                    :disabled="signingAction" 
+                    @click="approveTermination(contract.id)"
+                  >
+                    Duyệt yêu cầu thanh lý
+                  </button>
+                  <button class="btn danger small" type="button" :disabled="signingAction" @click="unilateralTerminate(contract.id)">
+                    Đơn phương chấm dứt
                   </button>
                 </div>
               </div>
@@ -375,6 +394,7 @@
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
+import { api } from '../../services/api.js';
 
 export default {
   name: 'AdminPartnerApplications',
@@ -387,6 +407,7 @@ export default {
       loading: true,
       detailLoading: false,
       savingAction: false,
+      signingAction: false,
       error: '',
       message: '',
       filterTimer: null,
@@ -420,6 +441,11 @@ export default {
     this.loadCourtTypes();
   },
   methods: {
+    getFileUrl(path) {
+      if (!path) return '#';
+      if (path.startsWith('http')) return path;
+      return '/storage/' + path.replace('public/', '');
+    },
     emptyApproveForm() {
       return {
         initial_court_name: '',
@@ -566,12 +592,53 @@ export default {
       this.clearAlerts();
       this.signingAction = true;
       try {
-        await adminPartnerApplicationService.approveSignature(contractId);
+        await api(`/api/admin/contracts/${contractId}/approve-signature`, { method: 'POST' });
         this.message = 'Phê duyệt hợp đồng thành công!';
         await this.fetchApplication(this.activeApplication);
         await this.loadApplications(this.pagination.current_page);
       } catch (err) {
         this.error = err.message || 'Có lỗi xảy ra khi phê duyệt hợp đồng.';
+      } finally {
+        this.signingAction = false;
+      }
+    },
+    hasPendingTermination(contract) {
+      if (!contract.terminations) return false;
+      return contract.terminations.some(t => t.status === 'submitted');
+    },
+    async approveTermination(contractId) {
+      if (!confirm('Xác nhận đồng ý thanh lý hợp đồng này theo yêu cầu của đối tác?')) return;
+      
+      this.clearAlerts();
+      this.signingAction = true;
+      try {
+        await api(`/api/admin/contracts/${contractId}/approve-termination`, { method: 'POST' });
+        this.message = 'Đã duyệt yêu cầu thanh lý thành công!';
+        await this.fetchApplication(this.activeApplication);
+        await this.loadApplications(this.pagination.current_page);
+      } catch (err) {
+        this.error = err.message || 'Có lỗi xảy ra khi duyệt thanh lý.';
+      } finally {
+        this.signingAction = false;
+      }
+    },
+    async unilateralTerminate(contractId) {
+      const reason = prompt('Vui lòng nhập lý do chấm dứt hợp đồng (Ví dụ: Vi phạm quy định chống bán phá giá):');
+      if (!reason) return;
+
+      this.clearAlerts();
+      this.signingAction = true;
+      try {
+        await api(`/api/admin/contracts/${contractId}/terminate`, { 
+          method: 'POST',
+          body: JSON.stringify({ reason: reason, type: 'unilateral_by_admin' }),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        this.message = 'Đã đơn phương chấm dứt hợp đồng thành công!';
+        await this.fetchApplication(this.activeApplication);
+        await this.loadApplications(this.pagination.current_page);
+      } catch (err) {
+        this.error = err.message || 'Có lỗi xảy ra khi đơn phương chấm dứt hợp đồng.';
       } finally {
         this.signingAction = false;
       }
@@ -595,10 +662,11 @@ export default {
     },
     contractStatusLabel(status) {
       const labels = {
-        draft: 'Nháp',
-        waiting_signature: 'Chờ đối tác ký',
-        signed: 'Đã ký (Chờ Admin duyệt)',
-        completed: 'Hoàn tất',
+        generated: 'Nháp',
+        pending_owner_signature: 'Chờ đối tác ký',
+        pending_sportgo_signature: 'Chờ Admin duyệt (Ký SportGo)',
+        signed_active: 'Đang hiệu lực',
+        terminated: 'Đã thanh lý',
       };
       return labels[status] || status;
     },
