@@ -121,15 +121,16 @@ export default {
         this.$router.push(auth.redirect_to || '/');
       } catch (error) {
         const details = error.data || {};
-        const lockDetails = [
-          details.status_reason,
-          details.lock_type ? `Loại khóa: ${details.lock_type}` : null,
-          details.locked_until ? `Khóa đến: ${details.locked_until}` : null,
-        ].filter(Boolean).join(' - ');
-
-        this.error = lockDetails
-          ? `${error.message} ${lockDetails}`
-          : (error.message || 'Sai tài khoản hoặc mật khẩu.');
+        
+        if (details.lock_type) {
+          const lockedBy = details.lock_type === 'auto' ? 'hệ thống' : 'quản trị viên';
+          const reasonText = details.status_reason ? ` bởi lí do: ${details.status_reason}` : '';
+          const untilText = details.locked_until ? ` - Khóa đến: ${details.locked_until}` : '';
+          
+          this.error = `Bạn đã bị khóa bởi ${lockedBy}${reasonText}${untilText}`;
+        } else {
+          this.error = error.message || 'Sai tài khoản hoặc mật khẩu.';
+        }
       } finally {
         this.isLoading = false;
       }

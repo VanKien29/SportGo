@@ -17,6 +17,11 @@ export const ownerBookingService = {
     return api(`/api/owner/bookings${query ? `?${query}` : ''}`);
   },
 
+  schedule(params = {}) {
+    const query = toQuery(params);
+    return api(`/api/owner/bookings/schedule${query ? `?${query}` : ''}`);
+  },
+
   show(id) {
     return api(`/api/owner/bookings/${id}`);
   },
@@ -30,6 +35,13 @@ export const ownerBookingService = {
 
   createRecurring(payload) {
     return api('/api/owner/bookings/recurring', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  collectPayment(id, payload) {
+    return api(`/api/owner/bookings/${id}/payments/collect`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });

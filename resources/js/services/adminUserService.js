@@ -21,6 +21,24 @@ export const adminUserService = {
     return api(`/api/admin/users/${id}`);
   },
 
+  get(id) {
+    return api(`/api/admin/users/${id}`);
+  },
+
+  create(payload) {
+    return api('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  update(id, payload) {
+    return api(`/api/admin/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
   lock(id, payload) {
     return api(`/api/admin/users/${id}/lock`, {
       method: 'PATCH',
@@ -31,6 +49,57 @@ export const adminUserService = {
   unlock(id, payload) {
     return api(`/api/admin/users/${id}/unlock`, {
       method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // --- User Lock Management (new) ---
+
+  lockUser(id, payload) {
+    return api(`/api/admin/users/${id}/lock`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  unlockUser(id, payload) {
+    return api(`/api/admin/users/${id}/unlock`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  lockLogs(id, page = 1) {
+    return api(`/api/admin/users/${id}/lock-logs?page=${page}`);
+  },
+
+  // --- Comment & Post detail ---
+
+  commentDetail(id) {
+    return api(`/api/admin/comments/${id}`);
+  },
+
+  postDetail(id, page = 1) {
+    return api(`/api/admin/posts/${id}?page=${page}`);
+  },
+
+  processContentAction(type, id, action) {
+    const endpoint = type === 'post' ? `/api/admin/posts/${id}/action` : `/api/admin/comments/${id}/action`;
+    return api(endpoint, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    });
+  },
+
+  // --- User Lock Policy ---
+
+  getLockPolicy() {
+    return api('/api/admin/users/auto-lock-config');
+  },
+
+  saveLockPolicy(payload) {
+    return api('/api/admin/user-lock-policy', {
+      method: 'POST',
       body: JSON.stringify(payload),
     });
   },

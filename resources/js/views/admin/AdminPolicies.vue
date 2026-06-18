@@ -19,25 +19,6 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <div class="stat-grid">
-      <article class="stat-card">
-        <strong>{{ summary.total || 0 }}</strong>
-        <span>Tổng chính sách</span>
-      </article>
-      <article class="stat-card">
-        <strong>{{ summary.active || 0 }}</strong>
-        <span>Đang áp dụng</span>
-      </article>
-      <article class="stat-card">
-        <strong>{{ summary.draft || 0 }}</strong>
-        <span>Bản nháp</span>
-      </article>
-      <article class="stat-card">
-        <strong>{{ policiesNeedAttention }}</strong>
-        <span>Cần rà soát</span>
-      </article>
-    </div>
-
     <section class="filter-panel">
       <label class="search-box">
         <AppIcon name="search" size="18" />
@@ -201,7 +182,7 @@
           </label>
           <label>
             Nội dung chính sách
-            <textarea v-model.trim="form.content" rows="7" required></textarea>
+            <QuillEditor theme="snow" v-model:content="form.content" contentType="html" placeholder="Nhập nội dung chính sách..." />
           </label>
           <label>
             Tóm tắt thay đổi
@@ -255,10 +236,12 @@ import ConfirmModal from '../../components/ConfirmModal.vue';
 import PlatformFeeSubnav from '../../components/PlatformFeeSubnav.vue';
 import { adminPolicyService } from '../../services/adminPolicies.js';
 import { getPolicyTypeLabel, getStatusBadgeClass, getStatusLabel, POLICY_TYPE_LABELS } from '../../utils/labelMaps.js';
+import { QuillEditor } from '@vueup/vue-quill';
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
 export default {
   name: 'AdminPolicies',
-  components: { AppIcon, ConfirmModal, PlatformFeeSubnav },
+  components: { AppIcon, ConfirmModal, PlatformFeeSubnav, QuillEditor },
   data() {
     const platformFeeScope = this.$route.name === 'admin-platform-fee-policies';
     return {
@@ -382,7 +365,19 @@ export default {
       await this.runAction(() => adminPolicyService.updateStatus(policy.id, { status: 'archived' }), 'Đã ngưng áp dụng chính sách.');
     },
     async clonePolicy(policy) {
-      await this.runAction(() => adminPolicyService.cloneVersion(policy.id), 'Đã tạo phiên bản mới.');
+      this.error = '';
+      this.success = '';
+      try {
+        const response = await adminPolicyService.cloneVersion(policy.id);
+        this.success = response.message || 'Đã tạo phiên bản mới.';
+        this.$router.push({
+          name: 'admin-policy-detail',
+          params: { id: response.data.id },
+          query: { tab: 'config' },
+        });
+      } catch (error) {
+        this.error = error.message || 'Thao tác không thành công.';
+      }
     },
     async runAction(action, fallbackMessage) {
       this.error = '';
@@ -459,34 +454,12 @@ p {
   line-height: 1.55;
 }
 
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.stat-card,
 .filter-panel,
 .table-card,
 .modal {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
-}
-
-.stat-card {
-  padding: 16px;
-}
-
-.stat-card strong {
-  display: block;
-  color: #0f172a;
-  font-size: 26px;
-}
-
-.stat-card span {
-  color: #64748b;
-  font-size: 13px;
 }
 
 .filter-panel {
@@ -845,7 +818,6 @@ label {
     flex-direction: column;
   }
 
-  .stat-grid,
   .form-grid {
     grid-template-columns: 1fr;
   }

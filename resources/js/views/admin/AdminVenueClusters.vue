@@ -93,7 +93,7 @@
                                     {{ c.owner?.email || "" }}
                                 </div>
                             </td>
-                            <td class="address-cell">{{ c.address }}</td>
+                            <td class="address-cell">{{ formatFullAddress(c) }}</td>
                             <td>
                                 <div class="court-types">
                                     <span
@@ -142,12 +142,7 @@
                                 </span>
                             </td>
                             <td class="text-right" @click.stop>
-                                <button
-                                    class="btn-action btn-view"
-                                    @click="goDetail(c.id)"
-                                >
-                                    Chi tiết
-                                </button>
+                                <ActionIconButton icon="eye" label="Xem chi tiết" @click="goDetail(c.id)" />
                             </td>
                         </tr>
                     </tbody>
@@ -158,10 +153,12 @@
 </template>
 
 <script>
+import ActionIconButton from "../../components/ActionIconButton.vue";
 import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
 
 export default {
     name: "AdminVenueClusters",
+    components: { ActionIconButton },
     data() {
         return {
             clusters: [],
@@ -248,6 +245,15 @@ export default {
                 name: "admin-venue-cluster-detail",
                 params: { id },
             });
+        },
+        formatFullAddress(c) {
+            if (!c) return "";
+            const parts = [
+                c.address,
+                c.ward,
+                c.province
+            ].filter(Boolean);
+            return parts.join(', ') || '—';
         },
     },
 };

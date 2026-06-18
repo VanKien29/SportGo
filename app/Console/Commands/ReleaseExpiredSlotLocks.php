@@ -3,6 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Models\Booking;
+use App\Models\BookingConfig;
+use App\Models\Payment;
+use App\Models\PaymentLog;
 use App\Models\SlotLock;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -30,13 +33,16 @@ class ReleaseExpiredSlotLocks extends Command
     public function handle()
     {
         $now = Carbon::now();
-        $this->info("Đang bắt đầu quét các slot lock hết hạn tại thời điểm: " . $now->toDateTimeString());
+        $this->info('Đang bắt đầu quét các slot lock hết hạn tại thời điểm: '.$now->toDateTimeString());
 
         // Tìm tất cả các slot lock có expires_at bé hơn hoặc bằng thời điểm hiện tại
-        $expiredLocks = SlotLock::where('expires_at', '<=', $now)->get();
+        $expiredLocks = SlotLock::where('lock_type', 'auto')
+            ->where('expires_at', '<=', $now)
+            ->get();
 
         if ($expiredLocks->isEmpty()) {
-            $this->info("Không có slot lock nào hết hạn.");
+            $this->info('Không có slot lock nào hết hạn.');
+
             return 0;
         }
 
@@ -49,10 +55,33 @@ class ReleaseExpiredSlotLocks extends Command
                     $booking = Booking::find($lock->booking_id);
                     // Nếu booking vẫn ở trạng thái chờ thanh toán (pending_payment), chuyển sang hết hạn (expired)
                     if ($booking && $booking->status === 'pending_payment') {
+                        $slotHoldMinutes = (int) (BookingConfig::query()
+                            ->where('venue_cluster_id', $booking->venue_cluster_id)
+                            ->value('slot_hold_minutes') ?? 20);
+                        $reason = "Thanh toán quá hạn {$slotHoldMinutes} phút.";
+
                         $booking->update([
                             'status' => 'expired',
-                            'status_reason' => 'Thanh toán quá hạn 20 phút.',
+                            'status_reason' => $reason,
                         ]);
+
+                        Payment::query()
+                            ->where('booking_id', $booking->id)
+                            ->where('status', 'pending')
+                            ->lockForUpdate()
+                            ->get()
+                            ->each(function (Payment $payment) use ($reason): void {
+                                $payment->update(['status' => 'failed']);
+
+                                PaymentLog::query()->create([
+                                    'payment_id' => $payment->id,
+                                    'event_type' => 'payment_hold_expired',
+                                    'status_before' => 'pending',
+                                    'status_after' => 'failed',
+                                    'error_code' => 'slot_hold_expired',
+                                    'error_message' => $reason,
+                                ]);
+                            });
                     }
                 }
 
@@ -63,6 +92,7 @@ class ReleaseExpiredSlotLocks extends Command
         }
 
         $this->info("Đã giải phóng thành công {$processedCount} slot locks hết hạn.");
+
         return 0;
     }
 }

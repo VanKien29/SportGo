@@ -5,7 +5,10 @@
         <h2>Voucher hệ thống</h2>
         <p>Voucher do nền tảng phát hành. Nền tảng chịu phần giảm giá.</p>
       </div>
-      <button class="btn primary" type="button" @click="openForm()">Tạo voucher hệ thống</button>
+      <button class="btn primary" type="button" title="Tạo voucher hệ thống" @click="openForm()">
+        <AppIcon name="plus" size="17" />
+        <span>Tạo voucher</span>
+      </button>
     </header>
 
     <section class="filters">
@@ -22,7 +25,7 @@
         <option value="percent">Phần trăm</option>
         <option value="fixed">Số tiền</option>
       </select>
-      <button class="btn secondary" type="button" @click="load">Lọc</button>
+      <ActionIconButton icon="filter" label="Lọc danh sách" @click="load" />
     </section>
 
     <div class="notice">Voucher hệ thống - nền tảng chịu phần giảm giá.</div>
@@ -44,7 +47,7 @@
             <th>Đã dùng</th>
             <th>Hiệu lực</th>
             <th>Trạng thái</th>
-            <th>Thao tác</th>
+            <th class="actions-col">Thao tác</th>
           </tr>
         </thead>
         <tbody>
@@ -58,9 +61,11 @@
             <td>{{ voucher.used_quantity }}</td>
             <td>{{ date(voucher.valid_from) }} - {{ date(voucher.valid_to) }}</td>
             <td><span class="badge" :class="voucher.status">{{ voucher.status_label }}</span></td>
-            <td>
-              <button class="mini-btn" type="button" @click="openForm(voucher)">Sửa</button>
-              <button class="mini-btn danger" type="button" @click="turnOff(voucher)">Tắt</button>
+            <td class="actions-col">
+              <TableActionGroup>
+                <ActionIconButton icon="pencil" label="Sửa voucher" @click="openForm(voucher)" />
+                <ActionIconButton icon="power" label="Tắt voucher" variant="danger" @click="turnOff(voucher)" />
+              </TableActionGroup>
             </td>
           </tr>
         </tbody>
@@ -105,10 +110,14 @@
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
 import { adminVoucherService } from '../../services/adminVoucherService.js';
 
 export default {
   name: 'AdminVouchers',
+  components: { ActionIconButton, AppIcon, TableActionGroup },
   data() {
     return {
       filters: { keyword: '', status: '', discount_type: '' },

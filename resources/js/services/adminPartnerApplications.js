@@ -34,6 +34,12 @@ export const adminPartnerApplicationService = {
     });
   },
 
+  approveSignature(contractId) {
+    return api(`/api/admin/contracts/${contractId}/approve-signature`, {
+      method: 'POST',
+    });
+  },
+
   courtTypes() {
     return api('/api/admin/court-types');
   },

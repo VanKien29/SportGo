@@ -79,4 +79,28 @@ export const adminVenueClusterService = {
       body: JSON.stringify(payload),
     });
   },
+
+  /**
+   * Duyệt yêu cầu thay đổi vị trí
+   * @param {string} clusterId
+   * @param {string} requestId
+   */
+  approveLocationChange(clusterId, requestId) {
+    return api(`/api/admin/venue-clusters/${clusterId}/location-change-requests/${requestId}/approve`, {
+      method: 'PATCH',
+    });
+  },
+
+  /**
+   * Từ chối yêu cầu thay đổi vị trí
+   * @param {string} clusterId
+   * @param {string} requestId
+   * @param {{ status_reason: string }} payload
+   */
+  rejectLocationChange(clusterId, requestId, payload) {
+    return api(`/api/admin/venue-clusters/${clusterId}/location-change-requests/${requestId}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
 };

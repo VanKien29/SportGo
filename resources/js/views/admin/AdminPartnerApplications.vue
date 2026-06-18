@@ -1,5 +1,16 @@
 <template>
   <div class="partner-app-page">
+    <header class="page-header">
+      <div>
+        <h2>Quản lý đơn đăng ký đối tác</h2>
+        <p>Rà soát hồ sơ chủ sân, trạng thái duyệt và thông tin kinh doanh gửi về hệ thống.</p>
+      </div>
+
+      <button class="icon-btn" type="button" title="Làm mới" aria-label="Làm mới" @click="refresh">
+        <AppIcon name="refresh" size="16" />
+      </button>
+    </header>
+
     <div class="toolbar card">
       <div class="filters">
         <label class="field compact">
@@ -29,10 +40,6 @@
           <input v-model="filters.date_to" type="date" @change="loadApplications(1)" />
         </label>
       </div>
-      <button class="btn ghost" type="button" @click="refresh">
-        <AppIcon name="refresh" size="16" />
-        <span>Làm mới</span>
-      </button>
     </div>
 
     <div v-if="message" class="notice success">{{ message }}</div>
@@ -63,7 +70,11 @@
           <tbody>
             <tr v-for="application in applications" :key="application.id">
               <td>
-                <div class="main-title">{{ application.venue_name }}</div>
+                <div class="main-title">
+                  {{ application.venue_name }}
+                  <span v-if="application.type === 'new_cluster'" class="badge cluster-badge">Cụm mới</span>
+                  <span v-else class="badge partner-badge">Đối tác mới</span>
+                </div>
                 <div class="muted">{{ application.business_name }}</div>
               </td>
               <td>
@@ -108,12 +119,12 @@
       </div>
 
       <div v-if="pagination.last_page > 1" class="pagination">
-        <button class="btn ghost" type="button" :disabled="pagination.current_page <= 1" @click="loadApplications(pagination.current_page - 1)">
-          Trước
+        <button class="icon-btn" type="button" title="Trang trước" aria-label="Trang trước" :disabled="pagination.current_page <= 1" @click="loadApplications(pagination.current_page - 1)">
+          <AppIcon name="chevronLeft" size="17" />
         </button>
         <span>{{ pagination.current_page }} / {{ pagination.last_page }}</span>
-        <button class="btn ghost" type="button" :disabled="pagination.current_page >= pagination.last_page" @click="loadApplications(pagination.current_page + 1)">
-          Sau
+        <button class="icon-btn" type="button" title="Trang sau" aria-label="Trang sau" :disabled="pagination.current_page >= pagination.last_page" @click="loadApplications(pagination.current_page + 1)">
+          <AppIcon name="chevronRight" size="17" />
         </button>
       </div>
     </div>
@@ -147,12 +158,26 @@
           <section class="detail-section">
             <h4>Kinh doanh</h4>
             <dl>
+              <dt>Loại hồ sơ</dt>
+              <dd>
+                <span v-if="activeApplication.type === 'new_cluster'" class="badge cluster-badge">Đăng ký thêm cụm sân</span>
+                <span v-else class="badge partner-badge">Đăng ký đối tác mới</span>
+              </dd>
               <dt>Đơn vị</dt>
               <dd>{{ activeApplication.business_name }}</dd>
               <dt>Mã số thuế</dt>
               <dd>{{ activeApplication.tax_code || '-' }}</dd>
               <dt>Tên cụm sân</dt>
               <dd>{{ activeApplication.venue_name }}</dd>
+              <dt>Mô tả dịch vụ</dt>
+              <dd>{{ activeApplication.venue_description || '-' }}</dd>
+              <dt>Tiện ích chọn sẵn</dt>
+              <dd>
+                <div v-if="activeApplication.amenities && activeApplication.amenities.length > 0" class="amenities-list">
+                  <span v-for="amenity in activeApplication.amenities" :key="amenity" class="amenity-tag">{{ amenity }}</span>
+                </div>
+                <span v-else>-</span>
+              </dd>
             </dl>
           </section>
 
@@ -193,6 +218,41 @@
               </div>
             </div>
             <p v-else class="muted">Chưa có tài khoản ngân hàng.</p>
+          </section>
+
+          <section class="detail-section full">
+            <h4>Hợp đồng hợp tác</h4>
+            <div v-if="activeApplication.contracts?.length" class="mini-list">
+              <div v-for="contract in activeApplication.contracts" :key="contract.id" class="mini-item stacked" style="align-items: flex-start;">
+                <span><strong>{{ contract.contract_number }}</strong></span>
+                <span class="status" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
+                <div style="margin-top: 4px;">
+                  <a v-if="contract.generated_file_path" :href="getFileUrl(contract.generated_file_path)" target="_blank" class="btn ghost small">
+                    <AppIcon name="eye" size="14" /> Xem Hợp đồng
+                  </a>
+                </div>
+                <div v-if="contract.status === 'pending_sportgo_signature'" style="margin-top: 8px;">
+                  <button class="btn primary small" type="button" :disabled="signingAction" @click="approveSignature(contract.id)">
+                    Ký phê duyệt & Cấp quyền
+                  </button>
+                </div>
+                <div v-if="contract.status === 'signed_active'" style="margin-top: 8px; display: flex; gap: 8px;">
+                  <button 
+                    v-if="hasPendingTermination(contract)" 
+                    class="btn warning small" 
+                    type="button" 
+                    :disabled="signingAction" 
+                    @click="approveTermination(contract.id)"
+                  >
+                    Duyệt yêu cầu thanh lý
+                  </button>
+                  <button class="btn danger small" type="button" :disabled="signingAction" @click="unilateralTerminate(contract.id)">
+                    Đơn phương chấm dứt
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p v-else class="muted">Chưa có hợp đồng nào.</p>
           </section>
 
           <section class="detail-section full">
@@ -271,19 +331,19 @@
           <div class="form-grid">
             <label class="field">
               <span>Tên tài khoản</span>
-              <input v-model.trim="approveForm.bank_account_name" type="text" maxlength="150" />
+              <input v-model.trim="approveForm.bank_account_name" type="text" maxlength="150" disabled />
             </label>
             <label class="field">
               <span>Số tài khoản</span>
-              <input v-model.trim="approveForm.bank_account_number" type="text" maxlength="50" />
+              <input v-model.trim="approveForm.bank_account_number" type="text" maxlength="50" disabled />
             </label>
             <label class="field">
               <span>Ngân hàng</span>
-              <input v-model.trim="approveForm.bank_name" type="text" maxlength="100" />
+              <input v-model.trim="approveForm.bank_name" type="text" maxlength="100" disabled />
             </label>
             <label class="field">
               <span>Mã ngân hàng</span>
-              <input v-model.trim="approveForm.bank_code" type="text" maxlength="50" />
+              <input v-model.trim="approveForm.bank_code" type="text" maxlength="50" disabled />
             </label>
           </div>
 
@@ -334,6 +394,7 @@
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
+import { api } from '../../services/api.js';
 
 export default {
   name: 'AdminPartnerApplications',
@@ -346,6 +407,7 @@ export default {
       loading: true,
       detailLoading: false,
       savingAction: false,
+      signingAction: false,
       error: '',
       message: '',
       filterTimer: null,
@@ -379,6 +441,11 @@ export default {
     this.loadCourtTypes();
   },
   methods: {
+    getFileUrl(path) {
+      if (!path) return '#';
+      if (path.startsWith('http')) return path;
+      return '/storage/' + path.replace('public/', '');
+    },
     emptyApproveForm() {
       return {
         initial_court_name: '',
@@ -514,9 +581,66 @@ export default {
         this.closeDetail();
         await this.loadApplications(this.pagination.current_page);
       } catch (err) {
-        this.error = err.message || 'Không từ chối được đơn.';
+        this.error = err.message || 'Có lỗi xảy ra khi từ chối đơn.';
       } finally {
         this.savingAction = false;
+      }
+    },
+    async approveSignature(contractId) {
+      if (!confirm('Xác nhận ký phê duyệt và cấp quyền Chủ sân cho đối tác này?')) return;
+      
+      this.clearAlerts();
+      this.signingAction = true;
+      try {
+        await api(`/api/admin/contracts/${contractId}/approve-signature`, { method: 'POST' });
+        this.message = 'Phê duyệt hợp đồng thành công!';
+        await this.fetchApplication(this.activeApplication);
+        await this.loadApplications(this.pagination.current_page);
+      } catch (err) {
+        this.error = err.message || 'Có lỗi xảy ra khi phê duyệt hợp đồng.';
+      } finally {
+        this.signingAction = false;
+      }
+    },
+    hasPendingTermination(contract) {
+      if (!contract.terminations) return false;
+      return contract.terminations.some(t => t.status === 'submitted');
+    },
+    async approveTermination(contractId) {
+      if (!confirm('Xác nhận đồng ý thanh lý hợp đồng này theo yêu cầu của đối tác?')) return;
+      
+      this.clearAlerts();
+      this.signingAction = true;
+      try {
+        await api(`/api/admin/contracts/${contractId}/approve-termination`, { method: 'POST' });
+        this.message = 'Đã duyệt yêu cầu thanh lý thành công!';
+        await this.fetchApplication(this.activeApplication);
+        await this.loadApplications(this.pagination.current_page);
+      } catch (err) {
+        this.error = err.message || 'Có lỗi xảy ra khi duyệt thanh lý.';
+      } finally {
+        this.signingAction = false;
+      }
+    },
+    async unilateralTerminate(contractId) {
+      const reason = prompt('Vui lòng nhập lý do chấm dứt hợp đồng (Ví dụ: Vi phạm quy định chống bán phá giá):');
+      if (!reason) return;
+
+      this.clearAlerts();
+      this.signingAction = true;
+      try {
+        await api(`/api/admin/contracts/${contractId}/terminate`, { 
+          method: 'POST',
+          body: JSON.stringify({ reason: reason, type: 'unilateral_by_admin' }),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        this.message = 'Đã đơn phương chấm dứt hợp đồng thành công!';
+        await this.fetchApplication(this.activeApplication);
+        await this.loadApplications(this.pagination.current_page);
+      } catch (err) {
+        this.error = err.message || 'Có lỗi xảy ra khi đơn phương chấm dứt hợp đồng.';
+      } finally {
+        this.signingAction = false;
       }
     },
     clearAlerts() {
@@ -527,14 +651,24 @@ export default {
       return ['pending', 'reviewing'].includes(status);
     },
     statusLabel(status) {
-      const map = {
+      const labels = {
         pending: 'Chờ duyệt',
         reviewing: 'Đang xem xét',
         approved: 'Đã duyệt',
         rejected: 'Từ chối',
         cancelled: 'Đã hủy',
       };
-      return map[status] || status || '-';
+      return labels[status] || status || '-';
+    },
+    contractStatusLabel(status) {
+      const labels = {
+        generated: 'Nháp',
+        pending_owner_signature: 'Chờ đối tác ký',
+        pending_sportgo_signature: 'Chờ Admin duyệt (Ký SportGo)',
+        signed_active: 'Đang hiệu lực',
+        terminated: 'Đã thanh lý',
+      };
+      return labels[status] || status;
     },
     formatDate(value) {
       if (!value) return '-';
@@ -606,6 +740,14 @@ export default {
   font-weight: 500;
   background: #fff;
   color: var(--sg-text);
+}
+
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
 .field input,
@@ -826,6 +968,43 @@ th {
   overflow: hidden;
   background: #fff;
   border-radius: 8px;
+  text-overflow: ellipsis;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.cluster-badge {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.partner-badge {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.amenities-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.amenity-tag {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .modal.large {

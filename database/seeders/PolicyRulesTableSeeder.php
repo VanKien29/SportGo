@@ -5,12 +5,17 @@ namespace Database\Seeders;
 use App\Models\PolicyRule;
 use App\Models\SystemPolicy;
 use App\Models\User;
+use App\Services\Policies\RefundCancellationPolicyService;
 use App\Support\PolicyUiText;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Schema;
 
 class PolicyRulesTableSeeder extends Seeder
 {
+    public function __construct(private readonly RefundCancellationPolicyService $refundPolicies)
+    {
+    }
+
     public function run(): void
     {
         if (! Schema::hasTable('system_policies') || ! Schema::hasTable('policy_rules')) {
@@ -58,27 +63,17 @@ class PolicyRulesTableSeeder extends Seeder
             ],
             'booking_cancellation' => [
                 $this->fromTemplate($templates['cancel_before_hours'], 100, [
-                    'rule_name' => 'Booking chỉ được hủy khi còn đủ thời gian và ở trạng thái hợp lệ',
-                    'condition_json' => [
-                        'hours_before_start' => ['gte' => 6],
-                        'booking_status' => ['pending_approval', 'pending_payment', 'confirmed'],
+                    'rule_name' => 'Bảng mốc hủy & hoàn booking',
+                    'condition_json' => ['uses_cancel_refund_tier_table' => true],
+                    'result_json' => $this->refundPolicies->cancelRefundResultJson($this->refundPolicies->defaultCancelRefundTiers(), [
+                        'refund_basis' => 'paid_amount',
+                    ]),
+                    'constraint_json' => ['covers_from_hours' => 0, 'covers_to_infinity' => true],
+                    'allowed_override_json' => [
+                        'venue_can_improve_refund_percent' => true,
+                        'venue_can_change_time_ranges' => false,
+                        'venue_can_block_system_allowed_cancel' => false,
                     ],
-                    'result_json' => [
-                        'allow_cancel' => true,
-                        'disallow_statuses' => ['checked_in', 'completed'],
-                        'owner_cancel_requires_reason' => true,
-                        'may_create_refund_request' => true,
-                    ],
-                ]),
-            ],
-            'refund' => [
-                $this->fromTemplate($templates['refund_percent_by_cancel_time'], 100, [
-                    'constraint_json' => ['refund_percent' => ['min' => 80, 'max' => 100]],
-                    'allowed_override_json' => ['refund_percent' => ['min' => 80, 'max' => 100]],
-                ]),
-                $this->fromTemplate($templates['owner_confirm_required_before_admin_transfer'], 110, [
-                    'constraint_json' => ['owner_confirm_required' => ['exact' => true]],
-                    'allowed_override_json' => ['owner_confirm_required' => ['exact' => true]],
                 ]),
             ],
             'platform_fee' => [
@@ -99,7 +94,52 @@ class PolicyRulesTableSeeder extends Seeder
                 $this->fromTemplate($templates['venue_policy_override_limit'], 100),
             ],
             'moderation' => [
-                $this->fromTemplate($templates['report_threshold_requires_review'], 90),
+                $this->fromTemplate($templates['report_threshold_requires_review'], 90, [
+                    'rule_name' => 'Ngưỡng báo cáo đưa nội dung vào chờ kiểm duyệt',
+                    'condition_json' => [
+                        'target_type' => 'content',
+                        'report_count' => ['gte' => 5],
+                        'unique_reporters' => ['gte' => 2],
+                        'window_days' => 14,
+                    ],
+                    'result_json' => [
+                        'actions' => ['pending_review', 'notify_admin'],
+                        'action' => 'pending_review',
+                        'summary_vi' => 'Nếu nội dung nhận từ 5 báo cáo hợp lệ bởi ít nhất 2 người khác nhau trong 14 ngày, hệ thống chuyển nội dung sang chờ kiểm duyệt và thông báo admin.',
+                    ],
+                ]),
+                $this->fromTemplate($templates['report_threshold_requires_review'], 80, [
+                    'rule_code' => 'user_report_warning_threshold',
+                    'rule_name' => 'Ngưỡng cảnh báo tài khoản người dùng',
+                    'condition_json' => [
+                        'reportable_type' => 'user',
+                        'threshold' => 3,
+                        'count_mode' => 'distinct_reporters',
+                        'window_days' => 7,
+                    ],
+                    'result_json' => [
+                        'action' => 'warning',
+                        'notify_admin' => true,
+                        'summary_vi' => 'Nếu tài khoản nhận từ 3 người báo cáo khác nhau trong 7 ngày, hệ thống sẽ đưa vào diện cảnh báo và thông báo admin.',
+                    ],
+                ]),
+                $this->fromTemplate($templates['report_threshold_requires_review'], 100, [
+                    'rule_code' => 'user_report_lock_threshold',
+                    'rule_name' => 'Ngưỡng tự động khóa tài khoản người dùng',
+                    'condition_json' => [
+                        'reportable_type' => 'user',
+                        'threshold' => 10,
+                        'count_mode' => 'distinct_reporters',
+                        'window_days' => 7,
+                    ],
+                    'result_json' => [
+                        'action' => 'auto_lock',
+                        'lock_duration_days' => 7,
+                        'notify_admin' => true,
+                        'is_auto_lock_enabled' => false,
+                        'summary_vi' => 'Nếu tài khoản nhận từ 10 người báo cáo khác nhau trong 7 ngày, hệ thống sẽ tự động khóa tạm thời 7 ngày và thông báo admin.',
+                    ],
+                ]),
             ],
             'partner_contract' => [
                 $this->fromTemplate($templates['partner_application_approve_requires_contract'], 90),

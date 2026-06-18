@@ -78,10 +78,10 @@ export const adminComplaintService = {
   show(id) {
     return api(`/api/admin/complaints/${id}`);
   },
-  assign(id, assigned_to) {
+  assign(id, assignedTo) {
     return api(`/api/admin/complaints/${id}/assign`, {
       method: 'PATCH',
-      body: JSON.stringify({ assigned_to }),
+      body: JSON.stringify({ assigned_to: assignedTo }),
     });
   },
   resolve(id, data) {
@@ -91,3 +91,4 @@ export const adminComplaintService = {
     });
   },
 };
+

@@ -22,4 +22,16 @@ export const amenityService = {
       method: 'DELETE',
     });
   },
+  request(data) {
+    return api('/api/owner/amenities/request', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  review(id, data) {
+    return api(`/api/admin/amenities/${id}/review`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
 };

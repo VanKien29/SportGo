@@ -1,6 +1,12 @@
 <template>
     <div class="venue-clusters-container">
-
+        <!-- Page Header với cluster selector -->
+        <section class="page-head">
+            <div>
+                <h2>Quản lý cụm sân</h2>
+                <p>Thông tin vận hành, sân con và yêu cầu quy mô.</p>
+            </div>
+        </section>
 
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -23,7 +29,7 @@
 
         <!-- Main Grid -->
         <div v-else class="clusters-grid">
-            <!-- Cluster List -->
+            <!-- Cluster List Sidebar -->
             <div class="clusters-list card">
                 <div
                     v-for="cluster in clusters"
@@ -34,215 +40,1608 @@
                 >
                     <div class="cluster-info">
                         <h4 class="cluster-name">{{ cluster.name }}</h4>
-                        <p class="cluster-address">{{ cluster.address }}</p>
+                        <p class="cluster-address">
+                            {{ formatFullAddress(cluster) }}
+                        </p>
                     </div>
                 </div>
             </div>
 
-            <!-- Cluster Edit Form -->
-            <div v-if="selectedCluster" class="cluster-edit card">
-                <div class="edit-header">
-                    <h3>Cấu hình chi tiết: {{ selectedCluster.name }}</h3>
-                    <router-link
-                        :to="{
-                            name: 'owner-venue-courts',
-                            query: { venue_cluster_id: selectedCluster.id },
-                        }"
-                        class="btn btn-outline btn-sm"
+            <!-- Cluster Detail with Tabs -->
+            <div v-if="selectedCluster" class="cluster-detail">
+                <!-- Tabs -->
+                <div class="detail-tabs card">
+                    <button
+                        v-for="tab in tabs"
+                        :key="tab.key"
+                        class="tab-btn"
+                        :class="{ active: activeTab === tab.key }"
+                        @click="activeTab = tab.key"
                     >
-                        Quản lý sân con
-                    </router-link>
+                        {{ tab.label }}
+                        <span
+                            v-if="
+                                tab.key === 'approvals' &&
+                                pendingApprovalCount > 0
+                            "
+                            class="tab-badge"
+                        >
+                            {{ pendingApprovalCount }}
+                        </span>
+                        <span
+                            v-if="
+                                tab.key === 'location' &&
+                                pendingLocationCount > 0
+                            "
+                            class="tab-badge tab-badge-location"
+                        >
+                            {{ pendingLocationCount }}
+                        </span>
+                    </button>
                 </div>
 
-                <form @submit.prevent="handleUpdate">
-                    <div v-if="updateSuccess" class="alert alert-success">
-                        Cập nhật thông tin cụm sân thành công!
-                    </div>
-                    <div v-if="updateError" class="alert alert-danger">
-                        {{ updateError }}
+                <!-- ═══════════════════════════════════════════════════
+                     TAB 1: THÔNG TIN CHUNG
+                ═══════════════════════════════════════════════════ -->
+                <div v-if="activeTab === 'info'" class="cluster-edit card">
+                    <div class="edit-header">
+                        <h3>Cấu hình chi tiết: {{ selectedCluster.name }}</h3>
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="name"
-                                >Tên cụm sân
-                                <span class="required">*</span></label
-                            >
-                            <input
-                                id="name"
-                                v-model="form.name"
-                                type="text"
-                                class="form-control"
-                                required
-                            />
+                    <form @submit.prevent="handleUpdate">
+                        <div v-if="updateSuccess" class="alert alert-success">
+                            Cập nhật thông tin cụm sân thành công!
                         </div>
-                        <div class="form-group">
-                            <label for="phone"
-                                >Số điện thoại liên hệ
-                                <span class="required">*</span></label
-                            >
-                            <input
-                                id="phone"
-                                v-model="form.phone_contact"
-                                type="text"
-                                class="form-control"
-                                required
-                            />
+                        <div v-if="updateError" class="alert alert-danger">
+                            {{ updateError }}
                         </div>
-                    </div>
 
-                    <div class="form-group">
-                        <label for="address"
-                            >Địa chỉ cụm sân
-                            <span class="required">*</span></label
-                        >
-                        <input
-                            id="address"
-                            v-model="form.address"
-                            type="text"
-                            class="form-control"
-                            required
-                        />
-                    </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="name"
+                                    >Tên cụm sân
+                                    <span class="required">*</span></label
+                                >
+                                <input
+                                    id="name"
+                                    v-model="form.name"
+                                    type="text"
+                                    class="form-control"
+                                    required
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label for="phone"
+                                    >Số điện thoại liên hệ
+                                    <span class="required">*</span></label
+                                >
+                                <input
+                                    id="phone"
+                                    v-model="form.phone_contact"
+                                    type="text"
+                                    class="form-control"
+                                    required
+                                />
+                            </div>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="map_url">Google Map Link URL</label>
-                        <div class="map-input-group">
-                            <input
-                                id="map_url"
-                                v-model="form.map_url"
-                                type="url"
+                        <!-- Vị trí hiện tại (chỉ đọc) -->
+                        <div class="location-readonly-box">
+                            <div class="location-readonly-header">
+                                <div>
+                                    <span class="location-readonly-title"
+                                        >Vị trí hiện tại</span
+                                    >
+                                    <span
+                                        v-if="pendingLocationCount > 0"
+                                        class="pending-location-badge"
+                                    >
+                                        ⏳ Đang có yêu cầu thay đổi chờ duyệt
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline btn-sm"
+                                    :disabled="pendingLocationCount > 0"
+                                    @click="openLocationChangeModal"
+                                >
+                                    <AppIcon name="pencil" size="14" />
+                                    {{
+                                        pendingLocationCount > 0
+                                            ? "Đang chờ duyệt..."
+                                            : "Yêu cầu thay đổi vị trí"
+                                    }}
+                                </button>
+                            </div>
+                            <div class="location-readonly-body">
+                                <div class="location-info-row">
+                                    <span class="location-label">Tỉnh/TP:</span>
+                                    <span class="location-value">{{
+                                        selectedCluster.province || "—"
+                                    }}</span>
+                                </div>
+                                <div class="location-info-row">
+                                    <span class="location-label"
+                                        >Phường/Xã:</span
+                                    >
+                                    <span class="location-value">{{
+                                        selectedCluster.ward || "—"
+                                    }}</span>
+                                </div>
+                                <div class="location-info-row">
+                                    <span class="location-label">Địa chỉ:</span>
+                                    <span class="location-value">{{
+                                        selectedCluster.address || "—"
+                                    }}</span>
+                                </div>
+                                <div class="location-info-row">
+                                    <span class="location-label">Tọa độ:</span>
+                                    <span class="location-value location-coord"
+                                        >{{ selectedCluster.latitude }},
+                                        {{ selectedCluster.longitude }}</span
+                                    >
+                                </div>
+                            </div>
+                            <!-- Bản đồ chỉ xem -->
+                            <div
+                                id="cluster-map"
+                                class="map-container map-readonly"
+                            ></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Tiện ích cụm sân (Amenities)</label>
+                            <div class="amenities-grid">
+                                <label
+                                    v-for="item in availableAmenities"
+                                    :key="item"
+                                    class="amenity-checkbox"
+                                >
+                                    <input
+                                        v-model="form.amenities"
+                                        type="checkbox"
+                                        :value="item"
+                                    />
+                                    <span>{{ item }}</span>
+                                </label>
+                            </div>
+                            <div class="amenity-request-tip">
+                                Bạn không tìm thấy tiện ích mong muốn?
+                                <a
+                                    href="#"
+                                    class="link-request-amenity"
+                                    @click.prevent="openRequestModal"
+                                    >Gửi yêu cầu thêm tiện ích mới</a
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Hình ảnh cụm sân (Album/Gallery)</label>
+                            <div
+                                class="owner-gallery-grid"
+                                v-if="imagesList.length > 0"
+                            >
+                                <div
+                                    v-for="img in imagesList"
+                                    :key="img.id"
+                                    class="owner-gallery-item"
+                                >
+                                    <img
+                                        :src="imageUrl(img.file_path)"
+                                        alt="Hình ảnh cụm sân"
+                                        class="owner-gallery-img"
+                                    />
+                                    <button
+                                        type="button"
+                                        class="btn-delete-img"
+                                        @click="handleDeleteImage(img.id)"
+                                        title="Xóa hình ảnh này"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            </div>
+                            <div v-else class="owner-gallery-empty">
+                                Chưa có hình ảnh nào được tải lên cho cụm sân
+                                này.
+                            </div>
+                            <div class="owner-upload-zone">
+                                <input
+                                    type="file"
+                                    id="owner-image-upload"
+                                    accept="image/*"
+                                    multiple
+                                    class="hidden-file-input"
+                                    @change="handleImageUpload"
+                                    :disabled="uploadingImage"
+                                />
+                                <label
+                                    for="owner-image-upload"
+                                    class="upload-label-zone"
+                                >
+                                    <span
+                                        v-if="uploadingImage"
+                                        class="upload-status-text"
+                                    >
+                                        <div class="spinner-sm"></div>
+                                        Đang tải lên ảnh...
+                                    </span>
+                                    <span v-else class="upload-status-text"
+                                        >Nhấp vào đây để tải lên ảnh mới (jpeg,
+                                        png, webp, tối đa 5MB)</span
+                                    >
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Mô tả cụm sân</label>
+                            <textarea
+                                id="description"
+                                v-model="form.description"
                                 class="form-control"
-                                placeholder="https://maps.google.com/..."
-                            />
+                                rows="4"
+                            ></textarea>
+                        </div>
+
+                        <div class="form-actions">
                             <button
-                                type="button"
-                                class="btn btn-outline btn-extract"
-                                :disabled="resolvingMap"
-                                @click="handleExtractCoordinates"
+                                type="submit"
+                                class="btn btn-primary"
+                                :disabled="updating"
                             >
+                                <AppIcon name="check" size="16" />
                                 {{
-                                    resolvingMap
-                                        ? "Đang trích xuất..."
-                                        : "Trích xuất tọa độ"
+                                    updating
+                                        ? "Đang cập nhật..."
+                                        : "Cập nhật cụm sân"
                                 }}
                             </button>
                         </div>
-                        <p
-                            v-if="mapExtractMsg"
-                            :class="['map-extract-msg', mapExtractMsg.type]"
+                    </form>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════
+                     TAB 2: SÂN CON
+                ═══════════════════════════════════════════════════ -->
+                <div v-if="activeTab === 'courts'" class="courts-tab">
+                    <!-- Tab court header -->
+                    <div class="courts-header card">
+                        <div class="courts-header-left">
+                            <h3>Danh sách sân con ({{ courts.length }})</h3>
+                            <p class="subtitle">
+                                Quản lý các sân thi đấu chi tiết trong cụm sân
+                            </p>
+                        </div>
+                        <div class="courts-header-actions">
+                            <button
+                                class="btn btn-outline"
+                                @click="activeTab = 'approvals'"
+                            >
+                                <AppIcon name="plus" size="15" />
+                                <span>Yêu cầu thêm sân mới</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="courtsLoading" class="loading-state card">
+                        <div class="spinner"></div>
+                        <p>Đang tải danh sách sân con...</p>
+                    </div>
+                    <div v-else-if="courtsError" class="error-state card">
+                        <p class="error-message">{{ courtsError }}</p>
+                    </div>
+                    <div
+                        v-else-if="courts.length === 0"
+                        class="empty-state card"
+                    >
+                        <p>Cụm sân này chưa có sân con nào.</p>
+                        <button
+                            class="btn btn-primary"
+                            @click="activeTab = 'approvals'"
                         >
-                            {{ mapExtractMsg.text }}
-                        </p>
+                            Gửi yêu cầu thêm sân con
+                        </button>
                     </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="latitude"
-                                >Vĩ độ (Latitude)
-                                <span class="required">*</span></label
+                    <div v-else class="view-content-wrapper">
+                        <!-- Tabs Toggle -->
+                        <div class="layout-toggle-tabs">
+                            <button
+                                class="tab-btn"
+                                :class="{ active: courtView === 'list' }"
+                                @click="courtView = 'list'"
                             >
-                            <input
-                                id="latitude"
-                                v-model="form.latitude"
-                                type="number"
-                                step="0.0000001"
-                                class="form-control"
-                                required
-                            />
-                        </div>
-                        <div class="form-group">
-                            <label for="longitude"
-                                >Kinh độ (Longitude)
-                                <span class="required">*</span></label
+                                <span>Danh sách sân con</span>
+                            </button>
+                            <button
+                                class="tab-btn"
+                                :class="{ active: courtView === 'layout' }"
+                                @click="courtView = 'layout'"
                             >
-                            <input
-                                id="longitude"
-                                v-model="form.longitude"
-                                type="number"
-                                step="0.0000001"
-                                class="form-control"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Tiện ích cụm sân (Amenities)</label>
-                        <div class="amenities-grid">
-                            <label
-                                v-for="item in availableAmenities"
-                                :key="item"
-                                class="amenity-checkbox"
-                            >
-                                <input
-                                    v-model="form.amenities"
-                                    type="checkbox"
-                                    :value="item"
-                                />
-                                <span>{{ item }}</span>
-                            </label>
+                                <span>Sắp xếp sơ đồ trực quan</span>
+                            </button>
                         </div>
 
-
-                    </div>
-
-                    <div class="form-group">
-                        <label>Hình ảnh cụm sân (Album/Gallery)</label>
-                        
-                        <!-- Hiển thị lưới ảnh hiện tại -->
-                        <div class="owner-gallery-grid" v-if="imagesList.length > 0">
-                            <div v-for="img in imagesList" :key="img.id" class="owner-gallery-item">
-                                <img :src="imageUrl(img.file_path)" alt="Hình ảnh cụm sân" class="owner-gallery-img" />
-                                <button type="button" class="btn-delete-img" @click="handleDeleteImage(img.id)" title="Xóa hình ảnh này">×</button>
+                        <!-- List View -->
+                        <div v-if="courtView === 'list'" class="courts-grid">
+                            <div
+                                v-for="court in courts"
+                                :key="court.id"
+                                class="court-card card"
+                            >
+                                <div class="court-header">
+                                    <h3 class="court-name">{{ court.name }}</h3>
+                                    <span
+                                        class="status-badge"
+                                        :class="court.status"
+                                        >{{ formatStatus(court.status) }}</span
+                                    >
+                                </div>
+                                <div class="court-body">
+                                    <div class="info-row">
+                                        <span class="label">Loại sân:</span>
+                                        <span class="value">{{
+                                            court.court_type?.name
+                                        }}</span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="label">Sơ đồ:</span>
+                                        <span class="value">
+                                            <span
+                                                v-if="court.layout_x !== null"
+                                                class="badge-placed"
+                                                >Đã xếp ({{
+                                                    formatToM(court.layout_x)
+                                                }}m,
+                                                {{
+                                                    formatToM(court.layout_y)
+                                                }}m)</span
+                                            >
+                                            <span v-else class="badge-unplaced"
+                                                >Chưa xếp</span
+                                            >
+                                        </span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="label">Thứ tự:</span>
+                                        <span class="value">{{
+                                            court.sort_order
+                                        }}</span>
+                                    </div>
+                                </div>
+                                <div class="court-actions">
+                                    <ActionIconButton
+                                        icon="pencil"
+                                        label="Sửa sân con"
+                                        @click="openEditCourtModal(court)"
+                                    />
+                                </div>
                             </div>
                         </div>
-                        <div v-else class="owner-gallery-empty">
-                            Chưa có hình ảnh nào được tải lên cho cụm sân này.
+
+                        <!-- Layout View -->
+                        <div
+                            v-else-if="courtView === 'layout'"
+                            class="layout-editor-workspace"
+                        >
+                            <div class="editor-toolbar">
+                                <div class="toolbar-left">
+                                    <button
+                                        class="btn btn-primary"
+                                        @click="saveLayout"
+                                        :disabled="savingLayout"
+                                    >
+                                        <span>{{
+                                            savingLayout
+                                                ? "Đang lưu..."
+                                                : "Lưu sơ đồ"
+                                        }}</span>
+                                    </button>
+                                    <button
+                                        class="btn btn-outline"
+                                        @click="autoArrange"
+                                    >
+                                        <span>Tự động sắp xếp</span>
+                                    </button>
+                                    <button
+                                        class="btn btn-outline btn-danger-outline"
+                                        @click="clearLayout"
+                                    >
+                                        <span>Xóa toàn bộ</span>
+                                    </button>
+                                </div>
+                                <div class="toolbar-right">
+                                    <span class="info-badge"
+                                        >Không giới hạn (Zoom/Pan) | Chọn sân để
+                                        xoay & chỉnh cỡ</span
+                                    >
+                                </div>
+                            </div>
+                            <div class="editor-body">
+                                <div
+                                    class="canvas-viewport"
+                                    ref="canvasViewport"
+                                    @wheel.prevent="handleZoom"
+                                    @mousedown="startPan"
+                                    @mousemove="handleGlobalMove"
+                                    @mouseup="handleGlobalUp"
+                                    @mouseleave="handleGlobalUp"
+                                    @click="selectedCourtId = null"
+                                >
+                                    <div class="canvas-interaction-guide">
+                                        <div class="guide-item">
+                                            🖱️ <b>Cuộn chuột:</b> Zoom sơ đồ
+                                        </div>
+                                        <div class="guide-item">
+                                            🖐️ <b>Kéo nền trống:</b> Di chuyển
+                                            góc nhìn
+                                        </div>
+                                        <div class="guide-item">
+                                            🎯 <b>Kéo thả sân:</b> Đổi vị trí
+                                            sân con
+                                        </div>
+                                        <div class="guide-item">
+                                            📐 <b>Kéo các nút góc:</b> Thay đổi
+                                            kích thước
+                                        </div>
+                                    </div>
+                                    <div class="zoom-controls">
+                                        <button
+                                            class="btn-zoom"
+                                            @click.stop="setZoom(zoom - 0.1)"
+                                            title="Thu nhỏ"
+                                        >
+                                            -
+                                        </button>
+                                        <span class="zoom-level"
+                                            >{{ Math.round(zoom * 100) }}%</span
+                                        >
+                                        <button
+                                            class="btn-zoom"
+                                            @click.stop="setZoom(zoom + 0.1)"
+                                            title="Phóng to"
+                                        >
+                                            +
+                                        </button>
+                                        <button
+                                            class="btn-zoom fit"
+                                            @click.stop="fitView"
+                                            title="Căn giữa sơ đồ"
+                                        >
+                                            <span class="btn-icon">👁️</span> Căn
+                                            giữa
+                                        </button>
+                                        <button
+                                            class="btn-zoom reset"
+                                            @click.stop="resetView"
+                                            title="Đặt lại góc nhìn"
+                                        >
+                                            Reset
+                                        </button>
+                                    </div>
+                                    <div
+                                        class="canvas-content"
+                                        :style="{
+                                            transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+                                            transformOrigin: '0 0',
+                                        }"
+                                    >
+                                        <div class="canvas-grid-bg"></div>
+                                        <div
+                                            v-for="court in placedCourts"
+                                            :key="court.id"
+                                            class="canvas-court-element"
+                                            :class="{
+                                                selected:
+                                                    selectedCourtId ===
+                                                    court.id,
+                                                dragging:
+                                                    draggingCourtId ===
+                                                    court.id,
+                                                resizing:
+                                                    resizingCourtId ===
+                                                    court.id,
+                                                'has-collision':
+                                                    collisions[court.id],
+                                            }"
+                                            :style="getCourtStyle(court)"
+                                            @mousedown.stop="
+                                                startDrag($event, court)
+                                            "
+                                            @click.stop="selectCourt(court)"
+                                        >
+                                            <CourtVisual
+                                                :name="court.name"
+                                                :court-type-name="
+                                                    court.court_type?.name
+                                                "
+                                                status="active"
+                                                :width="
+                                                    court.layout_w ||
+                                                    getDefaultWidth(court)
+                                                "
+                                                :height="
+                                                    court.layout_h ||
+                                                    getDefaultHeight(court)
+                                                "
+                                                :rotation="
+                                                    court.layout_rotation || 0
+                                                "
+                                                :show-type="false"
+                                            />
+                                            <div
+                                                v-if="collisions[court.id]"
+                                                class="collision-badge"
+                                                title="Sân đang bị chồng lấn!"
+                                            >
+                                                ⚠️ Chồng lấp
+                                            </div>
+                                            <template
+                                                v-if="
+                                                    selectedCourtId === court.id
+                                                "
+                                            >
+                                                <div
+                                                    class="resize-handle tl"
+                                                    @mousedown.stop.prevent="
+                                                        startResize(
+                                                            $event,
+                                                            court,
+                                                            'tl',
+                                                        )
+                                                    "
+                                                ></div>
+                                                <div
+                                                    class="resize-handle tr"
+                                                    @mousedown.stop.prevent="
+                                                        startResize(
+                                                            $event,
+                                                            court,
+                                                            'tr',
+                                                        )
+                                                    "
+                                                ></div>
+                                                <div
+                                                    class="resize-handle bl"
+                                                    @mousedown.stop.prevent="
+                                                        startResize(
+                                                            $event,
+                                                            court,
+                                                            'bl',
+                                                        )
+                                                    "
+                                                ></div>
+                                                <div
+                                                    class="resize-handle br"
+                                                    @mousedown.stop.prevent="
+                                                        startResize(
+                                                            $event,
+                                                            court,
+                                                            'br',
+                                                        )
+                                                    "
+                                                ></div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="editor-sidebar">
+                                    <div
+                                        v-if="selectedCourt"
+                                        class="sidebar-section inspector-panel"
+                                    >
+                                        <h4 class="section-title">
+                                            Thông tin: {{ selectedCourt.name }}
+                                        </h4>
+                                        <div
+                                            v-if="collisions[selectedCourt.id]"
+                                            class="inspector-warning-box"
+                                        >
+                                            ⚠️ Sân đang chồng lấn lên sân khác!
+                                            Vui lòng dịch chuyển hoặc thay đổi
+                                            kích thước để tránh va chạm.
+                                        </div>
+                                        <div class="inspector-fields">
+                                            <div class="field-row">
+                                                <span class="label"
+                                                    >BỘ MÔN:</span
+                                                ><span class="value">{{
+                                                    selectedCourt.court_type
+                                                        ?.name
+                                                }}</span>
+                                            </div>
+                                            <div class="field-group">
+                                                <label>Kích thước (m):</label>
+                                                <div class="input-row">
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        :value="
+                                                            formatToM(
+                                                                selectedCourt.layout_w,
+                                                            )
+                                                        "
+                                                        @input="
+                                                            updateW(
+                                                                selectedCourt,
+                                                                $event.target
+                                                                    .value,
+                                                            )
+                                                        "
+                                                        placeholder="Ngang"
+                                                    />
+                                                    <span class="x">x</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        :value="
+                                                            formatToM(
+                                                                selectedCourt.layout_h,
+                                                            )
+                                                        "
+                                                        @input="
+                                                            updateH(
+                                                                selectedCourt,
+                                                                $event.target
+                                                                    .value,
+                                                            )
+                                                        "
+                                                        placeholder="Dọc"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div class="field-group">
+                                                <label
+                                                    >Vị trí cách lề Trái / Trên
+                                                    (m):</label
+                                                >
+                                                <div class="input-row">
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        :value="
+                                                            formatToM(
+                                                                selectedCourt.layout_x,
+                                                            )
+                                                        "
+                                                        @input="
+                                                            updateX(
+                                                                selectedCourt,
+                                                                $event.target
+                                                                    .value,
+                                                            )
+                                                        "
+                                                        placeholder="Trái (X)"
+                                                    />
+                                                    <span class="comma">,</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        :value="
+                                                            formatToM(
+                                                                selectedCourt.layout_y,
+                                                            )
+                                                        "
+                                                        @input="
+                                                            updateY(
+                                                                selectedCourt,
+                                                                $event.target
+                                                                    .value,
+                                                            )
+                                                        "
+                                                        placeholder="Trên (Y)"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div class="field-group">
+                                                <label
+                                                    >Góc xoay:
+                                                    {{
+                                                        selectedCourt.layout_rotation ||
+                                                        0
+                                                    }}°</label
+                                                >
+                                                <div class="rotation-control">
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max="359"
+                                                        v-model.number="
+                                                            selectedCourt.layout_rotation
+                                                        "
+                                                        class="rotation-slider"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-outline btn-xs btn-rotate"
+                                                        @click="
+                                                            rotateSelected90
+                                                        "
+                                                    >
+                                                        Xoay +90°
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                class="btn btn-outline btn-danger-outline btn-block"
+                                                @click="
+                                                    unplaceCourt(selectedCourt)
+                                                "
+                                            >
+                                                Gỡ khỏi sơ đồ
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="sidebar-section unplaced-list-section"
+                                    >
+                                        <h4 class="section-title">
+                                            Sân chưa xếp ({{
+                                                unplacedCourts.length
+                                            }})
+                                        </h4>
+                                        <p class="section-desc">
+                                            Click vào sân để đưa vào bản đồ rồi
+                                            kéo thả sắp xếp:
+                                        </p>
+                                        <div class="unplaced-items">
+                                            <div
+                                                v-for="court in unplacedCourts"
+                                                :key="court.id"
+                                                class="unplaced-court-item"
+                                                @click="placeCourt(court)"
+                                            >
+                                                <div class="item-header">
+                                                    <div class="item-name">
+                                                        {{ court.name }}
+                                                    </div>
+                                                    <span class="item-add-hint"
+                                                        >Xếp sân</span
+                                                    >
+                                                </div>
+                                                <div class="item-type">
+                                                    {{ court.court_type?.name }}
+                                                </div>
+                                            </div>
+                                            <div
+                                                v-if="
+                                                    unplacedCourts.length === 0
+                                                "
+                                                class="empty-unplaced"
+                                            >
+                                                Đã xếp tất cả các sân vào sơ đồ.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Edit Court Modal -->
+                    <div
+                        v-if="showEditCourtModal"
+                        class="modal-backdrop"
+                        @click.self="closeEditCourtModal"
+                    >
+                        <div class="modal card">
+                            <div class="modal-header">
+                                <h3>Cập nhật sân con</h3>
+                                <button
+                                    class="btn-close"
+                                    @click="closeEditCourtModal"
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                            <form @submit.prevent="handleEditCourtSubmit">
+                                <div class="modal-body">
+                                    <div
+                                        v-if="editCourtError"
+                                        class="alert alert-danger"
+                                    >
+                                        {{ editCourtError }}
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="edit-court-name"
+                                            >Tên sân con
+                                            <span class="required"
+                                                >*</span
+                                            ></label
+                                        >
+                                        <input
+                                            id="edit-court-name"
+                                            v-model="editCourtForm.name"
+                                            type="text"
+                                            class="form-control"
+                                            required
+                                        />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="edit-court-status"
+                                            >Trạng thái sân
+                                            <span class="required"
+                                                >*</span
+                                            ></label
+                                        >
+                                        <select
+                                            id="edit-court-status"
+                                            v-model="editCourtForm.status"
+                                            class="form-control"
+                                            required
+                                        >
+                                            <option value="active">
+                                                Đang hoạt động
+                                            </option>
+                                            <option value="inactive">
+                                                Tạm ngưng hoạt động
+                                            </option>
+                                            <option value="maintenance">
+                                                Bảo trì
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="edit-sort-order"
+                                            >Thứ tự hiển thị</label
+                                        >
+                                        <input
+                                            id="edit-sort-order"
+                                            v-model.number="
+                                                editCourtForm.sort_order
+                                            "
+                                            type="number"
+                                            min="0"
+                                            class="form-control"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline"
+                                        @click="closeEditCourtModal"
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        class="btn btn-primary"
+                                        :disabled="editCourtSubmitting"
+                                    >
+                                        {{
+                                            editCourtSubmitting
+                                                ? "Đang lưu..."
+                                                : "Lưu lại"
+                                        }}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════
+                     TAB 3: YÊU CẦU QUY MÔ
+                ═══════════════════════════════════════════════════ -->
+                <div v-if="activeTab === 'approvals'" class="approvals-tab">
+                    <!-- Send request form -->
+                    <div class="card approval-form-card">
+                        <h3 class="section-title">
+                            Gửi yêu cầu mở rộng quy mô
+                        </h3>
+                        <p class="section-desc">
+                            Để thêm sân con mới, hãy gửi yêu cầu bên dưới. Admin
+                            sẽ xem xét và tạo sân con cho bạn sau khi phê duyệt.
+                        </p>
+                        <div v-if="newReqSuccess" class="alert alert-success">
+                            {{ newReqSuccess }}
+                        </div>
+                        <div v-if="newReqError" class="alert alert-danger">
+                            {{ newReqError }}
+                        </div>
+                        <form @submit.prevent="handleCreateApproval">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label
+                                        >Loại sân
+                                        <span class="required">*</span></label
+                                    >
+                                    <div class="custom-select-wrapper">
+                                        <div
+                                            class="custom-select-trigger"
+                                            :class="{
+                                                active: showTypeDropdown,
+                                            }"
+                                            @click.stop="
+                                                showTypeDropdown =
+                                                    !showTypeDropdown
+                                            "
+                                        >
+                                            <span v-if="selectedReqCourtType">
+                                                <span class="parent-name">{{
+                                                    getParentTypeName(
+                                                        selectedReqCourtType,
+                                                    )
+                                                }}</span>
+                                                <span class="separator">/</span>
+                                                <span class="child-name">{{
+                                                    selectedReqCourtType.name
+                                                }}</span>
+                                            </span>
+                                            <span v-else class="placeholder"
+                                                >-- Chọn loại sân --</span
+                                            >
+                                            <span class="arrow">&#9662;</span>
+                                        </div>
+                                        <div
+                                            v-if="showTypeDropdown"
+                                            class="custom-options-container"
+                                        >
+                                            <div
+                                                v-for="group in groupedCourtTypes"
+                                                :key="group.id"
+                                                class="custom-optgroup"
+                                            >
+                                                <div
+                                                    class="custom-optgroup-label"
+                                                >
+                                                    {{ group.name }}
+                                                </div>
+                                                <div
+                                                    v-for="child in group.children"
+                                                    :key="child.id"
+                                                    class="custom-option"
+                                                    :class="{
+                                                        selected:
+                                                            newReqForm.court_type_id ===
+                                                            child.id,
+                                                    }"
+                                                    @click="
+                                                        selectReqCourtType(
+                                                            child,
+                                                        )
+                                                    "
+                                                >
+                                                    <span class="option-text">{{
+                                                        child.name
+                                                    }}</span>
+                                                    <span class="option-details"
+                                                        >({{
+                                                            child.player_count
+                                                        }}
+                                                        người)</span
+                                                    >
+                                                    <span
+                                                        v-if="
+                                                            newReqForm.court_type_id ===
+                                                            child.id
+                                                        "
+                                                        class="check-mark"
+                                                        >&#10003;</span
+                                                    >
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label
+                                        >Tên sân con đề xuất
+                                        <span class="required">*</span></label
+                                    >
+                                    <input
+                                        v-model="newReqForm.name"
+                                        type="text"
+                                        class="form-control"
+                                        placeholder="Ví dụ: Sân số 5, Sân VIP..."
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Ghi chú/Lý do mở rộng</label>
+                                <textarea
+                                    v-model="newReqForm.note"
+                                    class="form-control"
+                                    rows="3"
+                                    placeholder="Mô tả lý do bạn muốn mở rộng thêm sân con..."
+                                ></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary"
+                                    :disabled="creatingReq"
+                                >
+                                    <AppIcon name="send" size="16" />
+                                    {{
+                                        creatingReq
+                                            ? "Đang gửi..."
+                                            : "Gửi yêu cầu"
+                                    }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Approval history list -->
+                    <div class="card">
+                        <div class="approval-list-header">
+                            <h3 class="section-title">Lịch sử yêu cầu</h3>
+                            <div class="approval-filter-tabs">
+                                <button
+                                    class="tab-sm"
+                                    :class="{ active: approvalFilter === '' }"
+                                    @click="setApprovalFilter('')"
+                                >
+                                    Tất cả
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: approvalFilter === 'pending',
+                                    }"
+                                    @click="setApprovalFilter('pending')"
+                                >
+                                    Chờ duyệt
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: approvalFilter === 'approved',
+                                    }"
+                                    @click="setApprovalFilter('approved')"
+                                >
+                                    Đã duyệt
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: approvalFilter === 'rejected',
+                                    }"
+                                    @click="setApprovalFilter('rejected')"
+                                >
+                                    Từ chối
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: approvalFilter === 'cancelled',
+                                    }"
+                                    @click="setApprovalFilter('cancelled')"
+                                >
+                                    Đã hủy
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- Khung upload ảnh mới -->
-                        <div class="owner-upload-zone">
+                        <div
+                            v-if="approvalsLoading"
+                            class="loading-state"
+                            style="padding: 40px 0"
+                        >
+                            <div class="spinner"></div>
+                            <p>Đang tải...</p>
+                        </div>
+                        <div
+                            v-else-if="filteredApprovals.length === 0"
+                            class="empty-section"
+                        >
+                            Không có yêu cầu nào.
+                        </div>
+                        <div v-else class="approval-list">
+                            <div
+                                v-for="req in filteredApprovals"
+                                :key="req.id"
+                                class="approval-card"
+                                :class="`approval-${req.status}`"
+                            >
+                                <div class="approval-row">
+                                    <div class="approval-details">
+                                        <div class="approval-name fw-bold">
+                                            {{ req.name }}
+                                        </div>
+                                        <div class="approval-meta">
+                                            Loại sân:
+                                            {{ req.court_type?.name || "—" }}
+                                        </div>
+                                        <div class="approval-meta">
+                                            Gửi lúc:
+                                            {{ formatDate(req.created_at) }}
+                                        </div>
+                                        <div
+                                            v-if="
+                                                req.status_reason &&
+                                                req.status === 'rejected'
+                                            "
+                                            class="approval-reason"
+                                        >
+                                            Lý do từ chối:
+                                            {{ req.status_reason }}
+                                        </div>
+                                        <div
+                                            v-if="
+                                                req.reviewed_by &&
+                                                req.reviewed_at
+                                            "
+                                            class="approval-meta"
+                                        >
+                                            Xử lý bởi:
+                                            {{ req.reviewed_by?.full_name }} ·
+                                            {{ formatDate(req.reviewed_at) }}
+                                        </div>
+                                    </div>
+                                    <div class="approval-right">
+                                        <span
+                                            class="status-badge-approval"
+                                            :class="`approval-status-${req.status}`"
+                                        >
+                                            {{
+                                                approvalStatusLabel(req.status)
+                                            }}
+                                        </span>
+                                        <button
+                                            v-if="req.status === 'pending'"
+                                            class="btn btn-outline btn-sm"
+                                            :disabled="cancellingId === req.id"
+                                            @click="handleCancelApproval(req)"
+                                        >
+                                            {{
+                                                cancellingId === req.id
+                                                    ? "..."
+                                                    : "Hủy yêu cầu"
+                                            }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════
+                     TAB 4: YÊU CẦU THAY ĐỔI VỊ TRÍ
+                ═══════════════════════════════════════════════════ -->
+                <div v-if="activeTab === 'location'" class="location-tab">
+                    <!-- Thông tin vị trí hiện tại -->
+                    <div class="card location-current-card">
+                        <h3 class="section-title">Vị trí hiện tại</h3>
+                        <div class="location-current-grid">
+                            <div class="location-info-row">
+                                <span class="location-label">Tỉnh/TP:</span
+                                ><span class="location-value">{{
+                                    selectedCluster.province || "—"
+                                }}</span>
+                            </div>
+                            <div class="location-info-row">
+                                <span class="location-label">Phường/Xã:</span
+                                ><span class="location-value">{{
+                                    selectedCluster.ward || "—"
+                                }}</span>
+                            </div>
+                            <div class="location-info-row">
+                                <span class="location-label">Địa chỉ:</span
+                                ><span class="location-value">{{
+                                    selectedCluster.address || "—"
+                                }}</span>
+                            </div>
+                            <div class="location-info-row">
+                                <span class="location-label">Tọa độ:</span
+                                ><span class="location-value location-coord"
+                                    >{{ selectedCluster.latitude }},
+                                    {{ selectedCluster.longitude }}</span
+                                >
+                            </div>
+                        </div>
+                        <div class="location-actions">
+                            <button
+                                class="btn btn-primary"
+                                :disabled="pendingLocationCount > 0"
+                                @click="openLocationChangeModal"
+                            >
+                                <AppIcon name="pencil" size="15" />
+                                {{
+                                    pendingLocationCount > 0
+                                        ? "⏳ Đang có yêu cầu chờ duyệt"
+                                        : "Gửi yêu cầu thay đổi vị trí"
+                                }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Lịch sử yêu cầu -->
+                    <div class="card">
+                        <div class="approval-list-header">
+                            <h3 class="section-title">
+                                Lịch sử yêu cầu thay đổi vị trí
+                            </h3>
+                            <div class="approval-filter-tabs">
+                                <button
+                                    class="tab-sm"
+                                    :class="{ active: locationFilter === '' }"
+                                    @click="setLocationFilter('')"
+                                >
+                                    Tất cả
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: locationFilter === 'pending',
+                                    }"
+                                    @click="setLocationFilter('pending')"
+                                >
+                                    Chờ duyệt
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: locationFilter === 'approved',
+                                    }"
+                                    @click="setLocationFilter('approved')"
+                                >
+                                    Đã duyệt
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: locationFilter === 'rejected',
+                                    }"
+                                    @click="setLocationFilter('rejected')"
+                                >
+                                    Từ chối
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: locationFilter === 'cancelled',
+                                    }"
+                                    @click="setLocationFilter('cancelled')"
+                                >
+                                    Đã hủy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="locationLoading"
+                            class="loading-state"
+                            style="padding: 30px 0"
+                        >
+                            <div class="spinner"></div>
+                            <p>Đang tải...</p>
+                        </div>
+                        <div
+                            v-else-if="filteredLocationRequests.length === 0"
+                            class="empty-section"
+                        >
+                            Không có yêu cầu nào.
+                        </div>
+                        <div v-else class="approval-list">
+                            <div
+                                v-for="req in filteredLocationRequests"
+                                :key="req.id"
+                                class="approval-card"
+                                :class="`approval-${req.status}`"
+                            >
+                                <div class="approval-row">
+                                    <div class="approval-details">
+                                        <div class="approval-name fw-bold">
+                                            Thay đổi vị trí
+                                        </div>
+                                        <div class="approval-meta">
+                                            🏠 Địa chỉ mới:
+                                            {{ req.new_address }},
+                                            {{ req.new_ward }},
+                                            {{ req.new_province }}
+                                        </div>
+                                        <div class="approval-meta">
+                                            🧭 Tọa độ: {{ req.new_latitude }},
+                                            {{ req.new_longitude }}
+                                        </div>
+                                        <div class="approval-meta">
+                                            📝 Lý do: {{ req.note }}
+                                        </div>
+                                        <div class="approval-meta">
+                                            Gửi lúc:
+                                            {{ formatDate(req.created_at) }}
+                                        </div>
+                                        <div
+                                            v-if="
+                                                req.status_reason &&
+                                                req.status === 'rejected'
+                                            "
+                                            class="approval-reason"
+                                        >
+                                            Lý do từ chối:
+                                            {{ req.status_reason }}
+                                        </div>
+                                        <div
+                                            v-if="
+                                                req.reviewed_by &&
+                                                req.reviewed_at
+                                            "
+                                            class="approval-meta"
+                                        >
+                                            Xử lý bởi:
+                                            {{ req.reviewed_by?.full_name }} ·
+                                            {{ formatDate(req.reviewed_at) }}
+                                        </div>
+                                    </div>
+                                    <div class="approval-right">
+                                        <span
+                                            class="status-badge-approval"
+                                            :class="`approval-status-${req.status}`"
+                                        >
+                                            {{
+                                                approvalStatusLabel(req.status)
+                                            }}
+                                        </span>
+                                        <button
+                                            v-if="req.status === 'pending'"
+                                            class="btn btn-outline btn-sm"
+                                            :disabled="
+                                                cancellingLocationId === req.id
+                                            "
+                                            @click="
+                                                handleCancelLocationRequest(req)
+                                            "
+                                        >
+                                            {{
+                                                cancellingLocationId === req.id
+                                                    ? "..."
+                                                    : "Hủy yêu cầu"
+                                            }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Request Amenity -->
+        <div
+            v-if="showRequestModal"
+            class="modal-backdrop"
+            @click.self="closeRequestModal"
+        >
+            <div class="modal card">
+                <div class="modal-header">
+                    <h3>Gửi yêu cầu thêm tiện ích</h3>
+                    <button class="btn-close" @click="closeRequestModal">
+                        &times;
+                    </button>
+                </div>
+                <form @submit.prevent="handleRequestSubmit">
+                    <div class="modal-body">
+                        <div v-if="requestError" class="alert alert-danger">
+                            {{ requestError }}
+                        </div>
+                        <div
+                            v-if="requestSuccessMsg"
+                            class="alert alert-success"
+                        >
+                            {{ requestSuccessMsg }}
+                        </div>
+                        <div class="form-group">
+                            <label for="req-name"
+                                >Tên tiện ích
+                                <span class="required">*</span></label
+                            >
                             <input
-                                type="file"
-                                id="owner-image-upload"
-                                accept="image/*"
-                                multiple
-                                class="hidden-file-input"
-                                @change="handleImageUpload"
-                                :disabled="uploadingImage"
+                                id="req-name"
+                                v-model="requestForm.name"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Máy bắn cầu tự động..."
+                                required
                             />
-                            <label for="owner-image-upload" class="upload-label-zone">
-                                <span v-if="uploadingImage" class="upload-status-text">
-                                    <div class="spinner-sm"></div> Đang tải lên ảnh...
-                                </span>
-                                <span v-else class="upload-status-text">
-                                    📸 Nhấp vào đây để tải lên ảnh mới (jpeg, png, webp, tối đa 5MB)
-                                </span>
-                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="req-description">Mô tả tiện ích</label>
+                            <textarea
+                                id="req-description"
+                                v-model="requestForm.description"
+                                class="form-control"
+                                placeholder="Nhập mô tả chi tiết của tiện ích..."
+                                rows="3"
+                            ></textarea>
                         </div>
                     </div>
-
-                    <div class="form-group">
-                        <label for="description">Mô tả cụm sân</label>
-                        <textarea
-                            id="description"
-                            v-model="form.description"
-                            class="form-control"
-                            rows="4"
-                        ></textarea>
-                    </div>
-
-                    <div class="form-actions">
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-outline"
+                            @click="closeRequestModal"
+                        >
+                            Hủy
+                        </button>
                         <button
                             type="submit"
                             class="btn btn-primary"
-                            :disabled="updating"
+                            :disabled="requestSubmitting"
                         >
                             {{
-                                updating
-                                    ? "Đang cập nhật..."
-                                    : "Cập nhật cụm sân"
+                                requestSubmitting
+                                    ? "Đang gửi..."
+                                    : "Gửi yêu cầu"
+                            }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Yêu cầu thay đổi vị trí -->
+        <div
+            v-if="showLocationModal"
+            class="modal-backdrop"
+            @click.self="closeLocationChangeModal"
+        >
+            <div class="modal card modal-location">
+                <div class="modal-header">
+                    <h3>Yêu cầu thay đổi vị trí cụm sân</h3>
+                    <button class="btn-close" @click="closeLocationChangeModal">
+                        &times;
+                    </button>
+                </div>
+                <form @submit.prevent="handleLocationChangeSubmit">
+                    <div class="modal-body">
+                        <div
+                            v-if="locationModalError"
+                            class="alert alert-danger"
+                        >
+                            {{ locationModalError }}
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label
+                                    >Tỉnh/Thành phố mới
+                                    <span class="required">*</span></label
+                                >
+                                <input
+                                    v-model="locationForm.new_province"
+                                    type="text"
+                                    class="form-control"
+                                    placeholder="Ví dụ: Hà Nội"
+                                    required
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label
+                                    >Phường/Xã mới
+                                    <span class="required">*</span></label
+                                >
+                                <input
+                                    v-model="locationForm.new_ward"
+                                    type="text"
+                                    class="form-control"
+                                    placeholder="Ví dụ: Phường Bến Nghé"
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label
+                                >Địa chỉ cụ thể mới
+                                <span class="required">*</span></label
+                            >
+                            <input
+                                v-model="locationForm.new_address"
+                                type="text"
+                                class="form-control"
+                                placeholder="Số nhà, tên đường..."
+                                required
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label>Link Google Maps mới</label>
+                            <div class="map-input-group">
+                                <input
+                                    v-model="locationForm.new_map_url"
+                                    type="url"
+                                    class="form-control"
+                                    placeholder="https://maps.google.com/..."
+                                />
+                                <button
+                                    type="button"
+                                    class="btn btn-outline btn-extract"
+                                    :disabled="resolvingLocationMap"
+                                    @click="handleExtractLocationCoords"
+                                >
+                                    <AppIcon name="search" size="15" />
+                                    {{
+                                        resolvingLocationMap
+                                            ? "Đang trích xuất..."
+                                            : "Trích xuất tọa độ"
+                                    }}
+                                </button>
+                            </div>
+                            <p
+                                v-if="locationMapMsg"
+                                :class="[
+                                    'map-extract-msg',
+                                    locationMapMsg.type,
+                                ]"
+                            >
+                                {{ locationMapMsg.text }}
+                            </p>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label
+                                    >Vĩ độ (Latitude) mới
+                                    <span class="required">*</span></label
+                                >
+                                <input
+                                    v-model.number="locationForm.new_latitude"
+                                    type="number"
+                                    step="0.0000001"
+                                    class="form-control"
+                                    required
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label
+                                    >Kinh độ (Longitude) mới
+                                    <span class="required">*</span></label
+                                >
+                                <input
+                                    v-model.number="locationForm.new_longitude"
+                                    type="number"
+                                    step="0.0000001"
+                                    class="form-control"
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Chọn vị trí mới trên bản đồ</label>
+                            <p class="map-help-text">
+                                Kéo marker hoặc click lên bản đồ để chọn vị trí
+                                chính xác.
+                            </p>
+                            <div
+                                id="location-change-modal-map"
+                                class="map-container"
+                            ></div>
+                        </div>
+                        <div class="form-group">
+                            <label
+                                >Lý do thay đổi vị trí
+                                <span class="required">*</span></label
+                            >
+                            <textarea
+                                v-model="locationForm.note"
+                                class="form-control"
+                                rows="3"
+                                placeholder="Mô tả lý do bạn muốn đổi vị trí..."
+                                required
+                            ></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-outline"
+                            @click="closeLocationChangeModal"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            :disabled="locationSubmitting"
+                        >
+                            {{
+                                locationSubmitting
+                                    ? "Đang gửi..."
+                                    : "Gửi yêu cầu"
                             }}
                         </button>
                     </div>
@@ -253,17 +1652,34 @@
 </template>
 
 <script>
+import AppIcon from "../../components/AppIcon.vue";
+import ActionIconButton from "../../components/ActionIconButton.vue";
+import CourtVisual from "../../components/CourtVisual.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
+import { courtTypeService } from "../../services/courtTypes";
 
 export default {
     name: "OwnerVenueClusters",
+    components: { AppIcon, ActionIconButton, CourtVisual },
     data() {
         return {
+            // Cluster list
             clusters: [],
             selectedCluster: null,
             loading: true,
             error: null,
+
+            // Tabs
+            activeTab: "info",
+            tabs: [
+                { key: "info", label: "Thông tin chung" },
+                { key: "courts", label: "Sân con" },
+                { key: "approvals", label: "Yêu cầu quy mô" },
+                { key: "location", label: "Yêu cầu vị trí" },
+            ],
+
+            // Info tab form
             updating: false,
             updateSuccess: false,
             updateError: null,
@@ -275,6 +1691,8 @@ export default {
             form: {
                 name: "",
                 phone_contact: "",
+                province: "",
+                ward: "",
                 address: "",
                 map_url: "",
                 latitude: 21.0285,
@@ -282,10 +1700,408 @@ export default {
                 amenities: [],
                 description: "",
             },
+            map: null,
+            marker: null,
+
+            // Amenity request modal
+            showRequestModal: false,
+            requestSubmitting: false,
+            requestError: null,
+            requestSuccessMsg: null,
+            requestForm: { name: "", description: "" },
+
+            // Courts tab
+            courts: [],
+            courtTypes: [],
+            courtsLoading: false,
+            courtsError: null,
+            courtView: "list",
+
+            // Edit court modal
+            showEditCourtModal: false,
+            editingCourtId: null,
+            editCourtSubmitting: false,
+            editCourtError: null,
+            editCourtForm: { name: "", status: "active", sort_order: 0 },
+
+            // Layout/Canvas
+            selectedCourtId: null,
+            draggingCourtId: null,
+            dragStartX: 0,
+            dragStartY: 0,
+            savingLayout: false,
+            resizingCourtId: null,
+            resizeDirection: "",
+            resizeStartW: 0,
+            resizeStartH: 0,
+            resizeStartXCoord: 0,
+            resizeStartYCoord: 0,
+            panX: 0,
+            panY: 0,
+            zoom: 1,
+            isPanning: false,
+            panStartX: 0,
+            panStartY: 0,
+
+            // Approvals tab
+            approvalRequests: [],
+            approvalFilter: "",
+            approvalsLoading: false,
+            newReqForm: { court_type_id: "", name: "", note: "" },
+            newReqSuccess: null,
+            newReqError: null,
+            creatingReq: false,
+            cancellingId: null,
+            showTypeDropdown: false,
+
+            // Location Change Requests
+            locationRequests: [],
+            locationFilter: "",
+            locationLoading: false,
+            cancellingLocationId: null,
+            showLocationModal: false,
+            locationSubmitting: false,
+            locationModalError: null,
+            resolvingLocationMap: false,
+            locationMapMsg: null,
+            locationForm: {
+                new_province: "",
+                new_ward: "",
+                new_address: "",
+                new_map_url: "",
+                new_latitude: 21.0285,
+                new_longitude: 105.8542,
+                note: "",
+            },
+            locationMap: null,
+            locationMarker: null,
         };
     },
 
+    computed: {
+        selectedCourt() {
+            return (
+                this.courts.find((c) => c.id === this.selectedCourtId) || null
+            );
+        },
+        placedCourts() {
+            return this.courts.filter(
+                (c) => c.layout_x !== null && c.layout_y !== null,
+            );
+        },
+        unplacedCourts() {
+            return this.courts.filter(
+                (c) => c.layout_x === null || c.layout_y === null,
+            );
+        },
+        collisions() {
+            const collisionMap = {};
+            const placed = this.placedCourts;
+            for (let i = 0; i < placed.length; i++) {
+                const polyA = this.getVertices(placed[i]);
+                for (let j = i + 1; j < placed.length; j++) {
+                    const polyB = this.getVertices(placed[j]);
+                    if (this.polygonsIntersect(polyA, polyB)) {
+                        collisionMap[placed[i].id] = true;
+                        collisionMap[placed[j].id] = true;
+                    }
+                }
+            }
+            return collisionMap;
+        },
+        groupedCourtTypes() {
+            const parents = this.courtTypes.filter((t) => !t.parent_id);
+            return parents
+                .map((p) => ({
+                    id: p.id,
+                    name: p.name,
+                    children: this.courtTypes.filter(
+                        (t) => t.parent_id === p.id,
+                    ),
+                }))
+                .filter((g) => g.children.length > 0);
+        },
+        selectedReqCourtType() {
+            return (
+                this.courtTypes.find(
+                    (t) => t.id === this.newReqForm.court_type_id,
+                ) || null
+            );
+        },
+        filteredApprovals() {
+            if (!this.approvalFilter) return this.approvalRequests;
+            return this.approvalRequests.filter(
+                (r) => r.status === this.approvalFilter,
+            );
+        },
+        pendingApprovalCount() {
+            return this.approvalRequests.filter((r) => r.status === "pending")
+                .length;
+        },
+        filteredLocationRequests() {
+            if (!this.locationFilter) return this.locationRequests;
+            return this.locationRequests.filter(
+                (r) => r.status === this.locationFilter,
+            );
+        },
+        pendingLocationCount() {
+            return this.locationRequests.filter((r) => r.status === "pending")
+                .length;
+        },
+    },
+
+    watch: {
+        "form.latitude"() {
+            this.updateMapMarker();
+        },
+        "form.longitude"() {
+            this.updateMapMarker();
+        },
+        "locationForm.new_latitude"() {
+            this.updateLocationModalMapMarker();
+        },
+        "locationForm.new_longitude"() {
+            this.updateLocationModalMapMarker();
+        },
+        activeTab(newTab) {
+            if (newTab === "courts" && this.selectedCluster) {
+                this.fetchCourts(this.selectedCluster.id);
+            }
+            if (newTab === "approvals" && this.selectedCluster) {
+                this.fetchApprovals(this.selectedCluster.id);
+            }
+            if (newTab === "location" && this.selectedCluster) {
+                this.fetchLocationRequests(this.selectedCluster.id);
+            }
+            if (newTab === "info") {
+                this.$nextTick(() => this.initMap());
+            }
+        },
+    },
+
+    created() {
+        this.fetchClusters();
+        this.fetchAvailableAmenities();
+    },
+
+    mounted() {
+        document.addEventListener("click", this.handleOutsideClick);
+        window.addEventListener(
+            "owner-cluster-changed",
+            this.onOwnerClusterChanged,
+        );
+    },
+
+    beforeUnmount() {
+        document.removeEventListener("click", this.handleOutsideClick);
+        window.removeEventListener(
+            "owner-cluster-changed",
+            this.onOwnerClusterChanged,
+        );
+        this.destroyMap();
+    },
+
     methods: {
+        // ── Cluster list ──
+        async fetchClusters() {
+            this.loading = true;
+            this.error = null;
+            try {
+                const res = await venueClusterService.getClusters();
+                this.clusters = res.data || [];
+                if (this.clusters.length > 0) {
+                    this.selectCluster(this.clusters[0]);
+                }
+            } catch (err) {
+                this.error = err.message || "Lỗi khi tải danh sách cụm sân.";
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        selectCluster(cluster) {
+            this.selectedCluster = cluster;
+            this.activeTab = "info";
+            localStorage.setItem("selected_cluster", cluster.id);
+            window.dispatchEvent(
+                new CustomEvent("owner-cluster-changed", { detail: cluster }),
+            );
+            this.updateSuccess = false;
+            this.updateError = null;
+            this.imagesList = (cluster.media || []).filter(
+                (img) =>
+                    img.file_path &&
+                    !img.file_path.includes("default-home.jpg"),
+            );
+            this.form = {
+                name: cluster.name,
+                phone_contact: cluster.phone_contact || "",
+                province: cluster.province || "",
+                ward: cluster.ward || "",
+                address: cluster.address,
+                map_url: cluster.map_url || "",
+                latitude: parseFloat(cluster.latitude || 21.0285),
+                longitude: parseFloat(cluster.longitude || 105.8542),
+                amenities: Array.isArray(cluster.amenities)
+                    ? cluster.amenities
+                    : [],
+                description: cluster.description || "",
+            };
+            // Reset location requests khi đổi cluster
+            this.locationRequests = [];
+            this.locationFilter = "";
+            // Load location requests ngay để hiển thị badge đúng
+            this.fetchLocationRequests(cluster.id);
+            this.$nextTick(() => this.initMap());
+        },
+
+        onOwnerClusterChanged(event) {
+            const clusterId = event.detail?.id;
+            if (
+                !clusterId ||
+                !this.selectedCluster ||
+                String(clusterId) === String(this.selectedCluster.id)
+            )
+                return;
+            const cluster = this.clusters.find(
+                (c) => String(c.id) === String(clusterId),
+            );
+            if (cluster) this.selectCluster(cluster);
+        },
+
+        formatFullAddress(cluster) {
+            if (!cluster) return "";
+            return (
+                [cluster.address, cluster.ward, cluster.province]
+                    .filter(Boolean)
+                    .join(", ") || "Chưa cấu hình địa chỉ"
+            );
+        },
+
+        // ── Info Tab ──
+        async handleUpdate() {
+            this.updating = true;
+            this.updateSuccess = false;
+            this.updateError = null;
+            try {
+                const res = await venueClusterService.updateCluster(
+                    this.selectedCluster.id,
+                    this.form,
+                );
+                this.updateSuccess = true;
+                const index = this.clusters.findIndex(
+                    (c) => c.id === this.selectedCluster.id,
+                );
+                if (index !== -1) {
+                    this.clusters[index] = {
+                        ...this.clusters[index],
+                        ...res.data,
+                    };
+                    this.selectedCluster = this.clusters[index];
+                    window.dispatchEvent(
+                        new CustomEvent("owner-cluster-changed", {
+                            detail: this.selectedCluster,
+                        }),
+                    );
+                }
+            } catch (err) {
+                this.updateError = err.message || "Lỗi khi cập nhật cụm sân.";
+            } finally {
+                this.updating = false;
+            }
+        },
+
+        imageUrl(path) {
+            if (!path || path.includes("default-home.jpg")) return "";
+            if (/^https?:\/\//.test(path)) return path;
+            return `/storage/${path}`;
+        },
+
+        async handleImageUpload(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            this.uploadingImage = true;
+            this.updateError = null;
+            try {
+                for (const file of files) {
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert(
+                            `File ${file.name} vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.`,
+                        );
+                        continue;
+                    }
+                    const formData = new FormData();
+                    formData.append("image", file);
+                    const res = await venueClusterService.uploadMedia(
+                        this.selectedCluster.id,
+                        formData,
+                    );
+                    this.imagesList.push(res.data);
+                }
+                this.selectedCluster.media = [...this.imagesList];
+            } catch (err) {
+                this.updateError = err.message || "Tải lên hình ảnh thất bại.";
+            } finally {
+                this.uploadingImage = false;
+                e.target.value = "";
+            }
+        },
+
+        async handleDeleteImage(mediaId) {
+            if (!confirm("Bạn có chắc chắn muốn xóa hình ảnh này khỏi album?"))
+                return;
+            this.updateError = null;
+            try {
+                await venueClusterService.deleteMedia(
+                    this.selectedCluster.id,
+                    mediaId,
+                );
+                this.imagesList = this.imagesList.filter(
+                    (img) => img.id !== mediaId,
+                );
+                this.selectedCluster.media = [...this.imagesList];
+            } catch (err) {
+                this.updateError = err.message || "Xóa hình ảnh thất bại.";
+            }
+        },
+
+        async fetchAvailableAmenities() {
+            try {
+                const res = await amenityService.getAll(true);
+                this.availableAmenities = (res.data || []).map((a) => a.name);
+            } catch (err) {
+                console.error("Lỗi khi tải danh sách tiện ích:", err.message);
+            }
+        },
+
+        openRequestModal() {
+            this.showRequestModal = true;
+            this.requestError = null;
+            this.requestSuccessMsg = null;
+            this.requestForm = { name: "", description: "" };
+        },
+
+        closeRequestModal() {
+            this.showRequestModal = false;
+        },
+
+        async handleRequestSubmit() {
+            this.requestSubmitting = true;
+            this.requestError = null;
+            this.requestSuccessMsg = null;
+            try {
+                await amenityService.request(this.requestForm);
+                this.requestSuccessMsg =
+                    "Gửi yêu cầu thành công. Vui lòng chờ admin duyệt.";
+                setTimeout(() => this.closeRequestModal(), 2000);
+            } catch (err) {
+                this.requestError = err.message || "Lỗi gửi yêu cầu.";
+            } finally {
+                this.requestSubmitting = false;
+            }
+        },
+
+        // ── Map ──
         async handleExtractCoordinates() {
             if (!this.form.map_url) {
                 alert("Vui lòng nhập đường link Google Maps trước.");
@@ -304,28 +2120,27 @@ export default {
                 this.resolvingMap = false;
             }
         },
+
         async parseCoordinatesFromMapUrl(url) {
-            // Nếu là link rút gọn maps.app.goo.gl hoặc goo.gl/maps thì gọi API Server-side để giải mã
+            let targetUrl = url;
             if (
                 url.includes("maps.app.goo.gl") ||
                 url.includes("goo.gl/maps")
             ) {
                 try {
                     const res = await venueClusterService.resolveMapUrl(url);
-                    if (res.latitude && res.longitude) {
-                        this.form.latitude = res.latitude;
-                        this.form.longitude = res.longitude;
+                    const d = res.data;
+                    if (d?.latitude && d?.longitude) {
+                        this.form.latitude = d.latitude;
+                        this.form.longitude = d.longitude;
                         this.mapExtractMsg = {
                             type: "success",
-                            text: `Trích xuất thành công: Vĩ độ ${res.latitude}, Kinh độ ${res.longitude}`,
+                            text: `Trích xuất thành công: Vĩ độ ${d.latitude}, Kinh độ ${d.longitude}`,
                         };
                         return;
                     }
+                    if (d?.final_url) targetUrl = d.final_url;
                 } catch (e) {
-                    console.warn(
-                        "Không thể giải mã link map từ Server-side:",
-                        e.message,
-                    );
                     this.mapExtractMsg = {
                         type: "error",
                         text: `Lỗi: ${e.message || "Không thể giải mã link rút gọn từ server."}`,
@@ -333,10 +2148,7 @@ export default {
                     return;
                 }
             }
-
-            // Ví dụ URL: https://www.google.com/maps/place/21.028511,105.854167 hoặc @21.028511,105.854167,17z
-            // Regex 1: Tìm mẫu @latitude,longitude
-            let match = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            let match = targetUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (match) {
                 this.form.latitude = parseFloat(match[1]);
                 this.form.longitude = parseFloat(match[2]);
@@ -346,169 +2158,879 @@ export default {
                 };
                 return;
             }
-
-            // Regex 2: Tìm mẫu !3dlatitude!4dlongitude (phổ biến trong link share của Google Maps)
-            let match3d4d = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
-            if (match3d4d) {
-                this.form.latitude = parseFloat(match3d4d[1]);
-                this.form.longitude = parseFloat(match3d4d[2]);
+            match = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+            if (match) {
+                this.form.latitude = parseFloat(match[1]);
+                this.form.longitude = parseFloat(match[2]);
                 this.mapExtractMsg = {
                     type: "success",
-                    text: `Trích xuất thành công: Vĩ độ ${match3d4d[1]}, Kinh độ ${match3d4d[2]}`,
+                    text: `Trích xuất thành công: Vĩ độ ${match[1]}, Kinh độ ${match[2]}`,
                 };
                 return;
             }
-
-            // Regex 3: Tìm query q=latitude,longitude
-            let matchQuery = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
-            if (matchQuery) {
-                this.form.latitude = parseFloat(matchQuery[1]);
-                this.form.longitude = parseFloat(matchQuery[2]);
-                this.mapExtractMsg = {
-                    type: "success",
-                    text: `Trích xuất thành công: Vĩ độ ${matchQuery[1]}, Kinh độ ${matchQuery[2]}`,
-                };
-                return;
-            }
-
-            // Regex 4: Tìm cặp tọa độ trực tiếp trong URL dạng /place/latitude,longitude
-            let matchCoords = url.match(/\/place\/(-?\d+\.\d+),(-?\d+\.\d+)/);
-            if (matchCoords) {
-                this.form.latitude = parseFloat(matchCoords[1]);
-                this.form.longitude = parseFloat(matchCoords[2]);
-                this.mapExtractMsg = {
-                    type: "success",
-                    text: `Trích xuất thành công: Vĩ độ ${matchCoords[1]}, Kinh độ ${matchCoords[2]}`,
-                };
-                return;
-            }
-
             this.mapExtractMsg = {
                 type: "error",
                 text: "Không tìm thấy tọa độ trong link này. Hãy thử link đầy đủ từ Google Maps desktop.",
             };
         },
-        async fetchClusters() {
-            this.loading = true;
-            this.error = null;
-            try {
-                const res = await venueClusterService.getClusters();
-                this.clusters = res.data || [];
-                if (this.clusters.length > 0) {
-                    this.selectCluster(this.clusters[0]);
+
+        initMap() {
+            if (!window.L) return;
+            const container = document.getElementById("cluster-map");
+            if (!container) return;
+            if (this.map && this.map.getContainer() !== container)
+                this.destroyMap();
+            const lat = parseFloat(this.form.latitude) || 21.0285;
+            const lng = parseFloat(this.form.longitude) || 105.8542;
+            const DefaultIcon = window.L.icon({
+                iconUrl:
+                    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+                shadowUrl:
+                    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41],
+            });
+            window.L.Marker.prototype.options.icon = DefaultIcon;
+            if (!this.map) {
+                this.map = window.L.map("cluster-map").setView([lat, lng], 15);
+                window.L.tileLayer(
+                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    { attribution: "&copy; OpenStreetMap contributors" },
+                ).addTo(this.map);
+                this.marker = window.L.marker([lat, lng], {
+                    draggable: false,
+                }).addTo(this.map);
+            } else {
+                this.map.setView([lat, lng], 15);
+                this.marker.setLatLng([lat, lng]);
+            }
+            setTimeout(() => {
+                if (this.map) this.map.invalidateSize();
+            }, 100);
+        },
+
+        updateMapMarker() {
+            if (this.map && this.marker) {
+                const lat = parseFloat(this.form.latitude);
+                const lng = parseFloat(this.form.longitude);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    const cur = this.marker.getLatLng();
+                    if (
+                        Math.abs(cur.lat - lat) > 0.00001 ||
+                        Math.abs(cur.lng - lng) > 0.00001
+                    ) {
+                        this.marker.setLatLng([lat, lng]);
+                        this.map.setView([lat, lng], this.map.getZoom());
+                    }
                 }
-            } catch (err) {
-                this.error = err.message || "Lỗi khi tải danh sách cụm sân.";
-            } finally {
-                this.loading = false;
             }
         },
-        selectCluster(cluster) {
-            this.selectedCluster = cluster;
-            this.updateSuccess = false;
-            this.updateError = null;
-            this.imagesList = (cluster.media || []).filter(
-                (img) => img.file_path && !img.file_path.includes("default-home.jpg")
+
+        destroyMap() {
+            if (this.map) {
+                this.map.remove();
+                this.map = null;
+                this.marker = null;
+            }
+        },
+
+        initLocationModalMap() {
+            if (!window.L) return;
+            const container = document.getElementById(
+                "location-change-modal-map",
             );
-            this.form = {
-                name: cluster.name,
-                phone_contact: cluster.phone_contact || "",
-                address: cluster.address,
-                map_url: cluster.map_url || "",
-                latitude: parseFloat(cluster.latitude || 21.0285),
-                longitude: parseFloat(cluster.longitude || 105.8542),
-                amenities: Array.isArray(cluster.amenities)
-                    ? cluster.amenities
-                    : [],
-                description: cluster.description || "",
+            if (!container) return;
+            if (
+                this.locationMap &&
+                this.locationMap.getContainer() !== container
+            )
+                this.destroyLocationMap();
+            const lat = parseFloat(this.locationForm.new_latitude) || 21.0285;
+            const lng = parseFloat(this.locationForm.new_longitude) || 105.8542;
+            const DefaultIcon = window.L.icon({
+                iconUrl:
+                    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+                shadowUrl:
+                    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41],
+            });
+            window.L.Marker.prototype.options.icon = DefaultIcon;
+            if (!this.locationMap) {
+                this.locationMap = window.L.map(
+                    "location-change-modal-map",
+                ).setView([lat, lng], 15);
+                window.L.tileLayer(
+                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    { attribution: "&copy; OpenStreetMap contributors" },
+                ).addTo(this.locationMap);
+                this.locationMarker = window.L.marker([lat, lng], {
+                    draggable: true,
+                }).addTo(this.locationMap);
+                this.locationMarker.on("dragend", (e) => {
+                    const p = e.target.getLatLng();
+                    this.locationForm.new_latitude = parseFloat(
+                        p.lat.toFixed(7),
+                    );
+                    this.locationForm.new_longitude = parseFloat(
+                        p.lng.toFixed(7),
+                    );
+                });
+                this.locationMap.on("click", (e) => {
+                    const p = e.latlng;
+                    this.locationMarker.setLatLng(p);
+                    this.locationForm.new_latitude = parseFloat(
+                        p.lat.toFixed(7),
+                    );
+                    this.locationForm.new_longitude = parseFloat(
+                        p.lng.toFixed(7),
+                    );
+                });
+            } else {
+                this.locationMap.setView([lat, lng], 15);
+                this.locationMarker.setLatLng([lat, lng]);
+            }
+            setTimeout(() => {
+                if (this.locationMap) this.locationMap.invalidateSize();
+            }, 100);
+        },
+
+        updateLocationModalMapMarker() {
+            if (this.locationMap && this.locationMarker) {
+                const lat = parseFloat(this.locationForm.new_latitude);
+                const lng = parseFloat(this.locationForm.new_longitude);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    const cur = this.locationMarker.getLatLng();
+                    if (
+                        Math.abs(cur.lat - lat) > 0.00001 ||
+                        Math.abs(cur.lng - lng) > 0.00001
+                    ) {
+                        this.locationMarker.setLatLng([lat, lng]);
+                        this.locationMap.setView(
+                            [lat, lng],
+                            this.locationMap.getZoom(),
+                        );
+                    }
+                }
+            }
+        },
+
+        destroyLocationMap() {
+            if (this.locationMap) {
+                this.locationMap.remove();
+                this.locationMap = null;
+                this.locationMarker = null;
+            }
+        },
+
+        // ── Courts Tab ──
+        async fetchCourts(clusterId) {
+            this.courtsLoading = true;
+            this.courtsError = null;
+            try {
+                const [courtsRes, typesRes] = await Promise.all([
+                    venueClusterService.getCourts(clusterId),
+                    courtTypeService.getAll(),
+                ]);
+                this.courts = courtsRes.data || [];
+                this.courtTypes = typesRes.data || [];
+            } catch (err) {
+                this.courtsError =
+                    err.message || "Lỗi khi tải danh sách sân con.";
+            } finally {
+                this.courtsLoading = false;
+            }
+        },
+
+        formatStatus(status) {
+            return (
+                {
+                    active: "Đang hoạt động",
+                    inactive: "Tạm khóa",
+                    maintenance: "Bảo trì",
+                }[status] || status
+            );
+        },
+
+        openEditCourtModal(court) {
+            this.editingCourtId = court.id;
+            this.editCourtError = null;
+            this.editCourtForm = {
+                name: court.name,
+                status: court.status,
+                sort_order: court.sort_order,
+            };
+            this.showEditCourtModal = true;
+        },
+
+        closeEditCourtModal() {
+            this.showEditCourtModal = false;
+            this.editingCourtId = null;
+        },
+
+        async handleEditCourtSubmit() {
+            this.editCourtSubmitting = true;
+            this.editCourtError = null;
+            try {
+                await venueClusterService.updateCourt(
+                    this.editingCourtId,
+                    this.editCourtForm,
+                );
+                await this.fetchCourts(this.selectedCluster.id);
+                this.closeEditCourtModal();
+            } catch (err) {
+                this.editCourtError = err.message || "Lỗi cập nhật sân con.";
+            } finally {
+                this.editCourtSubmitting = false;
+            }
+        },
+
+        // ── Layout/Canvas ──
+        formatToM(val) {
+            if (val === null || val === undefined) return 0;
+            return Math.round(val) / 100;
+        },
+        updateW(court, value) {
+            const p = parseFloat(value);
+            court.layout_w = isNaN(p) ? 0 : p * 100;
+            this.validateSize(court);
+        },
+        updateH(court, value) {
+            const p = parseFloat(value);
+            court.layout_h = isNaN(p) ? 0 : p * 100;
+            this.validateSize(court);
+        },
+        updateX(court, value) {
+            const p = parseFloat(value);
+            court.layout_x = isNaN(p) ? 0 : p * 100;
+        },
+        updateY(court, value) {
+            const p = parseFloat(value);
+            court.layout_y = isNaN(p) ? 0 : p * 100;
+        },
+        validateSize(court) {
+            if (!court) return;
+            if (court.layout_w < 10) court.layout_w = 10;
+            if (court.layout_h < 10) court.layout_h = 10;
+        },
+
+        getDefaultWidth(court) {
+            return court?.court_type?.default_layout_w || 800;
+        },
+        getDefaultHeight(court) {
+            return court?.court_type?.default_layout_h || 800;
+        },
+
+        getCourtStyle(court) {
+            return {
+                left: `${court.layout_x}px`,
+                top: `${court.layout_y}px`,
+                width: `${court.layout_w || this.getDefaultWidth(court)}px`,
+                height: `${court.layout_h || this.getDefaultHeight(court)}px`,
             };
         },
-        async handleUpdate() {
-            this.updating = true;
-            this.updateSuccess = false;
-            this.updateError = null;
-            try {
-                const res = await venueClusterService.updateCluster(
-                    this.selectedCluster.id,
-                    this.form,
-                );
-                this.updateSuccess = true;
-                // Cập nhật lại list ở cột bên trái
-                const index = this.clusters.findIndex(
-                    (c) => c.id === this.selectedCluster.id,
-                );
-                if (index !== -1) {
-                    this.clusters[index] = {
-                        ...this.clusters[index],
-                        ...res.data,
-                    };
-                }
-            } catch (err) {
-                this.updateError = err.message || "Lỗi khi cập nhật cụm sân.";
-            } finally {
-                this.updating = false;
-            }
-        },
-        imageUrl(path) {
-            if (!path || path.includes("default-home.jpg")) return "";
-            if (/^https?:\/\//.test(path)) return path;
-            return `/storage/${path}`;
-        },
-        async handleImageUpload(e) {
-            const files = e.target.files;
-            if (!files || files.length === 0) return;
 
-            this.uploadingImage = true;
-            this.updateError = null;
-            
-            try {
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    // Validate kích thước 5MB
-                    if (file.size > 5 * 1024 * 1024) {
-                        alert(`File ${file.name} vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.`);
-                        continue;
+        getVertices(court) {
+            const w = court.layout_w || this.getDefaultWidth(court);
+            const h = court.layout_h || this.getDefaultHeight(court);
+            const cx = (court.layout_x || 0) + w / 2;
+            const cy = (court.layout_y || 0) + h / 2;
+            const angle = ((court.layout_rotation || 0) * Math.PI) / 180;
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            return [
+                { x: -w / 2, y: -h / 2 },
+                { x: w / 2, y: -h / 2 },
+                { x: w / 2, y: h / 2 },
+                { x: -w / 2, y: h / 2 },
+            ].map((p) => ({
+                x: cx + p.x * cos - p.y * sin,
+                y: cy + p.x * sin + p.y * cos,
+            }));
+        },
+
+        polygonsIntersect(polyA, polyB) {
+            const getEdges = (poly) =>
+                poly.map((p, i) => {
+                    const q = poly[(i + 1) % poly.length];
+                    return { x: q.x - p.x, y: q.y - p.y };
+                });
+            const project = (poly, axis) => {
+                const len = Math.sqrt(axis.x * axis.x + axis.y * axis.y);
+                const ax = axis.x / len;
+                const ay = axis.y / len;
+                let min = Infinity;
+                let max = -Infinity;
+                for (const p of poly) {
+                    const dot = p.x * ax + p.y * ay;
+                    if (dot < min) min = dot;
+                    if (dot > max) max = dot;
+                }
+                return { min, max };
+            };
+            const axes = [
+                ...getEdges(polyA).map((e) => ({ x: -e.y, y: e.x })),
+                ...getEdges(polyB).map((e) => ({ x: -e.y, y: e.x })),
+            ];
+            for (const axis of axes) {
+                const pA = project(polyA, axis);
+                const pB = project(polyB, axis);
+                if (pA.max <= pB.min + 0.1 || pB.max <= pA.min + 0.1)
+                    return false;
+            }
+            return true;
+        },
+
+        checkCollisionWithOthers(target) {
+            const polyA = this.getVertices(target);
+            for (const c of this.placedCourts) {
+                if (c.id === target.id) continue;
+                if (this.polygonsIntersect(polyA, this.getVertices(c)))
+                    return true;
+            }
+            return false;
+        },
+
+        placeCourt(court) {
+            court.layout_w = this.getDefaultWidth(court);
+            court.layout_h = this.getDefaultHeight(court);
+            court.layout_rotation = 0;
+            const rect = this.$refs.canvasViewport?.getBoundingClientRect();
+            const cx = rect ? rect.width / 2 : 500;
+            const cy = rect ? rect.height / 2 : 300;
+            court.layout_x = (cx - this.panX) / this.zoom - court.layout_w / 2;
+            court.layout_y = (cy - this.panY) / this.zoom - court.layout_h / 2;
+            let attempts = 0;
+            while (this.checkCollisionWithOthers(court) && attempts++ < 50) {
+                court.layout_x += 30;
+                court.layout_y += 30;
+            }
+            this.selectedCourtId = court.id;
+        },
+
+        unplaceCourt(court) {
+            court.layout_x = null;
+            court.layout_y = null;
+            if (this.selectedCourtId === court.id) this.selectedCourtId = null;
+        },
+
+        rotateSelected90() {
+            const court = this.selectedCourt;
+            if (court)
+                court.layout_rotation =
+                    ((court.layout_rotation || 0) + 90) % 360;
+        },
+
+        selectCourt(court) {
+            this.selectedCourtId = court.id;
+        },
+
+        getLogicalCoords(event) {
+            const rect = this.$refs.canvasViewport?.getBoundingClientRect();
+            if (!rect) return { x: 0, y: 0 };
+            return {
+                x: (event.clientX - rect.left - this.panX) / this.zoom,
+                y: (event.clientY - rect.top - this.panY) / this.zoom,
+            };
+        },
+
+        startPan(e) {
+            if (
+                e.target.closest(".canvas-court-element") ||
+                e.target.closest(".zoom-controls")
+            )
+                return;
+            this.isPanning = true;
+            this.panStartX = e.clientX - this.panX;
+            this.panStartY = e.clientY - this.panY;
+        },
+
+        handleGlobalMove(e) {
+            if (this.isPanning) {
+                this.panX = e.clientX - this.panStartX;
+                this.panY = e.clientY - this.panStartY;
+                return;
+            }
+            if (this.draggingCourtId || this.resizingCourtId)
+                this.handleDrag(e);
+        },
+
+        handleGlobalUp() {
+            this.isPanning = false;
+            if (this.draggingCourtId || this.resizingCourtId) this.endDrag();
+        },
+
+        handleZoom(e) {
+            this.setZoom(
+                this.zoom + (e.deltaY > 0 ? -0.1 : 0.1),
+                e.clientX,
+                e.clientY,
+            );
+        },
+
+        setZoom(val, clientX = null, clientY = null) {
+            const newZoom = Math.max(0.2, Math.min(3, val));
+            if (newZoom === this.zoom) return;
+            const rect = this.$refs.canvasViewport?.getBoundingClientRect();
+            if (!rect) {
+                this.zoom = newZoom;
+                return;
+            }
+            const tx = clientX !== null ? clientX - rect.left : rect.width / 2;
+            const ty = clientY !== null ? clientY - rect.top : rect.height / 2;
+            const lx = (tx - this.panX) / this.zoom;
+            const ly = (ty - this.panY) / this.zoom;
+            this.zoom = newZoom;
+            this.panX = tx - lx * this.zoom;
+            this.panY = ty - ly * this.zoom;
+        },
+
+        resetView() {
+            this.zoom = 1;
+            this.panX = 0;
+            this.panY = 0;
+        },
+
+        fitView() {
+            const placed = this.placedCourts;
+            if (!placed.length) {
+                this.resetView();
+                return;
+            }
+            let minX = Infinity,
+                minY = Infinity,
+                maxX = -Infinity,
+                maxY = -Infinity;
+            placed.forEach((c) => {
+                this.getVertices(c).forEach((v) => {
+                    if (v.x < minX) minX = v.x;
+                    if (v.y < minY) minY = v.y;
+                    if (v.x > maxX) maxX = v.x;
+                    if (v.y > maxY) maxY = v.y;
+                });
+            });
+            const padding = 60;
+            const viewport = this.$refs.canvasViewport;
+            if (!viewport) return;
+            const zx = viewport.clientWidth / (maxX - minX + padding * 2);
+            const zy = viewport.clientHeight / (maxY - minY + padding * 2);
+            this.zoom = Math.max(0.35, Math.min(1.5, Math.min(zx, zy)));
+            this.panX =
+                viewport.clientWidth / 2 -
+                (minX + (maxX - minX) / 2) * this.zoom;
+            this.panY =
+                viewport.clientHeight / 2 -
+                (minY + (maxY - minY) / 2) * this.zoom;
+        },
+
+        startResize(event, court, direction) {
+            this.resizingCourtId = court.id;
+            this.resizeDirection = direction;
+            const l = this.getLogicalCoords(event);
+            this.dragStartX = l.x;
+            this.dragStartY = l.y;
+            this.resizeStartW = court.layout_w || this.getDefaultWidth(court);
+            this.resizeStartH = court.layout_h || this.getDefaultHeight(court);
+            this.resizeStartXCoord = court.layout_x || 0;
+            this.resizeStartYCoord = court.layout_y || 0;
+        },
+
+        startDrag(event, court) {
+            this.draggingCourtId = court.id;
+            this.selectedCourtId = court.id;
+            const l = this.getLogicalCoords(event);
+            this.dragStartX = l.x - (court.layout_x || 0);
+            this.dragStartY = l.y - (court.layout_y || 0);
+        },
+
+        handleDrag(event) {
+            if (this.resizingCourtId) {
+                const court = this.courts.find(
+                    (c) => c.id === this.resizingCourtId,
+                );
+                if (!court) return;
+                const l = this.getLogicalCoords(event);
+                const dx = l.x - this.dragStartX;
+                const dy = l.y - this.dragStartY;
+                if (this.resizeDirection === "br") {
+                    court.layout_w = Math.max(30, this.resizeStartW + dx);
+                    court.layout_h = Math.max(30, this.resizeStartH + dy);
+                } else if (this.resizeDirection === "bl") {
+                    const nw = this.resizeStartW - dx;
+                    if (nw >= 30) {
+                        court.layout_x = this.resizeStartXCoord + dx;
+                        court.layout_w = nw;
                     }
-                    
-                    const formData = new FormData();
-                    formData.append("image", file);
-                    
-                    const res = await venueClusterService.uploadMedia(this.selectedCluster.id, formData);
-                    this.imagesList.push(res.data);
+                    court.layout_h = Math.max(30, this.resizeStartH + dy);
+                } else if (this.resizeDirection === "tr") {
+                    court.layout_w = Math.max(30, this.resizeStartW + dx);
+                    const nh = this.resizeStartH - dy;
+                    if (nh >= 30) {
+                        court.layout_y = this.resizeStartYCoord + dy;
+                        court.layout_h = nh;
+                    }
+                } else if (this.resizeDirection === "tl") {
+                    const nw = this.resizeStartW - dx;
+                    const nh = this.resizeStartH - dy;
+                    if (nw >= 30) {
+                        court.layout_x = this.resizeStartXCoord + dx;
+                        court.layout_w = nw;
+                    }
+                    if (nh >= 30) {
+                        court.layout_y = this.resizeStartYCoord + dy;
+                        court.layout_h = nh;
+                    }
                 }
-                // Đồng bộ lại media vào selectedCluster
-                this.selectedCluster.media = [...this.imagesList];
-            } catch (err) {
-                this.updateError = err.message || "Tải lên hình ảnh thất bại.";
-            } finally {
-                this.uploadingImage = false;
-                e.target.value = ""; // Clear input file
+                this.validateSize(court);
+                return;
             }
+            if (!this.draggingCourtId) return;
+            const court = this.courts.find(
+                (c) => c.id === this.draggingCourtId,
+            );
+            if (!court) return;
+            const l = this.getLogicalCoords(event);
+            court.layout_x = l.x - this.dragStartX;
+            court.layout_y = l.y - this.dragStartY;
         },
-        async handleDeleteImage(mediaId) {
-            if (!confirm("Bạn có chắc chắn muốn xóa hình ảnh này khỏi album?")) return;
 
-            this.updateError = null;
+        endDrag() {
+            this.draggingCourtId = null;
+            this.resizingCourtId = null;
+        },
+
+        async saveLayout() {
+            if (Object.keys(this.collisions).length > 0) {
+                if (
+                    !confirm(
+                        "Phát hiện có một số sân đang bị chồng lấn nhau (hiển thị màu đỏ). Bạn có chắc chắn vẫn muốn lưu sơ đồ này không?",
+                    )
+                )
+                    return;
+            }
+            this.savingLayout = true;
             try {
-                await venueClusterService.deleteMedia(this.selectedCluster.id, mediaId);
-                this.imagesList = this.imagesList.filter((img) => img.id !== mediaId);
-                this.selectedCluster.media = [...this.imagesList];
+                await venueClusterService.updateCourtsLayout({
+                    courts: this.courts.map((c) => ({
+                        id: c.id,
+                        layout_x: c.layout_x,
+                        layout_y: c.layout_y,
+                        layout_w: c.layout_w,
+                        layout_h: c.layout_h,
+                        layout_rotation: c.layout_rotation,
+                    })),
+                });
+                alert("Sơ đồ sân con đã được lưu thành công.");
+                await this.fetchCourts(this.selectedCluster.id);
             } catch (err) {
-                this.updateError = err.message || "Xóa hình ảnh thất bại.";
+                alert(err.message || "Lỗi khi lưu sơ đồ.");
+            } finally {
+                this.savingLayout = false;
             }
         },
-        async fetchAvailableAmenities() {
-            try {
-                const res = await amenityService.getAll(true); // Chỉ lấy active
-                this.availableAmenities = (res.data || []).map(a => a.name);
-            } catch (err) {
-                console.error("Lỗi khi tải danh sách tiện ích:", err.message);
+
+        autoArrange() {
+            if (
+                !confirm(
+                    "Bạn có chắc chắn muốn tự động sắp xếp tất cả các sân không? Thao tác này sẽ ghi đè các vị trí hiện tại.",
+                )
+            )
+                return;
+            let currentX = 50,
+                currentY = 50,
+                maxRowH = 0;
+            this.courts.forEach((c) => {
+                const w = this.getDefaultWidth(c);
+                const h = this.getDefaultHeight(c);
+                if (currentX + w > 1500) {
+                    currentX = 50;
+                    currentY += maxRowH + 80;
+                    maxRowH = 0;
+                }
+                c.layout_w = w;
+                c.layout_h = h;
+                c.layout_x = currentX;
+                c.layout_y = currentY;
+                c.layout_rotation = 0;
+                currentX += w + 80;
+                if (h > maxRowH) maxRowH = h;
+            });
+            this.$nextTick(() => this.fitView());
+        },
+
+        clearLayout() {
+            if (
+                confirm(
+                    "Bạn có muốn gỡ bỏ toàn bộ sân con khỏi sơ đồ hiện tại không?",
+                )
+            ) {
+                this.courts.forEach((c) => {
+                    c.layout_x = null;
+                    c.layout_y = null;
+                });
+                this.selectedCourtId = null;
             }
         },
-    },
-    created() {
-        this.fetchClusters();
-        this.fetchAvailableAmenities();
+
+        // ── Approvals Tab ──
+        async fetchApprovals(clusterId) {
+            this.approvalsLoading = true;
+            try {
+                const res =
+                    await venueClusterService.getApprovalRequests(clusterId);
+                this.approvalRequests = res.data || [];
+            } catch (err) {
+                console.error("Lỗi khi tải yêu cầu quy mô:", err.message);
+            } finally {
+                this.approvalsLoading = false;
+            }
+        },
+
+        setApprovalFilter(filter) {
+            this.approvalFilter = filter;
+        },
+
+        getParentTypeName(child) {
+            if (!child.parent_id) return "";
+            const parent = this.courtTypes.find(
+                (t) => t.id === child.parent_id,
+            );
+            return parent ? parent.name : "";
+        },
+
+        selectReqCourtType(child) {
+            this.newReqForm.court_type_id = child.id;
+            this.showTypeDropdown = false;
+        },
+
+        handleOutsideClick(e) {
+            const el = this.$el?.querySelector(".custom-select-wrapper");
+            if (el && !el.contains(e.target)) this.showTypeDropdown = false;
+        },
+
+        async handleCreateApproval() {
+            if (!this.newReqForm.court_type_id) {
+                this.newReqError = "Vui lòng chọn loại sân.";
+                return;
+            }
+            this.creatingReq = true;
+            this.newReqError = null;
+            this.newReqSuccess = null;
+            try {
+                const res = await venueClusterService.createApprovalRequest(
+                    this.selectedCluster.id,
+                    this.newReqForm,
+                );
+                this.newReqSuccess =
+                    "Gửi yêu cầu thành công! Admin sẽ xem xét và phê duyệt sớm.";
+                this.approvalRequests.unshift(res.data);
+                this.newReqForm = { court_type_id: "", name: "", note: "" };
+                if (!this.courtTypes.length) {
+                    const typesRes = await courtTypeService.getAll();
+                    this.courtTypes = typesRes.data || [];
+                }
+            } catch (err) {
+                this.newReqError = err.message || "Lỗi khi gửi yêu cầu.";
+            } finally {
+                this.creatingReq = false;
+            }
+        },
+
+        async handleCancelApproval(req) {
+            if (!confirm(`Hủy yêu cầu "${req.name}"?`)) return;
+            this.cancellingId = req.id;
+            try {
+                const res = await venueClusterService.cancelApprovalRequest(
+                    this.selectedCluster.id,
+                    req.id,
+                );
+                const idx = this.approvalRequests.findIndex(
+                    (r) => r.id === req.id,
+                );
+                if (idx !== -1) this.approvalRequests.splice(idx, 1, res.data);
+            } catch (err) {
+                alert(err.message || "Hủy yêu cầu thất bại.");
+            } finally {
+                this.cancellingId = null;
+            }
+        },
+
+        approvalStatusLabel(status) {
+            return (
+                {
+                    pending: "Chờ duyệt",
+                    approved: "Đã duyệt",
+                    rejected: "Từ chối",
+                    cancelled: "Đã hủy",
+                }[status] || status
+            );
+        },
+
+        // ── Location Change Requests Tab ──
+        async fetchLocationRequests(clusterId) {
+            this.locationLoading = true;
+            try {
+                const res =
+                    await venueClusterService.getLocationChangeRequests(
+                        clusterId,
+                    );
+                this.locationRequests = res.data || [];
+            } catch (err) {
+                console.error("Lỗi khi tải yêu cầu vị trí:", err.message);
+            } finally {
+                this.locationLoading = false;
+            }
+        },
+
+        setLocationFilter(filter) {
+            this.locationFilter = filter;
+        },
+
+        openLocationChangeModal() {
+            this.locationModalError = null;
+            this.locationMapMsg = null;
+            this.locationForm = {
+                new_province: this.selectedCluster.province || "",
+                new_ward: this.selectedCluster.ward || "",
+                new_address: this.selectedCluster.address || "",
+                new_map_url: this.selectedCluster.map_url || "",
+                new_latitude:
+                    parseFloat(this.selectedCluster.latitude) || 21.0285,
+                new_longitude:
+                    parseFloat(this.selectedCluster.longitude) || 105.8542,
+                note: "",
+            };
+            this.showLocationModal = true;
+            this.$nextTick(() => {
+                this.initLocationModalMap();
+            });
+        },
+
+        closeLocationChangeModal() {
+            this.showLocationModal = false;
+            this.destroyLocationMap();
+        },
+
+        async handleLocationChangeSubmit() {
+            this.locationSubmitting = true;
+            this.locationModalError = null;
+            try {
+                const res =
+                    await venueClusterService.createLocationChangeRequest(
+                        this.selectedCluster.id,
+                        this.locationForm,
+                    );
+                this.locationRequests.unshift(res.data);
+                this.closeLocationChangeModal();
+                // Chuyển sang tab location để xem yêu cầu vừa gửi
+                this.activeTab = "location";
+            } catch (err) {
+                this.locationModalError = err.message || "Lỗi khi gửi yêu cầu.";
+            } finally {
+                this.locationSubmitting = false;
+            }
+        },
+
+        async handleExtractLocationCoords() {
+            if (!this.locationForm.new_map_url) {
+                alert("Vui lòng nhập đường link Google Maps trước.");
+                return;
+            }
+            this.resolvingLocationMap = true;
+            this.locationMapMsg = null;
+            try {
+                await this.parseLocationCoords(this.locationForm.new_map_url);
+            } catch (e) {
+                this.locationMapMsg = {
+                    type: "error",
+                    text: "Không thể trích xuất tọa độ.",
+                };
+            } finally {
+                this.resolvingLocationMap = false;
+            }
+        },
+
+        async parseLocationCoords(url) {
+            let targetUrl = url;
+            if (
+                url.includes("maps.app.goo.gl") ||
+                url.includes("goo.gl/maps")
+            ) {
+                try {
+                    const res = await venueClusterService.resolveMapUrl(url);
+                    const d = res.data;
+                    if (d?.latitude && d?.longitude) {
+                        this.locationForm.new_latitude = d.latitude;
+                        this.locationForm.new_longitude = d.longitude;
+                        this.locationMapMsg = {
+                            type: "success",
+                            text: `Trích xuất thành công: ${d.latitude}, ${d.longitude}`,
+                        };
+                        return;
+                    }
+                    if (d?.final_url) targetUrl = d.final_url;
+                } catch (e) {
+                    this.locationMapMsg = {
+                        type: "error",
+                        text: e.message || "Không giải mã được link.",
+                    };
+                    return;
+                }
+            }
+            let match = targetUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            if (match) {
+                this.locationForm.new_latitude = parseFloat(match[1]);
+                this.locationForm.new_longitude = parseFloat(match[2]);
+                this.locationMapMsg = {
+                    type: "success",
+                    text: `Trích xuất thành công: ${match[1]}, ${match[2]}`,
+                };
+                return;
+            }
+            match = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+            if (match) {
+                this.locationForm.new_latitude = parseFloat(match[1]);
+                this.locationForm.new_longitude = parseFloat(match[2]);
+                this.locationMapMsg = {
+                    type: "success",
+                    text: `Trích xuất thành công: ${match[1]}, ${match[2]}`,
+                };
+                return;
+            }
+            this.locationMapMsg = {
+                type: "error",
+                text: "Không tìm thấy tọa độ trong link này.",
+            };
+        },
+
+        async handleCancelLocationRequest(req) {
+            if (!confirm("Hủy yêu cầu thay đổi vị trí này?")) return;
+            this.cancellingLocationId = req.id;
+            try {
+                const res =
+                    await venueClusterService.cancelLocationChangeRequest(
+                        this.selectedCluster.id,
+                        req.id,
+                    );
+                const idx = this.locationRequests.findIndex(
+                    (r) => r.id === req.id,
+                );
+                if (idx !== -1) this.locationRequests.splice(idx, 1, res.data);
+            } catch (err) {
+                alert(err.message || "Hủy yêu cầu thất bại.");
+            } finally {
+                this.cancellingLocationId = null;
+            }
+        },
+
+        formatDate(val) {
+            if (!val) return "—";
+            return new Date(val).toLocaleString("vi-VN");
+        },
     },
 };
 </script>
@@ -530,16 +3052,15 @@ export default {
     padding: 24px;
 }
 
-
-
+/* ─── Layout ─── */
 .clusters-grid {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 300px 1fr;
     gap: 20px;
     align-items: start;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
     .clusters-grid {
         grid-template-columns: 1fr;
     }
@@ -550,61 +3071,110 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    position: sticky;
+    top: 20px;
 }
 
 .cluster-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     padding: 14px 16px;
     border-radius: 8px;
     cursor: pointer;
     border: 1px solid transparent;
     transition: all 0.2s ease;
 }
-
 .cluster-item:hover {
     background: var(--sg-surface);
 }
-
 .cluster-item.active {
     background: rgba(0, 0, 0, 0.05);
     border-color: rgba(0, 0, 0, 0.2);
 }
-
 .cluster-name {
     font-size: 14px;
     font-weight: 700;
     color: var(--sg-text);
     margin: 0;
 }
-
 .cluster-address {
     font-size: 12px;
     color: rgba(15, 23, 42, 0.5);
     margin-top: 4px;
-    text-overflow: ellipsis;
     overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
+.cluster-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
 
+/* ─── Tabs ─── */
+.detail-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+    background: #fff;
+}
+
+.tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: rgba(15, 23, 42, 0.6);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.tab-btn:hover {
+    background: var(--sg-surface);
+    color: var(--sg-text);
+}
+.tab-btn.active {
+    background: #000;
+    color: #fff;
+    border-color: #000;
+}
+
+.tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 800;
+    background: #ef4444;
+    color: #fff;
+}
+.tab-btn.active .tab-badge {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ─── Info Tab ─── */
 .cluster-edit {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 0;
 }
-
 .edit-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--sg-border);
     padding-bottom: 16px;
+    margin-bottom: 20px;
 }
-
 .edit-header h3 {
     font-size: 18px;
     font-weight: 800;
@@ -612,86 +3182,30 @@ export default {
     margin: 0;
 }
 
-.btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 18px;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-sm {
-    padding: 6px 12px;
-    font-size: 12px;
-}
-
-.btn-primary {
-    background: #000000;
-    border: 1px solid #000000;
-    color: #fff;
-}
-
-.btn-primary:hover {
-    background: #222222;
-    border-color: #222222;
-}
-
-.btn-outline {
-    border: 1px solid var(--sg-border);
-    background: transparent;
-    color: var(--sg-text);
-}
-
-.btn-outline:hover {
-    background: var(--sg-surface);
-}
-
-.map-input-group {
-    display: flex;
-    gap: 12px;
-}
-
-.map-input-group .form-control {
-    flex: 1;
-}
-
-.btn-extract {
-    white-space: nowrap;
-}
-
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
 }
-
 @media (max-width: 576px) {
     .form-row {
         grid-template-columns: 1fr;
     }
 }
-
 .form-group {
     display: flex;
     flex-direction: column;
     gap: 6px;
     margin-bottom: 16px;
 }
-
 .form-group label {
     font-size: 13px;
     font-weight: 700;
     color: var(--sg-text);
 }
-
 .required {
     color: #ef4444;
 }
-
 .form-control {
     padding: 10px 14px;
     border-radius: 8px;
@@ -699,11 +3213,50 @@ export default {
     font-size: 14px;
     color: var(--sg-text);
     outline: none;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s;
+}
+.form-control:focus {
+    border-color: #000;
 }
 
-.form-control:focus {
-    border-color: #000000;
+.map-input-group {
+    display: flex;
+    gap: 12px;
+}
+.map-input-group .form-control {
+    flex: 1;
+}
+.btn-extract {
+    white-space: nowrap;
+}
+.map-extract-msg {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+.map-extract-msg.success {
+    background: #f3f4f6;
+    color: #000;
+    border-left: 3px solid #000;
+}
+.map-extract-msg.error {
+    background: #f3f4f6;
+    color: #ef4444;
+    border-left: 3px solid #ef4444;
+}
+.map-container {
+    width: 100%;
+    height: 320px;
+    border-radius: 8px;
+    border: 1px solid var(--sg-border);
+    margin-top: 8px;
+    z-index: 1;
+}
+.map-help-text {
+    font-size: 12px;
+    color: rgba(15, 23, 42, 0.5);
 }
 
 .amenities-grid {
@@ -715,7 +3268,6 @@ export default {
     border-radius: 8px;
     border: 1px solid var(--sg-border);
 }
-
 .amenity-checkbox {
     display: flex;
     align-items: center;
@@ -724,11 +3276,20 @@ export default {
     font-size: 13px;
     font-weight: 700;
 }
-
 .amenity-checkbox input {
     width: 16px;
     height: 16px;
-    accent-color: #000000;
+    accent-color: #000;
+}
+.amenity-request-tip {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #64748b;
+}
+.link-request-amenity {
+    color: #000;
+    font-weight: 700;
+    text-decoration: underline;
 }
 
 .form-actions {
@@ -736,77 +3297,10 @@ export default {
     justify-content: flex-end;
     border-top: 1px solid var(--sg-border);
     padding-top: 20px;
-}
-
-.alert {
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 16px;
-}
-
-.alert-success {
-    background: #f3f4f6;
-    color: #000000;
-    border: 1px solid #e5e7eb;
-}
-
-.alert-danger {
-    background: #f3f4f6;
-    color: #ef4444;
-    border: 1px solid #e5e7eb;
-}
-
-.map-extract-msg {
     margin-top: 8px;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
 }
 
-.map-extract-msg.success {
-    background: #f3f4f6;
-    color: #000000;
-    border-left: 3px solid #000000;
-}
-
-.map-extract-msg.error {
-    background: #f3f4f6;
-    color: #ef4444;
-    border-left: 3px solid #ef4444;
-}
-
-.loading-state,
-.error-state,
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 24px;
-    text-align: center;
-    gap: 16px;
-    color: rgba(15, 23, 42, 0.6);
-}
-
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid rgba(0, 0, 0, 0.1);
-    border-top-color: #000000;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* Owner Image Gallery & Upload Zone */
+/* Images */
 .owner-gallery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -842,7 +3336,7 @@ export default {
     justify-content: center;
     font-size: 14px;
     font-weight: 700;
-    transition: background 0.18s;
+    z-index: 10;
 }
 .btn-delete-img:hover {
     background: rgb(220, 38, 38);
@@ -861,10 +3355,9 @@ export default {
     border: 2px dashed #cbd5e1;
     border-radius: 8px;
     background: #fff;
-    transition: border-color 0.2s, background-color 0.2s;
 }
 .owner-upload-zone:hover {
-    border-color: #000000;
+    border-color: #000;
     background-color: #f8fafc;
 }
 .hidden-file-input {
@@ -876,7 +3369,6 @@ export default {
     justify-content: center;
     padding: 20px;
     cursor: pointer;
-    width: 100%;
     min-height: 60px;
 }
 .upload-status-text {
@@ -887,12 +3379,965 @@ export default {
     align-items: center;
     gap: 8px;
 }
+
+/* ─── Courts Tab ─── */
+.courts-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.courts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.courts-header-left h3 {
+    font-size: 18px;
+    font-weight: 800;
+    margin: 0;
+}
+.subtitle {
+    color: rgba(15, 23, 42, 0.5);
+    font-size: 14px;
+    margin-top: 4px;
+}
+.courts-header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.view-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.layout-toggle-tabs {
+    display: flex;
+    gap: 4px;
+    background: #fff;
+    border: 1px solid var(--sg-border);
+    border-radius: 10px;
+    padding: 6px;
+}
+
+.courts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+}
+.court-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition:
+        transform 0.2s,
+        box-shadow 0.2s;
+}
+.court-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+}
+.court-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--sg-border);
+    padding-bottom: 12px;
+}
+.court-name {
+    font-size: 15px;
+    font-weight: 800;
+    margin: 0;
+}
+.court-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+}
+.info-row .label {
+    color: rgba(15, 23, 42, 0.5);
+    font-weight: 700;
+}
+.info-row .value {
+    font-weight: 700;
+}
+.court-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    border-top: 1px solid var(--sg-border);
+    padding-top: 12px;
+}
+
+.badge-placed {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.05);
+    color: #000;
+    font-size: 12px;
+    font-weight: 700;
+}
+.badge-unplaced {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    background: #f3f4f6;
+    color: rgba(15, 23, 42, 0.4);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.status-badge {
+    display: inline-flex;
+    padding: 4px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+.status-badge.active {
+    background: rgba(0, 0, 0, 0.04);
+    color: #000;
+    border-color: rgba(0, 0, 0, 0.15);
+}
+.status-badge.inactive {
+    background: #f3f4f6;
+    color: rgba(0, 0, 0, 0.4);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+.status-badge.maintenance {
+    background: #f3f4f6;
+    color: rgba(0, 0, 0, 0.7);
+    border-color: rgba(0, 0, 0, 0.12);
+    border-style: dashed;
+}
+
+/* ─── Layout Editor (copy từ OwnerVenueCourts) ─── */
+.layout-editor-workspace {
+    display: flex;
+    flex-direction: column;
+}
+.editor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid var(--sg-border);
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.toolbar-left {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.info-badge {
+    font-size: 12px;
+    color: rgba(15, 23, 42, 0.5);
+    font-style: italic;
+}
+.editor-body {
+    display: flex;
+    gap: 12px;
+    height: 600px;
+    margin-top: 12px;
+}
+.canvas-viewport {
+    flex: 1;
+    background: #f0f2f5;
+    border-radius: 10px;
+    border: 1px solid var(--sg-border);
+    overflow: hidden;
+    position: relative;
+    cursor: grab;
+    user-select: none;
+}
+.canvas-viewport:active {
+    cursor: grabbing;
+}
+.canvas-interaction-guide {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    pointer-events: none;
+}
+.guide-item {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(4px);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: rgba(15, 23, 42, 0.7);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+.zoom-controls {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--sg-border);
+    padding: 6px 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.btn-zoom {
+    padding: 4px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    transition: all 0.15s;
+}
+.btn-zoom:hover {
+    background: #f8fafc;
+}
+.btn-zoom.fit,
+.btn-zoom.reset {
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.zoom-level {
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    min-width: 42px;
+    text-align: center;
+}
+.canvas-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+}
+.canvas-grid-bg {
+    position: absolute;
+    top: -500px;
+    left: -500px;
+    width: 3000px;
+    height: 3000px;
+    background-image: radial-gradient(circle, #9ba3af 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.35;
+    pointer-events: none;
+}
+.canvas-court-element {
+    position: absolute;
+    cursor: grab;
+    box-sizing: border-box;
+    transition: box-shadow 0.1s;
+}
+.canvas-court-element:active {
+    cursor: grabbing;
+}
+.canvas-court-element.selected {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+.canvas-court-element.has-collision {
+    outline: 2px solid #ef4444;
+}
+.resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: #3b82f6;
+    border: 2px solid #fff;
+    border-radius: 2px;
+    z-index: 10;
+}
+.resize-handle.tl {
+    top: -6px;
+    left: -6px;
+    cursor: nwse-resize;
+}
+.resize-handle.tr {
+    top: -6px;
+    right: -6px;
+    cursor: nesw-resize;
+}
+.resize-handle.bl {
+    bottom: -6px;
+    left: -6px;
+    cursor: nesw-resize;
+}
+.resize-handle.br {
+    bottom: -6px;
+    right: -6px;
+    cursor: nwse-resize;
+}
+.collision-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(239, 68, 68, 0.9);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    pointer-events: none;
+    z-index: 5;
+}
+.editor-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+}
+.sidebar-section {
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid var(--sg-border);
+    padding: 16px;
+}
+.section-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--sg-text);
+    margin: 0 0 12px 0;
+}
+.section-desc {
+    font-size: 12px;
+    color: rgba(15, 23, 42, 0.5);
+    margin-bottom: 12px;
+}
+.inspector-warning-box {
+    background: #fef9c3;
+    border: 1px solid #fde047;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #713f12;
+}
+.inspector-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.field-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+}
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.field-group label {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(15, 23, 42, 0.6);
+}
+.input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.input-row input {
+    flex: 1;
+    border: 1px solid var(--sg-border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+    outline: none;
+    width: 70px;
+}
+.input-row .x,
+.input-row .comma {
+    font-weight: 700;
+    color: rgba(15, 23, 42, 0.4);
+}
+.rotation-control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.rotation-slider {
+    width: 100%;
+}
+.btn-xs {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+.btn-block {
+    width: 100%;
+    justify-content: center;
+}
+.unplaced-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.unplaced-court-item {
+    padding: 10px;
+    border: 1px solid var(--sg-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.unplaced-court-item:hover {
+    background: var(--sg-surface);
+    border-color: #000;
+}
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.item-name {
+    font-size: 13px;
+    font-weight: 700;
+}
+.item-add-hint {
+    font-size: 11px;
+    color: rgba(15, 23, 42, 0.45);
+}
+.item-type {
+    font-size: 12px;
+    color: rgba(15, 23, 42, 0.5);
+    margin-top: 4px;
+}
+.empty-unplaced {
+    padding: 16px;
+    text-align: center;
+    color: rgba(15, 23, 42, 0.4);
+    font-size: 13px;
+}
+
+/* ─── Approvals Tab ─── */
+.approvals-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.approval-form-card {
+}
+.approval-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.approval-filter-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.tab-sm {
+    padding: 5px 12px;
+    border: 1px solid var(--sg-border);
+    border-radius: 6px;
+    background: transparent;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    color: rgba(15, 23, 42, 0.6);
+    transition: all 0.15s;
+}
+.tab-sm:hover {
+    background: var(--sg-surface);
+}
+.tab-sm.active {
+    background: #000;
+    color: #fff;
+    border-color: #000;
+}
+.empty-section {
+    padding: 40px 0;
+    text-align: center;
+    color: rgba(15, 23, 42, 0.4);
+}
+.approval-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.approval-card {
+    border: 1px solid var(--sg-border);
+    border-radius: 10px;
+    padding: 16px;
+    transition: box-shadow 0.15s;
+    border-left-width: 3px;
+}
+.approval-card:hover {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+.approval-pending {
+    border-left-color: #f59e0b;
+}
+.approval-approved {
+    border-left-color: #22c55e;
+}
+.approval-rejected {
+    border-left-color: #ef4444;
+}
+.approval-cancelled {
+    border-left-color: #94a3b8;
+}
+.approval-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+.approval-details {
+    flex: 1;
+}
+.approval-name {
+    font-size: 15px;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+.approval-meta {
+    font-size: 12px;
+    color: rgba(15, 23, 42, 0.5);
+    margin-top: 2px;
+}
+.approval-reason {
+    font-size: 13px;
+    color: #ef4444;
+    margin-top: 6px;
+    font-weight: 600;
+}
+.approval-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.status-badge-approval {
+    display: inline-flex;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+.approval-status-pending {
+    background: #fef9c3;
+    color: #713f12;
+}
+.approval-status-approved {
+    background: #dcfce7;
+    color: #14532d;
+}
+.approval-status-rejected {
+    background: #fee2e2;
+    color: #7f1d1d;
+}
+.approval-status-cancelled {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* ─── Custom Select ─── */
+.custom-select-wrapper {
+    position: relative;
+}
+.custom-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border: 1px solid var(--sg-border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    background: #fff;
+    transition: border-color 0.2s;
+}
+.custom-select-trigger:hover,
+.custom-select-trigger.active {
+    border-color: #000;
+}
+.custom-select-trigger .placeholder {
+    color: rgba(15, 23, 42, 0.4);
+}
+.custom-select-trigger .arrow {
+    color: rgba(15, 23, 42, 0.5);
+}
+.parent-name {
+    color: rgba(15, 23, 42, 0.5);
+}
+.separator {
+    margin: 0 6px;
+    color: rgba(15, 23, 42, 0.3);
+}
+.child-name {
+    font-weight: 700;
+    color: var(--sg-text);
+}
+.custom-options-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: #fff;
+    border: 1px solid var(--sg-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    max-height: 260px;
+    overflow-y: auto;
+    margin-top: 4px;
+}
+.custom-optgroup-label {
+    padding: 8px 12px 4px;
+    font-size: 11px;
+    font-weight: 800;
+    color: rgba(15, 23, 42, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-top: 1px solid var(--sg-border);
+}
+.custom-optgroup:first-child .custom-optgroup-label {
+    border-top: none;
+}
+.custom-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.custom-option:hover {
+    background: var(--sg-surface);
+}
+.custom-option.selected {
+    background: rgba(0, 0, 0, 0.04);
+}
+.option-text {
+    font-weight: 700;
+    font-size: 14px;
+}
+.option-details {
+    font-size: 12px;
+    color: rgba(15, 23, 42, 0.5);
+}
+.check-mark {
+    margin-left: auto;
+    color: #000;
+    font-weight: 800;
+}
+
+/* ─── Modal ─── */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    display: grid;
+    place-items: center;
+    z-index: 999;
+}
+.modal {
+    width: min(500px, 95vw);
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--sg-border);
+}
+.modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+}
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #64748b;
+}
+.modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--sg-border);
+    background: #f8fafc;
+}
+
+/* ─── Buttons ─── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+.btn-primary {
+    background: #000;
+    border-color: #000;
+    color: #fff;
+}
+.btn-primary:hover {
+    background: #222;
+    border-color: #222;
+}
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.btn-outline {
+    border: 1px solid var(--sg-border);
+    background: transparent;
+    color: var(--sg-text);
+}
+.btn-outline:hover {
+    background: var(--sg-surface);
+}
+.btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.btn-danger-outline {
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    background: transparent;
+    color: rgba(0, 0, 0, 0.7);
+}
+.btn-danger-outline:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* ─── States ─── */
+.loading-state,
+.error-state,
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    text-align: center;
+    gap: 16px;
+    color: rgba(15, 23, 42, 0.6);
+}
+.error-message {
+    color: #ef4444;
+    font-weight: 700;
+}
+.alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+.alert-success {
+    background: #f0fdf4;
+    color: #14532d;
+    border: 1px solid #bbf7d0;
+}
+.alert-danger {
+    background: #fef2f2;
+    color: #7f1d1d;
+    border: 1px solid #fecaca;
+}
+.fw-bold {
+    font-weight: 700;
+}
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
 .spinner-sm {
     width: 16px;
     height: 16px;
     border: 2px solid rgba(0, 0, 0, 0.1);
-    border-top-color: #000000;
+    border-top-color: #000;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
+    display: inline-block;
+}
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ─── Location Readonly Box ─── */
+.location-readonly-box {
+    border: 1px solid var(--sg-border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+.location-readonly-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--sg-border);
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.location-readonly-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--sg-text);
+}
+.pending-location-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+.location-readonly-body {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #fff;
+}
+.location-info-row {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    align-items: baseline;
+}
+.location-label {
+    font-weight: 700;
+    color: rgba(15, 23, 42, 0.5);
+    min-width: 80px;
+    flex-shrink: 0;
+}
+.location-value {
+    color: var(--sg-text);
+}
+.location-coord {
+    font-family: monospace;
+    font-size: 12px;
+}
+.map-container {
+    height: 280px;
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.map-readonly {
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+/* ─── Location Tab ─── */
+.location-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.location-current-card {
+}
+.location-current-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.location-actions {
+    margin-top: 4px;
+}
+
+/* ─── Tab Badge ─── */
+.tab-badge-location {
+    background: #f59e0b;
+    color: #fff;
+}
+
+/* ─── Modal Location ─── */
+.modal-location {
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+.modal-location form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+.modal-location .modal-body {
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* ─── Empty section ─── */
+.empty-section {
+    padding: 32px 0;
+    text-align: center;
+    color: rgba(15, 23, 42, 0.45);
+    font-size: 14px;
 }
 </style>

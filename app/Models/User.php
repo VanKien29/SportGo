@@ -28,6 +28,7 @@ class User extends Authenticatable
         'avatar_url',
         'bio',
         'status',
+        'is_locked',
         'verification_channel',
         'lock_type',
         'status_reason',
@@ -49,8 +50,14 @@ class User extends Authenticatable
             'phone_verified_at' => 'datetime',
             'locked_at' => 'datetime',
             'locked_until' => 'datetime',
+            'is_locked' => 'boolean',
             'password' => 'hashed',
         ];
+    }
+
+    public function lockLogs()
+    {
+        return $this->hasMany(UserLockLog::class, 'user_id');
     }
 
     public function lockedBy()
@@ -73,4 +80,49 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class, 'user_roles')
             ->withPivot(['scope_type', 'scope_id', 'granted_by']);
     }
+
+    public function getRoleGroupAttribute(): string
+    {
+        $roles = $this->roles->pluck('name')->all();
+        $adminRoles = [
+            'super_admin',
+            'admin',
+            'system_staff',
+            'content_moderator',
+            'complaint_handler',
+            'venue_manager',
+            'partner_manager',
+            'booking_support',
+            'finance_operator',
+            'policy_manager',
+            'staff_manager',
+        ];
+        $ownerRoles = ['venue_owner', 'venue_staff'];
+
+        if (array_intersect($roles, $adminRoles)) {
+            return 'admin';
+        }
+
+        if (array_intersect($roles, $ownerRoles)) {
+            return 'owner';
+        }
+
+        return 'user';
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (User $user) {
+            $role = Role::query()->where('name', 'user')->first();
+            if ($role) {
+                UserRole::query()->firstOrCreate([
+                    'user_id' => $user->id,
+                    'role_id' => $role->id,
+                    'scope_type' => 'system',
+                    'scope_id' => '00000000-0000-0000-0000-000000000000',
+                ]);
+            }
+        });
+    }
 }
+

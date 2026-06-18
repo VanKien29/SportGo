@@ -12,6 +12,7 @@ use App\Models\Permission;
 use App\Models\Refund;
 use App\Models\Role;
 use App\Models\RolePermission;
+use App\Models\SystemPolicy;
 use App\Models\User;
 use App\Models\UserPayoutAccount;
 use App\Models\UserRole;
@@ -200,6 +201,73 @@ class AdminFinanceOperationTest extends TestCase
             ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", ['status' => 'rejected'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('reason');
+    }
+
+    public function test_admin_cannot_process_refund_before_owner_confirmation(): void
+    {
+        $refund = Refund::query()->create([
+            'payment_id' => $this->payment->id,
+            'booking_id' => $this->booking->id,
+            'customer_id' => $this->customer->id,
+            'amount' => 50000,
+            'reason' => 'Khách yêu cầu hoàn tiền.',
+            'refund_destination' => 'original_payment',
+            'status' => 'pending_owner_confirmation',
+        ]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", [
+                'status' => 'processing',
+                'reason' => 'Admin thử xử lý trước.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'message',
+                'Không thể chuyển trạng thái refund từ pending_owner_confirmation sang processing.'
+            );
+
+        $this->assertDatabaseHas('refunds', [
+            'id' => $refund->id,
+            'status' => 'pending_owner_confirmation',
+        ]);
+    }
+
+    public function test_refund_processing_must_follow_active_refund_policy(): void
+    {
+        $this->createRefundPolicyRules();
+
+        $startAt = now()->addHours(10)->startOfHour();
+        $this->booking->update([
+            'booking_date' => $startAt->toDateString(),
+            'start_time' => $startAt->format('H:i:s'),
+            'end_time' => $startAt->copy()->addHour()->format('H:i:s'),
+            'cancelled_at' => now(),
+            'status' => 'cancelled',
+        ]);
+
+        $refund = Refund::query()->create([
+            'payment_id' => $this->payment->id,
+            'booking_id' => $this->booking->id,
+            'customer_id' => $this->customer->id,
+            'amount' => 60000,
+            'reason' => 'Khách hủy trước giờ chơi 10 tiếng.',
+            'refund_destination' => 'bank_account',
+            'status' => 'pending_confirmation',
+        ]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", ['status' => 'processing'])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Số tiền hoàn vượt quá chính sách hiện tại. Tối đa có thể hoàn là 50.000đ.');
+
+        $refund->update(['amount' => 50000]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", ['status' => 'processing'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'processing')
+            ->assertJsonPath('data.policy_evaluation.refund_percent', 50)
+            ->assertJsonPath('data.policy_evaluation.compliant', true);
     }
 
     public function test_processing_bank_refunds_can_be_exported_for_bulk_transfer(): void
@@ -488,6 +556,57 @@ class AdminFinanceOperationTest extends TestCase
             'account_holder_name' => 'NGUYEN VAN KIEN',
             'status' => 'active',
             'is_default' => true,
+        ]);
+    }
+
+    private function createRefundPolicyRules(): void
+    {
+        $policy = SystemPolicy::query()->create([
+            'key' => 'refund_policy_test',
+            'version' => 1,
+            'title' => 'Chính sách hoàn tiền test',
+            'content' => 'Test policy',
+            'type' => 'refund',
+            'policy_type' => 'refund',
+            'status' => 'active',
+            'is_active' => true,
+            'is_overridable' => false,
+            'priority' => 100,
+            'effective_from' => now()->subDay(),
+            'published_at' => now()->subDay(),
+        ]);
+
+        $policy->actionBindings()->create([
+            'module' => 'refund',
+            'action_code' => 'booking.cancel',
+            'description' => 'Test booking cancel refund policy',
+            'is_active' => true,
+        ]);
+
+        $policy->rules()->create([
+            'action_code' => 'booking.cancel',
+            'rule_code' => 'cancel_before_24h_refund_100_test',
+            'rule_name' => 'Hủy trước 24 giờ hoàn 100%',
+            'rule_type' => 'refund_time_window',
+            'decision_key' => 'refund_percent',
+            'conflict_group' => 'booking_cancel_refund',
+            'condition_json' => ['hours_before_start' => ['gte' => 24]],
+            'result_json' => ['refund_percent' => 100],
+            'priority' => 300,
+            'is_active' => true,
+        ]);
+
+        $policy->rules()->create([
+            'action_code' => 'booking.cancel',
+            'rule_code' => 'cancel_before_6h_refund_50_test',
+            'rule_name' => 'Hủy trước 6 giờ hoàn 50%',
+            'rule_type' => 'refund_time_window',
+            'decision_key' => 'refund_percent',
+            'conflict_group' => 'booking_cancel_refund',
+            'condition_json' => ['hours_before_start' => ['gte' => 6, 'lt' => 24]],
+            'result_json' => ['refund_percent' => 50],
+            'priority' => 200,
+            'is_active' => true,
         ]);
     }
 

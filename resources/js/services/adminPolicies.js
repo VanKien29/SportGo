@@ -53,6 +53,27 @@ export const adminPolicyService = {
     });
   },
 
+  updatePolicyConfiguration(id, payload) {
+    return api(`/api/admin/policies/${id}/configuration`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  saveCancelRefundTiers(id, payload) {
+    return api(`/api/admin/policies/${id}/cancel-refund-tiers`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  saveModerationThresholds(id, payload) {
+    return api(`/api/admin/policies/${id}/moderation-thresholds`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
   addBinding(id, payload) {
     return api(`/api/admin/policies/${id}/bindings`, {
       method: 'POST',
@@ -76,6 +97,10 @@ export const adminPolicyService = {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
+  },
+
+  showRule(id, ruleId) {
+    return api(`/api/admin/policies/${id}/rules/${ruleId}`);
   },
 
   toggleRule(id, ruleId) {

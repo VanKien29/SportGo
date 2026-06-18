@@ -11,6 +11,7 @@ use App\Services\Finance\AdminRefundService;
 use App\Services\Finance\AdminWithdrawalService;
 use App\Services\Finance\MBBankBulkTransferExportService;
 use App\Services\Finance\SepayPayoutService;
+use App\Services\Policies\RefundPolicyEvaluator;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,7 @@ class FinanceOperationController extends Controller
         private readonly AdminAuditService $audit,
         private readonly MBBankBulkTransferExportService $mbBulkExport,
         private readonly SepayPayoutService $sepayPayouts,
+        private readonly RefundPolicyEvaluator $refundPolicies,
     ) {}
 
     public function refunds(Request $request): JsonResponse
@@ -35,7 +37,18 @@ class FinanceOperationController extends Controller
 
         $data = $request->validate([
             'keyword' => ['nullable', 'string', 'max:100'],
-            'status' => ['nullable', Rule::in(['pending_confirmation', 'processing', 'completed', 'failed', 'rejected'])],
+            'status' => ['nullable', Rule::in([
+                'pending_confirmation',
+                'pending_owner_confirmation',
+                'owner_confirmed',
+                'owner_rejected',
+                'admin_processing',
+                'processing',
+                'completed',
+                'failed',
+                'rejected',
+                'cancelled',
+            ])],
             'refund_destination' => ['nullable', Rule::in(['bank_account', 'user_wallet', 'original_payment'])],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'payment_kind' => ['nullable', Rule::in(['full', 'deposit', 'partial'])],
@@ -51,8 +64,8 @@ class FinanceOperationController extends Controller
 
         $query = Refund::query()
             ->with([
-                'payment:id,payment_code,booking_id,method,payment_kind,status,gateway_txn_id',
-                'booking:id,booking_code,customer_id,venue_cluster_id,total_price,status',
+                'payment:id,payment_code,booking_id,amount,method,payment_kind,status,gateway_txn_id',
+                'booking:id,booking_code,customer_id,venue_cluster_id,total_price,status,booking_date,start_time,end_time,cancelled_at',
                 'booking.customer:id,username,full_name,email,phone',
                 'booking.venueCluster:id,name,owner_id',
                 'payoutAccount:id,user_id,bank_name,bank_account_number,bank_account_holder,bank_branch,status',
@@ -66,8 +79,8 @@ class FinanceOperationController extends Controller
 
         $summary = [
             'total' => (clone $query)->count(),
-            'pending_confirmation' => (clone $query)->where('status', 'pending_confirmation')->count(),
-            'processing' => (clone $query)->where('status', 'processing')->count(),
+            'pending_confirmation' => (clone $query)->whereIn('status', ['pending_confirmation', 'pending_owner_confirmation'])->count(),
+            'processing' => (clone $query)->whereIn('status', ['owner_confirmed', 'admin_processing', 'processing'])->count(),
             'completed' => (clone $query)->where('status', 'completed')->count(),
             'requested_amount' => (float) (clone $query)->sum('amount'),
         ];
@@ -444,7 +457,8 @@ class FinanceOperationController extends Controller
     private function loadRefund(string $id): Refund
     {
         return Refund::query()->with([
-            'payment:id,payment_code,booking_id,method,payment_kind,status,gateway_txn_id',
+            'payment:id,payment_code,booking_id,amount,method,payment_kind,status,gateway_txn_id',
+            'booking:id,booking_code,customer_id,venue_cluster_id,total_price,status,booking_date,start_time,end_time,cancelled_at',
             'booking.customer:id,username,full_name,email,phone',
             'booking.venueCluster:id,name,owner_id',
             'payoutAccount',
@@ -492,6 +506,11 @@ class FinanceOperationController extends Controller
             'refund_destination' => $destination,
             'owner_confirmation' => [
                 'confirmed' => (bool) $refund->owner_confirmed_at,
+                'decision' => match ($refund->status) {
+                    'owner_rejected' => 'rejected',
+                    'owner_confirmed', 'admin_processing', 'processing', 'completed', 'failed' => 'approved',
+                    default => 'pending',
+                },
                 'confirmed_at' => $refund->owner_confirmed_at,
                 'confirmed_by' => $refund->ownerConfirmedBy,
                 'note' => $refund->owner_confirm_note,
@@ -501,12 +520,15 @@ class FinanceOperationController extends Controller
             'processed_at' => $refund->processed_at,
             'created_at' => $refund->created_at,
             'receipt' => $this->receiptPayload($refund->receipt),
+            'policy_evaluation' => $this->refundPolicies->evaluate($refund),
             'can_pay_by_qr' => $refund->status === 'processing'
                 && $refund->refund_destination === 'bank_account'
                 && $refund->payoutAccount?->status === 'active'
                 && filled($refund->payoutAccount?->bank_account_number),
             'allowed_statuses' => [
                 'pending_confirmation' => ['processing', 'rejected'],
+                'owner_confirmed' => ['processing', 'completed', 'rejected'],
+                'admin_processing' => ['completed', 'rejected'],
                 'processing' => ['completed', 'rejected'],
                 'failed' => ['processing', 'rejected'],
             ][$refund->status] ?? [],

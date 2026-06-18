@@ -191,6 +191,62 @@ class BookingTest extends TestCase
         $response->assertStatus(200)->assertJson(['available' => false]);
     }
 
+    public function test_manual_schedule_lock_blocks_player_booking_even_without_active_expiry(): void
+    {
+        $lock = SlotLock::create([
+            'venue_cluster_id' => $this->cluster->id,
+            'venue_court_id' => $this->court->id,
+            'lock_scope' => 'court',
+            'booking_date' => $this->bookingDate,
+            'start_time' => '08:00:00',
+            'end_time' => '09:00:00',
+            'locked_by' => $this->cluster->owner_id,
+            'lock_type' => 'manual',
+            'reason' => 'Bảo trì sân.',
+            'expires_at' => Carbon::now()->subDay(),
+        ]);
+
+        $this->actingAs($this->player, 'sanctum')
+            ->getJson('/api/bookings/schedule?'.http_build_query([
+                'venue_cluster_id' => $this->cluster->id,
+                'booking_date' => $this->bookingDate,
+            ]))
+            ->assertOk()
+            ->assertJsonFragment([
+                'venue_court_id' => $this->court->id,
+                'start_time' => '08:00:00',
+                'end_time' => '08:30:00',
+                'is_available' => false,
+                'busy_source' => 'slot_lock',
+                'busy_status' => 'manual',
+                'schedule_lock_id' => $lock->id,
+                'lock_reason' => 'Bảo trì sân.',
+            ]);
+
+        $this->actingAs($this->player, 'sanctum')
+            ->getJson('/api/bookings/check-availability?'.http_build_query([
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->bookingDate,
+                'start_time' => '08:00:00',
+                'end_time' => '09:00:00',
+            ]))
+            ->assertOk()
+            ->assertJson(['available' => false]);
+
+        $this->actingAs($this->player, 'sanctum')
+            ->postJson('/api/bookings', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->bookingDate,
+                'start_time' => '08:00:00',
+                'end_time' => '09:00:00',
+                'payment_option' => 'no_prepay',
+            ])
+            ->assertStatus(422)
+            ->assertJson([
+                'message' => 'Sân đã bị đặt hoặc đang được giữ chỗ trong khung giờ này.',
+            ]);
+    }
+
     /**
      * Test tạo đơn không trả trước (no_prepay) thành công.
      */

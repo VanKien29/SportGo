@@ -5,7 +5,10 @@
         <h2>Voucher của sân</h2>
         <p>Voucher riêng của cụm sân đang chọn. Phần giảm giá do chủ sân chịu.</p>
       </div>
-      <button class="btn primary" type="button" @click="openForm()">Tạo voucher</button>
+      <button class="btn primary" type="button" @click="openForm()">
+        <AppIcon name="plus" size="16" />
+        <span>Tạo voucher</span>
+      </button>
     </header>
 
     <div class="notice">Voucher này là voucher của sân. Phần giảm giá do chủ sân chịu.</div>
@@ -42,8 +45,10 @@
             <td>{{ date(voucher.valid_from) }} - {{ date(voucher.valid_to) }}</td>
             <td><span class="badge" :class="voucher.status">{{ voucher.status_label }}</span></td>
             <td>
-              <button class="mini-btn" type="button" @click="openForm(voucher)">Sửa</button>
-              <button class="mini-btn danger" type="button" @click="turnOff(voucher)">Tắt</button>
+              <TableActionGroup>
+                <ActionIconButton icon="pencil" label="Sửa voucher" @click="openForm(voucher)" />
+                <ActionIconButton icon="power" label="Tắt voucher" variant="danger" @click="turnOff(voucher)" />
+              </TableActionGroup>
             </td>
           </tr>
         </tbody>
@@ -88,10 +93,14 @@
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
 import { ownerVoucherService } from '../../services/ownerVoucherService.js';
 
 export default {
   name: 'OwnerVouchers',
+  components: { ActionIconButton, AppIcon, TableActionGroup },
   data() {
     return {
       vouchers: [],

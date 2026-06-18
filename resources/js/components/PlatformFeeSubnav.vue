@@ -61,26 +61,27 @@ export default {
     gap: 7px;
     min-height: 36px;
     padding: 8px 12px;
-    border: 1px solid #dbe3ea;
+    border: 1px solid var(--admin-border, #dbe3ea);
     border-radius: 8px;
     background: #fff;
-    color: #475569;
+    color: var(--admin-muted, #334155);
     font-size: 13px;
     font-weight: 800;
     text-decoration: none;
 }
 
 .subnav-item:hover {
-    border-color: #86efac;
-    background: #f0fdf4;
-    color: #166534;
+    border-color: rgba(34, 166, 83, 0.35);
+    background: var(--admin-primary-soft, #f0fdf4);
+    color: var(--admin-primary-dark, #166534);
 }
 
 .subnav-active,
 .subnav-active:hover {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: var(--admin-primary, #22a653);
+    background: var(--admin-primary, #22a653);
     color: #fff;
+    box-shadow: 0 10px 22px rgba(34, 166, 83, 0.2);
 }
 
 @media (max-width: 720px) {

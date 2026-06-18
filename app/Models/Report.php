@@ -20,6 +20,11 @@ class Report extends Model
         'reporter_id',
         'reportable_type',
         'reportable_id',
+        'violation_type_id',
+        'severity_level',
+        'score_contribution',
+        'auto_action_taken',
+        'auto_actioned_at',
         'reason',
         'description',
         'status',
@@ -33,6 +38,8 @@ class Report extends Model
     {
         return [
             'reviewed_at' => 'datetime',
+            'auto_actioned_at' => 'datetime',
+            'score_contribution' => 'integer',
         ];
     }
 
@@ -54,5 +61,10 @@ class Report extends Model
     public function reviewedBy()
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function violationType()
+    {
+        return $this->belongsTo(ViolationType::class, 'violation_type_id');
     }
 }

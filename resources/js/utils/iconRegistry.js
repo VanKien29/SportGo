@@ -5,6 +5,14 @@ export const ICON_REGISTRY = {
     ['rect', { x: 14, y: 14, width: 7, height: 7, rx: 1 }],
     ['rect', { x: 3, y: 14, width: 7, height: 7, rx: 1 }],
   ],
+  menu: [
+    ['path', { d: 'M4 6h16M4 12h16M4 18h16' }],
+  ],
+  moreHorizontal: [
+    ['circle', { cx: 5, cy: 12, r: 1 }],
+    ['circle', { cx: 12, cy: 12, r: 1 }],
+    ['circle', { cx: 19, cy: 12, r: 1 }],
+  ],
   users: [
     ['path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' }],
     ['circle', { cx: 9, cy: 7, r: 4 }],
@@ -64,6 +72,12 @@ export const ICON_REGISTRY = {
     ['rect', { x: 2, y: 5, width: 20, height: 14, rx: 2 }],
     ['path', { d: 'M2 10h20' }],
   ],
+  qrCode: [
+    ['rect', { x: 3, y: 3, width: 7, height: 7, rx: 1 }],
+    ['rect', { x: 14, y: 3, width: 7, height: 7, rx: 1 }],
+    ['rect', { x: 3, y: 14, width: 7, height: 7, rx: 1 }],
+    ['path', { d: 'M14 14h2v2h-2zM18 14h3M14 18h3M19 18h2v3h-3M14 21h1' }],
+  ],
   banknote: [
     ['rect', { x: 2, y: 6, width: 20, height: 12, rx: 2 }],
     ['circle', { cx: 12, cy: 12, r: 3 }],
@@ -72,6 +86,19 @@ export const ICON_REGISTRY = {
   messageWarning: [
     ['path', { d: 'M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z' }],
     ['path', { d: 'M12 7v4M12 15h.01' }],
+  ],
+  messageSquare: [
+    ['path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' }],
+  ],
+  heart: [
+    ['path', { d: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z' }],
+  ],
+  x: [
+    ['line', { x1: '18', y1: '6', x2: '6', y2: '18' }],
+    ['line', { x1: '6', y1: '6', x2: '18', y2: '18' }],
+  ],
+  star: [
+    ['path', { d: 'M12 2 15.1 8.3 22 9.3l-5 4.9 1.2 6.8L12 17.8 5.8 21 7 14.2 2 9.3l6.9-1L12 2Z' }],
   ],
   bell: [
     ['path', { d: 'M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8' }],
@@ -84,6 +111,12 @@ export const ICON_REGISTRY = {
   eye: [
     ['path', { d: 'M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z' }],
     ['circle', { cx: 12, cy: 12, r: 3 }],
+  ],
+  eyeOff: [
+    ['path', { d: 'M9.88 9.88a3 3 0 1 0 4.24 4.24' }],
+    ['path', { d: 'M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68' }],
+    ['path', { d: 'M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61' }],
+    ['line', { x1: '2', y1: '2', x2: '22', y2: '22' }],
   ],
   pencil: [
     ['path', { d: 'M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z' }],
@@ -142,6 +175,12 @@ export const ICON_REGISTRY = {
   chevronDown: [
     ['path', { d: 'm6 9 6 6 6-6' }],
   ],
+  chevronRight: [
+    ['path', { d: 'm9 18 6-6-6-6' }],
+  ],
+  chevronLeft: [
+    ['path', { d: 'm15 18-6-6 6-6' }],
+  ],
   lock: [
     ['rect', { x: 3, y: 11, width: 18, height: 11, rx: 2 }],
     ['path', { d: 'M7 11V7a5 5 0 0 1 10 0v4' }],
@@ -182,6 +221,19 @@ export const ICON_REGISTRY = {
   tag: [
     ['path', { d: 'M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z' }],
     ['circle', { cx: 7.5, cy: 7.5, r: 1.5 }],
+  ],
+  newspaper: [
+    ['path', { d: 'M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2ZM14 9h4M14 13h4M10 17h8' }],
+    ['path', { d: 'M10 5v4h8V5Z' }],
+  ],
+  messageCircle: [
+    ['path', { d: 'M7.9 20A9 9 0 1 0 4 16.1L2 22Z' }],
+  ],
+  fileSearch: [
+    ['path', { d: 'M14 2v4a2 2 0 0 0 2 2h4' }],
+    ['path', { d: 'M4.268 15a2 2 0 0 0-.268.995V20a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6a2 2 0 0 0-2 2v3' }],
+    ['path', { d: 'm9 18-1.5-1.5' }],
+    ['circle', { cx: 5, cy: 14, r: 3 }],
   ],
 };
 

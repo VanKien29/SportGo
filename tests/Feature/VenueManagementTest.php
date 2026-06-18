@@ -95,6 +95,13 @@ class VenueManagementTest extends TestCase
             'longitude' => 105.8542,
             'status' => 'active',
         ]);
+
+        // 5. Tạo Tiện ích mẫu để đồng bộ
+        \App\Models\Amenity::create(['name' => 'Wifi', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Water', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Parking', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Gửi xe', 'status' => 'active']);
+        \App\Models\Amenity::create(['name' => 'Phòng tắm VIP', 'status' => 'active']);
     }
 
     // ==========================================
@@ -167,6 +174,8 @@ class VenueManagementTest extends TestCase
             ->putJson("/api/owner/venue-clusters/{$this->cluster1->id}", [
                 'name' => 'Updated Cluster Name',
                 'address' => 'Danang',
+                'province' => 'Danang Province',
+                'ward' => 'Danang Ward',
                 'phone_contact' => '0987654321',
                 'amenities' => ['Wifi', 'Water', 'Parking'],
                 'latitude' => 16.0544,
@@ -422,5 +431,38 @@ class VenueManagementTest extends TestCase
         $response = $this->actingAs($this->owner2, 'sanctum')
             ->deleteJson("/api/owner/venue-clusters/{$this->cluster1->id}/media/{$media->id}");
         $response->assertStatus(403);
+    }
+
+    public function test_owner_cannot_update_cluster_or_courts_when_locked(): void
+    {
+        // 1. Lock the cluster
+        $this->cluster1->update([
+            'status' => 'locked',
+            'status_reason' => 'Locked for testing',
+        ]);
+
+        // 2. Try to update cluster details as owner -> should be blocked by middleware
+        $response = $this->actingAs($this->owner1, 'sanctum')
+            ->putJson("/api/owner/venue-clusters/{$this->cluster1->id}", [
+                'name' => 'Should fail Name',
+                'address' => 'Danang',
+                'phone_contact' => '0987654321',
+                'latitude' => 16.0544,
+                'longitude' => 108.2022,
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['venue_cluster_id']);
+
+        // 3. Try to add a court to the locked cluster -> should be blocked
+        $response = $this->actingAs($this->owner1, 'sanctum')
+            ->postJson('/api/owner/venue-courts', [
+                'venue_cluster_id' => $this->cluster1->id,
+                'court_type_id' => $this->courtType->id,
+                'name' => 'Sân số 2',
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['venue_cluster_id']);
     }
 }

@@ -21,6 +21,11 @@ class VenueCourt extends Model
         'name',
         'status',
         'sort_order',
+        'layout_x',
+        'layout_y',
+        'layout_w',
+        'layout_h',
+        'layout_rotation',
     ];
 
     protected function casts(): array
@@ -28,6 +33,11 @@ class VenueCourt extends Model
         return [
             'court_type_id' => 'integer',
             'sort_order' => 'integer',
+            'layout_x' => 'double',
+            'layout_y' => 'double',
+            'layout_w' => 'double',
+            'layout_h' => 'double',
+            'layout_rotation' => 'integer',
         ];
     }
 
