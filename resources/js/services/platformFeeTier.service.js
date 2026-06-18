@@ -439,11 +439,6 @@ export function updateTier(id, payload) {
   const finalTier = platformFeeStore.state.tiers.find((tier) => tier.id === id);
   addAuditLog('platform_fee_tier.updated', 'platform_fee_tier', id, oldTiers, platformFeeStore.state.tiers, 'platform_fee_tier');
   return Promise.resolve({ ...cloneValue(finalTier), range_adjustments: adjusted.adjustments });
-  platformFeeStore.state.tiers.splice(index, 1, updated);
-  const rangeAdjustments = rebalanceTierRanges(platformFeeStore.state.tiers);
-  platformFeeStore.save();
-  addAuditLog('platform_fee_tier.updated', 'platform_fee_tier', id, oldTier, updated, 'platform_fee_tier');
-  return Promise.resolve(cloneValue({ ...updated, range_adjustments: rangeAdjustments }));
 }
 
 export function deactivateTier(id, reason = 'Ngừng sử dụng') {
