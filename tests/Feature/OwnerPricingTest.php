@@ -106,6 +106,17 @@ class OwnerPricingTest extends TestCase
         ]);
     }
 
+    public function test_pricing_duration_endpoint_cannot_bypass_booking_rules(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson("/api/owner/booking-configs/{$this->cluster->id}/duration", [
+                'min_duration_minutes' => 45,
+                'max_duration_minutes' => 1470,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['min_duration_minutes', 'max_duration_minutes']);
+    }
+
     public function test_owner_can_load_pricing_configuration(): void
     {
         PriceSlot::query()->create([
