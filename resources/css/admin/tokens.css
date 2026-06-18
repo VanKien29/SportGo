@@ -29,4 +29,40 @@
   --admin-radius: 8px;
   --admin-radius-lg: 12px;
   --admin-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --admin-bg-gradient: linear-gradient(180deg, rgba(247, 251, 245, 0.86), rgba(238, 246, 240, 0.96));
+  --admin-topbar-bg: rgba(247, 251, 245, 0.82);
+  --admin-topbar-border: rgba(220, 232, 220, 0.82);
+}
+
+[data-theme="dark"] {
+  --admin-bg: #0d1510;
+  --admin-bg-soft: #142018;
+  --admin-surface: #1a291f;
+  --admin-surface-muted: #1e3024;
+  --admin-sidebar: #1a291f;
+  --admin-hover: #263d2e;
+  --admin-border: #2c4736;
+  --admin-border-soft: #23382b;
+  --admin-text: #e8f5ec;
+  --admin-muted: #a6c0ae;
+  --admin-faint: #7a9c84;
+  --admin-primary: #2ebc63;
+  --admin-primary-light: #52b788;
+  --admin-primary-dark: #1cb057;
+  --admin-primary-soft: #1c3324;
+  --admin-primary-ring: rgba(46, 188, 99, 0.22);
+  --admin-blue: #3b82f6;
+  --admin-blue-soft: #1e293b;
+  --admin-warning: #f59e0b;
+  --admin-warning-soft: #451a03;
+  --admin-danger: #ef4444;
+  --admin-danger-soft: #450a0a;
+  --admin-purple: #8b5cf6;
+  --admin-purple-soft: #2e1065;
+  --admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --admin-shadow-card: 0 6px 18px rgba(0, 0, 0, 0.25);
+  --admin-shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.5);
+  --admin-bg-gradient: linear-gradient(180deg, rgba(20, 32, 24, 0.86), rgba(13, 21, 16, 0.96));
+  --admin-topbar-bg: rgba(26, 41, 31, 0.82);
+  --admin-topbar-border: rgba(44, 71, 54, 0.82);
 }

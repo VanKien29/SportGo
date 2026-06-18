@@ -480,9 +480,9 @@ export default {
     justify-content: center !important;
     padding: 0 16px !important;
     border-radius: 8px !important;
-    border: 1px solid var(--sg-border, #e2e8f0) !important;
-    background: var(--sg-surface, #f8fafc) !important;
-    color: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid var(--admin-border) !important;
+    background: var(--admin-surface) !important;
+    color: var(--admin-muted) !important;
     font-size: 13px !important;
     font-weight: 600 !important;
     cursor: pointer !important;
@@ -490,12 +490,13 @@ export default {
     box-sizing: border-box !important;
 }
 .avc-filters .filter-tabs button.tab-btn.active {
-    background: #0f172a !important;
-    border-color: #0f172a !important;
+    background: var(--admin-primary) !important;
+    border-color: var(--admin-primary) !important;
     color: #fff !important;
 }
 .avc-filters .filter-tabs button.tab-btn:not(.active):hover {
-    background: #f1f5f9 !important;
+    background: var(--admin-hover) !important;
+    color: var(--admin-primary-dark) !important;
 }
 .filter-search {
     flex: 1;
@@ -506,24 +507,22 @@ export default {
     height: 38px !important;
     min-height: 38px !important;
     padding: 0 14px !important;
-    border: 1px solid var(--sg-border, #e2e8f0) !important;
+    border: 1px solid var(--admin-border) !important;
     border-radius: 8px !important;
     font-size: 14px !important;
     outline: none !important;
-    color: var(--sg-text, #0f172a) !important;
-    background: #fff !important;
+    color: var(--admin-text) !important;
+    background: var(--admin-surface) !important;
     transition: border-color 0.18s !important;
     box-sizing: border-box !important;
 }
 .avc-filters .filter-row input.search-input:focus {
-    border-color: #0f172a !important;
+    border-color: var(--admin-primary) !important;
+    box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
 }
 
 .card {
-    background: #fff;
     border-radius: 12px;
-    border: 1px solid var(--sg-border, #e2e8f0);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
     padding: 24px;
 }
 
@@ -611,14 +610,14 @@ export default {
 .avc-table th,
 .avc-table td {
     padding: 14px 20px;
-    border-bottom: 1px solid var(--sg-border, #e2e8f0);
+    border-bottom: 1px solid var(--admin-border-soft);
     font-size: 14px;
     text-align: left;
 }
 .avc-table th {
-    background: var(--sg-surface, #f8fafc);
+    background: var(--admin-surface-muted);
     font-weight: 700;
-    color: var(--sg-text, #0f172a);
+    color: var(--admin-muted);
     font-size: 13px;
     text-transform: uppercase;
 }
@@ -627,7 +626,7 @@ export default {
     transition: background 0.12s;
 }
 .avc-row:hover {
-    background: #f8fafc;
+    background: var(--admin-hover);
 }
 
 .cluster-info-meta {
@@ -636,11 +635,11 @@ export default {
 }
 .cluster-name {
     font-weight: 700;
-    color: var(--sg-text, #0f172a);
+    color: var(--admin-text);
 }
 .cluster-slug {
     font-size: 12px;
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-faint);
     margin-top: 2px;
 }
 .owner-meta-info {
@@ -648,10 +647,11 @@ export default {
 }
 .owner-name {
     font-weight: 600;
+    color: var(--admin-text);
 }
 .owner-email {
     font-size: 12px;
-    color: rgba(15, 23, 42, 0.5);
+    color: var(--admin-faint);
 }
 
 /* Custom column widths */
@@ -669,23 +669,23 @@ export default {
 }
 
 .status-active {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--admin-primary-soft) !important;
+    color: var(--admin-primary-dark) !important;
 }
 
 .status-pending {
-    background: #fef3c7;
-    color: #d97706;
+    background: var(--admin-warning-soft) !important;
+    color: var(--admin-warning) !important;
 }
 
 .status-rejected {
-    background: #fee2e2;
-    color: #991b1b;
+    background: var(--admin-danger-soft) !important;
+    color: var(--admin-danger) !important;
 }
 
 .status-inactive {
-    background: #f1f5f9;
-    color: #64748b;
+    background: var(--admin-surface-muted) !important;
+    color: var(--admin-muted) !important;
 }
 
 .status-reason-text {

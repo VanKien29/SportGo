@@ -73,45 +73,45 @@ export default {
 }
 
 .variant-primary {
-  border-color: #2f9e44;
-  background: #2f9e44;
+  border-color: var(--admin-primary);
+  background: var(--admin-primary);
   color: #fff;
 }
 
 .variant-secondary {
-  background: #fff;
-  border-color: #dce8dc;
-  color: #344238;
+  background: var(--admin-surface);
+  border-color: var(--admin-border);
+  color: var(--admin-text);
 }
 
 .variant-secondary:hover:not(:disabled) {
   border-color: rgba(47, 158, 68, 0.3);
-  background: #e8f7ec;
-  color: #216b34;
+  background: var(--admin-hover);
+  color: var(--admin-primary-dark);
 }
 
 .variant-success {
-  border-color: rgba(47, 158, 68, .2);
-  background: #e8f7ec;
-  color: #216b34;
+  border-color: var(--admin-primary-soft);
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-dark);
 }
 
 .variant-warning {
-  border-color: rgba(217, 119, 6, .2);
-  background: #fef3c7;
-  color: #92400e;
+  border-color: var(--admin-warning-soft);
+  background: var(--admin-warning-soft);
+  color: var(--admin-warning);
 }
 
 .variant-danger {
-  border-color: rgba(220, 38, 38, .18);
-  background: #fef2f2;
-  color: #991b1b;
+  border-color: var(--admin-danger-soft);
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger);
 }
 
 .variant-ghost {
-  border-color: #dce8dc;
-  background: #fff;
-  color: #4f5d52;
+  border-color: var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-muted);
 }
 
 .action-icon-button:disabled {

@@ -3,7 +3,7 @@
   grid-template-columns: 272px minmax(0, 1fr);
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(247, 251, 245, 0.86), rgba(238, 246, 240, 0.96)),
+    var(--admin-bg-gradient),
     var(--admin-bg);
   color: var(--admin-text);
   font-family: var(--admin-font);
@@ -138,7 +138,7 @@
   padding: 10px 12px;
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
-  background: #fff;
+  background: var(--admin-surface);
   color: var(--admin-primary-dark);
   font-size: 13px;
   font-weight: 700;
@@ -159,7 +159,7 @@
   margin-top: auto;
   padding: 16px 18px;
   border-top: 1px solid var(--admin-border-soft);
-  background: rgba(243, 248, 241, 0.64);
+  background: var(--admin-surface-muted);
 }
 
 .sg-shell-admin .user-avatar,
@@ -218,8 +218,8 @@
   justify-content: space-between;
   gap: 18px;
   padding: 0 clamp(22px, 2.4vw, 42px);
-  border-bottom: 1px solid rgba(220, 232, 220, 0.82);
-  background: rgba(247, 251, 245, 0.82);
+  border-bottom: 1px solid var(--admin-topbar-border);
+  background: var(--admin-topbar-bg);
   backdrop-filter: blur(14px) saturate(140%);
 }
 
@@ -262,7 +262,7 @@
 .profile-trigger {
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
-  background: #fff;
+  background: var(--admin-surface);
   color: var(--admin-muted);
   box-shadow: var(--admin-shadow-sm);
 }
@@ -336,7 +336,7 @@
   overflow: hidden;
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius-lg);
-  background: #fff;
+  background: var(--admin-surface);
   box-shadow: var(--admin-shadow-lg);
 }
 

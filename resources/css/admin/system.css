@@ -145,7 +145,7 @@
 ) {
   border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius-lg) !important;
-  background-color: rgba(255, 255, 255, 0.97) !important;
+  background-color: var(--admin-card-bg) !important;
   box-shadow: var(--admin-shadow-card) !important;
 }
 
@@ -161,7 +161,7 @@
   border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius-lg) !important;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 248, 241, 0.88)),
+    var(--admin-filter-gradient),
     var(--admin-surface-muted) !important;
   box-shadow: none !important;
 }
@@ -224,8 +224,8 @@
 
 .sg-shell-admin .content-area :is(th, .data-table th, .simple-table th, .avc-table th) {
   border-bottom: 1px solid var(--admin-border) !important;
-  background: #f2f7ef !important;
-  color: #334238 !important;
+  background: var(--admin-surface-muted) !important;
+  color: var(--admin-muted) !important;
   font-size: 12px !important;
   font-weight: 800 !important;
   letter-spacing: 0.025em !important;
@@ -234,8 +234,8 @@
 }
 
 .sg-shell-admin .content-area :is(td, .data-table td, .simple-table td, .avc-table td) {
-  border-bottom: 1px solid rgba(23, 34, 27, 0.075) !important;
-  color: #16231a !important;
+  border-bottom: 1px solid var(--admin-border-soft) !important;
+  color: var(--admin-text) !important;
   font-weight: 560 !important;
 }
 
@@ -245,7 +245,7 @@
 }
 
 .sg-shell-admin .content-area :is(tbody tr:hover, .data-table tbody tr:hover, .simple-table tbody tr:hover, .avc-table tbody tr:hover) {
-  background: rgba(232, 247, 236, 0.68) !important;
+  background: var(--admin-hover) !important;
 }
 
 .sg-shell-admin .content-area :is(td:last-child, th:last-child, .actions-col, .actions-cell, .row-actions, .payout-actions, .actions-wrapper) {
@@ -272,9 +272,9 @@
 
 .sg-shell-admin .content-area :is(input:not([type='checkbox']):not([type='radio']), select, textarea, .form-control, .search-field, .search-box, .search-input) {
   min-height: 38px !important;
-  border: 1px solid #b9cbbb !important;
+  border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius) !important;
-  background: #fff !important;
+  background: var(--admin-surface) !important;
   color: var(--admin-text) !important;
   font: inherit !important;
   transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease !important;
@@ -285,7 +285,7 @@
 }
 
 .sg-shell-admin .content-area :is(input, select, textarea)::placeholder {
-  color: #4c5e51 !important;
+  color: var(--admin-faint) !important;
   opacity: 1 !important;
 }
 
@@ -293,8 +293,8 @@
   appearance: none !important;
   padding-right: 36px !important;
   background-image:
-    linear-gradient(45deg, transparent 50%, #526053 50%),
-    linear-gradient(135deg, #526053 50%, transparent 50%) !important;
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%) !important;
   background-position:
     calc(100% - 17px) 50%,
     calc(100% - 11px) 50% !important;
@@ -355,7 +355,7 @@
 }
 
 .sg-shell-admin .content-area :is(label, .field, .form-group label, .form-label) {
-  color: #223127 !important;
+  color: var(--admin-text) !important;
   font-size: 13px !important;
   font-weight: 760 !important;
 }
@@ -394,7 +394,7 @@
   place-items: center !important;
   border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius) !important;
-  background: #fff !important;
+  background: var(--admin-surface) !important;
   color: var(--admin-muted) !important;
   font-size: 0 !important;
 }
@@ -441,8 +441,8 @@
 
 .sg-shell-admin .content-area :is(.secondary, .btn.secondary, .btn-outline, .secondary-btn, .ghost, .ghost-btn, .mini-btn, .icon-btn, .icon-action, .icon-close, .icon-only, .icon-command, .export-btn, .btn-back, .tab-btn, .tabs button, .sort-btn, .btn-action, .btn-action-icon, .btn-map-link, .btn-edit-link) {
   border-color: var(--admin-border) !important;
-  background: #fff !important;
-  color: #344238 !important;
+  background: var(--admin-surface) !important;
+  color: var(--admin-text) !important;
 }
 
 .sg-shell-admin .content-area :is(.secondary:hover, .btn.secondary:hover, .btn-outline:hover, .secondary-btn:hover, .ghost:hover, .ghost-btn:hover, .mini-btn:hover, .icon-btn:hover, .icon-action:hover, .icon-close:hover, .icon-only:hover, .icon-command:hover, .export-btn:hover, .btn-back:hover, .tab-btn:hover, .tabs button:hover, .sort-btn:hover, .btn-action:hover, .btn-action-icon:hover, .btn-map-link:hover, .btn-edit-link:hover) {
@@ -507,12 +507,12 @@
 
 .sg-shell-admin .content-area :is(.status.pending, .status.open, .status-badge.pending, .status-badge.open, .status-badge.status-pending, .status-chip.pending_payment, .status-chip.pending_approval, .badge.pending, .badge.open, .status-pill.pending, .status-pill.pending_confirmation, .status-pill.reviewing, .status-pill.processing, .fee-status-unpaid, .fee-status-partial, .fee-pending, .status-pending) {
   background: var(--admin-warning-soft) !important;
-  color: #9a3412 !important;
+  color: var(--admin-warning) !important;
 }
 
 .sg-shell-admin .content-area :is(.status.inactive, .status.locked, .status.rejected, .status-badge.inactive, .status-badge.locked, .status-badge.rejected, .status-badge.status-locked, .status-badge.status-rejected, .status-chip.cancelled, .status-chip.rejected, .badge.inactive, .badge.expired, .status-pill.failed, .status-pill.rejected, .status-pill.cancelled, .status-pill.refunded, .fee-status-overdue, .fee-overdue, .status-locked, .status-rejected) {
   background: var(--admin-danger-soft) !important;
-  color: #991b1b !important;
+  color: var(--admin-danger) !important;
 }
 
 .sg-shell-admin .content-area :is(.notice, .alert, .global-alert, .toast, .inline-summary, .preview-banner, .state, .empty, .empty-block) {
@@ -545,13 +545,13 @@
 
 .sg-shell-admin .content-area :is(.modal-header, .detail-head, .drawer-header) {
   border-bottom: 1px solid var(--admin-border) !important;
-  background: #fbfdf9 !important;
+  background: var(--admin-surface-muted) !important;
   padding: 16px 18px !important;
 }
 
 .sg-shell-admin .content-area :is(.modal-footer, .modal-actions, .dialog-footer) {
   border-top: 1px solid var(--admin-border) !important;
-  background: #fbfdf9 !important;
+  background: var(--admin-surface-muted) !important;
   padding: 14px 18px !important;
 }
 
