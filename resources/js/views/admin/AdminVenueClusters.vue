@@ -52,15 +52,15 @@
                 <table class="avc-table">
                     <thead>
                         <tr>
-                            <th>Tên cụm sân</th>
-                            <th>Chủ sân</th>
-                            <th>Địa chỉ</th>
-                            <th>Loại sân</th>
-                            <th class="text-center">Số sân con</th>
-                            <th class="text-center">Rating</th>
-                            <th class="text-center">Trạng thái phí</th>
-                            <th class="text-center">Trạng thái</th>
-                            <th class="text-right">Thao tác</th>
+                            <th class="col-name">Tên cụm sân</th>
+                            <th class="col-owner">Chủ sân</th>
+                            <th class="col-address">Địa chỉ</th>
+                            <th class="col-types">Loại sân</th>
+                            <th class="col-courts text-center">Số sân con</th>
+                            <th class="col-rating text-center">Rating</th>
+                            <th class="col-fee text-center">Trạng thái phí</th>
+                            <th class="col-status text-center">Trạng thái</th>
+                            <th class="col-actions text-right">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -70,22 +70,13 @@
                             class="avc-row"
                             @click="goDetail(c.id)"
                         >
-                            <td class="cluster-cell-flex">
-                                <div class="cluster-thumb-container">
-                                    <img
-                                        v-if="c.image_path"
-                                        :src="imageUrl(c.image_path)"
-                                        :alt="c.name"
-                                        class="cluster-thumb-img"
-                                        @error="hideBrokenImage"
-                                    />
-                                </div>
+                            <td class="col-name">
                                 <div class="cluster-info-meta">
                                     <div class="cluster-name">{{ c.name }}</div>
                                     <div class="cluster-slug">{{ c.slug }}</div>
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-owner">
                                 <div class="owner-name">
                                     {{ c.owner?.full_name || "—" }}
                                 </div>
@@ -93,8 +84,8 @@
                                     {{ c.owner?.email || "" }}
                                 </div>
                             </td>
-                            <td class="address-cell">{{ formatFullAddress(c) }}</td>
-                            <td>
+                            <td class="col-address address-cell">{{ formatFullAddress(c) }}</td>
+                            <td class="col-types">
                                 <div class="court-types">
                                     <span
                                         v-for="(ct, i) in c.court_types || []"
@@ -112,12 +103,12 @@
                                     >
                                 </div>
                             </td>
-                            <td class="text-center">
+                            <td class="col-courts text-center">
                                 <span class="court-count">{{
                                     c.court_count
                                 }}</span>
                             </td>
-                            <td class="text-center">
+                            <td class="col-rating text-center">
                                 <span class="rating">
                                     {{ Number(c.rating_avg || 0).toFixed(1) }}
                                     <span class="rating-count"
@@ -125,7 +116,7 @@
                                     >
                                 </span>
                             </td>
-                            <td class="text-center">
+                            <td class="col-fee text-center">
                                 <span
                                     class="status-badge"
                                     :class="`fee-${c.fee_status}`"
@@ -133,7 +124,7 @@
                                     {{ feeStatusLabel(c.fee_status) }}
                                 </span>
                             </td>
-                            <td class="text-center">
+                            <td class="col-status text-center">
                                 <span
                                     class="status-badge"
                                     :class="`status-${c.status}`"
@@ -141,7 +132,7 @@
                                     {{ statusLabel(c.status) }}
                                 </span>
                             </td>
-                            <td class="text-right" @click.stop>
+                            <td class="col-actions text-right" @click.stop>
                                 <ActionIconButton icon="eye" label="Xem chi tiết" @click="goDetail(c.id)" />
                             </td>
                         </tr>
@@ -222,14 +213,7 @@ export default {
             };
             return map[status] || status;
         },
-        imageUrl(path) {
-            if (!path) return "";
-            if (/^https?:\/\//.test(path)) return path;
-            return `/storage/${path}`;
-        },
-        hideBrokenImage(e) {
-            e.target.style.display = "none";
-        },
+
         feeStatusLabel(status) {
             const map = {
                 pending: "Chờ thanh toán",
@@ -449,25 +433,7 @@ export default {
     background: #f8fafc;
 }
 
-.cluster-cell-flex {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.cluster-thumb-container {
-    width: 44px;
-    height: 44px;
-    border-radius: 8px;
-    overflow: hidden;
-    flex-shrink: 0;
-    border: 1px solid var(--sg-border);
-    background: #f1f5f9;
-}
-.cluster-thumb-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
+
 .cluster-info-meta {
     display: flex;
     flex-direction: column;
@@ -489,9 +455,37 @@ export default {
     color: rgba(15, 23, 42, 0.5);
 }
 .address-cell {
-    max-width: 200px;
     color: rgba(15, 23, 42, 0.7);
     font-size: 13px;
+}
+
+/* Custom column widths */
+.col-name {
+    min-width: 240px;
+}
+.col-owner {
+    min-width: 180px;
+}
+.col-address {
+    min-width: 260px;
+}
+.col-types {
+    min-width: 200px;
+}
+.col-courts {
+    min-width: 100px;
+}
+.col-rating {
+    min-width: 90px;
+}
+.col-fee {
+    min-width: 140px;
+}
+.col-status {
+    min-width: 120px;
+}
+.col-actions {
+    min-width: 110px;
 }
 
 .court-types {
@@ -607,15 +601,5 @@ export default {
 }
 .btn-view:hover {
     background: #e2e8f0;
-}
-.cluster-thumb-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f1f5f9;
-    color: #94a3b8;
-    font-size: 16px;
 }
 </style>

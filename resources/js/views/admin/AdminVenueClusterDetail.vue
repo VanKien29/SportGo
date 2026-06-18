@@ -12,6 +12,16 @@
 
     <!-- ── Main content ── -->
     <template v-else-if="cluster">
+      <!-- Header -->
+      <div class="avcd-header card">
+        <div class="avcd-title-row">
+          <div>
+            <h2 class="avcd-title">{{ cluster.name }}</h2>
+            <p class="avcd-sub">Quản lý và theo dõi thông tin chi tiết cụm sân của đối tác.</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Tabs -->
       <div class="avcd-tabs card">
         <button
@@ -94,25 +104,37 @@
                   <span class="info-detail-value">{{ formatFullAddress(cluster) }}</span>
                 </div>
               </div>
+            </div>
 
-              <div class="info-detail-item">
-                <div class="info-detail-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <!-- Bản đồ vị trí cụm sân -->
+            <div class="map-section" style="margin-top: 24px; border-top: 1px solid rgba(15, 23, 42, 0.06); padding-top: 20px;">
+              <div class="map-section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; width: 100%;">
+                <span class="info-detail-label" style="margin-bottom: 0; display: flex; align-items: center; gap: 6px; font-weight: 700; color: rgba(15, 23, 42, 0.55);">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7" />
                   </svg>
-                </div>
-                <div class="info-detail-body">
-                  <span class="info-detail-label">Tọa độ & Bản đồ</span>
-                  <div class="map-coord-row">
-                    <span class="info-detail-value coord-text">{{ cluster.latitude }}, {{ cluster.longitude }}</span>
-                    <a v-if="cluster.map_url" :href="cluster.map_url" target="_blank" rel="noopener" class="btn-map-link">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      Xem Google Maps
-                    </a>
-                  </div>
-                </div>
+                  Bản đồ vị trí
+                </span>
+                <a v-if="cluster.map_url" :href="cluster.map_url" target="_blank" rel="noopener" class="btn-map-link" style="padding: 4px 10px; font-size: 12px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Mở Google Maps
+                </a>
+              </div>
+              <div v-if="cluster.latitude && cluster.longitude" class="map-embed-container" style="width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid rgba(15, 23, 42, 0.08); line-height: 0; box-shadow: var(--admin-shadow-sm);">
+                <iframe
+                  width="100%"
+                  height="300"
+                  style="border:0;"
+                  loading="lazy"
+                  allowfullscreen
+                  referrerpolicy="no-referrer-when-downgrade"
+                  :src="`https://maps.google.com/maps?q=${cluster.latitude},${cluster.longitude}&hl=vi&z=15&output=embed`"
+                ></iframe>
+              </div>
+              <div v-else class="muted" style="font-size: 13px; font-style: italic;">
+                Chưa cấu hình tọa độ cho cụm sân này.
               </div>
             </div>
           </div>
@@ -127,7 +149,7 @@
                 <div class="side-info-item">
                   <span class="side-label">Trạng thái cụm sân</span>
                   <div class="status-action-row">
-                    <span class="status-badge" :class="`status-${cluster.status}`">
+                    <span class="custom-status-badge" :class="`custom-status-${cluster.status}`">
                       {{ statusLabel(cluster.status) }}
                     </span>
                     <button
@@ -195,23 +217,31 @@
             </div>
           </div>
           
-          <div class="info-item full-width" v-if="cluster.status === 'locked'" style="margin-top: 20px;">
-            <span class="info-label">Lý do khóa</span>
-            <span class="info-value lock-reason" style="margin-top: 6px; display: block;">{{ cluster.status_reason }}</span>
-          </div>
-          
-          <div class="info-grid" style="margin-top: 20px;" v-if="cluster.locked_at">
-            <div class="info-item">
-              <span class="info-label">Khóa lúc</span>
-              <span class="info-value">{{ formatDate(cluster.locked_at) }}</span>
+          <!-- Lock Alert Banner -->
+          <div v-if="cluster.status === 'locked'" class="lock-alert-banner">
+            <div class="lock-alert-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
             </div>
-            <div class="info-item" v-if="cluster.locked_until">
-              <span class="info-label">Khóa đến</span>
-              <span class="info-value">{{ formatDate(cluster.locked_until) }}</span>
-            </div>
-            <div class="info-item" v-if="cluster.locked_by">
-              <span class="info-label">Khóa bởi</span>
-              <span class="info-value">{{ cluster.locked_by?.full_name || cluster.locked_by }}</span>
+            <div class="lock-alert-content">
+              <h4 class="lock-alert-title">Cụm sân này đang bị tạm khóa</h4>
+              <p class="lock-alert-reason"><strong>Lý do khóa:</strong> {{ cluster.status_reason || 'Không có lý do cụ thể.' }}</p>
+              
+              <div class="lock-alert-meta" v-if="cluster.locked_at || cluster.locked_by">
+                <div class="lock-meta-item" v-if="cluster.locked_at">
+                  <span class="lock-meta-label">Khóa lúc:</span>
+                  <span class="lock-meta-val">{{ formatDate(cluster.locked_at) }}</span>
+                </div>
+                <div class="lock-meta-item" v-if="cluster.locked_until">
+                  <span class="lock-meta-label">Khóa đến:</span>
+                  <span class="lock-meta-val">{{ formatDate(cluster.locked_until) }}</span>
+                </div>
+                <div class="lock-meta-item" v-if="cluster.locked_by">
+                  <span class="lock-meta-label">Khóa bởi:</span>
+                  <span class="lock-meta-val">{{ cluster.locked_by?.full_name || cluster.locked_by }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -723,7 +753,23 @@
         {{ globalMsg }}
       </div>
     </transition>
-    </template>
+
+    <!-- Floating Actions -->
+    <div class="floating-actions">
+      <button class="float-btn float-back-btn" type="button" title="Quay lại danh sách" @click="$router.push({ name: 'admin-venue-clusters' })">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        <span>Quay lại</span>
+      </button>
+      <transition name="fade">
+        <button v-if="showScrollTop" class="float-btn float-top-btn" type="button" title="Cuộn về đầu trang" @click="scrollToTop">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+          </svg>
+        </button>
+      </transition>
+    </div>
   </div>
 </template>
 
@@ -785,6 +831,7 @@ export default {
       globalMsg: '',
       globalMsgType: 'msg-success',
       globalTimer: null,
+      showScrollTop: false,
     };
   },
   computed: {
@@ -802,6 +849,10 @@ export default {
   },
   mounted() {
     this.loadDetail();
+    window.addEventListener('scroll', this.handleScroll, true);
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll, true);
   },
   methods: {
     async loadDetail() {
@@ -1015,6 +1066,25 @@ export default {
       ].filter(Boolean);
       return parts.join(', ') || '—';
     },
+    handleScroll(event) {
+      let scrollPos = 0;
+      if (event && event.target && event.target !== document) {
+        scrollPos = event.target.scrollTop;
+      } else {
+        scrollPos = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      }
+      this.showScrollTop = scrollPos > 150;
+    },
+    scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+      document.body.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      const scrollable = document.querySelector('.main-content') || document.querySelector('.content-area');
+      if (scrollable) {
+        scrollable.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
   },
 };
 </script>
@@ -1038,18 +1108,25 @@ export default {
 
 /* Header */
 .avcd-header { display: flex; flex-direction: column; gap: 12px; }
-.btn-back {
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #15803d;
+  font-weight: 850;
+  text-decoration: none;
+  font-size: 14px;
+  margin-bottom: 12px;
+  cursor: pointer;
   background: none;
   border: none;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(15, 23, 42, 0.5);
   padding: 0;
-  width: fit-content;
-  transition: color 0.15s;
+  transition: opacity 0.15s;
 }
-.btn-back:hover { color: var(--sg-text); }
+.back-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
 .avcd-title-row {
   display: flex;
   justify-content: space-between;
@@ -1413,9 +1490,89 @@ export default {
 .status-approved { background: #dcfce7; color: #166534; }
 .status-rejected { background: #fee2e2; color: #991b1b; }
 .status-cancelled { background: #f3f4f6; color: #6b7280; }
+
+/* Custom Status badges for Venue Cluster status box */
+.custom-status-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 38px !important;
+  padding: 9px 13px !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  border: 1px solid transparent !important;
+}
+.custom-status-pending { background: #fffbeb !important; color: #b45309 !important; border: 1px solid #fde68a !important; }
+.custom-status-active  { background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; }
+.custom-status-locked  { background: #fef2f2 !important; color: #b91c1c !important; border: 1px solid #fecaca !important; }
+.custom-status-approved { background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; }
+.custom-status-rejected { background: #fef2f2 !important; color: #b91c1c !important; border: 1px solid #fecaca !important; }
+.custom-status-cancelled { background: #f8fafc !important; color: #475569 !important; border: 1px solid #e2e8f0 !important; }
 .fee-paid { background: #dcfce7; color: #166534; }
 .fee-unpaid, .fee-overdue { background: #fee2e2; color: #991b1b; }
 .fee-partial { background: #fef3c7; color: #92400e; }
+
+/* Lock Alert Banner Style */
+.lock-alert-banner {
+  display: flex;
+  gap: 16px;
+  background: #fef2f2 !important;
+  border: 1px solid #fee2e2 !important;
+  border-radius: 10px !important;
+  padding: 16px 20px !important;
+  margin-top: 20px;
+  align-items: flex-start;
+}
+.lock-alert-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50% !important;
+  background: #fee2e2 !important;
+  color: #ef4444 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.lock-alert-content {
+  flex: 1;
+}
+.lock-alert-title {
+  margin: 0 0 6px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #991b1b !important;
+}
+.lock-alert-reason {
+  margin: 0 0 12px !important;
+  font-size: 13.5px !important;
+  color: #b91c1c !important;
+  line-height: 1.5 !important;
+}
+.lock-alert-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  padding-top: 10px !important;
+  border-top: 1px dashed rgba(239, 68, 68, 0.2) !important;
+}
+.lock-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px !important;
+  color: #7f1d1d !important;
+}
+.lock-meta-label {
+  font-weight: 500 !important;
+  opacity: 0.8;
+}
+.lock-meta-val {
+  font-weight: 700 !important;
+}
 
 /* ── Fee Tab Redesign ── */
 .fees-tab {
@@ -2272,4 +2429,44 @@ export default {
   margin-left: 5px;
 }
 
+/* Floating Actions */
+.floating-actions {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 999;
+}
+.float-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border-radius: 20px;
+  border: 1px solid var(--admin-border);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+.float-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  border-color: rgba(47, 158, 68, 0.32);
+  color: #216b34;
+}
+.float-back-btn {
+  padding: 0 14px;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13px;
+}
+.float-top-btn {
+  width: 40px;
+  padding: 0;
+}
 </style>
