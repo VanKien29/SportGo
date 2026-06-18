@@ -96,6 +96,23 @@ class OwnerBookingConfigTest extends TestCase
             ->assertJsonValidationErrors(['min_duration_minutes', 'max_duration_minutes']);
     }
 
+    public function test_booking_config_rejects_excessive_duration_and_invalid_time_steps(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
+                ...$this->validPayload(),
+                'max_duration_minutes' => 1470,
+                'slot_hold_minutes' => 7,
+                'reminder_before_minutes' => 17,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'max_duration_minutes',
+                'slot_hold_minutes',
+                'reminder_before_minutes',
+            ]);
+    }
+
     public function test_at_least_one_payment_method_and_valid_deposit_are_required(): void
     {
         $this->actingAs($this->owner, 'sanctum')
