@@ -31,6 +31,8 @@
           <option value="unassigned">Chưa phân công</option>
           <option v-for="member in staff" :key="member.id" :value="member.id">{{ member.full_name }}</option>
         </select>
+        <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadComplaints" />
+        <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadComplaints" />
         <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadComplaints" />
       </div>
     </section>
@@ -129,7 +131,10 @@
 
           <aside class="side-panel">
             <h4>Phân công và kết quả</h4>
-            <div class="form-stack">
+            <p v-if="isTerminalStatus(selected.status)" class="content-box">
+              Khiếu nại đã kết thúc với trạng thái “{{ statusLabel(selected.status) }}”. Kết quả được giữ lại trong lịch sử xử lý.
+            </p>
+            <div v-else class="form-stack">
               <label>
                 Người xử lý
                 <select v-model="form.assigned_to">
@@ -173,7 +178,7 @@ export default {
       complaints: [],
       summary: {},
       staff: [],
-      filters: { keyword: '', complaint_type: '', status: '', assigned_to: '' },
+      filters: { keyword: '', complaint_type: '', status: '', assigned_to: '', date_from: '', date_to: '' },
       statuses: [
         { value: 'open', label: 'Chờ tiếp nhận' },
         { value: 'processing', label: 'Đang xử lý' },
@@ -277,6 +282,9 @@ export default {
     },
     statusLabel(value) {
       return this.statuses.find((item) => item.value === value)?.label || value || '-';
+    },
+    isTerminalStatus(value) {
+      return ['resolved', 'rejected', 'closed'].includes(value);
     },
     auditLabel(value) {
       return {
