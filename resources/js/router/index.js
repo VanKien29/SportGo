@@ -34,6 +34,7 @@ import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
+import PartnerRegistration from "../views/clients/PartnerRegistration.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
@@ -65,6 +66,12 @@ const routes = [
         path: "/booking/:id",
         name: "booking-detail",
         component: BookingDetail,
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/become-partner",
+        name: "partner-registration",
+        component: PartnerRegistration,
         meta: { requiresAuth: true },
     },
     {

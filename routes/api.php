@@ -133,6 +133,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::apiResource('amenities', \App\Http\Controllers\Api\Admin\AmenityController::class);
 
         Route::get('/permissions', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'permissions']);
+        Route::get('/roles/matrix', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'matrix']);
         Route::get('/roles/{id}/users', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'users']);
         Route::get('/roles', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'index']);
         Route::post('/roles', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'store']);
@@ -140,6 +141,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::put('/roles/{id}', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'update']);
         Route::delete('/roles/{id}', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'destroy']);
         Route::put('/roles/{id}/permissions', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'updatePermissions']);
+        Route::patch('/roles/{id}/permissions/toggle', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'togglePermission']);
 
         Route::get('/policies/action-codes', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'actionCodes']);
         Route::get('/policies/rule-templates', [\App\Http\Controllers\Api\Admin\AdminPolicyController::class, 'ruleTemplates']);
@@ -280,6 +282,7 @@ Route::middleware('auth:sanctum')
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
+        Route::post('/partner-applications', [\App\Http\Controllers\Api\Player\PartnerApplicationController::class, 'store']);
     });
 
 Route::post('/sepay/ipn', [SepayPaymentController::class, 'ipn']);

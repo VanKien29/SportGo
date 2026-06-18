@@ -79,9 +79,33 @@ class PartnerTerminationService
                 $admin
             );
 
-            // Send Termination Email
+            // Lock Venue Cluster if exists
+            $clusterId = $contract->application->approved_venue_cluster_id;
+            if ($clusterId) {
+                \App\Models\VenueCluster::where('id', $clusterId)->update([
+                    'status' => 'inactive',
+                    'locked_at' => now(),
+                    'locked_by' => $admin->id,
+                    'status_reason' => 'Hợp đồng đối tác đã bị thanh lý/chấm dứt',
+                ]);
+            }
+
+            // Revoke owner role if no other active applications/clusters exist
             $user = $contract->application->user;
             if ($user) {
+                $hasOtherActiveApps = \App\Models\PartnerApplication::where('user_id', $user->id)
+                    ->where('id', '!=', $contract->partner_application_id)
+                    ->whereIn('status', ['pending', 'reviewing', 'approved', 'completed'])
+                    ->exists();
+
+                if (!$hasOtherActiveApps) {
+                    $ownerRole = \App\Models\Role::where('name', 'venue_owner')->first();
+                    if ($ownerRole) {
+                        $user->roles()->detach($ownerRole->id);
+                    }
+                }
+
+                // Send Termination Email
                 try {
                     \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\PartnerTerminatedMail($user->full_name));
                 } catch (\Exception $e) {

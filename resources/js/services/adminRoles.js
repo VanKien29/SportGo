@@ -42,10 +42,21 @@ export const adminRoleService = {
     return api('/api/admin/permissions');
   },
 
+  matrix() {
+    return api('/api/admin/roles/matrix');
+  },
+
   updatePermissions(id, permissionIds) {
     return api(`/api/admin/roles/${id}/permissions`, {
       method: 'PUT',
       body: JSON.stringify({ permission_ids: permissionIds }),
+    });
+  },
+
+  togglePermission(id, permissionId, action) {
+    return api(`/api/admin/roles/${id}/permissions/toggle`, {
+      method: 'PATCH',
+      body: JSON.stringify({ permission_id: permissionId, action }),
     });
   },
 

@@ -5,7 +5,7 @@
         <h2>Hồ sơ đối tác & Hợp đồng</h2>
         <p class="muted">Thông tin đăng ký trở thành đối tác và các hợp đồng của bạn.</p>
       </div>
-      <button class="btn primary" @click="openNewClusterModal">
+      <button class="btn primary" @click="openNewClusterModal()">
         <AppIcon name="plus" size="16" /> Đăng ký Cụm sân mới
       </button>
     </div>
@@ -22,7 +22,17 @@
     <div v-else-if="applications.length > 0" class="applications-container">
 
       <div v-for="(app, index) in applications" :key="app.id" class="application-details" style="margin-bottom: 40px;">
-        <h2 style="margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">Cụm sân: {{ app.venue_name }}</h2>
+        <div style="margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <h2 style="margin: 0;">Cụm sân: {{ app.venue_name }}</h2>
+          <button
+            v-if="canRequestExpansion(app)"
+            class="btn ghost"
+            type="button"
+            @click="openNewClusterModal(app)"
+          >
+            <AppIcon name="plus" size="16" /> Yêu cầu mở rộng
+          </button>
+        </div>
         
         <!-- Trạng thái chung -->
         <div class="card status-card">
@@ -31,6 +41,10 @@
             <span class="status-badge" :class="`status-${app.status}`">
               {{ statusLabel(app.status) }}
             </span>
+          </div>
+          <div class="muted" style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <span>Ngày gửi: {{ formatDate(app.submitted_at || app.created_at) }}</span>
+            <span v-if="app.reviewed_at">Ngày duyệt: {{ formatDate(app.reviewed_at) }}</span>
           </div>
           <p v-if="app.status === 'rejected'" class="error-text">
             <strong>Lý do từ chối:</strong> {{ app.status_reason }}
@@ -51,8 +65,8 @@
                 <strong>{{ contract.contract_number }}</strong>
                 <span class="status-badge" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
                 <div v-if="contract.owner_signed_at || contract.sportgo_signed_at" class="muted small" style="margin-top: 4px; font-size: 0.85em; color: #64748b;">
-                  <div v-if="contract.owner_signed_at">Bạn ký: {{ formatDate(contract.owner_signed_at) }}</div>
-                  <div v-if="contract.sportgo_signed_at">SportGo ký: {{ formatDate(contract.sportgo_signed_at) }}</div>
+                  <div v-if="contract.owner_signed_at">Ngày đối tác ký: {{ formatDate(contract.owner_signed_at) }}</div>
+                  <div v-if="contract.sportgo_signed_at">Ngày SportGo ký: {{ formatDate(contract.sportgo_signed_at) }}</div>
                 </div>
               </div>
             </div>
@@ -74,10 +88,10 @@
                   @click="requestTermination(contract.id)"
                   :disabled="terminating"
                 >
-                  <AppIcon name="xCircle" size="16" /> {{ terminating ? 'Đang gửi...' : 'Yêu cầu thanh lý' }}
+                  <AppIcon name="xCircle" size="16" /> {{ terminating ? 'Đang gửi...' : 'Yêu cầu kết thúc' }}
                 </button>
                 <span v-if="hasPendingTermination(contract)" class="status-badge status-reviewing">
-                  Đang chờ duyệt thanh lý
+                  Đang chờ duyệt kết thúc
                 </span>
             </div>
           </div>
@@ -283,19 +297,22 @@ export default {
         this.loading = false;
       }
     },
-    openNewClusterModal() {
+    canRequestExpansion(app) {
+      return ['approved', 'completed'].includes(app?.status) || Boolean(app?.approved_venue_cluster_id);
+    },
+    openNewClusterModal(baseApplication = null) {
       this.newClusterForm = {
         venue_name: '',
-        venue_address: '',
-        venue_province: '',
-        venue_district: '',
-        venue_ward: '',
+        venue_address: baseApplication?.venue_address || '',
+        venue_province: baseApplication?.venue_province || '',
+        venue_district: baseApplication?.venue_district || '',
+        venue_ward: baseApplication?.venue_ward || '',
         court_count_total: 1,
-        venue_latitude: '',
-        venue_longitude: '',
-        venue_map_url: '',
-        venue_phone: '',
-        venue_description: '',
+        venue_latitude: baseApplication?.venue_latitude || '',
+        venue_longitude: baseApplication?.venue_longitude || '',
+        venue_map_url: baseApplication?.venue_map_url || '',
+        venue_phone: baseApplication?.venue_phone || '',
+        venue_description: baseApplication?.venue_description || '',
       };
       this.newClusterModal.open = true;
     },
@@ -355,7 +372,7 @@ export default {
 
       this.terminating = true;
       try {
-        await api(`/api/contracts/${this.terminationModal.contractId}/request-termination`, {
+        await api(`/api/owner/contracts/${this.terminationModal.contractId}/request-termination`, {
           method: 'POST',
           body: JSON.stringify({ reason: this.terminationModal.reason, type }),
         });
@@ -380,13 +397,58 @@ export default {
       }
       try {
         const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const response = await fetch(`/api/files/download?path=${encodeURIComponent(path)}`, { headers });
-        if (!response.ok) throw new Error('Không thể tải file');
+        const headers = { Accept: 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch(`/api/auth/files/download?path=${encodeURIComponent(path)}`, { headers });
+        if (!response.ok) {
+          let serverMessage = '';
+          try {
+            const errorBody = await response.json();
+            serverMessage = errorBody?.message || '';
+          } catch {
+            serverMessage = '';
+          }
+          throw new Error(serverMessage || 'Không thể tải file');
+        }
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        if (response.redirected || contentType.includes('text/html')) {
+          const htmlBody = await response.text();
+          const compactHtml = htmlBody.replace(/\s+/g, ' ').slice(0, 120);
+          throw new Error(`File trả về không hợp lệ (${compactHtml || 'HTML response'})`);
+        }
         const blob = await response.blob();
+        const disposition = response.headers.get('content-disposition') || '';
+        const filenameFromHeader = disposition.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i)?.[1];
+        const fallbackName = decodeURIComponent(String(path).split('/').pop() || 'downloaded-file');
+        const filename = decodeURIComponent((filenameFromHeader || fallbackName).replace(/"/g, ''));
+
+        const canPreviewInBrowser =
+          contentType.includes('pdf') ||
+          contentType.startsWith('image/');
+
         const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        // Optional: revoke URL after some time
+        if (canPreviewInBrowser) {
+          const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
+
+          // Fallback for browsers blocking async popup open.
+          if (!openedWindow) {
+            const tempLink = document.createElement('a');
+            tempLink.href = url;
+            tempLink.target = '_blank';
+            tempLink.rel = 'noopener noreferrer';
+            document.body.appendChild(tempLink);
+            tempLink.click();
+            document.body.removeChild(tempLink);
+          }
+        } else {
+          const downloadLink = document.createElement('a');
+          downloadLink.href = url;
+          downloadLink.download = filename;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        }
+
         setTimeout(() => URL.revokeObjectURL(url), 60000);
       } catch (err) {
         alert(err.message || 'Lỗi tải file');
@@ -420,6 +482,18 @@ export default {
         other: 'Khác'
       };
       return map[type] || type;
+    },
+    formatDate(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
     }
   }
 };

@@ -146,7 +146,7 @@ class PartnerApplicationController extends Controller
                 'map_url' => $application->venue_map_url,
                 'latitude' => $application->venue_latitude,
                 'longitude' => $application->venue_longitude,
-                'status' => 'pending_contract',
+                'status' => 'pending',
                 'status_reason' => 'Chờ ký kết hợp đồng đối tác',
                 'amenities' => $application->amenities,
             ]);

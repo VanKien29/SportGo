@@ -4,20 +4,39 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\PartnerApplication;
+use App\Models\VenueCluster;
 use Illuminate\Http\Request;
 
 class PartnerApplicationController extends Controller
 {
     public function myApplications(Request $request)
     {
+        $ownerId = $request->user()->id;
+        $ownedClusterIds = VenueCluster::query()
+            ->where('owner_id', $ownerId)
+            ->pluck('id');
+
         $applications = PartnerApplication::with([
+            'bankAccounts',
+            'documents',
             'contracts.template',
             'contracts.terminations',
             'courts',
             'terminationRequests',
             'liquidations'
         ])
-        ->where('user_id', $request->user()->id)
+        ->where(function ($query) use ($ownedClusterIds, $ownerId) {
+            if ($ownedClusterIds->isNotEmpty()) {
+                $query->whereIn('approved_venue_cluster_id', $ownedClusterIds);
+            }
+
+            // Keep pending cluster expansion requests visible before cluster is approved/created.
+            $query->orWhere(function ($pendingQuery) use ($ownerId) {
+                $pendingQuery->where('user_id', $ownerId)
+                    ->whereNull('approved_venue_cluster_id')
+                    ->whereIn('status', ['pending', 'reviewing']);
+            });
+        })
         ->latest()
         ->get();
 
@@ -29,6 +48,11 @@ class PartnerApplicationController extends Controller
      */
     public function myApplication(Request $request)
     {
+        $ownerId = $request->user()->id;
+        $ownedClusterIds = VenueCluster::query()
+            ->where('owner_id', $ownerId)
+            ->pluck('id');
+
         $application = PartnerApplication::with([
             'bankAccounts',
             'documents',
@@ -38,7 +62,17 @@ class PartnerApplicationController extends Controller
             'terminationRequests',
             'liquidations'
         ])
-        ->where('user_id', $request->user()->id)
+        ->where(function ($query) use ($ownedClusterIds, $ownerId) {
+            if ($ownedClusterIds->isNotEmpty()) {
+                $query->whereIn('approved_venue_cluster_id', $ownedClusterIds);
+            }
+
+            $query->orWhere(function ($pendingQuery) use ($ownerId) {
+                $pendingQuery->where('user_id', $ownerId)
+                    ->whereNull('approved_venue_cluster_id')
+                    ->whereIn('status', ['pending', 'reviewing']);
+            });
+        })
         ->latest()
         ->first();
 

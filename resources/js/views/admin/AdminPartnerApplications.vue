@@ -238,8 +238,8 @@
                 <span><strong>{{ contract.contract_number }}</strong></span>
                 <span class="status" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
                 <div v-if="contract.owner_signed_at || contract.sportgo_signed_at" class="muted small" style="margin-top: 4px; font-size: 0.85em; color: #64748b;">
-                  <div v-if="contract.owner_signed_at">Đối tác ký: {{ formatDate(contract.owner_signed_at) }}</div>
-                  <div v-if="contract.sportgo_signed_at">SportGo ký: {{ formatDate(contract.sportgo_signed_at) }}</div>
+                  <div v-if="contract.owner_signed_at">Ngày đối tác ký: {{ formatDate(contract.owner_signed_at) }}</div>
+                  <div v-if="contract.sportgo_signed_at">Ngày SportGo ký: {{ formatDate(contract.sportgo_signed_at) }}</div>
                 </div>
                 <div style="margin-top: 4px;">
                   <button v-if="contract.generated_file_path" @click="viewFile(contract.generated_file_path)" type="button" class="btn ghost small">
@@ -259,10 +259,10 @@
                     :disabled="signingAction" 
                     @click="approveTermination(contract.id)"
                   >
-                    Duyệt yêu cầu thanh lý
+                    Duyệt yêu cầu kết thúc
                   </button>
                   <button class="btn danger small" type="button" :disabled="signingAction" @click="unilateralTerminate(contract.id)">
-                    Đơn phương chấm dứt
+                    Đơn phương kết thúc
                   </button>
                 </div>
               </div>
@@ -464,12 +464,55 @@ export default {
       }
       try {
         const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const response = await fetch(`/api/files/download?path=${encodeURIComponent(path)}`, { headers });
-        if (!response.ok) throw new Error('Không thể tải file');
+        const headers = { Accept: 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch(`/api/auth/files/download?path=${encodeURIComponent(path)}`, { headers });
+        if (!response.ok) {
+          let serverMessage = '';
+          try {
+            const errorBody = await response.json();
+            serverMessage = errorBody?.message || '';
+          } catch {
+            serverMessage = '';
+          }
+          throw new Error(serverMessage || 'Không thể tải file');
+        }
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        if (response.redirected || contentType.includes('text/html')) {
+          const htmlBody = await response.text();
+          const compactHtml = htmlBody.replace(/\s+/g, ' ').slice(0, 120);
+          throw new Error(`File trả về không hợp lệ (${compactHtml || 'HTML response'})`);
+        }
         const blob = await response.blob();
+        const disposition = response.headers.get('content-disposition') || '';
+        const filenameFromHeader = disposition.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i)?.[1];
+        const fallbackName = decodeURIComponent(String(path).split('/').pop() || 'downloaded-file');
+        const filename = decodeURIComponent((filenameFromHeader || fallbackName).replace(/"/g, ''));
+
+        const canPreviewInBrowser =
+          contentType.includes('pdf') ||
+          contentType.startsWith('image/');
+
         const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        if (canPreviewInBrowser) {
+          const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
+          if (!openedWindow) {
+            const tempLink = document.createElement('a');
+            tempLink.href = url;
+            tempLink.target = '_blank';
+            tempLink.rel = 'noopener noreferrer';
+            document.body.appendChild(tempLink);
+            tempLink.click();
+            document.body.removeChild(tempLink);
+          }
+        } else {
+          const downloadLink = document.createElement('a');
+          downloadLink.href = url;
+          downloadLink.download = filename;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        }
         setTimeout(() => URL.revokeObjectURL(url), 60000);
       } catch (err) {
         alert(err.message || 'Lỗi tải file');
