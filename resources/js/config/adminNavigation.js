@@ -122,7 +122,7 @@ export const adminNavigationSections = [
     label: 'Kiểm duyệt & hỗ trợ',
     items: [
       {
-        label: 'Kiểm duyệt nội dung',
+        label: 'Bài đăng',
         icon: 'eye',
         to: '/admin/moderation',
         activeNames: ['admin-moderation'],
@@ -154,7 +154,7 @@ export const adminRouteTitles = {
   'admin-vouchers': 'Voucher hệ thống',
   'admin-partner-applications': 'Quản lý đơn đăng ký',
   'admin-banners': 'Quản lý banner',
-  'admin-moderation': 'Kiểm duyệt nội dung',
+  'admin-moderation': 'Bài đăng',
   'admin-roles': 'Quản lý nhóm quyền',
   'admin-role-detail': 'Chi tiết nhóm quyền',
   'admin-policies': 'Quản lý chính sách',

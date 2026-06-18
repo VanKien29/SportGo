@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CommunityPost;
 use App\Models\VenuePost;
+use App\Models\SystemPost;
 use App\Models\CommunityPostComment;
 use App\Models\Report;
 use App\Models\Notification;
@@ -29,6 +30,7 @@ class AdminContentModerationController extends Controller
     public function queue(Request $request): JsonResponse
     {
         $type = $request->query('type', 'community_posts');
+        $statusFilter = $request->query('status', 'all');
 
         if (in_array($type, ['report', 'reports'], true)) {
             $this->authorizePermission($request, 'report.view');
@@ -74,10 +76,50 @@ class AdminContentModerationController extends Controller
 
         $this->authorizePermission($request, 'moderation.view');
 
+        if (in_array($type, ['system_post', 'system_posts'], true)) {
+            $query = SystemPost::query()
+                ->with(['author:id,username,full_name,email,phone,avatar_url']);
+
+            if ($statusFilter === 'published') {
+                $query->where('status', 'published');
+            } elseif ($statusFilter === 'pending') {
+                $query->whereIn('status', ['pending_review', 'pending', 'draft']);
+            } elseif ($statusFilter === 'hidden') {
+                $query->whereIn('status', ['hidden', 'rejected']);
+            }
+
+            if ($request->filled('search')) {
+                $search = '%' . $request->input('search') . '%';
+                $query->where(function ($q) use ($search): void {
+                    $q->where('title', 'like', $search)
+                        ->orWhere('content', 'like', $search)
+                        ->orWhereHas('author', function ($aq) use ($search): void {
+                            $aq->where('username', 'like', $search)
+                                ->orWhere('full_name', 'like', $search);
+                        });
+                });
+            }
+
+            $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
+            $posts = $query->orderByDesc('created_at')->paginate($perPage);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $posts,
+            ]);
+        }
+
         if (in_array($type, ['venue_post', 'venue_posts'], true)) {
             $query = VenuePost::query()
-                ->with(['author:id,username,full_name,email,phone,avatar_url', 'venueCluster:id,name,slug', 'media', 'hashtags'])
-                ->where('status', 'pending_review');
+                ->with(['author:id,username,full_name,email,phone,avatar_url', 'venueCluster:id,name,slug', 'media', 'hashtags']);
+
+            if ($statusFilter === 'published') {
+                $query->where('status', 'published');
+            } elseif ($statusFilter === 'pending') {
+                $query->where('status', 'pending_review');
+            } elseif ($statusFilter === 'hidden') {
+                $query->whereIn('status', ['hidden', 'rejected']);
+            }
 
             if ($request->filled('search')) {
                 $search = '%' . $request->input('search') . '%';
@@ -101,8 +143,15 @@ class AdminContentModerationController extends Controller
 
         // Mặc định là community_posts
         $query = CommunityPost::query()
-            ->with(['author:id,username,full_name,email,phone,avatar_url', 'media', 'hashtags'])
-            ->where('status', 'pending_review');
+            ->with(['author:id,username,full_name,email,phone,avatar_url', 'media', 'hashtags']);
+
+        if ($statusFilter === 'published') {
+            $query->where('status', 'published');
+        } elseif ($statusFilter === 'pending') {
+            $query->where('status', 'pending_review');
+        } elseif ($statusFilter === 'hidden') {
+            $query->whereIn('status', ['hidden', 'rejected']);
+        }
 
         if ($request->filled('search')) {
             $search = '%' . $request->input('search') . '%';
@@ -134,7 +183,7 @@ class AdminContentModerationController extends Controller
         $post = $this->findPost($type, $id);
         $tableName = $this->getPostTableName($type);
 
-        if ($post->status !== 'pending_review') {
+        if (!in_array($post->status, ['pending_review', 'pending', 'draft'], true)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Bài viết không ở trạng thái chờ duyệt.',
@@ -180,7 +229,7 @@ class AdminContentModerationController extends Controller
         $post = $this->findPost($type, $id);
         $tableName = $this->getPostTableName($type);
 
-        if ($post->status !== 'pending_review') {
+        if (!in_array($post->status, ['pending_review', 'pending', 'draft'], true)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Bài viết không ở trạng thái chờ duyệt.',
@@ -465,12 +514,15 @@ class AdminContentModerationController extends Controller
     }
 
     /**
-     * Tìm bài viết dựa trên loại (community_posts hoặc venue_posts)
+     * Tìm bài viết dựa trên loại (community_posts, venue_posts, system_posts)
      */
     private function findPost(string $type, string $id)
     {
         if (in_array($type, ['venue_post', 'venue_posts'], true)) {
             return VenuePost::query()->findOrFail($id);
+        }
+        if (in_array($type, ['system_post', 'system_posts'], true)) {
+            return SystemPost::query()->findOrFail($id);
         }
         return CommunityPost::query()->findOrFail($id);
     }
@@ -482,6 +534,9 @@ class AdminContentModerationController extends Controller
     {
         if (in_array($type, ['venue_post', 'venue_posts'], true)) {
             return 'venue_posts';
+        }
+        if (in_array($type, ['system_post', 'system_posts'], true)) {
+            return 'system_posts';
         }
         return 'community_posts';
     }

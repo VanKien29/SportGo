@@ -227,6 +227,118 @@ class AdminReportController extends Controller
         ]);
     }
 
+    public function autoResolveConfig(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'report.view');
+
+        $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
+        $rules = $activePolicy ? $activePolicy->rules()->get() : collect();
+
+        $targetTypes = ['community_post', 'venue_post', 'comment', 'venue_cluster'];
+        $configs = [];
+
+        foreach ($targetTypes as $type) {
+            $threshold = null;
+            if ($activePolicy) {
+                $threshold = \App\Models\ModerationThreshold::where('system_policy_id', $activePolicy->id)
+                    ->where('target_type', $type)
+                    ->first();
+            }
+
+            $warningThreshold = $type === 'comment' ? 2 : 3;
+            $actionThreshold = $type === 'comment' ? 3 : 5;
+            $uniqueReportersThreshold = 2;
+            $timeframeDays = 7;
+
+            if ($type === 'venue_cluster') {
+                $warningThreshold = 5;
+                $actionThreshold = 10;
+                $uniqueReportersThreshold = 3;
+                $timeframeDays = 30;
+            }
+
+            if ($threshold) {
+                $warningThreshold = $threshold->warning_threshold;
+                $actionThreshold = $threshold->action_threshold;
+                $uniqueReportersThreshold = $threshold->unique_reporters_threshold;
+                $timeframeDays = $threshold->timeframe_days;
+            }
+
+            $rule = $rules->firstWhere('rule_code', 'moderation_score_' . $type);
+            $isAutoResolveEnabled = false;
+            $reason = 'Vi phạm tiêu chuẩn cộng đồng';
+
+            if ($rule) {
+                $r = $rule->result_json ?? [];
+                $isAutoResolveEnabled = $r['is_auto_resolve_enabled'] ?? false;
+                $reason = $r['reason'] ?? ($type === 'venue_cluster' ? 'Cụm sân bị báo cáo vi phạm nhiều lần' : 'Vi phạm tiêu chuẩn cộng đồng');
+            }
+
+            $configs[$type] = [
+                'target_type' => $type,
+                'target_type_label' => $this->targetTypeLabelVi($type),
+                'warning_threshold' => $warningThreshold,
+                'action_threshold' => $actionThreshold,
+                'unique_reporters_threshold' => $uniqueReportersThreshold,
+                'window_days' => $timeframeDays,
+                'reason' => $reason,
+                'is_auto_resolve_enabled' => $isAutoResolveEnabled,
+            ];
+        }
+
+        return response()->json([
+            'data' => [
+                'policy_id' => $activePolicy?->id,
+                'configs' => $configs,
+            ]
+        ]);
+    }
+
+    private function targetTypeLabelVi(string $type): string
+    {
+        return [
+            'community_post' => 'Bài viết cộng đồng',
+            'venue_post' => 'Bài đăng cụm sân',
+            'comment' => 'Bình luận',
+            'venue_cluster' => 'Cụm sân',
+        ][$type] ?? $type;
+    }
+
+    public function saveAutoResolveConfig(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'policy.rule.manage');
+
+        $data = $request->validate([
+            'configs' => ['required', 'array'],
+            'configs.*.target_type' => ['required', 'string', 'in:community_post,venue_post,comment,venue_cluster'],
+            'configs.*.is_auto_resolve_enabled' => ['required', 'boolean'],
+            'configs.*.reason' => ['required', 'string', 'max:255'],
+        ]);
+
+        $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
+        if (!$activePolicy) {
+            throw ValidationException::withMessages(['policy' => 'Không có chính sách kiểm duyệt nào đang Active.']);
+        }
+
+        $rules = $activePolicy->rules()->get();
+
+        foreach ($data['configs'] as $type => $config) {
+            $targetType = $config['target_type'];
+            $rule = $rules->firstWhere('rule_code', 'moderation_score_' . $targetType);
+
+            if ($rule) {
+                $r = $rule->result_json ?? [];
+                $r['is_auto_resolve_enabled'] = $config['is_auto_resolve_enabled'];
+                $r['reason'] = $config['reason'];
+                $rule->update([
+                    'result_json' => $r,
+                ]);
+            }
+        }
+
+        return response()->json(['message' => 'Lưu cấu hình tự động xử lý báo cáo thành công.']);
+    }
+
     private function applyAction(Request $request, Report $report, string $action, string $reason, ?int $lockDays): void
     {
         $target = $report->reportable;

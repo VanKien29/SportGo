@@ -69,6 +69,15 @@ export const adminReportService = {
       body: JSON.stringify(data),
     });
   },
+  getAutoResolveConfig() {
+    return api('/api/admin/reports/auto-resolve-config');
+  },
+  saveAutoResolveConfig(payload) {
+    return api('/api/admin/report-resolve-policy', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };
 
 export const adminComplaintService = {

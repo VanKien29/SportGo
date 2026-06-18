@@ -16,6 +16,19 @@
         </button>
       </div>
 
+      <!-- Lọc theo Trạng thái -->
+      <nav class="status-tabs" aria-label="Lọc nhanh trạng thái bài viết">
+        <button
+          v-for="st in statusTabs"
+          :key="st.value"
+          :class="{ active: filters.status === st.value }"
+          type="button"
+          @click="setStatus(st.value)"
+        >
+          {{ st.label }}
+        </button>
+      </nav>
+
       <div class="filters">
         <label class="field compact">
           <span>Tìm kiếm</span>
@@ -27,17 +40,7 @@
           />
         </label>
 
-        <label v-if="activeTab === 'reports'" class="field compact">
-          <span>Lý do báo cáo</span>
-          <select v-model="filters.reason" @change="loadData(1)">
-            <option value="">Tất cả</option>
-            <option v-for="opt in reasonOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-        </label>
-
-        <div v-if="activeTab !== 'reports'" class="auto-approve-wrapper">
+        <div v-if="filters.status === 'pending'" class="auto-approve-wrapper">
           <label class="switch">
             <input type="checkbox" v-model="autoApproveEnabled" @change="toggleAutoApprove" />
             <span class="slider"></span>
@@ -59,12 +62,12 @@
     <!-- Màn hình loading -->
     <div v-if="loading" class="state-box card">
       <div class="spinner"></div>
-      <p>Đang tải danh sách chờ kiểm duyệt...</p>
+      <p>Đang tải danh sách bài viết...</p>
     </div>
 
     <!-- Màn hình trống -->
     <div v-else-if="items.length === 0" class="state-box card">
-      <p>Không có nội dung nào cần kiểm duyệt.</p>
+      <p>Không có bài viết nào phù hợp.</p>
     </div>
 
     <!-- Bảng hiển thị danh sách -->
@@ -72,103 +75,79 @@
       <div class="table-scroll">
         <table>
           <thead>
-            <tr v-if="activeTab === 'reports'">
-              <th>Nội dung bị báo cáo</th>
-              <th>Loại vi phạm</th>
-              <th>Mô tả báo cáo</th>
-              <th>Người báo cáo</th>
-              <th>Thời gian</th>
-              <th class="right">Thao tác</th>
-            </tr>
-            <tr v-else>
+            <tr>
               <th>Tác giả</th>
+              <th v-if="activeTab === 'system_posts'">Tiêu đề</th>
               <th>Nội dung</th>
-              <th>Hashtag</th>
-              <th>Ảnh / File</th>
+              <th v-if="activeTab !== 'system_posts'">Hashtag</th>
+              <th v-if="activeTab !== 'system_posts'">Ảnh / File</th>
+              <th>Trạng thái</th>
               <th>Thời gian tạo</th>
               <th class="right">Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            <!-- Tab Báo Cáo Vi Phạm -->
-            <template v-if="activeTab === 'reports'">
-              <tr v-for="item in items" :key="item.id">
-                <td>
-                  <div class="reported-brief">
-                    <span class="badge" :class="getReportableTypeClass(item.reportable_type)">
-                      {{ getReportableTypeLabel(item.reportable_type) }}
-                    </span>
-                    <span class="text-truncate">{{ getReportedContent(item) }}</span>
-                  </div>
-                </td>
-                <td>
-                  <span class="status status-rejected">{{ getReasonLabel(item.reason) }}</span>
-                </td>
-                <td>
-                  <div class="desc-text">{{ item.description || '(Không có mô tả)' }}</div>
-                </td>
-                <td>
-                  <div class="main-title">{{ item.reporter?.full_name || item.reporter?.username || '-' }}</div>
-                  <div class="muted">{{ item.reporter?.email || '' }}</div>
-                </td>
-                <td>{{ formatDate(item.created_at) }}</td>
-                <td class="right">
-                  <div class="actions">
-                    <button class="icon-btn" type="button" title="Chi tiết báo cáo" @click="openDetail(item)">
-                      <AppIcon name="eye" size="16" />
-                    </button>
-                    <button class="icon-btn approve" type="button" title="Xử lý vi phạm" @click="openResolveReport(item)">
-                      <AppIcon name="check" size="16" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </template>
-
-            <!-- Tab Bài đăng cộng đồng / Cụm sân -->
-            <template v-else>
-              <tr v-for="item in items" :key="item.id">
-                <td>
-                  <div class="main-title">{{ item.author?.full_name || item.author?.username || '-' }}</div>
-                  <div class="muted">{{ item.author?.phone || item.author?.email || '' }}</div>
-                  <div v-if="item.venue_cluster" class="badge-cluster">
-                    {{ item.venue_cluster?.name }}
-                  </div>
-                </td>
-                <td>
-                  <div class="content-preview">{{ item.content }}</div>
-                </td>
-                <td>
-                  <div class="hashtags-list">
-                    <span v-for="tag in item.hashtags" :key="tag.id" class="tag">
-                      #{{ tag.name }}
-                    </span>
-                    <span v-if="!item.hashtags?.length" class="muted">-</span>
-                  </div>
-                </td>
-                <td>
-                  <div v-if="item.media?.length" class="media-preview-box">
-                    <img :src="item.media[0].file_path" alt="preview" class="media-thumb" />
-                    <span v-if="item.media.length > 1" class="media-count">+{{ item.media.length - 1 }}</span>
-                  </div>
-                  <span v-else class="muted">Không có</span>
-                </td>
-                <td>{{ formatDate(item.created_at) }}</td>
-                <td class="right">
-                  <div class="actions">
-                    <button class="icon-btn" type="button" title="Xem chi tiết" @click="openDetail(item)">
-                      <AppIcon name="eye" size="16" />
-                    </button>
-                    <button class="icon-btn approve" type="button" title="Duyệt bài" @click="approvePostDirect(item)">
-                      <AppIcon name="check" size="16" />
-                    </button>
-                    <button class="icon-btn danger" type="button" title="Từ chối/Ẩn/Xóa" @click="openActionModal(item)">
-                      <AppIcon name="x" size="16" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </template>
+            <tr v-for="item in items" :key="item.id">
+              <td>
+                <div class="main-title">{{ item.author?.full_name || item.author?.username || '-' }}</div>
+                <div class="muted">{{ item.author?.phone || item.author?.email || '' }}</div>
+                <div v-if="activeTab === 'venue_posts' && item.venue_cluster" class="badge-cluster">
+                  {{ item.venue_cluster?.name }}
+                </div>
+              </td>
+              <td v-if="activeTab === 'system_posts'">
+                <div class="main-title">{{ item.title || '-' }}</div>
+              </td>
+              <td>
+                <div class="content-preview">{{ item.content }}</div>
+              </td>
+              <td v-if="activeTab !== 'system_posts'">
+                <div class="hashtags-list">
+                  <span v-for="tag in item.hashtags" :key="tag.id" class="tag">
+                    #{{ tag.name }}
+                  </span>
+                  <span v-if="!item.hashtags?.length" class="muted">-</span>
+                </div>
+              </td>
+              <td v-if="activeTab !== 'system_posts'">
+                <div v-if="item.media?.length" class="media-preview-box">
+                  <img :src="item.media[0].file_path" alt="preview" class="media-thumb" />
+                  <span v-if="item.media.length > 1" class="media-count">+{{ item.media.length - 1 }}</span>
+                </div>
+                <span v-else class="muted">Không có</span>
+              </td>
+              <td>
+                <span class="status" :class="getStatusClass(item.status)">
+                  {{ getStatusLabel(item.status) }}
+                </span>
+              </td>
+              <td>{{ formatDate(item.created_at) }}</td>
+              <td class="right">
+                <div class="actions">
+                  <button class="icon-btn" type="button" title="Xem chi tiết" @click="openDetail(item)">
+                    <AppIcon name="eye" size="16" />
+                  </button>
+                  <button
+                    v-if="['pending', 'pending_review', 'draft'].includes(item.status)"
+                    class="icon-btn approve"
+                    type="button"
+                    title="Duyệt bài"
+                    @click="approvePostDirect(item)"
+                  >
+                    <AppIcon name="check" size="16" />
+                  </button>
+                  <button
+                    v-if="item.status !== 'hidden' && item.status !== 'rejected'"
+                    class="icon-btn danger"
+                    type="button"
+                    title="Từ chối/Ẩn/Xóa"
+                    @click="openActionModal(item)"
+                  >
+                    <AppIcon name="x" size="16" />
+                  </button>
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -195,31 +174,21 @@
       </div>
     </div>
 
-    <!-- MODAL CHI TIẾT BÀI VIẾT / BÁO CÁO -->
+    <!-- MODAL CHI TIẾT BÀI VIẾT -->
     <div v-if="detailModal.open" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeDetail)">
       <div class="modal large" @mousedown.stop>
         <div class="modal-header">
-          <h3>
-            {{ activeTab === 'reports' ? 'Chi tiết báo cáo vi phạm' : 'Chi tiết bài viết chờ duyệt' }}
-          </h3>
+          <h3>Chi tiết bài viết</h3>
           <button class="icon-btn" type="button" title="Đóng" @click="closeDetail">
             <AppIcon name="x" size="18" />
           </button>
         </div>
 
         <div class="modal-body detail-grid">
-          <!-- Phần bên trái: Chi tiết nội dung bài đăng/bình luận -->
+          <!-- Phần bên trái: Chi tiết nội dung bài đăng -->
           <section class="detail-left">
             <div class="detail-card">
               <h4 class="section-title">Nội dung đăng tải</h4>
-              
-              <div v-if="activeTab === 'reports' && activeItem.reportable_type === 'App\\Models\\CommunityPostComment'" class="reported-comment-context">
-                <div class="context-label">Bình luận trên bài viết gốc:</div>
-                <blockquote class="parent-post-quote">
-                  "{{ activeItem.reportable?.post?.content }}"
-                  <cite>- {{ activeItem.reportable?.post?.author?.full_name || activeItem.reportable?.post?.author?.username || 'Tác giả' }}</cite>
-                </blockquote>
-              </div>
 
               <div class="author-block">
                 <img
@@ -235,6 +204,9 @@
               </div>
 
               <div class="main-content-body">
+                <h5 v-if="activeTab === 'system_posts' && activeItem.title" style="margin: 0 0 10px; font-size: 16px; font-weight: 800; color: #0f172a;">
+                  {{ activeItem.title }}
+                </h5>
                 <p class="content-text">{{ getContentText(activeItem) }}</p>
 
                 <!-- Media Gallery -->
@@ -259,55 +231,27 @@
             </div>
           </section>
 
-          <!-- Phần bên phải: Chi tiết báo cáo vi phạm và nút hành động -->
+          <!-- Phần bên phải: Chi tiết và nút hành động -->
           <section class="detail-right-side">
-            <div v-if="activeTab === 'reports'" class="detail-card highlight">
-              <h4 class="section-title">Thông tin báo cáo</h4>
-              <dl class="report-meta">
-                <dt>Người báo cáo:</dt>
-                <dd>{{ activeItem.reporter?.full_name }} ({{ activeItem.reporter?.username }})</dd>
-                <dt>Lý do vi phạm:</dt>
-                <dd>
-                  <span class="status status-rejected">{{ getReasonLabel(activeItem.reason) }}</span>
+            <div class="detail-card">
+              <h4 class="section-title">Thông tin bài đăng</h4>
+              <dl class="post-meta" style="margin: 0; display: grid; grid-template-columns: auto 1fr; row-gap: 8px; column-gap: 12px; font-size: 13.5px;">
+                <dt style="font-weight: 800; color: #64748b;">Trạng thái:</dt>
+                <dd style="margin: 0;">
+                  <span class="status" :class="getStatusClass(activeItem.status)">
+                    {{ getStatusLabel(activeItem.status) }}
+                  </span>
                 </dd>
-                <dt>Thời gian báo cáo:</dt>
-                <dd>{{ formatDate(activeItem.created_at) }}</dd>
-                <dt>Mô tả chi tiết:</dt>
-                <dd class="desc-box">{{ activeItem.description || '(Không có mô tả chi tiết)' }}</dd>
+                <dt style="font-weight: 800; color: #64748b;">Thời gian tạo:</dt>
+                <dd style="margin: 0;">{{ formatDate(activeItem.created_at) }}</dd>
+                <template v-if="activeItem.status_reason">
+                  <dt style="font-weight: 800; color: #64748b;">Lý do ẩn/từ chối:</dt>
+                  <dd style="margin: 0; color: #dc2626;">{{ activeItem.status_reason }}</dd>
+                </template>
               </dl>
-              
-              <div class="resolve-form">
-                <label class="field">
-                  <span>Trạng thái giải quyết</span>
-                  <select v-model="reportForm.status">
-                    <option value="resolved">Resolved (Đồng ý báo cáo, xử lý vi phạm)</option>
-                    <option value="dismissed">Dismissed (Bác bỏ báo cáo, giữ nội dung)</option>
-                  </select>
-                </label>
-
-                <label v-if="reportForm.status === 'resolved'" class="field">
-                  <span>Hình thức xử lý vi phạm</span>
-                  <select v-model="reportForm.action_taken">
-                    <option value="content_hidden">Ẩn nội dung vi phạm</option>
-                    <option value="content_deleted">Xóa/Gỡ nội dung vi phạm</option>
-                    <option value="account_locked">Khóa tài khoản người vi phạm (7 ngày)</option>
-                    <option value="warning">Gửi cảnh báo tới người vi phạm</option>
-                  </select>
-                </label>
-
-                <label class="field">
-                  <span>Ghi chú xử lý / Lý do gửi người vi phạm (Bắt buộc)</span>
-                  <textarea
-                    v-model.trim="reportForm.action_note"
-                    rows="3"
-                    placeholder="Ghi chú chi tiết lý do và thông tin giải quyết..."
-                    required
-                  ></textarea>
-                </label>
-              </div>
             </div>
 
-            <div v-else class="detail-card">
+            <div class="detail-card" style="margin-top: 16px;">
               <h4 class="section-title">Hành động kiểm duyệt</h4>
               <div class="action-form">
                 <label class="field">
@@ -326,36 +270,46 @@
         <div class="modal-footer">
           <button class="btn ghost" type="button" @click="closeDetail">Đóng</button>
           
-          <template v-if="activeTab === 'reports'">
-            <button
-              class="btn primary"
-              type="button"
-              :disabled="savingAction || !reportForm.action_note"
-              @click="submitResolveReport"
-            >
-              <AppIcon name="check" size="16" />
-              <span>{{ savingAction ? 'Đang giải quyết...' : 'Giải quyết báo cáo' }}</span>
-            </button>
-          </template>
-
-          <template v-else>
-            <button class="btn danger" type="button" :disabled="savingAction || !actionForm.reason" @click="submitAction('delete')">
-              <AppIcon name="trash" size="16" />
-              <span>Xóa/Ẩn</span>
-            </button>
-            <button class="btn ghost text-danger" type="button" :disabled="savingAction || !actionForm.reason" @click="submitAction('reject')">
-              <AppIcon name="x" size="16" />
-              <span>Từ chối</span>
-            </button>
-            <button class="btn ghost text-warning" type="button" :disabled="savingAction || !actionForm.reason" @click="submitAction('hide')">
-              <AppIcon name="lock" size="16" />
-              <span>Ẩn bài</span>
-            </button>
-            <button class="btn primary" type="button" :disabled="savingAction" @click="submitAction('approve')">
-              <AppIcon name="check" size="16" />
-              <span>Duyệt hiển thị</span>
-            </button>
-          </template>
+          <button
+            v-if="activeItem.status !== 'hidden' && activeItem.status !== 'rejected'"
+            class="btn danger"
+            type="button"
+            :disabled="savingAction || !actionForm.reason"
+            @click="submitAction('delete')"
+          >
+            <AppIcon name="trash" size="16" />
+            <span>Xóa/Ẩn</span>
+          </button>
+          <button
+            v-if="['pending', 'pending_review', 'draft'].includes(activeItem.status)"
+            class="btn ghost text-danger"
+            type="button"
+            :disabled="savingAction || !actionForm.reason"
+            @click="submitAction('reject')"
+          >
+            <AppIcon name="x" size="16" />
+            <span>Từ chối</span>
+          </button>
+          <button
+            v-if="activeItem.status !== 'hidden' && activeItem.status !== 'rejected'"
+            class="btn ghost text-warning"
+            type="button"
+            :disabled="savingAction || !actionForm.reason"
+            @click="submitAction('hide')"
+          >
+            <AppIcon name="lock" size="16" />
+            <span>Ẩn bài</span>
+          </button>
+          <button
+            v-if="activeItem.status !== 'published'"
+            class="btn primary"
+            type="button"
+            :disabled="savingAction"
+            @click="submitAction('approve')"
+          >
+            <AppIcon name="check" size="16" />
+            <span>Duyệt hiển thị</span>
+          </button>
         </div>
       </div>
     </div>
@@ -373,7 +327,7 @@
         <div class="modal-body">
           <p class="muted">Chọn hành động xử lý bài viết vi phạm:</p>
           <div class="action-options-group">
-            <label class="action-radio">
+            <label v-if="['pending', 'pending_review', 'draft'].includes(activeItem.status)" class="action-radio">
               <input v-model="quickActionType" type="radio" value="reject" />
               <span>Từ chối bài viết (Yêu cầu nhập lý do)</span>
             </label>
@@ -411,61 +365,6 @@
       </div>
     </div>
 
-    <!-- MODAL XỬ LÝ NHANH CHO REPORT -->
-    <div v-if="resolveReportModal.open" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeResolveReport)">
-      <div class="modal small" @mousedown.stop>
-        <div class="modal-header">
-          <h3>Giải quyết báo cáo vi phạm</h3>
-          <button class="icon-btn" type="button" title="Đóng" @click="closeResolveReport">
-            <AppIcon name="x" size="18" />
-          </button>
-        </div>
-
-        <div class="modal-body">
-          <div class="resolve-form">
-            <label class="field">
-              <span>Trạng thái giải quyết</span>
-              <select v-model="reportForm.status">
-                <option value="resolved">Resolved (Đồng ý báo cáo, xử lý vi phạm)</option>
-                <option value="dismissed">Dismissed (Bác bỏ báo cáo, giữ nội dung)</option>
-              </select>
-            </label>
-
-            <label v-if="reportForm.status === 'resolved'" class="field">
-              <span>Hình thức xử lý vi phạm</span>
-              <select v-model="reportForm.action_taken">
-                <option value="content_hidden">Ẩn nội dung vi phạm</option>
-                <option value="content_deleted">Xóa/Gỡ nội dung vi phạm</option>
-                <option value="account_locked">Khóa tài khoản người vi phạm (7 ngày)</option>
-                <option value="warning">Gửi cảnh báo tới người vi phạm</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Ghi chú xử lý / Lý do gửi người báo cáo (Bắt buộc)</span>
-              <textarea
-                v-model.trim="reportForm.action_note"
-                rows="4"
-                placeholder="Nhập lý do và ghi chú chi tiết giải quyết..."
-              ></textarea>
-            </label>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn ghost" type="button" @click="closeResolveReport">Hủy</button>
-          <button
-            class="btn primary"
-            type="button"
-            :disabled="savingAction || !reportForm.action_note"
-            @click="submitResolveReport"
-          >
-            <span>Giải quyết</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- LIGHTBOX XEM HÌNH ẢNH TO -->
     <div v-if="lightbox.open" class="lightbox-backdrop" @click="lightbox.open = false">
       <img :src="lightbox.img" alt="zoom" class="lightbox-img" />
@@ -491,7 +390,7 @@ export default {
       filterTimer: null,
       filters: {
         search: '',
-        reason: '',
+        status: 'all',
       },
       pagination: {
         current_page: 1,
@@ -501,26 +400,19 @@ export default {
       tabs: [
         { label: 'Bài viết cộng đồng', value: 'community_posts', icon: 'users' },
         { label: 'Bài đăng cụm sân', value: 'venue_posts', icon: 'building' },
-        { label: 'Báo cáo vi phạm', value: 'reports', icon: 'messageWarning' },
+        { label: 'Bài đăng hệ thống', value: 'system_posts', icon: 'fileText' },
       ],
-      reasonOptions: [
-        { label: 'Spam quảng cáo', value: 'spam' },
-        { label: 'Nội dung phản cảm', value: 'offensive' },
-        { label: 'Thông tin giả mạo', value: 'fake' },
-        { label: 'Quấy rối / Đả kích', value: 'harassment' },
-        { label: 'Lý do khác', value: 'other' },
+      statusTabs: [
+        { label: 'Tất cả bài đăng', value: 'all' },
+        { label: 'Bài đăng đã duyệt', value: 'published' },
+        { label: 'Bài đăng chờ duyệt', value: 'pending' },
+        { label: 'Bài đăng đã ẩn', value: 'hidden' },
       ],
       detailModal: { open: false },
       actionModal: { open: false },
-      resolveReportModal: { open: false },
       activeItem: null,
       actionForm: {
         reason: '',
-      },
-      reportForm: {
-        status: 'resolved',
-        action_taken: 'content_hidden',
-        action_note: '',
       },
       quickActionType: 'reject',
       lightbox: {
@@ -534,9 +426,6 @@ export default {
   },
   computed: {
     searchPlaceholder() {
-      if (this.activeTab === 'reports') {
-        return 'Tìm người báo cáo, mô tả...';
-      }
       return 'Tìm nội dung bài đăng, tác giả...';
     },
   },
@@ -562,7 +451,8 @@ export default {
       try {
         const response = await adminModerationService.getQueue({
           type: this.activeTab,
-          ...this.filters,
+          status: this.filters.status,
+          search: this.filters.search,
           page,
         });
         const paginator = response.data || {};
@@ -573,20 +463,28 @@ export default {
           total: paginator.total || this.items.length,
         };
       } catch (err) {
-        this.error = err.message || 'Không thể tải hàng chờ kiểm duyệt.';
+        this.error = err.message || 'Không thể tải danh sách bài viết.';
       } finally {
         this.loading = false;
       }
     },
     changeTab(tabValue) {
       this.activeTab = tabValue;
-      if (tabValue === 'reports') {
+      if (this.filters.status !== 'pending') {
         this.autoApproveEnabled = false;
         this.stopAutoApprove();
       }
       this.clearAlerts();
       this.filters.search = '';
-      this.filters.reason = '';
+      this.loadData(1);
+    },
+    setStatus(status) {
+      this.filters.status = status;
+      if (status !== 'pending') {
+        this.autoApproveEnabled = false;
+        this.stopAutoApprove();
+      }
+      this.clearAlerts();
       this.loadData(1);
     },
     onFilterChange() {
@@ -604,11 +502,6 @@ export default {
       this.clearAlerts();
       this.activeItem = item;
       this.actionForm.reason = '';
-      this.reportForm = {
-        status: 'resolved',
-        action_taken: 'content_hidden',
-        action_note: item.description ? `Xử lý dựa trên báo cáo: ${item.description}` : '',
-      };
       this.detailModal.open = true;
     },
     closeDetail() {
@@ -618,24 +511,11 @@ export default {
       this.clearAlerts();
       this.activeItem = item;
       this.actionForm.reason = '';
-      this.quickActionType = 'reject';
+      this.quickActionType = ['pending', 'pending_review', 'draft'].includes(item.status) ? 'reject' : 'hide';
       this.actionModal.open = true;
     },
     closeActionModal() {
       this.actionModal.open = false;
-    },
-    openResolveReport(item) {
-      this.clearAlerts();
-      this.activeItem = item;
-      this.reportForm = {
-        status: 'resolved',
-        action_taken: 'content_hidden',
-        action_note: item.description ? `Xử lý vi phạm: ${item.description}` : '',
-      };
-      this.resolveReportModal.open = true;
-    },
-    closeResolveReport() {
-      this.resolveReportModal.open = false;
     },
     openLightbox(filePath) {
       this.lightbox.img = filePath;
@@ -670,7 +550,7 @@ export default {
     startAutoApprove() {
       this.stopAutoApprove();
       this.autoApproveInterval = setInterval(async () => {
-        if (this.loading || this.savingAction || this.activeTab === 'reports') {
+        if (this.loading || this.savingAction) {
           return;
         }
         if (this.items.length > 0) {
@@ -741,76 +621,39 @@ export default {
       }
     },
 
-    // Giải quyết báo cáo vi phạm
-    async submitResolveReport() {
-      if (!this.activeItem) return;
-      this.savingAction = true;
-      this.clearAlerts();
-      try {
-        await adminModerationService.resolveReport(this.activeItem.id, this.reportForm);
-        this.message = 'Giải quyết báo cáo vi phạm thành công.';
-        this.closeDetail();
-        this.closeResolveReport();
-        await this.loadData(this.pagination.current_page);
-      } catch (err) {
-        this.error = err.message || 'Không thể giải quyết báo cáo.';
-      } finally {
-        this.savingAction = false;
-      }
-    },
-
-    // Helpers dữ liệu động
-    getReportableTypeLabel(type) {
-      if (!type) return 'Nội dung';
-      if (type.includes('CommunityPostComment')) return 'Bình luận';
-      if (type.includes('VenuePost')) return 'Bài cụm sân';
-      return 'Bài cộng đồng';
-    },
-    getReportableTypeClass(type) {
-      if (!type) return '';
-      if (type.includes('CommunityPostComment')) return 'type-comment';
-      if (type.includes('VenuePost')) return 'type-venue';
-      return 'type-community';
-    },
-    getReportedContent(item) {
-      if (!item.reportable) return '(Nội dung không còn tồn tại hoặc đã bị ẩn)';
-      return item.reportable.content || '(Ảnh/File đính kèm)';
-    },
-    getReasonLabel(reason) {
+    getStatusLabel(status) {
       const map = {
-        spam: 'Spam quảng cáo',
-        offensive: 'Phản cảm',
-        fake: 'Tin giả',
-        harassment: 'Quấy rối',
-        other: 'Khác',
+        published: 'Đã duyệt',
+        pending_review: 'Chờ duyệt',
+        pending: 'Chờ duyệt',
+        draft: 'Nháp / Chờ duyệt',
+        hidden: 'Đã ẩn',
+        rejected: 'Bị từ chối',
       };
-      return map[reason] || reason || '-';
+      return map[status] || status || 'Chờ duyệt';
+    },
+    getStatusClass(status) {
+      const map = {
+        published: 'active',
+        pending_review: 'pending_verify',
+        pending: 'pending_verify',
+        draft: 'pending_verify',
+        hidden: 'locked',
+        rejected: 'locked',
+      };
+      return map[status] || 'pending_verify';
     },
     getContentAuthor(item) {
-      if (this.activeTab === 'reports') {
-        const target = item.reportable;
-        if (!target) return {};
-        return target.author || target.user || {};
-      }
-      return item.author || {};
+      return item?.author || {};
     },
     getContentText(item) {
-      if (this.activeTab === 'reports') {
-        return item.reportable?.content || '(Không có nội dung chữ)';
-      }
-      return item.content || '';
+      return item?.content || '';
     },
     getContentMedia(item) {
-      if (this.activeTab === 'reports') {
-        return item.reportable?.media || [];
-      }
-      return item.media || [];
+      return item?.media || [];
     },
     getContentHashtags(item) {
-      if (this.activeTab === 'reports') {
-        return item.reportable?.hashtags || [];
-      }
-      return item.hashtags || [];
+      return item?.hashtags || [];
     },
     formatDate(value) {
       if (!value) return '-';
@@ -1550,5 +1393,94 @@ input:checked + .slider:before {
   font-size: 13px;
   font-weight: 700;
   color: #334155;
+}
+
+/* Custom styling overrides for alignment and modern aesthetics */
+.sg-shell-admin .content-area .moderation-page .toolbar.card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 16px !important;
+  padding: 20px !important;
+}
+
+.sg-shell-admin .content-area .moderation-page .filters {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-end !important;
+  justify-content: flex-start !important;
+  gap: 16px !important;
+  width: 100% !important;
+  flex-wrap: wrap !important;
+}
+
+.moderation-page .filters > .field.compact {
+  flex: 1 1 240px !important;
+  max-width: 320px !important;
+  margin-bottom: 0 !important;
+}
+
+.moderation-page .auto-approve-wrapper {
+  height: 42px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 0 16px !important;
+  background: #f8fafc !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius) !important;
+  margin-bottom: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.moderation-page .btn-refresh {
+  height: 42px !important;
+  min-height: 42px !important;
+  margin-left: auto !important;
+}
+
+.status-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.status-tabs button {
+  border: 1px solid #dbe3ef;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 13px;
+  color: #475569;
+  transition: all 0.15s;
+}
+
+.status-tabs button.active {
+  background: #dcfce7;
+  border-color: #22c55e;
+  color: #166534;
+}
+
+.status-tabs button:hover:not(.active) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.status.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status.locked {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status.pending_verify {
+  background: #fef3c7;
+  color: #92400e;
 }
 </style>

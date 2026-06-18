@@ -114,6 +114,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/banners/{id}', [AdminBannerController::class, 'update']);
         Route::delete('/banners/{id}', [AdminBannerController::class, 'destroy']);
 
+        Route::get('/reports/auto-resolve-config', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'autoResolveConfig']);
+        Route::post('/report-resolve-policy', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'saveAutoResolveConfig']);
         Route::get('/reports', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'index']);
         Route::get('/reports/{id}', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'show']);
         Route::patch('/reports/{id}/review', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'review']);
