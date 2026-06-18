@@ -112,9 +112,10 @@ class PartnerApplicationController extends Controller
                 \App\Models\PartnerApplicationDocument::create([
                     'partner_application_id' => $application->id,
                     'document_type' => 'other',
+                    'document_group' => 'other',
                     'title' => $originalName,
                     'file_path' => $path,
-                    'status' => 'pending',
+                    'status' => 'uploaded',
                     'sort_order' => $index + 1,
                 ]);
             }
