@@ -119,6 +119,11 @@ const routes = [
                 component: () => import("../views/admin/AdminPartnerApplications.vue"),
             },
             {
+                path: "partners/:id",
+                name: "admin-partner-detail",
+                component: () => import("../views/admin/AdminPartnerDetail.vue"),
+            },
+            {
                 path: "banners",
                 name: "admin-banners",
                 component: () => import("../views/admin/AdminBanners.vue"),
