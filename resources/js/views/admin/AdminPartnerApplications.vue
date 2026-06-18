@@ -1,15 +1,6 @@
 <template>
   <div class="partner-app-page">
-    <header class="page-header">
-      <div>
-        <h2>Quản lý đơn đăng ký đối tác</h2>
-        <p>Rà soát hồ sơ chủ sân, trạng thái duyệt và thông tin kinh doanh gửi về hệ thống.</p>
-      </div>
 
-      <button class="icon-btn" type="button" title="Làm mới" aria-label="Làm mới" @click="refresh">
-        <AppIcon name="refresh" size="16" />
-      </button>
-    </header>
 
     <div class="toolbar card">
       <div class="filters">

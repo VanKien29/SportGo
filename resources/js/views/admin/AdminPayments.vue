@@ -1,14 +1,6 @@
 <template>
   <section class="admin-payments">
-    <header class="page-header">
-      <div>
-        <h2>Theo dõi thanh toán booking</h2>
-        <p>Đối soát payment attempt, gateway logs và tiền hệ thống thu hộ chủ sân.</p>
-      </div>
-      <button class="icon-command" type="button" :disabled="loading" title="Tải lại" aria-label="Tải lại" @click="loadPayments">
-        <AppIcon name="refresh" size="18" />
-      </button>
-    </header>
+
 
     <form class="filters" @submit.prevent="applyFilters">
       <label class="search-field">

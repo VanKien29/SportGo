@@ -271,7 +271,7 @@
 }
 
 .sg-shell-admin .content-area :is(input:not([type='checkbox']):not([type='radio']), select, textarea, .form-control, .search-field, .search-box, .search-input) {
-  min-height: 42px !important;
+  min-height: 38px !important;
   border: 1px solid #b9cbbb !important;
   border-radius: var(--admin-radius) !important;
   background: #fff !important;
@@ -281,7 +281,7 @@
 }
 
 .sg-shell-admin .content-area :is(input:not([type='checkbox']):not([type='radio']), select, textarea, .form-control, .search-input) {
-  padding: 10px 12px !important;
+  padding: 8px 12px !important;
 }
 
 .sg-shell-admin .content-area :is(input, select, textarea)::placeholder {

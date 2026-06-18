@@ -1,16 +1,6 @@
 <template>
     <div class="court-types-container">
-        <header class="page-header">
-            <div>
-                <h2>Quản lý loại sân</h2>
-                <p>Tổ chức bộ môn, loại sân con và trạng thái hiển thị trên hệ thống.</p>
-            </div>
 
-            <button class="btn btn-primary icon-text" type="button" @click="openCreateModal">
-                <AppIcon name="plus" size="17" />
-                <span>Thêm môn thể thao mới</span>
-            </button>
-        </header>
 
         <div class="header-actions-bar">
             <!-- View Switcher -->
@@ -618,6 +608,13 @@
                 </form>
             </div>
         </div>
+        <!-- Floating Add Button -->
+        <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+            <button class="btn-float-add" @click="openCreateModal">
+                <AppIcon name="plus" size="20" />
+                <span class="btn-float-text">Thêm bộ môn</span>
+            </button>
+        </div>
     </div>
 </template>
 
@@ -650,6 +647,7 @@ export default {
                 default_layout_w: null,
                 default_layout_h: null,
             },
+            showScrollTop: false,
         };
     },
     computed: {
@@ -865,6 +863,9 @@ export default {
             if (window.innerWidth <= 768) {
                 this.currentView = 'split';
             }
+        },
+        handleScroll() {
+            this.showScrollTop = window.scrollY > 250;
         }
     },
     created() {
@@ -874,10 +875,12 @@ export default {
         document.addEventListener("click", this.handleClickOutside);
         this.checkMobileView();
         window.addEventListener("resize", this.checkMobileView);
+        window.addEventListener('scroll', this.handleScroll);
     },
     beforeUnmount() {
         document.removeEventListener("click", this.handleClickOutside);
         window.removeEventListener("resize", this.checkMobileView);
+        window.removeEventListener('scroll', this.handleScroll);
     }
 };
 </script>
@@ -2480,6 +2483,78 @@ export default {
     /* Ẩn hoàn toàn thanh chuyển đổi chế độ xem trên điện thoại */
     .view-switcher {
         display: none !important;
+    }
+}
+
+/* Floating Add Button */
+.floating-add-container {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 9998;
+    transition: right 0.25s ease;
+}
+.floating-add-container.has-scroll {
+    right: 86px;
+}
+.btn-float-add {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #10b981;
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0 12px;
+}
+.btn-float-add .btn-float-text {
+    max-width: 0;
+    opacity: 0;
+    margin-left: 0;
+    font-weight: 700;
+    font-size: 13px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-block;
+}
+.btn-float-add:hover {
+    width: 145px;
+    justify-content: flex-start;
+    padding-left: 14px;
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    background-color: #059669;
+}
+.btn-float-add:hover .btn-float-text {
+    max-width: 100px;
+    opacity: 1;
+    margin-left: 6px;
+}
+@media (max-width: 768px) {
+    .floating-add-container {
+        bottom: 20px;
+        right: 20px;
+    }
+    .floating-add-container.has-scroll {
+        right: 72px;
+    }
+    .btn-float-add {
+        width: 40px;
+        height: 40px;
+        border-radius: 20px;
+        padding: 0 10px;
+    }
+    .btn-float-add:hover {
+        width: 130px;
+        padding-left: 12px;
+    }
+    .btn-float-add:hover .btn-float-text {
+        max-width: 80px;
     }
 }
 </style>

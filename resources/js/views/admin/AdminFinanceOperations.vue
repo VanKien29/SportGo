@@ -1,14 +1,6 @@
 <template>
   <section class="finance-operations">
-    <header class="page-header">
-      <div>
-        <h2>Xử lý hoàn tiền và rút tiền</h2>
-        <p>Đối soát yêu cầu, số dư online và phiếu tài chính.</p>
-      </div>
-      <button class="icon-only" type="button" title="Tải lại" aria-label="Tải lại" :disabled="loading" @click="loadData(1)">
-        <AppIcon name="refresh" size="17" />
-      </button>
-    </header>
+
 
     <div class="tabs" role="tablist">
       <button :class="{ active: tab === 'refunds' }" type="button" @click="switchTab('refunds')">
