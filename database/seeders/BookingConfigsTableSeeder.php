@@ -23,6 +23,10 @@ class BookingConfigsTableSeeder extends Seeder
                 [
                     'min_duration_minutes' => 30,
                     'max_duration_minutes' => null,
+                    'min_advance_booking_minutes' => 30,
+                    'fixed_open_time' => '06:00',
+                    'fixed_close_time' => '22:00',
+                    'special_operating_hours' => [],
                     'slot_hold_minutes' => 20,
                     'reminder_before_minutes' => 30,
                     'allow_full_payment' => true,

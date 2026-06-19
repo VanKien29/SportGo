@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Booking;
-use App\Models\BookingItem;
 use App\Models\BookingConfig;
+use App\Models\BookingItem;
 use App\Models\HolidayPrice;
 use App\Models\Payment;
 use App\Models\PaymentLog;
@@ -12,8 +12,8 @@ use App\Models\PriceSlot;
 use App\Models\SlotLock;
 use App\Models\User;
 use App\Models\VenueBasePrice;
-use App\Models\VenueCourt;
 use App\Models\VenueCluster;
+use App\Models\VenueCourt;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Collection;
@@ -32,6 +32,10 @@ class BookingService
     {
         $court = VenueCourt::findOrFail($venueCourtId);
         $venueClusterId = $court->venue_cluster_id;
+
+        if (! $this->isWithinOperatingHours($venueClusterId, $bookingDate, $startTime, $endTime)) {
+            return false;
+        }
 
         // 1. Kiểm tra xem có booking nào đã được xác nhận hoặc đang chờ duyệt/chờ thanh toán trùng giờ không
         $hasOverlapBooking = Booking::query()
@@ -112,6 +116,9 @@ class BookingService
             if ($court->status !== 'active') {
                 throw new Exception('Sân này hiện không hoạt động.');
             }
+
+            $this->assertWithinOperatingHours($venueClusterId, $bookingDate, $startTime, $endTime);
+            $this->assertMinimumAdvanceNotice($venueClusterId, $bookingDate, $startTime);
 
             // 1. Kiểm tra tính trống của sân
             if (! $this->checkAvailability($venueCourtId, $bookingDate, $startTime, $endTime)) {
@@ -223,6 +230,13 @@ class BookingService
             $this->validateDurationMinutesAndPayment($court->venue_cluster_id, $this->rangesDurationMinutes($timeRanges), $data['payment_option']);
 
             foreach ($timeRanges as $range) {
+                $this->assertWithinOperatingHours(
+                    $court->venue_cluster_id,
+                    $data['booking_date'],
+                    $range['start_time'],
+                    $range['end_time'],
+                );
+
                 if (! $this->checkAvailability($range['venue_court_id'], $data['booking_date'], $range['start_time'], $range['end_time'])) {
                     $errorKey = isset($data['time_ranges']) ? 'time_ranges' : 'start_time';
 
@@ -269,6 +283,13 @@ class BookingService
                     'recurring_end_date' => 'Lịch cố định tối đa 130 buổi mỗi lần tạo.',
                 ]);
             }
+
+            $dates->each(fn (Carbon $date) => $this->assertWithinOperatingHours(
+                $court->venue_cluster_id,
+                $date->toDateString(),
+                $data['start_time'],
+                $data['end_time'],
+            ));
 
             $conflicts = $dates
                 ->filter(fn (Carbon $date) => ! $this->checkAvailability(
@@ -503,7 +524,10 @@ class BookingService
 
         $courts = $courtsQuery->get(['id', 'venue_cluster_id', 'court_type_id', 'name', 'status', 'sort_order', 'layout_x', 'layout_y', 'layout_w', 'layout_h', 'layout_rotation']);
         $courtIds = $courts->pluck('id');
-        $timeSlots = $this->buildTimeSlots();
+        $operatingHours = $this->resolveOperatingHours($cluster->id, $bookingDate);
+        $timeSlots = $operatingHours['is_open']
+            ? $this->buildTimeSlots($operatingHours['open_time'], $operatingHours['close_time'])
+            : [];
         $busyIntervals = $this->busyIntervals($cluster->id, $courtIds, $bookingDate, $includeBusyDetails);
         $slotStatuses = [];
 
@@ -546,6 +570,45 @@ class BookingService
             'court_types' => $courtTypes,
             'busy_intervals' => $busyIntervals->values(),
             'slot_statuses' => $slotStatuses,
+            'operating_hours' => $operatingHours,
+        ];
+    }
+
+    public function meetsMinimumAdvanceNotice(string $venueClusterId, string $bookingDate, string $startTime): bool
+    {
+        $minimumMinutes = (int) ($this->bookingConfigForCluster($venueClusterId)?->min_advance_booking_minutes ?? 30);
+        $bookingStart = Carbon::parse($bookingDate)
+            ->startOfDay()
+            ->addMinutes($this->timeToMinutes($startTime));
+
+        return now()->addMinutes($minimumMinutes)->lte($bookingStart);
+    }
+
+    public function resolveOperatingHours(string $venueClusterId, string $bookingDate): array
+    {
+        $config = $this->bookingConfigForCluster($venueClusterId);
+        $specialHours = collect($config?->special_operating_hours ?? [])
+            ->first(fn (array $hours): bool => $hours['start_date'] <= $bookingDate && $hours['end_date'] >= $bookingDate);
+
+        if ($specialHours) {
+            return [
+                'is_open' => true,
+                'open_time' => $this->normalizeClock($specialHours['open_time']),
+                'close_time' => $this->normalizeClock($specialHours['close_time']),
+                'source' => 'special',
+            ];
+        }
+
+        $legacyHours = collect($config?->weekly_operating_hours ?? [])
+            ->first(fn (array $hours): bool => (bool) ($hours['is_open'] ?? false));
+        $openTime = $config?->fixed_open_time ?: ($legacyHours['open_time'] ?? '08:00');
+        $closeTime = $config?->fixed_close_time ?: ($legacyHours['close_time'] ?? '22:00');
+
+        return [
+            'is_open' => true,
+            'open_time' => $this->normalizeClock($openTime),
+            'close_time' => $this->normalizeClock($closeTime),
+            'source' => 'fixed',
         ];
     }
 
@@ -1130,19 +1193,73 @@ class BookingService
         });
     }
 
-    private function buildTimeSlots(): array
+    private function buildTimeSlots(string $openTime = '00:00:00', string $closeTime = '24:00:00'): array
     {
         $slots = [];
+        $openMinutes = $this->timeToMinutes($openTime);
+        $closeMinutes = $this->timeToMinutes($closeTime);
 
-        for ($minutes = 0; $minutes < 1440; $minutes += 30) {
+        for ($minutes = $openMinutes; $minutes < $closeMinutes; $minutes += 30) {
             $slots[] = [
                 'start_time' => $this->minutesToTime($minutes),
-                'end_time' => $this->minutesToTime($minutes + 30),
+                'end_time' => $this->minutesToTime(min($minutes + 30, $closeMinutes)),
                 'label' => substr($this->minutesToTime($minutes), 0, 5),
             ];
         }
 
         return $slots;
+    }
+
+    private function assertWithinOperatingHours(string $venueClusterId, string $bookingDate, string $startTime, string $endTime): void
+    {
+        $hours = $this->resolveOperatingHours($venueClusterId, $bookingDate);
+
+        if (! $hours['is_open']) {
+            throw ValidationException::withMessages([
+                'booking_date' => 'Cụm sân đóng cửa trong ngày đã chọn.',
+            ]);
+        }
+
+        if (! $this->isWithinOperatingHours($venueClusterId, $bookingDate, $startTime, $endTime)) {
+            throw ValidationException::withMessages([
+                'start_time' => sprintf(
+                    'Khung giờ đặt sân phải nằm trong giờ mở cửa %s - %s.',
+                    substr($hours['open_time'], 0, 5),
+                    substr($hours['close_time'], 0, 5),
+                ),
+            ]);
+        }
+    }
+
+    private function assertMinimumAdvanceNotice(string $venueClusterId, string $bookingDate, string $startTime): void
+    {
+        if ($this->meetsMinimumAdvanceNotice($venueClusterId, $bookingDate, $startTime)) {
+            return;
+        }
+
+        $minimumMinutes = (int) ($this->bookingConfigForCluster($venueClusterId)?->min_advance_booking_minutes ?? 30);
+
+        throw ValidationException::withMessages([
+            'start_time' => "Booking phải được đặt trước ít nhất {$minimumMinutes} phút.",
+        ]);
+    }
+
+    private function isWithinOperatingHours(string $venueClusterId, string $bookingDate, string $startTime, string $endTime): bool
+    {
+        $hours = $this->resolveOperatingHours($venueClusterId, $bookingDate);
+
+        if (! $hours['is_open']) {
+            return false;
+        }
+
+        return $this->timeToMinutes($startTime) >= $this->timeToMinutes($hours['open_time'])
+            && $this->timeToMinutes($endTime) <= $this->timeToMinutes($hours['close_time'])
+            && $this->timeToMinutes($endTime) > $this->timeToMinutes($startTime);
+    }
+
+    private function normalizeClock(string $time): string
+    {
+        return strlen($time) === 5 ? $time.':00' : $time;
     }
 
     private function timeToMinutes(string $time): int
