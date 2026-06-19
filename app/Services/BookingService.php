@@ -41,6 +41,7 @@ class BookingService
             ->where(function ($query) use ($venueCourtId, $startTime, $endTime) {
                 $query->whereHas('items', function ($itemQuery) use ($venueCourtId, $startTime, $endTime) {
                     $itemQuery->where('venue_court_id', $venueCourtId)
+                        ->where(fn ($activeItemQuery) => $this->activeBookingItemConstraint($activeItemQuery))
                         ->where('start_time', '<', $endTime)
                         ->where('end_time', '>', $startTime);
                 })->orWhere(function ($fallbackQuery) use ($venueCourtId, $startTime, $endTime) {
@@ -936,6 +937,7 @@ class BookingService
             'duration_minutes' => $durationMinutes,
             'unit_price' => round($totalPrice / $durationHours, 2),
             'subtotal' => $totalPrice,
+            'status' => 'active',
             'sort_order' => $sortOrder,
         ]);
     }
@@ -1597,7 +1599,7 @@ class BookingService
             : ['id', 'venue_court_id', 'start_time', 'end_time', 'status'];
 
         $bookingQuery = Booking::query()
-            ->with('items:id,booking_id,venue_court_id,start_time,end_time');
+            ->with('items:id,booking_id,venue_court_id,start_time,end_time,status,status_reason,subtotal');
 
         if ($includeDetails) {
             $bookingQuery->with([
@@ -1612,15 +1614,22 @@ class BookingService
             ->whereIn('status', self::BLOCKING_BOOKING_STATUSES)
             ->where(function ($query) use ($courtIds) {
                 $query->whereIn('venue_court_id', $courtIds)
-                    ->orWhereHas('items', fn ($itemQuery) => $itemQuery->whereIn('venue_court_id', $courtIds));
+                    ->orWhereHas('items', fn ($itemQuery) => $itemQuery
+                        ->whereIn('venue_court_id', $courtIds)
+                        ->where(fn ($activeItemQuery) => $this->activeBookingItemConstraint($activeItemQuery)));
             })
             ->get($bookingColumns)
             ->flatMap(function (Booking $booking) use ($courtIds, $includeDetails): Collection {
                 $ranges = $booking->items->isNotEmpty()
-                    ? $booking->items->map(fn (BookingItem $item): array => [
+                    ? $booking->items
+                        ->filter(fn (BookingItem $item): bool => $this->isActiveBookingItem($item))
+                        ->map(fn (BookingItem $item): array => [
                         'venue_court_id' => $item->venue_court_id,
                         'start_time' => $item->start_time,
                         'end_time' => $item->end_time,
+                        'booking_item_id' => $item->id,
+                        'booking_item_status' => $item->status,
+                        'booking_item_subtotal' => (float) $item->subtotal,
                     ])
                     : collect([[
                         'venue_court_id' => $booking->venue_court_id,
@@ -1704,6 +1713,17 @@ class BookingService
                 $autoQuery->where('lock_type', 'auto')
                     ->where('expires_at', '>', Carbon::now());
             });
+    }
+
+    private function activeBookingItemConstraint($query): void
+    {
+        $query->whereNull('status')
+            ->orWhereIn('status', ['active', 'moved']);
+    }
+
+    private function isActiveBookingItem(BookingItem $item): bool
+    {
+        return in_array($item->status ?: 'active', ['active', 'moved'], true);
     }
 
     private function overlappingInterval(Collection $intervals, string $venueCourtId, string $startTime, string $endTime): ?array

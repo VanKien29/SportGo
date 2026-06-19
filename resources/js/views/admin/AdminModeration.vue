@@ -38,6 +38,20 @@
       </div>
     </header>
 
+    <nav class="module-tabs" aria-label="Nhóm chức năng kiểm duyệt">
+      <button
+        v-for="tab in moduleTabs"
+        :key="tab.value"
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeModuleTab === tab.value }"
+        @click="selectModuleTab(tab.value)"
+      >
+        <AppIcon :name="tab.icon" size="16" />
+        <span>{{ tab.label }}</span>
+      </button>
+    </nav>
+
     <!-- Render tab tương ứng -->
     <keep-alive>
       <AdminContentModeration 
@@ -142,6 +156,39 @@ export default {
 .module-tabs .tab-btn:hover:not(.active) {
   background: #f1f5f9;
   color: #334155;
+}
+
+.module-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin-bottom: 18px;
+  padding: 5px;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.module-tabs .tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.module-tabs .tab-btn.active {
+  background: #dcfce7;
+  color: #047857;
 }
 
 /* AUTO APPROVE TOGGLE */

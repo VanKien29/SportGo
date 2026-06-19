@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
+use App\Services\Bookings\OwnerBookingCancellationService;
 use App\Services\BookingService;
 use App\Services\Payments\SepayPaymentService;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +23,7 @@ class BookingManagementController extends Controller
     public function __construct(
         private readonly BookingService $bookingService,
         private readonly SepayPaymentService $sepayPaymentService,
+        private readonly OwnerBookingCancellationService $ownerBookingCancellationService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -404,16 +406,27 @@ class BookingManagementController extends Controller
             'complete' => 'completed',
         };
 
+        if (in_array($status, ['cancelled', 'rejected'], true)) {
+            $result = $this->ownerBookingCancellationService->cancelBooking(
+                $booking,
+                $request->user(),
+                $validated['status_reason'],
+                $status,
+            );
+
+            return response()->json([
+                'message' => count($result['refunds'])
+                    ? 'Đã hủy booking và tạo yêu cầu hoàn tiền chờ admin chuyển khoản.'
+                    : 'Đã hủy booking.',
+                'data' => $result['booking'],
+                'refunds' => $result['refunds'],
+            ]);
+        }
+
         $booking->update([
             'status' => $status,
             'status_reason' => $validated['status_reason'] ?? null,
-            'cancelled_by' => in_array($status, ['cancelled', 'rejected'], true) ? $request->user()->id : $booking->cancelled_by,
-            'cancelled_at' => in_array($status, ['cancelled', 'rejected'], true) ? now() : $booking->cancelled_at,
         ]);
-
-        if (in_array($status, ['cancelled', 'rejected'], true)) {
-            SlotLock::query()->where('booking_id', $booking->id)->delete();
-        }
 
         return response()->json([
             'message' => 'Đã cập nhật trạng thái booking.',

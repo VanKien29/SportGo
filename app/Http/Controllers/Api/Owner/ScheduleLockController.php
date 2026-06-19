@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Booking;
+use App\Models\BookingItem;
 use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
-use App\Services\BookingService;
+use App\Services\Bookings\OwnerBookingCancellationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -17,7 +19,9 @@ use Illuminate\Validation\ValidationException;
 
 class ScheduleLockController extends Controller
 {
-    public function __construct(private readonly BookingService $bookingService) {}
+    public function __construct(
+        private readonly OwnerBookingCancellationService $ownerBookingCancellationService,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -142,14 +146,14 @@ class ScheduleLockController extends Controller
                         ]);
                     }
 
-                    if (! $this->bookingService->checkAvailability(
+                    if ($this->hasOverlappingScheduleLock(
                         $court->id,
                         $date,
                         $slot['start_time'],
                         $slot['end_time']
                     )) {
                         throw ValidationException::withMessages([
-                            $isBatch ? "slots.{$index}.start_time" : 'start_time' => "{$court->name} ngày {$date} bị trùng booking hoặc khoảng đã khóa.",
+                            $isBatch ? "slots.{$index}.start_time" : 'start_time' => "{$court->name} ngày {$date} đã có khoảng khóa trùng giờ.",
                         ]);
                     }
 
@@ -168,6 +172,7 @@ class ScheduleLockController extends Controller
                     ])->load('venueCourt.courtType');
 
                     $this->audit($request, 'schedule_lock.created', $lock, null, $this->payload($lock));
+                    $this->cancelOverlappingBookingItems($request, $lock);
                     $createdLocks->push($lock);
                 }
             }
@@ -269,6 +274,68 @@ class ScheduleLockController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
+    }
+
+    private function hasOverlappingScheduleLock(string $venueCourtId, string $date, string $startTime, string $endTime): bool
+    {
+        return SlotLock::query()
+            ->where('booking_date', $date)
+            ->where(fn ($query) => $this->activeSlotLockConstraint($query))
+            ->whereNull('booking_id')
+            ->where(function ($query) use ($venueCourtId): void {
+                $query->where('venue_court_id', $venueCourtId)
+                    ->orWhere(function ($clusterQuery) use ($venueCourtId): void {
+                        $clusterQuery
+                            ->where('lock_scope', 'cluster')
+                            ->where('venue_cluster_id', VenueCourt::query()->whereKey($venueCourtId)->value('venue_cluster_id'));
+                    });
+            })
+            ->where('start_time', '<', $endTime)
+            ->where('end_time', '>', $startTime)
+            ->exists();
+    }
+
+    private function cancelOverlappingBookingItems(Request $request, SlotLock $lock): void
+    {
+        $items = BookingItem::query()
+            ->where('venue_court_id', $lock->venue_court_id)
+            ->where(fn ($query) => $query->whereNull('status')->orWhereIn('status', ['active', 'moved']))
+            ->where('start_time', '<', $lock->end_time)
+            ->where('end_time', '>', $lock->start_time)
+            ->whereHas('booking', function ($bookingQuery) use ($lock): void {
+                $bookingQuery
+                    ->where('venue_cluster_id', $lock->venue_cluster_id)
+                    ->whereDate('booking_date', $lock->booking_date)
+                    ->whereIn('status', ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed']);
+            })
+            ->get(['id', 'booking_id']);
+
+        $items
+            ->groupBy('booking_id')
+            ->each(function (Collection $bookingItems, string $bookingId) use ($request, $lock): void {
+                $booking = Booking::query()->find($bookingId);
+
+                if (! $booking) {
+                    return;
+                }
+
+                $this->ownerBookingCancellationService->cancelItemsForMaintenance(
+                    $booking,
+                    $bookingItems->pluck('id')->all(),
+                    $request->user(),
+                    $lock->reason ?: 'Sân được khóa để bảo trì.',
+                    $lock->id,
+                );
+            });
+    }
+
+    private function activeSlotLockConstraint($query): void
+    {
+        $query->where('lock_type', 'manual')
+            ->orWhere(function ($autoQuery): void {
+                $autoQuery->where('lock_type', 'auto')
+                    ->where('expires_at', '>', Carbon::now());
+            });
     }
 
     private function timeToMinutes(string $time): int

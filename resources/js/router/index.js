@@ -264,6 +264,16 @@ const routes = [
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
             { path: "wallet", redirect: { name: "owner-finance" } },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
+            {
+                path: "posts",
+                name: "owner-posts",
+                component: () => import("../views/owner/OwnerPosts.vue"),
+            },
+            {
+                path: "matchmaking",
+                name: "owner-matchmaking",
+                component: () => import("../views/owner/OwnerMatchmaking.vue"),
+            },
             { path: "profile", name: "owner-profile", component: Profile },
             {
                 path: "partner-profile",
