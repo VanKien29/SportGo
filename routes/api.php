@@ -245,6 +245,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::put('/venue-policies/notices/{id}', [OwnerVenuePolicyController::class, 'updateNotice']);
         Route::get('/pricing', [OwnerPricingController::class, 'index']);
         Route::patch('/booking-configs/{venueClusterId}/duration', [OwnerPricingController::class, 'updateDuration']);
+        Route::put('/base-prices/{courtTypeId}', [OwnerPricingController::class, 'updateBasePrice']);
         Route::post('/price-slots', [OwnerPricingController::class, 'storePriceSlot']);
         Route::patch('/price-slots/{id}', [OwnerPricingController::class, 'updatePriceSlot']);
         Route::delete('/price-slots/{id}', [OwnerPricingController::class, 'destroyPriceSlot']);

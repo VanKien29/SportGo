@@ -96,6 +96,17 @@ class OwnerBookingConfigTest extends TestCase
             ->assertJsonValidationErrors(['min_duration_minutes', 'max_duration_minutes']);
     }
 
+    public function test_minimum_duration_cannot_exceed_two_hours(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
+                ...$this->validPayload(),
+                'min_duration_minutes' => 150,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('min_duration_minutes');
+    }
+
     public function test_booking_config_rejects_excessive_duration_and_invalid_time_steps(): void
     {
         $this->actingAs($this->owner, 'sanctum')

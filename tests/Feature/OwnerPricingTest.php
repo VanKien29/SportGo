@@ -9,6 +9,7 @@ use App\Models\PriceSlot;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -115,6 +116,14 @@ class OwnerPricingTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['min_duration_minutes', 'max_duration_minutes']);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson("/api/owner/booking-configs/{$this->cluster->id}/duration", [
+                'min_duration_minutes' => 150,
+                'max_duration_minutes' => 180,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('min_duration_minutes');
     }
 
     public function test_owner_can_load_pricing_configuration(): void
@@ -135,8 +144,33 @@ class OwnerPricingTest extends TestCase
             ->assertOk()
             ->assertJsonPath('clusters.0.id', $this->cluster->id)
             ->assertJsonPath("court_types_by_cluster.{$this->cluster->id}.0.id", $this->courtType->id)
+            ->assertJsonPath('system_default_price', 10000)
+            ->assertJsonCount(0, 'base_prices')
             ->assertJsonPath('price_slots.0.price', '80000.00')
             ->assertJsonCount(0, 'holiday_prices');
+    }
+
+    public function test_owner_can_set_base_price_for_a_court_type(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson("/api/owner/base-prices/{$this->courtType->id}", [
+                'venue_cluster_id' => $this->cluster->id,
+                'price' => 75000,
+            ])
+            ->assertOk()
+            ->assertJsonPath('price', '75000.00')
+            ->assertJsonPath('court_type.id', $this->courtType->id);
+
+        $this->assertDatabaseHas('venue_base_prices', [
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $this->courtType->id,
+            'price' => 75000,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $this->owner->id,
+            'action' => 'pricing.base_price_updated',
+            'entity_type' => VenueBasePrice::class,
+        ]);
     }
 
     public function test_owner_can_create_price_slot_and_overlap_is_rejected(): void

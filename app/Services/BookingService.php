@@ -11,6 +11,7 @@ use App\Models\PaymentLog;
 use App\Models\PriceSlot;
 use App\Models\SlotLock;
 use App\Models\User;
+use App\Models\VenueBasePrice;
 use App\Models\VenueCourt;
 use App\Models\VenueCluster;
 use Carbon\Carbon;
@@ -614,9 +615,21 @@ class BookingService
             ->orderByRaw('CASE WHEN booking_type = ? THEN 0 ELSE 1 END', [$bookingType])
             ->first();
 
+        if ($priceSlot) {
+            return [
+                'hourly_rate' => (float) $priceSlot->price,
+                'source' => 'price_slot',
+            ];
+        }
+
+        $basePrice = VenueBasePrice::query()
+            ->where('venue_cluster_id', $venueClusterId)
+            ->where('court_type_id', $courtTypeId)
+            ->first();
+
         return [
-            'hourly_rate' => (float) ($priceSlot?->price ?? 10000.00),
-            'source' => $priceSlot ? 'price_slot' : 'default',
+            'hourly_rate' => (float) ($basePrice?->price ?? 10000.00),
+            'source' => $basePrice ? 'base_price' : 'system_default',
         ];
     }
 
