@@ -595,6 +595,12 @@
                 <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
                 <div v-if="req.reviewed_by" class="muted">Xử lý bởi: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
                 <div v-if="req.status_reason" class="reason-text">Lý do: {{ req.status_reason }}</div>
+                <div v-if="req.evidence_image_url" class="approval-evidence" style="margin-top: 8px;">
+                  <span class="approval-evidence-label" style="display:block; font-size:12.5px; color:var(--text-secondary); margin-bottom:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:3px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Ảnh minh chứng:</span>
+                  <a :href="req.evidence_image_url" target="_blank" style="display:inline-block;">
+                    <img :src="req.evidence_image_url" alt="Ảnh minh chứng" style="max-width:200px; max-height:140px; border-radius:8px; border:1px solid var(--border-color); object-fit:cover; cursor:pointer; transition: transform 0.2s;" @mouseover="$event.target.style.transform='scale(1.05)'" @mouseout="$event.target.style.transform='scale(1)'" />
+                  </a>
+                </div>
               </div>
               <div class="approval-right">
                 <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>

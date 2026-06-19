@@ -1257,6 +1257,35 @@
                                     placeholder="Mô tả lý do bạn muốn mở rộng thêm sân con..."
                                 ></textarea>
                             </div>
+                            <div class="form-group">
+                                <label>Ảnh minh chứng <span class="text-muted">(không bắt buộc)</span></label>
+                                <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
+                                    Gửi ảnh chụp thực tế sân (hỗ trợ: JPG, PNG, WebP — tối đa 5MB)
+                                </p>
+                                <div class="evidence-upload-area">
+                                    <div
+                                        v-if="!evidencePreview"
+                                        class="evidence-dropzone"
+                                        @click="$refs.evidenceInput.click()"
+                                        @dragover.prevent
+                                        @drop.prevent="handleEvidenceDrop"
+                                    >
+                                        <div class="evidence-dropzone-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+                                        <div class="evidence-dropzone-text">Click hoặc kéo thả ảnh vào đây</div>
+                                    </div>
+                                    <div v-else class="evidence-preview-wrapper">
+                                        <img :src="evidencePreview" alt="Ảnh minh chứng" class="evidence-preview-img" />
+                                        <button type="button" class="btn-remove-evidence" @click="removeEvidence">&times;</button>
+                                    </div>
+                                    <input
+                                        ref="evidenceInput"
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                        style="display:none"
+                                        @change="handleEvidenceSelect"
+                                    />
+                                </div>
+                            </div>
                             <div class="form-actions">
                                 <button
                                     type="submit"
@@ -1368,6 +1397,15 @@
                                         >
                                             Lý do từ chối:
                                             {{ req.status_reason }}
+                                        </div>
+                                        <div
+                                            v-if="req.evidence_image_url"
+                                            class="approval-evidence"
+                                        >
+                                            <span class="approval-evidence-label"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:3px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Ảnh minh chứng:</span>
+                                            <a :href="req.evidence_image_url" target="_blank" class="approval-evidence-link">
+                                                <img :src="req.evidence_image_url" alt="Ảnh minh chứng" class="approval-evidence-thumb" />
+                                            </a>
                                         </div>
                                         <div
                                             v-if="
@@ -2040,6 +2078,8 @@ export default {
             approvalFilter: "",
             approvalsLoading: false,
             newReqForm: { court_type_id: "", name: "", note: "" },
+            evidenceFile: null,
+            evidencePreview: null,
             newReqSuccess: null,
             newReqError: null,
             creatingReq: false,
@@ -3475,6 +3515,37 @@ export default {
             if (el && !el.contains(e.target)) this.showTypeDropdown = false;
         },
 
+        handleEvidenceSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                this.newReqError = 'Ảnh minh chứng không được quá 5MB.';
+                return;
+            }
+            this.evidenceFile = file;
+            this.evidencePreview = URL.createObjectURL(file);
+        },
+        handleEvidenceDrop(e) {
+            const file = e.dataTransfer.files[0];
+            if (!file || !file.type.startsWith('image/')) return;
+            if (file.size > 5 * 1024 * 1024) {
+                this.newReqError = 'Ảnh minh chứng không được quá 5MB.';
+                return;
+            }
+            this.evidenceFile = file;
+            this.evidencePreview = URL.createObjectURL(file);
+        },
+        removeEvidence() {
+            this.evidenceFile = null;
+            if (this.evidencePreview) {
+                URL.revokeObjectURL(this.evidencePreview);
+                this.evidencePreview = null;
+            }
+            if (this.$refs.evidenceInput) {
+                this.$refs.evidenceInput.value = '';
+            }
+        },
+
         async handleCreateApproval() {
             if (!this.newReqForm.court_type_id) {
                 this.newReqError = "Vui lòng chọn loại sân.";
@@ -3484,14 +3555,24 @@ export default {
             this.newReqError = null;
             this.newReqSuccess = null;
             try {
+                const formData = new FormData();
+                formData.append('court_type_id', this.newReqForm.court_type_id);
+                formData.append('name', this.newReqForm.name);
+                if (this.newReqForm.note) {
+                    formData.append('note', this.newReqForm.note);
+                }
+                if (this.evidenceFile) {
+                    formData.append('evidence_image', this.evidenceFile);
+                }
                 const res = await venueClusterService.createApprovalRequest(
                     this.selectedCluster.id,
-                    this.newReqForm,
+                    formData,
                 );
                 this.newReqSuccess =
                     "Gửi yêu cầu thành công! Admin sẽ xem xét và phê duyệt sớm.";
                 this.approvalRequests.unshift(res.data);
                 this.newReqForm = { court_type_id: "", name: "", note: "" };
+                this.removeEvidence();
                 if (!this.courtTypes.length) {
                     const typesRes = await courtTypeService.getAll();
                     this.courtTypes = typesRes.data || [];
@@ -5228,5 +5309,110 @@ export default {
     color: #64748b;
     text-align: center;
     cursor: default;
+}
+
+/* ─── Evidence Upload ─── */
+.evidence-upload-area {
+    margin-top: 4px;
+}
+.evidence-dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.evidence-dropzone:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+.evidence-dropzone-icon {
+    margin-bottom: 6px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.evidence-dropzone-text {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 500;
+}
+.evidence-preview-wrapper {
+    position: relative;
+    display: inline-block;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #e2e8f0;
+    transition: border-color 0.2s;
+}
+.evidence-preview-wrapper:hover {
+    border-color: #3b82f6;
+}
+.evidence-preview-img {
+    max-width: 100%;
+    max-height: 200px;
+    display: block;
+    object-fit: cover;
+    border-radius: 10px;
+}
+.btn-remove-evidence {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(239, 68, 68, 0.9);
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    backdrop-filter: blur(4px);
+}
+.btn-remove-evidence:hover {
+    background: #dc2626;
+    transform: scale(1.15);
+}
+
+/* ─── Evidence in Approval History ─── */
+.approval-evidence {
+    margin-top: 8px;
+}
+.approval-evidence-label {
+    display: block;
+    font-size: 12.5px;
+    color: rgba(15, 23, 42, 0.55);
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+.approval-evidence-link {
+    display: inline-block;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.approval-evidence-link:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.approval-evidence-thumb {
+    max-width: 180px;
+    max-height: 120px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    display: block;
 }
 </style>

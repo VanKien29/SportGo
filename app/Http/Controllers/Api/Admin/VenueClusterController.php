@@ -556,6 +556,8 @@ class VenueClusterController extends Controller
             'name'                    => $r->name,
             'status'                  => $r->status,
             'status_reason'           => $r->status_reason,
+            'evidence_image'          => $r->evidence_image,
+            'evidence_image_url'      => $r->evidence_image ? asset('storage/' . $r->evidence_image) : null,
             'court_type'              => $r->courtType ? ['id' => $r->courtType->id, 'name' => $r->courtType->name] : null,
             'requested_by'            => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
             'reviewed_by'             => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,
