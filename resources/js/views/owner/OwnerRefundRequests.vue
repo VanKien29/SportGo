@@ -68,7 +68,7 @@
               </td>
               <td class="reason-cell" data-label="Lý do hủy">{{ refund.reason || refund.booking?.status_reason || '-' }}</td>
               <td data-label="Mức hoàn">
-                <strong>{{ formatCurrency(refund.amount) }}</strong>
+                <strong>{{ formatCurrency(refundAmount(refund)) }}</strong>
                 <small>{{ policyText(refund) }}</small>
               </td>
               <td data-label="Trạng thái">
@@ -116,7 +116,7 @@
           <div><dt>Liên hệ</dt><dd>{{ detailRefund.customer?.phone || detailRefund.customer?.email || '-' }}</dd></div>
           <div><dt>Thời gian chơi</dt><dd>{{ formatDate(detailRefund.booking?.booking_date) }}, {{ formatTime(detailRefund.booking?.start_time) }} - {{ formatTime(detailRefund.booking?.end_time) }}</dd></div>
           <div><dt>Đã thanh toán</dt><dd>{{ formatCurrency(detailRefund.payment?.amount) }}</dd></div>
-          <div><dt>Mức hoàn đề xuất</dt><dd>{{ formatCurrency(maxRefund(detailRefund)) }}</dd></div>
+          <div><dt>Số tiền sẽ hoàn</dt><dd>{{ formatCurrency(refundAmount(detailRefund)) }}</dd></div>
           <div><dt>Trạng thái</dt><dd>{{ statusLabel(detailRefund.status) }}</dd></div>
         </dl>
 
@@ -153,20 +153,17 @@
           <ActionIconButton icon="x" label="Đóng" @click="closeDecision" />
         </header>
 
-        <div v-if="decision === 'approve'" class="amount-summary">
-          <span>Giới hạn theo chính sách</span>
-          <strong>{{ formatCurrency(maxRefund(decisionRefund)) }}</strong>
+        <div v-if="decision === 'approve'" class="amount-summary fixed-amount">
+          <div>
+            <span>Số tiền hoàn theo chính sách</span>
+            <small>{{ decisionRefund.policy_evaluation?.summary || 'SportGo sẽ dùng số tiền đã được hệ thống tính cho yêu cầu này.' }}</small>
+          </div>
+          <strong>{{ formatCurrency(refundAmount(decisionRefund)) }}</strong>
         </div>
-
-        <label v-if="decision === 'approve'" class="field">
-          <span>Số tiền hoàn</span>
-          <input v-model.number="decisionForm.amount" type="number" min="1" :max="maxRefund(decisionRefund)" step="1000" required />
-          <small>Không thể vượt mức chính sách. SportGo sẽ xử lý giao dịch sau khi bạn xác nhận.</small>
-        </label>
 
         <label class="field">
           <span>{{ decision === 'approve' ? 'Ghi chú xác nhận' : 'Lý do từ chối' }}</span>
-          <textarea v-model.trim="decisionForm.note" rows="4" maxlength="2000" required />
+          <textarea v-model.trim="decisionForm.note" rows="4" maxlength="2000" :required="decision === 'reject'" />
         </label>
 
         <footer class="modal-actions">
@@ -196,9 +193,8 @@ export default {
       statusTabs: [
         { value: '', label: 'Tất cả' },
         { value: 'pending_owner_confirmation', label: 'Chờ xác nhận' },
-        { value: 'owner_confirmed', label: 'Đã đồng ý' },
+        { value: 'owner_confirmed', label: 'Chờ chuyển khoản' },
         { value: 'owner_rejected', label: 'Đã từ chối' },
-        { value: 'processing', label: 'Đang xử lý' },
         { value: 'completed', label: 'Hoàn tất' },
       ],
       meta: { current_page: 1, last_page: 1, total: 0 },
@@ -209,7 +205,7 @@ export default {
       detailRefund: null,
       decisionRefund: null,
       decision: 'approve',
-      decisionForm: { amount: 0, note: '' },
+      decisionForm: { note: '' },
     };
   },
   mounted() {
@@ -250,7 +246,6 @@ export default {
       this.decisionRefund = refund;
       this.decision = decision;
       this.decisionForm = {
-        amount: Number(refund.amount || this.maxRefund(refund)),
         note: '',
       };
     },
@@ -265,7 +260,6 @@ export default {
         const payload = {
           decision: this.decision,
           note: this.decisionForm.note,
-          ...(this.decision === 'approve' ? { amount: this.decisionForm.amount } : {}),
         };
         const response = await api(`/api/owner/refunds/${this.decisionRefund.id}/decision`, {
           method: 'PATCH',
@@ -281,7 +275,7 @@ export default {
         if (this.decisionRefund && this.notice) this.decisionRefund = null;
       }
     },
-    maxRefund(refund) {
+    refundAmount(refund) {
       return Number(refund?.policy_evaluation?.suggested_amount ?? refund?.payment?.amount ?? refund?.amount ?? 0);
     },
     policyText(refund) {
@@ -294,10 +288,10 @@ export default {
     statusLabel(status) {
       return {
         pending_owner_confirmation: 'Chờ chủ sân',
-        owner_confirmed: 'Chủ sân đồng ý',
+        owner_confirmed: 'Chờ SportGo chuyển khoản',
         owner_rejected: 'Chủ sân từ chối',
-        admin_processing: 'SportGo đang xử lý',
-        processing: 'Đang hoàn tiền',
+        admin_processing: 'Chờ SportGo chuyển khoản',
+        processing: 'Chờ SportGo chuyển khoản',
         completed: 'Đã hoàn tiền',
         failed: 'Xử lý thất bại',
         rejected: 'Đã từ chối',
@@ -546,6 +540,21 @@ td small {
 .amount-summary strong {
   color: #216b34;
   font-size: 18px;
+}
+
+.amount-summary.fixed-amount {
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.amount-summary.fixed-amount div {
+  display: grid;
+  gap: 4px;
+}
+
+.amount-summary.fixed-amount small {
+  color: #536257;
+  line-height: 1.45;
 }
 
 .primary-btn,

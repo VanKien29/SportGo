@@ -124,7 +124,7 @@ class OwnerCounterPaymentTest extends TestCase
             ]);
 
         $response->assertOk()
-            ->assertJsonPath('data.status', 'confirmed');
+            ->assertJsonPath('data.status', 'completed');
 
         $this->assertDatabaseHas('payments', [
             'booking_id' => $booking->id,
@@ -200,7 +200,7 @@ class OwnerCounterPaymentTest extends TestCase
 
         $this->assertDatabaseHas('bookings', [
             'id' => $booking->id,
-            'status' => 'confirmed',
+            'status' => 'completed',
         ]);
 
         $this->assertDatabaseHas('owner_wallets', [
@@ -266,25 +266,13 @@ class OwnerCounterPaymentTest extends TestCase
                 'payment_method' => 'cash',
             ])
             ->assertOk()
-            ->assertJsonPath('data.status', 'checked_in');
+            ->assertJsonPath('data.status', 'completed');
 
         $this->assertDatabaseHas('payments', [
             'booking_id' => $booking->id,
             'status' => 'paid',
             'method' => 'cash',
         ]);
-        $this->assertDatabaseHas('bookings', [
-            'id' => $booking->id,
-            'status' => 'checked_in',
-        ]);
-
-        $this->actingAs($this->owner, 'sanctum')
-            ->patchJson("/api/owner/bookings/{$booking->id}/status", [
-                'action' => 'complete',
-            ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'completed');
-
         $this->assertDatabaseHas('bookings', [
             'id' => $booking->id,
             'status' => 'completed',
@@ -469,6 +457,131 @@ class OwnerCounterPaymentTest extends TestCase
             'walk_in_name' => 'Nguyễn Văn A',
             'walk_in_phone' => '0901234567',
         ]);
+    }
+
+    public function test_recurring_booking_conflicts_return_alternatives_and_can_switch_court(): void
+    {
+        $firstDate = now()->addWeek()->startOfDay();
+        $secondDate = $firstDate->copy()->addWeek();
+        $weekDay = $firstDate->dayOfWeekIso - 1;
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $firstDate->toDateString(),
+                'start_time' => '10:00:00',
+                'end_time' => '11:00:00',
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'Khách đã đặt',
+                'walk_in_phone' => '0901234567',
+            ])
+            ->assertCreated();
+
+        $payload = [
+            'venue_court_id' => $this->court->id,
+            'recurring_start_date' => $firstDate->toDateString(),
+            'recurring_end_date' => $secondDate->toDateString(),
+            'recurrence_type' => 'weekly',
+            'recurrence_interval' => 1,
+            'recurrence_days_of_week' => [$weekDay],
+            'start_time' => '10:00:00',
+            'end_time' => '11:00:00',
+            'payment_option' => 'no_prepay',
+            'walk_in_name' => 'Khách cố định',
+            'walk_in_phone' => '0907654321',
+        ];
+
+        $conflictResponse = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/recurring', $payload)
+            ->assertStatus(409)
+            ->assertJsonPath('conflict_count', 1)
+            ->assertJsonPath('conflicts.0.date', $firstDate->toDateString());
+
+        $this->assertSame($this->secondCourt->id, $conflictResponse->json('conflicts.0.alternatives.0.id'));
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/recurring', [
+                ...$payload,
+                'conflict_resolution' => 'mixed',
+                'conflict_overrides' => [
+                    [
+                        'date' => $firstDate->toDateString(),
+                        'action' => 'switch',
+                        'venue_court_id' => $this->secondCourt->id,
+                    ],
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.created_count', 2)
+            ->assertJsonPath('data.switched_count', 1);
+
+        $this->assertDatabaseHas('bookings', [
+            'booking_date' => $firstDate->toDateString(),
+            'venue_court_id' => $this->secondCourt->id,
+            'walk_in_name' => 'Khách cố định',
+            'booking_type' => 'recurring',
+        ]);
+
+        $this->assertDatabaseHas('bookings', [
+            'booking_date' => $secondDate->toDateString(),
+            'venue_court_id' => $this->court->id,
+            'walk_in_name' => 'Khách cố định',
+            'booking_type' => 'recurring',
+        ]);
+    }
+
+    public function test_owner_can_list_and_collect_recurring_group_bill(): void
+    {
+        $firstDate = now()->addWeek()->startOfDay();
+        $secondDate = $firstDate->copy()->addWeek();
+        $weekDay = $firstDate->dayOfWeekIso - 1;
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/recurring', [
+                'venue_court_id' => $this->court->id,
+                'recurring_start_date' => $firstDate->toDateString(),
+                'recurring_end_date' => $secondDate->toDateString(),
+                'recurrence_type' => 'weekly',
+                'recurrence_interval' => 1,
+                'recurrence_days_of_week' => [$weekDay],
+                'start_time' => '15:00:00',
+                'end_time' => '16:00:00',
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'Khách thanh toán nhóm',
+                'walk_in_phone' => '0907654321',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.created_count', 2);
+
+        $groupCode = $response->json('data.recurring_group_code');
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->getJson('/api/owner/bookings/recurring-groups?'.http_build_query([
+                'venue_cluster_id' => $this->cluster->id,
+                'q' => $groupCode,
+            ]))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.recurring_group_code', $groupCode)
+            ->assertJsonPath('data.0.booking_count', 2)
+            ->assertJsonPath('data.0.outstanding_amount', 20000);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson("/api/owner/bookings/recurring-groups/{$groupCode}/payments/collect", [
+                'payment_method' => 'cash',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.outstanding_amount', 0);
+
+        $bookingIds = Booking::query()
+            ->where('recurring_group_code', $groupCode)
+            ->pluck('id');
+
+        $this->assertSame(2, Payment::query()
+            ->whereIn('booking_id', $bookingIds)
+            ->where('status', 'paid')
+            ->where('method', 'cash')
+            ->count());
     }
 
     public function test_owner_can_create_counter_booking_with_split_time_ranges(): void

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\Refund;
+use App\Models\UserPayoutAccount;
 use App\Models\VenueCluster;
 use App\Services\Admin\AdminAuditService;
 use App\Services\Finance\AdminRefundService;
@@ -73,14 +74,14 @@ class FinanceOperationController extends Controller
                 'adminConfirmedBy:id,username,full_name',
                 'receipt',
             ])
-            ->when($data['status'] ?? null, fn ($query, string $status) => $query->where('status', $status));
+            ->when($data['status'] ?? null, fn($query, string $status) => $query->where('status', $status));
 
         $this->applyRefundFilters($query, $data);
 
         $summary = [
             'total' => (clone $query)->count(),
             'pending_confirmation' => (clone $query)->whereIn('status', ['pending_confirmation', 'pending_owner_confirmation'])->count(),
-            'processing' => (clone $query)->whereIn('status', ['owner_confirmed', 'admin_processing', 'processing'])->count(),
+            'processing' => (clone $query)->whereIn('status', $this->refundPayableStatuses())->count(),
             'completed' => (clone $query)->where('status', 'completed')->count(),
             'requested_amount' => (float) (clone $query)->sum('amount'),
         ];
@@ -88,7 +89,7 @@ class FinanceOperationController extends Controller
         $refunds = $query->latest()->paginate((int) ($data['per_page'] ?? 20));
 
         return response()->json([
-            'data' => $refunds->getCollection()->map(fn (Refund $refund): array => $this->refundPayload($refund))->values(),
+            'data' => $refunds->getCollection()->map(fn(Refund $refund): array => $this->refundPayload($refund))->values(),
             'meta' => $this->paginationPayload($refunds),
             'summary' => $summary,
         ]);
@@ -99,8 +100,8 @@ class FinanceOperationController extends Controller
         $this->authorizePermission($request, 'refund.approve');
         $refund = Refund::query()->findOrFail($id);
         $data = $request->validate([
-            'status' => ['required', Rule::in(['processing', 'completed', 'rejected'])],
-            'reason' => ['nullable', 'string', 'max:2000', 'required_if:status,rejected'],
+            'status' => ['required', Rule::in(['completed'])],
+            'reason' => ['nullable', 'string', 'max:2000'],
             'source' => ['nullable', Rule::in(['admin', 'gateway', 'mock'])],
             'gateway_refund_txn_id' => [
                 'nullable',
@@ -111,11 +112,16 @@ class FinanceOperationController extends Controller
         ]);
         $oldValues = $refund->toArray();
 
+        $source = $data['source'] ?? 'admin';
+        if ($data['status'] === 'completed' && $source === 'admin') {
+            return response()->json(['message' => 'Không thể hoàn tất thủ công. Vui lòng đối soát tự động qua SePay.'], 422);
+        }
+
         try {
             $updated = $this->refunds->updateStatus($refund, $data['status'], [
                 'actor_id' => $request->user()->id,
                 'reason' => $data['reason'] ?? 'Admin xử lý yêu cầu hoàn tiền.',
-                'source' => $data['source'] ?? 'admin',
+                'source' => $source,
                 'gateway_refund_txn_id' => $data['gateway_refund_txn_id'] ?? null,
             ]);
         } catch (RuntimeException $e) {
@@ -199,14 +205,14 @@ class FinanceOperationController extends Controller
                 'completedBy:id,username,full_name',
                 'receipt',
             ])
-            ->when($data['status'] ?? null, fn ($query, string $status) => $query->where('status', $status));
+            ->when($data['status'] ?? null, fn($query, string $status) => $query->where('status', $status));
 
         $this->applyWithdrawalFilters($query, $data);
 
         $summary = [
             'total' => (clone $query)->count(),
-            'pending' => (clone $query)->whereIn('status', ['pending', 'reviewing'])->count(),
-            'approved' => (clone $query)->where('status', 'approved')->count(),
+            'pending' => (clone $query)->whereIn('status', $this->withdrawalPayableStatuses())->count(),
+            'approved' => 0,
             'completed' => (clone $query)->where('status', 'completed')->count(),
             'requested_amount' => (float) (clone $query)->sum('amount'),
         ];
@@ -219,7 +225,7 @@ class FinanceOperationController extends Controller
 
         return response()->json([
             'data' => $withdrawals->getCollection()
-                ->map(fn (OwnerWithdrawalRequest $withdrawal): array => $this->withdrawalPayload($withdrawal, $clusters->get($withdrawal->owner_id, collect())->pluck('name')->values()->all()))
+                ->map(fn(OwnerWithdrawalRequest $withdrawal): array => $this->withdrawalPayload($withdrawal, $clusters->get($withdrawal->owner_id, collect())->pluck('name')->values()->all()))
                 ->values(),
             'meta' => $this->paginationPayload($withdrawals),
             'summary' => $summary,
@@ -231,18 +237,23 @@ class FinanceOperationController extends Controller
         $this->authorizePermission($request, 'withdrawal.manage');
         $withdrawal = OwnerWithdrawalRequest::query()->findOrFail($id);
         $data = $request->validate([
-            'status' => ['required', Rule::in(['approved', 'rejected', 'completed'])],
-            'reason' => ['nullable', 'string', 'max:2000', 'required_if:status,rejected'],
+            'status' => ['required', Rule::in(['completed'])],
+            'reason' => ['nullable', 'string', 'max:2000'],
             'source' => ['nullable', Rule::in(['admin', 'sepay_outbound', 'mock'])],
             'transfer_reference' => ['nullable', 'string', 'max:100', 'required_if:status,completed'],
         ]);
         $oldValues = $withdrawal->toArray();
 
+        $source = $data['source'] ?? 'admin';
+        if ($data['status'] === 'completed' && $source === 'admin') {
+            return response()->json(['message' => 'Không thể hoàn tất thủ công. Vui lòng đối soát tự động qua SePay.'], 422);
+        }
+
         try {
             $updated = $this->withdrawals->updateStatus($withdrawal, $data['status'], [
                 'actor_id' => $request->user()->id,
                 'reason' => $data['reason'] ?? 'Admin xử lý yêu cầu rút tiền.',
-                'source' => $data['source'] ?? 'admin',
+                'source' => $source,
                 'transfer_reference' => $data['transfer_reference'] ?? null,
             ]);
         } catch (RuntimeException $e) {
@@ -316,11 +327,16 @@ class FinanceOperationController extends Controller
             ->whereIn('id', $data['ids'])
             ->get();
 
-        if ($withdrawals->count() !== count($data['ids']) || $withdrawals->contains(fn ($item) => $item->status !== 'approved')) {
-            return response()->json(['message' => 'Chỉ được export các yêu cầu rút tiền đã duyệt.'], 422);
+        $invalid = $withdrawals->count() !== count($data['ids'])
+            || $withdrawals->contains(fn(OwnerWithdrawalRequest $item): bool => ! in_array($item->status, $this->withdrawalPayableStatuses(), true)
+                || ! $item->bankAccount
+                || $item->bankAccount->status !== 'active');
+
+        if ($invalid) {
+            return response()->json(['message' => 'Chỉ được export các yêu cầu rút tiền đang chờ chuyển khoản và có tài khoản nhận tiền hợp lệ.'], 422);
         }
 
-        $batchCode = 'MBBULK-'.now()->format('YmdHis');
+        $batchCode = 'MBBULK-' . now()->format('YmdHis');
 
         foreach ($withdrawals as $withdrawal) {
             $withdrawal->update([
@@ -332,7 +348,7 @@ class FinanceOperationController extends Controller
             ]);
         }
 
-        $rows = $withdrawals->values()->map(fn (OwnerWithdrawalRequest $withdrawal): array => [
+        $rows = $withdrawals->values()->map(fn(OwnerWithdrawalRequest $withdrawal): array => [
             'account_number' => (string) $withdrawal->bankAccount?->account_number,
             'account_holder_name' => (string) $withdrawal->bankAccount?->account_holder_name,
             'bank_code' => (string) $withdrawal->bankAccount?->bank_code,
@@ -342,7 +358,7 @@ class FinanceOperationController extends Controller
         ]);
 
         return response($this->mbBulkExport->buildRows($rows), 200, [
-            'Content-Disposition' => 'attachment; filename="'.$batchCode.'.xlsx"',
+            'Content-Disposition' => 'attachment; filename="' . $batchCode . '.xlsx"',
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
@@ -360,17 +376,20 @@ class FinanceOperationController extends Controller
             ->whereIn('id', $data['ids'])
             ->get();
 
+        $refunds->each(fn(Refund $refund): ?UserPayoutAccount => $this->resolveRefundPayoutAccount($refund, true));
+        $refunds->load('payoutAccount');
+
         $invalid = $refunds->count() !== count($data['ids'])
-            || $refunds->contains(fn (Refund $refund): bool => $refund->status !== 'processing'
+            || $refunds->contains(fn(Refund $refund): bool => ! in_array($refund->status, $this->refundPayableStatuses(), true)
                 || $refund->refund_destination !== 'bank_account'
                 || ! $refund->payoutAccount
                 || $refund->payoutAccount->status !== 'active');
 
         if ($invalid) {
-            return response()->json(['message' => 'Chỉ được export các yêu cầu hoàn tiền đang xử lý và có tài khoản nhận tiền hợp lệ.'], 422);
+            return response()->json(['message' => 'Chỉ được export các yêu cầu hoàn tiền đang chờ chuyển khoản và có tài khoản nhận tiền hợp lệ.'], 422);
         }
 
-        $rows = $refunds->values()->map(fn (Refund $refund): array => [
+        $rows = $refunds->values()->map(fn(Refund $refund): array => [
             'account_number' => (string) $refund->payoutAccount?->bank_account_number,
             'account_holder_name' => (string) $refund->payoutAccount?->bank_account_holder,
             'bank_code' => '',
@@ -379,10 +398,10 @@ class FinanceOperationController extends Controller
             'content' => $this->sepayPayouts->ensureRefundTransferCode($refund),
         ]);
 
-        $batchCode = 'MBREFUND-'.now()->format('YmdHis');
+        $batchCode = 'MBREFUND-' . now()->format('YmdHis');
 
         return response($this->mbBulkExport->buildRows($rows), 200, [
-            'Content-Disposition' => 'attachment; filename="'.$batchCode.'.xlsx"',
+            'Content-Disposition' => 'attachment; filename="' . $batchCode . '.xlsx"',
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
@@ -391,67 +410,67 @@ class FinanceOperationController extends Controller
     {
         $query
             ->when($data['keyword'] ?? null, function ($query, string $keyword): void {
-                $keyword = '%'.$keyword.'%';
+                $keyword = '%' . $keyword . '%';
                 $query->where(function ($inner) use ($keyword): void {
                     $inner->where('reason', 'like', $keyword)
                         ->orWhere('gateway_refund_txn_id', 'like', $keyword)
-                        ->orWhereHas('payment', fn ($payment) => $payment
+                        ->orWhereHas('payment', fn($payment) => $payment
                             ->where('payment_code', 'like', $keyword)
                             ->orWhere('gateway_txn_id', 'like', $keyword))
-                        ->orWhereHas('booking', fn ($booking) => $booking->where('booking_code', 'like', $keyword))
-                        ->orWhereHas('booking.customer', fn ($customer) => $customer
+                        ->orWhereHas('booking', fn($booking) => $booking->where('booking_code', 'like', $keyword))
+                        ->orWhereHas('booking.customer', fn($customer) => $customer
                             ->where('username', 'like', $keyword)
                             ->orWhere('full_name', 'like', $keyword)
                             ->orWhere('email', 'like', $keyword)
                             ->orWhere('phone', 'like', $keyword))
-                        ->orWhereHas('booking.venueCluster', fn ($cluster) => $cluster->where('name', 'like', $keyword))
-                        ->orWhereHas('payoutAccount', fn ($account) => $account
+                        ->orWhereHas('booking.venueCluster', fn($cluster) => $cluster->where('name', 'like', $keyword))
+                        ->orWhereHas('payoutAccount', fn($account) => $account
                             ->where('bank_name', 'like', $keyword)
                             ->orWhere('bank_account_number', 'like', $keyword)
                             ->orWhere('bank_account_holder', 'like', $keyword));
                 });
             })
-            ->when($data['refund_destination'] ?? null, fn ($query, string $destination) => $query->where('refund_destination', $destination))
-            ->when($data['payment_method'] ?? null, fn ($query, string $method) => $query->whereHas('payment', fn ($payment) => $payment->where('method', $method)))
-            ->when($data['payment_kind'] ?? null, fn ($query, string $kind) => $query->whereHas('payment', fn ($payment) => $payment->where('payment_kind', $kind)))
-            ->when($data['venue_cluster_id'] ?? null, fn ($query, string $id) => $query->whereHas('booking', fn ($booking) => $booking->where('venue_cluster_id', $id)))
-            ->when($data['customer_id'] ?? null, fn ($query, string $id) => $query->where('customer_id', $id))
-            ->when(($data['owner_confirmed'] ?? null) === 'yes', fn ($query) => $query->whereNotNull('owner_confirmed_at'))
-            ->when(($data['owner_confirmed'] ?? null) === 'no', fn ($query) => $query->whereNull('owner_confirmed_at'))
-            ->when($data['amount_min'] ?? null, fn ($query, $amount) => $query->where('amount', '>=', $amount))
-            ->when($data['amount_max'] ?? null, fn ($query, $amount) => $query->where('amount', '<=', $amount))
-            ->when($data['date_from'] ?? null, fn ($query, string $date) => $query->whereDate('created_at', '>=', $date))
-            ->when($data['date_to'] ?? null, fn ($query, string $date) => $query->whereDate('created_at', '<=', $date));
+            ->when($data['refund_destination'] ?? null, fn($query, string $destination) => $query->where('refund_destination', $destination))
+            ->when($data['payment_method'] ?? null, fn($query, string $method) => $query->whereHas('payment', fn($payment) => $payment->where('method', $method)))
+            ->when($data['payment_kind'] ?? null, fn($query, string $kind) => $query->whereHas('payment', fn($payment) => $payment->where('payment_kind', $kind)))
+            ->when($data['venue_cluster_id'] ?? null, fn($query, string $id) => $query->whereHas('booking', fn($booking) => $booking->where('venue_cluster_id', $id)))
+            ->when($data['customer_id'] ?? null, fn($query, string $id) => $query->where('customer_id', $id))
+            ->when(($data['owner_confirmed'] ?? null) === 'yes', fn($query) => $query->whereNotNull('owner_confirmed_at'))
+            ->when(($data['owner_confirmed'] ?? null) === 'no', fn($query) => $query->whereNull('owner_confirmed_at'))
+            ->when($data['amount_min'] ?? null, fn($query, $amount) => $query->where('amount', '>=', $amount))
+            ->when($data['amount_max'] ?? null, fn($query, $amount) => $query->where('amount', '<=', $amount))
+            ->when($data['date_from'] ?? null, fn($query, string $date) => $query->whereDate('created_at', '>=', $date))
+            ->when($data['date_to'] ?? null, fn($query, string $date) => $query->whereDate('created_at', '<=', $date));
     }
 
     private function applyWithdrawalFilters($query, array $data): void
     {
         $query
             ->when($data['keyword'] ?? null, function ($query, string $keyword): void {
-                $keyword = '%'.$keyword.'%';
+                $keyword = '%' . $keyword . '%';
                 $query->where(function ($inner) use ($keyword): void {
                     $inner->where('request_code', 'like', $keyword)
                         ->orWhere('owner_note', 'like', $keyword)
                         ->orWhere('transfer_reference', 'like', $keyword)
-                        ->orWhereHas('owner', fn ($owner) => $owner
+                        ->orWhereHas('owner', fn($owner) => $owner
                             ->where('username', 'like', $keyword)
                             ->orWhere('full_name', 'like', $keyword)
                             ->orWhere('email', 'like', $keyword)
                             ->orWhere('phone', 'like', $keyword))
-                        ->orWhereHas('bankAccount', fn ($account) => $account
+                        ->orWhereHas('bankAccount', fn($account) => $account
                             ->where('bank_name', 'like', $keyword)
                             ->orWhere('bank_code', 'like', $keyword)
                             ->orWhere('account_number', 'like', $keyword)
                             ->orWhere('account_holder_name', 'like', $keyword));
                 });
             })
-            ->when($data['owner_id'] ?? null, fn ($query, string $id) => $query->where('owner_id', $id))
-            ->when($data['bank_code'] ?? null, fn ($query, string $code) => $query->whereHas('bankAccount', fn ($account) => $account->where('bank_code', $code)))
-            ->when($data['venue_cluster_id'] ?? null, fn ($query, string $id) => $query->whereIn('owner_id', VenueCluster::query()->select('owner_id')->whereKey($id)))
-            ->when($data['amount_min'] ?? null, fn ($query, $amount) => $query->where('amount', '>=', $amount))
-            ->when($data['amount_max'] ?? null, fn ($query, $amount) => $query->where('amount', '<=', $amount))
-            ->when($data['date_from'] ?? null, fn ($query, string $date) => $query->whereDate('requested_at', '>=', $date))
-            ->when($data['date_to'] ?? null, fn ($query, string $date) => $query->whereDate('requested_at', '<=', $date));
+            ->when($data['owner_id'] ?? null, fn($query, string $id) => $query->where('owner_id', $id))
+            ->when($data['bank_code'] ?? null, fn($query, string $code) => $query->whereHas('bankAccount', fn($account) => $account->where('bank_code', $code)))
+            ->when($data['venue_cluster_id'] ?? null, fn($query, string $id) => $query->whereIn('owner_id', VenueCluster::query()->select('owner_id')->whereKey($id)))
+            ->when($data['amount_min'] ?? null, fn($query, $amount) => $query->where('amount', '>=', $amount))
+            ->when($data['amount_max'] ?? null, fn($query, $amount) => $query->where('amount', '<=', $amount))
+            ->when($data['date_from'] ?? null, fn($query, string $date) => $query->whereDate('requested_at', '>=', $date))
+            ->when($data['date_to'] ?? null, fn($query, string $date) => $query->whereDate('requested_at', '<=', $date));
     }
 
     private function loadRefund(string $id): Refund
@@ -482,15 +501,24 @@ class FinanceOperationController extends Controller
 
     private function refundPayload(Refund $refund): array
     {
+        $payoutAccount = $this->resolveRefundPayoutAccount($refund);
         $destination = match ($refund->refund_destination) {
             'bank_account' => [
                 'type' => 'bank_account',
-                'label' => $refund->payoutAccount?->bank_name,
-                'account_number' => $refund->payoutAccount?->bank_account_number,
-                'account_holder' => $refund->payoutAccount?->bank_account_holder,
+                'label' => $payoutAccount?->bank_name,
+                'account_number' => $payoutAccount?->bank_account_number,
+                'account_holder' => $payoutAccount?->bank_account_holder,
             ],
             'user_wallet' => ['type' => 'user_wallet', 'label' => 'Ví SportGo'],
-            default => ['type' => 'original_payment', 'label' => 'Phương thức gốc: '.strtoupper((string) $refund->payment?->method)],
+            default => $payoutAccount
+                ? [
+                    'type' => 'bank_account',
+                    'label' => $payoutAccount->bank_name,
+                    'account_number' => $payoutAccount->bank_account_number,
+                    'account_holder' => $payoutAccount->bank_account_holder,
+                    'source' => 'customer_default',
+                ]
+                : ['type' => 'original_payment', 'label' => 'Phương thức gốc: ' . strtoupper((string) $refund->payment?->method)],
         };
 
         return [
@@ -520,19 +548,50 @@ class FinanceOperationController extends Controller
             'processed_at' => $refund->processed_at,
             'created_at' => $refund->created_at,
             'receipt' => $this->receiptPayload($refund->receipt),
-            'policy_evaluation' => $this->refundPolicies->evaluate($refund),
-            'can_pay_by_qr' => $refund->status === 'processing'
-                && $refund->refund_destination === 'bank_account'
-                && $refund->payoutAccount?->status === 'active'
-                && filled($refund->payoutAccount?->bank_account_number),
-            'allowed_statuses' => [
-                'pending_confirmation' => ['processing', 'rejected'],
-                'owner_confirmed' => ['processing', 'completed', 'rejected'],
-                'admin_processing' => ['completed', 'rejected'],
-                'processing' => ['completed', 'rejected'],
-                'failed' => ['processing', 'rejected'],
-            ][$refund->status] ?? [],
+            'policy_evaluation' => $this->formatPolicyEvaluation($this->refundPolicies->evaluate($refund)),
+            'can_pay_by_qr' => in_array($refund->status, $this->refundPayableStatuses(), true)
+                && $payoutAccount !== null,
+            'allowed_statuses' => [],
         ];
+    }
+
+    private function resolveRefundPayoutAccount(Refund $refund, bool $persist = false): ?UserPayoutAccount
+    {
+        if (! in_array($refund->refund_destination, ['bank_account', 'original_payment'], true)) {
+            return null;
+        }
+
+        $account = $refund->payoutAccount;
+
+        if (! $account || $account->status !== 'active' || blank($account->bank_account_number)) {
+            $customerId = $refund->customer_id ?: $refund->booking?->customer_id;
+
+            if (! $customerId && ! $refund->relationLoaded('booking')) {
+                $customerId = $refund->booking()->value('customer_id');
+            }
+
+            $account = $customerId ? UserPayoutAccount::query()
+                ->where('user_id', $customerId)
+                ->where('status', 'active')
+                ->whereNotNull('bank_account_number')
+                ->orderByDesc('is_default')
+                ->latest()
+                ->first() : null;
+        }
+
+        if (! $account || $account->status !== 'active' || blank($account->bank_account_number)) {
+            return null;
+        }
+
+        if ($persist && ($refund->refund_destination !== 'bank_account' || $refund->user_payout_account_id !== $account->id)) {
+            $refund->forceFill([
+                'refund_destination' => 'bank_account',
+                'user_payout_account_id' => $account->id,
+            ])->save();
+            $refund->setRelation('payoutAccount', $account);
+        }
+
+        return $account;
     }
 
     private function withdrawalPayload(OwnerWithdrawalRequest $withdrawal, array $clusterNames): array
@@ -561,15 +620,21 @@ class FinanceOperationController extends Controller
             'reviewed_at' => $withdrawal->reviewed_at,
             'completed_at' => $withdrawal->completed_at,
             'receipt' => $this->receiptPayload($withdrawal->receipt),
-            'can_pay_by_qr' => $withdrawal->status === 'approved'
+            'can_pay_by_qr' => in_array($withdrawal->status, $this->withdrawalPayableStatuses(), true)
                 && $withdrawal->bankAccount?->status === 'active'
                 && filled($withdrawal->bankAccount?->account_number),
-            'allowed_statuses' => [
-                'pending' => ['approved', 'rejected'],
-                'reviewing' => ['approved', 'rejected'],
-                'approved' => ['completed', 'rejected'],
-            ][$withdrawal->status] ?? [],
+            'allowed_statuses' => [],
         ];
+    }
+
+    private function refundPayableStatuses(): array
+    {
+        return ['pending_confirmation', 'owner_confirmed', 'admin_processing', 'processing'];
+    }
+
+    private function withdrawalPayableStatuses(): array
+    {
+        return ['pending', 'reviewing', 'approved'];
     }
 
     private function receiptPayload($receipt): ?array
@@ -587,6 +652,57 @@ class FinanceOperationController extends Controller
             'issued_at' => $receipt->issued_at,
             'metadata' => $receipt->metadata,
         ];
+    }
+
+    private function formatPolicyEvaluation(array $raw): array
+    {
+        $result = array_merge($raw, [
+            'evaluated' => (bool) ($raw['evaluated'] ?? false),
+            'compliant' => $raw['compliant'] ?? null,
+            'summary' => $raw['summary'] ?? null,
+            'warning' => $raw['warning'] ?? null,
+            'source' => $raw['source'] ?? null,
+            'detail' => null,
+            'violations' => [],
+        ]);
+
+        if ($result['evaluated'] && $result['source'] !== 'no_rule') {
+            $result['detail'] = [
+                'refund_percent' => $raw['refund_percent'] ?? null,
+                'suggested_amount' => $raw['suggested_amount'] ?? null,
+                'requested_amount' => $raw['requested_amount'] ?? null,
+                'paid_amount' => $raw['paid_amount'] ?? null,
+                'hours_before_start' => $raw['hours_before_start'] ?? null,
+                'requires_admin_review' => (bool) ($raw['requires_admin_review'] ?? false),
+                'rule_name' => $raw['rule']['name'] ?? null,
+                'rule_type' => $raw['rule']['type'] ?? null,
+                'policy_title' => $raw['policy']['title'] ?? null,
+                'source_label' => match ($raw['source'] ?? null) {
+                    'venue_policy_rule' => 'Chính sách cụm sân',
+                    'system_policy_rule' => 'Chính sách hệ thống',
+                    'booking_config' => 'Cấu hình đặt sân',
+                    default => null,
+                },
+            ];
+        }
+
+        if (($raw['compliant'] ?? null) === false) {
+            $suggested = number_format((float) ($raw['suggested_amount'] ?? 0), 0, ',', '.');
+            $requested = number_format((float) ($raw['requested_amount'] ?? 0), 0, ',', '.');
+            $result['violations'][] = [
+                'code' => 'amount_exceeds_policy',
+                'message' => "Số tiền yêu cầu ({$requested}đ) vượt mức chính sách cho phép ({$suggested}đ).",
+            ];
+        }
+
+        if (($raw['requires_admin_review'] ?? false) && ($raw['refund_percent'] ?? 100) === 0) {
+            $result['violations'][] = [
+                'code' => 'zero_refund_policy',
+                'message' => 'Chính sách hiện tại cho hoàn 0%. Admin cần xem xét đặc biệt.',
+            ];
+        }
+
+        return $result;
     }
 
     private function paginationPayload($paginator): array

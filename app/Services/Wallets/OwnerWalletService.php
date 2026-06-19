@@ -255,7 +255,7 @@ class OwnerWalletService
                 'credit',
                 $balanceBefore,
                 (float) $wallet->available_balance,
-                'Hoàn trả số dư do yêu cầu rút '.$withdrawal->request_code.' bị từ chối.',
+                'Hoàn trả số dư do yêu cầu rút '.$withdrawal->request_code.' không tiếp tục xử lý.',
                 $metadata,
             );
         });
@@ -272,7 +272,7 @@ class OwnerWalletService
             }
 
             if (! $this->withdrawalLedger($withdrawal, 'hold')) {
-                throw new RuntimeException('Yêu cầu rút tiền chưa được duyệt và giữ số dư.');
+                throw new RuntimeException('Yêu cầu rút tiền chưa được giữ số dư.');
             }
 
             $wallet = OwnerWallet::query()->whereKey($withdrawal->owner_wallet_id)->lockForUpdate()->firstOrFail();

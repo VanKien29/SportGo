@@ -235,7 +235,20 @@ class SepayPaymentService
                 $payment->paid_at = now();
                 $payment->save();
 
-                if (in_array($payment->booking?->status, ['pending_approval', 'pending_payment'], true)) {
+                $booking = $payment->booking;
+                $paidAmount = $booking
+                    ? (float) $booking->payments()->where('status', 'paid')->sum('amount')
+                    : 0.0;
+
+                if (
+                    $booking?->source === 'counter'
+                    && $paidAmount >= (float) $booking->total_price
+                    && in_array($booking->status, ['pending_approval', 'pending_payment', 'confirmed', 'checked_in'], true)
+                ) {
+                    $payment->booking()->update([
+                        'status' => 'completed',
+                    ]);
+                } elseif (in_array($booking?->status, ['pending_approval', 'pending_payment'], true)) {
                     $payment->booking()->update([
                         'status' => 'confirmed',
                     ]);
