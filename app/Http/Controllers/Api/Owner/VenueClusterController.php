@@ -22,7 +22,7 @@ class VenueClusterController extends Controller
             ->pluck('venue_cluster_id');
 
         $clusters = VenueCluster::query()
-            ->with(['media'])
+            ->with(['media', 'amenityCatalog'])
             ->whereIn('id', $ownedClusterIds->merge($assignedClusterIds)->unique()->values())
             ->latest()
             ->get();
@@ -33,7 +33,7 @@ class VenueClusterController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $cluster = VenueCluster::query()
-            ->with(['venueCourts.courtType', 'media', 'bookingConfig'])
+            ->with(['venueCourts.courtType', 'media', 'bookingConfig', 'amenityCatalog'])
             ->where('owner_id', $request->user()->id)
             ->findOrFail($id);
 
@@ -49,14 +49,16 @@ class VenueClusterController extends Controller
         }
 
         $data = $request->validate([
-            'name'          => ['required', 'string', 'max:255'],
-            'description'   => ['nullable', 'string', 'max:2000'],
-            'phone_contact' => ['required', 'string', 'max:20'],
-            'amenities'     => ['nullable', 'array'],
+            'name'                 => ['required', 'string', 'max:255'],
+            'description'          => ['nullable', 'string', 'max:2000'],
+            'phone_contact'        => ['required', 'string', 'max:20'],
+            'amenities'            => ['nullable', 'array'],
+            'amenity_descriptions' => ['nullable', 'array'],
         ]);
 
         $data['slug'] = Str::slug($data['name']) . '-' . substr($id, 0, 8);
         $amenityNames = $data['amenities'] ?? [];
+        $amenityDescriptions = $data['amenity_descriptions'] ?? [];
 
         // Find matching active amenities
         $activeAmenities = \App\Models\Amenity::whereIn('name', $amenityNames)
@@ -67,18 +69,19 @@ class VenueClusterController extends Controller
         foreach ($activeAmenities as $amenity) {
             $syncData[$amenity->id] = [
                 'is_visible' => true,
-                'description' => null,
+                'description' => $amenityDescriptions[$amenity->name] ?? null,
             ];
         }
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($cluster, $data, $syncData) {
-            $cluster->update($data);
+            $updateData = collect($data)->except(['amenity_descriptions'])->toArray();
+            $cluster->update($updateData);
             $cluster->amenityCatalog()->sync($syncData);
         });
 
         return response()->json([
             'message' => 'Cập nhật cụm sân thành công.',
-            'data' => $cluster->fresh(['media']),
+            'data' => $cluster->fresh(['media', 'amenityCatalog']),
         ]);
     }
 

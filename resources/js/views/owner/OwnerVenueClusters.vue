@@ -179,18 +179,33 @@
                         <div class="form-group">
                             <label>Tiện ích cụm sân (Amenities)</label>
                             <div class="amenities-grid">
-                                <label
+                                <div
                                     v-for="item in availableAmenities"
                                     :key="item"
-                                    class="amenity-checkbox"
+                                    class="amenity-item-wrapper"
+                                    :class="{ active: form.amenities.includes(item) }"
                                 >
-                                    <input
-                                        v-model="form.amenities"
-                                        type="checkbox"
-                                        :value="item"
-                                    />
-                                    <span>{{ item }}</span>
-                                </label>
+                                    <div class="amenity-item-row">
+                                        <label class="amenity-checkbox">
+                                            <input
+                                                v-model="form.amenities"
+                                                type="checkbox"
+                                                :value="item"
+                                            />
+                                            <span>{{ item }}</span>
+                                        </label>
+                                        <button
+                                            v-if="form.amenities.includes(item)"
+                                            type="button"
+                                            class="btn-edit-amenity-desc"
+                                            @click.stop="openAmenityDescModal(item)"
+                                            :title="form.amenity_descriptions[item] ? 'Sửa mô tả tiện ích (đã có mô tả)' : 'Thêm mô tả tiện ích'"
+                                        >
+                                            <AppIcon name="pencil" size="13" />
+                                            <span v-if="form.amenity_descriptions[item]" class="has-desc-dot"></span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             <div class="amenity-request-tip">
                                 Bạn không tìm thấy tiện ích mong muốn?
@@ -1872,6 +1887,50 @@
                 </form>
             </div>
         </div>
+
+        <!-- Modal: Chỉnh sửa mô tả tiện ích -->
+        <div
+            v-if="showAmenityDescModal"
+            class="modal-backdrop"
+            @click.self="closeAmenityDescModal"
+        >
+            <div class="modal card modal-amenity-desc">
+                <div class="modal-header">
+                    <h3>Mô tả tiện ích: {{ editingAmenityName }}</h3>
+                    <button class="btn-close" @click="closeAmenityDescModal">
+                        &times;
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="temp-amenity-desc" class="form-label">Mô tả hiển thị cho khách hàng</label>
+                        <textarea
+                            id="temp-amenity-desc"
+                            v-model="tempAmenityDesc"
+                            class="form-control"
+                            rows="4"
+                            placeholder="Nhập mô tả cụ thể (ví dụ: Mật khẩu Wifi, vị trí bãi đỗ xe, có tính phí hay không...)"
+                        ></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        type="button"
+                        class="btn btn-outline"
+                        @click="closeAmenityDescModal"
+                    >
+                        Hủy
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        @click="saveAmenityDesc"
+                    >
+                        Đồng ý
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -1922,6 +1981,7 @@ export default {
                 latitude: 21.0285,
                 longitude: 105.8542,
                 amenities: [],
+                amenity_descriptions: {},
                 description: "",
             },
             map: null,
@@ -1929,6 +1989,9 @@ export default {
  
             // Amenity request modal
             showRequestModal: false,
+            showAmenityDescModal: false,
+            editingAmenityName: "",
+            tempAmenityDesc: "",
             requestSubmitting: false,
             requestError: null,
             requestSuccessMsg: null,
@@ -2190,6 +2253,22 @@ export default {
                     img.file_path &&
                     !img.file_path.includes("default-home.jpg"),
             );
+            const descriptions = {};
+            if (Array.isArray(cluster.amenity_catalog)) {
+                cluster.amenity_catalog.forEach(a => {
+                    if (a.pivot) {
+                        descriptions[a.name] = a.pivot.description || "";
+                    }
+                });
+            }
+            if (Array.isArray(this.availableAmenities)) {
+                this.availableAmenities.forEach(name => {
+                    if (descriptions[name] === undefined) {
+                        descriptions[name] = "";
+                    }
+                });
+            }
+
             this.form = {
                 name: cluster.name,
                 phone_contact: cluster.phone_contact || "",
@@ -2202,6 +2281,7 @@ export default {
                 amenities: Array.isArray(cluster.amenities)
                     ? cluster.amenities
                     : [],
+                amenity_descriptions: descriptions,
                 description: cluster.description || "",
             };
             this.decorations = Array.isArray(cluster.layout_decorations)
@@ -2331,9 +2411,33 @@ export default {
             try {
                 const res = await amenityService.getAll(true);
                 this.availableAmenities = (res.data || []).map((a) => a.name);
+                if (this.form && this.form.amenity_descriptions) {
+                    this.availableAmenities.forEach(name => {
+                        if (this.form.amenity_descriptions[name] === undefined) {
+                            this.form.amenity_descriptions[name] = "";
+                        }
+                    });
+                }
             } catch (err) {
                 console.error("Lỗi khi tải danh sách tiện ích:", err.message);
             }
+        },
+
+        openAmenityDescModal(amenityName) {
+            this.editingAmenityName = amenityName;
+            this.tempAmenityDesc = this.form.amenity_descriptions[amenityName] || "";
+            this.showAmenityDescModal = true;
+        },
+        closeAmenityDescModal() {
+            this.showAmenityDescModal = false;
+            this.editingAmenityName = "";
+            this.tempAmenityDesc = "";
+        },
+        saveAmenityDesc() {
+            if (this.editingAmenityName) {
+                this.form.amenity_descriptions[this.editingAmenityName] = this.tempAmenityDesc;
+            }
+            this.closeAmenityDescModal();
         },
 
         async fetchProvinces() {
@@ -3834,12 +3938,33 @@ export default {
 
 .amenities-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 12px;
     background: var(--sg-surface);
     padding: 16px;
     border-radius: 8px;
     border: 1px solid var(--sg-border);
+}
+.amenity-item-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--sg-background);
+    border: 1px solid var(--sg-border);
+    transition: all 0.2s ease;
+}
+.amenity-item-wrapper.active {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.04);
+}
+.amenity-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
 }
 .amenity-checkbox {
     display: flex;
@@ -3852,7 +3977,40 @@ export default {
 .amenity-checkbox input {
     width: 16px;
     height: 16px;
-    accent-color: #000;
+    accent-color: #10b981;
+}
+.btn-edit-amenity-desc {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    color: #64748b;
+}
+.btn-edit-amenity-desc:hover {
+    background-color: rgba(15, 23, 42, 0.08);
+    color: #10b981;
+}
+.btn-edit-amenity-desc .edit-icon {
+    font-size: 13px;
+}
+.has-desc-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    background-color: #10b981;
+    border-radius: 50%;
+}
+.modal-amenity-desc {
+    max-width: 450px;
+    width: 90%;
 }
 .amenity-request-tip {
     margin-top: 8px;

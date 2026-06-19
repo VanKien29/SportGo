@@ -217,7 +217,22 @@
                                 >
                                     Tiện ích
                                 </h2>
-                                <div class="flex flex-wrap gap-2">
+                                <div v-if="amenitiesDetail.length > 0" class="space-y-3">
+                                    <div
+                                        v-for="item in amenitiesDetail"
+                                        :key="item.name"
+                                        class="p-3 bg-white border border-gray-100 rounded-xl shadow-sm transition-all duration-200 hover:border-emerald-300"
+                                    >
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            <span class="text-sm font-black text-gray-800">{{ item.name }}</span>
+                                        </div>
+                                        <p v-if="item.description" class="mt-1 text-xs text-gray-500 ml-4 italic leading-relaxed">
+                                            {{ item.description }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div v-else class="flex flex-wrap gap-2">
                                     <span
                                         v-for="item in amenities"
                                         :key="item"
@@ -780,6 +795,11 @@ export default {
         amenities() {
             return Array.isArray(this.venue?.amenities)
                 ? this.venue.amenities
+                : [];
+        },
+        amenitiesDetail() {
+            return Array.isArray(this.venue?.amenities_detail)
+                ? this.venue.amenities_detail
                 : [];
         },
         selectedCourt() {
