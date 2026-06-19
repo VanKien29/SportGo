@@ -30,6 +30,7 @@ export default {
   computed: {
     canGoBack() {
       if (!this.$route) return false;
+      if (this.$route.meta?.hideFloatingBack) return false;
       const path = this.$route.path;
       if (path === '/' || path === '/login' || path === '/register' || path.startsWith('/auth')) return false;
       

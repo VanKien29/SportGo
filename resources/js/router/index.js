@@ -91,9 +91,9 @@ const routes = [
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
             { path: "staffs", name: "admin-staffs", component: AdminStaffs },
-            { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail },
+            { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail, meta: { hideFloatingBack: true } },
             { path: "vouchers", name: "admin-vouchers", component: AdminVouchers },
-            { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail },
+            { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail, meta: { hideFloatingBack: true } },
             {
                 path: "payments",
                 name: "admin-payments",
@@ -125,7 +125,7 @@ const routes = [
                 name: "admin-platform-fee-policies",
                 component: AdminPolicies,
             },
-            { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
+            { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail, meta: { hideFloatingBack: true } },
             {
                 path: "reports",
                 name: "admin-reports",
@@ -137,7 +137,7 @@ const routes = [
                 component: () => import("../views/admin/AdminComplaints.vue"),
             },
             { path: "roles", name: "admin-roles", component: AdminRoles },
-            { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail },
+            { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail, meta: { hideFloatingBack: true } },
             {
                 path: "court-types",
                 name: "admin-court-types",
@@ -179,12 +179,14 @@ const routes = [
                 name: "admin-platform-fee-ledger-detail",
                 component: () =>
                     import("../views/admin/AdminPlatformFeeLedgerDetail.vue"),
+                meta: { hideFloatingBack: true },
             },
             {
                 path: "venues/:id/platform-fees",
                 name: "admin-venue-platform-fees",
                 component: () =>
                     import("../views/admin/AdminVenuePlatformFees.vue"),
+                meta: { hideFloatingBack: true },
             },
             {
                 path: "settings/platform-fee",
@@ -197,6 +199,7 @@ const routes = [
                 name: "admin-post-detail",
                 component: () =>
                     import("../views/admin/AdminPostDetail.vue"),
+                meta: { hideFloatingBack: true },
             },
             { path: "", redirect: { name: "admin-dashboard" } },
         ],
