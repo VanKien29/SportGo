@@ -47,6 +47,14 @@ class AdminReportController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizePermission($request, 'report.view');
+        $request->validate([
+            'status' => ['nullable', Rule::in(['pending', 'reviewing', 'resolved', 'dismissed'])],
+            'reason' => ['nullable', Rule::in(['spam', 'offensive', 'fake', 'harassment', 'other'])],
+            'target_type' => ['nullable', Rule::in(array_keys(self::TARGET_TYPES))],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'keyword' => ['nullable', 'string', 'max:100'],
+        ]);
 
         $query = Report::query()
             ->with(['reporter:id,username,full_name,email', 'reviewedBy:id,username,full_name'])
@@ -144,6 +152,19 @@ class AdminReportController extends Controller
             throw ValidationException::withMessages(['status' => 'Báo cáo này đã được xử lý.']);
         }
 
+        if ($report->status === 'reviewing') {
+            if ($report->reviewed_by !== $request->user()->id) {
+                throw ValidationException::withMessages([
+                    'status' => 'Báo cáo đang được quản trị viên khác kiểm duyệt.',
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Bạn đang kiểm duyệt báo cáo này.',
+                'data' => $this->detailPayload($report->load(['reporter', 'reviewedBy', 'reportable', 'evidence'])),
+            ]);
+        }
+
         $oldValues = $report->only(['status', 'reviewed_by', 'reviewed_at']);
         $report->forceFill([
             'status' => 'reviewing',
@@ -180,6 +201,12 @@ class AdminReportController extends Controller
         $report = Report::query()->with('reportable')->findOrFail($id);
         if (in_array($report->status, ['resolved', 'dismissed'], true)) {
             throw ValidationException::withMessages(['status' => 'Báo cáo này đã được xử lý.']);
+        }
+
+        if ($report->status === 'reviewing' && $report->reviewed_by !== $request->user()->id) {
+            throw ValidationException::withMessages([
+                'status' => 'Báo cáo đang được quản trị viên khác kiểm duyệt.',
+            ]);
         }
 
         $targetOwner = $this->targetOwner($report->reportable);

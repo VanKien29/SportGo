@@ -27,6 +27,10 @@ class VenuePlatformFeeLedger extends Model
         'discount_percent',
         'amount_due',
         'amount_paid',
+        'system_bank_account_id',
+        'payment_code',
+        'gateway_txn_id',
+        'gateway_response',
         'payment_proof_media_id',
         'payment_proof_status',
         'payment_proof_note',
@@ -54,6 +58,7 @@ class VenuePlatformFeeLedger extends Model
             'discount_percent' => 'decimal:2',
             'amount_due' => 'decimal:2',
             'amount_paid' => 'decimal:2',
+            'gateway_response' => 'array',
             'paid_at' => 'datetime',
             'payment_confirmed_at' => 'datetime',
             'payment_rejected_at' => 'datetime',
@@ -84,6 +89,11 @@ class VenuePlatformFeeLedger extends Model
     public function tier()
     {
         return $this->belongsTo(PlatformFeeTier::class, 'tier_id');
+    }
+
+    public function systemBankAccount()
+    {
+        return $this->belongsTo(SystemBankAccount::class, 'system_bank_account_id');
     }
 
     public function venueCluster()

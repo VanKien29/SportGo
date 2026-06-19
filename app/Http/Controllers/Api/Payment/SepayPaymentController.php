@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\SlotLock;
 use App\Services\Finance\SepayPayoutService;
 use App\Services\Payments\SepayPaymentService;
+use App\Services\Payments\PlatformFeePaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
@@ -16,6 +17,7 @@ class SepayPaymentController extends Controller
     public function __construct(
         private readonly SepayPaymentService $sepayPaymentService,
         private readonly SepayPayoutService $sepayPayoutService,
+        private readonly PlatformFeePaymentService $platformFeePaymentService,
     ) {}
 
     public function create(Request $request, string $bookingId): JsonResponse
@@ -105,6 +107,10 @@ class SepayPaymentController extends Controller
         $result = $this->sepayPaymentService->handleIpn($request->all());
 
         if (($result['error_code'] ?? null) === 'payment_not_found') {
+            $result = $this->platformFeePaymentService->handleIpn($request->all());
+        }
+
+        if (($result['error_code'] ?? null) === 'platform_fee_payment_not_found') {
             $result = $this->sepayPayoutService->handleIpn($request->all());
         }
 

@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\Booking;
 use App\Models\BookingConfig;
 use App\Models\CourtType;
+use App\Models\HolidayPrice;
 use App\Models\PriceSlot;
 use App\Models\User;
+use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -148,6 +150,80 @@ class BookingAvailabilityTest extends TestCase
                 'end_time' => '09:30:00',
                 'is_available' => true,
             ]);
+    }
+
+    public function test_price_falls_back_from_holiday_to_weekly_then_base_price(): void
+    {
+        PriceSlot::query()->delete();
+
+        PriceSlot::query()->create([
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $this->courtType->id,
+            'booking_type' => 'all',
+            'start_time' => '00:00:00',
+            'end_time' => '17:00:00',
+            'price' => 80000,
+            'apply_to_days' => [1, 2, 3, 4, 5, 6, 7],
+            'is_active' => true,
+        ]);
+        VenueBasePrice::query()->create([
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $this->courtType->id,
+            'price' => 60000,
+        ]);
+        HolidayPrice::query()->create([
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $this->courtType->id,
+            'date_type' => 'holiday',
+            'booking_type' => 'all',
+            'holiday_date' => $this->bookingDate,
+            'start_time' => '12:00:00',
+            'end_time' => '17:00:00',
+            'price' => 50000,
+            'note' => 'Giá ngày lễ buổi chiều',
+            'is_active' => true,
+        ]);
+
+        $service = app(\App\Services\BookingService::class);
+
+        $this->assertSame('price_slot', $service->resolveHourlyRate(
+            $this->cluster->id,
+            $this->courtType->id,
+            $this->bookingDate,
+            '11:00:00',
+            '11:30:00',
+        )['source']);
+        $this->assertSame(80000.0, $service->resolveHourlyRate(
+            $this->cluster->id,
+            $this->courtType->id,
+            $this->bookingDate,
+            '11:00:00',
+            '11:30:00',
+        )['hourly_rate']);
+
+        $this->assertSame(50000.0, $service->resolveHourlyRate(
+            $this->cluster->id,
+            $this->courtType->id,
+            $this->bookingDate,
+            '12:00:00',
+            '12:30:00',
+        )['hourly_rate']);
+        $this->assertSame(130000.0, $service->calculateTotalPrice(
+            $this->court,
+            $this->bookingDate,
+            '11:00:00',
+            '13:00:00',
+        ));
+
+        $fallback = $service->resolveHourlyRate(
+            $this->cluster->id,
+            $this->courtType->id,
+            $this->bookingDate,
+            '17:00:00',
+            '17:30:00',
+        );
+        $this->assertSame('base_price', $fallback['source']);
+        $this->assertSame(60000.0, $fallback['hourly_rate']);
     }
 
     public function test_create_booking_rejects_overlapping_existing_booking(): void

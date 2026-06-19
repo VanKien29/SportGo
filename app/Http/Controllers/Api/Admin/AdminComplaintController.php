@@ -26,6 +26,17 @@ class AdminComplaintController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizePermission($request, 'complaint.view');
+        $request->validate([
+            'complaint_type' => ['nullable', Rule::in(['venue', 'system'])],
+            'status' => ['nullable', Rule::in(['open', 'processing', 'resolved', 'rejected', 'closed'])],
+            'assigned_to' => ['nullable', Rule::when(
+                $request->query('assigned_to') !== 'unassigned',
+                ['uuid', 'exists:users,id']
+            )],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'keyword' => ['nullable', 'string', 'max:100'],
+        ]);
 
         $request->validate([
             'date_from' => ['nullable', 'date'],
@@ -65,6 +76,7 @@ class AdminComplaintController extends Controller
             ->get();
 
         $staff = User::query()
+            ->where('status', 'active')
             ->whereHas('roles', fn ($query) => $query->whereIn('roles.name', ['super_admin', 'admin', 'complaint_handler', 'system_staff']))
             ->orderBy('full_name')
             ->get(['id', 'username', 'full_name']);
@@ -118,6 +130,7 @@ class AdminComplaintController extends Controller
 
         $assignee = User::query()
             ->whereKey($data['assigned_to'])
+            ->where('status', 'active')
             ->whereHas('roles', fn ($query) => $query->whereIn('roles.name', ['super_admin', 'admin', 'complaint_handler', 'system_staff']))
             ->first();
 
@@ -155,6 +168,17 @@ class AdminComplaintController extends Controller
         ]);
 
         $complaint = Complaint::query()->with(['customer', 'venueCluster.owner'])->findOrFail($id);
+        if (in_array($complaint->status, ['resolved', 'rejected', 'closed'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Khiếu nại đã kết thúc và không thể cập nhật lại.',
+            ]);
+        }
+        $isSuperAdmin = $request->user()->roles()->where('roles.name', 'super_admin')->exists();
+        if ($complaint->assigned_to && $complaint->assigned_to !== $request->user()->id && ! $isSuperAdmin) {
+            throw ValidationException::withMessages([
+                'assigned_to' => 'Khiếu nại đang được phân công cho nhân sự khác.',
+            ]);
+        }
         $oldValues = $complaint->toArray();
         $isFinished = in_array($data['status'], ['resolved', 'rejected', 'closed'], true);
 

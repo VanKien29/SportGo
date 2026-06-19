@@ -55,8 +55,8 @@
       </table>
     </section>
 
-    <div v-if="showModal" class="modal-backdrop" @click.self="closeForm">
-      <form class="modal" @submit.prevent="save">
+    <div v-if="showModal" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeForm)">
+      <form class="modal" @submit.prevent="save" @mousedown.stop>
         <h3>{{ form.id ? 'Sửa voucher sân' : 'Tạo voucher sân' }}</h3>
         <div class="grid">
           <label>Mã voucher<input v-model.trim="form.code" required /></label>
@@ -110,6 +110,7 @@ export default {
       error: '',
       success: '',
       form: this.emptyForm(),
+      mousedownWasOnBackdrop: false,
     };
   },
   mounted() {
@@ -120,6 +121,15 @@ export default {
     window.removeEventListener('owner-cluster-changed', this.load);
   },
   methods: {
+    handleBackdropMousedown(event) {
+      this.mousedownWasOnBackdrop = event.target === event.currentTarget;
+    },
+    handleBackdropClick(event, closeFn) {
+      if (this.mousedownWasOnBackdrop && event.target === event.currentTarget) {
+        closeFn();
+      }
+      this.mousedownWasOnBackdrop = false;
+    },
     emptyForm() {
       return {
         id: null,

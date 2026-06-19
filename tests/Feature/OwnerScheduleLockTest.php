@@ -183,6 +183,31 @@ class OwnerScheduleLockTest extends TestCase
             ->assertJsonValidationErrors('start_time');
     }
 
+    public function test_manual_lock_times_must_follow_thirty_minute_steps(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/schedule-locks', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->date,
+                'start_time' => '08:15:00',
+                'end_time' => '09:00:00',
+                'reason' => 'Bảo trì mặt sân.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('start_time');
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/schedule-locks', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->date,
+                'start_time' => '08:00:00',
+                'end_time' => '09:15:00',
+                'reason' => 'Bảo trì mặt sân.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('end_time');
+    }
+
     public function test_owner_can_lock_multiple_ranges_across_multiple_courts(): void
     {
         $response = $this->actingAs($this->owner, 'sanctum')

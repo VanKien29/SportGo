@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\BookingConfig;
 use App\Models\HolidayPrice;
 use App\Models\PriceSlot;
+use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,9 +68,17 @@ class PricingController extends Controller
             ->orderBy('start_time')
             ->get();
 
+        $basePrices = VenueBasePrice::query()
+            ->with('courtType:id,name')
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->orderBy('court_type_id')
+            ->get();
+
         return response()->json([
             'clusters' => $clusters,
             'court_types_by_cluster' => $courtTypes,
+            'base_prices' => $basePrices,
+            'system_default_price' => 10000,
             'price_slots' => $priceSlots,
             'holiday_prices' => $holidayPrices,
         ]);
@@ -80,8 +89,8 @@ class PricingController extends Controller
         $this->ensureClusterAccess($request, $venueClusterId);
 
         $validated = $request->validate([
-            'min_duration_minutes' => ['required', 'integer', 'min:30'],
-            'max_duration_minutes' => ['nullable', 'integer', 'gte:min_duration_minutes'],
+            'min_duration_minutes' => ['required', 'integer', 'min:30', 'max:120', 'multiple_of:30'],
+            'max_duration_minutes' => ['nullable', 'integer', 'gte:min_duration_minutes', 'max:1440', 'multiple_of:30'],
         ]);
 
         $oldValues = BookingConfig::query()->where('venue_cluster_id', $venueClusterId)->first()?->toArray() ?? [];
@@ -96,6 +105,42 @@ class PricingController extends Controller
         $this->audit($request, 'pricing.duration_updated', BookingConfig::class, $venueClusterId, $oldValues, $config->fresh()->toArray());
 
         return response()->json($config);
+    }
+
+    public function updateBasePrice(Request $request, int $courtTypeId): JsonResponse
+    {
+        $validated = $request->validate([
+            'venue_cluster_id' => ['required', 'string', 'exists:venue_clusters,id'],
+            'price' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+        ]);
+
+        $this->ensureClusterAccess($request, $validated['venue_cluster_id']);
+        $this->ensureCourtTypeBelongsToCluster($validated['venue_cluster_id'], $courtTypeId);
+
+        $existing = VenueBasePrice::query()
+            ->where('venue_cluster_id', $validated['venue_cluster_id'])
+            ->where('court_type_id', $courtTypeId)
+            ->first();
+        $oldValues = $existing?->toArray() ?? [];
+
+        $basePrice = VenueBasePrice::query()->updateOrCreate(
+            [
+                'venue_cluster_id' => $validated['venue_cluster_id'],
+                'court_type_id' => $courtTypeId,
+            ],
+            ['price' => $validated['price']],
+        )->load('courtType:id,name');
+
+        $this->audit(
+            $request,
+            'pricing.base_price_updated',
+            VenueBasePrice::class,
+            $basePrice->id,
+            $oldValues,
+            $basePrice->toArray(),
+        );
+
+        return response()->json($basePrice);
     }
 
     public function storePriceSlot(Request $request): JsonResponse
