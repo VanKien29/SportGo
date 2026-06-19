@@ -1,9 +1,6 @@
 <template>
   <div class="owner-profile-page">
-    <div class="page-header">
-      <h2>Hồ sơ đối tác & Hợp đồng</h2>
-      <p class="muted">Thông tin đăng ký trở thành đối tác và các hợp đồng của bạn.</p>
-    </div>
+
 
     <div v-if="loading" class="state-box card">
       <div class="spinner"></div>
@@ -249,16 +246,6 @@ export default {
   max-width: 1000px;
   margin: 0 auto;
   padding-bottom: 40px;
-}
-
-.page-header {
-  margin-bottom: 8px;
-}
-
-.page-header h2 {
-  font-size: 24px;
-  font-weight: 800;
-  margin-bottom: 4px;
 }
 
 .card {

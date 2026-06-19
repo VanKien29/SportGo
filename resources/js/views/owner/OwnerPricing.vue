@@ -1,18 +1,12 @@
 <template>
   <section class="pricing-page">
-    <header class="page-head">
-      <div>
-        <p class="eyebrow">LỊCH SÂN VÀ DOANH THU</p>
-        <h2>Cấu hình giá</h2>
-        <p>Quản lý giá theo loại sân, ngày trong tuần, khung giờ và ngày đặc biệt.</p>
-      </div>
-      <label class="cluster-select">
-        <span>Cụm sân</span>
-        <select v-model="selectedClusterId" :disabled="isLoading || !clusters.length">
-          <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
-        </select>
-      </label>
-    </header>
+    <!-- Floating Add Button -->
+    <div v-if="selectedClusterId && courtTypes.length" class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <button class="btn-float-add" type="button" @click="openCreateModal" title="Thêm cấu hình giá">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Thêm cấu hình giá</span>
+      </button>
+    </div>
 
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="notice" class="alert alert-success">{{ notice }}</div>
@@ -24,12 +18,15 @@
           <h3>Tất cả cấu hình giá</h3>
           <p>Giá ngày đặc biệt được ưu tiên hơn giá theo tuần khi tính booking.</p>
         </div>
-        <button class="btn primary" type="button" :disabled="!selectedClusterId || !courtTypes.length" @click="openCreateModal">
-          + Thêm cấu hình giá
-        </button>
       </div>
 
       <div class="filters">
+        <label class="cluster-select">
+          Cụm sân
+          <select v-model="selectedClusterId" :disabled="isLoading || !clusters.length">
+            <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
+          </select>
+        </label>
         <label>
           Loại sân
           <select v-model="filters.court_type_id">
@@ -237,12 +234,13 @@
 
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import { api } from '../../services/api.js';
 
 export default {
   name: 'OwnerPricing',
-  components: { ActionIconButton, TableActionGroup },
+  components: { ActionIconButton, TableActionGroup, AppIcon },
   data() {
     return {
       clusters: [],
@@ -268,6 +266,7 @@ export default {
         { value: 6, label: 'T7', fullLabel: 'Thứ 7' },
         { value: 7, label: 'CN', fullLabel: 'Chủ nhật' },
       ],
+      showScrollTop: false,
     };
   },
   computed: {
@@ -314,10 +313,12 @@ export default {
   },
   async mounted() {
     window.addEventListener('owner-cluster-changed', this.handleClusterChanged);
+    window.addEventListener('scroll', this.handleScroll);
     await this.loadPricing();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.handleClusterChanged);
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     defaultForm() {
@@ -533,6 +534,9 @@ export default {
     },
     resetFilters() {
       this.filters = { court_type_id: '', day: '', kind: '', booking_type: '', status: '' };
+    },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 150;
     },
   },
 };

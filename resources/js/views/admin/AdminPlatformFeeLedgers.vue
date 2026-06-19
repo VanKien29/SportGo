@@ -2,29 +2,25 @@
     <section class="ledger-page">
         <PlatformFeeSubnav />
 
-        <header class="page-head">
-            <div>
-                <p class="eyebrow">Sổ phí duy trì</p>
-            </div>
-            <div class="head-actions">
-                <button
-                    class="btn secondary icon-text"
-                    type="button"
-                    @click="runReminderCheck"
-                >
-                    <AppIcon name="bell" size="18" />
-                    <span>Chạy kiểm tra nhắc phí</span>
-                </button>
-                <button
-                    class="btn primary icon-text"
-                    type="button"
-                    @click="openCreate"
-                >
-                    <AppIcon name="plus" size="18" />
-                    <span>Tạo kỳ phí</span>
-                </button>
-            </div>
-        </header>
+        <!-- Action bar with reminder check button -->
+        <div class="action-bar-layout" style="margin-bottom: 12px; display: flex; justify-content: flex-end;">
+            <button
+                class="btn secondary icon-text"
+                type="button"
+                @click="runReminderCheck"
+            >
+                <AppIcon name="bell" size="18" />
+                <span>Chạy kiểm tra nhắc phí</span>
+            </button>
+        </div>
+
+        <!-- Floating Add Button -->
+        <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+            <button class="btn-float-add" type="button" @click="openCreate" title="Tạo kỳ phí">
+                <AppIcon name="plus" size="20" />
+                <span class="btn-float-text">Tạo kỳ phí</span>
+            </button>
+        </div>
 
         <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
 
@@ -510,6 +506,7 @@ export default {
             dialog: { type: "", ledger: null, amount: 0, reason: "" },
             toast: "",
             toastType: "success",
+            showScrollTop: false,
         };
     },
     computed: {
@@ -540,6 +537,10 @@ export default {
     },
     mounted() {
         this.loadLedgers();
+        window.addEventListener("scroll", this.handleScroll);
+    },
+    beforeUnmount() {
+        window.removeEventListener("scroll", this.handleScroll);
     },
     methods: {
         async loadLedgers() {
@@ -693,6 +694,9 @@ export default {
                 this.toast = "";
             }, 3500);
         },
+        handleScroll() {
+            this.showScrollTop = window.scrollY > 250;
+        },
     },
 };
 </script>
@@ -703,7 +707,6 @@ export default {
     flex-direction: column;
     gap: 18px;
 }
-.page-head,
 .head-actions,
 .actions,
 .modal-head,
@@ -711,17 +714,6 @@ export default {
 .icon-text {
     display: flex;
     gap: 12px;
-}
-.page-head {
-    justify-content: space-between;
-    align-items: flex-start;
-}
-.eyebrow {
-    margin: 0 0 4px;
-    color: #16a34a;
-    font-size: 12px;
-    font-weight: 900;
-    text-transform: uppercase;
 }
 h2,
 h3,
@@ -993,9 +985,6 @@ label {
     background: #f8fafc;
 }
 @media (max-width: 1000px) {
-    .page-head {
-        flex-direction: column;
-    }
     .filter-grid,
     .kpi-grid,
     .preview-grid,

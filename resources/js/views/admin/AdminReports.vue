@@ -1,16 +1,5 @@
 <template>
   <section class="moderation-page">
-    <header class="page-head">
-      <div>
-        <h2>Xử lý báo cáo</h2>
-        <p>Kiểm duyệt nội dung và xử lý hành vi vi phạm trong cộng đồng.</p>
-      </div>
-      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadReports" />
-    </header>
-
-    <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="success" class="alert success">{{ success }}</div>
-
     <section class="filter-panel">
       <div class="filter-bar">
         <label class="search-box">
@@ -32,8 +21,12 @@
         <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadReports" />
         <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadReports" />
         <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadReports" />
+        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadReports" />
       </div>
     </section>
+
+    <div v-if="error" class="alert error">{{ error }}</div>
+    <div v-if="success" class="alert success">{{ success }}</div>
 
     <div v-if="loading" class="empty-state">Đang tải danh sách báo cáo...</div>
     <div v-else-if="reports.length === 0" class="empty-state">Không có báo cáo phù hợp.</div>

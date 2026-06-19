@@ -1,16 +1,5 @@
 <template>
   <section class="admin-page">
-    <header class="page-head">
-      <div>
-        <p class="eyebrow">Phân quyền nội bộ</p>
-        <h2>Quản lý nhóm quyền hệ thống</h2>
-        <p>Phân quyền cho nhân sự quản trị SportGo.</p>
-      </div>
-      <button class="btn primary" type="button" @click="openCreateModal">
-        <AppIcon name="plus" size="18" />
-        <span>Tạo nhóm quyền</span>
-      </button>
-    </header>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -178,6 +167,14 @@
       type="danger"
       @confirm="deleteRole"
     />
+
+    <!-- Floating Add Button -->
+    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <button class="btn-float-add" @click="openCreateModal">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Tạo nhóm quyền</span>
+      </button>
+    </div>
   </section>
 </template>
 
@@ -208,6 +205,7 @@ export default {
       sortKey: 'display_name',
       sortDir: 'asc',
       confirmDelete: { show: false, role: null },
+      showScrollTop: false,
     };
   },
   computed: {
@@ -230,6 +228,10 @@ export default {
   },
   mounted() {
     this.loadRoles();
+    window.addEventListener('scroll', this.handleScroll);
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     defaultForm() {
@@ -364,6 +366,9 @@ export default {
     autoHide() {
       setTimeout(() => { this.success = ''; }, 3500);
     },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 250;
+    },
   },
 };
 </script>
@@ -373,13 +378,6 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.page-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
 }
 
 .eyebrow {
@@ -743,7 +741,6 @@ small {
 }
 
 @media (max-width: 760px) {
-  .page-head,
   .fixed-note {
     flex-direction: column;
     align-items: flex-start;

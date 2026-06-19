@@ -1,23 +1,12 @@
 <template>
     <section class="schedule-lock-page">
-        <header class="page-head">
-            <div>
-                <p class="eyebrow">LỊCH SÂN</p>
-                <h2>Khóa lịch theo khung giờ</h2>
-                <p>
-                    Ngừng nhận khách trong thời gian bảo trì, nghỉ hoặc tổ chức
-                    sự kiện riêng.
-                </p>
-            </div>
-            <button
-                class="secondary-btn"
-                type="button"
-                :disabled="loading"
-                @click="loadData"
-            >
-                Làm mới
+        <!-- Floating Lock Button -->
+        <div v-if="selectedSlots.length" class="floating-add-container" style="z-index: 100;">
+            <button class="btn-float-add" type="button" :disabled="saving || !canSubmit" @click="createLock" title="Khóa lịch">
+                <AppIcon name="lock" size="20" />
+                <span class="btn-float-text">Khóa {{ selectedSlots.length }} ô</span>
             </button>
-        </header>
+        </div>
 
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="notice" class="alert success">{{ notice }}</div>
@@ -91,11 +80,21 @@
                         <p class="eyebrow">TRẠNG THÁI TRONG NGÀY</p>
                         <h3>{{ date(form.booking_date) }}</h3>
                     </div>
-                    <div class="legend">
-                        <span><i class="available"></i>Trống</span>
-                        <span><i class="booking"></i>Đã đặt</span>
-                        <span><i class="holding"></i>Đang giữ</span>
-                        <span><i class="manual"></i>Đã khóa</span>
+                    <div class="header-actions">
+                        <div class="legend">
+                            <span><i class="available"></i>Trống</span>
+                            <span><i class="booking"></i>Đã đặt</span>
+                            <span><i class="holding"></i>Đang giữ</span>
+                            <span><i class="manual"></i>Đã khóa</span>
+                        </div>
+                        <button
+                            class="secondary-btn btn-refresh"
+                            type="button"
+                            :disabled="loading"
+                            @click="loadData"
+                        >
+                            Làm mới
+                        </button>
                     </div>
                 </div>
 
@@ -485,21 +484,24 @@ export default {
     gap: 18px;
     max-width: 1320px;
 }
-.page-head,
 .card-head {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 16px;
 }
-.page-head h2,
 .card-head h3 {
     margin: 0;
     color: #0f172a;
 }
-.page-head > div > p:last-child {
-    margin: 7px 0 0;
-    color: #64748b;
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.btn-refresh {
+    padding: 8px 14px;
+    font-size: 13px;
 }
 .eyebrow {
     margin: 0 0 6px;
@@ -776,9 +778,15 @@ export default {
     }
 }
 @media (max-width: 720px) {
-    .page-head,
     .schedule-headline {
         display: grid;
+        gap: 12px;
+    }
+    .header-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
     }
     .form-card form {
         grid-template-columns: 1fr;
@@ -796,6 +804,9 @@ export default {
     }
     .legend {
         justify-content: flex-start;
+    }
+    .btn-refresh {
+        width: 100%;
     }
 }
 </style>

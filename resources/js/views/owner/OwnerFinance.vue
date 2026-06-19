@@ -1,12 +1,39 @@
 <template>
     <section class="finance-page">
-        <header class="page-head">
-            <div>
-                <h1>Ví tài chính</h1>
-                <p>
-                    Theo dõi doanh thu online, lịch sử dòng tiền và yêu cầu
-                    chuyển tiền về tài khoản ngân hàng đã xác thực.
-                </p>
+        <!-- Floating Add Button -->
+        <div v-if="activeTab === 'withdrawals' && withdrawableWallets.length && bankAccounts.length" class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+            <button class="btn-float-add" type="button" @click="openWithdrawalModal(withdrawableWallets[0])" title="Yêu cầu rút tiền">
+                <AppIcon name="plus" size="20" />
+                <span class="btn-float-text">Yêu cầu rút tiền</span>
+            </button>
+        </div>
+
+        <div class="tabs-and-actions">
+            <div class="tabs">
+                <button
+                    type="button"
+                    :class="{ active: activeTab === 'wallets' }"
+                    @click="activeTab = 'wallets'"
+                >
+                    <AppIcon name="banknote" size="16" />
+                    <span>Số dư ví</span>
+                </button>
+                <button
+                    type="button"
+                    :class="{ active: activeTab === 'ledgers' }"
+                    @click="openLedgers()"
+                >
+                    <AppIcon name="history" size="16" />
+                    <span>Dòng tiền</span>
+                </button>
+                <button
+                    type="button"
+                    :class="{ active: activeTab === 'withdrawals' }"
+                    @click="openWithdrawals()"
+                >
+                    <AppIcon name="creditCard" size="16" />
+                    <span>Yêu cầu rút tiền</span>
+                </button>
             </div>
             <ActionIconButton
                 icon="refresh"
@@ -14,33 +41,6 @@
                 :disabled="loading"
                 @click="refreshCurrentTab"
             />
-        </header>
-
-        <div class="tabs">
-            <button
-                type="button"
-                :class="{ active: activeTab === 'wallets' }"
-                @click="activeTab = 'wallets'"
-            >
-                <AppIcon name="banknote" size="16" />
-                <span>Số dư ví</span>
-            </button>
-            <button
-                type="button"
-                :class="{ active: activeTab === 'ledgers' }"
-                @click="openLedgers()"
-            >
-                <AppIcon name="history" size="16" />
-                <span>Dòng tiền</span>
-            </button>
-            <button
-                type="button"
-                :class="{ active: activeTab === 'withdrawals' }"
-                @click="openWithdrawals()"
-            >
-                <AppIcon name="creditCard" size="16" />
-                <span>Yêu cầu rút tiền</span>
-            </button>
         </div>
 
         <div v-if="error" class="alert error">{{ error }}</div>
@@ -276,17 +276,6 @@
                     label="Xóa lọc"
                     @click="clearWithdrawalFilter"
                 />
-                <button
-                    class="primary-btn create-withdrawal"
-                    type="button"
-                    :disabled="
-                        !withdrawableWallets.length || !bankAccounts.length
-                    "
-                    @click="openWithdrawalModal(withdrawableWallets[0])"
-                >
-                    <AppIcon name="plus" size="17" />
-                    <span>Tạo yêu cầu</span>
-                </button>
             </form>
 
             <div class="table-card">
@@ -524,6 +513,7 @@ export default {
                 amount: 50000,
                 owner_note: "",
             },
+            showScrollTop: false,
         };
     },
     computed: {
@@ -545,7 +535,11 @@ export default {
         },
     },
     mounted() {
+        window.addEventListener("scroll", this.handleScroll);
         this.loadWallets();
+    },
+    beforeUnmount() {
+        window.removeEventListener("scroll", this.handleScroll);
     },
     methods: {
         async loadWallets() {
@@ -715,6 +709,9 @@ export default {
         shortId(value) {
             return value ? String(value).slice(0, 8).toUpperCase() : "-";
         },
+        handleScroll() {
+            this.showScrollTop = window.scrollY > 150;
+        },
     },
 };
 </script>
@@ -726,9 +723,11 @@ export default {
     min-width: 0;
 }
 
-.page-head h1,
-.page-head p {
-    margin: 0;
+.tabs-and-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
 }
 
 .tabs {

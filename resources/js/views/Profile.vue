@@ -1,12 +1,6 @@
 <template>
   <div class="profile-wrapper">
     <template v-if="role === 'owner'">
-      <section class="page-head">
-        <div>
-          <h2>Thông tin cá nhân</h2>
-          <p>Quản lý thông tin tài khoản chủ sân đang đăng nhập.</p>
-        </div>
-      </section>
       <div class="profile-content owner-profile-content">
         <ProfileCard :user="user" @go-back="goBack" />
       </div>

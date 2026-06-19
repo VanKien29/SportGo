@@ -1,22 +1,12 @@
 <template>
     <div class="venue-courts-container">
-        <section class="page-head header-card">
-            <div class="header-left">
-                <h2 v-if="cluster">Danh sách sân con: {{ cluster.name }}</h2>
-                <h2 v-else>Quản lý sân con</h2>
-                <p class="subtitle">
-                    Quản lý các sân thi đấu chi tiết trong cụm sân
-                </p>
-            </div>
-            <button
-                class="btn btn-primary"
-                :disabled="!cluster"
-                @click="openCreateModal"
-            >
-                <AppIcon name="plus" size="16" />
-                <span>Thêm sân con</span>
+        <!-- Floating Add Button -->
+        <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+            <button class="btn-float-add" type="button" :disabled="!cluster" @click="openCreateModal" title="Thêm sân con">
+                <AppIcon name="plus" size="20" />
+                <span class="btn-float-text">Thêm sân con</span>
             </button>
-        </section>
+        </div>
 
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -962,6 +952,7 @@ export default {
             selectedDecorationId: null,
             draggingDecorationId: null,
             resizingDecorationId: null,
+            showScrollTop: false,
         };
     },
     computed: {
@@ -1878,6 +1869,9 @@ export default {
                 this.selectedCourtId = null;
             }
         },
+        handleScroll() {
+            this.showScrollTop = window.scrollY > 250;
+        },
     },
     mounted() {
         document.addEventListener("click", this.handleOutsideClick);
@@ -1886,6 +1880,7 @@ export default {
             this.handleOwnerClusterChanged,
         );
         window.addEventListener("keydown", this.handleCanvasKeydown);
+        window.addEventListener("scroll", this.handleScroll);
     },
     beforeUnmount() {
         document.removeEventListener("click", this.handleOutsideClick);
@@ -1894,6 +1889,7 @@ export default {
             this.handleOwnerClusterChanged,
         );
         window.removeEventListener("keydown", this.handleCanvasKeydown);
+        window.removeEventListener("scroll", this.handleScroll);
     },
     created() {
         this.initData();

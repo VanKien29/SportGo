@@ -1,13 +1,5 @@
 <template>
   <section class="moderation-page">
-    <header class="page-head">
-      <div>
-        <h2>Xử lý khiếu nại</h2>
-        <p>Tiếp nhận, phân công và giải quyết tranh chấp dịch vụ hoặc nền tảng.</p>
-      </div>
-      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadComplaints" />
-    </header>
-
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
@@ -34,6 +26,7 @@
         <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadComplaints" />
         <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadComplaints" />
         <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadComplaints" />
+        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadComplaints" />
       </div>
     </section>
 

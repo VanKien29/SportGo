@@ -1,12 +1,6 @@
 <template>
     <div class="venue-clusters-container">
-        <!-- Page Header với cluster selector -->
-        <section class="page-head">
-            <div>
-                <h2>Quản lý cụm sân</h2>
-                <p>Thông tin vận hành, sân con và yêu cầu quy mô.</p>
-            </div>
-        </section>
+
 
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">

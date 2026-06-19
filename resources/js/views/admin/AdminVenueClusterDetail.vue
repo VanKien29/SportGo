@@ -753,23 +753,6 @@
         {{ globalMsg }}
       </div>
     </transition>
-
-    <!-- Floating Actions -->
-    <div class="floating-actions">
-      <button class="float-btn float-back-btn" type="button" title="Quay lại danh sách" @click="$router.push({ name: 'admin-venue-clusters' })">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg>
-        <span>Quay lại</span>
-      </button>
-      <transition name="fade">
-        <button v-if="showScrollTop" class="float-btn float-top-btn" type="button" title="Cuộn về đầu trang" @click="scrollToTop">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-          </svg>
-        </button>
-      </transition>
-    </div>
   </div>
 </template>
 
@@ -831,7 +814,6 @@ export default {
       globalMsg: '',
       globalMsgType: 'msg-success',
       globalTimer: null,
-      showScrollTop: false,
     };
   },
   computed: {
@@ -849,10 +831,6 @@ export default {
   },
   mounted() {
     this.loadDetail();
-    window.addEventListener('scroll', this.handleScroll, true);
-  },
-  beforeUnmount() {
-    window.removeEventListener('scroll', this.handleScroll, true);
   },
   methods: {
     async loadDetail() {
@@ -1065,25 +1043,6 @@ export default {
         cluster.province
       ].filter(Boolean);
       return parts.join(', ') || '—';
-    },
-    handleScroll(event) {
-      let scrollPos = 0;
-      if (event && event.target && event.target !== document) {
-        scrollPos = event.target.scrollTop;
-      } else {
-        scrollPos = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-      }
-      this.showScrollTop = scrollPos > 150;
-    },
-    scrollToTop() {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
-      document.body.scrollTo({ top: 0, behavior: 'smooth' });
-      
-      const scrollable = document.querySelector('.main-content') || document.querySelector('.content-area');
-      if (scrollable) {
-        scrollable.scrollTo({ top: 0, behavior: 'smooth' });
-      }
     },
   },
 };
@@ -2427,46 +2386,5 @@ export default {
   font-size: 11px;
   font-weight: 700;
   margin-left: 5px;
-}
-
-/* Floating Actions */
-.floating-actions {
-  position: fixed;
-  bottom: 30px;
-  right: 30px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  z-index: 999;
-}
-.float-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 40px;
-  border-radius: 20px;
-  border: 1px solid var(--admin-border);
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  color: #334155;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
-}
-.float-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-  border-color: rgba(47, 158, 68, 0.32);
-  color: #216b34;
-}
-.float-back-btn {
-  padding: 0 14px;
-  gap: 6px;
-  font-weight: 700;
-  font-size: 13px;
-}
-.float-top-btn {
-  width: 40px;
-  padding: 0;
 }
 </style>

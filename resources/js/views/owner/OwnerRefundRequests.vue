@@ -1,13 +1,5 @@
 <template>
   <section class="refund-page">
-    <header class="page-head">
-      <div>
-        <h1>Yêu cầu hoàn/hủy</h1>
-        <p>Xác nhận yêu cầu hoàn tiền sau khi khách hủy booking. Mức hoàn được kiểm tra theo chính sách đang áp dụng.</p>
-      </div>
-      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadRefunds" />
-    </header>
-
     <div class="status-tabs" role="tablist" aria-label="Lọc trạng thái hoàn tiền">
       <button
         v-for="tab in statusTabs"
@@ -29,6 +21,7 @@
       <input v-model="filters.date_to" type="date" aria-label="Đến ngày" />
       <ActionIconButton icon="filter" label="Lọc" variant="primary" type="submit" />
       <ActionIconButton icon="x" label="Xóa lọc" @click="clearFilters" />
+      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadRefunds" />
     </form>
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -329,11 +322,6 @@ export default {
   display: grid;
   gap: 16px;
   min-width: 0;
-}
-
-.page-head h1,
-.page-head p {
-  margin: 0;
 }
 
 .status-tabs {
