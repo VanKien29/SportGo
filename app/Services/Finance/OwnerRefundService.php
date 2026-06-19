@@ -43,15 +43,11 @@ class OwnerRefundService
 
             if ($decision === 'approve') {
                 $policy = $this->refundPolicies->evaluate($refund, true, 'owner', $owner->id);
-                $maximum = $this->maximumRefundAmount($refund, $policy);
-                $approvedAmount = $amount ?? $oldAmount;
+                $approvedAmount = $this->policyRefundAmount($refund, $policy);
 
-                if ($approvedAmount <= 0 || $approvedAmount > $maximum) {
+                if ($approvedAmount <= 0) {
                     throw ValidationException::withMessages([
-                        'amount' => sprintf(
-                            'Số tiền hoàn phải lớn hơn 0 và không vượt quá %sđ theo chính sách.',
-                            number_format($maximum, 0, ',', '.')
-                        ),
+                        'amount' => 'Chính sách hiện tại không có số tiền hoàn hợp lệ để xác nhận.',
                     ]);
                 }
 
@@ -78,6 +74,7 @@ class OwnerRefundService
                     'reason' => $note,
                     'metadata' => [
                         'decision' => $decision,
+                        'client_amount_ignored' => $amount,
                         'amount_before' => $oldAmount,
                         'amount_after' => (float) $refund->amount,
                     ],
@@ -98,13 +95,13 @@ class OwnerRefundService
         });
     }
 
-    private function maximumRefundAmount(Refund $refund, array $policy): float
+    private function policyRefundAmount(Refund $refund, array $policy): float
     {
         if (isset($policy['suggested_amount'])) {
             return max(0, (float) $policy['suggested_amount']);
         }
 
-        return max(0, (float) ($refund->payment?->amount ?? $refund->amount));
+        return max(0, (float) $refund->amount);
     }
 
     private function notifyDecision(Refund $refund, string $decision): void

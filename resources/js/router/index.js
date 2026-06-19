@@ -239,7 +239,7 @@ const routes = [
             {
                 path: "bookings",
                 name: "owner-bookings",
-                component: () => import("../views/owner/OwnerBookings.vue"),
+                redirect: { name: "owner-counter-booking" },
             },
             {
                 path: "counter-booking",

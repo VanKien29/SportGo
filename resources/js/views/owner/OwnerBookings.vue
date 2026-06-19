@@ -502,6 +502,7 @@ export default {
 
       return [
         { label: 'Khách', value: `${this.customerName(booking)} · ${this.customerPhone(booking)}` },
+        { label: 'Mã booking', value: booking.booking_code || '-' },
         { label: 'Sân', value: item.courtName },
         { label: 'Khung giờ', value: item.timeLabel },
         { label: 'Loại booking', value: booking.booking_type === 'recurring' ? 'Lịch cố định' : 'Lẻ' },
@@ -627,6 +628,8 @@ export default {
       const metrics = this.timelineBlockMetrics(start, end);
       const payment = this.paymentStateLabel(booking);
       const status = this.statusLabel(booking.status);
+      const customer = this.customerName(booking);
+      const phone = this.customerPhone(booking);
 
       return {
         key: `booking-${booking.id}-${courtId}-${range.startTime}-${range.endTime}`,
@@ -637,10 +640,10 @@ export default {
         courtName: range.courtName || this.courtName(courtId),
         start,
         end,
-        title: booking.booking_code || 'Booking',
-        subtitle: `${status} · ${payment}`,
+        title: customer || booking.booking_code || 'Booking',
+        subtitle: `${booking.booking_code || 'Booking'} · ${status} · ${payment}`,
         timeLabel: `${this.formatTime(range.startTime)} - ${this.formatTime(range.endTime)}`,
-        titleText: `${booking.booking_code || 'Booking'} · ${range.courtName || this.courtName(courtId)} · ${status} · ${payment}`,
+        titleText: `${customer || 'Khách'}${phone ? ` · ${phone}` : ''} · ${booking.booking_code || 'Booking'} · ${range.courtName || this.courtName(courtId)} · ${status} · ${payment}`,
         style: metrics.style,
         compact: metrics.compact,
         kindClass: this.timelineBookingClass(booking),

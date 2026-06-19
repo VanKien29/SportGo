@@ -267,12 +267,15 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/finance/ledgers', [OwnerFinanceController::class, 'ledgers']);
         Route::get('/finance/withdrawals', [OwnerFinanceController::class, 'withdrawals']);
         Route::post('/finance/withdrawals', [OwnerFinanceController::class, 'storeWithdrawal']);
+        Route::patch('/finance/withdrawals/{id}/cancel', [OwnerFinanceController::class, 'cancelWithdrawal']);
         Route::get('/refunds', [OwnerRefundController::class, 'index']);
         Route::patch('/refunds/{id}/decision', [OwnerRefundController::class, 'decide']);
         Route::get('/bookings', [OwnerBookingManagementController::class, 'index']);
         Route::get('/bookings/schedule', [OwnerBookingManagementController::class, 'schedule']);
+        Route::get('/bookings/recurring-groups', [OwnerBookingManagementController::class, 'recurringGroups']);
         Route::post('/bookings/counter', [OwnerBookingManagementController::class, 'storeCounter']);
         Route::post('/bookings/recurring', [OwnerBookingManagementController::class, 'storeRecurring']);
+        Route::post('/bookings/recurring-groups/{groupCode}/payments/collect', [OwnerBookingManagementController::class, 'collectRecurringGroupPayment']);
         Route::get('/bookings/{id}', [OwnerBookingManagementController::class, 'show']);
         Route::post('/bookings/{id}/payments/collect', [OwnerBookingManagementController::class, 'collectPayment']);
         Route::patch('/bookings/{id}/status', [OwnerBookingManagementController::class, 'updateStatus']);

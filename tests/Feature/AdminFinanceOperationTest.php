@@ -153,11 +153,6 @@ class AdminFinanceOperationTest extends TestCase
             ->assertJsonPath('data.0.refund_destination.account_number', '123456789')
             ->assertJsonPath('data.0.owner_confirmation.confirmed', true);
 
-        $this->actingAs($this->finance, 'sanctum')
-            ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", ['status' => 'processing'])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'processing');
-
         $this->assertDatabaseHas('payments', ['id' => $this->payment->id, 'status' => 'paid']);
 
         $this->actingAs($this->finance, 'sanctum')
@@ -165,6 +160,7 @@ class AdminFinanceOperationTest extends TestCase
                 'status' => 'completed',
                 'reason' => 'Đã chuyển hoàn tiền cho khách.',
                 'gateway_refund_txn_id' => 'MB-REFUND-01',
+                'source' => 'mock',
             ])
             ->assertOk()
             ->assertJsonPath('data.status', 'completed')
@@ -186,7 +182,7 @@ class AdminFinanceOperationTest extends TestCase
         ]);
     }
 
-    public function test_reject_reason_is_required_for_refund(): void
+    public function test_admin_cannot_reject_refund_requests(): void
     {
         $refund = Refund::query()->create([
             'payment_id' => $this->payment->id,
@@ -200,10 +196,15 @@ class AdminFinanceOperationTest extends TestCase
         $this->actingAs($this->finance, 'sanctum')
             ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", ['status' => 'rejected'])
             ->assertStatus(422)
-            ->assertJsonValidationErrors('reason');
+            ->assertJsonValidationErrors('status');
+
+        $this->assertDatabaseHas('refunds', [
+            'id' => $refund->id,
+            'status' => 'pending_confirmation',
+        ]);
     }
 
-    public function test_admin_cannot_process_refund_before_owner_confirmation(): void
+    public function test_admin_cannot_set_refund_to_processing_manually(): void
     {
         $refund = Refund::query()->create([
             'payment_id' => $this->payment->id,
@@ -221,10 +222,7 @@ class AdminFinanceOperationTest extends TestCase
                 'reason' => 'Admin thử xử lý trước.',
             ])
             ->assertUnprocessable()
-            ->assertJsonPath(
-                'message',
-                'Không thể chuyển trạng thái refund từ pending_owner_confirmation sang processing.'
-            );
+            ->assertJsonValidationErrors('status');
 
         $this->assertDatabaseHas('refunds', [
             'id' => $refund->id,
@@ -232,7 +230,7 @@ class AdminFinanceOperationTest extends TestCase
         ]);
     }
 
-    public function test_refund_processing_must_follow_active_refund_policy(): void
+    public function test_refund_completion_must_follow_active_refund_policy(): void
     {
         $this->createRefundPolicyRules();
 
@@ -256,21 +254,31 @@ class AdminFinanceOperationTest extends TestCase
         ]);
 
         $this->actingAs($this->finance, 'sanctum')
-            ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", ['status' => 'processing'])
+            ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", [
+                'status' => 'completed',
+                'reason' => 'Đã chuyển hoàn tiền theo QR.',
+                'gateway_refund_txn_id' => 'MB-REFUND-POLICY-FAIL',
+                'source' => 'mock',
+            ])
             ->assertStatus(422)
             ->assertJsonPath('message', 'Số tiền hoàn vượt quá chính sách hiện tại. Tối đa có thể hoàn là 50.000đ.');
 
         $refund->update(['amount' => 50000]);
 
         $this->actingAs($this->finance, 'sanctum')
-            ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", ['status' => 'processing'])
+            ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", [
+                'status' => 'completed',
+                'reason' => 'Đã chuyển hoàn tiền theo QR.',
+                'gateway_refund_txn_id' => 'MB-REFUND-POLICY-OK',
+                'source' => 'mock',
+            ])
             ->assertOk()
-            ->assertJsonPath('data.status', 'processing')
+            ->assertJsonPath('data.status', 'completed')
             ->assertJsonPath('data.policy_evaluation.refund_percent', 50)
             ->assertJsonPath('data.policy_evaluation.compliant', true);
     }
 
-    public function test_processing_bank_refunds_can_be_exported_for_bulk_transfer(): void
+    public function test_owner_confirmed_bank_refunds_can_be_exported_for_bulk_transfer(): void
     {
         $payout = UserPayoutAccount::query()->create([
             'user_id' => $this->customer->id,
@@ -291,7 +299,7 @@ class AdminFinanceOperationTest extends TestCase
             'user_payout_account_id' => $payout->id,
             'owner_confirmed_by' => $this->owner->id,
             'owner_confirmed_at' => now(),
-            'status' => 'processing',
+            'status' => 'owner_confirmed',
         ]);
 
         $export = $this->actingAs($this->finance, 'sanctum')
@@ -327,7 +335,7 @@ class AdminFinanceOperationTest extends TestCase
             'user_payout_account_id' => $payout->id,
             'owner_confirmed_by' => $this->owner->id,
             'owner_confirmed_at' => now(),
-            'status' => 'processing',
+            'status' => 'owner_confirmed',
         ]);
 
         $qr = $this->actingAs($this->finance, 'sanctum')
@@ -366,25 +374,54 @@ class AdminFinanceOperationTest extends TestCase
         ]);
     }
 
-    public function test_withdrawal_approval_holds_balance_export_and_manual_complete_are_idempotent(): void
+    public function test_original_payment_refund_can_use_customer_default_payout_account_for_qr(): void
+    {
+        $payout = UserPayoutAccount::query()->create([
+            'user_id' => $this->customer->id,
+            'bank_name' => 'Techcombank',
+            'bank_account_number' => '29206999999999',
+            'bank_account_holder' => 'NGUYEN VAN KIEN',
+            'is_default' => true,
+            'status' => 'active',
+        ]);
+
+        $refund = Refund::query()->create([
+            'payment_id' => $this->payment->id,
+            'booking_id' => $this->booking->id,
+            'customer_id' => null,
+            'amount' => 2000,
+            'reason' => 'Hoàn tiền dữ liệu cũ.',
+            'refund_destination' => 'original_payment',
+            'owner_confirmed_by' => $this->owner->id,
+            'owner_confirmed_at' => now(),
+            'status' => 'owner_confirmed',
+        ]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->getJson('/api/admin/finance/refunds')
+            ->assertOk()
+            ->assertJsonPath('data.0.can_pay_by_qr', true)
+            ->assertJsonPath('data.0.refund_destination.type', 'bank_account')
+            ->assertJsonPath('data.0.refund_destination.account_number', '29206999999999');
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->postJson("/api/admin/finance/refunds/{$refund->id}/payout-qr")
+            ->assertOk()
+            ->assertJsonPath('data.recipient.account_number', '29206999999999')
+            ->assertJsonPath('data.amount', 2000);
+
+        $this->assertDatabaseHas('refunds', [
+            'id' => $refund->id,
+            'refund_destination' => 'bank_account',
+            'user_payout_account_id' => $payout->id,
+        ]);
+    }
+
+    public function test_pending_withdrawal_can_be_exported_and_completed_directly(): void
     {
         $wallet = OwnerWallet::query()->where('owner_id', $this->owner->id)->firstOrFail();
         $account = $this->createOwnerBankAccount();
         $withdrawal = $this->createWithdrawal($wallet, $account, 70000, 'WRFINANCE01');
-
-        $this->actingAs($this->finance, 'sanctum')
-            ->patchJson("/api/admin/finance/withdrawals/{$withdrawal->id}/status", [
-                'status' => 'approved',
-                'reason' => 'Đủ điều kiện rút.',
-            ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'approved');
-
-        $this->assertDatabaseHas('owner_wallets', [
-            'id' => $wallet->id,
-            'available_balance' => 30000,
-            'pending_withdrawal_balance' => 70000,
-        ]);
 
         $export = $this->actingAs($this->finance, 'sanctum')
             ->postJson('/api/admin/finance/withdrawals/export', ['ids' => [$withdrawal->id]])
@@ -403,6 +440,7 @@ class AdminFinanceOperationTest extends TestCase
             'status' => 'completed',
             'reason' => 'Đã chuyển tiền theo file export.',
             'transfer_reference' => 'MB-BULK-DETAIL-01',
+            'source' => 'mock',
         ];
 
         $this->actingAs($this->finance, 'sanctum')
@@ -441,12 +479,6 @@ class AdminFinanceOperationTest extends TestCase
 
         $wallet = OwnerWallet::query()->where('owner_id', $this->owner->id)->firstOrFail();
         $withdrawal = $this->createWithdrawal($wallet, $this->createOwnerBankAccount(), 50000, 'WRFINANCE04');
-
-        $this->actingAs($this->finance, 'sanctum')
-            ->patchJson("/api/admin/finance/withdrawals/{$withdrawal->id}/status", [
-                'status' => 'approved',
-                'reason' => 'Duyệt để chuyển QR.',
-            ])->assertOk();
 
         $qr = $this->actingAs($this->finance, 'sanctum')
             ->postJson("/api/admin/finance/withdrawals/{$withdrawal->id}/payout-qr")
@@ -496,37 +528,24 @@ class AdminFinanceOperationTest extends TestCase
         ]);
     }
 
-    public function test_withdrawal_reject_requires_reason_and_releases_held_balance(): void
+    public function test_admin_cannot_reject_withdrawal_requests(): void
     {
         $wallet = OwnerWallet::query()->where('owner_id', $this->owner->id)->firstOrFail();
         $withdrawal = $this->createWithdrawal($wallet, $this->createOwnerBankAccount(), 60000, 'WRFINANCE02');
 
         $this->actingAs($this->finance, 'sanctum')
-            ->patchJson("/api/admin/finance/withdrawals/{$withdrawal->id}/status", [
-                'status' => 'approved',
-                'reason' => 'Duyệt để kiểm tra.',
-            ])->assertOk();
-
-        $this->actingAs($this->finance, 'sanctum')
             ->patchJson("/api/admin/finance/withdrawals/{$withdrawal->id}/status", ['status' => 'rejected'])
             ->assertStatus(422)
-            ->assertJsonValidationErrors('reason');
-
-        $this->actingAs($this->finance, 'sanctum')
-            ->patchJson("/api/admin/finance/withdrawals/{$withdrawal->id}/status", [
-                'status' => 'rejected',
-                'reason' => 'Thông tin chuyển khoản chưa đúng.',
-            ])->assertOk();
+            ->assertJsonValidationErrors('status');
 
         $this->assertDatabaseHas('owner_wallets', [
             'id' => $wallet->id,
             'available_balance' => 100000,
             'pending_withdrawal_balance' => 0,
         ]);
-        $this->assertDatabaseHas('owner_wallet_ledgers', [
-            'reference_id' => $withdrawal->id,
-            'type' => 'release',
-            'amount' => 60000,
+        $this->assertDatabaseHas('owner_withdrawal_requests', [
+            'id' => $withdrawal->id,
+            'status' => 'pending',
         ]);
     }
 
@@ -537,8 +556,10 @@ class AdminFinanceOperationTest extends TestCase
 
         $this->actingAs($this->finance, 'sanctum')
             ->patchJson("/api/admin/finance/withdrawals/{$withdrawal->id}/status", [
-                'status' => 'approved',
-                'reason' => 'Kiểm tra vượt số dư.',
+                'status' => 'completed',
+                'reason' => 'Đã chuyển tiền theo QR.',
+                'transfer_reference' => 'MB-WD-OVER-BALANCE',
+                'source' => 'mock',
             ])
             ->assertStatus(422)
             ->assertJsonPath('message', 'Số tiền rút vượt quá doanh thu online còn lại.');
@@ -638,7 +659,7 @@ class AdminFinanceOperationTest extends TestCase
 
     private function assignRole(User $user, Role $role): void
     {
-        UserRole::query()->create([
+        UserRole::query()->firstOrCreate([
             'user_id' => $user->id,
             'role_id' => $role->id,
             'scope_type' => 'system',
