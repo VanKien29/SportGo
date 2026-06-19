@@ -1625,6 +1625,122 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ═══════════════════════════════════════════════════
+                     TAB 5: LIÊN HỆ HỖ TRỢ KHÓA SÂN
+                ═══════════════════════════════════════════════════ -->
+                <div v-if="activeTab === 'appeals'" class="appeals-tab">
+                    <div class="card appeal-form-card mb-4" style="padding: 20px; margin-bottom: 20px;">
+                        <h3 class="section-title" style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">
+                            Gửi yêu cầu liên hệ / Kháng cáo hỗ trợ khóa sân
+                        </h3>
+                        <p class="section-desc" style="font-size: 14px; color: #666; margin-bottom: 20px;">
+                            Nếu cụm sân của bạn bị khóa, bạn có thể gửi yêu cầu liên hệ giải trình để ban quản trị SportGo xem xét mở khóa.
+                        </p>
+                        <div v-if="appealSuccessMsg" class="alert alert-success" style="margin-bottom: 15px; padding: 10px; background: #d1fae5; color: #065f46; border-radius: 4px;">
+                            {{ appealSuccessMsg }}
+                        </div>
+                        <div v-if="appealError" class="alert alert-danger" style="margin-bottom: 15px; padding: 10px; background: #fee2e2; color: #991b1b; border-radius: 4px;">
+                            {{ appealError }}
+                        </div>
+                        <form @submit.prevent="handleCreateAppeal">
+                            <div class="form-group" style="margin-bottom: 15px;">
+                                <label for="appeal-title" style="font-weight: 500; margin-bottom: 5px; display: block;">Tiêu đề liên hệ <span class="required" style="color: #ef4444;">*</span></label>
+                                <input
+                                    id="appeal-title"
+                                    v-model="newAppealForm.title"
+                                    type="text"
+                                    class="form-control"
+                                    placeholder="Ví dụ: Giải trình nộp phí chậm, Kháng cáo vi phạm..."
+                                    style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 8px 12px;"
+                                    required
+                                />
+                            </div>
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label for="appeal-content" style="font-weight: 500; margin-bottom: 5px; display: block;">Nội dung giải trình chi tiết <span class="required" style="color: #ef4444;">*</span></label>
+                                <textarea
+                                    id="appeal-content"
+                                    v-model="newAppealForm.content"
+                                    class="form-control"
+                                    rows="4"
+                                    placeholder="Nhập nội dung giải trình hoặc đề xuất của bạn..."
+                                    style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 8px 12px;"
+                                    required
+                                ></textarea>
+                            </div>
+                            <div class="form-actions" style="display: flex; justify-content: flex-end;">
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary"
+                                    :disabled="appealSubmitting"
+                                    style="display: inline-flex; align-items: center; gap: 8px;"
+                                >
+                                    <AppIcon name="send" size="16" />
+                                    {{ appealSubmitting ? "Đang gửi..." : "Gửi yêu cầu liên hệ" }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Lịch sử liên hệ/khiếu nại -->
+                    <div class="card" style="padding: 20px;">
+                        <h3 class="section-title" style="font-size: 18px; font-weight: bold; margin-bottom: 15px;">Lịch sử liên hệ và phản hồi</h3>
+                        <div v-if="appealsLoading" class="loading-state" style="padding: 40px 0; text-align: center;">
+                            <div class="spinner" style="margin: 0 auto 10px;"></div>
+                            <p>Đang tải...</p>
+                        </div>
+                        <div v-else-if="filteredAppeals.length === 0" class="empty-section" style="padding: 40px; text-align: center; color: #888;">
+                            Chưa có lịch sử liên hệ nào cho cụm sân này.
+                        </div>
+                        <div v-else class="appeal-list" style="display: flex; flex-direction: column; gap: 15px;">
+                            <div
+                                v-for="item in filteredAppeals"
+                                :key="item.id"
+                                class="approval-card"
+                                :class="`approval-${item.status}`"
+                                style="border: 1px solid #eee; border-radius: 6px; padding: 15px; display: flex; justify-content: space-between;"
+                            >
+                                <div class="approval-row" style="display: flex; width: 100%; justify-content: space-between; align-items: flex-start; gap: 15px;">
+                                    <div class="approval-details" style="flex: 1;">
+                                        <div class="approval-name fw-bold" style="font-size: 16px; font-weight: bold; margin-bottom: 8px;">
+                                            {{ item.title }}
+                                        </div>
+                                        <div class="appeal-user-content" style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 14px;">
+                                            <strong>Nội dung:</strong> {{ item.content }}
+                                        </div>
+                                        <div class="approval-meta" style="font-size: 12px; color: #888;">
+                                            Gửi lúc: {{ formatDate(item.created_at) }}
+                                        </div>
+                                        <div v-if="item.reply_content" class="appeal-reply-box" style="margin-top: 12px; padding: 12px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; border-radius: 0 4px 4px 0;">
+                                            <div style="font-weight: bold; color: #10b981; margin-bottom: 4px;">
+                                                Phản hồi từ SportGo:
+                                            </div>
+                                            <div style="font-size: 14px; color: var(--text-color);">
+                                                {{ item.reply_content }}
+                                            </div>
+                                            <div class="approval-meta" style="margin-top: 5px; font-size: 12px; color: #888;">
+                                                Trả lời bởi: {{ item.replied_by?.full_name || 'Admin' }} vào lúc {{ formatDate(item.replied_at) }}
+                                            </div>
+                                        </div>
+                                        <div v-else class="text-muted-custom" style="font-size: 13px; margin-top: 8px; font-style: italic; color: #f59e0b;">
+                                            ⏳ Yêu cầu đang được xem xét xử lý.
+                                        </div>
+                                    </div>
+                                    <div class="approval-right">
+                                        <span
+                                            class="status-badge-approval"
+                                            :class="`approval-status-${item.status}`"
+                                            style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: white;"
+                                            :style="{ backgroundColor: item.status === 'pending' ? '#f59e0b' : (item.status === 'resolved' ? '#10b981' : '#ef4444') }"
+                                        >
+                                            {{ item.status === 'pending' ? 'Chờ phản hồi' : (item.status === 'resolved' ? 'Đã giải quyết' : 'Bị từ chối') }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1698,122 +1814,6 @@
                         </button>
                     </div>
                 </form>
-            </div>
-
-            <!-- ═══════════════════════════════════════════════════
-                 TAB 5: LIÊN HỆ HỖ TRỢ KHÓA SÂN
-            ═══════════════════════════════════════════════════ -->
-            <div v-if="activeTab === 'appeals'" class="appeals-tab">
-                <div class="card appeal-form-card mb-4" style="padding: 20px; margin-bottom: 20px;">
-                    <h3 class="section-title" style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">
-                        Gửi yêu cầu liên hệ / Kháng cáo hỗ trợ khóa sân
-                    </h3>
-                    <p class="section-desc" style="font-size: 14px; color: #666; margin-bottom: 20px;">
-                        Nếu cụm sân của bạn bị khóa, bạn có thể gửi yêu cầu liên hệ giải trình để ban quản trị SportGo xem xét mở khóa.
-                    </p>
-                    <div v-if="appealSuccessMsg" class="alert alert-success" style="margin-bottom: 15px; padding: 10px; background: #d1fae5; color: #065f46; border-radius: 4px;">
-                        {{ appealSuccessMsg }}
-                    </div>
-                    <div v-if="appealError" class="alert alert-danger" style="margin-bottom: 15px; padding: 10px; background: #fee2e2; color: #991b1b; border-radius: 4px;">
-                        {{ appealError }}
-                    </div>
-                    <form @submit.prevent="handleCreateAppeal">
-                        <div class="form-group" style="margin-bottom: 15px;">
-                            <label for="appeal-title" style="font-weight: 500; margin-bottom: 5px; display: block;">Tiêu đề liên hệ <span class="required" style="color: #ef4444;">*</span></label>
-                            <input
-                                id="appeal-title"
-                                v-model="newAppealForm.title"
-                                type="text"
-                                class="form-control"
-                                placeholder="Ví dụ: Giải trình nộp phí chậm, Kháng cáo vi phạm..."
-                                style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 8px 12px;"
-                                required
-                            />
-                        </div>
-                        <div class="form-group" style="margin-bottom: 20px;">
-                            <label for="appeal-content" style="font-weight: 500; margin-bottom: 5px; display: block;">Nội dung giải trình chi tiết <span class="required" style="color: #ef4444;">*</span></label>
-                            <textarea
-                                id="appeal-content"
-                                v-model="newAppealForm.content"
-                                class="form-control"
-                                rows="4"
-                                placeholder="Nhập nội dung giải trình hoặc đề xuất của bạn..."
-                                style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 8px 12px;"
-                                required
-                            ></textarea>
-                        </div>
-                        <div class="form-actions" style="display: flex; justify-content: flex-end;">
-                            <button
-                                type="submit"
-                                class="btn btn-primary"
-                                :disabled="appealSubmitting"
-                                style="display: inline-flex; align-items: center; gap: 8px;"
-                            >
-                                <AppIcon name="send" size="16" />
-                                {{ appealSubmitting ? "Đang gửi..." : "Gửi yêu cầu liên hệ" }}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Lịch sử liên hệ/khiếu nại -->
-                <div class="card" style="padding: 20px;">
-                    <h3 class="section-title" style="font-size: 18px; font-weight: bold; margin-bottom: 15px;">Lịch sử liên hệ và phản hồi</h3>
-                    <div v-if="appealsLoading" class="loading-state" style="padding: 40px 0; text-align: center;">
-                        <div class="spinner" style="margin: 0 auto 10px;"></div>
-                        <p>Đang tải...</p>
-                    </div>
-                    <div v-else-if="filteredAppeals.length === 0" class="empty-section" style="padding: 40px; text-align: center; color: #888;">
-                        Chưa có lịch sử liên hệ nào cho cụm sân này.
-                    </div>
-                    <div v-else class="appeal-list" style="display: flex; flex-direction: column; gap: 15px;">
-                        <div
-                            v-for="item in filteredAppeals"
-                            :key="item.id"
-                            class="approval-card"
-                            :class="`approval-${item.status}`"
-                            style="border: 1px solid #eee; border-radius: 6px; padding: 15px; display: flex; justify-content: space-between;"
-                        >
-                            <div class="approval-row" style="display: flex; width: 100%; justify-content: space-between; align-items: flex-start; gap: 15px;">
-                                <div class="approval-details" style="flex: 1;">
-                                    <div class="approval-name fw-bold" style="font-size: 16px; font-weight: bold; margin-bottom: 8px;">
-                                        {{ item.title }}
-                                    </div>
-                                    <div class="appeal-user-content" style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 14px;">
-                                        <strong>Nội dung:</strong> {{ item.content }}
-                                    </div>
-                                    <div class="approval-meta" style="font-size: 12px; color: #888;">
-                                        Gửi lúc: {{ formatDate(item.created_at) }}
-                                    </div>
-                                    <div v-if="item.reply_content" class="appeal-reply-box" style="margin-top: 12px; padding: 12px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; border-radius: 0 4px 4px 0;">
-                                        <div style="font-weight: bold; color: #10b981; margin-bottom: 4px;">
-                                            Phản hồi từ SportGo:
-                                        </div>
-                                        <div style="font-size: 14px; color: var(--text-color);">
-                                            {{ item.reply_content }}
-                                        </div>
-                                        <div class="approval-meta" style="margin-top: 5px; font-size: 12px; color: #888;">
-                                            Trả lời bởi: {{ item.replied_by?.full_name || 'Admin' }} vào lúc {{ formatDate(item.replied_at) }}
-                                        </div>
-                                    </div>
-                                    <div v-else class="text-muted-custom" style="font-size: 13px; margin-top: 8px; font-style: italic; color: #f59e0b;">
-                                        ⏳ Yêu cầu đang được xem xét xử lý.
-                                    </div>
-                                </div>
-                                <div class="approval-right">
-                                    <span
-                                        class="status-badge-approval"
-                                        :class="`approval-status-${item.status}`"
-                                        style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: white;"
-                                        :style="{ backgroundColor: item.status === 'pending' ? '#f59e0b' : (item.status === 'resolved' ? '#10b981' : '#ef4444') }"
-                                    >
-                                        {{ item.status === 'pending' ? 'Chờ phản hồi' : (item.status === 'resolved' ? 'Đã giải quyết' : 'Bị từ chối') }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -2166,6 +2166,14 @@ export default {
             wardSearch: "",
             showProvinceDropdown: false,
             showWardDropdown: false,
+
+            // Lock appeals
+            appealsLoading: false,
+            appealsList: [],
+            newAppealForm: { title: "", content: "" },
+            appealSuccessMsg: null,
+            appealError: null,
+            appealSubmitting: false,
         };
     },
 
