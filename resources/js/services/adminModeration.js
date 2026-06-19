@@ -16,6 +16,17 @@ export const adminModerationService = {
     return api(`/api/admin/moderation/queue${query(params)}`);
   },
 
+  getConfig() {
+    return api('/api/admin/moderation/config');
+  },
+
+  saveConfig(data) {
+    return api('/api/admin/moderation/config', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   approvePost(type, id) {
     return api(`/api/admin/moderation/posts/${type}/${id}/approve`, {
       method: 'POST',

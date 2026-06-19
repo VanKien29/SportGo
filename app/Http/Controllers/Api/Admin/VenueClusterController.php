@@ -204,6 +204,8 @@ class VenueClusterController extends Controller
             'locked_by'     => $actor->id,
         ])->save();
 
+        \App\Models\Report::resolvePendingReportsForTarget($cluster, 'venue_locked', $actor, $data['status_reason']);
+
         $this->audit($request, $actor, 'venue_cluster.locked', $cluster, $oldValues, $this->lockSnapshot($cluster));
 
         return response()->json([

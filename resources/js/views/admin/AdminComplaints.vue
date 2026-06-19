@@ -1,12 +1,6 @@
 <template>
   <section class="moderation-page">
-    <header class="page-head">
-      <div>
-        <h2>Xử lý khiếu nại</h2>
-        <p>Tiếp nhận, phân công và giải quyết tranh chấp dịch vụ hoặc nền tảng.</p>
-      </div>
-      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadComplaints" />
-    </header>
+
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>

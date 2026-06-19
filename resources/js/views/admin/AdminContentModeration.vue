@@ -40,13 +40,8 @@
           />
         </label>
 
-        <div v-if="filters.status === 'pending'" class="auto-approve-wrapper">
-          <label class="switch">
-            <input type="checkbox" v-model="autoApproveEnabled" @change="toggleAutoApprove" />
-            <span class="slider"></span>
-          </label>
-          <span class="switch-label">Tự động duyệt (5s)</span>
-        </div>
+
+
 
         <button class="btn ghost btn-refresh" type="button" @click="refresh">
           <AppIcon name="refresh" size="16" />
@@ -174,142 +169,197 @@
       </div>
     </div>
 
-    <!-- MODAL CHI TIẾT BÀI VIẾT -->
-    <div v-if="detailModal.open" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeDetail)">
-      <div class="modal large" @mousedown.stop>
-        <div class="modal-header">
-          <h3>Chi tiết bài viết</h3>
-          <button class="icon-btn" type="button" title="Đóng" @click="closeDetail">
-            <AppIcon name="x" size="18" />
-          </button>
-        </div>
+    <!-- MODAL CHI TIẾT BÀI VIẾT (Facebook Style) -->
+    <div v-if="detailModal.open && activeItem" class="modal-backdrop fb-backdrop" @click.self="closeDetail">
+      <div class="fb-modal">
+        <header class="fb-header">
+          <div class="fb-header-spacer"></div>
+          <h3>
+            <template v-if="activeTab === 'system_posts'">Bài đăng hệ thống</template>
+            <template v-else>Bài viết của {{ activeItem.author?.full_name || activeItem.author?.username || 'Người dùng' }}</template>
+          </h3>
+          <div class="fb-header-right">
+            <button class="fb-close-btn" type="button" @click="closeDetail" title="Đóng">
+              <AppIcon name="x" size="20" />
+            </button>
+          </div>
+        </header>
 
-        <div class="modal-body detail-grid">
-          <!-- Phần bên trái: Chi tiết nội dung bài đăng -->
-          <section class="detail-left">
-            <div class="detail-card">
-              <h4 class="section-title">Nội dung đăng tải</h4>
-
-              <div class="author-block">
-                <img
-                  :src="getContentAuthor(activeItem).avatar_url || '/images/default-avatar.png'"
-                  alt="avatar"
-                  class="author-avatar"
-                  @error="$event.target.src='/images/default-avatar.png'"
-                />
-                <div class="author-info">
-                  <strong>{{ getContentAuthor(activeItem).full_name || getContentAuthor(activeItem).username || '-' }}</strong>
-                  <span class="muted">{{ getContentAuthor(activeItem).email || getContentAuthor(activeItem).phone || 'Không có liên hệ' }}</span>
-                </div>
-              </div>
-
-              <div class="main-content-body">
-                <h5 v-if="activeTab === 'system_posts' && activeItem.title" style="margin: 0 0 10px; font-size: 16px; font-weight: 800; color: #0f172a;">
-                  {{ activeItem.title }}
-                </h5>
-                <p class="content-text">{{ getContentText(activeItem) }}</p>
-
-                <!-- Media Gallery -->
-                <div v-if="getContentMedia(activeItem).length > 0" class="media-gallery">
-                  <div
-                    v-for="(med, idx) in getContentMedia(activeItem)"
-                    :key="med.id"
-                    class="media-item"
-                    @click="openLightbox(med.file_path)"
-                  >
-                    <img :src="med.file_path" alt="media upload" />
-                  </div>
-                </div>
-
-                <!-- Hashtags -->
-                <div v-if="getContentHashtags(activeItem).length > 0" class="hashtags-box">
-                  <span v-for="tag in getContentHashtags(activeItem)" :key="tag.id" class="hashtag-item">
-                    #{{ tag.name }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Phần bên phải: Chi tiết và nút hành động -->
-          <section class="detail-right-side">
-            <div class="detail-card">
-              <h4 class="section-title">Thông tin bài đăng</h4>
-              <dl class="post-meta" style="margin: 0; display: grid; grid-template-columns: auto 1fr; row-gap: 8px; column-gap: 12px; font-size: 13.5px;">
-                <dt style="font-weight: 800; color: #64748b;">Trạng thái:</dt>
-                <dd style="margin: 0;">
-                  <span class="status" :class="getStatusClass(activeItem.status)">
-                    {{ getStatusLabel(activeItem.status) }}
-                  </span>
-                </dd>
-                <dt style="font-weight: 800; color: #64748b;">Thời gian tạo:</dt>
-                <dd style="margin: 0;">{{ formatDate(activeItem.created_at) }}</dd>
-                <template v-if="activeItem.status_reason">
-                  <dt style="font-weight: 800; color: #64748b;">Lý do ẩn/từ chối:</dt>
-                  <dd style="margin: 0; color: #dc2626;">{{ activeItem.status_reason }}</dd>
-                </template>
-              </dl>
+        <div class="fb-body">
+          <div class="fb-post" :class="{ 'is-hidden': activeItem.status === 'hidden' }">
+            <div class="post-status-banner" :class="getStatusClass(activeItem.status)">
+              <AppIcon name="alert" size="16" v-if="activeItem.status === 'hidden'" />
+              Trạng thái bài viết: <strong>{{ getStatusLabel(activeItem.status) }}</strong>
             </div>
 
-            <div class="detail-card" style="margin-top: 16px;">
-              <h4 class="section-title">Hành động kiểm duyệt</h4>
-              <div class="action-form">
-                <label class="field">
-                  <span>Lý do ẩn/từ chối (Bắt buộc nếu ẩn/từ chối)</span>
+            <div class="fb-post-header">
+              <div class="fb-post-avatar">
+                <img v-if="activeItem.author?.avatar_url" :src="activeItem.author.avatar_url" />
+                <div v-else-if="activeTab !== 'system_posts'" class="fb-avatar-text">{{ initials(activeItem.author?.full_name || activeItem.author?.username || '?') }}</div>
+                <div v-else class="fb-avatar-text">SG</div>
+              </div>
+              <div class="fb-post-meta">
+                <strong>
+                  <template v-if="activeTab === 'system_posts'">Hệ thống SportGo</template>
+                  <template v-else>{{ activeItem.author?.full_name || activeItem.author?.username || '-' }}</template>
+                </strong>
+                <span>{{ formatDate(activeItem.created_at) }}</span>
+              </div>
+            </div>
+
+            <h5 v-if="activeTab === 'system_posts' && activeItem.title" style="margin: 0 0 10px; font-size: 16px; font-weight: 800; color: #0f172a;">
+              {{ activeItem.title }}
+            </h5>
+            <p class="fb-post-text">{{ activeItem.content }}</p>
+
+            <div v-if="activeItem.media && activeItem.media.length" class="fb-media-container">
+              <img v-for="m in activeItem.media" :key="m.id" :src="m.file_path || m.url" style="cursor: pointer;" @click="openLightbox(m.file_path || m.url)" />
+            </div>
+
+            <div v-if="activeTab !== 'system_posts'" class="fb-stats">
+              <span><AppIcon name="heart" size="18" /> {{ activeItem.like_count || 0 }}</span>
+              <div class="fb-stats-right">
+                <span>{{ activeItem.comment_count || postComments.length }} bình luận</span>
+                <span>0 chia sẻ</span>
+              </div>
+            </div>
+
+            <!-- Nút thao tác bài viết -->
+            <div class="fb-moderation-actions" style="margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+              <div v-if="activeItem.status !== 'hidden' && activeItem.status !== 'rejected'" style="margin-bottom: 12px;">
+                <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; font-weight: 800; color: #475569;">
+                  <span>Lý do ẩn/từ chối/gỡ (Bắt buộc nếu ẩn/từ chối/gỡ):</span>
                   <textarea
                     v-model.trim="actionForm.reason"
-                    rows="4"
+                    rows="3"
+                    style="width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: 500;"
                     placeholder="Nhập lý do kiểm duyệt gửi tới tác giả..."
                   ></textarea>
                 </label>
               </div>
+              <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="btn secondary" type="button" @click="closeDetail">Đóng</button>
+                <button
+                  v-if="activeItem.status !== 'hidden' && activeItem.status !== 'rejected'"
+                  class="btn danger"
+                  type="button"
+                  :disabled="savingAction || !actionForm.reason"
+                  @click="submitAction('delete')"
+                >
+                  <AppIcon name="trash" size="16" />
+                  <span>Gỡ bài</span>
+                </button>
+                <button
+                  v-if="['pending', 'pending_review', 'draft'].includes(activeItem.status)"
+                  class="btn warning"
+                  type="button"
+                  :disabled="savingAction || !actionForm.reason"
+                  @click="submitAction('reject')"
+                >
+                  <AppIcon name="x" size="16" />
+                  <span>Từ chối</span>
+                </button>
+                <button
+                  v-if="activeItem.status !== 'hidden' && activeItem.status !== 'rejected'"
+                  class="btn warning"
+                  type="button"
+                  :disabled="savingAction || !actionForm.reason"
+                  @click="submitAction('hide')"
+                >
+                  <AppIcon name="eyeOff" size="16" />
+                  <span>Ẩn bài</span>
+                </button>
+                <button
+                  v-if="activeItem.status !== 'published'"
+                  class="btn primary"
+                  type="button"
+                  :disabled="savingAction"
+                  @click="submitAction('approve')"
+                >
+                  <AppIcon name="check" size="16" />
+                  <span>Duyệt hiển thị</span>
+                </button>
+              </div>
             </div>
-          </section>
-        </div>
+          </div>
 
-        <div class="modal-footer">
-          <button class="btn ghost" type="button" @click="closeDetail">Đóng</button>
-          
-          <button
-            v-if="activeItem.status !== 'hidden' && activeItem.status !== 'rejected'"
-            class="btn danger"
-            type="button"
-            :disabled="savingAction || !actionForm.reason"
-            @click="submitAction('delete')"
-          >
-            <AppIcon name="trash" size="16" />
-            <span>Xóa/Ẩn</span>
-          </button>
-          <button
-            v-if="['pending', 'pending_review', 'draft'].includes(activeItem.status)"
-            class="btn ghost text-danger"
-            type="button"
-            :disabled="savingAction || !actionForm.reason"
-            @click="submitAction('reject')"
-          >
-            <AppIcon name="x" size="16" />
-            <span>Từ chối</span>
-          </button>
-          <button
-            v-if="activeItem.status !== 'hidden' && activeItem.status !== 'rejected'"
-            class="btn ghost text-warning"
-            type="button"
-            :disabled="savingAction || !actionForm.reason"
-            @click="submitAction('hide')"
-          >
-            <AppIcon name="lock" size="16" />
-            <span>Ẩn bài</span>
-          </button>
-          <button
-            v-if="activeItem.status !== 'published'"
-            class="btn primary"
-            type="button"
-            :disabled="savingAction"
-            @click="submitAction('approve')"
-          >
-            <AppIcon name="check" size="16" />
-            <span>Duyệt hiển thị</span>
-          </button>
+          <!-- Danh sách bình luận -->
+          <div v-if="activeTab !== 'system_posts'" class="fb-comments">
+            <div v-if="loadingComments" style="text-align: center; color: #64748b; padding: 20px 0;">
+              Đang tải bình luận...
+            </div>
+            <template v-else>
+              <div v-for="c in postComments" :key="c.id" class="fb-comment-group">
+                <div class="fb-comment-row" :id="`comment-${c.id}`">
+                  <div class="fb-comment-avatar">
+                    <img v-if="c.user_avatar" :src="c.user_avatar" />
+                    <div v-else class="fb-avatar-text">{{ initials(c.user_name) }}</div>
+                  </div>
+                  <div class="fb-comment-content" :class="{ 'is-hidden': c.status === 'hidden' }">
+                    <div class="fb-bubble">
+                      <strong>{{ c.user_name }}</strong>
+                      <p>{{ c.content }}</p>
+                      <span class="fb-bubble-status" :class="c.status" v-if="c.status !== 'visible' && c.status !== 'published'">
+                        {{ getStatusLabel(c.status) }}
+                      </span>
+                    </div>
+                    <div class="fb-comment-footer">
+                      <span>{{ timeAgo(c.created_at) }}</span>
+                      <span>Thích</span>
+                      <span>Phản hồi</span>
+                      <div class="fb-comment-tools">
+                        <button v-if="c.status === 'hidden'" title="Mở ẩn bình luận" @click="actionComment(c, 'unhide')">
+                          <AppIcon name="eye" size="14" />
+                        </button>
+                        <button v-else title="Ẩn bình luận" @click="actionComment(c, 'hide')">
+                          <AppIcon name="eyeOff" size="14" />
+                        </button>
+                        <button title="Xóa bình luận" class="tool-danger" @click="actionComment(c, 'delete')">
+                          <AppIcon name="trash" size="14" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Phản hồi lồng nhau -->
+                <div v-if="c.replies && c.replies.length" class="fb-comment-replies">
+                  <div v-for="reply in c.replies" :key="reply.id" class="fb-comment-row reply-row" :id="`comment-${reply.id}`">
+                    <div class="fb-comment-avatar small">
+                      <img v-if="reply.user_avatar" :src="reply.user_avatar" />
+                      <div v-else class="fb-avatar-text">{{ initials(reply.user_name) }}</div>
+                    </div>
+                    <div class="fb-comment-content" :class="{ 'is-hidden': reply.status === 'hidden' }">
+                      <div class="fb-bubble">
+                        <strong>{{ reply.user_name }}</strong>
+                        <p>{{ reply.content }}</p>
+                        <span class="fb-bubble-status" :class="reply.status" v-if="reply.status !== 'visible' && reply.status !== 'published'">
+                          {{ getStatusLabel(reply.status) }}
+                        </span>
+                      </div>
+                      <div class="fb-comment-footer">
+                        <span>{{ timeAgo(reply.created_at) }}</span>
+                        <span>Thích</span>
+                        <span>Phản hồi</span>
+                        <div class="fb-comment-tools">
+                          <button v-if="reply.status === 'hidden'" title="Mở ẩn" @click="actionComment(reply, 'unhide')">
+                            <AppIcon name="eye" size="14" />
+                          </button>
+                          <button v-else title="Ẩn" @click="actionComment(reply, 'hide')">
+                            <AppIcon name="eyeOff" size="14" />
+                          </button>
+                          <button title="Xóa" class="tool-danger" @click="actionComment(reply, 'delete')">
+                            <AppIcon name="trash" size="14" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-if="postComments.length === 0" class="fb-no-comments">Chưa có bình luận nào.</div>
+            </template>
+          </div>
         </div>
       </div>
     </div>
@@ -375,6 +425,7 @@
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import { adminModerationService } from '../../services/adminModeration.js';
+import { adminUserService } from '../../services/adminUserService.js';
 
 export default {
   name: 'AdminContentModeration',
@@ -422,15 +473,53 @@ export default {
       mousedownWasOnBackdrop: false,
       autoApproveEnabled: false,
       autoApproveInterval: null,
+      modalTab: 'post',
+      postComments: [],
+      loadingComments: false,
+      activeCommentFilter: 'all',
+      autoApproveConfig: {
+        auto_approve_community_post: false,
+        auto_approve_venue_post: false,
+      },
+      commentFiltersList: [
+        { label: 'Tất cả bình luận', value: 'all' },
+        { label: 'Đang hiển thị', value: 'visible' },
+        { label: 'Đang bị ẩn', value: 'hidden' },
+        { label: 'Bị báo cáo', value: 'reported' },
+        { label: 'Cần theo dõi', value: 'attention' },
+        { label: 'Đạt/Gần đạt ngưỡng', value: 'threshold' }
+      ],
     };
   },
   computed: {
     searchPlaceholder() {
       return 'Tìm nội dung bài đăng, tác giả...';
     },
+    filteredComments() {
+      if (!this.postComments) return [];
+      return this.postComments.filter(comment => {
+        if (this.activeCommentFilter === 'visible') {
+          return comment.status !== 'hidden';
+        }
+        if (this.activeCommentFilter === 'hidden') {
+          return comment.status === 'hidden';
+        }
+        if (this.activeCommentFilter === 'reported') {
+          return comment.is_reported;
+        }
+        if (this.activeCommentFilter === 'attention') {
+          return comment.needs_attention;
+        }
+        if (this.activeCommentFilter === 'threshold') {
+          return comment.threshold_reached || comment.near_threshold;
+        }
+        return true;
+      });
+    },
   },
   mounted() {
     this.loadData();
+    this.fetchAutoApproveConfig();
   },
   beforeUnmount() {
     this.stopAutoApprove();
@@ -498,14 +587,85 @@ export default {
       this.error = '';
       this.message = '';
     },
-    openDetail(item) {
+    async openDetail(item) {
       this.clearAlerts();
       this.activeItem = item;
       this.actionForm.reason = '';
       this.detailModal.open = true;
+      this.modalTab = 'post';
+      this.postComments = [];
+      this.activeCommentFilter = 'all';
+      this.loadingComments = true;
+      try {
+        const res = await adminUserService.postDetail(item.id);
+        if (res.data) {
+          this.activeItem = {
+            ...item,
+            ...res.data.post,
+            author: {
+              ...item.author,
+              full_name: res.data.post.author_name || item.author?.full_name,
+              avatar_url: res.data.post.author_avatar || item.author?.avatar_url,
+            }
+          };
+          this.postComments = res.data.comments || [];
+        }
+      } catch (err) {
+        console.error('Không thể tải chi tiết bài viết:', err);
+        this.error = 'Không thể tải chi tiết bài viết và bình luận.';
+      } finally {
+        this.loadingComments = false;
+      }
     },
     closeDetail() {
       this.detailModal.open = false;
+    },
+    async fetchAutoApproveConfig() {
+      try {
+        const res = await adminModerationService.getConfig();
+        if (res.status === 'success') {
+          this.autoApproveConfig = res.data;
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải cấu hình duyệt tự động:', err);
+      }
+    },
+    async saveAutoApproveConfig() {
+      try {
+        await adminModerationService.saveConfig(this.autoApproveConfig);
+        this.message = 'Cập nhật cấu hình duyệt tự động thành công.';
+        setTimeout(() => this.message = '', 3000);
+      } catch (err) {
+        this.error = 'Không thể lưu cấu hình duyệt tự động.';
+        setTimeout(() => this.error = '', 3000);
+      }
+    },
+    async loadModalComments() {
+      if (!this.activeItem) return;
+      this.modalTab = 'comments';
+      this.loadingComments = true;
+      try {
+        const res = await adminUserService.postDetail(this.activeItem.id);
+        this.postComments = res.data.comments || [];
+      } catch (err) {
+        console.error('Không thể tải bình luận bài đăng:', err);
+      } finally {
+        this.loadingComments = false;
+      }
+    },
+    async actionComment(comment, action) {
+      if (!confirm(`Bạn có chắc chắn muốn thực hiện hành động này đối với bình luận của ${comment.user_name}?`)) {
+        return;
+      }
+      try {
+        const res = await adminUserService.processContentAction('comment', comment.id, action);
+        this.message = res.message || 'Thực thi thành công.';
+        setTimeout(() => this.message = '', 3000);
+        await this.loadModalComments();
+      } catch (err) {
+        this.error = err.message || 'Lỗi khi xử lý bình luận.';
+        setTimeout(() => this.error = '', 3000);
+      }
     },
     openActionModal(item) {
       this.clearAlerts();
@@ -542,10 +702,14 @@ export default {
     },
     toggleAutoApprove() {
       if (this.autoApproveEnabled) {
+        if (this.filters.status !== 'pending') {
+          this.setStatus('pending');
+        }
         this.startAutoApprove();
       } else {
         this.stopAutoApprove();
       }
+      this.$emit('auto-approve-changed', this.autoApproveEnabled);
     },
     startAutoApprove() {
       this.stopAutoApprove();
@@ -553,10 +717,53 @@ export default {
         if (this.loading || this.savingAction) {
           return;
         }
-        if (this.items.length > 0) {
-          const firstItem = this.items[0];
-          await this.approvePostDirect(firstItem);
+
+        // 1. Kiểm tra tab hiện tại trước để ưu tiên duyệt
+        let targetItem = this.items.find(item => ['pending', 'pending_review', 'draft'].includes(item.status));
+        let targetType = this.activeTab;
+
+        // 2. Nếu tab hiện tại không có bài viết chờ duyệt, quét qua các tab khác trong nền
+        if (!targetItem) {
+          const allTypes = ['community_posts', 'venue_posts', 'system_posts'];
+          const otherTypes = allTypes.filter(t => t !== this.activeTab);
+
+          for (const type of otherTypes) {
+            try {
+              const response = await adminModerationService.getQueue({
+                type: type,
+                status: 'pending',
+                page: 1,
+              });
+              const paginator = response.data || {};
+              const list = paginator.data || [];
+              const found = list.find(item => ['pending', 'pending_review', 'draft'].includes(item.status));
+              if (found) {
+                targetItem = found;
+                targetType = type;
+                break; // Tìm thấy bài chờ duyệt thì dừng quét để tiến hành duyệt bài này
+              }
+            } catch (err) {
+              console.error(`Lỗi quét tự động duyệt cho tab ${type}:`, err);
+            }
+          }
+        }
+
+        // 3. Nếu tìm thấy bài viết chờ duyệt ở bất kỳ tab nào, tiến hành duyệt
+        if (targetItem) {
+          this.savingAction = true;
+          try {
+            await adminModerationService.approvePost(targetType, targetItem.id);
+            // Nếu bài được duyệt thuộc tab hiện tại, load lại danh sách để cập nhật màn hình
+            if (targetType === this.activeTab) {
+              await this.loadData(this.pagination.current_page);
+            }
+          } catch (err) {
+            console.error('Duyệt tự động bài viết thất bại:', err);
+          } finally {
+            this.savingAction = false;
+          }
         } else {
+          // Nếu không còn bài viết chờ duyệt nào ở tất cả các tab, reload tab hiện tại để kiểm tra lại
           await this.loadData(1);
         }
       }, 5000);
@@ -566,6 +773,8 @@ export default {
         clearInterval(this.autoApproveInterval);
         this.autoApproveInterval = null;
       }
+      this.autoApproveEnabled = false;
+      this.$emit('auto-approve-changed', false);
     },
 
     // Hành động xử lý nhanh cho Post
@@ -667,16 +876,36 @@ export default {
         minute: '2-digit',
       });
     },
+    initials(name) {
+      return String(name || 'SG').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+    },
+    timeAgo(dateParam) {
+      if (!dateParam) return '';
+      const date = new Date(dateParam);
+      const now = new Date();
+      const seconds = Math.round((now - date) / 1000);
+      const minutes = Math.round(seconds / 60);
+      const hours = Math.round(minutes / 60);
+      const days = Math.round(hours / 24);
+      if (seconds < 60) return `${seconds} giây trước`;
+      if (minutes < 60) return `${minutes} phút trước`;
+      if (hours < 24) return `${hours} giờ trước`;
+      if (days < 7) return `${days} ngày trước`;
+      return date.toLocaleDateString('vi-VN');
+    },
   },
 };
 </script>
 
 <style scoped>
+@import "../../../css/admin/moderation.css";
+
 .moderation-page {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 1400px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
 }
 

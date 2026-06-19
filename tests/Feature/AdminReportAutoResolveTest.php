@@ -165,7 +165,7 @@ class AdminReportAutoResolveTest extends TestCase
             'reportable_id' => $post->id,
             'reason' => 'spam',
             'description' => 'Report 1',
-            'status' => 'pending',
+            'status' => 'resolved',
         ]);
 
         Report::query()->create([
@@ -174,7 +174,7 @@ class AdminReportAutoResolveTest extends TestCase
             'reportable_id' => $post->id,
             'reason' => 'spam',
             'description' => 'Report 2',
-            'status' => 'pending',
+            'status' => 'resolved',
         ]);
 
         Report::query()->create([
@@ -183,7 +183,7 @@ class AdminReportAutoResolveTest extends TestCase
             'reportable_id' => $post->id,
             'reason' => 'spam',
             'description' => 'Report 3',
-            'status' => 'pending',
+            'status' => 'resolved',
         ]);
 
         // Assert post status is hidden due to auto resolve

@@ -1,17 +1,6 @@
 <template>
   <section class="moderation-page">
-    <header class="page-head">
-      <div>
-        <h2>Xử lý báo cáo</h2>
-        <p>Kiểm duyệt nội dung và xử lý hành vi vi phạm trong cộng đồng.</p>
-      </div>
-      <div class="head-actions" style="display: flex; gap: 10px; align-items: center;">
-        <button type="button" class="btn" style="display: inline-flex; align-items: center; gap: 6px;" @click="openAutoResolveModal">
-          <AppIcon name="settings" size="16" /> Cấu hình tự động xử lý báo cáo
-        </button>
-        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadReports" />
-      </div>
-    </header>
+
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -129,24 +118,16 @@
               <button v-if="selected.status === 'pending'" class="btn secondary" type="button" :disabled="saving" @click="takeReview">
                 Nhận kiểm duyệt
               </button>
-              <label>
-                Hành động
-                <select v-model="form.action_taken" :disabled="saving || selected.status === 'resolved' || selected.status === 'dismissed'">
-                  <option value="">Chọn hành động</option>
-                  <option v-for="action in selected.available_actions" :key="action" :value="action">{{ actionLabel(action) }}</option>
-                </select>
-              </label>
-              <label v-if="['account_locked', 'venue_locked'].includes(form.action_taken)">
-                Số ngày khóa
-                <input v-model.number="form.lock_days" type="number" min="1" max="365" placeholder="Bỏ trống để khóa vĩnh viễn" :disabled="saving || selected.status === 'resolved' || selected.status === 'dismissed'" />
-              </label>
+              <button v-if="selected.status === 'resolved' || selected.status === 'dismissed'" class="btn secondary" type="button" :disabled="saving" @click="takeReview">
+                Hủy thao tác & Xử lý lại
+              </button>
               <label>
                 Ghi chú xử lý
                 <textarea v-model.trim="form.action_note" rows="6" placeholder="Nêu kết quả kiểm tra và căn cứ xử lý" :disabled="saving || selected.status === 'resolved' || selected.status === 'dismissed'"></textarea>
               </label>
               <div v-if="selected.status !== 'resolved' && selected.status !== 'dismissed'" class="modal-actions">
                 <button class="btn secondary" type="button" :disabled="saving" @click="submitDecision('dismissed')">Từ chối</button>
-                <button class="btn danger" type="button" :disabled="saving || !form.action_taken" @click="submitDecision('resolved')">Xác nhận</button>
+                <button class="btn danger" type="button" :disabled="saving" @click="submitDecision('resolved')">Xác nhận</button>
               </div>
             </div>
           </aside>
@@ -365,10 +346,6 @@ export default {
       }
     },
     async submitDecision(decision) {
-      if (!this.form.action_note) {
-        this.error = 'Vui lòng nhập ghi chú xử lý.';
-        return;
-      }
       this.saving = true;
       try {
         const response = await adminReportService.resolve(this.selected.id, { ...this.form, decision });

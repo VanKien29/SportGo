@@ -178,6 +178,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectLocationChange']);
 
         // Content Moderation
+        Route::get('/moderation/config', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'getConfig']);
+        Route::post('/moderation/config', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'saveConfig']);
         Route::get('/moderation/queue', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'queue']);
         Route::post('/moderation/posts/{type}/{id}/approve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'approvePost']);
         Route::post('/moderation/posts/{type}/{id}/reject', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'rejectPost']);

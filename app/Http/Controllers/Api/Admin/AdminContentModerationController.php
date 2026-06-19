@@ -250,6 +250,9 @@ class AdminContentModerationController extends Controller
         $post->reviewed_at = now();
         $post->save();
 
+        // Tự động giải quyết các báo cáo liên quan
+        \App\Models\Report::resolvePendingReportsForTarget($post, 'content_hidden', $request->user(), $data['reason']);
+
         // Gửi thông báo in-app cho tác giả
         $this->sendNotification(
             $post->author_id,
@@ -296,6 +299,9 @@ class AdminContentModerationController extends Controller
         $post->reviewed_by = $request->user()?->id;
         $post->reviewed_at = now();
         $post->save();
+
+        // Tự động giải quyết các báo cáo liên quan
+        \App\Models\Report::resolvePendingReportsForTarget($post, 'content_hidden', $request->user(), $data['reason']);
 
         // Gửi thông báo in-app cho tác giả
         $this->sendNotification(
@@ -345,6 +351,9 @@ class AdminContentModerationController extends Controller
         $post->reviewed_by = $request->user()?->id;
         $post->reviewed_at = now();
         $post->save();
+
+        // Tự động giải quyết các báo cáo liên quan
+        \App\Models\Report::resolvePendingReportsForTarget($post, 'content_deleted', $request->user(), $reason);
 
         // Gửi thông báo in-app cho tác giả
         $this->sendNotification(
@@ -565,6 +574,57 @@ class AdminContentModerationController extends Controller
             'reference_id' => $refId,
             'data' => null,
             'is_read' => false,
+        ]);
+    }
+
+    public function getConfig(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'moderation.view');
+
+        $requireCommunity = \App\Models\ModerationConfig::where('key', 'require_community_post_moderation')->first();
+        $requireVenue = \App\Models\ModerationConfig::where('key', 'require_venue_post_moderation')->first();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'auto_approve_community_post' => $requireCommunity ? !filter_var($requireCommunity->value, FILTER_VALIDATE_BOOLEAN) : false,
+                'auto_approve_venue_post' => $requireVenue ? !filter_var($requireVenue->value, FILTER_VALIDATE_BOOLEAN) : false,
+            ]
+        ]);
+    }
+
+    public function saveConfig(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'moderation.manage');
+
+        $data = $request->validate([
+            'auto_approve_community_post' => ['required', 'boolean'],
+            'auto_approve_venue_post' => ['required', 'boolean'],
+        ]);
+
+        \App\Models\ModerationConfig::updateOrCreate(
+            ['key' => 'require_community_post_moderation'],
+            [
+                'value' => $data['auto_approve_community_post'] ? 'false' : 'true',
+                'value_type' => 'boolean',
+                'description' => 'Yêu cầu kiểm duyệt bài viết cộng đồng (nếu false tức là tự động duyệt)',
+                'updated_by' => $request->user()?->id,
+            ]
+        );
+
+        \App\Models\ModerationConfig::updateOrCreate(
+            ['key' => 'require_venue_post_moderation'],
+            [
+                'value' => $data['auto_approve_venue_post'] ? 'false' : 'true',
+                'value_type' => 'boolean',
+                'description' => 'Yêu cầu kiểm duyệt bài viết cụm sân (nếu false tức là tự động duyệt)',
+                'updated_by' => $request->user()?->id,
+            ]
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Lưu cấu hình duyệt tự động thành công.',
         ]);
     }
 

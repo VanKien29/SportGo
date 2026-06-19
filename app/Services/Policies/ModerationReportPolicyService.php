@@ -717,7 +717,7 @@ class ModerationReportPolicyService
         $query = DB::table('reports')
             ->where('reportable_type', $type)
             ->where('reportable_id', $id)
-            ->whereNotIn('status', ['dismissed', 'resolved'])
+            ->where('status', 'resolved')
             ->where('created_at', '>=', now()->subDays($windowDays));
 
         return [

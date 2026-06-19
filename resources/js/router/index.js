@@ -117,7 +117,7 @@ const routes = [
             {
                 path: "moderation",
                 name: "admin-moderation",
-                component: () => import("../views/admin/AdminContentModeration.vue"),
+                component: () => import("../views/admin/AdminModeration.vue"),
             },
             { path: "policies", name: "admin-policies", component: AdminPolicies },
             {
@@ -128,13 +128,11 @@ const routes = [
             { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
             {
                 path: "reports",
-                name: "admin-reports",
-                component: () => import("../views/admin/AdminReports.vue"),
+                redirect: { name: "admin-moderation", query: { tab: "reports" } }
             },
             {
                 path: "complaints",
-                name: "admin-complaints",
-                component: () => import("../views/admin/AdminComplaints.vue"),
+                redirect: { name: "admin-moderation", query: { tab: "complaints" } }
             },
             { path: "roles", name: "admin-roles", component: AdminRoles },
             { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail },
