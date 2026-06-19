@@ -12,7 +12,10 @@ use App\Models\Report;
 use App\Models\User;
 use App\Models\VenueCluster;
 use App\Models\VenuePost;
+use App\Models\ViolationRecord;
 use App\Services\Admin\AdminAuditService;
+use App\Services\Moderation\PenaltyEscalationService;
+use App\Services\Moderation\ViolationScoreService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -33,13 +36,25 @@ class AdminReportController extends Controller
         'venue' => VenueCluster::class,
     ];
 
-    public function __construct(private readonly AdminAuditService $audit)
+    public function __construct(
+        private readonly AdminAuditService $audit,
+        private readonly PenaltyEscalationService $penalties,
+        private readonly ViolationScoreService $violationScores
+    )
     {
     }
 
     public function index(Request $request): JsonResponse
     {
         $this->authorizePermission($request, 'report.view');
+        $request->validate([
+            'status' => ['nullable', Rule::in(['pending', 'reviewing', 'resolved', 'dismissed'])],
+            'reason' => ['nullable', Rule::in(['spam', 'offensive', 'fake', 'harassment', 'other'])],
+            'target_type' => ['nullable', Rule::in(array_keys(self::TARGET_TYPES))],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'keyword' => ['nullable', 'string', 'max:100'],
+        ]);
 
         $query = Report::query()
             ->with(['reporter:id,username,full_name,email', 'reviewedBy:id,username,full_name'])
@@ -85,13 +100,45 @@ class AdminReportController extends Controller
         $this->authorizePermission($request, 'report.view');
 
         $report = Report::query()
-            ->with(['reporter:id,username,full_name,email,phone', 'reviewedBy:id,username,full_name', 'reportable', 'evidence'])
+            ->with(['reporter:id,username,full_name,email,phone', 'reviewedBy:id,username,full_name', 'reportable', 'evidence', 'violationType'])
             ->findOrFail($id);
 
         return response()->json([
             'data' => [
                 'report' => $this->detailPayload($report),
                 'audit_logs' => $this->auditLogs($report),
+            ],
+        ]);
+    }
+
+    public function violationRecord(Request $request, string $targetType, string $targetId): JsonResponse
+    {
+        $this->authorizePermission($request, 'report.view');
+
+        if (! in_array($targetType, ['user', 'venue_cluster'], true)) {
+            throw ValidationException::withMessages([
+                'target_type' => 'Đối tượng hồ sơ vi phạm không hợp lệ.',
+            ]);
+        }
+
+        $record = ViolationRecord::query()
+            ->where('target_type', $targetType)
+            ->where('target_id', $targetId)
+            ->first();
+        $suggestedPenalty = $this->penalties->getSuggestedPenalty($targetType);
+
+        return response()->json([
+            'data' => [
+                'target_type' => $targetType,
+                'target_id' => $targetId,
+                'violation_count' => (int) ($record?->violation_count ?? 0),
+                'last_violation_at' => $record?->last_violation_at,
+                'last_action_type' => $record?->last_action_type,
+                'last_action_expires_at' => $record?->last_action_expires_at,
+                'suggested_penalty' => $suggestedPenalty ? [
+                    'action_type' => $suggestedPenalty->action_type,
+                    'duration_days' => $suggestedPenalty->duration_days,
+                ] : null,
             ],
         ]);
     }
@@ -103,6 +150,19 @@ class AdminReportController extends Controller
         $report = Report::query()->findOrFail($id);
         if (in_array($report->status, ['resolved', 'dismissed'], true)) {
             throw ValidationException::withMessages(['status' => 'Báo cáo này đã được xử lý.']);
+        }
+
+        if ($report->status === 'reviewing') {
+            if ($report->reviewed_by !== $request->user()->id) {
+                throw ValidationException::withMessages([
+                    'status' => 'Báo cáo đang được quản trị viên khác kiểm duyệt.',
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Bạn đang kiểm duyệt báo cáo này.',
+                'data' => $this->detailPayload($report->load(['reporter', 'reviewedBy', 'reportable', 'evidence'])),
+            ]);
         }
 
         $oldValues = $report->only(['status', 'reviewed_by', 'reviewed_at']);
@@ -129,9 +189,12 @@ class AdminReportController extends Controller
             'action_taken' => ['nullable', Rule::in(['warning', 'content_hidden', 'content_deleted', 'account_locked', 'venue_locked'])],
             'action_note' => ['required', 'string', 'max:3000'],
             'lock_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'use_suggested' => ['nullable', 'boolean'],
+            'action_type' => ['nullable', 'string', 'max:50'],
+            'duration_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
         ]);
 
-        if ($data['decision'] === 'resolved' && empty($data['action_taken'])) {
+        if ($data['decision'] === 'resolved' && empty($data['action_taken']) && empty($data['use_suggested']) && empty($data['action_type'])) {
             throw ValidationException::withMessages(['action_taken' => 'Vui lòng chọn hành động xử lý.']);
         }
 
@@ -140,17 +203,38 @@ class AdminReportController extends Controller
             throw ValidationException::withMessages(['status' => 'Báo cáo này đã được xử lý.']);
         }
 
+        if ($report->status === 'reviewing' && $report->reviewed_by !== $request->user()->id) {
+            throw ValidationException::withMessages([
+                'status' => 'Báo cáo đang được quản trị viên khác kiểm duyệt.',
+            ]);
+        }
+
         $targetOwner = $this->targetOwner($report->reportable);
         $oldValues = $report->toArray();
+        $appliedReportAction = $data['action_taken'] ?? null;
 
-        DB::transaction(function () use ($request, $report, $targetOwner, $data): void {
+        DB::transaction(function () use ($request, $report, $targetOwner, $data, &$appliedReportAction): void {
             if ($data['decision'] === 'resolved') {
-                $this->applyAction($request, $report, $data['action_taken'], $data['action_note'], $data['lock_days'] ?? null);
+                if ($data['use_suggested'] ?? false) {
+                    [$penaltyTargetType, $penaltyTargetId] = $this->penaltyTarget($report);
+                    $suggested = $this->penalties->getSuggestedPenalty($penaltyTargetType);
+                    if (! $suggested) {
+                        throw ValidationException::withMessages(['use_suggested' => 'Chưa có cấu hình hình phạt đề xuất cho đối tượng này.']);
+                    }
+                    $this->penalties->applyPenalty($penaltyTargetType, $penaltyTargetId, $suggested->action_type, $suggested->duration_days, $request->user(), $data['action_note']);
+                    $appliedReportAction = $this->legacyActionFromPenalty($suggested->action_type);
+                } elseif (! empty($data['action_type'])) {
+                    [$penaltyTargetType, $penaltyTargetId] = $this->penaltyTarget($report);
+                    $this->penalties->applyPenalty($penaltyTargetType, $penaltyTargetId, $data['action_type'], $data['duration_days'] ?? null, $request->user(), $data['action_note']);
+                    $appliedReportAction = $this->legacyActionFromPenalty($data['action_type']);
+                } else {
+                    $this->applyAction($request, $report, $data['action_taken'], $data['action_note'], $data['lock_days'] ?? null);
+                }
             }
 
             $report->forceFill([
                 'status' => $data['decision'],
-                'action_taken' => $data['decision'] === 'resolved' ? $data['action_taken'] : null,
+                'action_taken' => $data['decision'] === 'resolved' ? $appliedReportAction : null,
                 'action_note' => $data['action_note'],
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
@@ -244,6 +328,36 @@ class AdminReportController extends Controller
         $this->audit->log($request, 'report', 'venue.locked_by_report', 'venue_clusters', $venue->id, $old, $venue->fresh()->toArray(), ['reason' => $reason, 'severity' => 'warning']);
     }
 
+    private function penaltyTarget(Report $report): array
+    {
+        $target = $report->reportable;
+
+        if ($target instanceof VenueCluster || $target instanceof VenuePost) {
+            $venue = $target instanceof VenueCluster ? $target : $target->venueCluster;
+            if ($venue) {
+                return ['venue_cluster', (string) $venue->id];
+            }
+        }
+
+        $user = $target instanceof User ? $target : $this->targetOwner($target);
+        if ($user) {
+            return ['user', (string) $user->id];
+        }
+
+        throw ValidationException::withMessages(['report' => 'Không xác định được đối tượng để áp dụng hình phạt.']);
+    }
+
+    private function legacyActionFromPenalty(string $actionType): string
+    {
+        return match ($actionType) {
+            'hide_content' => 'content_hidden',
+            'delete_content' => 'content_deleted',
+            'lock_temp', 'lock_permanent' => 'account_locked',
+            'limit_venue', 'block_venue', 'terminate_contract' => 'venue_locked',
+            default => 'warning',
+        };
+    }
+
     private function listPayload(Report $report): array
     {
         $target = $this->resolveTarget($report);
@@ -267,10 +381,37 @@ class AdminReportController extends Controller
     {
         $target = $report->reportable ?: $this->resolveTarget($report);
         $owner = $this->targetOwner($target);
+        $scoreTargetType = $this->violationScores->normalizeTargetType($report->reportable_type);
+        $currentScore = $this->violationScores->getAccumulatedScore($scoreTargetType, (string) $report->reportable_id);
+        $suggestedPenalty = null;
+        try {
+            [$penaltyTargetType, $penaltyTargetId] = $this->penaltyTarget($report);
+            $suggestedPenalty = $this->penalties->getSuggestedPenalty($penaltyTargetType);
+        } catch (ValidationException) {
+            $suggestedPenalty = null;
+        }
 
         return [
             ...$this->listPayload($report),
             'action_note' => $report->action_note,
+            'violation_type' => $report->violationType ? [
+                'id' => $report->violationType->id,
+                'code' => $report->violationType->code,
+                'name' => $report->violationType->name,
+                'base_score' => $report->violationType->base_score,
+                'is_immediate' => $report->violationType->is_immediate,
+            ] : null,
+            'severity_level' => $report->severity_level,
+            'score_contribution' => $report->score_contribution,
+            'accumulated_score' => $currentScore,
+            'auto_action_taken' => $report->auto_action_taken,
+            'auto_actioned_at' => $report->auto_actioned_at,
+            'suggested_penalty' => $suggestedPenalty ? [
+                'action_type' => $suggestedPenalty->action_type,
+                'duration_days' => $suggestedPenalty->duration_days,
+                'violation_count' => $suggestedPenalty->violation_count,
+                'is_catch_all' => $suggestedPenalty->is_catch_all,
+            ] : null,
             'target' => $this->targetPayload($target),
             'reported_user' => $this->userPayload($owner),
             'available_actions' => $this->availableActions($target),

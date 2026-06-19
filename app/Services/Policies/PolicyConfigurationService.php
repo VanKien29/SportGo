@@ -25,6 +25,9 @@ class PolicyConfigurationService
         if ($type === 'partner_contract') {
             return $this->extractPartnerContractConfig($policy);
         }
+        if ($type === 'account_policy') {
+            return $this->extractAccountPolicyConfig($policy);
+        }
         
         return [];
     }
@@ -77,6 +80,15 @@ class PolicyConfigurationService
             $this->applyPartnerContractConfig($policy, $data);
             return;
         }
+
+        if ($type === 'account_policy') {
+            $this->applyAccountPolicyConfig($policy, $data);
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'configuration_data' => 'Loại chính sách này chưa có cấu hình tự động để lưu.',
+        ]);
     }
     
     public function getConfigurationType(SystemPolicy $policy): string
@@ -424,6 +436,70 @@ class PolicyConfigurationService
             [
                 'module' => 'contract',
                 'description' => 'Tự động nhắc nhở, khóa sân hoặc thu hồi quyền khi hợp đồng hết hạn',
+                'is_active' => true,
+            ]
+        );
+    }
+
+    private function extractAccountPolicyConfig(SystemPolicy $policy): array
+    {
+        return $this->accountPolicyPayload($policy)['config'];
+    }
+
+    private function applyAccountPolicyConfig(SystemPolicy $policy, array $data): void
+    {
+        $validator = validator($data, [
+            'warnings_to_restrict' => ['required', 'integer', 'min:1'],
+            'violations_to_lock' => ['required', 'integer', 'min:1'],
+            'lock_days' => ['required', 'integer', 'min:1'],
+            'admin_confirm' => ['required', 'boolean'],
+            'notify_user' => ['required', 'boolean'],
+            'default_reason' => ['required', 'string', 'max:500'],
+        ], [
+            'warnings_to_restrict.min' => 'Số cảnh báo trước khi hạn chế phải lớn hơn 0.',
+            'violations_to_lock.min' => 'Số lần vi phạm trước khi khóa phải lớn hơn 0.',
+            'lock_days.min' => 'Số ngày khóa tài khoản phải lớn hơn 0.',
+        ]);
+
+        $validator->after(function ($validator) use ($data): void {
+            if ((int) $data['warnings_to_restrict'] > (int) $data['violations_to_lock']) {
+                $validator->errors()->add('warnings_to_restrict', 'Số cảnh báo hạn chế không được lớn hơn số vi phạm khóa tài khoản.');
+            }
+        });
+
+        $validated = $validator->validate();
+
+        $rule = $policy->rules()->firstOrCreate(
+            ['rule_type' => 'account_violation_rule'],
+            [
+                'rule_code' => 'ACCOUNT_VIOLATION_POLICY',
+                'rule_name' => 'Quy định xử lý vi phạm tài khoản',
+                'action_code' => 'account.violation',
+                'is_active' => true,
+                'created_by' => auth()->id(),
+            ]
+        );
+
+        $rule->update([
+            'condition_json' => [
+                'warnings_to_restrict' => $validated['warnings_to_restrict'],
+                'violations_to_lock' => $validated['violations_to_lock'],
+            ],
+            'result_json' => [
+                'lock_days' => $validated['lock_days'],
+                'admin_confirm' => $validated['admin_confirm'],
+                'notify_user' => $validated['notify_user'],
+                'default_reason' => $validated['default_reason'],
+                'summary_vi' => 'Hạn chế sau ' . $validated['warnings_to_restrict'] . ' cảnh báo, khóa ' . $validated['lock_days'] . ' ngày sau ' . $validated['violations_to_lock'] . ' vi phạm.',
+            ],
+            'updated_by' => auth()->id(),
+        ]);
+
+        $policy->actionBindings()->firstOrCreate(
+            ['action_code' => 'account.violation'],
+            [
+                'module' => 'account',
+                'description' => 'Xử lý tài khoản vi phạm nhiều lần',
                 'is_active' => true,
             ]
         );

@@ -57,7 +57,7 @@ class ScheduleLockController extends Controller
             'booking_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'start_time' => ['nullable', 'required_with:venue_court_id', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['nullable', 'required_with:venue_court_id', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
-            'reason' => ['required', 'string', 'max:500'],
+            'reason' => ['required', 'string', 'min:3', 'max:500'],
         ]);
 
         $isBatch = ! empty($data['slots']);
@@ -71,6 +71,16 @@ class ScheduleLockController extends Controller
             if ($this->timeToMinutes($slot['end_time']) <= $this->timeToMinutes($slot['start_time'])) {
                 throw ValidationException::withMessages([
                     $isBatch ? "slots.{$index}.end_time" : 'end_time' => 'Giờ kết thúc phải lớn hơn giờ bắt đầu.',
+                ]);
+            }
+            if ($this->timeToMinutes($slot['start_time']) % 30 !== 0) {
+                throw ValidationException::withMessages([
+                    $isBatch ? "slots.{$index}.start_time" : 'start_time' => 'Giờ bắt đầu phải theo bước 30 phút.',
+                ]);
+            }
+            if ($this->timeToMinutes($slot['end_time']) % 30 !== 0) {
+                throw ValidationException::withMessages([
+                    $isBatch ? "slots.{$index}.end_time" : 'end_time' => 'Giờ kết thúc phải theo bước 30 phút.',
                 ]);
             }
         }

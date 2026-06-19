@@ -219,6 +219,7 @@ export default {
             },
             selectedSlots: [],
             quickRanges: [
+                { key: "early", label: "Đêm", start: "00:00", end: "06:00" },
                 { key: "morning", label: "Sáng", start: "06:00", end: "12:00" },
                 {
                     key: "afternoon",

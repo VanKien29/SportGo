@@ -72,5 +72,35 @@ class CommunityPostsTableSeeder extends Seeder
                 ]
             );
         }
+
+        // Thêm dữ liệu fake
+        $user1 = User::query()->where('username', 'user1')->first();
+        $user2 = User::query()->where('username', 'user2')->first();
+
+        if ($user1) {
+            CommunityPost::query()->updateOrCreate(
+                ['content' => "Tuyển gấp 2 bạn đánh giao lưu tối nay lúc 20h tại sân Cầu Giấy. Trình độ trung bình khá trở lên, vui vẻ hòa đồng. Ai đi được comment nhé!"],
+                [
+                    'author_id' => $user1->id,
+                    'status' => 'published',
+                    'view_count' => 120,
+                    'like_count' => 5,
+                    'comment_count' => 4,
+                ]
+            );
+        }
+
+        if ($user2) {
+            CommunityPost::query()->updateOrCreate(
+                ['content' => "Góc thanh lý: Mình cần pass lại vợt Yonex Astrox 88D Pro tình trạng 95%, giá cả học sinh sinh viên. Ib để ép giá :))"],
+                [
+                    'author_id' => $user2->id,
+                    'status' => 'published',
+                    'view_count' => 85,
+                    'like_count' => 12,
+                    'comment_count' => 2,
+                ]
+            );
+        }
     }
 }

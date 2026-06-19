@@ -28,6 +28,7 @@ class User extends Authenticatable
         'avatar_url',
         'bio',
         'status',
+        'is_locked',
         'verification_channel',
         'lock_type',
         'status_reason',
@@ -49,8 +50,14 @@ class User extends Authenticatable
             'phone_verified_at' => 'datetime',
             'locked_at' => 'datetime',
             'locked_until' => 'datetime',
+            'is_locked' => 'boolean',
             'password' => 'hashed',
         ];
+    }
+
+    public function lockLogs()
+    {
+        return $this->hasMany(UserLockLog::class, 'user_id');
     }
 
     public function lockedBy()
@@ -101,6 +108,21 @@ class User extends Authenticatable
         }
 
         return 'user';
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (User $user) {
+            $role = Role::query()->where('name', 'user')->first();
+            if ($role) {
+                UserRole::query()->firstOrCreate([
+                    'user_id' => $user->id,
+                    'role_id' => $role->id,
+                    'scope_type' => 'system',
+                    'scope_id' => '00000000-0000-0000-0000-000000000000',
+                ]);
+            }
+        });
     }
 }
 

@@ -31,8 +31,6 @@ class UserController extends Controller
         'finance_operator',
         'policy_manager',
         'staff_manager',
-        'venue_owner',
-        'venue_staff',
     ];
 
     public function __construct(
@@ -50,6 +48,7 @@ class UserController extends Controller
             'warning_level' => ['nullable', Rule::in(['watch', 'near_lock', 'lock_suggested'])],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:5', 'max:50'],
+            'role_group' => ['nullable', 'string', Rule::in(['staff', 'customer', 'owner'])],
         ]);
 
         $warningUserIds = $request->query('status') === 'warning' || $request->filled('warning_level')
@@ -69,6 +68,15 @@ class UserController extends Controller
             })
             ->when($request->filled('status') && $request->query('status') !== 'warning', fn ($query) => $query->where('status', $request->query('status')))
             ->when($request->filled('role'), fn ($query) => $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', $request->query('role'))))
+            ->when($request->filled('role_group'), function ($query) use ($request): void {
+                if ($request->query('role_group') === 'staff') {
+                    $query->whereHas('roles', fn ($roleQuery) => $roleQuery->whereIn('name', self::STAFF_ROLES));
+                } elseif ($request->query('role_group') === 'owner') {
+                    $query->whereHas('roles', fn ($roleQuery) => $roleQuery->whereIn('name', ['venue_owner', 'venue_staff']));
+                } elseif ($request->query('role_group') === 'customer') {
+                    $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', 'user'));
+                }
+            })
             ->when(is_array($warningUserIds), fn ($query) => $query->whereIn('id', $warningUserIds))
             ->latest()
             ->paginate((int) $request->integer('per_page', 15));
@@ -116,6 +124,195 @@ class UserController extends Controller
         ];
     }
 
+    public function autoLockConfig(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'user.view');
+        
+        $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
+        $rules = $activePolicy ? $activePolicy->rules()->get() : collect();
+
+        $warnThreshold = 3;
+        $lockThreshold = 10;
+        $windowDays = 7;
+        $uniqueReportersThreshold = 3;
+
+        $warnRule = $rules->firstWhere('rule_code', 'user_report_warning_threshold');
+        $lockRule = $rules->firstWhere('rule_code', 'user_report_lock_threshold');
+
+        if ($activePolicy) {
+            $userThreshold = \App\Models\ModerationThreshold::where('system_policy_id', $activePolicy->id)
+                ->where('target_type', 'user')
+                ->first();
+                
+            if ($userThreshold) {
+                $warnThreshold = $userThreshold->warning_threshold;
+                $lockThreshold = $userThreshold->action_threshold;
+                $windowDays = $userThreshold->timeframe_days;
+                $uniqueReportersThreshold = $userThreshold->unique_reporters_threshold;
+            } else {
+                if ($warnRule) {
+                    $c = $warnRule->condition_json ?? [];
+                    $warnThreshold = $c['threshold'] ?? $warnThreshold;
+                    $windowDays = $c['window_days'] ?? $windowDays;
+                }
+
+                if ($lockRule) {
+                    $c = $lockRule->condition_json ?? [];
+                    $lockThreshold = $c['threshold'] ?? $lockThreshold;
+                    $windowDays = $c['window_days'] ?? $windowDays;
+                    $uniqueReportersThreshold = $c['threshold'] ?? $lockThreshold;
+                }
+            }
+        }
+
+        $actionType = 'lock_temp';
+        $durationDays = 7;
+        $autoLockReason = 'Vi phạm tiêu chuẩn cộng đồng';
+        $isAutoLockEnabled = false;
+
+        if ($lockRule) {
+            $r = $lockRule->result_json ?? [];
+            $actionType = 'lock_temp';
+            $durationDays = $r['lock_duration_days'] ?? 7;
+            $autoLockReason = $r['reason'] ?? 'Vi phạm tiêu chuẩn cộng đồng';
+            $isAutoLockEnabled = $r['is_auto_lock_enabled'] ?? false;
+        } else {
+            // Fallback to legacy rule search
+            foreach ($rules as $rule) {
+                $c = $rule->condition_json ?? [];
+                if (in_array($c['reportable_type'] ?? '', ['user', 'users']) || ($c['target_type'] ?? '') === 'user') {
+                    $r = $rule->result_json ?? [];
+                    if (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
+                        $actionType = 'lock_temp';
+                        $durationDays = $r['lock_duration_days'] ?? 7;
+                        $autoLockReason = $r['reason'] ?? 'Vi phạm tiêu chuẩn cộng đồng';
+                        $isAutoLockEnabled = $r['is_auto_lock_enabled'] ?? false;
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'data' => [
+                'policy_id' => $activePolicy?->id,
+                'warning_threshold' => $warnThreshold,
+                'lock_threshold' => $lockThreshold,
+                'unique_reporters_threshold' => $uniqueReportersThreshold ?? $lockThreshold,
+                'window_days' => $windowDays,
+                'action_type' => $actionType,
+                'duration_days' => $durationDays,
+                'reason' => $autoLockReason,
+                'is_auto_lock_enabled' => $isAutoLockEnabled,
+            ]
+        ]);
+    }
+
+    public function saveAutoLockConfig(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'policy.rule.manage');
+
+        $data = $request->validate([
+            'is_auto_lock_enabled' => ['required', 'boolean'],
+            'duration_days' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'max:255'],
+        ]);
+
+        $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
+        if (!$activePolicy) {
+            throw ValidationException::withMessages(['policy' => 'Không có chính sách kiểm duyệt nào đang Active.']);
+        }
+
+        $rules = $activePolicy->rules()->get();
+        
+        // Target user_report_lock_threshold first
+        $actionRule = $rules->firstWhere('rule_code', 'user_report_lock_threshold');
+
+        if (!$actionRule) {
+            $actionRule = $rules->firstWhere('rule_code', 'moderation_score_user');
+        }
+
+        if (!$actionRule) {
+            // Try to find legacy rule
+            foreach ($rules as $rule) {
+                $c = $rule->condition_json ?? [];
+                if (in_array($c['reportable_type'] ?? '', ['user', 'users'])) {
+                    $r = $rule->result_json ?? [];
+                    if (in_array($r['action'] ?? '', ['auto_lock', 'lock_temp', 'lock_permanent'])) {
+                        $actionRule = $rule;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ($actionRule) {
+            $r = $actionRule->result_json ?? [];
+            $r['lock_duration_days'] = $data['duration_days'];
+            $r['reason'] = $data['reason'];
+            $r['is_auto_lock_enabled'] = $data['is_auto_lock_enabled'];
+            $actionRule->update([
+                'result_json' => $r,
+            ]);
+
+            if ($data['is_auto_lock_enabled']) {
+                $lockThreshold = $actionRule->condition_json['threshold'] ?? 10;
+                $windowDays = $actionRule->condition_json['window_days'] ?? 7;
+
+                $adminRoleIds = DB::table('roles')
+                    ->whereIn('name', [
+                        'super_admin', 'admin', 'system_staff', 'content_moderator',
+                        'complaint_handler', 'venue_manager', 'partner_manager',
+                        'booking_support', 'finance_operator', 'policy_manager', 'staff_manager'
+                    ])
+                    ->pluck('id');
+
+                $adminUserIds = DB::table('user_roles')
+                    ->whereIn('role_id', $adminRoleIds)
+                    ->pluck('user_id')
+                    ->all();
+
+                $exceededUserIds = DB::table('reports')
+                    ->whereIn('reportable_type', ['users', 'user', User::class])
+                    ->whereNotIn('reportable_id', $adminUserIds)
+                    ->whereNotIn('status', ['dismissed', 'resolved'])
+                    ->where('created_at', '>=', now()->subDays($windowDays))
+                    ->select('reportable_id', DB::raw('COUNT(DISTINCT reporter_id) as total'))
+                    ->groupBy('reportable_id')
+                    ->having('total', '>=', $lockThreshold)
+                    ->pluck('reportable_id')
+                    ->all();
+
+                foreach ($exceededUserIds as $userId) {
+                    $user = User::query()->find($userId);
+                    if ($user && $user->status === 'active') {
+                        $user->forceFill([
+                            'status' => 'locked',
+                            'lock_type' => 'auto',
+                            'status_reason' => $data['reason'],
+                            'locked_at' => now(),
+                            'locked_until' => now()->addDays($data['duration_days']),
+                            'locked_by' => $request->user()?->id,
+                        ])->save();
+
+                        if (class_exists(\App\Models\UserLockLog::class)) {
+                            \App\Models\UserLockLog::create([
+                                'user_id' => $user->id,
+                                'action' => 'locked',
+                                'reason' => $data['reason'],
+                                'locked_by' => $request->user()?->id,
+                                'auto_triggered' => true,
+                                'lock_until' => now()->addDays($data['duration_days']),
+                                'created_at' => now(),
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+
+        return response()->json(['message' => 'Lưu cấu hình thành công.']);
+    }
+
     public function show(string $id): JsonResponse
     {
         $user = User::query()
@@ -143,8 +340,113 @@ class UserController extends Controller
                 'booking_summary' => $this->bookingSummary($user->id),
                 'recent_bookings' => $this->bookingHistory($user->id),
                 'audit_logs' => $this->auditLogs($user->id),
+                'posts' => $this->userPosts($user->id),
+                'comments' => $this->userComments($user->id),
+                'content_reports_summary' => $this->contentReportSummary($user->id),
             ],
         ]);
+    }
+
+    private function userPosts(string $userId)
+    {
+        if (! Schema::hasTable('community_posts')) {
+            return [];
+        }
+        return \App\Models\CommunityPost::query()
+            ->with('media')
+            ->where('author_id', $userId)
+            ->latest('created_at')
+            ->limit(100)
+            ->get()
+            ->map(fn ($post) => [
+                'id' => $post->id,
+                'content' => $post->content,
+                'status' => $post->status,
+                'comment_count' => $post->comment_count ?? 0,
+                'like_count' => $post->like_count ?? 0,
+                'created_at' => $post->created_at,
+                'media' => $post->media->map(fn ($m) => [
+                    'id' => $m->id,
+                    'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
+                    'mime_type' => $m->mime_type,
+                ]),
+            ])
+            ->all();
+    }
+
+    private function userComments(string $userId)
+    {
+        if (! Schema::hasTable('community_post_comments')) {
+            return [];
+        }
+        return \App\Models\CommunityPostComment::query()
+            ->with(['post:id,content', 'media'])
+            ->where('user_id', $userId)
+            ->latest('created_at')
+            ->limit(100)
+            ->get()
+            ->map(fn ($comment) => [
+                'id' => $comment->id,
+                'content' => $comment->content,
+                'post_content' => $comment->post?->content,
+                'replies_count' => $comment->replies()->count(),
+                'created_at' => $comment->created_at,
+                'media' => $comment->media->map(fn ($m) => [
+                    'id' => $m->id,
+                    'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
+                    'mime_type' => $m->mime_type,
+                ]),
+            ])
+            ->all();
+    }
+
+    private function contentReportSummary(string $userId)
+    {
+        if (! Schema::hasTable('reports')) {
+            return ['total_post_reports' => 0, 'total_comment_reports' => 0, 'recent' => []];
+        }
+        $postIds = Schema::hasTable('community_posts') ? \App\Models\CommunityPost::query()->where('author_id', $userId)->pluck('id') : collect();
+        $commentIds = Schema::hasTable('community_post_comments') ? \App\Models\CommunityPostComment::query()->where('user_id', $userId)->pluck('id') : collect();
+        
+        $postReports = \App\Models\Report::query()
+            ->where('reportable_type', \App\Models\CommunityPost::class)
+            ->whereIn('reportable_id', $postIds)
+            ->latest('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'type' => 'post',
+                'target_id' => $r->reportable_id,
+                'reason' => $this->reportReasonLabel($r->reason ?? null),
+                'description' => $r->description,
+                'status' => $r->status,
+                'status_label' => $this->reportStatusLabel($r->status ?? null),
+                'created_at' => $r->created_at,
+            ]);
+            
+        $commentReports = \App\Models\Report::query()
+            ->where('reportable_type', \App\Models\CommunityPostComment::class)
+            ->whereIn('reportable_id', $commentIds)
+            ->latest('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'type' => 'comment',
+                'target_id' => $r->reportable_id,
+                'reason' => $this->reportReasonLabel($r->reason ?? null),
+                'description' => $r->description,
+                'status' => $r->status,
+                'status_label' => $this->reportStatusLabel($r->status ?? null),
+                'created_at' => $r->created_at,
+            ]);
+            
+        return [
+            'total_post_reports' => \App\Models\Report::query()->where('reportable_type', \App\Models\CommunityPost::class)->whereIn('reportable_id', $postIds)->count(),
+            'total_comment_reports' => \App\Models\Report::query()->where('reportable_type', \App\Models\CommunityPostComment::class)->whereIn('reportable_id', $commentIds)->count(),
+            'recent' => $postReports->merge($commentReports)->sortByDesc('created_at')->take(20)->values()->all(),
+        ];
     }
 
     public function lock(Request $request, string $id): JsonResponse
@@ -188,6 +490,18 @@ class UserController extends Controller
             'locked_by' => $actor->id,
         ])->save();
 
+        if (class_exists(\App\Models\UserLockLog::class)) {
+            \App\Models\UserLockLog::create([
+                'user_id' => $user->id,
+                'action' => 'locked',
+                'reason' => $data['status_reason'],
+                'locked_by' => $actor->id,
+                'auto_triggered' => false,
+                'lock_until' => $data['locked_until'] ?? null,
+                'created_at' => now(),
+            ]);
+        }
+
         $user->tokens()->delete();
         $this->audit($request, $actor, 'user.locked', $user, $oldValues, $this->lockSnapshot($user), $data['status_reason']);
 
@@ -226,6 +540,18 @@ class UserController extends Controller
             'locked_by' => null,
         ])->save();
 
+        if (class_exists(\App\Models\UserLockLog::class)) {
+            \App\Models\UserLockLog::create([
+                'user_id' => $user->id,
+                'action' => 'unlocked',
+                'reason' => $data['reason'],
+                'locked_by' => $actor->id,
+                'auto_triggered' => false,
+                'lock_until' => null,
+                'created_at' => now(),
+            ]);
+        }
+
         $this->audit($request, $actor, 'user.unlocked', $user, $oldValues, $this->lockSnapshot($user), $data['reason']);
 
         return response()->json([
@@ -241,9 +567,11 @@ class UserController extends Controller
         }
 
         $roles = $user->roles->pluck('name')->values()->all();
-        $reports = $extras['reports_count_recent'] ?? $this->reportSummary($user->id)['reports_14_days'];
-        $complaints = $extras['complaints_count_recent'] ?? $this->complaintSummary($user->id)['open_count'];
-        $warningCount = $extras['warning_count'] ?? ($reports + $complaints);
+        $isAdmin = $user->role_group === 'admin';
+
+        $reports = $isAdmin ? 0 : ($extras['reports_count_recent'] ?? $this->reportSummary($user->id)['reports_14_days']);
+        $complaints = $isAdmin ? 0 : ($extras['complaints_count_recent'] ?? $this->complaintSummary($user->id)['open_count']);
+        $warningCount = $isAdmin ? 0 : ($extras['warning_count'] ?? ($reports + $complaints));
 
         return [
             'id' => $user->id,
@@ -283,17 +611,53 @@ class UserController extends Controller
         ];
     }
 
+    private function activeUserModerationConfig(): array
+    {
+        $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
+        $warnThreshold = 3;
+        $lockThreshold = 10;
+        $windowDays = 7;
+
+        if ($activePolicy) {
+            $userThreshold = \App\Models\ModerationThreshold::where('system_policy_id', $activePolicy->id)
+                ->where('target_type', 'user')
+                ->first();
+                
+            if ($userThreshold) {
+                $warnThreshold = $userThreshold->warning_threshold;
+                $lockThreshold = $userThreshold->action_threshold;
+                $windowDays = $userThreshold->timeframe_days;
+            } else {
+                $warnRule = $activePolicy->rules()->where('rule_code', 'user_report_warning_threshold')->first();
+                if ($warnRule) {
+                    $warnThreshold = $warnRule->condition_json['threshold'] ?? $warnThreshold;
+                    $windowDays = $warnRule->condition_json['window_days'] ?? $windowDays;
+                }
+
+                $lockRule = $activePolicy->rules()->where('rule_code', 'user_report_lock_threshold')->first();
+                if ($lockRule) {
+                    $lockThreshold = $lockRule->condition_json['threshold'] ?? $lockThreshold;
+                    $windowDays = $lockRule->condition_json['window_days'] ?? $windowDays;
+                }
+            }
+        }
+        return [$warnThreshold, $lockThreshold, $windowDays];
+    }
+
     private function reportCountsForUsers(array $userIds): array
     {
         if (! Schema::hasTable('reports') || $userIds === []) {
             return [];
         }
 
+        [$warn, $lock, $windowDays] = $this->activeUserModerationConfig();
+
         return DB::table('reports')
             ->whereIn('reportable_type', ['users', 'user', User::class])
             ->whereIn('reportable_id', $userIds)
-            ->where('created_at', '>=', now()->subDays(14))
-            ->select('reportable_id', DB::raw('COUNT(*) as total'))
+            ->whereNotIn('status', ['dismissed', 'resolved'])
+            ->where('created_at', '>=', now()->subDays($windowDays))
+            ->select('reportable_id', DB::raw('COUNT(DISTINCT reporter_id) as total'))
             ->groupBy('reportable_id')
             ->pluck('total', 'reportable_id')
             ->map(fn ($value) => (int) $value)
@@ -333,17 +697,43 @@ class UserController extends Controller
     {
         $ids = collect();
 
+        // Get admin user IDs to exclude them from warnings
+        $adminRoleIds = DB::table('roles')
+            ->whereIn('name', [
+                'super_admin',
+                'admin',
+                'system_staff',
+                'content_moderator',
+                'complaint_handler',
+                'venue_manager',
+                'partner_manager',
+                'booking_support',
+                'finance_operator',
+                'policy_manager',
+                'staff_manager',
+            ])
+            ->pluck('id');
+
+        $adminUserIds = DB::table('user_roles')
+            ->whereIn('role_id', $adminRoleIds)
+            ->pluck('user_id')
+            ->all();
+
         if (Schema::hasTable('reports')) {
+            [$warnThreshold, $lockThreshold, $windowDays] = $this->activeUserModerationConfig();
+
             $query = DB::table('reports')
                 ->whereIn('reportable_type', ['users', 'user', User::class])
-                ->where('created_at', '>=', now()->subDays(14))
-                ->select('reportable_id', DB::raw('COUNT(*) as total'))
+                ->whereNotIn('reportable_id', $adminUserIds)
+                ->whereNotIn('status', ['dismissed', 'resolved'])
+                ->where('created_at', '>=', now()->subDays($windowDays))
+                ->select('reportable_id', DB::raw('COUNT(DISTINCT reporter_id) as total'))
                 ->groupBy('reportable_id');
 
             if ($level === 'near_lock') {
-                $query->having('total', '>=', 4);
+                $query->having('total', '>=', $warnThreshold)->having('total', '<', $lockThreshold);
             } elseif ($level === 'lock_suggested') {
-                $query->having('total', '>=', 5);
+                $query->having('total', '>=', $lockThreshold);
             } else {
                 $query->having('total', '>=', 1);
             }
@@ -355,6 +745,7 @@ class UserController extends Controller
             $ids = $ids->merge(
                 DB::table('complaints')
                     ->whereIn('status', ['open', 'processing'])
+                    ->whereNotIn('customer_id', $adminUserIds)
                     ->pluck('customer_id')
             );
         }
@@ -437,18 +828,21 @@ class UserController extends Controller
 
         $base = DB::table('reports')
             ->whereIn('reportable_type', ['users', 'user', User::class])
-            ->where('reportable_id', $userId);
-        $reports14Days = (clone $base)->where('created_at', '>=', now()->subDays(14))->count();
+            ->where('reportable_id', $userId)
+            ->whereNotIn('status', ['dismissed', 'resolved']);
+            
+        [$warn, $lock, $windowDays] = $this->activeUserModerationConfig();
+        $reportsWindowDays = (clone $base)->where('created_at', '>=', now()->subDays($windowDays))->distinct('reporter_id')->count('reporter_id');
 
         return [
-            'total' => (clone $base)->count(),
-            'reports_7_days' => (clone $base)->where('created_at', '>=', now()->subDays(7))->count(),
-            'reports_14_days' => $reports14Days,
-            'reports_30_days' => (clone $base)->where('created_at', '>=', now()->subDays(30))->count(),
-            'near_lock_message' => $reports14Days > 0
-                ? "Tài khoản này có {$reports14Days} báo cáo trong 14 ngày gần đây."
-                : 'Tài khoản chưa có báo cáo gần đây.',
-            'recent' => (clone $base)->latest('created_at')->limit(5)->get()->map(fn ($report) => [
+            'total' => (clone $base)->distinct('reporter_id')->count('reporter_id'),
+            'reports_7_days' => (clone $base)->where('created_at', '>=', now()->subDays(7))->distinct('reporter_id')->count('reporter_id'),
+            'reports_14_days' => $reportsWindowDays, // using this for UI legacy
+            'reports_30_days' => (clone $base)->where('created_at', '>=', now()->subDays(30))->distinct('reporter_id')->count('reporter_id'),
+            'near_lock_message' => $reportsWindowDays > 0
+                ? "Tài khoản này có {$reportsWindowDays} người báo cáo trong {$windowDays} ngày gần đây."
+                : "Tài khoản chưa có người báo cáo trong {$windowDays} ngày gần đây.",
+            'recent' => (clone $base)->latest('created_at')->limit(10)->get()->map(fn ($report) => [
                 'id' => $report->id,
                 'reason' => $this->reportReasonLabel($report->reason ?? null),
                 'status' => $report->status ?? null,
@@ -722,11 +1116,12 @@ class UserController extends Controller
 
     private function warningLevelText(int $reports, int $complaints): array
     {
-        $score = $reports + $complaints;
+        [$warnThreshold, $lockThreshold, $windowDays] = $this->activeUserModerationConfig();
+
         $level = match (true) {
-            $reports >= 5 || $score >= 7 => 'lock_suggested',
-            $reports >= 4 || $score >= 5 => 'near_lock',
-            $score > 0 => 'watch',
+            $reports >= $lockThreshold => 'lock_suggested',
+            $reports >= $warnThreshold => 'near_lock',
+            $reports > 0 || $complaints > 0 => 'watch',
             default => 'normal',
         };
 
@@ -735,11 +1130,11 @@ class UserController extends Controller
             'label' => [
                 'normal' => 'Bình thường',
                 'watch' => 'Cần theo dõi',
-                'near_lock' => 'Gần ngưỡng khóa',
-                'lock_suggested' => 'Đề xuất khóa/tạm khóa',
+                'near_lock' => 'Cảnh báo',
+                'lock_suggested' => 'Cảnh báo',
             ][$level],
-            'message' => $score > 0
-                ? "Tài khoản có {$reports} báo cáo và {$complaints} khiếu nại đang mở gần đây."
+            'message' => $reports > 0 || $complaints > 0
+                ? "Tài khoản có {$reports} người báo cáo và {$complaints} khiếu nại đang mở trong {$windowDays} ngày gần đây."
                 : 'Tài khoản chưa có dấu hiệu rủi ro gần đây.',
         ];
     }

@@ -182,7 +182,7 @@
           </label>
           <label>
             Nội dung chính sách
-            <textarea v-model.trim="form.content" rows="7" required></textarea>
+            <QuillEditor theme="snow" v-model:content="form.content" contentType="html" placeholder="Nhập nội dung chính sách..." />
           </label>
           <label>
             Tóm tắt thay đổi
@@ -236,10 +236,12 @@ import ConfirmModal from '../../components/ConfirmModal.vue';
 import PlatformFeeSubnav from '../../components/PlatformFeeSubnav.vue';
 import { adminPolicyService } from '../../services/adminPolicies.js';
 import { getPolicyTypeLabel, getStatusBadgeClass, getStatusLabel, POLICY_TYPE_LABELS } from '../../utils/labelMaps.js';
+import { QuillEditor } from '@vueup/vue-quill';
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
 export default {
   name: 'AdminPolicies',
-  components: { AppIcon, ConfirmModal, PlatformFeeSubnav },
+  components: { AppIcon, ConfirmModal, PlatformFeeSubnav, QuillEditor },
   data() {
     const platformFeeScope = this.$route.name === 'admin-platform-fee-policies';
     return {
@@ -363,7 +365,19 @@ export default {
       await this.runAction(() => adminPolicyService.updateStatus(policy.id, { status: 'archived' }), 'Đã ngưng áp dụng chính sách.');
     },
     async clonePolicy(policy) {
-      await this.runAction(() => adminPolicyService.cloneVersion(policy.id), 'Đã tạo phiên bản mới.');
+      this.error = '';
+      this.success = '';
+      try {
+        const response = await adminPolicyService.cloneVersion(policy.id);
+        this.success = response.message || 'Đã tạo phiên bản mới.';
+        this.$router.push({
+          name: 'admin-policy-detail',
+          params: { id: response.data.id },
+          query: { tab: 'config' },
+        });
+      } catch (error) {
+        this.error = error.message || 'Thao tác không thành công.';
+      }
     },
     async runAction(action, fallbackMessage) {
       this.error = '';

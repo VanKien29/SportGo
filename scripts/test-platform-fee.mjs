@@ -98,6 +98,18 @@ await runCase('D. Tinh phi', () => {
   assert.equal(calculatePlatformFee({ court_count: 8, period_months: 12, tier: validTiers[2] }).amount_due, 3264000);
   assert.ok(calculatePlatformFee({ court_count: 1, period_months: 1, tier: { ...validTiers[0], discount_1_month: 60 } }).warnings.length);
   assert.equal(calculatePlatformFee({ court_count: 1, period_months: 1, tier: { ...validTiers[0], discount_1_month: 100 } }).amount_due, 0);
+  assert.throws(() => calculatePlatformFee({ court_count: 0, period_months: 1, tier: validTiers[0] }));
+  assert.throws(() => calculatePlatformFee({ court_count: 1.5, period_months: 1, tier: validTiers[0] }));
+  assert.throws(() => calculatePlatformFee({
+    court_count: 1,
+    period_months: 1,
+    tier: { ...validTiers[0], price_per_court_month: 0 },
+  }));
+  assert.throws(() => calculatePlatformFee({
+    court_count: 1,
+    period_months: 1,
+    tier: { ...validTiers[0], discount_1_month: 101 },
+  }));
 });
 
 await runCase('E. Tao ledger', async () => {
