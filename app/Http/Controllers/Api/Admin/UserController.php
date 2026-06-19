@@ -31,8 +31,6 @@ class UserController extends Controller
         'finance_operator',
         'policy_manager',
         'staff_manager',
-        'venue_owner',
-        'venue_staff',
     ];
 
     public function __construct(
@@ -50,6 +48,7 @@ class UserController extends Controller
             'warning_level' => ['nullable', Rule::in(['watch', 'near_lock', 'lock_suggested'])],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:5', 'max:50'],
+            'role_group' => ['nullable', 'string', Rule::in(['staff', 'customer', 'owner'])],
         ]);
 
         $warningUserIds = $request->query('status') === 'warning' || $request->filled('warning_level')
@@ -69,6 +68,15 @@ class UserController extends Controller
             })
             ->when($request->filled('status') && $request->query('status') !== 'warning', fn ($query) => $query->where('status', $request->query('status')))
             ->when($request->filled('role'), fn ($query) => $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', $request->query('role'))))
+            ->when($request->filled('role_group'), function ($query) use ($request): void {
+                if ($request->query('role_group') === 'staff') {
+                    $query->whereHas('roles', fn ($roleQuery) => $roleQuery->whereIn('name', self::STAFF_ROLES));
+                } elseif ($request->query('role_group') === 'owner') {
+                    $query->whereHas('roles', fn ($roleQuery) => $roleQuery->whereIn('name', ['venue_owner', 'venue_staff']));
+                } elseif ($request->query('role_group') === 'customer') {
+                    $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', 'user'));
+                }
+            })
             ->when(is_array($warningUserIds), fn ($query) => $query->whereIn('id', $warningUserIds))
             ->latest()
             ->paginate((int) $request->integer('per_page', 15));

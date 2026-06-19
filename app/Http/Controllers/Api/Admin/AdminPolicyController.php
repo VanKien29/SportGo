@@ -648,6 +648,12 @@ class AdminPolicyController extends Controller
             }
         }
 
+        if ($request->has('auto_lock_enabled')) {
+            $request->validate([
+                'auto_lock_enabled' => ['boolean'],
+            ]);
+        }
+
         DB::transaction(function () use ($request, $policy, $payload): void {
             foreach ($payload as $row) {
                 ModerationThreshold::query()->updateOrCreate(
@@ -668,8 +674,20 @@ class AdminPolicyController extends Controller
                 app(\App\Services\Policy\PolicyRuleSyncService::class)->syncFromThresholds($policy->fresh());
             }
 
+            if ($request->has('auto_lock_enabled')) {
+                \App\Models\ModerationConfig::query()->updateOrCreate(
+                    ['key' => 'auto_lock_enabled'],
+                    [
+                        'value' => $request->boolean('auto_lock_enabled') ? '1' : '0',
+                        'value_type' => 'boolean',
+                        'updated_by' => $request->user()->id
+                    ]
+                );
+            }
+
             $this->audit->log($request, 'policy', 'policy.score_thresholds_saved', 'system_policies', $policy->id, [], [
                 'score_thresholds' => $payload,
+                'auto_lock_enabled' => $request->has('auto_lock_enabled') ? $request->boolean('auto_lock_enabled') : null,
             ], ['policy_id' => $policy->id]);
         });
 
@@ -686,6 +704,7 @@ class AdminPolicyController extends Controller
         $this->authorizePermission($request, 'policy.view');
 
         $policy = SystemPolicy::query()->with('moderationThresholds')->findOrFail($id);
+        $autoLockEnabled = \App\Models\ModerationConfig::query()->where('key', 'auto_lock_enabled')->value('value') === '1';
 
         return response()->json([
             'data' => $policy->moderationThresholds
@@ -708,6 +727,7 @@ class AdminPolicyController extends Controller
                         (int) $threshold->timeframe_days
                     ),
                 ]),
+            'auto_lock_enabled' => $autoLockEnabled,
         ]);
     }
 

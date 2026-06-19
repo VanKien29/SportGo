@@ -26,12 +26,6 @@ export const ownerNavigationSections = [
         activeNames: ['owner-venue-clusters', 'owner-venue-courts'],
       },
       {
-        label: 'Lịch sân',
-        icon: 'calendar',
-        to: '/owner/bookings',
-        activeNames: ['owner-bookings'],
-      },
-      {
         label: 'Khóa lịch sân',
         icon: 'lock',
         to: '/owner/schedule-locks',

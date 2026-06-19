@@ -23,6 +23,8 @@
           <option value="">Tất cả trạng thái</option>
           <option v-for="item in statuses" :key="item.value" :value="item.value">{{ item.label }}</option>
         </select>
+        <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadReports" />
+        <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadReports" />
         <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadReports" />
       </div>
     </section>
@@ -114,7 +116,10 @@
 
           <aside class="side-panel">
             <h4>Thao tác xử lý</h4>
-            <div class="form-stack">
+            <p v-if="isTerminalStatus(selected.status)" class="content-box">
+              Báo cáo đã kết thúc với trạng thái “{{ statusLabel(selected.status) }}”. Nội dung xử lý được giữ lại trong lịch sử.
+            </p>
+            <div v-else class="form-stack">
               <button v-if="selected.status === 'pending'" class="btn secondary" type="button" :disabled="saving" @click="takeReview">
                 Nhận kiểm duyệt
               </button>
@@ -244,7 +249,7 @@ export default {
     return {
       reports: [],
       summary: {},
-      filters: { keyword: '', target_type: '', reason: '', status: '' },
+      filters: { keyword: '', target_type: '', reason: '', status: '', date_from: '', date_to: '' },
       targetTypes: [
         { value: 'post', label: 'Bài viết cộng đồng' },
         { value: 'comment', label: 'Bình luận' },
@@ -371,6 +376,9 @@ export default {
     },
     statusLabel(value) {
       return this.statuses.find((item) => item.value === value)?.label || value || '-';
+    },
+    isTerminalStatus(value) {
+      return ['resolved', 'dismissed'].includes(value);
     },
     actionLabel(value) {
       return {

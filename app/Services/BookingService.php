@@ -11,6 +11,7 @@ use App\Models\PaymentLog;
 use App\Models\PriceSlot;
 use App\Models\SlotLock;
 use App\Models\User;
+use App\Models\VenueBasePrice;
 use App\Models\VenueCourt;
 use App\Models\VenueCluster;
 use Carbon\Carbon;
@@ -252,36 +253,70 @@ class BookingService
     {
         return DB::transaction(function () use ($data, $actor): array {
             $court = $this->lockActiveCourt($data['venue_court_id']);
-            $this->validateTimeRange($data['start_time'], $data['end_time']);
-            $this->validateDurationAndPayment($court->venue_cluster_id, $data['start_time'], $data['end_time'], $data['payment_option']);
+            $timeRanges = $this->normalizeTimeRanges($data, $court->id);
+            $rangeCourts = $this->courtsForTimeRanges($timeRanges, $court);
+            $this->validateTimeRanges($timeRanges);
+            $this->validateDurationMinutesAndPayment($court->venue_cluster_id, $this->rangesDurationMinutes($timeRanges), $data['payment_option']);
 
             $dates = $this->recurringDates($data);
 
+            $this->validateRecurringDates($dates);
+
+            $conflicts = $this->recurringConflictPayloadForRanges($court, $dates, $timeRanges);
+            $resolution = $data['conflict_resolution'] ?? 'abort';
+            $overrides = collect($data['conflict_overrides'] ?? [])->keyBy('date');
+            $switchedCourtsByDate = collect();
+            $skippedDates = collect();
+
+            if ($conflicts->isNotEmpty() && $resolution === 'abort') {
+                throw ValidationException::withMessages([
+                    'recurring_start_date' => 'Một số buổi trong lịch cố định đã bị trùng: '.$conflicts->pluck('date')->take(8)->implode(', ').($conflicts->count() > 8 ? '...' : ''),
+                ]);
+            }
+
+            foreach ($conflicts as $conflict) {
+                if ($resolution === 'skip') {
+                    $skippedDates->push($conflict['date']);
+                    continue;
+                }
+
+                $override = $overrides->get($conflict['date']);
+
+                if ($resolution !== 'mixed' || ! $override) {
+                    throw ValidationException::withMessages([
+                        'conflict_resolution' => 'Vui lòng chọn cách xử lý cho từng ngày bị trùng lịch.',
+                    ]);
+                }
+
+                if (($override['action'] ?? null) === 'skip') {
+                    $skippedDates->push($conflict['date']);
+                    continue;
+                }
+
+                if (($override['action'] ?? null) !== 'switch' || empty($override['venue_court_id'])) {
+                    throw ValidationException::withMessages([
+                        'conflict_overrides' => 'Ngày '.$conflict['date'].' chưa có sân thay thế hợp lệ.',
+                    ]);
+                }
+
+                $candidate = collect($conflict['alternatives'])->firstWhere('id', $override['venue_court_id']);
+
+                if (! $candidate) {
+                    throw ValidationException::withMessages([
+                        'conflict_overrides' => 'Sân thay thế cho ngày '.$conflict['date'].' không còn trống.',
+                    ]);
+                }
+
+                $switchedCourtsByDate->put($conflict['date'], $override['venue_court_id']);
+            }
+
+            $dates = $dates
+                ->reject(fn (Carbon $date) => $skippedDates->contains($date->toDateString()))
+                ->values();
+
             if ($dates->isEmpty()) {
                 throw ValidationException::withMessages([
-                    'recurring_start_date' => 'Không có buổi nào phù hợp với lịch cố định đã chọn.',
-                ]);
-            }
-
-            if ($dates->count() > 130) {
-                throw ValidationException::withMessages([
-                    'recurring_end_date' => 'Lịch cố định tối đa 130 buổi mỗi lần tạo.',
-                ]);
-            }
-
-            $conflicts = $dates
-                ->filter(fn (Carbon $date) => ! $this->checkAvailability(
-                    $court->id,
-                    $date->toDateString(),
-                    $data['start_time'],
-                    $data['end_time'],
-                ))
-                ->values()
-                ->map(fn (Carbon $date) => $date->toDateString());
-
-            if ($conflicts->isNotEmpty()) {
-                throw ValidationException::withMessages([
-                    'recurring_start_date' => 'Một số buổi trong lịch cố định đã bị trùng: '.$conflicts->take(8)->implode(', ').($conflicts->count() > 8 ? '...' : ''),
+                    'recurring_start_date' => 'Tất cả buổi trong lịch cố định đã bị bỏ qua. Vui lòng chọn lại khoảng ngày hoặc sân.',
                 ]);
             }
 
@@ -289,9 +324,38 @@ class BookingService
             $bookings = collect();
 
             foreach ($dates as $date) {
+                $dateString = $date->toDateString();
+                $dateCourt = $switchedCourtsByDate->has($dateString)
+                    ? $this->lockActiveCourt($switchedCourtsByDate->get($dateString))
+                    : $court;
+                $dateTimeRanges = $switchedCourtsByDate->has($dateString)
+                    ? collect($timeRanges)
+                        ->map(fn (array $range): array => [
+                            ...$range,
+                            'venue_court_id' => $dateCourt->id,
+                        ])
+                        ->values()
+                        ->all()
+                    : $timeRanges;
+                $dateRangeCourts = $switchedCourtsByDate->has($dateString)
+                    ? collect([$dateCourt->id => $dateCourt])
+                    : $rangeCourts;
+
+                foreach ($dateTimeRanges as $range) {
+                    if (! $this->checkAvailability($range['venue_court_id'], $dateString, $range['start_time'], $range['end_time'])) {
+                        throw ValidationException::withMessages([
+                            'recurring_start_date' => 'Khung '.$dateString.' vừa có booking khác. Vui lòng tải lại lịch và thử lại.',
+                        ]);
+                    }
+                }
+
                 $bookings->push($this->createOperationalBooking(
-                    $court,
+                    $dateCourt,
                     array_merge($data, [
+                        'start_time' => $dateTimeRanges[0]['start_time'],
+                        'end_time' => $dateTimeRanges[array_key_last($dateTimeRanges)]['end_time'],
+                        'time_ranges' => $dateTimeRanges,
+                        'range_courts' => $dateRangeCourts,
                         'recurring_group_code' => $groupCode,
                         'recurring_start_date' => $data['recurring_start_date'],
                         'recurring_end_date' => $data['recurring_end_date'],
@@ -301,7 +365,7 @@ class BookingService
                         'recurrence_days_of_month' => $data['recurrence_type'] === 'monthly' ? ($data['recurrence_days_of_month'] ?? []) : null,
                     ]),
                     $actor,
-                    $date->toDateString(),
+                    $dateString,
                     'recurring',
                 ));
             }
@@ -316,11 +380,48 @@ class BookingService
             return [
                 'recurring_group_code' => $groupCode,
                 'created_count' => $loadedBookings->count(),
+                'skipped_count' => $skippedDates->count(),
+                'switched_count' => $switchedCourtsByDate->count(),
                 'total_price' => round($loadedBookings->sum(fn (Booking $booking) => (float) $booking->total_price), 2),
                 'required_payment_amount' => round($loadedBookings->sum(fn (Booking $booking) => (float) $booking->required_payment_amount), 2),
                 'bookings' => $loadedBookings->values(),
             ];
         });
+    }
+
+    public function previewRecurringConflicts(array $data): array
+    {
+        $court = VenueCourt::query()
+            ->with(['venueCluster', 'courtType'])
+            ->findOrFail($data['venue_court_id']);
+
+        if ($court->status !== 'active') {
+            throw ValidationException::withMessages([
+                'venue_court_id' => 'Sân này hiện không hoạt động.',
+            ]);
+        }
+
+        if ($court->venueCluster?->status === 'locked') {
+            throw ValidationException::withMessages([
+                'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
+            ]);
+        }
+
+        $timeRanges = $this->normalizeTimeRanges($data, $court->id);
+        $this->courtsForTimeRanges($timeRanges, $court);
+        $this->validateTimeRanges($timeRanges);
+        $this->validateDurationMinutesAndPayment($court->venue_cluster_id, $this->rangesDurationMinutes($timeRanges), $data['payment_option']);
+
+        $dates = $this->recurringDates($data);
+        $this->validateRecurringDates($dates);
+
+        $conflicts = $this->recurringConflictPayloadForRanges($court, $dates, $timeRanges);
+
+        return [
+            'total_dates' => $dates->count(),
+            'conflict_count' => $conflicts->count(),
+            'conflicts' => $conflicts->values()->all(),
+        ];
     }
 
     public function collectCounterPayment(Booking $booking, User $actor, string $method, ?float $amount = null): Booking
@@ -422,12 +523,81 @@ class BookingService
                 ->get()
                 ->each(fn (Payment $pendingPayment) => $this->failPendingPayment($pendingPayment, $actor, 'counter_payment_replaced'));
 
-            if (in_array($booking->status, ['pending_approval', 'pending_payment'], true)) {
-                $booking->update(['status' => 'confirmed']);
+            if (in_array($booking->status, ['pending_approval', 'pending_payment', 'confirmed', 'checked_in'], true)) {
+                $booking->update([
+                    'status' => $collectionAmount >= $outstandingAmount ? 'completed' : 'confirmed',
+                ]);
             }
 
             return $booking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'payments']);
         });
+    }
+
+    public function collectRecurringGroupPayment(string $groupCode, User $actor, string $method, ?float $amount = null): array
+    {
+        if (! in_array($method, ['cash', 'bank_transfer'], true)) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Phương thức thu nhóm lịch cố định không hợp lệ.',
+            ]);
+        }
+
+        $bookings = Booking::query()
+            ->with('payments')
+            ->where('source', 'counter')
+            ->where('booking_type', 'recurring')
+            ->where('recurring_group_code', $groupCode)
+            ->orderBy('booking_date')
+            ->orderBy('start_time')
+            ->get();
+
+        if ($bookings->isEmpty()) {
+            throw ValidationException::withMessages([
+                'recurring_group_code' => 'Không tìm thấy nhóm lịch cố định.',
+            ]);
+        }
+
+        $outstandingAmount = round($bookings->sum(fn (Booking $booking) => $this->outstandingAmount($booking)), 2);
+        $collectionAmount = round((float) ($amount ?: $outstandingAmount), 2);
+
+        if ($collectionAmount <= 0 || $collectionAmount > $outstandingAmount) {
+            throw ValidationException::withMessages([
+                'amount' => 'Số tiền thu không hợp lệ so với số còn phải thu của nhóm lịch.',
+            ]);
+        }
+
+        $remaining = $collectionAmount;
+        $updatedIds = collect();
+
+        foreach ($bookings as $booking) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $bookingOutstanding = round($this->outstandingAmount($booking), 2);
+
+            if ($bookingOutstanding <= 0) {
+                continue;
+            }
+
+            $amountForBooking = min($bookingOutstanding, $remaining);
+            $updated = $this->collectCounterPayment($booking, $actor, $method, $amountForBooking);
+            $updatedIds->push($updated->id);
+            $remaining = round($remaining - $amountForBooking, 2);
+        }
+
+        $loadedBookings = Booking::query()
+            ->with(['venueCluster', 'venueCourt.courtType', 'customer', 'payments'])
+            ->where('recurring_group_code', $groupCode)
+            ->orderBy('booking_date')
+            ->orderBy('start_time')
+            ->get();
+
+        return [
+            'recurring_group_code' => $groupCode,
+            'collected_amount' => $collectionAmount,
+            'updated_booking_ids' => $updatedIds->values(),
+            'bookings' => $loadedBookings,
+        ];
     }
 
     public function outstandingAmount(Booking $booking): float
@@ -614,9 +784,21 @@ class BookingService
             ->orderByRaw('CASE WHEN booking_type = ? THEN 0 ELSE 1 END', [$bookingType])
             ->first();
 
+        if ($priceSlot) {
+            return [
+                'hourly_rate' => (float) $priceSlot->price,
+                'source' => 'price_slot',
+            ];
+        }
+
+        $basePrice = VenueBasePrice::query()
+            ->where('venue_cluster_id', $venueClusterId)
+            ->where('court_type_id', $courtTypeId)
+            ->first();
+
         return [
-            'hourly_rate' => (float) ($priceSlot?->price ?? 10000.00),
-            'source' => $priceSlot ? 'price_slot' : 'default',
+            'hourly_rate' => (float) ($basePrice?->price ?? 10000.00),
+            'source' => $basePrice ? 'base_price' : 'system_default',
         ];
     }
 
@@ -920,7 +1102,11 @@ class BookingService
 
     private function initialCounterStatus(string $paymentOption, bool $isPaid): string
     {
-        if ($paymentOption === 'no_prepay' || $isPaid) {
+        if ($isPaid) {
+            return 'completed';
+        }
+
+        if ($paymentOption === 'no_prepay') {
             return 'confirmed';
         }
 
@@ -932,6 +1118,126 @@ class BookingService
         return BookingConfig::query()
             ->where('venue_cluster_id', $venueClusterId)
             ->first();
+    }
+
+    private function validateRecurringDates(Collection $dates): void
+    {
+        if ($dates->isEmpty()) {
+            throw ValidationException::withMessages([
+                'recurring_start_date' => 'Không có buổi nào phù hợp với lịch cố định đã chọn.',
+            ]);
+        }
+
+        if ($dates->count() > 130) {
+            throw ValidationException::withMessages([
+                'recurring_end_date' => 'Lịch cố định tối đa 130 buổi mỗi lần tạo.',
+            ]);
+        }
+    }
+
+    private function recurringConflictPayload(VenueCourt $court, Collection $dates, string $startTime, string $endTime): Collection
+    {
+        return $dates
+            ->filter(fn (Carbon $date) => ! $this->checkAvailability(
+                $court->id,
+                $date->toDateString(),
+                $startTime,
+                $endTime,
+            ))
+            ->values()
+            ->map(function (Carbon $date) use ($court, $startTime, $endTime): array {
+                $dateString = $date->toDateString();
+
+                return [
+                    'date' => $dateString,
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                    'current_court' => $this->recurringCourtPayload($court),
+                    'reason' => 'Khung giờ đã có booking hoặc đang bị khóa.',
+                    'alternatives' => $this->availableAlternativeCourts($court, $dateString, $startTime, $endTime)
+                        ->map(fn (VenueCourt $candidate): array => $this->recurringCourtPayload($candidate))
+                        ->values()
+                        ->all(),
+                ];
+            });
+    }
+
+    private function recurringConflictPayloadForRanges(VenueCourt $court, Collection $dates, array $timeRanges): Collection
+    {
+        if (count($timeRanges) === 1) {
+            $range = $timeRanges[0];
+
+            return $this->recurringConflictPayload(
+                $court,
+                $dates,
+                $range['start_time'],
+                $range['end_time'],
+            );
+        }
+
+        return $dates
+            ->flatMap(function (Carbon $date) use ($timeRanges): Collection {
+                $dateString = $date->toDateString();
+
+                return collect($timeRanges)
+                    ->filter(fn (array $range): bool => ! $this->checkAvailability(
+                        $range['venue_court_id'],
+                        $dateString,
+                        $range['start_time'],
+                        $range['end_time'],
+                    ))
+                    ->map(fn (array $range): array => [
+                        'key' => implode('|', [
+                            $dateString,
+                            $range['venue_court_id'],
+                            $range['start_time'],
+                            $range['end_time'],
+                        ]),
+                        'date' => $dateString,
+                        'start_time' => $range['start_time'],
+                        'end_time' => $range['end_time'],
+                        'current_court' => $this->recurringCourtPayload(
+                            VenueCourt::query()
+                                ->with('courtType')
+                                ->findOrFail($range['venue_court_id']),
+                        ),
+                        'reason' => 'Một khung trong nhóm lịch đã có booking hoặc đang bị khóa.',
+                        'alternatives' => [],
+                    ]);
+            })
+            ->values();
+    }
+
+    private function availableAlternativeCourts(VenueCourt $court, string $date, string $startTime, string $endTime): Collection
+    {
+        return VenueCourt::query()
+            ->with('courtType')
+            ->where('venue_cluster_id', $court->venue_cluster_id)
+            ->where('status', 'active')
+            ->whereKeyNot($court->id)
+            ->orderByRaw('CASE WHEN court_type_id = ? THEN 0 ELSE 1 END', [$court->court_type_id])
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (VenueCourt $candidate): bool => $this->checkAvailability(
+                $candidate->id,
+                $date,
+                $startTime,
+                $endTime,
+            ))
+            ->values();
+    }
+
+    private function recurringCourtPayload(VenueCourt $court): array
+    {
+        return [
+            'id' => $court->id,
+            'name' => $court->name,
+            'court_type' => $court->courtType ? [
+                'id' => $court->courtType->id,
+                'name' => $court->courtType->name,
+            ] : null,
+        ];
     }
 
     private function recurringDates(array $data): Collection

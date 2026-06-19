@@ -25,6 +25,8 @@
           <option value="unassigned">Chưa phân công</option>
           <option v-for="member in staff" :key="member.id" :value="member.id">{{ member.full_name }}</option>
         </select>
+        <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadComplaints" />
+        <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadComplaints" />
         <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadComplaints" />
       </div>
     </section>
@@ -122,14 +124,44 @@
           </main>
 
           <aside class="side-panel">
-            <h4>Xử lý và kết quả</h4>
-            <div class="form-stack">
-              <div class="handler-info" style="margin-bottom: 12px; font-size: 13px; color: #475569;">
-                <span style="font-weight: 800; display: block; margin-bottom: 4px;">Người xử lý:</span>
-                <span style="background: #f1f5f9; padding: 6px 10px; border-radius: 6px; display: block; font-weight: 500;">
-                  {{ selected.assigned_to?.full_name || 'Hệ thống tự động gán khi cập nhật' }}
-                </span>
-              </div>
+<h4>Phân công và kết quả</h4>
+
+<p v-if="isTerminalStatus(selected.status)" class="content-box">
+  Khiếu nại đã kết thúc với trạng thái “{{ statusLabel(selected.status) }}”.
+  Kết quả được giữ lại trong lịch sử xử lý.
+</p>
+
+<div class="handler-info" style="margin-bottom: 12px; font-size: 13px; color: #475569;">
+  <span style="font-weight: 800; display: block; margin-bottom: 4px;">Người xử lý:</span>
+  <span style="background: #f1f5f9; padding: 6px 10px; border-radius: 6px; display: block; font-weight: 500;">
+    {{ selected.assigned_to?.full_name || 'Chưa phân công' }}
+  </span>
+</div>
+
+<div v-if="!isTerminalStatus(selected.status)" class="form-stack">
+  <label>
+    Phân công người xử lý
+    <select v-model="form.assigned_to">
+      <option value="">Chọn người xử lý</option>
+      <option
+        v-for="member in staff"
+        :key="member.id"
+        :value="member.id"
+      >
+        {{ member.full_name }}
+      </option>
+    </select>
+  </label>
+
+  <button
+    class="btn secondary"
+    type="button"
+    :disabled="saving || !form.assigned_to"
+    @click="assignComplaint"
+  >
+    Lưu phân công
+  </button>
+</div>
               <label>
                 Kết quả
                 <select v-model="form.status">
@@ -165,7 +197,7 @@ export default {
       complaints: [],
       summary: {},
       staff: [],
-      filters: { keyword: '', complaint_type: '', status: '', assigned_to: '' },
+      filters: { keyword: '', complaint_type: '', status: '', assigned_to: '', date_from: '', date_to: '' },
       statuses: [
         { value: 'open', label: 'Chờ tiếp nhận' },
         { value: 'processing', label: 'Đang xử lý' },
@@ -269,6 +301,9 @@ export default {
     },
     statusLabel(value) {
       return this.statuses.find((item) => item.value === value)?.label || value || '-';
+    },
+    isTerminalStatus(value) {
+      return ['resolved', 'rejected', 'closed'].includes(value);
     },
     auditLabel(value) {
       return {

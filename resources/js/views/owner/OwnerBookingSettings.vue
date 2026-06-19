@@ -31,7 +31,7 @@
           <label>
             Thời lượng tối thiểu
             <div class="input-unit">
-              <input v-model.number="form.min_duration_minutes" type="number" min="30" step="30" required>
+              <input v-model.number="form.min_duration_minutes" type="number" min="30" max="120" step="30" required>
               <span>phút</span>
             </div>
             <small>Khách không thể đặt ít hơn thời lượng này.</small>
@@ -148,9 +148,14 @@ export default {
       return this.clusters.find((cluster) => cluster.id === this.selectedClusterId) || null;
     },
     validationMessage() {
+      if (!Number.isInteger(this.form.min_duration_minutes) || this.form.min_duration_minutes < 30) return 'Thời lượng tối thiểu phải từ 30 phút.';
+      if (this.form.min_duration_minutes > 120) return 'Thời lượng tối thiểu không được vượt quá 2 giờ.';
       if (this.form.min_duration_minutes % 30 !== 0) return 'Thời lượng tối thiểu phải chia hết cho 30 phút.';
+      if (this.form.max_duration_minutes && this.form.max_duration_minutes > 1440) return 'Thời lượng tối đa không được vượt quá 24 giờ.';
       if (this.form.max_duration_minutes && this.form.max_duration_minutes % 30 !== 0) return 'Thời lượng tối đa phải chia hết cho 30 phút.';
       if (this.form.max_duration_minutes && this.form.max_duration_minutes < this.form.min_duration_minutes) return 'Thời lượng tối đa không được nhỏ hơn tối thiểu.';
+      if (!Number.isInteger(this.form.slot_hold_minutes) || this.form.slot_hold_minutes < 5 || this.form.slot_hold_minutes > 120 || this.form.slot_hold_minutes % 5 !== 0) return 'Thời gian giữ chỗ phải từ 5 đến 120 phút và theo bước 5 phút.';
+      if (!Number.isInteger(this.form.reminder_before_minutes) || this.form.reminder_before_minutes < 0 || this.form.reminder_before_minutes > 10080 || this.form.reminder_before_minutes % 5 !== 0) return 'Thời gian nhắc lịch phải từ 0 đến 7 ngày và theo bước 5 phút.';
       if (!this.form.allow_full_payment && !this.form.allow_deposit && !this.form.allow_no_prepay) return 'Phải bật ít nhất một hình thức thanh toán.';
       if (this.form.allow_deposit && (!this.form.deposit_percent || this.form.deposit_percent < 1 || this.form.deposit_percent > 100)) return 'Phần trăm cọc phải từ 1 đến 100.';
       return '';

@@ -7,11 +7,10 @@ use App\Models\Role;
 use App\Models\SystemBankAccount;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Models\VenueAccessRestriction;
 use App\Models\VenueCluster;
 use App\Models\VenuePlatformFeeLedger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class OwnerPlatformFeeTest extends TestCase
@@ -95,70 +94,106 @@ class OwnerPlatformFeeTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.effective_status', 'overdue')
             ->assertJsonPath('data.0.amount_remaining', 200000)
+            ->assertJsonPath('data.0.payment.auto_confirm', true)
             ->assertJsonPath('summary.overdue', 1)
             ->assertJsonPath('summary.outstanding_amount', 200000)
             ->assertJsonPath('payment_account.account_number', '123456789');
     }
 
-    public function test_owner_can_submit_proof_without_marking_fee_as_paid(): void
+    public function test_owner_can_create_bank_qr_for_platform_fee(): void
     {
-        Storage::fake('public');
-
-        $this->actingAs($this->owner, 'sanctum')
-            ->post('/api/owner/platform-fees/'.$this->ledger->id.'/payment-proof', [
-                'proof' => UploadedFile::fake()->image('chuyen-khoan.jpg'),
-                'note' => 'Đã chuyển khoản phí tháng này.',
-            ], ['Accept' => 'application/json'])
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/platform-fees/'.$this->ledger->id.'/payment')
             ->assertOk()
-            ->assertJsonPath('data.payment_proof.status', 'submitted')
-            ->assertJsonPath('data.effective_status', 'overdue');
+            ->assertJsonPath('amount', 200000)
+            ->assertJsonPath('payment_account.account_number', '123456789')
+            ->assertJsonPath('data.payment.auto_confirm', true);
 
-        $this->assertDatabaseHas('venue_platform_fee_ledgers', [
-            'id' => $this->ledger->id,
-            'status' => 'pending',
-            'amount_paid' => 0,
-            'payment_proof_status' => 'submitted',
-        ]);
+        $ledger = $this->ledger->fresh();
+        $this->assertNotNull($ledger->payment_code);
+        $this->assertStringStartsWith('PF', $ledger->payment_code);
+        $this->assertStringContainsString('acc=123456789', $response->json('qr_url'));
         $this->assertDatabaseHas('audit_logs', [
             'actor_id' => $this->owner->id,
-            'action' => 'platform_fee.proof_submitted',
+            'action' => 'platform_fee.sepay_qr_created',
             'entity_id' => $this->ledger->id,
         ]);
-
-        $path = $this->ledger->fresh()->paymentProofMedia->file_path;
-        Storage::disk('public')->assertExists($path);
     }
 
-    public function test_owner_cannot_view_or_submit_proof_for_another_owner_cluster(): void
+    public function test_sepay_webhook_auto_confirms_platform_fee_and_releases_fee_restriction(): void
     {
-        Storage::fake('public');
+        config()->set('services.sepay.webhook_api_key', null);
+        $this->cluster->update([
+            'status' => 'locked',
+            'status_reason' => 'Khóa cụm sân do nợ phí nền tảng quá hạn.',
+            'locked_at' => now(),
+        ]);
+        $this->ledger->update(['locked_venue_at' => now()]);
+        VenueAccessRestriction::query()->create([
+            'venue_cluster_id' => $this->cluster->id,
+            'restriction_type' => 'platform_fee_overdue',
+            'access_mode' => 'limited',
+            'reason' => 'Nợ phí nền tảng',
+            'starts_at' => now(),
+            'status' => 'active',
+        ]);
 
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/platform-fees/'.$this->ledger->id.'/payment')
+            ->assertOk();
+
+        $ledger = $this->ledger->fresh();
+        $this->postJson('/api/sepay/ipn', [
+            'id' => 998877,
+            'accountNumber' => '123456789',
+            'code' => $ledger->payment_code,
+            'content' => $ledger->payment_code.' PHI NEN TANG',
+            'transferType' => 'in',
+            'transferAmount' => 200000,
+        ])
+            ->assertOk()
+            ->assertJsonPath('processed', true);
+
+        $this->assertDatabaseHas('venue_platform_fee_ledgers', [
+            'id' => $ledger->id,
+            'status' => 'paid',
+            'amount_paid' => 200000,
+            'gateway_txn_id' => '998877',
+        ]);
+        $this->assertDatabaseHas('venue_access_restrictions', [
+            'venue_cluster_id' => $this->cluster->id,
+            'restriction_type' => 'platform_fee_overdue',
+            'status' => 'expired',
+        ]);
+        $this->assertDatabaseHas('venue_clusters', [
+            'id' => $this->cluster->id,
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_owner_cannot_create_payment_for_another_owner_cluster(): void
+    {
         $this->actingAs($this->otherOwner, 'sanctum')
             ->getJson('/api/owner/platform-fees?venue_cluster_id='.$this->cluster->id)
             ->assertForbidden();
 
         $this->actingAs($this->otherOwner, 'sanctum')
-            ->post('/api/owner/platform-fees/'.$this->ledger->id.'/payment-proof', [
-                'proof' => UploadedFile::fake()->image('proof.jpg'),
-            ], ['Accept' => 'application/json'])
+            ->postJson('/api/owner/platform-fees/'.$this->ledger->id.'/payment')
             ->assertForbidden();
     }
 
-    public function test_paid_fee_rejects_new_owner_proof(): void
+    public function test_paid_fee_rejects_new_payment_qr(): void
     {
-        Storage::fake('public');
         $this->ledger->update([
-            'status' => 'paid',
             'amount_paid' => 200000,
+            'status' => 'paid',
             'paid_at' => now(),
         ]);
 
         $this->actingAs($this->owner, 'sanctum')
-            ->post('/api/owner/platform-fees/'.$this->ledger->id.'/payment-proof', [
-                'proof' => UploadedFile::fake()->image('proof.jpg'),
-            ], ['Accept' => 'application/json'])
+            ->postJson('/api/owner/platform-fees/'.$this->ledger->id.'/payment')
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Kỳ phí này đã hoàn tất hoặc đã hủy, không thể gửi thêm minh chứng.');
+            ->assertJsonPath('message', 'Kỳ phí này đã hoàn tất hoặc đã hủy.');
     }
 
     private function createOwner(string $username): User

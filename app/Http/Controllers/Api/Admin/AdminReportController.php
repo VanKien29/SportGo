@@ -48,6 +48,14 @@ class AdminReportController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizePermission($request, 'report.view');
+        $request->validate([
+            'status' => ['nullable', Rule::in(['pending', 'reviewing', 'resolved', 'dismissed'])],
+            'reason' => ['nullable', Rule::in(['spam', 'offensive', 'fake', 'harassment', 'other'])],
+            'target_type' => ['nullable', Rule::in(array_keys(self::TARGET_TYPES))],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'keyword' => ['nullable', 'string', 'max:100'],
+        ]);
 
         $query = Report::query()
             ->with(['reporter:id,username,full_name,email', 'reviewedBy:id,username,full_name'])
@@ -156,6 +164,25 @@ class AdminReportController extends Controller
                 'reviewed_at' => now(),
             ])->save();
         });
+        if ($report->status === 'reviewing') {
+            if ($report->reviewed_by !== $request->user()->id) {
+                throw ValidationException::withMessages([
+                    'status' => 'Báo cáo đang được quản trị viên khác kiểm duyệt.',
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Bạn đang kiểm duyệt báo cáo này.',
+                'data' => $this->detailPayload($report->load(['reporter', 'reviewedBy', 'reportable', 'evidence'])),
+            ]);
+        }
+
+        $oldValues = $report->only(['status', 'reviewed_by', 'reviewed_at']);
+        $report->forceFill([
+            'status' => 'reviewing',
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+        ])->save();
 
         $this->audit->log($request, 'report', 'report.reviewing', 'reports', $report->id, $oldValues, $report->fresh()->toArray());
 
@@ -187,6 +214,12 @@ class AdminReportController extends Controller
             'dismissed' => 'Cảm ơn bạn đã gửi báo cáo. Sau khi xem xét, chúng tôi chưa đủ căn cứ để xác nhận nội dung phản ánh này vi phạm quy định. Cảm ơn bạn đã góp phần xây dựng cộng đồng SportGo an toàn và minh bạch hơn.',
         ];
         $note = !empty($data['action_note']) ? $data['action_note'] : $defaultNotes[$data['decision']];
+
+        if ($report->status === 'reviewing' && $report->reviewed_by !== $request->user()->id) {
+            throw ValidationException::withMessages([
+                'status' => 'Báo cáo đang được quản trị viên khác kiểm duyệt.',
+            ]);
+        }
 
         $targetOwner = $this->targetOwner($report->reportable);
         $oldValues = $report->toArray();

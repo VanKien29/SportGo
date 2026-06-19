@@ -66,6 +66,18 @@ class AdminWithdrawalService
                     throw new RuntimeException('Cần mã giao dịch ngân hàng để hoàn tất yêu cầu rút.');
                 }
 
+                if (! $withdrawal->bankAccount || $withdrawal->bankAccount->status !== 'active') {
+                    throw new RuntimeException('Tài khoản nhận tiền của chủ sân chưa hoạt động.');
+                }
+
+                if (! $this->wallets->hasWithdrawalHold($withdrawal)) {
+                    $this->wallets->holdWithdrawal($withdrawal, [
+                        'reason' => $context['reason'],
+                        'admin_id' => $context['actor_id'] ?? null,
+                        'source' => $context['source'] ?? 'admin',
+                    ]);
+                }
+
                 $this->wallets->completeWithdrawal($withdrawal, [
                     'reason' => $context['reason'],
                     'admin_id' => $context['actor_id'] ?? null,
@@ -98,8 +110,8 @@ class AdminWithdrawalService
     private function assertTransitionAllowed(string $from, string $to): void
     {
         $allowed = [
-            'pending' => ['approved', 'rejected'],
-            'reviewing' => ['approved', 'rejected'],
+            'pending' => ['completed', 'approved', 'rejected'],
+            'reviewing' => ['completed', 'approved', 'rejected'],
             'approved' => ['completed', 'rejected'],
             'rejected' => [],
             'completed' => [],

@@ -387,7 +387,7 @@ export function deleteDiscountProfile(id) {
 }
 
 export function createTier(payload) {
-  const validation = validateTier(payload);
+  const validation = validateTier(payload, getTiers(), { skipCoverage: true });
   if (!validation.isValid) return Promise.reject(Object.assign(new Error('Dữ liệu bậc phí chưa hợp lệ.'), { validation }));
 
   const now = new Date().toISOString();
@@ -397,8 +397,17 @@ export function createTier(payload) {
     created_at: now,
     updated_at: now,
   };
-  platformFeeStore.state.tiers.push(tier);
-  const rangeAdjustments = rebalanceTierRanges(platformFeeStore.state.tiers);
+  const proposed = [...cloneValue(platformFeeStore.state.tiers), tier];
+  const rangeAdjustments = rebalanceTierRanges(proposed);
+  const coverage = validateTierCoverage(proposed);
+
+  if (tier.is_active && !coverage.isValid) {
+    return Promise.reject(Object.assign(new Error('Cấu hình bậc phí sau khi tự cân khoảng chưa hợp lệ.'), {
+      validation: { isValid: false, errors: { _coverage: coverage.errors }, normalized: tier, coverage },
+    }));
+  }
+
+  platformFeeStore.state.tiers = proposed;
   platformFeeStore.save();
   addAuditLog('platform_fee_tier.created', 'platform_fee_tier', tier.id, null, tier, 'platform_fee_tier');
   return Promise.resolve(cloneValue({ ...tier, range_adjustments: rangeAdjustments }));
@@ -430,54 +439,52 @@ export function updateTier(id, payload) {
   const finalTier = platformFeeStore.state.tiers.find((tier) => tier.id === id);
   addAuditLog('platform_fee_tier.updated', 'platform_fee_tier', id, oldTiers, platformFeeStore.state.tiers, 'platform_fee_tier');
   return Promise.resolve({ ...cloneValue(finalTier), range_adjustments: adjusted.adjustments });
-  platformFeeStore.state.tiers.splice(index, 1, updated);
-  const rangeAdjustments = rebalanceTierRanges(platformFeeStore.state.tiers);
-  platformFeeStore.save();
-  addAuditLog('platform_fee_tier.updated', 'platform_fee_tier', id, oldTier, updated, 'platform_fee_tier');
-  return Promise.resolve(cloneValue({ ...updated, range_adjustments: rangeAdjustments }));
 }
 
 export function deactivateTier(id, reason = 'Ngừng sử dụng') {
-  const tier = platformFeeStore.state.tiers.find((item) => item.id === id);
+  const oldTiers = cloneValue(platformFeeStore.state.tiers);
+  const proposed = cloneValue(platformFeeStore.state.tiers);
+  const tier = proposed.find((item) => item.id === id);
   if (!tier) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
 
-  const oldTier = cloneValue(tier);
+  const oldTier = oldTiers.find((item) => item.id === id);
   tier.is_active = false;
   tier.inactive_reason = reason;
   tier.updated_at = new Date().toISOString();
-  const rangeAdjustments = rebalanceTierRanges(platformFeeStore.state.tiers);
-  const coverage = validateTierCoverage(platformFeeStore.state.tiers);
+  const rangeAdjustments = rebalanceTierRanges(proposed);
+  const coverage = validateTierCoverage(proposed);
   if (!coverage.isValid) {
-    Object.assign(tier, oldTier);
     return Promise.reject(Object.assign(new Error('Ngừng dùng bậc phí sẽ làm thiếu khoảng áp dụng.'), { coverage }));
   }
 
+  platformFeeStore.state.tiers = proposed;
   platformFeeStore.save();
   addAuditLog('platform_fee_tier.deactivated', 'platform_fee_tier', id, oldTier, tier, 'platform_fee_tier');
   return Promise.resolve(cloneValue({ ...tier, range_adjustments: rangeAdjustments }));
 }
 
 export function reactivateTier(id) {
-  const tier = platformFeeStore.state.tiers.find((item) => item.id === id);
+  const oldTiers = cloneValue(platformFeeStore.state.tiers);
+  const proposed = cloneValue(platformFeeStore.state.tiers);
+  const tier = proposed.find((item) => item.id === id);
   if (!tier) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
 
-  const oldTier = cloneValue(tier);
+  const oldTier = oldTiers.find((item) => item.id === id);
   tier.is_active = true;
   tier.updated_at = new Date().toISOString();
-  const activeWithSameMinimum = platformFeeStore.state.tiers.some(
+  const activeWithSameMinimum = proposed.some(
     (item) => item.id !== id && item.is_active && item.min_courts === tier.min_courts,
   );
   if (activeWithSameMinimum) {
-    Object.assign(tier, oldTier);
     return Promise.reject(new Error('Không thể bật vì số sân tối thiểu đang trùng với bậc khác.'));
   }
-  const rangeAdjustments = rebalanceTierRanges(platformFeeStore.state.tiers);
-  const coverage = validateTierCoverage(platformFeeStore.state.tiers);
+  const rangeAdjustments = rebalanceTierRanges(proposed);
+  const coverage = validateTierCoverage(proposed);
   if (!coverage.isValid) {
-    Object.assign(tier, oldTier);
     return Promise.reject(Object.assign(new Error('Kích hoạt lại bậc phí sẽ làm khoảng áp dụng chưa hợp lệ.'), { coverage }));
   }
 
+  platformFeeStore.state.tiers = proposed;
   platformFeeStore.save();
   addAuditLog('platform_fee_tier.reactivated', 'platform_fee_tier', id, oldTier, tier, 'platform_fee_tier');
   return Promise.resolve(cloneValue({ ...tier, range_adjustments: rangeAdjustments }));
@@ -525,11 +532,23 @@ export function calculatePlatformFee({ court_count, period_months, tier }) {
   if (!ALLOWED_PERIOD_MONTHS.includes(months)) throw new Error('Kỳ đóng phí không hợp lệ.');
   if (!tier) throw new Error('Chưa có bậc phí để tính phí.');
 
+  const courtCount = Number(court_count);
+  const monthlyPrice = Number(tier.price_per_court_month);
+  if (!Number.isInteger(courtCount) || courtCount < 1) {
+    throw new Error('Số sân phải là số nguyên lớn hơn hoặc bằng 1.');
+  }
+  if (!Number.isFinite(monthlyPrice) || monthlyPrice <= 0) {
+    throw new Error('Giá phí theo sân mỗi tháng phải lớn hơn 0.');
+  }
+
   const field = months === 1
     ? 'discount_1_month'
     : `discount_${months}_months`;
   const discountPercent = toNumber(tier[field]);
-  const baseAmount = Number(court_count) * Number(tier.price_per_court_month) * months;
+  if (discountPercent < 0 || discountPercent > 100) {
+    throw new Error('Mức giảm giá phải nằm trong khoảng 0 - 100%.');
+  }
+  const baseAmount = courtCount * monthlyPrice * months;
   const discountAmount = Math.round(baseAmount * discountPercent / 100);
   const amountDue = Math.max(0, Math.round(baseAmount - discountAmount));
   const warnings = [];
@@ -538,7 +557,7 @@ export function calculatePlatformFee({ court_count, period_months, tier }) {
   if (discountPercent === 100 || amountDue === 0) warnings.push('Giảm giá 100%, số tiền phải đóng bằng 0.');
 
   return {
-    court_count: Number(court_count),
+    court_count: courtCount,
     period_months: months,
     tier,
     discount_percent: discountPercent,

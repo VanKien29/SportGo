@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\PartnerContract;
+use App\Models\VenueCluster;
 use App\Services\Partner\ContractSignatureService;
 use App\Services\Partner\PartnerTerminationService;
 use Illuminate\Http\Request;
@@ -23,11 +24,24 @@ class PartnerContractController extends Controller
 
     public function sign(Request $request, $id)
     {
-        $contract = PartnerContract::findOrFail($id);
+        $contract = PartnerContract::with('application')->findOrFail($id);
         
-        // Authorization check
-        if ($contract->application->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        $ownerId = $request->user()->id;
+        $clusterId = $contract->venue_cluster_id ?? $contract->application?->approved_venue_cluster_id;
+        
+        $ownsCluster = $clusterId
+            ? VenueCluster::query()
+                ->whereKey($clusterId)
+                ->where('owner_id', $ownerId)
+                ->exists()
+            : false;
+
+        if (! $ownsCluster) {
+            // Check if it's a pending contract without a cluster yet, fallback to user_id
+            $ownsApplication = $contract->application && $contract->application->user_id === $ownerId;
+            if (! $ownsApplication) {
+                return response()->json(['message' => 'Unauthorized - Must be the owner of the venue cluster'], 403);
+            }
         }
 
         $this->signatureService->processOwnerSignature(
@@ -47,11 +61,23 @@ class PartnerContractController extends Controller
             'type' => 'required|in:unilateral_by_owner,mutual',
         ]);
 
-        $contract = PartnerContract::findOrFail($id);
+        $contract = PartnerContract::with('application')->findOrFail($id);
         
-        // Authorization check
-        if ($contract->application->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        $ownerId = $request->user()->id;
+        $clusterId = $contract->venue_cluster_id ?? $contract->application?->approved_venue_cluster_id;
+        
+        $ownsCluster = $clusterId
+            ? VenueCluster::query()
+                ->whereKey($clusterId)
+                ->where('owner_id', $ownerId)
+                ->exists()
+            : false;
+
+        if (! $ownsCluster) {
+            $ownsApplication = $contract->application && $contract->application->user_id === $ownerId;
+            if (! $ownsApplication) {
+                return response()->json(['message' => 'Unauthorized - Must be the owner of the venue cluster'], 403);
+            }
         }
 
         $termRequest = $this->terminationService->requestTermination(

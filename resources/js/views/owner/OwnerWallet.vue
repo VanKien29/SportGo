@@ -213,7 +213,7 @@ export default {
           body: JSON.stringify(this.form),
         });
 
-        this.successMsg = 'Yêu cầu rút tiền của bạn đã được gửi thành công. Vui lòng chờ admin duyệt.';
+        this.successMsg = 'Yêu cầu rút tiền của bạn đã được gửi thành công. Vui lòng chờ SportGo chuyển khoản.';
         this.form.amount = null;
         this.form.owner_note = '';
         
@@ -236,9 +236,9 @@ export default {
     },
     getStatusText(status) {
       const map = {
-        pending: 'Chờ duyệt',
-        reviewing: 'Đang xem xét',
-        approved: 'Đã duyệt (Đang chuyển)',
+        pending: 'Chờ chuyển khoản',
+        reviewing: 'Chờ chuyển khoản',
+        approved: 'Chờ chuyển khoản',
         completed: 'Hoàn tất',
         rejected: 'Bị từ chối',
         cancelled: 'Đã hủy',
