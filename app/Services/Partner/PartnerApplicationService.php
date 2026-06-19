@@ -25,6 +25,7 @@ use App\Models\PartnerApplicationCourt;
 use App\Models\PartnerApplicationDocument;
 use App\Models\PartnerApplicationStatusHistory;
 use App\Models\PartnerContract;
+use App\Models\PriceSlot;
 use App\Models\PartnerSettlement;
 use App\Models\PartnerSettlementItem;
 use App\Models\PartnerTerminationDocument;
@@ -104,6 +105,7 @@ class PartnerApplicationService
                 'parking_info' => $data['parking_info'] ?? null,
                 'amenities' => $data['amenities'] ?? [],
                 'court_count_total' => $data['court_count_total'] ?? count($data['courts'] ?? []),
+                'base_price_per_hour' => (int) ($data['base_price_per_hour'] ?? 0),
                 'status' => 'submitted',
                 'submitted_at' => now(),
             ]);
@@ -174,6 +176,7 @@ class PartnerApplicationService
             $oldStatus = $application->status;
             $cluster = $this->createVenueCluster($application);
             $this->createVenueCourts($application, $cluster, $data, 'inactive');
+            $this->createInitialPriceSlots($application, $cluster);
             $this->activateBankAccounts($application, $admin->id);
 
             $application->forceFill([
@@ -661,6 +664,37 @@ class PartnerApplicationService
         }
     }
 
+    private function createInitialPriceSlots(PartnerApplication $application, VenueCluster $cluster): void
+    {
+        $basePrice = (int) $application->base_price_per_hour;
+        if ($basePrice <= 0) {
+            return;
+        }
+
+        $courtTypeIds = $application->courts
+            ->pluck('court_type_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        foreach ($courtTypeIds as $courtTypeId) {
+            PriceSlot::query()->firstOrCreate(
+                [
+                    'venue_cluster_id' => $cluster->id,
+                    'court_type_id' => $courtTypeId,
+                    'booking_type' => 'all',
+                    'start_time' => '00:00:00',
+                    'end_time' => '23:59:00',
+                ],
+                [
+                    'price' => $basePrice,
+                    'apply_to_days' => [1, 2, 3, 4, 5, 6, 7],
+                    'is_active' => true,
+                ]
+            );
+        }
+    }
+
     private function createContractForApplication(PartnerApplication $application, User $admin, VenueCluster $cluster): PartnerContract
     {
         $contractCode = $this->uniqueContractCode();
@@ -775,8 +809,8 @@ class PartnerApplicationService
             'venue_longitude' => $application->venue_longitude,
             'court_count' => $application->court_count_total,
             'court_count_total' => $application->court_count_total,
-            'base_price_per_hour' => (int) ($data['base_price_per_hour'] ?? 0),
-            'base_price_per_hour_label' => $this->money((int) ($data['base_price_per_hour'] ?? 0)),
+            'base_price_per_hour' => (int) ($application->base_price_per_hour ?: ($data['base_price_per_hour'] ?? 0)),
+            'base_price_per_hour_label' => $this->money((int) ($application->base_price_per_hour ?: ($data['base_price_per_hour'] ?? 0))),
             'courts_summary' => $this->courtsSummary($application),
             'submitted_at' => $this->timestamp($application->submitted_at),
             'applicant_full_name' => $application->applicant_full_name,

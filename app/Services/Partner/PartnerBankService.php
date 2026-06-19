@@ -65,10 +65,10 @@ class PartnerBankService
 
         if (! $clientId || ! $apiKey) {
             return [
-                'status' => 'manual_required',
+                'status' => 'lookup_not_configured',
                 'verified' => false,
                 'bank' => $bank,
-                'message' => 'Tài khoản ngân hàng sẽ được admin xác minh thủ công trước khi duyệt hồ sơ.',
+                'message' => 'Chưa cấu hình VIETQR_CLIENT_ID/VIETQR_API_KEY nên hệ thống chưa thể xác minh tài khoản ngân hàng tự động.',
             ];
         }
 
@@ -111,7 +111,7 @@ class PartnerBankService
                 'status' => 'provider_unavailable',
                 'verified' => false,
                 'bank' => $bank,
-                'message' => 'Không thể kết nối dịch vụ xác minh tài khoản, hồ sơ sẽ chờ admin kiểm tra.',
+                'message' => 'Không thể kết nối dịch vụ xác minh tài khoản ngân hàng. Vui lòng thử lại sau.',
             ];
         }
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\CourtType;
 use App\Models\GeneratedDocument;
 use App\Models\PartnerApplication;
 use App\Models\PartnerContract;
@@ -234,7 +235,7 @@ class PartnerApplicationController extends Controller
 
         $rules = [
             'applicant_full_name' => ['required', 'string', 'max:255'],
-            'applicant_phone' => ['required', 'regex:/^(0[0-9]{9}|\+84[0-9]{9})$/'],
+            'applicant_phone' => ['required', 'regex:/^0[0-9]{9}$/'],
             'applicant_email' => ['required', 'email', 'max:255'],
             'applicant_address' => ['required', 'string', 'max:1000'],
             'applicant_type' => ['required', 'in:individual,business,company'],
@@ -245,7 +246,7 @@ class PartnerApplicationController extends Controller
             'representative_identity_issued_place' => ['nullable', 'string', 'max:255'],
             'representative_position' => ['nullable', 'string', 'max:150'],
             'business_name' => ['required', 'string', 'max:255'],
-            'tax_code' => ['nullable', 'string', 'max:50'],
+            'tax_code' => ['nullable', 'regex:/^\d{10}(-?\d{3})?$/'],
             'business_code' => ['nullable', 'string', 'max:100'],
             'business_license_number' => ['required', 'string', 'max:100'],
             'business_address' => ['required', 'string', 'max:1000'],
@@ -256,7 +257,7 @@ class PartnerApplicationController extends Controller
             'venue_map_url' => ['required', 'url', 'max:1000'],
             'venue_latitude' => ['required', 'numeric', 'between:-90,90'],
             'venue_longitude' => ['required', 'numeric', 'between:-180,180'],
-            'venue_phone' => ['required', 'regex:/^(0[0-9]{9}|\+84[0-9]{9})$/'],
+            'venue_phone' => ['required', 'regex:/^0[0-9]{9}$/'],
             'venue_email' => ['nullable', 'email', 'max:255'],
             'venue_description' => ['nullable', 'string'],
             'expected_opening_hours' => ['nullable', 'string', 'max:255'],
@@ -312,7 +313,32 @@ class PartnerApplicationController extends Controller
             ]);
         }
 
+        $this->assertUsableCourtTypes($data['courts']);
+
         return $data;
+    }
+
+    private function assertUsableCourtTypes(array $courts): void
+    {
+        $ids = collect($courts)->pluck('court_type_id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $types = CourtType::query()
+            ->withCount('children')
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($courts as $index => $court) {
+            $type = $types[(int) ($court['court_type_id'] ?? 0)] ?? null;
+            if (! $type || ! $type->is_active || (int) $type->children_count > 0) {
+                throw ValidationException::withMessages([
+                    "courts.$index.court_type_id" => 'Vui lòng chọn loại sân con đang hoạt động và là loại sử dụng cuối.',
+                ]);
+            }
+        }
     }
 
     private function enrichLocationNames(array $data): array
@@ -336,9 +362,9 @@ class PartnerApplicationController extends Controller
             $data['bank_bin'] ?? null,
         );
 
-        if (in_array($verification['status'], ['invalid_bank', 'invalid_account_number', 'not_found', 'name_mismatch'], true)) {
+        if (($verification['status'] ?? null) !== 'verified') {
             throw ValidationException::withMessages([
-                'account_number' => $verification['message'],
+                'account_number' => $verification['message'] ?? 'Tài khoản ngân hàng chưa được xác minh tự động.',
             ]);
         }
 
@@ -347,7 +373,7 @@ class PartnerApplicationController extends Controller
             $data['bank_code'] = $bank['code'];
         }
 
-        $data['bank_verification_status'] = ($verification['status'] ?? null) === 'verified' ? 'verified' : 'pending';
+        $data['bank_verification_status'] = 'verified';
 
         return $data;
     }
