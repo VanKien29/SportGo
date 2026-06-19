@@ -26,7 +26,7 @@
         <input v-model.trim="filters.keyword" type="search" placeholder="Mã booking, payment, tên hoặc số điện thoại" />
       </label>
       <input v-model="filters.date_from" type="date" aria-label="Từ ngày" />
-      <input v-model="filters.date_to" type="date" aria-label="Đến ngày" />
+      <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from" />
       <ActionIconButton icon="filter" label="Lọc" variant="primary" type="submit" />
       <ActionIconButton icon="x" label="Xóa lọc" @click="clearFilters" />
     </form>

@@ -3,8 +3,10 @@
 namespace App\Console\Commands;
 
 use App\Models\PartnerApplication;
+use App\Models\PartnerTerminationRequest;
 use Illuminate\Console\Command;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class RevokeExpiredOwnerRoles extends Command
 {
@@ -29,21 +31,26 @@ class RevokeExpiredOwnerRoles extends Command
     {
         $oneMonthAgo = Carbon::now()->subMonth();
 
-        $expiredApplications = PartnerApplication::whereNotNull('terminated_at')
-            ->where('terminated_at', '<=', $oneMonthAgo)
-            // Ideally, we would add a flag to avoid processing the same record multiple times, e.g., 'role_revoked_at'
-            // For now, we will just attempt to remove the role.
+        $requests = PartnerTerminationRequest::where('status', 'approved')
+            ->whereNotNull('approved_at')
+            ->where('approved_at', '<=', $oneMonthAgo)
+            ->with('application.user')
             ->get();
 
         $count = 0;
-        $roleId = \Illuminate\Support\Facades\DB::table('roles')->where('name', 'venue_owner')->value('id');
+        $roleId = DB::table('roles')->where('name', 'venue_owner')->value('id');
         
         if (!$roleId) {
             $this->error('Role venue_owner not found.');
             return;
         }
 
-        foreach ($expiredApplications as $application) {
+        foreach ($requests as $request) {
+            $application = $request->application;
+            if (!$application) {
+                continue;
+            }
+
             $user = $application->user;
             if ($user) {
                 // Determine if the user has any other active clusters
@@ -54,7 +61,7 @@ class RevokeExpiredOwnerRoles extends Command
                     ->exists();
 
                 if (!$hasOtherActiveClusters) {
-                    \Illuminate\Support\Facades\DB::table('user_roles')
+                    DB::table('user_roles')
                         ->where('user_id', $user->id)
                         ->where('role_id', $roleId)
                         ->delete();

@@ -106,6 +106,13 @@ class VoucherController extends Controller
         $voucher = $this->systemVoucher($id);
         $used = (int) $voucher->used_quantity > 0 || DB::table('voucher_usages')->where('voucher_id', $id)->exists();
 
+        $finalValidFrom = $used ? $voucher->valid_from : $data['valid_from'];
+        if ($data['valid_to'] && $finalValidFrom && strtotime($data['valid_to']) <= strtotime($finalValidFrom)) {
+            throw ValidationException::withMessages([
+                'valid_to' => 'Thời gian kết thúc phải sau thời gian bắt đầu của voucher.',
+            ]);
+        }
+
         DB::transaction(function () use ($data, $id, $used): void {
             $update = [
                 'name' => $data['name'],

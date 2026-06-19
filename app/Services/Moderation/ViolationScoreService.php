@@ -35,12 +35,36 @@ class ViolationScoreService
         $applied = [];
 
         if ($target && ($result['isImmediate'] || $result['shouldAutoHide'])) {
-            $applied[] = $result['isImmediate'] ? 'immediate_hide' : 'auto_hide';
-            $this->hideTarget($target, $result['isImmediate'] ? 'Ẩn ngay do loại vi phạm nghiêm trọng.' : 'Ẩn tạm do đạt ngưỡng điểm vi phạm.');
-            $report->forceFill([
-                'auto_action_taken' => $result['isImmediate'] ? 'immediate_hide' : 'auto_hide',
-                'auto_actioned_at' => now(),
-            ])->saveQuietly();
+            if (in_array($targetType, ['community_post', 'venue_post', 'comment'], true)) {
+                $applied[] = $result['isImmediate'] ? 'immediate_hide' : 'auto_hide';
+                $this->hideTarget($target, $result['isImmediate'] ? 'Ẩn ngay do loại vi phạm nghiêm trọng.' : 'Ẩn tạm do đạt ngưỡng điểm vi phạm.');
+                $report->forceFill([
+                    'auto_action_taken' => $result['isImmediate'] ? 'immediate_hide' : 'auto_hide',
+                    'auto_actioned_at' => now(),
+                ])->saveQuietly();
+            } elseif (in_array($targetType, ['user', 'venue_cluster'], true)) {
+                $threshold = $this->thresholdFor($targetType);
+                if ($threshold && $threshold->action_type !== 'warn') {
+                    $autoLockEnabled = \App\Models\ModerationConfig::query()->where('key', 'auto_lock_enabled')->value('value') === '1';
+                    if ($autoLockEnabled) {
+                        $applied[] = 'auto_penalty';
+                        app(\App\Services\Moderation\PenaltyEscalationService::class)->applyPenalty(
+                            $targetType,
+                            $targetId,
+                            $threshold->action_type,
+                            $threshold->duration_days,
+                            null,
+                            'Tự động áp dụng hình phạt do đạt ngưỡng điểm vi phạm.'
+                        );
+                        $report->forceFill([
+                            'auto_action_taken' => 'auto_penalty',
+                            'auto_actioned_at' => now(),
+                        ])->saveQuietly();
+                    } else {
+                        $applied[] = 'auto_penalty_skipped_due_to_config';
+                    }
+                }
+            }
         }
 
         if ($result['isImmediate'] || $result['shouldAlertAdmin'] || $result['shouldAutoHide']) {

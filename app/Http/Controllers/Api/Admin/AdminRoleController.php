@@ -221,6 +221,36 @@ class AdminRoleController extends Controller
         return response()->json(['data' => $this->permissionGroups()]);
     }
 
+    public function matrix(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'role.view');
+
+        $roles = Role::query()
+            ->with('permissions:id')
+            ->whereNotIn('name', self::FIXED_CLIENT_ROLES)
+            ->orderByDesc('is_system')
+            ->orderBy('display_name')
+            ->get()
+            ->map(function ($role) {
+                return [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                    'display_name' => $role->display_name,
+                    'is_system' => (bool) $role->is_system,
+                    'is_configurable' => ! in_array($role->name, self::LOCKED_PERMISSION_ROLES, true)
+                        && ! in_array($role->name, self::FIXED_CLIENT_ROLES, true),
+                    'permission_ids' => $role->permissions->pluck('id')->values()->all(),
+                ];
+            });
+
+        return response()->json([
+            'data' => [
+                'roles' => $roles,
+                'permission_groups' => $this->permissionGroups(),
+            ]
+        ]);
+    }
+
     public function updatePermissions(Request $request, string $id): JsonResponse
     {
         $this->authorizePermission($request, 'role.permission.manage');
@@ -262,6 +292,56 @@ class AdminRoleController extends Controller
 
         return response()->json([
             'message' => 'Đã cập nhật quyền cho nhóm.',
+            'data' => [
+                'role' => $this->rolePayload($freshRole),
+                'permissions' => $newPermissions,
+            ],
+        ]);
+    }
+
+    public function togglePermission(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'role.permission.manage');
+
+        $role = Role::query()->with('permissions')->findOrFail($id);
+
+        if (! $this->canEditPermissions($role)) {
+            throw ValidationException::withMessages([
+                'permission_id' => 'Nhóm quyền này bị khóa chỉnh sửa quyền.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'permission_id' => ['required', 'integer', 'exists:permissions,id'],
+            'action' => ['required', 'string', 'in:grant,revoke'],
+        ]);
+
+        $permissionId = (int) $data['permission_id'];
+        $action = $data['action'];
+
+        $this->ensureActorCanGrantPermissions($request, [$permissionId]);
+
+        $oldValues = [
+            'permissions' => $role->permissions->pluck('code')->values()->all(),
+        ];
+
+        if ($action === 'grant') {
+            $role->permissions()->syncWithoutDetaching([$permissionId]);
+        } else {
+            $role->permissions()->detach($permissionId);
+        }
+
+        $freshRole = $role->fresh(['permissions'])->loadCount(['permissions', 'users']);
+        $newPermissions = $freshRole->permissions->pluck('code')->values()->all();
+
+        $this->audit->log($request, 'role', 'role.permissions_updated', 'roles', (string) $role->id, $oldValues, [
+            'permissions' => $newPermissions,
+        ], [
+            'severity' => 'warning',
+        ]);
+
+        return response()->json([
+            'message' => $action === 'grant' ? 'Đã cấp quyền cho nhóm.' : 'Đã thu hồi quyền khỏi nhóm.',
             'data' => [
                 'role' => $this->rolePayload($freshRole),
                 'permissions' => $newPermissions,

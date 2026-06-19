@@ -34,112 +34,58 @@
             </button>
         </div>
 
-        <form class="toolbar" @submit.prevent="loadData(1)">
-            <label class="search-field">
-                <AppIcon name="search" size="17" />
-                <input
-                    v-model.trim="filters.keyword"
-                    type="search"
-                    :placeholder="searchPlaceholder"
-                />
-            </label>
-            <select v-model="filters.status">
-                <option value="">Tất cả trạng thái</option>
-                <option
-                    v-for="status in statusOptions"
-                    :key="status"
-                    :value="status"
-                >
-                    {{ statusLabel(status) }}
-                </option>
-            </select>
-            <select
-                v-if="tab === 'refunds'"
-                v-model="filters.refund_destination"
-            >
-                <option value="">Tất cả nơi nhận</option>
-                <option value="bank_account">Tài khoản ngân hàng</option>
-                <option value="user_wallet">Ví SportGo</option>
-                <option value="original_payment">Phương thức gốc</option>
-            </select>
-            <select v-if="tab === 'refunds'" v-model="filters.owner_confirmed">
-                <option value="">Phản hồi chủ sân</option>
-                <option value="yes">Đã phản hồi</option>
-                <option value="no">Chưa phản hồi</option>
-            </select>
-            <select v-model="filters.date_range">
-                <option value="">
-                    {{ tab === "refunds" ? "Ngày yêu cầu" : "Ngày rút" }}
-                </option>
-                <option value="today">Hôm nay</option>
-                <option value="yesterday">Hôm qua</option>
-                <option value="last_3_days">3 ngày gần đây</option>
-                <option value="last_7_days">7 ngày gần đây</option>
-                <option value="last_30_days">30 ngày gần đây</option>
-                <option value="this_month">Tháng này</option>
-                <option value="last_month">Tháng trước</option>
-                <option value="custom">Tùy chỉnh</option>
-            </select>
-            <div
-                v-if="filters.date_range === 'custom'"
-                class="date-range-fields"
-                :aria-label="
-                    tab === 'refunds'
-                        ? 'Khoảng ngày yêu cầu hoàn tiền tùy chỉnh'
-                        : 'Khoảng ngày yêu cầu rút tiền tùy chỉnh'
-                "
-            >
-                <input
-                    v-model="filters.date_from"
-                    type="date"
-                    :title="
-                        tab === 'refunds'
-                            ? 'Yêu cầu hoàn tiền từ ngày'
-                            : 'Yêu cầu rút tiền từ ngày'
-                    "
-                />
-                <span>đến</span>
-                <input
-                    v-model="filters.date_to"
-                    type="date"
-                    :title="
-                        tab === 'refunds'
-                            ? 'Yêu cầu hoàn tiền đến ngày'
-                            : 'Yêu cầu rút tiền đến ngày'
-                    "
-                />
-            </div>
-            <button
-                class="icon-only primary"
-                type="submit"
-                title="Lọc danh sách"
-                aria-label="Lọc danh sách"
-            >
-                <AppIcon name="filter" size="16" />
-            </button>
-            <button
-                class="icon-only"
-                type="button"
-                title="Xóa lọc"
-                aria-label="Xóa lọc"
-                @click="resetFilters"
-            >
-                <AppIcon name="x" size="16" />
-            </button>
-            <button
-                class="export-btn"
-                type="button"
-                :disabled="selectedExportableIds.length === 0 || exporting"
-                @click="exportSelected"
-            >
-                <AppIcon name="fileText" size="16" />
-                {{
-                    exporting
-                        ? "Đang export..."
-                        : `Export MB (${selectedExportableIds.length})`
-                }}
-            </button>
-        </form>
+    <form class="toolbar" @submit.prevent="loadData(1)">
+      <label class="search-field">
+        <AppIcon name="search" size="17" />
+        <input v-model.trim="filters.keyword" type="search" :placeholder="searchPlaceholder" />
+      </label>
+      <select v-model="filters.status">
+        <option value="">Tất cả trạng thái</option>
+        <option v-for="status in statusOptions" :key="status" :value="status">{{ statusLabel(status) }}</option>
+      </select>
+      <select v-if="tab === 'refunds'" v-model="filters.refund_destination">
+        <option value="">Tất cả nơi nhận</option>
+        <option value="bank_account">Tài khoản ngân hàng</option>
+        <option value="user_wallet">Ví SportGo</option>
+        <option value="original_payment">Phương thức gốc</option>
+      </select>
+      <select v-if="tab === 'refunds'" v-model="filters.owner_confirmed">
+        <option value="">Phản hồi chủ sân</option>
+        <option value="yes">Đã phản hồi</option>
+        <option value="no">Chưa phản hồi</option>
+      </select>
+      <select v-model="filters.date_range">
+        <option value="">{{ tab === 'refunds' ? 'Ngày yêu cầu' : 'Ngày rút' }}</option>
+        <option value="today">Hôm nay</option>
+        <option value="yesterday">Hôm qua</option>
+        <option value="last_3_days">3 ngày gần đây</option>
+        <option value="last_7_days">7 ngày gần đây</option>
+        <option value="last_30_days">30 ngày gần đây</option>
+        <option value="this_month">Tháng này</option>
+        <option value="last_month">Tháng trước</option>
+        <option value="custom">Tùy chỉnh</option>
+      </select>
+      <div v-if="filters.date_range === 'custom'" class="date-range-fields" :aria-label="tab === 'refunds' ? 'Khoảng ngày yêu cầu hoàn tiền tùy chỉnh' : 'Khoảng ngày yêu cầu rút tiền tùy chỉnh'">
+        <input v-model="filters.date_from" type="date" :title="tab === 'refunds' ? 'Yêu cầu hoàn tiền từ ngày' : 'Yêu cầu rút tiền từ ngày'" />
+        <span>đến</span>
+        <input v-model="filters.date_to" type="date" :title="tab === 'refunds' ? 'Yêu cầu hoàn tiền đến ngày' : 'Yêu cầu rút tiền đến ngày'" :min="filters.date_from" />
+      </div>
+      <button class="icon-only primary" type="submit" title="Lọc danh sách" aria-label="Lọc danh sách">
+        <AppIcon name="filter" size="16" />
+      </button>
+      <button class="icon-only" type="button" title="Xóa lọc" aria-label="Xóa lọc" @click="resetFilters">
+        <AppIcon name="x" size="16" />
+      </button>
+      <button
+        class="export-btn"
+        type="button"
+        :disabled="selectedExportableIds.length === 0 || exporting"
+        @click="exportSelected"
+      >
+        <AppIcon name="fileText" size="16" />
+        {{ exporting ? 'Đang export...' : `Export MB (${selectedExportableIds.length})` }}
+      </button>
+    </form>
 
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="success" class="alert success">{{ success }}</div>
