@@ -645,6 +645,47 @@
         </div>
       </div>
 
+      <!-- ┌ Tab: Yêu cầu giải khóa ──────────────────────────────────────── -->
+      <div v-if="activeTab === 'appeals'" class="avcd-card card">
+        <h3 class="section-title">Danh sách yêu cầu hỗ trợ / giải khóa</h3>
+        <div v-if="!appeals || appeals.length === 0" class="empty-section">
+          Không có yêu cầu giải khóa nào cho cụm sân này.
+        </div>
+        <div v-else class="appeal-list">
+          <div v-for="appeal in appeals" :key="appeal.id" class="appeal-card" :class="`appeal-${appeal.status}`" style="border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 10px; padding: 18px; margin-bottom: 16px; background: #fff;">
+            <div class="appeal-row" style="display: flex; justify-content: space-between; gap: 20px;">
+              <div style="flex:1">
+                <div class="appeal-header-info" style="display: flex; align-items: center; gap: 12px;">
+                  <span class="appeal-title-text fw-bold" style="font-size: 16px; color: #0f172a;">{{ appeal.title }}</span>
+                  <span class="status-badge" :class="`status-${appeal.status}`" style="font-size: 11px; padding: 3px 8px;">
+                    {{ appealStatusLabel(appeal.status) }}
+                  </span>
+                </div>
+                <div class="muted" style="margin-top: 6px; font-size: 12px;">
+                  Người gửi: <strong>{{ appeal.owner?.full_name || 'Chủ sân' }}</strong> (@{{ appeal.owner?.username }}) · Gửi lúc: {{ formatDate(appeal.created_at) }}
+                </div>
+                <div class="appeal-content-box" style="margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                  <span class="info-detail-label" style="font-size: 10px; display: block; margin-bottom: 6px; color: #64748b; font-weight: 700; text-transform: uppercase;">Nội dung khiếu nại</span>
+                  <p style="margin: 0; font-size: 13.5px; white-space: pre-wrap; line-height: 1.5; color: #334155;">{{ appeal.content }}</p>
+                </div>
+                
+                <div v-if="appeal.status !== 'pending'" class="appeal-reply-box" style="margin-top: 14px; padding: 12px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+                  <span class="info-detail-label" style="font-size: 10px; display: block; margin-bottom: 6px; color: #166534; font-weight: 700; text-transform: uppercase;">Phản hồi từ SportGo</span>
+                  <p style="margin: 0; font-size: 13.5px; white-space: pre-wrap; line-height: 1.5; color: #1e293b;">{{ appeal.reply_content }}</p>
+                  <div class="muted" style="margin-top: 8px; font-size: 12px; color: #15803d; font-weight: 500;">
+                    Phản hồi bởi: <strong>{{ appeal.replied_by?.full_name || 'Ban quản trị' }}</strong> · Lúc: {{ formatDate(appeal.replied_at) }}
+                  </div>
+                </div>
+              </div>
+              <div class="appeal-right" v-if="appeal.status === 'pending'" style="display: flex; align-items: flex-start; justify-content: flex-end;">
+                <button class="btn btn-primary btn-sm" style="padding: 6px 14px;" @click="openReplyModal(appeal)">
+                  Phản hồi
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
     <!-- ── Modal: Khóa cụm sân ── -->
     <div v-if="showLockModal" class="modal-backdrop" @click.self="closeLockModal">
@@ -743,7 +784,45 @@
       </form>
     </div>
 
-
+    <!-- ── Modal: Phản hồi giải khóa ── -->
+    <div v-if="showReplyModal && replyTarget" class="modal-backdrop" @click.self="closeReplyModal">
+      <form class="modal-box card" @submit.prevent="handleReply">
+        <div class="modal-header">
+          <h3>Phản hồi khiếu nại giải khóa</h3>
+          <button type="button" class="btn-close" @click="closeReplyModal">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="muted">Khiếu nại từ chủ sân: <strong>{{ replyTarget.title }}</strong></p>
+          <div v-if="replyError" class="alert-error">{{ replyError }}</div>
+          
+          <label class="form-label" style="display: block; margin-bottom: 12px;">
+            Quyết định xử lý <span class="required">*</span>
+            <select v-model="replyForm.decision" class="form-control" style="width: 100%; margin-top: 4px; padding: 8px;" required>
+              <option value="resolved">Chấp nhận (Đồng ý giải quyết khiếu nại)</option>
+              <option value="rejected">Từ chối (Giữ nguyên khóa cụm sân)</option>
+            </select>
+          </label>
+          
+          <label class="form-label" style="display: block;">
+            Nội dung phản hồi <span class="required">*</span>
+            <textarea
+              v-model="replyForm.reply_content"
+              rows="5"
+              required
+              placeholder="Nhập nội dung phản hồi chi tiết cho chủ sân..."
+              class="form-control"
+              style="width: 100%; margin-top: 4px; padding: 8px;"
+            ></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" @click="closeReplyModal">Hủy</button>
+          <button type="submit" class="btn btn-primary" :disabled="replying">
+            {{ replying ? 'Đang gửi...' : 'Gửi phản hồi' }}
+          </button>
+        </div>
+      </form>
+    </div>
 
     </template>
 
@@ -797,6 +876,7 @@ export default {
         { key: 'lock_history', label: 'Lịch sử khóa' },
         { key: 'approvals', label: 'Yêu cầu quy mô' },
         { key: 'location_changes', label: 'Yêu cầu vị trí' },
+        { key: 'appeals', label: 'Yêu cầu giải khóa' },
       ],
 
       approvalFilter: '',
@@ -825,7 +905,16 @@ export default {
       rejectError: '',
       rejecting: false,
 
-
+      // Appeals
+      appeals: [],
+      showReplyModal: false,
+      replyTarget: null,
+      replyForm: {
+        reply_content: '',
+        decision: 'resolved',
+      },
+      replying: false,
+      replyError: '',
 
       // Global message
       globalMsg: '',
@@ -872,6 +961,7 @@ export default {
         this.lockHistory = data.lock_history || [];
         this.approvalRequests = data.approval_requests || [];
         this.locationChangeRequests = data.location_change_requests || [];
+        await this.fetchAppeals();
       } catch (err) {
         this.error = err.message || 'Không tải được dữ liệu.';
       } finally {
@@ -918,6 +1008,65 @@ export default {
       } finally {
         this.unlocking = false;
       }
+    },
+
+    // ── Appeals ──
+    async fetchAppeals() {
+      try {
+        const res = await adminVenueClusterService.listAppeals({
+          venue_cluster_id: this.$route.params.id,
+        });
+        this.appeals = res.data || res.data?.data || [];
+      } catch (err) {
+        console.error('Lỗi tải khiếu nại:', err);
+      }
+    },
+    openReplyModal(appeal) {
+      this.replyTarget = appeal;
+      this.replyForm = {
+        reply_content: '',
+        decision: 'resolved',
+      };
+      this.replyError = '';
+      this.showReplyModal = true;
+    },
+    closeReplyModal() {
+      this.showReplyModal = false;
+      this.replyTarget = null;
+    },
+    async handleReply() {
+      if (!this.replyTarget) return;
+      this.replying = true;
+      this.replyError = '';
+      try {
+        await adminVenueClusterService.replyAppeal(this.replyTarget.id, {
+          reply_content: this.replyForm.reply_content,
+          decision: this.replyForm.decision,
+        });
+        
+        // Nếu đồng ý giải quyết khiếu nại (resolved), tự động mở khóa cụm sân luôn trên UI
+        if (this.replyForm.decision === 'resolved') {
+          try {
+            await adminVenueClusterService.unlock(this.cluster.id);
+            this.showMsg('Đã chấp nhận khiếu nại và tự động mở khóa cụm sân.', 'msg-success');
+          } catch (unlockErr) {
+            console.error('Không tự động mở khóa sau khi duyệt:', unlockErr);
+            this.showMsg('Đã chấp nhận khiếu nại nhưng mở khóa tự động thất bại.', 'msg-warning');
+          }
+        } else {
+          this.showMsg('Đã phản hồi và từ chối khiếu nại giải khóa.', 'msg-success');
+        }
+
+        this.closeReplyModal();
+        await this.loadDetail();
+      } catch (err) {
+        this.replyError = err.message || 'Gửi phản hồi thất bại.';
+      } finally {
+        this.replying = false;
+      }
+    },
+    appealStatusLabel(status) {
+      return { pending: 'Chờ phản hồi', resolved: 'Chấp nhận', rejected: 'Từ chối' }[status] || status;
     },
 
     // ── Approve / Reject ──

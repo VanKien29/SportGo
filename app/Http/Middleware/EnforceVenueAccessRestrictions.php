@@ -13,6 +13,11 @@ class EnforceVenueAccessRestrictions
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Exclude lock appeals and resume route from restrictions check
+        if ($request->is('*owner/lock-appeals*') || $request->is('*owner/venue-clusters/*/resume*')) {
+            return $next($request);
+        }
+
         // Only enforce restrictions on write/mutating methods
         if (! in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
             return $next($request);

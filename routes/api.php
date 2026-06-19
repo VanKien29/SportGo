@@ -171,6 +171,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/venue-clusters/{id}', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'show']);
         Route::patch('/venue-clusters/{id}/lock', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'lock']);
         Route::patch('/venue-clusters/{id}/unlock', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'unlock']);
+        Route::get('/lock-appeals', [\App\Http\Controllers\Api\Admin\VenueLockAppealController::class, 'index']);
+        Route::get('/lock-appeals/{id}', [\App\Http\Controllers\Api\Admin\VenueLockAppealController::class, 'show']);
+        Route::post('/lock-appeals/{id}/reply', [\App\Http\Controllers\Api\Admin\VenueLockAppealController::class, 'reply']);
         Route::patch('/venue-clusters/{id}/amenities', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'updateAmenities']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveRequest']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectRequest']);
@@ -221,6 +224,10 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);
         Route::post('/venue-clusters/{id}/media', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'uploadMedia']);
         Route::delete('/venue-clusters/{clusterId}/media/{mediaId}', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'deleteMedia']);
+        Route::patch('/venue-clusters/{id}/suspend', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'suspend']);
+        Route::patch('/venue-clusters/{id}/resume', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'resume']);
+        Route::get('/lock-appeals', [\App\Http\Controllers\Api\Owner\VenueLockAppealController::class, 'index']);
+        Route::post('/lock-appeals', [\App\Http\Controllers\Api\Owner\VenueLockAppealController::class, 'store']);
         Route::put('/venue-courts/bulk-layout', [\App\Http\Controllers\Api\Owner\VenueCourtController::class, 'updateLayoutBulk']);
         Route::apiResource('venue-courts', \App\Http\Controllers\Api\Owner\VenueCourtController::class);
         Route::get('/staff', [OwnerStaffController::class, 'index']);

@@ -103,4 +103,36 @@ export const adminVenueClusterService = {
       body: JSON.stringify(payload),
     });
   },
+
+  /**
+   * Lấy danh sách khiếu nại khóa
+   * @param {Object} params - { status, venue_cluster_id }
+   */
+  listAppeals(params = {}) {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.venue_cluster_id) query.set('venue_cluster_id', params.venue_cluster_id);
+    const qs = query.toString();
+    return api(`/api/admin/lock-appeals${qs ? `?${qs}` : ''}`);
+  },
+
+  /**
+   * Xem chi tiết khiếu nại khóa
+   * @param {string} id
+   */
+  showAppeal(id) {
+    return api(`/api/admin/lock-appeals/${id}`);
+  },
+
+  /**
+   * Phản hồi khiếu nại khóa
+   * @param {string} id
+   * @param {{ reply_content: string, decision: string }} payload
+   */
+  replyAppeal(id, payload) {
+    return api(`/api/admin/lock-appeals/${id}/reply`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };

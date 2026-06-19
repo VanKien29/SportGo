@@ -203,4 +203,58 @@ class VenueClusterController extends Controller
             'message' => 'Xóa hình ảnh thành công.',
         ]);
     }
+
+    public function suspend(Request $request, string $id): JsonResponse
+    {
+        $cluster = VenueCluster::findOrFail($id);
+
+        if ($cluster->owner_id !== $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền quản lý cụm sân này.'], 403);
+        }
+
+        if ($cluster->status !== 'active') {
+            return response()->json(['message' => 'Cụm sân này hiện không ở trạng thái hoạt động.'], 422);
+        }
+
+        $cluster->forceFill([
+            'status' => 'locked',
+            'status_reason' => 'Owner tạm ngưng kinh doanh.',
+            'locked_at' => now(),
+            'locked_by' => $request->user()->id,
+        ])->save();
+
+        return response()->json([
+            'message' => 'Đã tạm ngưng kinh doanh cụm sân thành công.',
+            'data' => $cluster,
+        ]);
+    }
+
+    public function resume(Request $request, string $id): JsonResponse
+    {
+        $cluster = VenueCluster::findOrFail($id);
+
+        if ($cluster->owner_id !== $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền quản lý cụm sân này.'], 403);
+        }
+
+        if ($cluster->status !== 'locked') {
+            return response()->json(['message' => 'Cụm sân này hiện không bị tạm ngưng.'], 422);
+        }
+
+        if ($cluster->locked_by !== $request->user()->id && $cluster->status_reason !== 'Owner tạm ngưng kinh doanh.') {
+            return response()->json(['message' => 'Cụm sân này bị khóa do quản trị viên hoặc quá hạn phí. Bạn không thể tự mở lại.'], 422);
+        }
+
+        $cluster->forceFill([
+            'status' => 'active',
+            'status_reason' => null,
+            'locked_at' => null,
+            'locked_by' => null,
+        ])->save();
+
+        return response()->json([
+            'message' => 'Đã mở lại hoạt động kinh doanh cụm sân thành công.',
+            'data' => $cluster,
+        ]);
+    }
 }

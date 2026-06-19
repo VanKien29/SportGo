@@ -98,5 +98,25 @@ export const venueClusterService = {
       method: 'PATCH',
     });
   },
+
+  suspendCluster(id) {
+    return api(`/api/owner/venue-clusters/${id}/suspend`, {
+      method: 'PATCH',
+    });
+  },
+  resumeCluster(id) {
+    return api(`/api/owner/venue-clusters/${id}/resume`, {
+      method: 'PATCH',
+    });
+  },
+  getLockAppeals() {
+    return api('/api/owner/lock-appeals');
+  },
+  createLockAppeal(data) {
+    return api('/api/owner/lock-appeals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 

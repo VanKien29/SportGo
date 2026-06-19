@@ -112,6 +112,12 @@ class BookingService
                 throw new Exception('Sân này hiện không hoạt động.');
             }
 
+            // Block booking if venue cluster is locked
+            $cluster = VenueCluster::findOrFail($venueClusterId);
+            if ($cluster->status === 'locked') {
+                throw new Exception('Cụm sân này hiện đang tạm ngưng hoạt động hoặc bị khóa. Không thể đặt lịch.');
+            }
+
             // 1. Kiểm tra tính trống của sân
             if (! $this->checkAvailability($venueCourtId, $bookingDate, $startTime, $endTime)) {
                 throw new Exception('Sân đã bị đặt hoặc đang được giữ chỗ trong khung giờ này.');
@@ -481,11 +487,17 @@ class BookingService
 
     public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single', bool $includeBusyDetails = false): array
     {
-        $cluster = VenueCluster::query()->whereKey($venueClusterId)->where('status', 'active')->first();
+        $cluster = VenueCluster::query()->whereKey($venueClusterId)->whereIn('status', ['active', 'locked'])->first();
 
         if (! $cluster) {
             throw ValidationException::withMessages([
                 'venue_cluster_id' => 'Cụm sân không tồn tại hoặc chưa hoạt động.',
+            ]);
+        }
+
+        if ($cluster->status === 'locked') {
+            throw ValidationException::withMessages([
+                'venue_cluster_id' => 'Cụm sân đang tạm ngừng hoạt động hoặc bị khóa. Không thể xem lịch trống.',
             ]);
         }
 

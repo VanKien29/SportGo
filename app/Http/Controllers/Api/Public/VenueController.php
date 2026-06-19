@@ -82,7 +82,7 @@ class VenueController extends Controller
                         ->orderBy('name');
                 },
             ])
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'locked'])
             ->where(function ($query) use ($id) {
                 $query->whereKey($id)->orWhere('slug', $id);
             })
@@ -122,7 +122,7 @@ class VenueController extends Controller
     public function schedule(Request $request, string $id): JsonResponse
     {
         $cluster = VenueCluster::query()
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'locked'])
             ->where(function ($query) use ($id) {
                 $query->whereKey($id)->orWhere('slug', $id);
             })

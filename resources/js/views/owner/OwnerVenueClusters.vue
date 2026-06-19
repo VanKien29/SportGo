@@ -52,7 +52,7 @@
                 <!-- Tabs -->
                 <div class="detail-tabs card">
                     <button
-                        v-for="tab in tabs"
+                        v-for="tab in filteredTabs"
                         :key="tab.key"
                         class="tab-btn"
                         :class="{ active: activeTab === tab.key }"
@@ -88,7 +88,40 @@
                         <h3>Cấu hình chi tiết: {{ selectedCluster.name }}</h3>
                     </div>
 
-                    <form @submit.prevent="handleUpdate">
+                    <div class="status-alert-box card mb-4" :style="{ borderLeft: selectedCluster.status === 'locked' ? '4px solid #ef4444' : '4px solid #10b981', padding: '15px', background: 'rgba(0,0,0,0.02)', marginBottom: '20px' }">
+                        <div class="status-alert-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="status-label" style="font-weight: bold;">Trạng thái cụm sân:</span>
+                            <span class="status-badge" :class="selectedCluster.status" style="padding: 4px 8px; border-radius: 4px; font-size: 13px; font-weight: bold; color: white;" :style="{ backgroundColor: selectedCluster.status === 'locked' ? '#ef4444' : (selectedCluster.status === 'pending' ? '#f59e0b' : '#10b981') }">
+                                {{ selectedCluster.status === 'active' ? 'Đang hoạt động' : (selectedCluster.status === 'pending' ? 'Chờ duyệt' : 'Tạm ngưng/Bị khóa') }}
+                            </span>
+                        </div>
+                        <div v-if="selectedCluster.status === 'locked'" class="status-alert-reason" style="margin-top: 10px; font-size: 14px;">
+                            <strong>Lý do:</strong> {{ selectedCluster.status_reason || 'Không rõ lý do.' }}
+                        </div>
+                        <div class="status-alert-actions" style="margin-top: 12px;">
+                            <button
+                                v-if="selectedCluster.status === 'active'"
+                                type="button"
+                                class="btn btn-danger btn-sm"
+                                @click="handleSuspendCluster(selectedCluster.id)"
+                            >
+                                Tạm ngưng kinh doanh
+                            </button>
+                            <button
+                                v-else-if="selectedCluster.status === 'locked' && (selectedCluster.status_reason === 'Owner tạm ngưng kinh doanh.' || selectedCluster.locked_by === authUserId)"
+                                type="button"
+                                class="btn btn-success btn-sm"
+                                @click="handleResumeCluster(selectedCluster.id)"
+                            >
+                                Mở lại kinh doanh
+                              </button>
+                              <span v-else-if="selectedCluster.status === 'locked'" style="color: #ef4444; font-size: 13px; font-style: italic;">
+                                  🔒 Cụm sân bị khóa bởi SportGo. Vui lòng chuyển sang tab <strong>Liên hệ hỗ trợ khóa</strong> để gửi giải trình.
+                              </span>
+                          </div>
+                      </div>
+
+                      <form @submit.prevent="handleUpdate">
                         <div v-if="updateSuccess" class="alert alert-success">
                             Cập nhật thông tin cụm sân thành công!
                         </div>
@@ -1666,6 +1699,122 @@
                     </div>
                 </form>
             </div>
+
+            <!-- ═══════════════════════════════════════════════════
+                 TAB 5: LIÊN HỆ HỖ TRỢ KHÓA SÂN
+            ═══════════════════════════════════════════════════ -->
+            <div v-if="activeTab === 'appeals'" class="appeals-tab">
+                <div class="card appeal-form-card mb-4" style="padding: 20px; margin-bottom: 20px;">
+                    <h3 class="section-title" style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">
+                        Gửi yêu cầu liên hệ / Kháng cáo hỗ trợ khóa sân
+                    </h3>
+                    <p class="section-desc" style="font-size: 14px; color: #666; margin-bottom: 20px;">
+                        Nếu cụm sân của bạn bị khóa, bạn có thể gửi yêu cầu liên hệ giải trình để ban quản trị SportGo xem xét mở khóa.
+                    </p>
+                    <div v-if="appealSuccessMsg" class="alert alert-success" style="margin-bottom: 15px; padding: 10px; background: #d1fae5; color: #065f46; border-radius: 4px;">
+                        {{ appealSuccessMsg }}
+                    </div>
+                    <div v-if="appealError" class="alert alert-danger" style="margin-bottom: 15px; padding: 10px; background: #fee2e2; color: #991b1b; border-radius: 4px;">
+                        {{ appealError }}
+                    </div>
+                    <form @submit.prevent="handleCreateAppeal">
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label for="appeal-title" style="font-weight: 500; margin-bottom: 5px; display: block;">Tiêu đề liên hệ <span class="required" style="color: #ef4444;">*</span></label>
+                            <input
+                                id="appeal-title"
+                                v-model="newAppealForm.title"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Giải trình nộp phí chậm, Kháng cáo vi phạm..."
+                                style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 8px 12px;"
+                                required
+                            />
+                        </div>
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label for="appeal-content" style="font-weight: 500; margin-bottom: 5px; display: block;">Nội dung giải trình chi tiết <span class="required" style="color: #ef4444;">*</span></label>
+                            <textarea
+                                id="appeal-content"
+                                v-model="newAppealForm.content"
+                                class="form-control"
+                                rows="4"
+                                placeholder="Nhập nội dung giải trình hoặc đề xuất của bạn..."
+                                style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 8px 12px;"
+                                required
+                            ></textarea>
+                        </div>
+                        <div class="form-actions" style="display: flex; justify-content: flex-end;">
+                            <button
+                                type="submit"
+                                class="btn btn-primary"
+                                :disabled="appealSubmitting"
+                                style="display: inline-flex; align-items: center; gap: 8px;"
+                            >
+                                <AppIcon name="send" size="16" />
+                                {{ appealSubmitting ? "Đang gửi..." : "Gửi yêu cầu liên hệ" }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Lịch sử liên hệ/khiếu nại -->
+                <div class="card" style="padding: 20px;">
+                    <h3 class="section-title" style="font-size: 18px; font-weight: bold; margin-bottom: 15px;">Lịch sử liên hệ và phản hồi</h3>
+                    <div v-if="appealsLoading" class="loading-state" style="padding: 40px 0; text-align: center;">
+                        <div class="spinner" style="margin: 0 auto 10px;"></div>
+                        <p>Đang tải...</p>
+                    </div>
+                    <div v-else-if="filteredAppeals.length === 0" class="empty-section" style="padding: 40px; text-align: center; color: #888;">
+                        Chưa có lịch sử liên hệ nào cho cụm sân này.
+                    </div>
+                    <div v-else class="appeal-list" style="display: flex; flex-direction: column; gap: 15px;">
+                        <div
+                            v-for="item in filteredAppeals"
+                            :key="item.id"
+                            class="approval-card"
+                            :class="`approval-${item.status}`"
+                            style="border: 1px solid #eee; border-radius: 6px; padding: 15px; display: flex; justify-content: space-between;"
+                        >
+                            <div class="approval-row" style="display: flex; width: 100%; justify-content: space-between; align-items: flex-start; gap: 15px;">
+                                <div class="approval-details" style="flex: 1;">
+                                    <div class="approval-name fw-bold" style="font-size: 16px; font-weight: bold; margin-bottom: 8px;">
+                                        {{ item.title }}
+                                    </div>
+                                    <div class="appeal-user-content" style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 14px;">
+                                        <strong>Nội dung:</strong> {{ item.content }}
+                                    </div>
+                                    <div class="approval-meta" style="font-size: 12px; color: #888;">
+                                        Gửi lúc: {{ formatDate(item.created_at) }}
+                                    </div>
+                                    <div v-if="item.reply_content" class="appeal-reply-box" style="margin-top: 12px; padding: 12px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; border-radius: 0 4px 4px 0;">
+                                        <div style="font-weight: bold; color: #10b981; margin-bottom: 4px;">
+                                            Phản hồi từ SportGo:
+                                        </div>
+                                        <div style="font-size: 14px; color: var(--text-color);">
+                                            {{ item.reply_content }}
+                                        </div>
+                                        <div class="approval-meta" style="margin-top: 5px; font-size: 12px; color: #888;">
+                                            Trả lời bởi: {{ item.replied_by?.full_name || 'Admin' }} vào lúc {{ formatDate(item.replied_at) }}
+                                        </div>
+                                    </div>
+                                    <div v-else class="text-muted-custom" style="font-size: 13px; margin-top: 8px; font-style: italic; color: #f59e0b;">
+                                        ⏳ Yêu cầu đang được xem xét xử lý.
+                                    </div>
+                                </div>
+                                <div class="approval-right">
+                                    <span
+                                        class="status-badge-approval"
+                                        :class="`approval-status-${item.status}`"
+                                        style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: white;"
+                                        :style="{ backgroundColor: item.status === 'pending' ? '#f59e0b' : (item.status === 'resolved' ? '#10b981' : '#ef4444') }"
+                                    >
+                                        {{ item.status === 'pending' ? 'Chờ phản hồi' : (item.status === 'resolved' ? 'Đã giải quyết' : 'Bị từ chối') }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Modal: Yêu cầu thay đổi vị trí -->
@@ -1889,6 +2038,7 @@ import DecorationVisual from "../../components/DecorationVisual.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
+import { getAuth } from "../../stores/auth.js";
 
 export default {
     name: "OwnerVenueClusters",
@@ -2020,6 +2170,22 @@ export default {
     },
 
     computed: {
+        filteredTabs() {
+            const baseTabs = [...this.tabs];
+            if (this.selectedCluster && this.selectedCluster.status === 'locked') {
+                baseTabs.push({ key: "appeals", label: "Liên hệ hỗ trợ khóa" });
+            }
+            return baseTabs;
+        },
+        filteredAppeals() {
+            if (!this.selectedCluster) return [];
+            return this.appealsList.filter(
+                (a) => a.venue_cluster_id === this.selectedCluster.id
+            );
+        },
+        authUserId() {
+            return getAuth()?.user?.id || null;
+        },
         selectedDecoration() {
             return (
                 this.decorations.find((d) => d.id === this.selectedDecorationId) || null
@@ -2173,7 +2339,9 @@ export default {
                 const res = await venueClusterService.getClusters();
                 this.clusters = res.data || [];
                 if (this.clusters.length > 0) {
-                    this.selectCluster(this.clusters[0]);
+                    const currentId = this.selectedCluster?.id || localStorage.getItem("selected_cluster");
+                    const found = this.clusters.find((c) => c.id === currentId);
+                    this.selectCluster(found || this.clusters[0]);
                 }
             } catch (err) {
                 this.error = err.message || "Lỗi khi tải danh sách cụm sân.";
@@ -2186,6 +2354,9 @@ export default {
             this.selectedCluster = cluster;
             this.activeTab = "info";
             localStorage.setItem("selected_cluster", cluster.id);
+            if (cluster.status === 'locked') {
+                this.fetchLockAppeals();
+            }
             window.dispatchEvent(
                 new CustomEvent("owner-cluster-changed", { detail: cluster }),
             );
@@ -2221,6 +2392,62 @@ export default {
             // Load location requests ngay để hiển thị badge đúng
             this.fetchLocationRequests(cluster.id);
             this.$nextTick(() => this.initMap());
+        },
+
+        async fetchLockAppeals() {
+            if (!this.selectedCluster) return;
+            this.appealsLoading = true;
+            try {
+                const response = await venueClusterService.getLockAppeals();
+                this.appealsList = response.data || [];
+            } catch (err) {
+                console.error("Lỗi tải khiếu nại:", err);
+            } finally {
+                this.appealsLoading = false;
+            }
+        },
+
+        async handleCreateAppeal() {
+            if (!this.selectedCluster) return;
+            this.appealSubmitting = true;
+            this.appealError = null;
+            this.appealSuccessMsg = null;
+            try {
+                await venueClusterService.createLockAppeal({
+                    venue_cluster_id: this.selectedCluster.id,
+                    title: this.newAppealForm.title,
+                    content: this.newAppealForm.content,
+                });
+                this.appealSuccessMsg = "Gửi yêu cầu liên hệ giải trình thành công!";
+                this.newAppealForm = { title: "", content: "" };
+                await this.fetchLockAppeals();
+            } catch (err) {
+                this.appealError = err.message || "Có lỗi xảy ra khi gửi yêu cầu.";
+            } finally {
+                this.appealSubmitting = false;
+            }
+        },
+
+        async handleSuspendCluster(id) {
+            if (!confirm("Bạn có chắc chắn muốn TẠM NGƯNG hoạt động kinh doanh cụm sân này? Khách hàng sẽ không thể nhìn thấy và đặt lịch sân.")) return;
+            try {
+                const response = await venueClusterService.suspendCluster(id);
+                alert(response.message || "Tạm ngưng thành công.");
+                await this.fetchClusters();
+            } catch (err) {
+                alert(err.message || "Không thể tạm ngưng cụm sân.");
+            }
+        },
+
+        async handleResumeCluster(id) {
+            if (!confirm("Bạn có muốn MỞ LẠI hoạt động kinh doanh cụm sân này?")) return;
+            try {
+                const response = await venueClusterService.resumeCluster(id);
+                alert(response.message || "Mở lại thành công.");
+                await this.fetchClusters();
+            } catch (err) {
+                alert(err.message || "Không thể mở lại cụm sân.");
+            }
         },
 
         onOwnerClusterChanged(event) {
