@@ -57,7 +57,7 @@ class PartnerDocumentService
         }
 
         Storage::disk('local')->put($filePath, file_get_contents($sourcePath));
-        $this->replaceDocxPlaceholders(Storage::disk('local')->path($filePath), $renderData);
+        $this->replaceDocxPlaceholders(Storage::disk('local')->path($filePath), $renderData, $documentType);
 
         $document = GeneratedDocument::create([
             'document_code' => $documentCode,
@@ -212,7 +212,7 @@ class PartnerDocumentService
         return $fileName ? base_path('database/seeders/templates/partner-documents/' . $fileName) : null;
     }
 
-    private function replaceDocxPlaceholders(string $docxPath, array $data): void
+    private function replaceDocxPlaceholders(string $docxPath, array $data, string $documentType): void
     {
         if (! class_exists(ZipArchive::class)) {
             return;
@@ -246,7 +246,70 @@ class PartnerDocumentService
             }
         }
 
+        if ($documentType === 'partner_application_form') {
+            $this->appendApplicationAppendix($zip, $data);
+        }
+
         $zip->close();
+    }
+
+    private function appendApplicationAppendix(ZipArchive $zip, array $data): void
+    {
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false || ! str_contains($xml, '</w:body>')) {
+            return;
+        }
+
+        $rows = [
+            ['Người đăng ký', $data['applicant_full_name'] ?? $data['full_name'] ?? null],
+            ['Điện thoại', $data['applicant_phone'] ?? $data['phone'] ?? null],
+            ['Email', $data['applicant_email'] ?? $data['email'] ?? null],
+            ['Địa chỉ liên hệ', $data['applicant_address'] ?? null],
+            ['Số giấy tờ', $data['representative_identity_number'] ?? $data['id_number'] ?? null],
+            ['Đơn vị kinh doanh', $data['business_name'] ?? null],
+            ['Mã số thuế', $data['tax_code'] ?? null],
+            ['Số giấy đăng ký', $data['business_license_number'] ?? null],
+            ['Tên cụm sân', $data['venue_name'] ?? null],
+            ['Địa chỉ cụm sân', $data['venue_address'] ?? null],
+            ['Tỉnh/Thành phố', $data['venue_province'] ?? null],
+            ['Phường/Xã', $data['venue_ward'] ?? null],
+            ['Google Maps', $data['venue_map_url'] ?? null],
+            ['Tọa độ', trim(($data['venue_latitude'] ?? '') . ', ' . ($data['venue_longitude'] ?? ''), ', ')],
+            ['Số lượng sân con', $data['court_count_total'] ?? $data['court_count'] ?? null],
+            ['Giá cơ bản/giờ của cụm sân', $data['base_price_per_hour_label'] ?? null],
+            ['Danh sách sân con', $data['courts_summary'] ?? null],
+            ['Ngân hàng', $data['bank_name'] ?? null],
+            ['Số tài khoản', $data['account_number'] ?? null],
+            ['Chủ tài khoản', $data['account_holder_name'] ?? null],
+            ['Trạng thái xác minh ngân hàng', $data['bank_verification_label'] ?? $data['bank_verification_status'] ?? null],
+            ['Tài liệu đính kèm', $data['attachments'] ?? null],
+        ];
+
+        $paragraphs = [
+            $this->docxParagraph(''),
+            $this->docxParagraph('PHỤ LỤC THÔNG TIN ĐĂNG KÝ ĐÃ ĐIỀN TRÊN HỆ THỐNG SPORTGO', true),
+            $this->docxParagraph('Phần này được hệ thống tự động điền từ dữ liệu người dùng nhập trước khi gửi hồ sơ.'),
+        ];
+
+        foreach ($rows as [$label, $value]) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $paragraphs[] = $this->docxParagraph($label . ': ' . $this->stringValue($value));
+        }
+
+        $insert = implode('', $paragraphs);
+        $xml = str_replace('</w:body>', $insert . '</w:body>', $xml);
+        $zip->addFromString($entry, $xml);
+    }
+
+    private function docxParagraph(string $text, bool $bold = false): string
+    {
+        $boldXml = $bold ? '<w:rPr><w:b/></w:rPr>' : '';
+
+        return '<w:p><w:r>' . $boldXml . '<w:t xml:space="preserve">' . $text . '</w:t></w:r></w:p>';
     }
 
     private function storeSignatureImage(GeneratedDocumentSignature $signature, string $signatureImage): Media

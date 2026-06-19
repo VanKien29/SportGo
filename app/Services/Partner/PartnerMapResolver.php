@@ -6,6 +6,10 @@ use Illuminate\Support\Facades\Http;
 
 class PartnerMapResolver
 {
+    public function __construct(private readonly PartnerLocationService $locations)
+    {
+    }
+
     public function resolve(string $url): array
     {
         $finalUrl = $this->finalUrl($url);
@@ -16,12 +20,16 @@ class PartnerMapResolver
             $address = $this->reverseGeocode($coordinates['latitude'], $coordinates['longitude']);
         }
 
+        $location = $this->locations->matchFromAddress($address['address'] ?? null);
+
         return [
             'latitude' => $coordinates['latitude'] ?? null,
             'longitude' => $coordinates['longitude'] ?? null,
             'address' => $address['address'] ?? null,
-            'province' => $address['province'] ?? null,
-            'ward' => $address['ward'] ?? null,
+            'province_code' => $location['province_code'] ?? null,
+            'province' => $location['province'] ?? $address['province'] ?? null,
+            'ward_code' => $location['ward_code'] ?? null,
+            'ward' => $location['ward'] ?? $address['ward'] ?? null,
             'district' => null,
             'final_url' => $finalUrl,
         ];

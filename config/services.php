@@ -55,4 +55,8 @@ return [
         'api_key' => env('VIETQR_API_KEY'),
     ],
 
+    'provinces_vn' => [
+        'base_url' => env('PROVINCES_VN_API_URL', 'https://provinces.open-api.vn'),
+    ],
+
 ];

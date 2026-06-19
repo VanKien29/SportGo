@@ -1,340 +1,399 @@
 <template>
-  <div class="partner-portal">
+  <div class="partner-page">
     <PublicNavbar />
 
-    <main class="portal-shell">
-      <section class="page-head">
+    <main class="shell">
+      <section class="hero">
         <div>
           <p class="eyebrow">SportGo Partner</p>
-          <h1>Đăng ký đối tác chủ sân</h1>
-          <p>Quản lý các lần đăng ký trước, tạo hồ sơ mới và xác nhận đơn trước khi gửi SportGo xét duyệt.</p>
+          <h1>Đăng ký đối tác/chủ sân</h1>
+          <p>Gửi hồ sơ chủ sân, xem lại các lần đăng ký và tải đơn đăng ký Mẫu 01 đã sinh từ hệ thống.</p>
         </div>
-        <button class="primary-btn" type="button" :disabled="formOpen || !canRegister" @click="openForm">
-          Đăng ký đối tác
+        <button class="btn primary" type="button" :disabled="formOpen || !canRegister" @click="startNewApplication">
+          Đăng ký mới
         </button>
       </section>
 
-      <p v-if="error" class="alert error">{{ error }}</p>
-      <p v-if="success" class="alert success">{{ success }}</p>
-
-      <section class="history-section">
+      <section class="history-card">
         <div class="section-head">
           <div>
-            <h2>Các lần đăng ký trước</h2>
-            <p>Theo dõi trạng thái hồ sơ, tài liệu đã nộp và hủy hồ sơ khi chưa được xử lý.</p>
+            <h2>Hồ sơ đăng ký của tôi</h2>
+            <p>Hồ sơ đã gửi chỉ được xem và tải lại đơn đăng ký, không chỉnh sửa trực tiếp.</p>
           </div>
-          <button class="ghost-btn" type="button" @click="loadApplications">Làm mới</button>
+          <button class="btn ghost" type="button" @click="loadApplications">Làm mới</button>
         </div>
 
-        <div v-if="loading" class="state">Đang tải hồ sơ...</div>
-        <div v-else-if="applications.length === 0" class="state">Bạn chưa có hồ sơ đăng ký đối tác nào.</div>
+        <div v-if="draft" class="draft-row">
+          <div>
+            <strong>Nháp chưa gửi</strong>
+            <p>{{ draft.venue_name || 'Chưa đặt tên cụm sân' }} · lưu lúc {{ formatDate(draft.saved_at) }}</p>
+          </div>
+          <div class="row-actions">
+            <button class="btn secondary" type="button" @click="continueDraft">Tiếp tục chỉnh sửa</button>
+            <button class="btn danger-soft" type="button" @click="clearDraft">Xóa nháp</button>
+          </div>
+        </div>
+
+        <div v-if="loading" class="empty-state">Đang tải hồ sơ...</div>
+        <div v-else-if="applications.length === 0 && !draft" class="empty-state">Bạn chưa có hồ sơ đăng ký đối tác nào.</div>
         <div v-else class="application-list">
           <article v-for="application in applications" :key="application.id" class="application-row">
-            <div>
-              <div class="row-title">
+            <div class="application-main">
+              <div class="title-line">
                 <strong>{{ application.venue_name }}</strong>
-                <span :class="['status-pill', application.status]">{{ statusLabel(application.status) }}</span>
+                <span :class="['status', application.status]">{{ statusLabel(application.status) }}</span>
               </div>
               <p>{{ application.venue_address }}</p>
-              <small>
-                Nộp ngày {{ formatDate(application.submitted_at) }} ·
-                {{ application.documents?.length || 0 }} tài liệu đính kèm
-              </small>
+              <small>Gửi ngày {{ formatDate(application.submitted_at) }} · {{ application.documents?.length || 0 }} tài liệu đính kèm</small>
+              <p v-if="application.status === 'rejected'" class="reject-reason">
+                Lý do từ chối: {{ application.status_reason || 'SportGo chưa nhập lý do cụ thể.' }}
+              </p>
             </div>
-            <button v-if="canCancel(application)" class="danger-btn" type="button" @click="cancelApplication(application)">
-              Hủy đăng ký
-            </button>
+            <div class="row-actions">
+              <button v-if="applicationWord(application)" class="btn ghost" type="button" @click="downloadDocument(applicationWord(application))">
+                Tải Mẫu 01
+              </button>
+              <button v-if="canCancel(application)" class="btn danger-soft" type="button" @click="cancelApplication(application)">
+                Hủy hồ sơ
+              </button>
+              <button v-if="application.status === 'rejected'" class="btn secondary" type="button" @click="copyRejectedApplication(application)">
+                Tạo lại từ hồ sơ này
+              </button>
+            </div>
           </article>
         </div>
       </section>
 
-      <form v-if="formOpen" class="application-form" @submit.prevent="submit">
-        <div class="step-tabs">
+      <form v-if="formOpen" class="wizard" novalidate @submit.prevent="submit">
+        <nav class="steps" aria-label="Các bước đăng ký">
           <button
-            v-for="(label, index) in steps"
-            :key="label"
+            v-for="(item, index) in steps"
+            :key="item"
             type="button"
-            :class="{ active: step === index }"
+            :class="{ active: step === index, done: index < step }"
             @click="goToStep(index)"
           >
-            <span>{{ index + 1 }}</span>
-            {{ label }}
+            <span>{{ index + 1 }}</span>{{ item }}
           </button>
-        </div>
+        </nav>
 
-        <section v-if="step === 0" class="form-section">
-          <h2>Thông tin người đăng ký</h2>
-          <div class="form-grid">
-            <label>
-              Họ tên người đăng ký
-              <input v-model.trim="form.applicant_full_name" required />
-            </label>
-            <label>
-              Số điện thoại
-              <input v-model.trim="form.applicant_phone" required />
-            </label>
-            <label>
-              Email
-              <input v-model.trim="form.applicant_email" type="email" required />
-            </label>
-            <label>
-              Loại chủ thể
-              <select v-model="form.applicant_type">
-                <option value="individual">Cá nhân/hộ kinh doanh</option>
-                <option value="business">Hộ kinh doanh có giấy phép</option>
-                <option value="company">Doanh nghiệp</option>
-              </select>
-            </label>
-            <label class="full">
-              Địa chỉ liên hệ
-              <textarea v-model.trim="form.applicant_address" rows="2" required></textarea>
-            </label>
-            <label>
-              Người đại diện
-              <input v-model.trim="form.representative_name" required />
-            </label>
-            <label>
-              Loại giấy tờ
-              <select v-model="form.representative_identity_type">
-                <option value="cccd">CCCD</option>
-                <option value="cmnd">CMND</option>
-                <option value="passport">Hộ chiếu</option>
-              </select>
-            </label>
-            <label>
-              Số giấy tờ
-              <input v-model.trim="form.representative_identity_number" required />
-            </label>
-            <label>
-              Ngày cấp
-              <input v-model="form.representative_identity_issued_date" type="date" />
-            </label>
-            <label>
-              Nơi cấp
-              <input v-model.trim="form.representative_identity_issued_place" />
-            </label>
-            <label>
-              Chức vụ
-              <input v-model.trim="form.representative_position" placeholder="Chủ hộ / Giám đốc / Người đại diện" />
-            </label>
+        <section v-show="step === 0" class="step-panel">
+          <div class="panel-intro">
+            <h2>Thông tin người đăng ký / đơn vị kinh doanh</h2>
+            <p>Thông tin này sẽ được đưa vào Mẫu 01 và dùng để SportGo liên hệ khi xét duyệt hồ sơ.</p>
           </div>
 
-          <h2>Thông tin pháp lý cơ sở</h2>
-          <div class="form-grid">
-            <label>
-              Tên đơn vị/cá nhân kinh doanh
-              <input v-model.trim="form.business_name" required />
-            </label>
-            <label>
-              Mã số thuế
-              <input v-model.trim="form.tax_code" />
-            </label>
-            <label>
-              Số giấy đăng ký
-              <input v-model.trim="form.business_license_number" required />
-            </label>
-            <label>
-              Mã doanh nghiệp/hộ kinh doanh
-              <input v-model.trim="form.business_code" />
-            </label>
-            <label class="full">
-              Địa chỉ pháp lý
-              <textarea v-model.trim="form.business_address" rows="2" required></textarea>
-            </label>
+          <div class="subsection">
+            <h3>Người đăng ký</h3>
+            <div class="grid two">
+              <Field label="Họ tên người đăng ký" required :error="fieldErrors.applicant_full_name">
+                <input ref="applicant_full_name" v-model.trim="form.applicant_full_name" :class="inputClass('applicant_full_name')" />
+              </Field>
+              <Field label="Số điện thoại người đăng ký" required hint="Dùng 10 chữ số bắt đầu bằng 0 hoặc +84." :error="fieldErrors.applicant_phone">
+                <input ref="applicant_phone" v-model.trim="form.applicant_phone" :class="inputClass('applicant_phone')" inputmode="tel" />
+              </Field>
+              <Field label="Email người đăng ký" required :error="fieldErrors.applicant_email">
+                <input ref="applicant_email" v-model.trim="form.applicant_email" :class="inputClass('applicant_email')" type="email" />
+              </Field>
+              <Field label="Loại chủ thể" required :error="fieldErrors.applicant_type">
+                <select ref="applicant_type" v-model="form.applicant_type" :class="inputClass('applicant_type')">
+                  <option value="individual">Cá nhân/hộ kinh doanh</option>
+                  <option value="business">Hộ kinh doanh có giấy phép</option>
+                  <option value="company">Doanh nghiệp</option>
+                </select>
+              </Field>
+              <Field class="full" label="Địa chỉ liên hệ" required :error="fieldErrors.applicant_address">
+                <textarea ref="applicant_address" v-model.trim="form.applicant_address" :class="inputClass('applicant_address')" rows="2"></textarea>
+              </Field>
+            </div>
+          </div>
+
+          <div class="subsection">
+            <h3>Người đại diện và giấy tờ pháp lý</h3>
+            <div class="grid three">
+              <Field label="Người đại diện" required :error="fieldErrors.representative_name">
+                <input ref="representative_name" v-model.trim="form.representative_name" :class="inputClass('representative_name')" />
+              </Field>
+              <Field label="Loại giấy tờ" required :error="fieldErrors.representative_identity_type">
+                <select ref="representative_identity_type" v-model="form.representative_identity_type" :class="inputClass('representative_identity_type')">
+                  <option value="cccd">CCCD</option>
+                  <option value="cmnd">CMND</option>
+                  <option value="passport">Hộ chiếu</option>
+                </select>
+              </Field>
+              <Field label="Số CCCD/CMND/Hộ chiếu" required :error="fieldErrors.representative_identity_number">
+                <input ref="representative_identity_number" v-model.trim="form.representative_identity_number" :class="inputClass('representative_identity_number')" />
+              </Field>
+              <Field label="Ngày cấp" :error="fieldErrors.representative_identity_issued_date">
+                <input ref="representative_identity_issued_date" v-model="form.representative_identity_issued_date" :class="inputClass('representative_identity_issued_date')" type="date" />
+              </Field>
+              <Field label="Nơi cấp" :error="fieldErrors.representative_identity_issued_place">
+                <input ref="representative_identity_issued_place" v-model.trim="form.representative_identity_issued_place" :class="inputClass('representative_identity_issued_place')" />
+              </Field>
+              <Field label="Chức vụ/vai trò" :error="fieldErrors.representative_position">
+                <input ref="representative_position" v-model.trim="form.representative_position" :class="inputClass('representative_position')" />
+              </Field>
+            </div>
+          </div>
+
+          <div class="subsection">
+            <h3>Đơn vị kinh doanh</h3>
+            <div class="grid two">
+              <Field label="Tên đơn vị/cá nhân kinh doanh" required :error="fieldErrors.business_name">
+                <input ref="business_name" v-model.trim="form.business_name" :class="inputClass('business_name')" />
+              </Field>
+              <Field label="Mã số thuế" :error="fieldErrors.tax_code">
+                <input ref="tax_code" v-model.trim="form.tax_code" :class="inputClass('tax_code')" />
+              </Field>
+              <Field label="Số giấy đăng ký kinh doanh/pháp lý" required :error="fieldErrors.business_license_number">
+                <input ref="business_license_number" v-model.trim="form.business_license_number" :class="inputClass('business_license_number')" />
+              </Field>
+              <Field label="Mã doanh nghiệp/hộ kinh doanh" :error="fieldErrors.business_code">
+                <input ref="business_code" v-model.trim="form.business_code" :class="inputClass('business_code')" />
+              </Field>
+              <Field class="full" label="Địa chỉ pháp lý" required :error="fieldErrors.business_address">
+                <textarea ref="business_address" v-model.trim="form.business_address" :class="inputClass('business_address')" rows="2"></textarea>
+              </Field>
+            </div>
           </div>
         </section>
 
-        <section v-if="step === 1" class="form-section">
-          <h2>Địa điểm sân</h2>
-          <div class="map-row">
-            <label>
-              Link Google Maps
-              <input v-model.trim="form.venue_map_url" type="url" required @input="mapResolved = false" />
-            </label>
-            <button class="secondary-btn" type="button" :disabled="resolvingMap || !form.venue_map_url" @click="resolveMap">
-              {{ resolvingMap ? 'Đang đọc link...' : 'Lấy tọa độ' }}
+        <section v-show="step === 1" class="step-panel">
+          <div class="panel-intro">
+            <h2>Địa chỉ và vị trí cụm sân</h2>
+            <p>SportGo dùng địa giới 2 cấp: Tỉnh/Thành phố và Phường/Xã. Link Google Maps phải lấy được tọa độ.</p>
+          </div>
+
+          <div class="map-resolver">
+            <Field label="Link Google Maps vị trí cụm sân" required hint="Dán link chia sẻ từ Google Maps, ví dụ maps.app.goo.gl hoặc google.com/maps." :error="fieldErrors.venue_map_url">
+              <input ref="venue_map_url" v-model.trim="form.venue_map_url" :class="inputClass('venue_map_url')" type="url" @input="mapStatus = null" />
+            </Field>
+            <button class="btn secondary" type="button" :disabled="resolvingMap || !form.venue_map_url" @click="resolveMap">
+              {{ resolvingMap ? 'Đang lấy vị trí...' : 'Lấy tọa độ từ link' }}
             </button>
           </div>
-          <p class="hint">Hệ thống sẽ đọc tọa độ từ link và tự điền tỉnh/thành phố, phường/xã theo mô hình 2 cấp.</p>
+          <p v-if="mapStatus" :class="['status-message', mapStatus.type]">{{ mapStatus.message }}</p>
 
-          <div class="form-grid">
-            <label>
-              Tên cụm sân
-              <input v-model.trim="form.venue_name" required />
-            </label>
-            <label>
-              Số điện thoại sân
-              <input v-model.trim="form.venue_phone" required />
-            </label>
-            <label>
-              Email sân
-              <input v-model.trim="form.venue_email" type="email" />
-            </label>
-            <label>
-              Tỉnh/Thành phố
-              <input v-model.trim="form.venue_province" required />
-            </label>
-            <label>
-              Phường/Xã
-              <input v-model.trim="form.venue_ward" required />
-            </label>
-            <label>
-              Giờ mở cửa dự kiến
-              <input v-model.trim="form.expected_opening_hours" placeholder="05:00 - 23:00" />
-            </label>
-            <label class="full">
-              Địa chỉ chi tiết
-              <textarea v-model.trim="form.venue_address" rows="2" required></textarea>
-            </label>
-            <label>
-              Vĩ độ
-              <input v-model.number="form.venue_latitude" type="number" step="0.0000001" required />
-            </label>
-            <label>
-              Kinh độ
-              <input v-model.number="form.venue_longitude" type="number" step="0.0000001" required />
-            </label>
-            <label class="full">
-              Mô tả cơ sở
-              <textarea v-model.trim="form.venue_description" rows="3"></textarea>
-            </label>
-            <label class="full">
-              Thông tin bãi xe/phụ trợ
-              <textarea v-model.trim="form.parking_info" rows="2"></textarea>
-            </label>
+          <div class="grid two">
+            <Field label="Tên cụm sân" required :error="fieldErrors.venue_name">
+              <input ref="venue_name" v-model.trim="form.venue_name" :class="inputClass('venue_name')" />
+            </Field>
+            <Field label="Số điện thoại tại sân" required hint="Dùng 10 chữ số bắt đầu bằng 0 hoặc +84." :error="fieldErrors.venue_phone">
+              <input ref="venue_phone" v-model.trim="form.venue_phone" :class="inputClass('venue_phone')" inputmode="tel" />
+            </Field>
+            <Field label="Email tại sân" :error="fieldErrors.venue_email">
+              <input ref="venue_email" v-model.trim="form.venue_email" :class="inputClass('venue_email')" type="email" />
+            </Field>
+            <Field label="Giờ mở cửa dự kiến" :error="fieldErrors.expected_opening_hours">
+              <input ref="expected_opening_hours" v-model.trim="form.expected_opening_hours" :class="inputClass('expected_opening_hours')" placeholder="05:00 - 23:00" />
+            </Field>
+            <Field label="Tỉnh/Thành phố" required :error="fieldErrors.venue_province_code">
+              <select ref="venue_province_code" v-model="form.venue_province_code" :class="inputClass('venue_province_code')" @change="onProvinceChange">
+                <option value="">Chọn Tỉnh/Thành phố</option>
+                <option v-for="province in provinces" :key="province.code" :value="province.code">{{ province.name }}</option>
+              </select>
+            </Field>
+            <Field label="Phường/Xã" required :error="fieldErrors.venue_ward_code">
+              <select ref="venue_ward_code" v-model="form.venue_ward_code" :class="inputClass('venue_ward_code')" :disabled="!form.venue_province_code">
+                <option value="">Chọn Phường/Xã</option>
+                <option v-for="ward in wards" :key="ward.code" :value="ward.code">{{ ward.name }}</option>
+              </select>
+            </Field>
+            <Field class="full" label="Địa chỉ chi tiết cụm sân" required hint="Địa chỉ thực tế của cụm sân, không dùng quận/huyện 3 cấp." :error="fieldErrors.venue_address">
+              <textarea ref="venue_address" v-model.trim="form.venue_address" :class="inputClass('venue_address')" rows="2"></textarea>
+            </Field>
+            <Field label="Vĩ độ" required :error="fieldErrors.venue_latitude">
+              <input ref="venue_latitude" v-model.number="form.venue_latitude" :class="inputClass('venue_latitude')" type="number" step="0.0000001" />
+            </Field>
+            <Field label="Kinh độ" required :error="fieldErrors.venue_longitude">
+              <input ref="venue_longitude" v-model.number="form.venue_longitude" :class="inputClass('venue_longitude')" type="number" step="0.0000001" />
+            </Field>
+            <Field class="full" label="Mô tả ngắn về cơ sở" :error="fieldErrors.venue_description">
+              <textarea ref="venue_description" v-model.trim="form.venue_description" :class="inputClass('venue_description')" rows="3"></textarea>
+            </Field>
+            <Field class="full" label="Bãi xe/khu phụ trợ" :error="fieldErrors.parking_info">
+              <textarea ref="parking_info" v-model.trim="form.parking_info" :class="inputClass('parking_info')" rows="2"></textarea>
+            </Field>
           </div>
 
-          <div class="amenity-box">
-            <span>Tiện ích khả dụng</span>
-            <label v-for="amenity in amenities" :key="amenity.id || amenity.name" class="check-chip">
+          <div class="amenities">
+            <span>Tiện ích tại cụm sân</span>
+            <label v-for="amenity in amenities" :key="amenity.id || amenity.name" class="chip">
               <input v-model="form.amenities" type="checkbox" :value="amenity.name" />
               {{ amenity.name }}
             </label>
           </div>
         </section>
 
-        <section v-if="step === 2" class="form-section">
-          <h2>Tài khoản ngân hàng nhận tiền</h2>
-          <div class="form-grid">
-            <label>
-              Ngân hàng
-              <select v-model="form.bank_code" required @change="selectBank">
+        <section v-show="step === 2" class="step-panel">
+          <div class="panel-intro">
+            <h2>Tài khoản ngân hàng nhận tiền</h2>
+            <p>Thông tin này dùng để SportGo đối soát và thanh toán cho chủ sân sau khi hồ sơ được duyệt.</p>
+          </div>
+
+          <div class="grid two">
+            <Field label="Ngân hàng" required :error="fieldErrors.bank_code">
+              <select ref="bank_code" v-model="form.bank_code" :class="inputClass('bank_code')" @change="selectBank">
                 <option value="">Chọn ngân hàng</option>
                 <option v-for="bank in banks" :key="bank.code" :value="bank.code">
                   {{ bank.short_name || bank.code }} - {{ bank.name }}
                 </option>
               </select>
-            </label>
-            <label>
-              Số tài khoản
-              <input v-model.trim="form.account_number" required @input="resetBankVerification" />
-            </label>
-            <label>
-              Tên chủ tài khoản
-              <input v-model.trim="form.account_holder_name" required @input="resetBankVerification" />
-            </label>
-            <label>
-              Chi nhánh
-              <input v-model.trim="form.bank_branch" />
-            </label>
+            </Field>
+            <Field label="Số tài khoản" required hint="Chỉ nhập chữ số, không nhập dấu cách hoặc ký tự khác." :error="fieldErrors.account_number">
+              <input ref="account_number" v-model.trim="form.account_number" :class="inputClass('account_number')" inputmode="numeric" @input="onAccountNumberInput" />
+            </Field>
+            <Field label="Tên chủ tài khoản" required hint="Nhập đúng tên chủ tài khoản theo ngân hàng." :error="fieldErrors.account_holder_name">
+              <input ref="account_holder_name" v-model.trim="form.account_holder_name" :class="inputClass('account_holder_name')" @input="resetBankVerification" />
+            </Field>
+            <Field label="Chi nhánh" :error="fieldErrors.bank_branch">
+              <input ref="bank_branch" v-model.trim="form.bank_branch" :class="inputClass('bank_branch')" />
+            </Field>
           </div>
-          <div class="verify-line">
-            <button class="secondary-btn" type="button" :disabled="verifyingBank" @click="verifyBank">
+
+          <div class="verification-box">
+            <button class="btn secondary" type="button" :disabled="verifyingBank" @click="verifyBank">
               {{ verifyingBank ? 'Đang kiểm tra...' : 'Kiểm tra tài khoản' }}
             </button>
-            <span v-if="bankVerification.message" :class="['verify-status', bankVerification.status]">
-              {{ bankVerification.message }}
-            </span>
+            <div v-if="bankVerification.message" :class="['verify-text', bankVerification.status]">
+              <strong>{{ bankStatusTitle }}</strong>
+              <p>{{ bankVerification.message }}</p>
+              <small v-if="bankVerification.provider_account_name">Tên ngân hàng trả về: {{ bankVerification.provider_account_name }}</small>
+            </div>
           </div>
         </section>
 
-        <section v-if="step === 3" class="form-section">
-          <h2>Cấu hình sân ban đầu</h2>
-          <div class="court-toolbar">
-            <label>
-              Quy mô sân con
-              <input v-model.number="form.court_count_total" min="1" max="100" type="number" @change="syncCourtRows" />
-            </label>
-            <button class="secondary-btn" type="button" @click="syncCourtRows">Tạo danh sách sân</button>
+        <section v-show="step === 3" class="step-panel">
+          <div class="panel-intro">
+            <h2>Cấu hình cụm sân ban đầu</h2>
+            <p>Giá cơ bản/giờ là giá chung ban đầu của cả cụm sân. Sân con chỉ cần tên sân và loại sân.</p>
+          </div>
+
+          <div class="grid three compact">
+            <Field label="Số lượng sân con" required :error="fieldErrors.court_count_total">
+              <input ref="court_count_total" v-model.number="form.court_count_total" :class="inputClass('court_count_total')" min="1" max="100" type="number" @change="syncCourtRows" />
+            </Field>
+            <Field label="Giá cơ bản/giờ của cụm sân" required hint="Áp dụng chung cho toàn cụm sân khi khởi tạo." :error="fieldErrors.base_price_per_hour">
+              <input ref="base_price_per_hour" v-model.number="form.base_price_per_hour" :class="inputClass('base_price_per_hour')" min="1000" step="1000" type="number" />
+            </Field>
+            <div class="align-end">
+              <button class="btn secondary" type="button" @click="syncCourtRows">Cập nhật danh sách sân</button>
+            </div>
           </div>
 
           <div class="court-list">
-            <article v-for="(court, index) in form.courts" :key="index" class="court-row">
-              <label>
-                Tên sân
-                <input v-model.trim="court.name" required />
-              </label>
-              <label>
-                Loại sân
-                <select v-model="court.court_type_id" required>
+            <article v-for="(court, index) in form.courts" :key="court.local_id" class="court-row">
+              <Field :label="`Tên sân con ${index + 1}`" required :error="fieldErrors[`courts.${index}.name`]">
+                <input :ref="`courts.${index}.name`" v-model.trim="court.name" :class="inputClass(`courts.${index}.name`)" />
+              </Field>
+              <Field label="Loại sân" required :error="fieldErrors[`courts.${index}.court_type_id`]">
+                <select :ref="`courts.${index}.court_type_id`" v-model="court.court_type_id" :class="inputClass(`courts.${index}.court_type_id`)">
                   <option value="">Chọn loại sân</option>
                   <option v-for="type in courtTypes" :key="type.id" :value="type.id">{{ type.name }}</option>
                 </select>
-              </label>
-              <label>
-                Giá cơ bản/giờ
-                <input v-model.number="court.base_price" min="0" step="1000" type="number" required />
-              </label>
-              <button class="icon-btn" type="button" :disabled="form.courts.length === 1" @click="removeCourt(index)">×</button>
+              </Field>
+              <button class="remove-btn" type="button" :disabled="form.courts.length === 1" @click="removeCourt(index)">Xóa</button>
             </article>
           </div>
-          <button class="ghost-btn" type="button" @click="addCourt">Thêm sân con</button>
+          <button class="btn ghost" type="button" @click="addCourt">Thêm sân con</button>
         </section>
 
-        <section v-if="step === 4" class="form-section">
-          <h2>Tài liệu kèm theo</h2>
+        <section v-show="step === 4" class="step-panel">
+          <div class="panel-intro">
+            <h2>Tài liệu đính kèm</h2>
+            <p>Tải file theo từng nhóm để SportGo và admin biết chính xác mỗi tài liệu dùng cho mục đích nào.</p>
+          </div>
+
           <div class="upload-grid">
-            <label class="upload-box">
-              <span>CCCD/CMND/Hộ chiếu</span>
-              <small>Có thể tải nhiều mặt/file, định dạng ảnh hoặc PDF.</small>
-              <input type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" @change="setFiles('identity', $event)" />
-              <strong>{{ fileNames('identity') }}</strong>
-            </label>
-            <label class="upload-box">
-              <span>Giấy đăng ký kinh doanh/pháp lý cơ sở</span>
-              <small>Giấy phép, giấy ủy quyền hoặc tài liệu chứng minh quyền quản lý.</small>
-              <input type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" @change="setFiles('business_license', $event)" />
-              <strong>{{ fileNames('business_license') }}</strong>
-            </label>
-            <label class="upload-box">
-              <span>Hình ảnh cơ sở</span>
-              <small>Ảnh sân, khu phụ trợ, biển hiệu, bãi xe. Có thể tải nhiều file.</small>
-              <input type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" @change="setFiles('facility', $event)" />
-              <strong>{{ fileNames('facility') }}</strong>
-            </label>
+            <UploadGroup
+              title="CCCD/CMND người đăng ký"
+              description="Tải mặt trước/mặt sau hoặc file PDF giấy tờ định danh."
+              required
+              :files="files.identity"
+              :error="fieldErrors.identity_documents"
+              @change="setFiles('identity', $event)"
+              @remove="removeFile('identity', $event)"
+            />
+            <UploadGroup
+              title="Giấy đăng ký kinh doanh/pháp lý"
+              description="Giấy phép kinh doanh, giấy ủy quyền hoặc giấy tờ chứng minh quyền quản lý sân."
+              required
+              :files="files.business_license"
+              :error="fieldErrors.business_license_documents"
+              @change="setFiles('business_license', $event)"
+              @remove="removeFile('business_license', $event)"
+            />
+            <UploadGroup
+              title="Hình ảnh cơ sở/sân"
+              description="Ảnh tổng quan, mặt sân, biển hiệu, khu phụ trợ. Có thể tải nhiều file."
+              required
+              :files="files.facility"
+              :error="fieldErrors.facility_images"
+              @change="setFiles('facility', $event)"
+              @remove="removeFile('facility', $event)"
+            />
+            <UploadGroup
+              title="Tài liệu bổ sung khác"
+              description="Các tài liệu khác nếu bạn muốn SportGo xem xét thêm."
+              :files="files.additional"
+              :error="fieldErrors.additional_documents"
+              @change="setFiles('additional', $event)"
+              @remove="removeFile('additional', $event)"
+            />
           </div>
         </section>
 
-        <section v-if="step === 5" class="form-section">
-          <h2>Xác nhận đơn đăng ký</h2>
-          <div class="preview-paper">
-            <h3>Đơn đề nghị đăng ký đối tác chủ sân SportGo</h3>
+        <section v-show="step === 5" class="step-panel">
+          <div class="panel-intro">
+            <h2>Xem đơn đăng ký Word và xác nhận gửi</h2>
+            <p>Hệ thống sinh Mẫu 01 từ template Word gốc. Hãy đọc kỹ nội dung trước khi gửi hồ sơ.</p>
+          </div>
+
+          <div class="preview-actions">
+            <button class="btn secondary" type="button" :disabled="generatingPreview" @click="generatePreview">
+              {{ generatingPreview ? 'Đang tạo Mẫu 01...' : previewDocument ? 'Tạo lại Mẫu 01' : 'Tạo Mẫu 01 để xem' }}
+            </button>
+            <button v-if="previewDocument" class="btn ghost" type="button" @click="downloadPreview">Tải file Word</button>
+          </div>
+
+          <div v-if="previewData" class="document-preview">
+            <header>
+              <p>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+              <strong>ĐƠN ĐỀ NGHỊ ĐĂNG KÝ TRỞ THÀNH ĐỐI TÁC/CHỦ SÂN SPORTGO</strong>
+            </header>
             <dl>
-              <dt>Người đăng ký</dt><dd>{{ form.applicant_full_name }} · {{ form.applicant_phone }} · {{ form.applicant_email }}</dd>
-              <dt>Đơn vị kinh doanh</dt><dd>{{ form.business_name }} · MST {{ form.tax_code || '-' }}</dd>
-              <dt>Cụm sân</dt><dd>{{ form.venue_name }} · {{ form.venue_address }}</dd>
-              <dt>Khu vực 2 cấp</dt><dd>{{ form.venue_ward }} · {{ form.venue_province }}</dd>
-              <dt>Tọa độ</dt><dd>{{ form.venue_latitude }}, {{ form.venue_longitude }}</dd>
-              <dt>Ngân hàng</dt><dd>{{ form.bank_name }} · {{ form.account_number }} · {{ form.account_holder_name }}</dd>
-              <dt>Quy mô</dt><dd>{{ form.courts.length }} sân con · giá cơ bản từ {{ minBasePrice }}</dd>
-              <dt>Tài liệu</dt><dd>{{ files.identity.length }} CCCD, {{ files.business_license.length }} giấy đăng ký, {{ files.facility.length }} ảnh cơ sở</dd>
+              <dt>Người đăng ký</dt><dd>{{ previewData.applicant_full_name }} · {{ previewData.applicant_phone }} · {{ previewData.applicant_email }}</dd>
+              <dt>Giấy tờ định danh</dt><dd>{{ previewData.representative_identity_type }} · {{ previewData.representative_identity_number }}</dd>
+              <dt>Đơn vị kinh doanh</dt><dd>{{ previewData.business_name }} · MST {{ previewData.tax_code || '-' }}</dd>
+              <dt>Cụm sân</dt><dd>{{ previewData.venue_name }} · {{ previewData.venue_address }}</dd>
+              <dt>Khu vực 2 cấp</dt><dd>{{ previewData.venue_ward }} · {{ previewData.venue_province }}</dd>
+              <dt>Google Maps</dt><dd>{{ previewData.venue_map_url }}</dd>
+              <dt>Tọa độ</dt><dd>{{ previewData.venue_latitude }}, {{ previewData.venue_longitude }}</dd>
+              <dt>Quy mô</dt><dd>{{ previewData.court_count_total }} sân con · giá cơ bản {{ previewData.base_price_per_hour_label }}/giờ</dd>
+              <dt>Danh sách sân</dt><dd>{{ previewData.courts_summary }}</dd>
+              <dt>Ngân hàng</dt><dd>{{ previewData.bank_name }} · {{ previewData.account_number }} · {{ previewData.account_holder_name }}</dd>
+              <dt>Trạng thái ngân hàng</dt><dd>{{ previewData.bank_verification_label }}</dd>
+              <dt>Tài liệu</dt><dd>{{ attachmentsSummary }}</dd>
             </dl>
+            <p class="preview-note">File Word tải xuống được tạo từ Mẫu 01 gốc và có phụ lục thông tin đã điền ở cuối tài liệu.</p>
           </div>
-          <label class="confirm-line">
-            <input v-model="confirmed" type="checkbox" />
-            Tôi xác nhận thông tin trong đơn đăng ký là đúng và đồng ý gửi SportGo xét duyệt.
+          <div v-else class="empty-preview">Bấm “Tạo Mẫu 01 để xem” để hệ thống sinh file Word và hiển thị nội dung đọc được.</div>
+
+          <label class="confirm-line" :class="{ invalid: fieldErrors.confirmed }">
+            <input ref="confirmed" v-model="confirmed" type="checkbox" />
+            <span>Tôi đã đọc nội dung đơn đăng ký đối tác/chủ sân và xác nhận thông tin trong đơn là chính xác.</span>
           </label>
+          <p v-if="fieldErrors.confirmed" class="field-error">{{ fieldErrors.confirmed }}</p>
         </section>
 
-        <p v-if="formError" class="alert error">{{ formError }}</p>
+        <p v-if="formBanner" class="alert">{{ formBanner }}</p>
 
-        <footer class="form-actions">
-          <button class="ghost-btn" type="button" @click="closeForm">Hủy</button>
-          <button v-if="step > 0" class="secondary-btn" type="button" @click="prevStep">Quay lại</button>
-          <button v-if="step < steps.length - 1" class="primary-btn" type="button" @click="nextStep">Tiếp tục</button>
-          <button v-else class="primary-btn" type="submit" :disabled="submitting">
-            {{ submitting ? 'Đang gửi...' : 'Gửi hồ sơ' }}
-          </button>
+        <footer class="actions">
+          <button class="btn ghost" type="button" @click="cancelEditing">Hủy</button>
+          <button class="btn ghost" type="button" @click="saveDraft">Lưu nháp</button>
+          <button v-if="step > 0" class="btn secondary" type="button" @click="prevStep">Quay lại</button>
+          <button v-if="step < steps.length - 1" class="btn primary" type="button" @click="nextStep">Tiếp tục</button>
+          <button v-else class="btn primary" type="submit" :disabled="submitting">Gửi hồ sơ</button>
         </footer>
       </form>
     </main>
@@ -343,56 +402,121 @@
 
 <script>
 import PublicNavbar from '../components/PublicNavbar.vue';
-import { api, apiFormData } from '../services/api.js';
+import { api, apiDownload, apiFormData } from '../services/api.js';
 import { getAuth } from '../stores/auth.js';
 
-function blankFiles() {
-  return { identity: [], business_license: [], facility: [] };
+const DRAFT_KEY = 'sportgo_partner_application_draft_v2';
+
+function localId() {
+  return Math.random().toString(36).slice(2);
 }
+
+const Field = {
+  props: ['label', 'required', 'hint', 'error'],
+  template: `
+    <label class="field">
+      <span>{{ label }} <b v-if="required">*</b></span>
+      <slot />
+      <small v-if="hint" class="hint">{{ hint }}</small>
+      <small v-if="error" class="field-error">{{ error }}</small>
+    </label>
+  `,
+};
+
+const UploadGroup = {
+  props: ['title', 'description', 'required', 'files', 'error'],
+  emits: ['change', 'remove'],
+  methods: {
+    fileSize(file) {
+      if (!file?.size) return '';
+      return `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+    },
+  },
+  template: `
+    <section class="upload-box" :class="{ invalid: error }">
+      <div>
+        <h3>{{ title }} <b v-if="required">*</b></h3>
+        <p>{{ description }}</p>
+      </div>
+      <input type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" @change="$emit('change', $event)" />
+      <small v-if="error" class="field-error">{{ error }}</small>
+      <ul v-if="files.length" class="file-list">
+        <li v-for="(file, index) in files" :key="file.name + index">
+          <span>{{ file.name }}</span>
+          <small>{{ fileSize(file) }} · sẵn sàng tải lên</small>
+          <button type="button" @click="$emit('remove', index)">Xóa</button>
+        </li>
+      </ul>
+      <p v-else class="empty-files">Chưa chọn file.</p>
+    </section>
+  `,
+};
 
 export default {
   name: 'PartnerApplicationPortal',
-  components: { PublicNavbar },
+  components: { PublicNavbar, Field, UploadGroup },
   data() {
     const user = getAuth();
     return {
       user,
       loading: false,
-      formOpen: false,
-      step: 0,
-      steps: ['Người đăng ký', 'Địa điểm', 'Ngân hàng', 'Cấu hình sân', 'Tài liệu', 'Xác nhận'],
       applications: [],
       canRegister: true,
+      draft: null,
+      formOpen: false,
+      step: 0,
+      steps: ['Người đăng ký', 'Địa chỉ', 'Ngân hàng', 'Cụm sân', 'Tài liệu', 'Xác nhận'],
+      form: this.defaultForm(user),
+      files: this.blankFiles(),
+      provinces: [],
+      wards: [],
       banks: [],
       courtTypes: [],
       amenities: [],
-      error: '',
-      success: '',
-      formError: '',
+      fieldErrors: {},
+      formBanner: '',
       resolvingMap: false,
-      mapResolved: false,
+      mapStatus: null,
       verifyingBank: false,
       bankVerification: {},
-      submitting: false,
+      generatingPreview: false,
+      previewDocument: null,
+      previewData: null,
       confirmed: false,
-      files: blankFiles(),
-      form: this.defaultForm(user),
+      submitting: false,
     };
   },
   computed: {
-    minBasePrice() {
-      const prices = this.form.courts.map((court) => Number(court.base_price || 0)).filter((price) => price > 0);
-      if (!prices.length) return '0đ';
-      return new Intl.NumberFormat('vi-VN').format(Math.min(...prices)) + 'đ/giờ';
+    attachmentsSummary() {
+      return [
+        `${this.files.identity.length} file CCCD/CMND`,
+        `${this.files.business_license.length} file pháp lý`,
+        `${this.files.facility.length} ảnh/tài liệu cơ sở`,
+        `${this.files.additional.length} tài liệu bổ sung`,
+      ].join(', ');
+    },
+    bankStatusTitle() {
+      const status = this.bankVerification.status;
+      if (status === 'verified') return 'Đã xác minh';
+      if (status === 'manual_required' || status === 'provider_unavailable') return 'Chờ admin xác minh';
+      if (status === 'name_mismatch') return 'Tên chủ tài khoản không khớp';
+      return 'Chưa xác minh';
     },
   },
-  created() {
+  async created() {
     if (!this.user) {
       this.$router.replace({ name: 'login' });
       return;
     }
 
-    this.loadInitialData();
+    this.loadDraft();
+    await Promise.all([
+      this.loadApplications(),
+      this.loadBanks(),
+      this.loadProvinces(),
+      this.loadCourtTypes(),
+      this.loadAmenities(),
+    ]);
   },
   methods: {
     defaultForm(user) {
@@ -415,9 +539,8 @@ export default {
         business_address: '',
         venue_name: '',
         venue_address: '',
-        venue_province: '',
-        venue_district: '',
-        venue_ward: '',
+        venue_province_code: '',
+        venue_ward_code: '',
         venue_map_url: '',
         venue_latitude: '',
         venue_longitude: '',
@@ -428,7 +551,8 @@ export default {
         parking_info: '',
         amenities: [],
         court_count_total: 1,
-        courts: [{ name: 'Sân 1', court_type_id: '', base_price: 0, note: '' }],
+        base_price_per_hour: '',
+        courts: [{ local_id: localId(), name: 'Sân 1', court_type_id: '', note: '' }],
         bank_name: '',
         bank_code: '',
         bank_bin: '',
@@ -437,8 +561,8 @@ export default {
         bank_branch: '',
       };
     },
-    async loadInitialData() {
-      await Promise.all([this.loadApplications(), this.loadBanks(), this.loadCourtTypes(), this.loadAmenities()]);
+    blankFiles() {
+      return { identity: [], business_license: [], facility: [], additional: [] };
     },
     async loadApplications() {
       this.loading = true;
@@ -446,8 +570,6 @@ export default {
         const response = await api('/api/user/partner-application');
         this.applications = response.data?.history || [];
         this.canRegister = Boolean(response.data?.can_register);
-      } catch (error) {
-        this.error = error.message;
       } finally {
         this.loading = false;
       }
@@ -455,6 +577,18 @@ export default {
     async loadBanks() {
       const response = await api('/api/user/partner-application/banks');
       this.banks = response.data || [];
+    },
+    async loadProvinces() {
+      const response = await api('/api/user/partner-application/provinces');
+      this.provinces = response.data || [];
+    },
+    async loadWards(provinceCode) {
+      if (!provinceCode) {
+        this.wards = [];
+        return;
+      }
+      const response = await api(`/api/user/partner-application/provinces/${provinceCode}/wards`);
+      this.wards = response.data || [];
     },
     async loadCourtTypes() {
       const response = await api('/api/court-types');
@@ -464,93 +598,213 @@ export default {
       const response = await api('/api/amenities?active_only=1');
       this.amenities = response.data || [];
     },
-    openForm() {
-      this.error = '';
-      this.success = '';
+    startNewApplication() {
+      this.form = this.defaultForm(this.user);
+      this.files = this.blankFiles();
+      this.fieldErrors = {};
+      this.formBanner = '';
+      this.previewDocument = null;
+      this.previewData = null;
+      this.confirmed = false;
+      this.step = 0;
+      this.formOpen = true;
+    },
+    loadDraft() {
+      try {
+        this.draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+      } catch {
+        this.draft = null;
+      }
+    },
+    async continueDraft() {
+      if (!this.draft) return;
+      this.form = {
+        ...this.defaultForm(this.user),
+        ...this.draft,
+        courts: (this.draft.courts || []).map((court) => ({ local_id: court.local_id || localId(), ...court })),
+      };
+      await this.loadWards(this.form.venue_province_code);
       this.formOpen = true;
       this.step = 0;
     },
-    closeForm() {
-      if (!window.confirm('Hủy thao tác đăng ký hiện tại? Thông tin chưa gửi sẽ không được lưu.')) return;
-      this.formOpen = false;
-      this.form = this.defaultForm(this.user);
-      this.files = blankFiles();
-      this.confirmed = false;
-      this.formError = '';
-      this.bankVerification = {};
+    clearDraft() {
+      localStorage.removeItem(DRAFT_KEY);
+      this.draft = null;
     },
-    goToStep(index) {
-      if (index <= this.step || this.validateStep(this.step)) this.step = index;
+    saveDraft() {
+      const payload = { ...this.form, saved_at: new Date().toISOString() };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+      this.draft = payload;
+      this.formBanner = 'Đã lưu nháp trên trình duyệt này.';
+    },
+    cancelEditing() {
+      if (window.confirm('Hủy thao tác hiện tại? Dữ liệu chưa lưu sẽ mất.')) {
+        this.formOpen = false;
+      }
+    },
+    async goToStep(target) {
+      if (target <= this.step) {
+        this.step = target;
+        this.formBanner = '';
+        return;
+      }
+
+      for (let index = this.step; index < target; index += 1) {
+        if (!this.validateStep(index)) {
+          this.step = index;
+          return;
+        }
+      }
+
+      this.step = target;
+      if (target === 5) await this.generatePreview();
     },
     nextStep() {
-      if (this.validateStep(this.step)) this.step += 1;
+      if (this.validateStep(this.step)) {
+        this.step += 1;
+        if (this.step === 5) this.generatePreview();
+      }
     },
     prevStep() {
-      this.formError = '';
       this.step -= 1;
+      this.formBanner = '';
     },
     validateStep(step) {
-      this.formError = '';
-      const required = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+      this.fieldErrors = {};
+      this.formBanner = '';
+      const required = (field, message) => {
+        if (this.empty(this.form[field])) this.fieldErrors[field] = message;
+      };
 
       if (step === 0) {
-        const fields = ['applicant_full_name', 'applicant_phone', 'applicant_email', 'applicant_address', 'representative_name', 'representative_identity_number', 'business_name', 'business_license_number', 'business_address'];
-        if (fields.some((field) => !required(this.form[field]))) return this.fail('Vui lòng nhập đủ thông tin người đăng ký và pháp lý cơ sở.');
+        ['applicant_full_name', 'applicant_phone', 'applicant_email', 'applicant_address', 'representative_name', 'representative_identity_number', 'business_name', 'business_license_number', 'business_address'].forEach((field) => required(field, 'Trường này là bắt buộc.'));
+        if (this.form.applicant_phone && !this.validPhone(this.form.applicant_phone)) this.fieldErrors.applicant_phone = 'Số điện thoại phải gồm 10 chữ số bắt đầu bằng 0 hoặc +84.';
+        if (this.form.applicant_email && !this.validEmail(this.form.applicant_email)) this.fieldErrors.applicant_email = 'Email không đúng định dạng.';
       }
 
       if (step === 1) {
-        const fields = ['venue_map_url', 'venue_name', 'venue_phone', 'venue_address', 'venue_province', 'venue_ward', 'venue_latitude', 'venue_longitude'];
-        if (fields.some((field) => !required(this.form[field]))) return this.fail('Vui lòng nhập link Google Maps, tọa độ và địa chỉ 2 cấp của sân.');
+        ['venue_map_url', 'venue_name', 'venue_phone', 'venue_address', 'venue_province_code', 'venue_ward_code', 'venue_latitude', 'venue_longitude'].forEach((field) => required(field, 'Trường này là bắt buộc.'));
+        if (this.form.venue_phone && !this.validPhone(this.form.venue_phone)) this.fieldErrors.venue_phone = 'Số điện thoại sân phải gồm 10 chữ số bắt đầu bằng 0 hoặc +84.';
+        if (this.form.venue_email && !this.validEmail(this.form.venue_email)) this.fieldErrors.venue_email = 'Email sân không đúng định dạng.';
+        if (this.form.venue_map_url && !this.validGoogleMapUrl(this.form.venue_map_url)) this.fieldErrors.venue_map_url = 'Vui lòng nhập link Google Maps hợp lệ.';
+        if (!this.validCoordinate(this.form.venue_latitude, -90, 90)) this.fieldErrors.venue_latitude = 'Vĩ độ không hợp lệ.';
+        if (!this.validCoordinate(this.form.venue_longitude, -180, 180)) this.fieldErrors.venue_longitude = 'Kinh độ không hợp lệ.';
       }
 
       if (step === 2) {
-        const fields = ['bank_code', 'account_number', 'account_holder_name'];
-        if (fields.some((field) => !required(this.form[field]))) return this.fail('Vui lòng nhập đủ thông tin tài khoản ngân hàng.');
-        if (!this.bankVerification.status) return this.fail('Vui lòng bấm kiểm tra tài khoản ngân hàng trước khi tiếp tục.');
-        if (['invalid_bank', 'invalid_account_number', 'not_found', 'name_mismatch'].includes(this.bankVerification.status)) {
-          return this.fail(this.bankVerification.message || 'Thông tin tài khoản ngân hàng chưa hợp lệ.');
+        ['bank_code', 'account_number', 'account_holder_name'].forEach((field) => required(field, 'Trường này là bắt buộc.'));
+        if (this.form.account_number && !/^\d{6,19}$/.test(this.form.account_number)) this.fieldErrors.account_number = 'Số tài khoản chỉ được nhập 6-19 chữ số.';
+        if (!this.bankVerification.status) this.fieldErrors.account_number = 'Vui lòng bấm Kiểm tra tài khoản trước khi tiếp tục.';
+        if (['invalid_bank', 'invalid_account_number', 'not_found', 'name_mismatch', 'error'].includes(this.bankVerification.status)) {
+          this.fieldErrors.account_number = this.bankVerification.message || 'Tài khoản ngân hàng không hợp lệ.';
         }
       }
 
       if (step === 3) {
-        if (!this.form.courts.length) return this.fail('Vui lòng cấu hình ít nhất một sân con.');
-        const invalid = this.form.courts.some((court) => !required(court.name) || !required(court.court_type_id) || Number(court.base_price) < 0);
-        if (invalid) return this.fail('Mỗi sân con cần có tên sân, loại sân và giá cơ bản hợp lệ.');
+        required('court_count_total', 'Vui lòng nhập số lượng sân con.');
+        required('base_price_per_hour', 'Vui lòng nhập giá cơ bản/giờ của cụm sân.');
+        if (!Number.isInteger(Number(this.form.court_count_total)) || Number(this.form.court_count_total) < 1) this.fieldErrors.court_count_total = 'Số lượng sân con phải là số nguyên dương.';
+        if (Number(this.form.base_price_per_hour) <= 0) this.fieldErrors.base_price_per_hour = 'Giá cơ bản/giờ phải lớn hơn 0.';
+        this.form.courts.forEach((court, index) => {
+          if (this.empty(court.name)) this.fieldErrors[`courts.${index}.name`] = 'Vui lòng nhập tên sân con.';
+          if (this.empty(court.court_type_id)) this.fieldErrors[`courts.${index}.court_type_id`] = 'Vui lòng chọn loại sân.';
+        });
       }
 
       if (step === 4) {
-        if (!this.files.identity.length || !this.files.business_license.length || !this.files.facility.length) {
-          return this.fail('Vui lòng tải lên CCCD/giấy tờ định danh, giấy đăng ký và hình ảnh cơ sở.');
-        }
+        if (!this.files.identity.length) this.fieldErrors.identity_documents = 'Vui lòng tải CCCD/CMND người đăng ký.';
+        if (!this.files.business_license.length) this.fieldErrors.business_license_documents = 'Vui lòng tải giấy đăng ký kinh doanh hoặc giấy tờ pháp lý.';
+        if (!this.files.facility.length) this.fieldErrors.facility_images = 'Vui lòng tải hình ảnh cơ sở/sân.';
+        this.validateFiles();
       }
 
-      return true;
+      if (step === 5) {
+        if (!this.previewDocument) this.fieldErrors.confirmed = 'Vui lòng tạo và đọc Mẫu 01 trước khi gửi.';
+        else if (!this.confirmed) this.fieldErrors.confirmed = 'Bạn cần xác nhận đã đọc đơn đăng ký trước khi gửi.';
+      }
+
+      const valid = Object.keys(this.fieldErrors).length === 0;
+      if (!valid) this.focusFirstError();
+      return valid;
     },
-    fail(message) {
-      this.formError = message;
-      return false;
+    validateFiles() {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      Object.entries(this.files).forEach(([group, files]) => {
+        const invalid = files.find((file) => !allowed.includes(file.type) || file.size > 10 * 1024 * 1024);
+        if (invalid) {
+          const map = { identity: 'identity_documents', business_license: 'business_license_documents', facility: 'facility_images', additional: 'additional_documents' };
+          this.fieldErrors[map[group]] = 'File chỉ hỗ trợ JPG, PNG, WEBP, PDF và tối đa 10MB/file.';
+        }
+      });
+    },
+    empty(value) {
+      return value === null || value === undefined || String(value).trim() === '';
+    },
+    validPhone(value) {
+      return /^(0[0-9]{9}|\+84[0-9]{9})$/.test(value);
+    },
+    validEmail(value) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    },
+    validGoogleMapUrl(value) {
+      try {
+        const host = new URL(value).hostname;
+        return host.includes('google.') || host.includes('goo.gl') || host.includes('maps.app.goo.gl');
+      } catch {
+        return false;
+      }
+    },
+    validCoordinate(value, min, max) {
+      const number = Number(value);
+      return Number.isFinite(number) && number >= min && number <= max;
+    },
+    inputClass(field) {
+      return { invalid: Boolean(this.fieldErrors[field]) };
+    },
+    focusFirstError() {
+      this.formBanner = 'Vui lòng kiểm tra các trường đang báo lỗi.';
+      this.$nextTick(() => {
+        const first = Object.keys(this.fieldErrors)[0];
+        const ref = this.$refs[first];
+        const el = Array.isArray(ref) ? ref[0] : ref;
+        if (el?.focus) el.focus();
+      });
+    },
+    async onProvinceChange() {
+      this.form.venue_ward_code = '';
+      await this.loadWards(this.form.venue_province_code);
     },
     async resolveMap() {
+      this.fieldErrors.venue_map_url = '';
+      if (!this.validGoogleMapUrl(this.form.venue_map_url)) {
+        this.fieldErrors.venue_map_url = 'Vui lòng nhập link Google Maps hợp lệ.';
+        this.focusFirstError();
+        return;
+      }
       this.resolvingMap = true;
-      this.formError = '';
       try {
         const response = await api('/api/user/partner-application/resolve-map', {
           method: 'POST',
           body: JSON.stringify({ url: this.form.venue_map_url }),
         });
         const data = response.data || {};
-        if (data.latitude && data.longitude) {
-          this.form.venue_latitude = data.latitude;
-          this.form.venue_longitude = data.longitude;
-          this.form.venue_address = data.address || this.form.venue_address;
-          this.form.venue_province = data.province || this.form.venue_province;
-          this.form.venue_ward = data.ward || this.form.venue_ward;
-          this.mapResolved = true;
-        } else {
-          this.formError = 'Chưa đọc được tọa độ từ link. Bạn có thể dán link Google Maps dạng có @lat,lng hoặc nhập tọa độ thủ công.';
+        this.form.venue_latitude = data.latitude || this.form.venue_latitude;
+        this.form.venue_longitude = data.longitude || this.form.venue_longitude;
+        this.form.venue_address = data.address || this.form.venue_address;
+        if (data.province_code) {
+          this.form.venue_province_code = data.province_code;
+          await this.loadWards(data.province_code);
+          this.form.venue_ward_code = data.ward_code || this.form.venue_ward_code;
         }
+        this.mapStatus = {
+          type: data.province_code && data.ward_code ? 'success' : 'warning',
+          message: data.province_code && data.ward_code
+            ? 'Đã lấy tọa độ và tự điền tỉnh/phường từ link Google Maps.'
+            : 'Đã lấy được tọa độ. Vui lòng kiểm tra và chọn Tỉnh/Thành phố, Phường/Xã thủ công nếu còn trống.',
+        };
       } catch (error) {
-        this.formError = error.message;
+        this.fieldErrors.venue_map_url = error.data?.errors?.url?.[0] || error.message;
+        this.focusFirstError();
       } finally {
         this.resolvingMap = false;
       }
@@ -561,12 +815,23 @@ export default {
       this.form.bank_bin = bank?.bin || '';
       this.resetBankVerification();
     },
+    onAccountNumberInput() {
+      this.form.account_number = this.form.account_number.replace(/\D/g, '');
+      this.resetBankVerification();
+    },
     resetBankVerification() {
       this.bankVerification = {};
+      this.previewDocument = null;
+      this.previewData = null;
     },
     async verifyBank() {
+      this.fieldErrors.account_number = '';
+      if (!this.form.bank_code || !/^\d{6,19}$/.test(this.form.account_number) || !this.form.account_holder_name) {
+        this.fieldErrors.account_number = 'Vui lòng chọn ngân hàng, nhập số tài khoản và tên chủ tài khoản hợp lệ.';
+        this.focusFirstError();
+        return;
+      }
       this.verifyingBank = true;
-      this.formError = '';
       try {
         const response = await api('/api/user/partner-application/verify-bank-account', {
           method: 'POST',
@@ -587,12 +852,19 @@ export default {
     syncCourtRows() {
       const total = Math.max(1, Number(this.form.court_count_total || 1));
       while (this.form.courts.length < total) {
-        this.form.courts.push({ name: `Sân ${this.form.courts.length + 1}`, court_type_id: this.form.courts[0]?.court_type_id || '', base_price: this.form.courts[0]?.base_price || 0, note: '' });
+        this.form.courts.push({
+          local_id: localId(),
+          name: `Sân ${this.form.courts.length + 1}`,
+          court_type_id: this.form.courts[0]?.court_type_id || '',
+          note: '',
+        });
       }
-      this.form.courts = this.form.courts.slice(0, total);
+      if (this.form.courts.length > total) {
+        this.form.courts = this.form.courts.slice(0, total);
+      }
     },
     addCourt() {
-      this.form.courts.push({ name: `Sân ${this.form.courts.length + 1}`, court_type_id: '', base_price: 0, note: '' });
+      this.form.courts.push({ local_id: localId(), name: `Sân ${this.form.courts.length + 1}`, court_type_id: '', note: '' });
       this.form.court_count_total = this.form.courts.length;
     },
     removeCourt(index) {
@@ -601,73 +873,155 @@ export default {
     },
     setFiles(group, event) {
       this.files[group] = Array.from(event.target.files || []);
+      this.previewDocument = null;
+      this.previewData = null;
     },
-    fileNames(group) {
-      if (!this.files[group].length) return 'Chưa chọn file';
-      return this.files[group].map((file) => file.name).join(', ');
+    removeFile(group, index) {
+      this.files[group].splice(index, 1);
+      this.previewDocument = null;
+      this.previewData = null;
+    },
+    buildPayload() {
+      return {
+        ...this.form,
+        court_count_total: Number(this.form.court_count_total),
+        base_price_per_hour: Number(this.form.base_price_per_hour),
+        courts: this.form.courts.map((court) => ({
+          name: court.name,
+          court_type_id: court.court_type_id,
+          note: court.note || '',
+        })),
+        attachments_summary: this.attachmentsSummary,
+      };
+    },
+    async generatePreview() {
+      if (![0, 1, 2, 3, 4].every((index) => this.validateStep(index))) return;
+      this.generatingPreview = true;
+      try {
+        const response = await api('/api/user/partner-application/preview', {
+          method: 'POST',
+          body: JSON.stringify(this.buildPayload()),
+        });
+        this.previewDocument = response.data?.document || null;
+        this.previewData = response.data?.preview || null;
+        this.fieldErrors.confirmed = '';
+      } catch (error) {
+        this.applyBackendErrors(error);
+      } finally {
+        this.generatingPreview = false;
+      }
+    },
+    downloadPreview() {
+      if (this.previewDocument?.id) {
+        apiDownload(`/api/files/documents/${this.previewDocument.id}/download`);
+      }
+    },
+    downloadDocument(document) {
+      apiDownload(`/api/files/documents/${document.id}/download`);
     },
     async submit() {
       if (!this.validateStep(5)) return;
-      if (!this.confirmed) {
-        this.formError = 'Vui lòng xác nhận nội dung đơn trước khi gửi.';
-        return;
-      }
-
       this.submitting = true;
-      this.formError = '';
       try {
         const formData = new FormData();
-        Object.entries(this.form).forEach(([key, value]) => {
-          if (key === 'courts' || key === 'amenities') {
-            formData.append(key, JSON.stringify(value));
-          } else if (value !== null && value !== undefined) {
-            formData.append(key, value);
-          }
+        const payload = this.buildPayload();
+        Object.entries(payload).forEach(([key, value]) => {
+          if (['courts', 'amenities'].includes(key)) formData.append(key, JSON.stringify(value));
+          else if (value !== null && value !== undefined) formData.append(key, value);
         });
         formData.append('confirmed', '1');
         this.files.identity.forEach((file) => formData.append('identity_documents[]', file));
         this.files.business_license.forEach((file) => formData.append('business_license_documents[]', file));
         this.files.facility.forEach((file) => formData.append('facility_images[]', file));
+        this.files.additional.forEach((file) => formData.append('additional_documents[]', file));
 
         await apiFormData('/api/user/partner-application', formData);
-        this.success = 'Đã gửi hồ sơ đăng ký đối tác. SportGo sẽ kiểm tra và phản hồi trong thời gian sớm nhất.';
+        this.clearDraft();
         this.formOpen = false;
-        this.form = this.defaultForm(this.user);
-        this.files = blankFiles();
-        this.confirmed = false;
+        this.formBanner = '';
         await this.loadApplications();
       } catch (error) {
-        this.formError = error.message;
+        this.applyBackendErrors(error);
       } finally {
         this.submitting = false;
       }
     },
+    applyBackendErrors(error) {
+      const errors = error.data?.errors || {};
+      this.fieldErrors = Object.fromEntries(Object.entries(errors).map(([field, messages]) => [field, Array.isArray(messages) ? messages[0] : messages]));
+      this.formBanner = error.message || 'Vui lòng kiểm tra lại thông tin hồ sơ.';
+      if (!Object.keys(this.fieldErrors).length) this.formBanner = error.message;
+      this.focusFirstError();
+    },
     async cancelApplication(application) {
       if (!window.confirm(`Hủy hồ sơ đăng ký cho ${application.venue_name}?`)) return;
-      try {
-        await api(`/api/user/partner-application/${application.id}/cancel`, {
-          method: 'POST',
-          body: JSON.stringify({ reason: 'Người dùng hủy từ màn đăng ký đối tác.' }),
-        });
-        this.success = 'Đã hủy hồ sơ đăng ký.';
-        await this.loadApplications();
-      } catch (error) {
-        this.error = error.message;
-      }
+      await api(`/api/user/partner-application/${application.id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: 'Người dùng hủy hồ sơ từ trang đăng ký đối tác.' }),
+      });
+      await this.loadApplications();
+    },
+    copyRejectedApplication(application) {
+      this.startNewApplication();
+      this.form = {
+        ...this.defaultForm(this.user),
+        applicant_full_name: application.applicant_full_name || this.user.fullName,
+        applicant_phone: application.applicant_phone || this.user.phone,
+        applicant_email: application.applicant_email || this.user.email,
+        applicant_address: application.applicant_address || '',
+        applicant_type: application.applicant_type || 'individual',
+        representative_name: application.representative_name || this.user.fullName,
+        representative_identity_type: application.representative_identity_type || 'cccd',
+        representative_identity_number: application.representative_identity_number || '',
+        business_name: application.business_name || '',
+        tax_code: application.tax_code || '',
+        business_code: application.business_code || '',
+        business_license_number: application.business_license_number || '',
+        business_address: application.business_address || '',
+        venue_name: application.venue_name || '',
+        venue_address: application.venue_address || '',
+        venue_map_url: application.venue_map_url || '',
+        venue_latitude: application.venue_latitude || '',
+        venue_longitude: application.venue_longitude || '',
+        venue_phone: application.venue_phone || '',
+        venue_email: application.venue_email || '',
+        venue_description: application.venue_description || '',
+        expected_opening_hours: application.expected_opening_hours || '05:00 - 23:00',
+        parking_info: application.parking_info || '',
+        amenities: application.amenities || [],
+        court_count_total: application.courts?.length || 1,
+        base_price_per_hour: '',
+        courts: (application.courts || [{ name: 'Sân 1' }]).map((court) => ({
+          local_id: localId(),
+          name: court.name,
+          court_type_id: court.court_type_id || '',
+          note: court.note || '',
+        })),
+        bank_name: application.bank_name || '',
+        bank_code: application.bank_code || '',
+        account_number: application.account_number || '',
+        account_holder_name: application.account_holder_name || '',
+        bank_branch: application.bank_branch || '',
+      };
+    },
+    applicationWord(application) {
+      const docs = application.generated_documents || application.generatedDocuments || [];
+      return docs.find((doc) => doc.document_type === 'partner_application_form');
     },
     canCancel(application) {
-      return ['pending', 'submitted', 'reviewing', 'need_supplement'].includes(application.status);
+      return ['pending', 'submitted', 'reviewing', 'need_supplement', 'draft'].includes(application.status);
     },
     statusLabel(status) {
       return {
-        pending: 'Chờ duyệt',
-        submitted: 'Chờ duyệt',
+        draft: 'Nháp',
+        pending: 'Chờ xét duyệt',
+        submitted: 'Chờ xét duyệt',
         reviewing: 'Đang xem xét',
         need_supplement: 'Cần bổ sung',
-        contract_pending_owner_signature: 'Chờ ký hợp đồng',
+        contract_pending_owner_signature: 'Đã duyệt, chờ ký hợp đồng',
         contract_pending_sportgo_signature: 'Chờ SportGo ký',
         completed: 'Đang hoạt động',
-        rejected: 'Từ chối',
+        rejected: 'Bị từ chối',
         cancelled: 'Đã hủy',
       }[status] || status || '-';
     },
@@ -675,39 +1029,40 @@ export default {
       if (!value) return '-';
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return value;
-      return date.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return date.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     },
   },
 };
 </script>
 
 <style scoped>
-.partner-portal {
+.partner-page {
   min-height: 100vh;
   background: #f8fafc;
 }
 
-.portal-shell {
+.shell {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
   padding: 96px 0 56px;
 }
 
-.page-head,
+.hero,
 .section-head,
-.form-actions,
-.row-title,
-.verify-line,
-.court-toolbar,
-.map-row {
+.title-line,
+.row-actions,
+.actions,
+.map-resolver,
+.preview-actions,
+.verification-box {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
 
-.page-head {
-  margin-bottom: 22px;
+.hero {
+  margin-bottom: 20px;
 }
 
 .eyebrow {
@@ -732,51 +1087,41 @@ h1 {
 }
 
 h2 {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   color: #0f172a;
-  font-size: 20px;
+  font-size: 22px;
 }
 
-.page-head p,
+h3 {
+  margin-bottom: 10px;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.hero p,
 .section-head p,
+.panel-intro p,
 .hint,
-.state,
+.empty-state,
 .application-row p,
 .application-row small,
-.upload-box small {
+.upload-box p,
+.empty-files {
   color: #64748b;
 }
 
-.history-section,
-.application-form,
-.form-section {
+.history-card,
+.wizard {
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
 }
 
-.history-section {
+.history-card {
   padding: 20px;
 }
 
-.application-form {
-  margin-top: 20px;
-  overflow: hidden;
-}
-
-.form-section {
-  border: 0;
-  border-top: 1px solid #e2e8f0;
-  border-radius: 0;
-  padding: 22px;
-}
-
-.application-list,
-.court-list {
-  display: grid;
-  gap: 12px;
-}
-
+.draft-row,
 .application-row {
   display: flex;
   justify-content: space-between;
@@ -787,7 +1132,22 @@ h2 {
   background: #f8fafc;
 }
 
-.status-pill {
+.draft-row {
+  margin: 14px 0;
+  background: #ecfdf5;
+}
+
+.application-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.application-main {
+  min-width: 0;
+}
+
+.status {
   border-radius: 999px;
   padding: 4px 9px;
   background: #e2e8f0;
@@ -796,39 +1156,58 @@ h2 {
   font-weight: 900;
 }
 
-.status-pill.rejected,
-.status-pill.cancelled {
+.status.rejected,
+.status.cancelled {
   background: #fee2e2;
   color: #991b1b;
 }
 
-.status-pill.completed {
+.status.completed {
   background: #dcfce7;
   color: #166534;
 }
 
-.step-tabs {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 1px;
-  background: #e2e8f0;
+.reject-reason {
+  margin: 10px 0 0;
+  color: #991b1b;
+  font-weight: 800;
 }
 
-.step-tabs button {
+.wizard {
+  margin-top: 20px;
+  overflow: hidden;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.steps button {
   min-height: 64px;
   border: 0;
+  border-right: 1px solid #e2e8f0;
   background: #fff;
   color: #64748b;
-  font-weight: 800;
+  font-weight: 900;
   cursor: pointer;
 }
 
-.step-tabs button.active {
+.steps button:last-child {
+  border-right: 0;
+}
+
+.steps button.active {
   background: #ecfdf5;
   color: #166534;
 }
 
-.step-tabs span {
+.steps button.done {
+  color: #15803d;
+}
+
+.steps span {
   display: inline-grid;
   place-items: center;
   width: 24px;
@@ -838,19 +1217,53 @@ h2 {
   background: #e2e8f0;
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 20px;
+.step-panel {
+  padding: 24px;
 }
 
-label {
+.panel-intro {
+  max-width: 760px;
+  margin-bottom: 22px;
+}
+
+.subsection {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.subsection:last-child {
+  border-bottom: 0;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+}
+
+.grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.grid.compact {
+  align-items: end;
+}
+
+.field {
   display: grid;
   gap: 7px;
   color: #0f172a;
   font-size: 13px;
   font-weight: 900;
+}
+
+.field b,
+.upload-box b {
+  color: #dc2626;
 }
 
 .full {
@@ -867,185 +1280,292 @@ textarea {
   color: #0f172a;
   font: inherit;
   font-weight: 500;
+  outline: none;
 }
 
 textarea {
   resize: vertical;
 }
 
-.map-row {
-  align-items: end;
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px #dcfce7;
 }
 
-.map-row label {
+.invalid,
+.upload-box.invalid {
+  border-color: #ef4444 !important;
+  background: #fff7f7;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.map-resolver {
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.map-resolver .field {
   flex: 1;
 }
 
-.amenity-box {
+.status-message,
+.alert {
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.status-message.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-message.warning,
+.alert {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.amenities {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  margin-top: 18px;
   padding: 14px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
 }
 
-.amenity-box > span {
+.amenities > span {
   width: 100%;
   font-weight: 900;
 }
 
-.check-chip,
+.chip,
 .confirm-line {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.check-chip {
-  width: auto;
+.chip {
   padding: 8px 10px;
   border: 1px solid #e2e8f0;
   border-radius: 999px;
   background: #f8fafc;
+  font-weight: 700;
 }
 
-.check-chip input,
+.chip input,
 .confirm-line input {
   width: auto;
 }
 
-.verify-status {
-  color: #475569;
-  font-weight: 800;
-}
-
-.verify-status.verified {
-  color: #15803d;
-}
-
-.verify-status.name_mismatch,
-.verify-status.not_found,
-.verify-status.invalid_bank,
-.verify-status.invalid_account_number,
-.verify-status.error {
-  color: #b91c1c;
-}
-
-.court-toolbar {
+.verification-box {
   justify-content: flex-start;
-  align-items: end;
-  margin-bottom: 14px;
+  align-items: flex-start;
+  margin-top: 16px;
+}
+
+.verify-text {
+  padding: 12px;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+
+.verify-text.verified {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.verify-text.name_mismatch,
+.verify-text.not_found,
+.verify-text.invalid_bank,
+.verify-text.invalid_account_number,
+.verify-text.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.court-list {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
 }
 
 .court-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 180px 40px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 90px;
   align-items: end;
   gap: 12px;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
+  background: #f8fafc;
+}
+
+.align-end {
+  align-self: end;
 }
 
 .upload-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .upload-box {
-  min-height: 180px;
+  display: grid;
+  gap: 12px;
   align-content: start;
+  min-height: 210px;
   border: 1px dashed #94a3b8;
   border-radius: 8px;
   padding: 16px;
   background: #f8fafc;
 }
 
-.upload-box span {
-  font-size: 15px;
+.file-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
 }
 
-.upload-box strong {
-  color: #15803d;
-  font-size: 12px;
-  word-break: break-word;
-}
-
-.preview-paper {
-  border: 1px solid #cbd5e1;
+.file-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  padding: 10px;
   border-radius: 8px;
-  padding: 22px;
   background: #fff;
 }
 
-.preview-paper h3 {
+.file-list span {
+  overflow-wrap: anywhere;
+  font-weight: 800;
+}
+
+.file-list small {
+  color: #64748b;
+}
+
+.file-list button {
+  grid-row: span 2;
+  border: 0;
+  background: transparent;
+  color: #b91c1c;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.preview-actions {
+  justify-content: flex-start;
+  margin-bottom: 16px;
+}
+
+.document-preview {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 24px;
+  background: #fff;
+}
+
+.document-preview header {
+  margin-bottom: 20px;
   text-align: center;
-  text-transform: uppercase;
 }
 
-.preview-paper dl {
+.document-preview header p {
+  margin-bottom: 8px;
+  font-weight: 900;
+}
+
+.document-preview dl {
   display: grid;
-  grid-template-columns: 190px 1fr;
-  gap: 10px 14px;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 10px 16px;
 }
 
-.preview-paper dt {
+.document-preview dt {
   color: #64748b;
   font-weight: 900;
 }
 
-.preview-paper dd {
+.document-preview dd {
+  min-width: 0;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
-.form-actions {
+.preview-note {
+  margin-top: 18px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+.empty-preview {
+  padding: 24px;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  color: #64748b;
+  text-align: center;
+}
+
+.confirm-line {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.actions {
   justify-content: flex-end;
-  padding: 18px 22px;
+  padding: 18px 24px;
   border-top: 1px solid #e2e8f0;
   background: #f8fafc;
 }
 
-.primary-btn,
-.secondary-btn,
-.ghost-btn,
-.danger-btn,
-.icon-btn {
-  border-radius: 8px;
+.btn,
+.remove-btn {
   border: 1px solid transparent;
+  border-radius: 8px;
   padding: 10px 14px;
   font-weight: 900;
   cursor: pointer;
 }
 
-.primary-btn {
+.btn.primary {
   background: #16a34a;
   color: #fff;
 }
 
-.secondary-btn {
+.btn.secondary {
   background: #0f172a;
   color: #fff;
 }
 
-.ghost-btn {
+.btn.ghost {
   border-color: #cbd5e1;
   background: #fff;
   color: #0f172a;
 }
 
-.danger-btn {
+.btn.danger-soft,
+.remove-btn {
   background: #fee2e2;
   color: #991b1b;
-}
-
-.icon-btn {
-  min-height: 42px;
-  padding: 0;
-  background: #fee2e2;
-  color: #991b1b;
-  font-size: 22px;
 }
 
 button:disabled {
@@ -1053,40 +1573,31 @@ button:disabled {
   cursor: not-allowed;
 }
 
-.alert {
-  padding: 12px 14px;
-  border-radius: 8px;
-  font-weight: 800;
-}
-
-.alert.error {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.alert.success {
-  background: #dcfce7;
-  color: #166534;
-}
-
 @media (max-width: 920px) {
-  .page-head,
+  .hero,
   .section-head,
+  .draft-row,
   .application-row,
-  .map-row {
+  .map-resolver,
+  .verification-box {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .step-tabs {
+  .steps {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .form-grid,
+  .grid.two,
+  .grid.three,
   .upload-grid,
   .court-row,
-  .preview-paper dl {
+  .document-preview dl {
     grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-wrap: wrap;
   }
 }
 </style>

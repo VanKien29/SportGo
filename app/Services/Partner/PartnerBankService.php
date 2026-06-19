@@ -68,7 +68,7 @@ class PartnerBankService
                 'status' => 'manual_required',
                 'verified' => false,
                 'bank' => $bank,
-                'message' => 'Hệ thống chưa cấu hình khóa VietQR Account Lookup, tài khoản sẽ chờ admin xác minh.',
+                'message' => 'Tài khoản ngân hàng sẽ được admin xác minh thủ công trước khi duyệt hồ sơ.',
             ];
         }
 

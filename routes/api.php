@@ -299,8 +299,11 @@ Route::middleware('auth:sanctum')
     ->group(function (): void {
         Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
         Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
+        Route::get('/user/partner-application/provinces', [UserPartnerApplicationController::class, 'provinces']);
+        Route::get('/user/partner-application/provinces/{provinceCode}/wards', [UserPartnerApplicationController::class, 'wards']);
         Route::post('/user/partner-application/verify-bank-account', [UserPartnerApplicationController::class, 'verifyBankAccount']);
         Route::post('/user/partner-application/resolve-map', [UserPartnerApplicationController::class, 'resolveMap']);
+        Route::post('/user/partner-application/preview', [UserPartnerApplicationController::class, 'preview']);
         Route::post('/user/partner-application', [UserPartnerApplicationController::class, 'store']);
         Route::post('/user/partner-application/{id}/cancel', [UserPartnerApplicationController::class, 'cancel']);
         Route::get('/user/partner-application/documents', [UserPartnerApplicationController::class, 'documents']);

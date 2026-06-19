@@ -125,14 +125,14 @@ class PartnerApplicationService
                     'court_type_name_snapshot' => $courtType?->name,
                     'expected_court_count' => $court['expected_court_count'] ?? 1,
                     'name' => $court['name'],
-                    'note' => $this->courtNote($court),
+                    'note' => $court['note'] ?? null,
                     'sort_order' => $court['sort_order'] ?? ($index + 1),
                 ]);
             }
 
             $this->storeApplicationDocuments($application, $data['document_files'] ?? []);
             $this->storeBankAccountFromApplication($application, null, 'pending');
-            $this->generateApplicationForm($application, $user);
+            $this->generateApplicationForm($application, $user, $data);
             $this->applicationHistory($application, null, 'submitted', $user, 'user', 'Nộp hồ sơ đăng ký đối tác.');
             $this->audit('partner_application_submitted', $application, $user, 'user', null, null, $request);
             $this->notifyAdmins('partner_application_submitted', 'Có hồ sơ đối tác mới', $application->venue_name . ' vừa gửi hồ sơ đăng ký đối tác.', $application->id);
@@ -146,6 +146,19 @@ class PartnerApplicationService
 
             return $application->fresh(['user', 'courts.courtType', 'documents', 'contracts']);
         });
+    }
+
+    public function previewApplicationForm(User $user, array $data): GeneratedDocument
+    {
+        return $this->documents->generateDocument('partner_application_form', $user, $this->applicationRenderDataFromArray($data), $user, [
+            'status' => 'draft',
+            'owner_id' => $user->id,
+            'reference_type' => User::class,
+            'reference_id' => $user->id,
+            'entity_type' => User::class,
+            'entity_id' => $user->id,
+            'title' => 'Bản xem trước đơn đăng ký đối tác ' . ($data['venue_name'] ?? ''),
+        ]);
     }
 
     public function approve(PartnerApplication $application, User $admin, array $data, ?Request $request = null): PartnerApplication
@@ -552,6 +565,7 @@ class PartnerApplicationService
             'approvedVenueCluster:id,name,status,slug,address,status_reason',
             'courts.courtType:id,name',
             'documents.media',
+            'generatedDocuments',
             'bankAccounts',
             'statusHistories.changedBy:id,full_name,username,email',
             'contracts.generatedDocument.signatures.signer:id,full_name,email',
@@ -702,6 +716,11 @@ class PartnerApplicationService
                 'title' => 'Hình ảnh cơ sở sân',
                 'description' => 'Ảnh tổng quan, mặt sân, khu vực phụ trợ và biển hiệu nếu có.',
             ],
+            'additional' => [
+                'group' => 'additional_documents',
+                'title' => 'Tài liệu bổ sung',
+                'description' => 'Tài liệu khác người đăng ký muốn SportGo xem xét thêm.',
+            ],
         ];
 
         foreach ($definitions as $type => $definition) {
@@ -737,7 +756,7 @@ class PartnerApplicationService
         }
     }
 
-    private function generateApplicationForm(PartnerApplication $application, User $actor): GeneratedDocument
+    private function generateApplicationForm(PartnerApplication $application, User $actor, array $data = []): GeneratedDocument
     {
         $application->loadMissing(['courts.courtType', 'documents']);
 
@@ -756,6 +775,8 @@ class PartnerApplicationService
             'venue_longitude' => $application->venue_longitude,
             'court_count' => $application->court_count_total,
             'court_count_total' => $application->court_count_total,
+            'base_price_per_hour' => (int) ($data['base_price_per_hour'] ?? 0),
+            'base_price_per_hour_label' => $this->money((int) ($data['base_price_per_hour'] ?? 0)),
             'courts_summary' => $this->courtsSummary($application),
             'submitted_at' => $this->timestamp($application->submitted_at),
             'applicant_full_name' => $application->applicant_full_name,
@@ -767,6 +788,9 @@ class PartnerApplicationService
             'account_number' => $application->account_number,
             'account_holder_name' => $application->account_holder_name,
             'bank_verification_status' => $application->bank_verification_status,
+            'bank_verification_label' => $application->bank_verification_status === 'verified'
+                ? 'Đã xác minh tự động'
+                : 'Chờ admin xác minh thủ công',
             'attachments' => $application->documents->pluck('title')->unique()->implode(', '),
         ], $actor, [
             'partner_application_id' => $application->id,
@@ -798,6 +822,73 @@ class PartnerApplicationService
                 $typeName = $court->courtType?->name ?: $court->court_type_name_snapshot ?: 'Loại sân';
 
                 return trim($court->name . ' (' . $typeName . ')' . $price);
+            })
+            ->filter()
+            ->implode('; ');
+    }
+
+    private function applicationRenderDataFromArray(array $data): array
+    {
+        $basePrice = (int) ($data['base_price_per_hour'] ?? 0);
+
+        return [
+            'full_name' => $data['applicant_full_name'] ?? null,
+            'id_number' => $data['representative_identity_number'] ?? null,
+            'phone' => $data['applicant_phone'] ?? null,
+            'email' => $data['applicant_email'] ?? null,
+            'applicant_full_name' => $data['applicant_full_name'] ?? null,
+            'applicant_phone' => $data['applicant_phone'] ?? null,
+            'applicant_email' => $data['applicant_email'] ?? null,
+            'applicant_address' => $data['applicant_address'] ?? null,
+            'applicant_type' => $data['applicant_type'] ?? null,
+            'representative_identity_type' => $data['representative_identity_type'] ?? null,
+            'representative_identity_number' => $data['representative_identity_number'] ?? null,
+            'representative_identity_issued_date' => $data['representative_identity_issued_date'] ?? null,
+            'representative_identity_issued_place' => $data['representative_identity_issued_place'] ?? null,
+            'representative_position' => $data['representative_position'] ?? null,
+            'business_name' => $data['business_name'] ?? null,
+            'business_code' => $data['business_code'] ?? null,
+            'business_license_number' => $data['business_license_number'] ?? null,
+            'business_address' => $data['business_address'] ?? null,
+            'tax_code' => $data['tax_code'] ?? null,
+            'venue_name' => $data['venue_name'] ?? null,
+            'venue_address' => $data['venue_address'] ?? null,
+            'venue_province' => $data['venue_province'] ?? null,
+            'venue_district' => null,
+            'venue_ward' => $data['venue_ward'] ?? null,
+            'venue_map_url' => $data['venue_map_url'] ?? null,
+            'venue_latitude' => $data['venue_latitude'] ?? null,
+            'venue_longitude' => $data['venue_longitude'] ?? null,
+            'venue_phone' => $data['venue_phone'] ?? null,
+            'venue_email' => $data['venue_email'] ?? null,
+            'venue_description' => $data['venue_description'] ?? null,
+            'court_count' => $data['court_count_total'] ?? count($data['courts'] ?? []),
+            'court_count_total' => $data['court_count_total'] ?? count($data['courts'] ?? []),
+            'base_price_per_hour' => $basePrice,
+            'base_price_per_hour_label' => $this->money($basePrice),
+            'courts_summary' => $this->courtsSummaryFromArray($data['courts'] ?? []),
+            'bank_name' => $data['bank_name'] ?? null,
+            'account_number' => $data['account_number'] ?? null,
+            'account_holder_name' => $data['account_holder_name'] ?? null,
+            'bank_verification_status' => $data['bank_verification_status'] ?? 'pending',
+            'bank_verification_label' => ($data['bank_verification_status'] ?? 'pending') === 'verified'
+                ? 'Đã xác minh tự động'
+                : 'Chờ admin xác minh thủ công',
+            'attachments' => $data['attachments'] ?? null,
+            'submitted_at' => $data['submitted_at'] ?? $this->timestamp(now()),
+        ];
+    }
+
+    private function courtsSummaryFromArray(array $courts): string
+    {
+        return collect($courts)
+            ->map(function (array $court): string {
+                $typeName = $court['court_type_name'] ?? $court['court_type_name_snapshot'] ?? null;
+                if (! $typeName && isset($court['court_type_id'])) {
+                    $typeName = CourtType::query()->whereKey($court['court_type_id'])->value('name');
+                }
+
+                return trim(($court['name'] ?? 'Sân con') . ' (' . ($typeName ?: 'Loại sân') . ')');
             })
             ->filter()
             ->implode('; ');

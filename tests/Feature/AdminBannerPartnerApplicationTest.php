@@ -108,6 +108,16 @@ class AdminBannerPartnerApplicationTest extends TestCase
                     'lookupSupported' => 1,
                 ]],
             ]),
+            'https://provinces.open-api.vn/api/v2/' => Http::response([
+                ['code' => 1, 'name' => 'Thành phố Hà Nội'],
+            ]),
+            'https://provinces.open-api.vn/api/v2/p/1*' => Http::response([
+                'code' => 1,
+                'name' => 'Thành phố Hà Nội',
+                'wards' => [
+                    ['code' => 10101, 'name' => 'Phường Thanh Xuân'],
+                ],
+            ]),
         ]);
 
         $user = $this->createUser('kien_partner', 'kiennguyennguyen0@gmail.com');
@@ -137,8 +147,8 @@ class AdminBannerPartnerApplicationTest extends TestCase
             'business_address' => '12 Nguyễn Trãi, Hà Nội',
             'venue_name' => 'SportGo Kiên Test',
             'venue_address' => '12 Nguyễn Trãi, Phường Thanh Xuân, Hà Nội',
-            'venue_province' => 'Thành phố Hà Nội',
-            'venue_ward' => 'Phường Thanh Xuân',
+            'venue_province_code' => '1',
+            'venue_ward_code' => '10101',
             'venue_map_url' => 'https://maps.google.com/?q=21.0278,105.8342',
             'venue_latitude' => '21.0278000',
             'venue_longitude' => '105.8342000',
@@ -149,9 +159,10 @@ class AdminBannerPartnerApplicationTest extends TestCase
             'parking_info' => 'Có bãi xe máy.',
             'amenities' => json_encode(['Bãi xe', 'Nước uống']),
             'court_count_total' => 2,
+            'base_price_per_hour' => 120000,
             'courts' => json_encode([
-                ['court_type_id' => $courtType->id, 'name' => 'Sân 1', 'base_price' => 120000],
-                ['court_type_id' => $courtType->id, 'name' => 'Sân 2', 'base_price' => 120000],
+                ['court_type_id' => $courtType->id, 'name' => 'Sân 1'],
+                ['court_type_id' => $courtType->id, 'name' => 'Sân 2'],
             ]),
             'bank_name' => 'Vietcombank',
             'bank_code' => 'VCB',

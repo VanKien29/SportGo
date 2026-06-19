@@ -109,6 +109,11 @@ class PartnerApplication extends Model
         return $this->hasMany(PartnerApplicationDocument::class, 'partner_application_id');
     }
 
+    public function generatedDocuments()
+    {
+        return $this->hasMany(GeneratedDocument::class, 'partner_application_id');
+    }
+
     public function statusHistories()
     {
         return $this->hasMany(PartnerApplicationStatusHistory::class, 'partner_application_id');
