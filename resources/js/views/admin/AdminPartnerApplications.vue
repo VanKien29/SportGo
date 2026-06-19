@@ -1,45 +1,40 @@
 <template>
-  <div class="partner-app-page">
+  <div class="partner-page">
     <header class="page-header">
       <div>
-        <h2>Quản lý đơn đăng ký đối tác</h2>
-        <p>Rà soát hồ sơ chủ sân, trạng thái duyệt và thông tin kinh doanh gửi về hệ thống.</p>
+        <h2>Quản lý hồ sơ đối tác</h2>
+        <p>Theo dõi hồ sơ, hợp đồng, chữ ký điện tử và chấm dứt hợp tác của chủ sân.</p>
       </div>
-
-      <button class="icon-btn" type="button" title="Làm mới" aria-label="Làm mới" @click="refresh">
+      <button class="icon-btn" type="button" title="Làm mới" @click="refresh">
         <AppIcon name="refresh" size="16" />
       </button>
     </header>
 
+    <div class="tabs">
+      <button
+        v-for="tab in listTabs"
+        :key="tab.value"
+        class="tab-btn"
+        :class="{ active: filters.tab === tab.value }"
+        type="button"
+        @click="selectListTab(tab.value)"
+      >
+        {{ tab.label }}
+      </button>
+    </div>
+
     <div class="toolbar card">
-      <div class="filters">
-        <label class="field compact">
-          <span>Tìm kiếm</span>
-          <input
-            v-model="filters.search"
-            type="search"
-            placeholder="Tên sân, người nộp, MST"
-            @input="onFilterChange"
-          />
-        </label>
-        <label class="field compact">
-          <span>Trạng thái</span>
-          <select v-model="filters.status" @change="loadApplications(1)">
-            <option value="">Tất cả</option>
-            <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
-        <label class="field compact">
-          <span>Từ ngày</span>
-          <input v-model="filters.date_from" type="date" @change="loadApplications(1)" />
-        </label>
-        <label class="field compact">
-          <span>Đến ngày</span>
-          <input v-model="filters.date_to" type="date" @change="loadApplications(1)" />
-        </label>
-      </div>
+      <label class="field">
+        <span>Tìm kiếm</span>
+        <input v-model.trim="filters.search" type="search" placeholder="Tên sân, chủ sân, email, MST" @input="onFilterChange" />
+      </label>
+      <label class="field">
+        <span>Trạng thái</span>
+        <select v-model="filters.status" @change="loadApplications(1)">
+          <option value="">Tất cả</option>
+          <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+      </label>
     </div>
 
     <div v-if="message" class="notice success">{{ message }}</div>
@@ -47,21 +42,21 @@
 
     <div v-if="loading" class="state-box card">
       <div class="spinner"></div>
-      <p>Đang tải đơn đăng kí...</p>
+      <p>Đang tải hồ sơ...</p>
     </div>
 
     <div v-else-if="applications.length === 0" class="state-box card">
-      <p>Không có đơn đăng kí phù hợp.</p>
+      <p>Không có hồ sơ phù hợp.</p>
     </div>
 
-    <div v-else class="applications-table card">
+    <div v-else class="table-card card">
       <div class="table-scroll">
         <table>
           <thead>
             <tr>
               <th>Hồ sơ</th>
               <th>Người nộp</th>
-              <th>Sân con</th>
+              <th>Sân</th>
               <th>Ngày gửi</th>
               <th class="center">Trạng thái</th>
               <th class="right">Thao tác</th>
@@ -70,45 +65,27 @@
           <tbody>
             <tr v-for="application in applications" :key="application.id">
               <td>
-                <div class="main-title">
-                  {{ application.venue_name }}
-                  <span v-if="application.type === 'new_cluster'" class="badge cluster-badge">Cụm mới</span>
-                  <span v-else class="badge partner-badge">Đối tác mới</span>
-                </div>
+                <div class="strong">{{ application.venue_name }}</div>
                 <div class="muted">{{ application.business_name }}</div>
               </td>
               <td>
-                <div class="main-title">{{ application.user?.full_name || application.user?.username || '-' }}</div>
-                <div class="muted">{{ application.user?.email || application.user?.phone || '' }}</div>
+                <div class="strong">{{ application.user?.full_name || application.user?.username || '-' }}</div>
+                <div class="muted">{{ application.user?.email || application.user?.phone || '-' }}</div>
               </td>
               <td>{{ application.courts_count || 0 }}</td>
               <td>{{ formatDate(application.submitted_at) }}</td>
               <td class="center">
-                <span class="status" :class="`status-${application.status}`">
-                  {{ statusLabel(application.status) }}
-                </span>
+                <span class="status" :class="`status-${application.status}`">{{ statusLabel(application.status) }}</span>
               </td>
               <td class="right">
                 <div class="actions">
                   <button class="icon-btn" type="button" title="Chi tiết" @click="openDetail(application)">
                     <AppIcon name="eye" size="16" />
                   </button>
-                  <button
-                    v-if="isReviewable(application.status)"
-                    class="icon-btn approve"
-                    type="button"
-                    title="Duyệt"
-                    @click="openApprove(application)"
-                  >
+                  <button v-if="isReviewable(application.status)" class="icon-btn approve" type="button" title="Duyệt" @click="openApprove(application)">
                     <AppIcon name="check" size="16" />
                   </button>
-                  <button
-                    v-if="isReviewable(application.status)"
-                    class="icon-btn danger"
-                    type="button"
-                    title="Từ chối"
-                    @click="openReject(application)"
-                  >
+                  <button v-if="isReviewable(application.status)" class="icon-btn danger" type="button" title="Từ chối" @click="openReject(application)">
                     <AppIcon name="x" size="16" />
                   </button>
                 </div>
@@ -117,14 +94,13 @@
           </tbody>
         </table>
       </div>
-
       <div v-if="pagination.last_page > 1" class="pagination">
-        <button class="icon-btn" type="button" title="Trang trước" aria-label="Trang trước" :disabled="pagination.current_page <= 1" @click="loadApplications(pagination.current_page - 1)">
-          <AppIcon name="chevronLeft" size="17" />
+        <button class="icon-btn" type="button" :disabled="pagination.current_page <= 1" @click="loadApplications(pagination.current_page - 1)">
+          <AppIcon name="chevronLeft" size="16" />
         </button>
         <span>{{ pagination.current_page }} / {{ pagination.last_page }}</span>
-        <button class="icon-btn" type="button" title="Trang sau" aria-label="Trang sau" :disabled="pagination.current_page >= pagination.last_page" @click="loadApplications(pagination.current_page + 1)">
-          <AppIcon name="chevronRight" size="17" />
+        <button class="icon-btn" type="button" :disabled="pagination.current_page >= pagination.last_page" @click="loadApplications(pagination.current_page + 1)">
+          <AppIcon name="chevronRight" size="16" />
         </button>
       </div>
     </div>
@@ -132,261 +108,188 @@
     <div v-if="detailModal.open" class="modal-backdrop" @click.self="closeDetail">
       <div class="modal large">
         <div class="modal-header">
-          <h3>Chi tiết đơn đăng kí</h3>
-          <button class="icon-btn" type="button" title="Đóng" @click="closeDetail">
-            <AppIcon name="x" size="18" />
-          </button>
+          <h3>{{ activeApplication?.venue_name || 'Chi tiết hồ sơ' }}</h3>
+          <button class="icon-btn" type="button" title="Đóng" @click="closeDetail"><AppIcon name="x" size="18" /></button>
         </div>
 
-        <div v-if="detailLoading" class="modal-state">
+        <div v-if="detailLoading" class="state-box modal-state">
           <div class="spinner"></div>
         </div>
 
-        <div v-else-if="activeApplication" class="modal-body detail-grid">
-          <section class="detail-section">
-            <h4>Người nộp</h4>
-            <dl>
-              <dt>Họ tên</dt>
-              <dd>{{ activeApplication.user?.full_name || '-' }}</dd>
-              <dt>Email</dt>
-              <dd>{{ activeApplication.user?.email || '-' }}</dd>
-              <dt>Điện thoại</dt>
-              <dd>{{ activeApplication.user?.phone || '-' }}</dd>
-            </dl>
-          </section>
+        <template v-else-if="activeApplication">
+          <div class="detail-tabs">
+            <button v-for="tab in detailTabs" :key="tab.value" class="tab-btn" :class="{ active: detailTab === tab.value }" type="button" @click="detailTab = tab.value">
+              {{ tab.label }}
+            </button>
+          </div>
 
-          <section class="detail-section">
-            <h4>Kinh doanh</h4>
-            <dl>
-              <dt>Loại hồ sơ</dt>
-              <dd>
-                <span v-if="activeApplication.type === 'new_cluster'" class="badge cluster-badge">Đăng ký thêm cụm sân</span>
-                <span v-else class="badge partner-badge">Đăng ký đối tác mới</span>
-              </dd>
-              <dt>Đơn vị</dt>
-              <dd>{{ activeApplication.business_name }}</dd>
-              <dt>Mã số thuế</dt>
-              <dd>{{ activeApplication.tax_code || '-' }}</dd>
-              <dt>Tên cụm sân</dt>
-              <dd>{{ activeApplication.venue_name }}</dd>
-              <dt>Mô tả dịch vụ</dt>
-              <dd>{{ activeApplication.venue_description || '-' }}</dd>
-              <dt>Tiện ích chọn sẵn</dt>
-              <dd>
-                <div v-if="activeApplication.amenities && activeApplication.amenities.length > 0" class="amenities-list">
-                  <span v-for="amenity in activeApplication.amenities" :key="amenity" class="amenity-tag">{{ amenity }}</span>
-                </div>
-                <span v-else>-</span>
-              </dd>
-            </dl>
-          </section>
-
-          <section class="detail-section full">
-            <h4>Địa điểm</h4>
-            <dl>
-              <dt>Địa chỉ</dt>
-              <dd>{{ activeApplication.venue_address }}</dd>
-              <dt>Bản đồ</dt>
-              <dd>
-                <a v-if="activeApplication.venue_map_url" :href="activeApplication.venue_map_url" target="_blank" rel="noopener noreferrer">
-                  {{ activeApplication.venue_map_url }}
-                </a>
-                <span v-else>-</span>
-              </dd>
-              <dt>Tọa độ</dt>
-              <dd>{{ activeApplication.venue_latitude }}, {{ activeApplication.venue_longitude }}</dd>
-            </dl>
-          </section>
-
-          <section class="detail-section">
-            <h4>Sân con đăng kí</h4>
-            <div v-if="activeApplication.courts?.length" class="mini-list">
-              <div v-for="court in activeApplication.courts" :key="court.id" class="mini-item">
-                <span>{{ court.name }}</span>
-                <strong>{{ court.court_type?.name || `Loại #${court.court_type_id}` }}</strong>
+          <div class="modal-body">
+            <section v-if="detailTab === 'overview'" class="detail-grid">
+              <div class="panel">
+                <h4>Người nộp</h4>
+                <dl>
+                  <dt>Họ tên</dt><dd>{{ activeApplication.user?.full_name || '-' }}</dd>
+                  <dt>Email</dt><dd>{{ activeApplication.user?.email || '-' }}</dd>
+                  <dt>Điện thoại</dt><dd>{{ activeApplication.user?.phone || '-' }}</dd>
+                </dl>
               </div>
-            </div>
-            <p v-else class="muted">Chưa có sân con trong hồ sơ.</p>
-          </section>
-
-          <section class="detail-section">
-            <h4>Tài khoản nhận tiền</h4>
-            <div v-if="activeApplication.bank_accounts?.length" class="mini-list">
-              <div v-for="account in activeApplication.bank_accounts" :key="account.id" class="mini-item stacked">
-                <span>{{ account.account_holder_name }}</span>
-                <strong>{{ account.bank_name }} - {{ account.account_number }}</strong>
+              <div class="panel">
+                <h4>Hồ sơ</h4>
+                <dl>
+                  <dt>Đơn vị</dt><dd>{{ activeApplication.business_name }}</dd>
+                  <dt>Mã số thuế</dt><dd>{{ activeApplication.tax_code || '-' }}</dd>
+                  <dt>Trạng thái</dt><dd><span class="status" :class="`status-${activeApplication.status}`">{{ statusLabel(activeApplication.status) }}</span></dd>
+                  <dt v-if="activeApplication.status_reason">Ghi chú</dt><dd v-if="activeApplication.status_reason">{{ activeApplication.status_reason }}</dd>
+                </dl>
               </div>
-            </div>
-            <p v-else class="muted">Chưa có tài khoản ngân hàng.</p>
-          </section>
+              <div class="panel full">
+                <h4>Cụm sân</h4>
+                <dl>
+                  <dt>Tên cụm</dt><dd>{{ activeApplication.venue_name }}</dd>
+                  <dt>Địa chỉ</dt><dd>{{ activeApplication.venue_address }}</dd>
+                  <dt>Tọa độ</dt><dd>{{ activeApplication.venue_latitude }}, {{ activeApplication.venue_longitude }}</dd>
+                  <dt>Sân con</dt><dd>{{ activeApplication.courts?.map((court) => court.name).join(', ') || '-' }}</dd>
+                </dl>
+              </div>
+            </section>
 
-          <section class="detail-section full">
-            <h4>Hợp đồng hợp tác</h4>
-            <div v-if="activeApplication.contracts?.length" class="mini-list">
-              <div v-for="contract in activeApplication.contracts" :key="contract.id" class="mini-item stacked" style="align-items: flex-start;">
-                <span><strong>{{ contract.contract_number }}</strong></span>
-                <span class="status" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
-                <div style="margin-top: 4px;">
-                  <a v-if="contract.generated_file_path" :href="getFileUrl(contract.generated_file_path)" target="_blank" class="btn ghost small">
-                    <AppIcon name="eye" size="14" /> Xem Hợp đồng
-                  </a>
+            <section v-if="detailTab === 'documents'" class="doc-list">
+              <div v-for="document in activeApplication.documents || []" :key="document.id" class="doc-row">
+                <div>
+                  <div class="strong">{{ document.title || documentTypeLabel(document.document_type) }}</div>
+                  <div class="muted">{{ document.document_code }} · {{ documentStatusLabel(document.status) }} · {{ formatDate(document.generated_at) }}</div>
+                  <div class="signature-line">{{ signatureSummary(document.signatures) }}</div>
                 </div>
-                <div v-if="contract.status === 'pending_sportgo_signature'" style="margin-top: 8px;">
-                  <button class="btn primary small" type="button" :disabled="signingAction" @click="approveSignature(contract.id)">
-                    Ký phê duyệt & Cấp quyền
-                  </button>
-                </div>
-                <div v-if="contract.status === 'signed_active'" style="margin-top: 8px; display: flex; gap: 8px;">
-                  <button 
-                    v-if="hasPendingTermination(contract)" 
-                    class="btn warning small" 
-                    type="button" 
-                    :disabled="signingAction" 
-                    @click="approveTermination(contract.id)"
-                  >
-                    Duyệt yêu cầu thanh lý
-                  </button>
-                  <button class="btn danger small" type="button" :disabled="signingAction" @click="unilateralTerminate(contract.id)">
-                    Đơn phương chấm dứt
-                  </button>
+                <button class="btn ghost small" type="button" @click="downloadDocument(document.id)">
+                  <AppIcon name="download" size="15" /> Tải xuống
+                </button>
+              </div>
+              <p v-if="!activeApplication.documents?.length" class="muted">Chưa có văn bản nào.</p>
+            </section>
+
+            <section v-if="detailTab === 'history'" class="timeline">
+              <div v-for="item in activeApplication.status_histories || []" :key="`${item.partner_application_id}-${item.created_at}`" class="timeline-item">
+                <span class="dot"></span>
+                <div>
+                  <div class="strong">{{ statusLabel(item.new_status) }}</div>
+                  <div class="muted">{{ formatDate(item.created_at) }} · {{ item.changed_by?.full_name || item.actor_type }}</div>
+                  <p v-if="item.reason">{{ item.reason }}</p>
                 </div>
               </div>
-            </div>
-            <p v-else class="muted">Chưa có hợp đồng nào.</p>
-          </section>
+              <p v-if="!activeApplication.status_histories?.length" class="muted">Chưa có lịch sử xử lý.</p>
+            </section>
 
-          <section class="detail-section full">
-            <h4>Xử lý</h4>
-            <dl>
-              <dt>Trạng thái</dt>
-              <dd>
-                <span class="status" :class="`status-${activeApplication.status}`">
-                  {{ statusLabel(activeApplication.status) }}
-                </span>
-              </dd>
-              <dt>Người xử lý</dt>
-              <dd>{{ activeApplication.reviewed_by?.full_name || '-' }}</dd>
-              <dt>Thời gian xử lý</dt>
-              <dd>{{ formatDate(activeApplication.reviewed_at) }}</dd>
-              <dt>Ghi chú</dt>
-              <dd>{{ activeApplication.status_reason || '-' }}</dd>
-            </dl>
-          </section>
-        </div>
+            <section v-if="detailTab === 'settlement'" class="doc-list">
+              <div v-for="request in activeApplication.termination_requests || []" :key="request.id" class="doc-row">
+                <div>
+                  <div class="strong">{{ request.termination_code }}</div>
+                  <div class="muted">{{ terminationStatusLabel(request.status) }} · {{ request.reason }}</div>
+                  <div v-if="request.settlement" class="signature-line">
+                    Hoàn phí: {{ money(request.settlement.platform_fee_remaining_refund_amount) }} · Thu hồi quyền: {{ formatDate(request.transition_end_at) }}
+                  </div>
+                </div>
+                <button v-if="['submitted', 'reviewing'].includes(request.status)" class="btn primary small" type="button" @click="confirmTermination(request.id)">
+                  Xác nhận chấm dứt
+                </button>
+              </div>
+              <p v-if="!activeApplication.termination_requests?.length" class="muted">Chưa có yêu cầu chấm dứt.</p>
+            </section>
+          </div>
 
-        <div class="modal-footer">
-          <button class="btn ghost" type="button" @click="closeDetail">Đóng</button>
-          <button
-            v-if="activeApplication && isReviewable(activeApplication.status)"
-            class="btn danger"
-            type="button"
-            @click="openReject(activeApplication)"
-          >
-            <AppIcon name="x" size="16" />
-            <span>Từ chối</span>
-          </button>
-          <button
-            v-if="activeApplication && isReviewable(activeApplication.status)"
-            class="btn primary"
-            type="button"
-            @click="openApprove(activeApplication)"
-          >
-            <AppIcon name="check" size="16" />
-            <span>Duyệt</span>
-          </button>
-        </div>
+          <div class="modal-footer">
+            <button class="btn ghost" type="button" @click="closeDetail">Đóng</button>
+            <button v-if="isReviewable(activeApplication.status)" class="btn danger" type="button" @click="openReject(activeApplication)">Từ chối</button>
+            <button v-if="isReviewable(activeApplication.status)" class="btn primary" type="button" @click="openApprove(activeApplication)">Duyệt hồ sơ</button>
+            <button v-if="pendingSportgoContract" class="btn primary" type="button" @click="openSign(activeApplication)">Ký xác nhận</button>
+            <button v-if="activeContract" class="btn danger" type="button" @click="openTerminate(activeApplication)">Chấm dứt đơn phương</button>
+          </div>
+        </template>
       </div>
     </div>
 
     <div v-if="approveModal.open" class="modal-backdrop" @click.self="closeApprove">
-      <div class="modal">
+      <form class="modal" @submit.prevent="submitApprove">
         <div class="modal-header">
-          <h3>Duyệt đơn đăng kí</h3>
-          <button class="icon-btn" type="button" title="Đóng" @click="closeApprove">
-            <AppIcon name="x" size="18" />
-          </button>
+          <h3>Duyệt hồ sơ</h3>
+          <button class="icon-btn" type="button" @click="closeApprove"><AppIcon name="x" size="18" /></button>
         </div>
-
-        <form class="modal-body" @submit.prevent="submitApprove">
-          <div v-if="activeApplication?.courts?.length" class="inline-summary">
-            <span>{{ activeApplication.courts.length }} sân con sẽ được tạo theo hồ sơ</span>
-          </div>
-
-          <div v-else class="form-grid">
-            <label class="field">
-              <span>Tên sân con ban đầu</span>
-              <input v-model.trim="approveForm.initial_court_name" type="text" maxlength="100" required />
-            </label>
-            <label class="field">
-              <span>Loại sân</span>
-              <select v-model="approveForm.court_type_id" required>
-                <option value="">Chọn loại sân</option>
-                <option v-for="courtType in courtTypes" :key="courtType.id" :value="courtType.id">
-                  {{ courtType.name }}
-                </option>
-              </select>
-            </label>
-          </div>
-
-          <div class="form-grid">
-            <label class="field">
-              <span>Tên tài khoản</span>
-              <input v-model.trim="approveForm.bank_account_name" type="text" maxlength="150" disabled />
-            </label>
-            <label class="field">
-              <span>Số tài khoản</span>
-              <input v-model.trim="approveForm.bank_account_number" type="text" maxlength="50" disabled />
-            </label>
-            <label class="field">
-              <span>Ngân hàng</span>
-              <input v-model.trim="approveForm.bank_name" type="text" maxlength="100" disabled />
-            </label>
-            <label class="field">
-              <span>Mã ngân hàng</span>
-              <input v-model.trim="approveForm.bank_code" type="text" maxlength="50" disabled />
-            </label>
-          </div>
-
-          <label class="field full">
-            <span>Ghi chú</span>
-            <textarea v-model.trim="approveForm.review_note" rows="4" maxlength="2000"></textarea>
+        <div class="modal-body form-grid">
+          <label v-if="!activeApplication?.courts?.length" class="field">
+            <span>Tên sân con ban đầu</span>
+            <input v-model.trim="approveForm.initial_court_name" type="text" required />
           </label>
-
-          <div class="modal-footer inner">
-            <button class="btn ghost" type="button" @click="closeApprove">Hủy</button>
-            <button class="btn primary" type="submit" :disabled="savingAction">
-              <AppIcon name="check" size="16" />
-              <span>{{ savingAction ? 'Đang duyệt...' : 'Duyệt đơn' }}</span>
-            </button>
-          </div>
-        </form>
-      </div>
+          <label v-if="!activeApplication?.courts?.length" class="field">
+            <span>Loại sân</span>
+            <select v-model="approveForm.court_type_id" required>
+              <option value="">Chọn loại sân</option>
+              <option v-for="courtType in courtTypes" :key="courtType.id" :value="courtType.id">{{ courtType.name }}</option>
+            </select>
+          </label>
+          <label class="field full">
+            <span>Ghi chú duyệt</span>
+            <textarea v-model.trim="approveForm.review_note" rows="4"></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="btn ghost" type="button" @click="closeApprove">Hủy</button>
+          <button class="btn primary" type="submit" :disabled="savingAction">{{ savingAction ? 'Đang duyệt...' : 'Duyệt & tạo hợp đồng' }}</button>
+        </div>
+      </form>
     </div>
 
     <div v-if="rejectModal.open" class="modal-backdrop" @click.self="closeReject">
-      <div class="modal small">
+      <form class="modal small" @submit.prevent="submitReject">
         <div class="modal-header">
-          <h3>Từ chối đơn đăng kí</h3>
-          <button class="icon-btn" type="button" title="Đóng" @click="closeReject">
-            <AppIcon name="x" size="18" />
-          </button>
+          <h3>Từ chối hồ sơ</h3>
+          <button class="icon-btn" type="button" @click="closeReject"><AppIcon name="x" size="18" /></button>
         </div>
-
-        <form class="modal-body" @submit.prevent="submitReject">
+        <div class="modal-body">
           <label class="field full">
             <span>Lý do từ chối</span>
-            <textarea v-model.trim="rejectForm.reason" rows="6" maxlength="2000" required></textarea>
+            <textarea v-model.trim="rejectForm.reason" rows="6" required></textarea>
           </label>
+        </div>
+        <div class="modal-footer">
+          <button class="btn ghost" type="button" @click="closeReject">Hủy</button>
+          <button class="btn danger" type="submit" :disabled="savingAction">Từ chối</button>
+        </div>
+      </form>
+    </div>
 
-          <div class="modal-footer inner">
-            <button class="btn ghost" type="button" @click="closeReject">Hủy</button>
-            <button class="btn danger" type="submit" :disabled="savingAction">
-              <AppIcon name="x" size="16" />
-              <span>{{ savingAction ? 'Đang xử lý...' : 'Từ chối' }}</span>
-            </button>
-          </div>
-        </form>
-      </div>
+    <div v-if="signModal.open" class="modal-backdrop" @click.self="closeSign">
+      <form class="modal" @submit.prevent="submitSign">
+        <div class="modal-header">
+          <h3>Ký xác nhận SportGo</h3>
+          <button class="icon-btn" type="button" @click="closeSign"><AppIcon name="x" size="18" /></button>
+        </div>
+        <div class="modal-body">
+          <canvas ref="signatureCanvas" class="signature-pad" width="620" height="190" @pointerdown="startDraw" @pointermove="draw" @pointerup="stopDraw" @pointerleave="stopDraw"></canvas>
+          <button class="btn ghost small" type="button" @click="clearSignature">Xóa chữ ký</button>
+        </div>
+        <div class="modal-footer">
+          <button class="btn ghost" type="button" @click="closeSign">Hủy</button>
+          <button class="btn primary" type="submit" :disabled="savingAction">Xác nhận ký</button>
+        </div>
+      </form>
+    </div>
+
+    <div v-if="terminateModal.open" class="modal-backdrop" @click.self="closeTerminate">
+      <form class="modal small" @submit.prevent="submitTerminate">
+        <div class="modal-header">
+          <h3>Chấm dứt hợp tác đơn phương</h3>
+          <button class="icon-btn" type="button" @click="closeTerminate"><AppIcon name="x" size="18" /></button>
+        </div>
+        <div class="modal-body">
+          <label class="field full">
+            <span>Lý do chấm dứt</span>
+            <textarea v-model.trim="terminateForm.reason" rows="6" required></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="btn ghost" type="button" @click="closeTerminate">Hủy</button>
+          <button class="btn danger" type="submit" :disabled="savingAction">Khởi tạo chấm dứt</button>
+        </div>
+      </form>
     </div>
   </div>
 </template>
@@ -394,7 +297,6 @@
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
-import { api } from '../../services/api.js';
 
 export default {
   name: 'AdminPartnerApplications',
@@ -402,69 +304,65 @@ export default {
   data() {
     return {
       applications: [],
-      courtTypes: [],
       activeApplication: null,
+      courtTypes: [],
       loading: true,
       detailLoading: false,
       savingAction: false,
-      signingAction: false,
+      drawing: false,
       error: '',
       message: '',
       filterTimer: null,
-      filters: {
-        search: '',
-        status: '',
-        date_from: '',
-        date_to: '',
-      },
-      pagination: {
-        current_page: 1,
-        last_page: 1,
-        total: 0,
-      },
+      filters: { tab: 'pending', search: '', status: '' },
+      pagination: { current_page: 1, last_page: 1, total: 0 },
+      detailTab: 'overview',
       detailModal: { open: false },
       approveModal: { open: false },
       rejectModal: { open: false },
-      approveForm: this.emptyApproveForm(),
+      signModal: { open: false },
+      terminateModal: { open: false },
+      approveForm: { initial_court_name: '', court_type_id: '', review_note: '' },
       rejectForm: { reason: '' },
+      terminateForm: { reason: '' },
+      listTabs: [
+        { value: 'pending', label: 'Chờ xử lý' },
+        { value: 'active', label: 'Hợp đồng & hoạt động' },
+        { value: 'terminating', label: 'Đang chấm dứt' },
+      ],
+      detailTabs: [
+        { value: 'overview', label: 'Tổng quan' },
+        { value: 'documents', label: 'Hợp đồng & văn bản' },
+        { value: 'history', label: 'Lịch sử' },
+        { value: 'settlement', label: 'Quyết toán' },
+      ],
       statusOptions: [
-        { value: 'pending', label: 'Chờ duyệt' },
+        { value: 'submitted', label: 'Chờ duyệt' },
         { value: 'reviewing', label: 'Đang xem xét' },
-        { value: 'approved', label: 'Đã duyệt' },
+        { value: 'contract_pending_owner_signature', label: 'Chờ chủ sân ký' },
+        { value: 'contract_pending_sportgo_signature', label: 'Chờ SportGo ký' },
+        { value: 'completed', label: 'Đang hoạt động' },
         { value: 'rejected', label: 'Từ chối' },
-        { value: 'cancelled', label: 'Đã hủy' },
       ],
     };
+  },
+  computed: {
+    pendingSportgoContract() {
+      return this.activeApplication?.contracts?.find((contract) => contract.status === 'pending_sportgo_signature') || null;
+    },
+    activeContract() {
+      return this.activeApplication?.contracts?.find((contract) => contract.status === 'signed_active') || null;
+    },
   },
   mounted() {
     this.loadApplications();
     this.loadCourtTypes();
   },
   methods: {
-    getFileUrl(path) {
-      if (!path) return '#';
-      if (path.startsWith('http')) return path;
-      return '/storage/' + path.replace('public/', '');
-    },
-    emptyApproveForm() {
-      return {
-        initial_court_name: '',
-        court_type_id: '',
-        bank_account_name: '',
-        bank_account_number: '',
-        bank_name: '',
-        bank_code: '',
-        review_note: '',
-      };
-    },
     async loadApplications(page = 1) {
       this.loading = true;
       this.error = '';
       try {
-        const response = await adminPartnerApplicationService.list({
-          ...this.filters,
-          page,
-        });
+        const response = await adminPartnerApplicationService.list({ ...this.filters, page });
         const paginator = response.data || {};
         this.applications = paginator.data || [];
         this.pagination = {
@@ -473,7 +371,7 @@ export default {
           total: paginator.total || this.applications.length,
         };
       } catch (err) {
-        this.error = err.message || 'Không tải được đơn đăng kí.';
+        this.error = err.message || 'Không tải được hồ sơ đối tác.';
       } finally {
         this.loading = false;
       }
@@ -486,13 +384,6 @@ export default {
         this.courtTypes = [];
       }
     },
-    onFilterChange() {
-      clearTimeout(this.filterTimer);
-      this.filterTimer = setTimeout(() => this.loadApplications(1), 300);
-    },
-    refresh() {
-      this.loadApplications(this.pagination.current_page);
-    },
     async fetchApplication(application) {
       this.detailLoading = true;
       try {
@@ -500,14 +391,27 @@ export default {
         this.activeApplication = response.data;
         return response.data;
       } catch (err) {
-        this.error = err.message || 'Không tải được chi tiết đơn.';
+        this.error = err.message || 'Không tải được chi tiết hồ sơ.';
         return null;
       } finally {
         this.detailLoading = false;
       }
     },
+    selectListTab(tab) {
+      this.filters.tab = tab;
+      this.filters.status = '';
+      this.loadApplications(1);
+    },
+    onFilterChange() {
+      clearTimeout(this.filterTimer);
+      this.filterTimer = setTimeout(() => this.loadApplications(1), 300);
+    },
+    refresh() {
+      this.loadApplications(this.pagination.current_page);
+    },
     async openDetail(application) {
       this.clearAlerts();
+      this.detailTab = 'overview';
       this.detailModal.open = true;
       this.activeApplication = application;
       await this.fetchApplication(application);
@@ -517,177 +421,232 @@ export default {
     },
     async openApprove(application) {
       this.clearAlerts();
-      const detail = application.courts || application.bank_accounts
-        ? application
-        : await this.fetchApplication(application);
+      const detail = application.courts ? application : await this.fetchApplication(application);
       if (!detail) return;
-
       this.activeApplication = detail;
-      this.approveForm = this.emptyApproveForm();
-      const bankAccount = detail.bank_accounts?.find((account) => account.is_default) || detail.bank_accounts?.[0];
-      if (bankAccount) {
-        this.approveForm.bank_account_name = bankAccount.account_holder_name || '';
-        this.approveForm.bank_account_number = bankAccount.account_number || '';
-        this.approveForm.bank_name = bankAccount.bank_name || '';
-        this.approveForm.bank_code = bankAccount.bank_code || '';
-      }
+      this.approveForm = { initial_court_name: '', court_type_id: '', review_note: '' };
       this.approveModal.open = true;
     },
     closeApprove() {
       this.approveModal.open = false;
     },
+    async submitApprove() {
+      if (!this.activeApplication) return;
+      this.savingAction = true;
+      this.clearAlerts();
+      try {
+        const response = await adminPartnerApplicationService.approve(this.activeApplication.id, this.approveForm);
+        this.message = response.message || 'Duyệt hồ sơ thành công.';
+        this.activeApplication = response.data;
+        this.closeApprove();
+        await this.loadApplications(this.pagination.current_page);
+      } catch (err) {
+        this.error = err.message || 'Không duyệt được hồ sơ.';
+      } finally {
+        this.savingAction = false;
+      }
+    },
     async openReject(application) {
       this.clearAlerts();
-      const detail = application.status_reason !== undefined
-        ? application
-        : await this.fetchApplication(application);
-      if (!detail) return;
-
-      this.activeApplication = detail;
+      this.activeApplication = application.id === this.activeApplication?.id ? this.activeApplication : await this.fetchApplication(application);
       this.rejectForm.reason = '';
       this.rejectModal.open = true;
     },
     closeReject() {
       this.rejectModal.open = false;
     },
-    async submitApprove() {
-      if (!this.activeApplication) return;
-
-      this.savingAction = true;
-      this.clearAlerts();
-      try {
-        const response = await adminPartnerApplicationService.approve(this.activeApplication.id, this.approveForm);
-        this.message = response.message || 'Duyệt đơn thành công.';
-        this.activeApplication = response.data || this.activeApplication;
-        this.closeApprove();
-        this.closeDetail();
-        await this.loadApplications(this.pagination.current_page);
-      } catch (err) {
-        this.error = err.message || 'Không duyệt được đơn.';
-      } finally {
-        this.savingAction = false;
-      }
-    },
     async submitReject() {
-      if (!this.activeApplication) return;
-
       this.savingAction = true;
       this.clearAlerts();
       try {
         const response = await adminPartnerApplicationService.reject(this.activeApplication.id, this.rejectForm);
-        this.message = response.message || 'Từ chối đơn thành công.';
-        this.activeApplication = response.data || this.activeApplication;
+        this.message = response.message || 'Từ chối hồ sơ thành công.';
+        this.activeApplication = response.data;
         this.closeReject();
-        this.closeDetail();
         await this.loadApplications(this.pagination.current_page);
       } catch (err) {
-        this.error = err.message || 'Có lỗi xảy ra khi từ chối đơn.';
+        this.error = err.message || 'Không từ chối được hồ sơ.';
       } finally {
         this.savingAction = false;
       }
     },
-    async approveSignature(contractId) {
-      if (!confirm('Xác nhận ký phê duyệt và cấp quyền Chủ sân cho đối tác này?')) return;
-      
+    openSign(application) {
+      this.activeApplication = application;
+      this.signModal.open = true;
+      this.$nextTick(this.prepareCanvas);
+    },
+    closeSign() {
+      this.signModal.open = false;
+    },
+    async submitSign() {
+      this.savingAction = true;
       this.clearAlerts();
-      this.signingAction = true;
       try {
-        await api(`/api/admin/contracts/${contractId}/approve-signature`, { method: 'POST' });
-        this.message = 'Phê duyệt hợp đồng thành công!';
+        const payload = {
+          contract_id: this.pendingSportgoContract?.id,
+          signature_image: this.signatureData(),
+        };
+        const response = await adminPartnerApplicationService.signDocument(this.activeApplication.id, payload);
+        this.message = response.message || 'Đã ký xác nhận hợp đồng.';
+        this.activeApplication = response.data;
+        this.closeSign();
+        await this.loadApplications(this.pagination.current_page);
+      } catch (err) {
+        this.error = err.message || 'Không ký được hợp đồng.';
+      } finally {
+        this.savingAction = false;
+      }
+    },
+    openTerminate(application) {
+      this.activeApplication = application;
+      this.terminateForm.reason = '';
+      this.terminateModal.open = true;
+    },
+    closeTerminate() {
+      this.terminateModal.open = false;
+    },
+    async submitTerminate() {
+      this.savingAction = true;
+      this.clearAlerts();
+      try {
+        const response = await adminPartnerApplicationService.terminate(this.activeApplication.id, this.terminateForm);
+        this.message = response.message || 'Đã khởi tạo chấm dứt hợp tác.';
+        this.closeTerminate();
         await this.fetchApplication(this.activeApplication);
         await this.loadApplications(this.pagination.current_page);
       } catch (err) {
-        this.error = err.message || 'Có lỗi xảy ra khi phê duyệt hợp đồng.';
+        this.error = err.message || 'Không khởi tạo được chấm dứt hợp tác.';
       } finally {
-        this.signingAction = false;
+        this.savingAction = false;
       }
     },
-    hasPendingTermination(contract) {
-      if (!contract.terminations) return false;
-      return contract.terminations.some(t => t.status === 'submitted');
-    },
-    async approveTermination(contractId) {
-      if (!confirm('Xác nhận đồng ý thanh lý hợp đồng này theo yêu cầu của đối tác?')) return;
-      
+    async confirmTermination(terminationRequestId) {
+      if (!window.confirm('Xác nhận chấm dứt hợp tác và tạo quyết toán?')) return;
+      this.savingAction = true;
       this.clearAlerts();
-      this.signingAction = true;
       try {
-        await api(`/api/admin/contracts/${contractId}/approve-termination`, { method: 'POST' });
-        this.message = 'Đã duyệt yêu cầu thanh lý thành công!';
+        const response = await adminPartnerApplicationService.confirmTermination(this.activeApplication.id, { termination_request_id: terminationRequestId });
+        this.message = response.message || 'Đã xác nhận chấm dứt.';
         await this.fetchApplication(this.activeApplication);
         await this.loadApplications(this.pagination.current_page);
       } catch (err) {
-        this.error = err.message || 'Có lỗi xảy ra khi duyệt thanh lý.';
+        this.error = err.message || 'Không xác nhận được yêu cầu chấm dứt.';
       } finally {
-        this.signingAction = false;
+        this.savingAction = false;
       }
     },
-    async unilateralTerminate(contractId) {
-      const reason = prompt('Vui lòng nhập lý do chấm dứt hợp đồng (Ví dụ: Vi phạm quy định chống bán phá giá):');
-      if (!reason) return;
-
-      this.clearAlerts();
-      this.signingAction = true;
+    async downloadDocument(id) {
       try {
-        await api(`/api/admin/contracts/${contractId}/terminate`, { 
-          method: 'POST',
-          body: JSON.stringify({ reason: reason, type: 'unilateral_by_admin' }),
-          headers: { 'Content-Type': 'application/json' }
-        });
-        this.message = 'Đã đơn phương chấm dứt hợp đồng thành công!';
-        await this.fetchApplication(this.activeApplication);
-        await this.loadApplications(this.pagination.current_page);
+        await adminPartnerApplicationService.downloadDocument(id);
       } catch (err) {
-        this.error = err.message || 'Có lỗi xảy ra khi đơn phương chấm dứt hợp đồng.';
-      } finally {
-        this.signingAction = false;
+        this.error = err.message || 'Không tải được văn bản.';
       }
     },
-    clearAlerts() {
-      this.error = '';
-      this.message = '';
+    prepareCanvas() {
+      const canvas = this.$refs.signatureCanvas;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+    },
+    pointerPosition(event) {
+      const rect = this.$refs.signatureCanvas.getBoundingClientRect();
+      return {
+        x: ((event.clientX - rect.left) / rect.width) * this.$refs.signatureCanvas.width,
+        y: ((event.clientY - rect.top) / rect.height) * this.$refs.signatureCanvas.height,
+      };
+    },
+    startDraw(event) {
+      this.drawing = true;
+      const point = this.pointerPosition(event);
+      const ctx = this.$refs.signatureCanvas.getContext('2d');
+      ctx.beginPath();
+      ctx.moveTo(point.x, point.y);
+    },
+    draw(event) {
+      if (!this.drawing) return;
+      const point = this.pointerPosition(event);
+      const ctx = this.$refs.signatureCanvas.getContext('2d');
+      ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+    },
+    stopDraw() {
+      this.drawing = false;
+    },
+    clearSignature() {
+      this.prepareCanvas();
+    },
+    signatureData() {
+      return this.$refs.signatureCanvas?.toDataURL('image/png') || null;
     },
     isReviewable(status) {
-      return ['pending', 'reviewing'].includes(status);
+      return ['pending', 'reviewing', 'submitted', 'need_supplement'].includes(status);
+    },
+    signatureSummary(signatures = []) {
+      if (!signatures.length) return 'Chưa có chữ ký';
+      return signatures.map((signature) => `${signature.signer_side}: ${this.formatDate(signature.signed_at)}`).join(' · ');
     },
     statusLabel(status) {
-      const labels = {
+      return {
         pending: 'Chờ duyệt',
+        submitted: 'Chờ duyệt',
         reviewing: 'Đang xem xét',
-        approved: 'Đã duyệt',
+        need_supplement: 'Cần bổ sung',
+        contract_pending_owner_signature: 'Chờ chủ sân ký',
+        contract_pending_sportgo_signature: 'Chờ SportGo ký',
+        completed: 'Đang hoạt động',
         rejected: 'Từ chối',
         cancelled: 'Đã hủy',
-      };
-      return labels[status] || status || '-';
+      }[status] || status || '-';
     },
-    contractStatusLabel(status) {
-      const labels = {
-        generated: 'Nháp',
-        pending_owner_signature: 'Chờ đối tác ký',
-        pending_sportgo_signature: 'Chờ Admin duyệt (Ký SportGo)',
-        signed_active: 'Đang hiệu lực',
-        terminated: 'Đã thanh lý',
-      };
-      return labels[status] || status;
+    documentTypeLabel(type) {
+      return {
+        partner_application_form: 'Đơn đăng ký đối tác',
+        partner_contract: 'Hợp đồng hợp tác',
+        termination_request: 'Đơn yêu cầu chấm dứt',
+        mutual_liquidation_minutes: 'Biên bản thanh lý',
+        unilateral_termination_notice: 'Công văn chấm dứt',
+        settlement_minutes: 'Biên bản quyết toán',
+      }[type] || type;
+    },
+    documentStatusLabel(status) {
+      return {
+        generated: 'Đã sinh',
+        pending_owner_signature: 'Chờ chủ sân ký',
+        pending_sportgo_signature: 'Chờ SportGo ký',
+        completed: 'Hoàn thành',
+      }[status] || status;
+    },
+    terminationStatusLabel(status) {
+      return {
+        submitted: 'Chờ xác nhận',
+        reviewing: 'Đang xem xét',
+        transition_period: 'Giai đoạn chuyển tiếp',
+        completed: 'Đã thu hồi quyền',
+      }[status] || status;
+    },
+    money(value) {
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value || 0));
     },
     formatDate(value) {
       if (!value) return '-';
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return value;
-      return date.toLocaleString('vi-VN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      return date.toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    },
+    clearAlerts() {
+      this.error = '';
+      this.message = '';
     },
   },
 };
 </script>
 
 <style scoped>
-.partner-app-page {
+.partner-page {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -695,25 +654,46 @@ export default {
   margin: 0 auto;
 }
 
-.card {
+.card,
+.modal,
+.panel {
   background: #fff;
   border: 1px solid var(--sg-border);
   border-radius: 8px;
 }
 
-.toolbar {
+.tabs,
+.detail-tabs,
+.actions,
+.pagination,
+.modal-footer {
   display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px;
+  align-items: center;
+  gap: 8px;
 }
 
-.filters {
-  width: 100%;
+.tab-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--sg-border);
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(150px, 1fr));
+  grid-template-columns: minmax(260px, 1fr) minmax(180px, 260px);
   gap: 12px;
+  padding: 14px;
 }
 
 .field {
@@ -722,7 +702,6 @@ export default {
   gap: 6px;
   font-size: 13px;
   font-weight: 800;
-  color: var(--sg-text);
 }
 
 .field.full {
@@ -736,18 +715,8 @@ export default {
   border: 1px solid var(--sg-border);
   border-radius: 8px;
   padding: 0 12px;
-  font-size: 14px;
-  font-weight: 500;
-  background: #fff;
   color: var(--sg-text);
-}
-
-.field input:disabled,
-.field select:disabled,
-.field textarea:disabled {
-  background: #f1f5f9;
-  color: #64748b;
-  cursor: not-allowed;
+  background: #fff;
 }
 
 .field input,
@@ -761,111 +730,50 @@ export default {
   resize: vertical;
 }
 
-.btn,
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  font-weight: 800;
-  cursor: pointer;
-  transition: background 0.18s, border-color 0.18s, color 0.18s;
-}
-
-.btn {
-  height: 40px;
-  padding: 0 14px;
-  white-space: nowrap;
-}
-
-.btn.primary {
-  background: #0f172a;
-  color: #fff;
-}
-
-.btn.ghost {
-  background: #fff;
-  border-color: var(--sg-border);
-  color: var(--sg-text);
-}
-
-.btn.danger {
-  background: #dc2626;
-  color: #fff;
-}
-
-.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.icon-btn {
-  width: 34px;
-  height: 34px;
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #334155;
-}
-
-.icon-btn.approve {
-  color: #15803d;
-}
-
-.icon-btn.danger {
-  color: #dc2626;
-}
-
 .notice {
   padding: 12px 14px;
   border-radius: 8px;
-  font-size: 14px;
   font-weight: 800;
 }
 
 .notice.success {
-  background: #dcfce7;
   color: #166534;
+  background: #dcfce7;
 }
 
 .notice.error {
-  background: #fee2e2;
   color: #991b1b;
+  background: #fee2e2;
 }
 
-.state-box,
-.modal-state {
+.state-box {
+  min-height: 220px;
   display: flex;
-  min-height: 240px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: rgba(15, 23, 42, 0.55);
+  color: #64748b;
 }
 
 .spinner {
-  width: 34px;
-  height: 34px;
-  border: 3px solid rgba(15, 23, 42, 0.08);
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
   border-top-color: #0f172a;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-.applications-table {
+.table-card {
   overflow: hidden;
 }
 
 .table-scroll {
-  width: 100%;
   overflow-x: auto;
 }
 
@@ -885,29 +793,15 @@ td {
 
 th {
   background: #f8fafc;
-  font-size: 12px;
-  font-weight: 900;
   color: #475569;
+  font-size: 12px;
   text-transform: uppercase;
 }
 
-.center {
-  text-align: center;
-}
-
-.right {
-  text-align: right;
-}
-
-.main-title {
-  color: var(--sg-text);
-  font-weight: 800;
-}
-
-.muted {
-  color: rgba(15, 23, 42, 0.5);
-  font-size: 13px;
-}
+.center { text-align: center; }
+.right { text-align: right; }
+.strong { font-weight: 900; color: var(--sg-text); }
+.muted { color: #64748b; font-size: 13px; }
 
 .status {
   display: inline-flex;
@@ -915,15 +809,20 @@ th {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 900;
+  background: #e2e8f0;
+  color: #334155;
 }
 
 .status-pending,
-.status-reviewing {
+.status-submitted,
+.status-reviewing,
+.status-contract_pending_owner_signature,
+.status-contract_pending_sportgo_signature {
   background: #fef3c7;
   color: #92400e;
 }
 
-.status-approved {
+.status-completed {
   background: #dcfce7;
   color: #166534;
 }
@@ -934,19 +833,57 @@ th {
   color: #991b1b;
 }
 
-.actions {
+.btn,
+.icon-btn {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-weight: 900;
+  cursor: pointer;
 }
 
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 12px 16px;
+.btn {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.btn.small {
+  min-height: 34px;
+  padding: 0 10px;
   font-size: 13px;
-  font-weight: 800;
+}
+
+.btn.primary {
+  background: #0f172a;
+  color: #fff;
+}
+
+.btn.danger {
+  background: #dc2626;
+  color: #fff;
+}
+
+.btn.ghost,
+.icon-btn {
+  background: #fff;
+  border-color: var(--sg-border);
+  color: #334155;
+}
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+}
+
+.icon-btn.approve { color: #15803d; }
+.icon-btn.danger { color: #dc2626; }
+
+.pagination {
+  justify-content: flex-end;
+  padding: 12px 16px;
 }
 
 .modal-backdrop {
@@ -966,49 +903,10 @@ th {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #fff;
-  border-radius: 8px;
-  text-overflow: ellipsis;
-}
-
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
-  margin-left: 8px;
-  vertical-align: middle;
-}
-
-.cluster-badge {
-  background: #e0e7ff;
-  color: #3730a3;
-}
-
-.partner-badge {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.amenities-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.amenity-tag {
-  background: #f1f5f9;
-  color: #334155;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .modal.large {
-  width: min(980px, 100%);
+  width: min(1060px, 100%);
 }
 
 .modal.small {
@@ -1016,11 +914,8 @@ th {
 }
 
 .modal-header,
-.modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.modal-footer,
+.detail-tabs {
   padding: 14px 18px;
   border-bottom: 1px solid var(--sg-border);
 }
@@ -1031,13 +926,15 @@ th {
   border-bottom: 0;
 }
 
-.modal-footer.inner {
-  margin: 4px -18px -18px;
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.modal-header h3 {
+.modal-header h3,
+.panel h4 {
   margin: 0;
-  font-size: 18px;
 }
 
 .modal-body {
@@ -1045,117 +942,106 @@ th {
   overflow-y: auto;
 }
 
-.detail-grid {
+.detail-grid,
+.form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
-.detail-section {
-  border: 1px solid var(--sg-border);
-  border-radius: 8px;
+.panel {
   padding: 14px;
-  min-width: 0;
 }
 
-.detail-section.full {
+.panel.full {
   grid-column: 1 / -1;
-}
-
-.detail-section h4 {
-  margin: 0 0 12px;
-  font-size: 14px;
-  font-weight: 900;
-  color: var(--sg-text);
 }
 
 dl {
   display: grid;
   grid-template-columns: 130px 1fr;
   gap: 8px 12px;
-  margin: 0;
+  margin: 12px 0 0;
 }
 
 dt {
-  color: rgba(15, 23, 42, 0.5);
-  font-size: 13px;
+  color: #64748b;
   font-weight: 800;
 }
 
 dd {
-  min-width: 0;
   margin: 0;
-  color: var(--sg-text);
-  font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
-.mini-list {
+.doc-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-.mini-item {
+.doc-row {
   display: flex;
-  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 12px;
+  border: 1px solid var(--sg-border);
   border-radius: 8px;
-  background: #f8fafc;
 }
 
-.mini-item.stacked {
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.mini-item span {
-  font-weight: 800;
-}
-
-.mini-item strong {
-  color: rgba(15, 23, 42, 0.6);
+.signature-line {
+  margin-top: 4px;
+  color: #64748b;
   font-size: 13px;
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 14px;
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.inline-summary {
-  padding: 12px;
-  margin-bottom: 14px;
+.timeline-item {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 10px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #0f172a;
+}
+
+.signature-pad {
+  width: 100%;
+  max-width: 620px;
+  border: 1px solid var(--sg-border);
   border-radius: 8px;
-  background: #f8fafc;
-  color: #334155;
-  font-weight: 800;
+  touch-action: none;
+  background: #fff;
+  display: block;
+  margin-bottom: 10px;
 }
 
 @media (max-width: 900px) {
-  .toolbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .filters,
+  .toolbar,
   .detail-grid,
   .form-grid {
     grid-template-columns: 1fr;
   }
 
-  .detail-section.full {
+  .panel.full,
+  .field.full {
     grid-column: auto;
   }
 
-  dl {
-    grid-template-columns: 1fr;
+  dl,
+  .doc-row {
+    display: block;
   }
 }
 </style>

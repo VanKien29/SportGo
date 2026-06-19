@@ -36,7 +36,7 @@ export const adminNavigationSections = [
         ],
       },
       {
-        label: 'Đơn đối tác',
+        label: 'Hồ sơ đối tác',
         icon: 'fileText',
         to: '/admin/partner-applications',
         activeNames: ['admin-partner-applications'],
@@ -152,7 +152,7 @@ export const adminRouteTitles = {
   'admin-payments': 'Theo dõi thanh toán booking',
   'admin-finance-operations': 'Hoàn tiền và rút tiền',
   'admin-vouchers': 'Voucher hệ thống',
-  'admin-partner-applications': 'Quản lý đơn đăng ký',
+  'admin-partner-applications': 'Quản lý hồ sơ đối tác',
   'admin-banners': 'Quản lý banner',
   'admin-moderation': 'Kiểm duyệt nội dung',
   'admin-roles': 'Quản lý nhóm quyền',

@@ -6,11 +6,18 @@ use App\Models\CourtType;
 use App\Models\OwnerBankAccount;
 use App\Models\PartnerApplication;
 use App\Models\PartnerApplicationCourt;
+use App\Models\PartnerContract;
+use App\Models\PartnerTerminationRequest;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Jobs\RevokeVenueOwnerRoleJob;
+use App\Jobs\SendRevocationReminderJob;
+use App\Services\Partner\PartnerApplicationService;
+use App\Services\Partner\PartnerMailDispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -85,7 +92,9 @@ class AdminBannerPartnerApplicationTest extends TestCase
 
     public function test_admin_can_approve_partner_application_and_create_venue_cluster(): void
     {
-        $applicant = $this->createUser('partner_applicant', 'partner.applicant@sportgo.vn');
+        Queue::fake();
+
+        $applicant = $this->createUser('partner_applicant', 'kiennguyennguyen0@gmail.com');
         $courtType = CourtType::query()->create([
             'name' => 'Sân cầu lông',
             'description' => 'Cầu lông',
@@ -131,27 +140,27 @@ class AdminBannerPartnerApplicationTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('status', 'success')
-            ->assertJsonPath('data.status', 'approved')
+            ->assertJsonPath('data.status', 'contract_pending_owner_signature')
             ->assertJsonPath('data.approved_venue_cluster.name', 'SportGo Test Partner');
 
         $venueClusterId = $response->json('data.approved_venue_cluster_id');
 
         $this->assertDatabaseHas('partner_applications', [
             'id' => $application->id,
-            'status' => 'approved',
+            'status' => 'contract_pending_owner_signature',
             'reviewed_by' => $this->admin->id,
             'approved_venue_cluster_id' => $venueClusterId,
         ]);
         $this->assertDatabaseHas('venue_clusters', [
             'id' => $venueClusterId,
             'owner_id' => $applicant->id,
-            'status' => 'active',
+            'status' => 'pending',
         ]);
         $this->assertDatabaseHas('venue_courts', [
             'venue_cluster_id' => $venueClusterId,
             'court_type_id' => $courtType->id,
             'name' => 'Sân A',
-            'status' => 'active',
+            'status' => 'inactive',
         ]);
         $this->assertDatabaseHas('owner_bank_accounts', [
             'owner_id' => $applicant->id,
@@ -160,10 +169,105 @@ class AdminBannerPartnerApplicationTest extends TestCase
         ]);
 
         $ownerRoleId = Role::query()->where('name', 'venue_owner')->value('id');
+        $this->assertDatabaseMissing('user_roles', [
+            'user_id' => $applicant->id,
+            'role_id' => $ownerRoleId,
+            'scope_type' => 'system',
+        ]);
+
+        $contract = PartnerContract::query()
+            ->where('partner_application_id', $application->id)
+            ->firstOrFail();
+
+        $this->assertSame('pending_owner_signature', $contract->status);
+
+        $this->actingAs($applicant, 'sanctum')
+            ->postJson('/api/user/partner-application/sign-contract', [
+                'contract_id' => $contract->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
         $this->assertDatabaseHas('user_roles', [
             'user_id' => $applicant->id,
             'role_id' => $ownerRoleId,
             'scope_type' => 'system',
+        ]);
+        $this->assertDatabaseHas('partner_contracts', [
+            'id' => $contract->id,
+            'status' => 'pending_sportgo_signature',
+        ]);
+        $this->assertDatabaseHas('venue_clusters', [
+            'id' => $venueClusterId,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/admin/contracts/{$contract->id}/approve-signature")
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertDatabaseHas('partner_contracts', [
+            'id' => $contract->id,
+            'status' => 'signed_active',
+        ]);
+        $this->assertDatabaseHas('partner_applications', [
+            'id' => $application->id,
+            'status' => 'completed',
+        ]);
+
+        $this->actingAs($applicant, 'sanctum')
+            ->postJson("/api/owner/contracts/{$contract->id}/request-termination", [
+                'reason' => 'Không còn nhu cầu vận hành cụm sân.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $termination = PartnerTerminationRequest::query()
+            ->where('partner_contract_id', $contract->id)
+            ->firstOrFail();
+
+        $this->assertSame('submitted', $termination->status);
+        $this->assertDatabaseHas('partner_termination_documents', [
+            'partner_termination_request_id' => $termination->id,
+            'document_type' => 'owner_termination_request',
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/admin/contracts/{$contract->id}/approve-termination")
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        Queue::assertPushed(SendRevocationReminderJob::class);
+        Queue::assertPushed(RevokeVenueOwnerRoleJob::class);
+
+        $this->assertDatabaseHas('partner_termination_requests', [
+            'id' => $termination->id,
+            'status' => 'transition_period',
+        ]);
+        $this->assertDatabaseHas('partner_settlements', [
+            'partner_termination_request_id' => $termination->id,
+            'partner_contract_id' => $contract->id,
+            'status' => 'approved',
+        ]);
+
+        (new RevokeVenueOwnerRoleJob($termination->id))->handle(
+            app(PartnerApplicationService::class),
+            app(PartnerMailDispatcher::class)
+        );
+
+        $this->assertDatabaseMissing('user_roles', [
+            'user_id' => $applicant->id,
+            'role_id' => $ownerRoleId,
+            'scope_type' => 'system',
+        ]);
+        $this->assertDatabaseHas('partner_termination_requests', [
+            'id' => $termination->id,
+            'status' => 'completed',
+        ]);
+        $this->assertDatabaseHas('partner_contracts', [
+            'id' => $contract->id,
+            'status' => 'terminated',
         ]);
     }
 

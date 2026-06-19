@@ -1,4 +1,4 @@
-import { api } from './api.js';
+import { api, apiDownload } from './api.js';
 
 function query(params = {}) {
   const search = new URLSearchParams();
@@ -13,22 +13,43 @@ function query(params = {}) {
 
 export const adminPartnerApplicationService = {
   list(params = {}) {
-    return api(`/api/admin/partner-applications${query(params)}`);
+    return api(`/api/admin/partner-profiles${query(params)}`);
   },
 
   show(id) {
-    return api(`/api/admin/partner-applications/${id}`);
+    return api(`/api/admin/partner-profiles/${id}`);
   },
 
   approve(id, payload) {
-    return api(`/api/admin/partner-applications/${id}/approve`, {
+    return api(`/api/admin/partner-profiles/${id}/approve`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
 
   reject(id, payload) {
-    return api(`/api/admin/partner-applications/${id}/reject`, {
+    return api(`/api/admin/partner-profiles/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  signDocument(id, payload = {}) {
+    return api(`/api/admin/partner-profiles/${id}/sign-document`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  terminate(id, payload) {
+    return api(`/api/admin/partner-profiles/${id}/terminate`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  confirmTermination(id, payload = {}) {
+    return api(`/api/admin/partner-profiles/${id}/confirm-termination`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -38,6 +59,10 @@ export const adminPartnerApplicationService = {
     return api(`/api/admin/contracts/${contractId}/approve-signature`, {
       method: 'POST',
     });
+  },
+
+  downloadDocument(id) {
+    return apiDownload(`/api/files/documents/${id}/download`);
   },
 
   courtTypes() {

@@ -29,6 +29,8 @@ use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyCont
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
 use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
+use App\Http\Controllers\Api\PartnerDocumentDownloadController;
+use App\Http\Controllers\Api\User\PartnerApplicationController as UserPartnerApplicationController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
@@ -101,6 +103,17 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/partner-applications/{id}', [AdminPartnerApplicationController::class, 'show']);
         Route::post('/partner-applications/{id}/approve', [AdminPartnerApplicationController::class, 'approve']);
         Route::post('/partner-applications/{id}/reject', [AdminPartnerApplicationController::class, 'reject']);
+        Route::post('/partner-applications/{id}/sign-document', [AdminPartnerApplicationController::class, 'signDocument']);
+        Route::post('/partner-applications/{id}/terminate', [AdminPartnerApplicationController::class, 'terminate']);
+        Route::post('/partner-applications/{id}/confirm-termination', [AdminPartnerApplicationController::class, 'confirmTermination']);
+
+        Route::get('/partner-profiles', [AdminPartnerApplicationController::class, 'index']);
+        Route::get('/partner-profiles/{id}', [AdminPartnerApplicationController::class, 'show']);
+        Route::post('/partner-profiles/{id}/approve', [AdminPartnerApplicationController::class, 'approve']);
+        Route::post('/partner-profiles/{id}/reject', [AdminPartnerApplicationController::class, 'reject']);
+        Route::post('/partner-profiles/{id}/sign-document', [AdminPartnerApplicationController::class, 'signDocument']);
+        Route::post('/partner-profiles/{id}/terminate', [AdminPartnerApplicationController::class, 'terminate']);
+        Route::post('/partner-profiles/{id}/confirm-termination', [AdminPartnerApplicationController::class, 'confirmTermination']);
 
         // Partner Contracts
         Route::post('/contracts/{id}/send-email', [AdminPartnerContractController::class, 'sendEmail']);
@@ -212,6 +225,10 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         // Partner Profile
         Route::get('/partner-applications', [OwnerPartnerApplicationController::class, 'myApplications']);
         Route::get('/partner-application', [OwnerPartnerApplicationController::class, 'myApplication']);
+        Route::get('/my-partner-profile', [OwnerPartnerApplicationController::class, 'myApplication']);
+        Route::get('/my-partner-profile/documents', [OwnerPartnerApplicationController::class, 'documents']);
+        Route::get('/my-partner-profile/documents/{id}/download', PartnerDocumentDownloadController::class);
+        Route::post('/my-partner-profile/request-termination', [OwnerPartnerApplicationController::class, 'requestTermination']);
         Route::post('/partner-applications/new-cluster', [OwnerPartnerApplicationController::class, 'storeNewCluster']);
         Route::post('/contracts/{id}/sign', [OwnerPartnerContractController::class, 'sign']);
         Route::post('/contracts/{id}/request-termination', [OwnerPartnerContractController::class, 'requestTermination']);
@@ -280,6 +297,13 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
 
 Route::middleware('auth:sanctum')
     ->group(function (): void {
+        Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
+        Route::post('/user/partner-application', [UserPartnerApplicationController::class, 'store']);
+        Route::get('/user/partner-application/documents', [UserPartnerApplicationController::class, 'documents']);
+        Route::get('/user/partner-application/pending-contract', [UserPartnerApplicationController::class, 'pendingContract']);
+        Route::post('/user/partner-application/sign-contract', [UserPartnerApplicationController::class, 'signContract']);
+        Route::get('/files/documents/{id}/download', PartnerDocumentDownloadController::class);
+
         Route::get('/policies/required', [PolicyAcceptanceController::class, 'required']);
         Route::post('/policies/{policy}/accept', [PolicyAcceptanceController::class, 'accept']);
 
