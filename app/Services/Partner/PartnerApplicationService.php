@@ -75,6 +75,7 @@ class PartnerApplicationService
                 'applicant_full_name' => $data['applicant_full_name'] ?? $user->full_name,
                 'applicant_phone' => $data['applicant_phone'] ?? $user->phone,
                 'applicant_email' => $data['applicant_email'] ?? $user->email,
+                'applicant_birth_date' => $data['applicant_birth_date'] ?? null,
                 'applicant_address' => $data['applicant_address'] ?? null,
                 'applicant_type' => $data['applicant_type'] ?? 'individual',
                 'representative_name' => $data['representative_name'] ?? ($data['applicant_full_name'] ?? $user->full_name),
@@ -117,6 +118,7 @@ class PartnerApplicationService
                 'account_holder_name' => $data['account_holder_name'] ?? null,
                 'bank_branch' => $data['bank_branch'] ?? null,
                 'bank_verification_status' => $data['bank_verification_status'] ?? 'pending',
+                'bank_verified_at' => ($data['bank_verification_status'] ?? null) === 'verified' ? now() : null,
             ])->save();
 
             foreach ($data['courts'] ?? [] as $index => $court) {
@@ -799,6 +801,7 @@ class PartnerApplicationService
             'id_number' => $application->representative_identity_number,
             'phone' => $application->applicant_phone,
             'email' => $application->applicant_email,
+            'applicant_birth_date' => $application->applicant_birth_date?->format('d/m/Y'),
             'applicant_address' => $application->applicant_address,
             'venue_name' => $application->venue_name,
             'venue_address' => $application->venue_address,
@@ -824,7 +827,8 @@ class PartnerApplicationService
             'bank_verification_status' => $application->bank_verification_status,
             'bank_verification_label' => $application->bank_verification_status === 'verified'
                 ? 'Đã xác minh tự động'
-                : 'Chờ admin xác minh thủ công',
+                : 'Chưa xác minh ngân hàng',
+            'bank_verified_at' => $this->timestamp($application->bank_verified_at),
             'attachments' => $application->documents->pluck('title')->unique()->implode(', '),
         ], $actor, [
             'partner_application_id' => $application->id,
@@ -873,6 +877,9 @@ class PartnerApplicationService
             'applicant_full_name' => $data['applicant_full_name'] ?? null,
             'applicant_phone' => $data['applicant_phone'] ?? null,
             'applicant_email' => $data['applicant_email'] ?? null,
+            'applicant_birth_date' => isset($data['applicant_birth_date'])
+                ? Carbon::parse($data['applicant_birth_date'])->format('d/m/Y')
+                : null,
             'applicant_address' => $data['applicant_address'] ?? null,
             'applicant_type' => $data['applicant_type'] ?? null,
             'representative_identity_type' => $data['representative_identity_type'] ?? null,
@@ -907,7 +914,8 @@ class PartnerApplicationService
             'bank_verification_status' => $data['bank_verification_status'] ?? 'pending',
             'bank_verification_label' => ($data['bank_verification_status'] ?? 'pending') === 'verified'
                 ? 'Đã xác minh tự động'
-                : 'Chờ admin xác minh thủ công',
+                : 'Chưa xác minh ngân hàng',
+            'bank_verified_at' => $data['bank_verified_at'] ?? null,
             'attachments' => $data['attachments'] ?? null,
             'submitted_at' => $data['submitted_at'] ?? $this->timestamp(now()),
         ];

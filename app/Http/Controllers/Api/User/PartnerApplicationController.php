@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class PartnerApplicationController extends Controller
@@ -110,7 +111,7 @@ class PartnerApplicationController extends Controller
             'bank_code' => ['required', 'string', 'max:50'],
             'bank_bin' => ['nullable', 'string', 'max:20'],
             'account_number' => ['required', 'regex:/^\d{6,19}$/'],
-            'account_holder_name' => ['required', 'string', 'max:255'],
+            'account_holder_name' => ['nullable', 'string', 'max:255'],
         ], $this->messages(), $this->attributes());
 
         return response()->json([
@@ -118,7 +119,7 @@ class PartnerApplicationController extends Controller
             'data' => $this->banks->verifyAccount(
                 $data['bank_code'],
                 $data['account_number'],
-                $data['account_holder_name'],
+                $data['account_holder_name'] ?? '',
                 $data['bank_bin'] ?? null,
             ),
         ]);
@@ -237,6 +238,7 @@ class PartnerApplicationController extends Controller
             'applicant_full_name' => ['required', 'string', 'max:255'],
             'applicant_phone' => ['required', 'regex:/^0[0-9]{9}$/'],
             'applicant_email' => ['required', 'email', 'max:255'],
+            'applicant_birth_date' => ['required', 'date', 'before_or_equal:' . now()->subYears(18)->toDateString()],
             'applicant_address' => ['required', 'string', 'max:1000'],
             'applicant_type' => ['required', 'in:individual,business,company'],
             'representative_name' => ['required', 'string', 'max:255'],
@@ -307,6 +309,8 @@ class PartnerApplicationController extends Controller
             ]);
         }
 
+        $this->assertIdentityNumber($data['representative_identity_type'], $data['representative_identity_number']);
+
         if ((int) $data['court_count_total'] !== count($data['courts'])) {
             throw ValidationException::withMessages([
                 'court_count_total' => 'Số lượng sân con phải khớp với danh sách sân con đã nhập.',
@@ -316,6 +320,22 @@ class PartnerApplicationController extends Controller
         $this->assertUsableCourtTypes($data['courts']);
 
         return $data;
+    }
+
+    private function assertIdentityNumber(string $type, string $number): void
+    {
+        $valid = match ($type) {
+            'cccd' => (bool) preg_match('/^\d{12}$/', $number),
+            'cmnd' => (bool) preg_match('/^\d{9}(\d{3})?$/', $number),
+            'passport' => (bool) preg_match('/^[A-Z0-9]{6,20}$/i', $number),
+            default => false,
+        };
+
+        if (! $valid) {
+            throw ValidationException::withMessages([
+                'representative_identity_number' => 'Số giấy tờ không đúng định dạng đã chọn.',
+            ]);
+        }
     }
 
     private function assertUsableCourtTypes(array $courts): void
@@ -373,7 +393,12 @@ class PartnerApplicationController extends Controller
             $data['bank_code'] = $bank['code'];
         }
 
+        if (! empty($verification['provider_account_name'])) {
+            $data['account_holder_name'] = $verification['provider_account_name'];
+        }
+
         $data['bank_verification_status'] = 'verified';
+        $data['bank_verified_at'] = now()->toDateTimeString();
 
         return $data;
     }
@@ -438,6 +463,7 @@ class PartnerApplicationController extends Controller
             'min' => ':attribute không hợp lệ.',
             'max' => ':attribute vượt quá giới hạn cho phép.',
             'between' => ':attribute không nằm trong giới hạn hợp lệ.',
+            'before_or_equal' => ':attribute phải cho thấy người đăng ký đã đủ 18 tuổi.',
             'accepted' => 'Bạn cần xác nhận đã đọc đơn đăng ký trước khi gửi.',
             'mimes' => ':attribute chỉ hỗ trợ JPG, PNG, WEBP hoặc PDF.',
             'file' => ':attribute phải là file hợp lệ.',
@@ -452,6 +478,7 @@ class PartnerApplicationController extends Controller
             'applicant_full_name' => 'Họ tên người đăng ký',
             'applicant_phone' => 'Số điện thoại người đăng ký',
             'applicant_email' => 'Email người đăng ký',
+            'applicant_birth_date' => 'Ngày sinh người đăng ký',
             'applicant_address' => 'Địa chỉ liên hệ',
             'representative_name' => 'Người đại diện',
             'representative_identity_number' => 'Số CCCD/CMND/Hộ chiếu',

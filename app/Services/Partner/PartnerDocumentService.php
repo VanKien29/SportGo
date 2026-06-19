@@ -263,6 +263,7 @@ class PartnerDocumentService
 
         $rows = [
             ['Người đăng ký', $data['applicant_full_name'] ?? $data['full_name'] ?? null],
+            ['Ngày sinh', $data['applicant_birth_date'] ?? null],
             ['Điện thoại', $data['applicant_phone'] ?? $data['phone'] ?? null],
             ['Email', $data['applicant_email'] ?? $data['email'] ?? null],
             ['Địa chỉ liên hệ', $data['applicant_address'] ?? null],
@@ -283,6 +284,7 @@ class PartnerDocumentService
             ['Số tài khoản', $data['account_number'] ?? null],
             ['Chủ tài khoản', $data['account_holder_name'] ?? null],
             ['Trạng thái xác minh ngân hàng', $data['bank_verification_label'] ?? $data['bank_verification_status'] ?? null],
+            ['Thời điểm xác minh ngân hàng', $data['bank_verified_at'] ?? null],
             ['Tài liệu đính kèm', $data['attachments'] ?? null],
         ];
 
@@ -309,7 +311,9 @@ class PartnerDocumentService
     {
         $boldXml = $bold ? '<w:rPr><w:b/></w:rPr>' : '';
 
-        return '<w:p><w:r>' . $boldXml . '<w:t xml:space="preserve">' . $text . '</w:t></w:r></w:p>';
+        $safeText = htmlspecialchars($text, ENT_XML1 | ENT_COMPAT, 'UTF-8');
+
+        return '<w:p><w:r>' . $boldXml . '<w:t xml:space="preserve">' . $safeText . '</w:t></w:r></w:p>';
     }
 
     private function storeSignatureImage(GeneratedDocumentSignature $signature, string $signatureImage): Media

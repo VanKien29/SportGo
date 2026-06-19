@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyCont
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
 use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
+use App\Http\Controllers\Api\PartnerApplicationDocumentDownloadController;
 use App\Http\Controllers\Api\PartnerDocumentDownloadController;
 use App\Http\Controllers\Api\User\PartnerApplicationController as UserPartnerApplicationController;
 use App\Http\Middleware\EnsureAdminRole;
@@ -104,6 +105,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/partner-applications/{id}/approve', [AdminPartnerApplicationController::class, 'approve']);
         Route::post('/partner-applications/{id}/reject', [AdminPartnerApplicationController::class, 'reject']);
         Route::post('/partner-applications/{id}/sign-document', [AdminPartnerApplicationController::class, 'signDocument']);
+        Route::get('/partner-applications/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::post('/partner-applications/{id}/terminate', [AdminPartnerApplicationController::class, 'terminate']);
         Route::post('/partner-applications/{id}/confirm-termination', [AdminPartnerApplicationController::class, 'confirmTermination']);
 
@@ -112,6 +114,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/partner-profiles/{id}/approve', [AdminPartnerApplicationController::class, 'approve']);
         Route::post('/partner-profiles/{id}/reject', [AdminPartnerApplicationController::class, 'reject']);
         Route::post('/partner-profiles/{id}/sign-document', [AdminPartnerApplicationController::class, 'signDocument']);
+        Route::get('/partner-profiles/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::post('/partner-profiles/{id}/terminate', [AdminPartnerApplicationController::class, 'terminate']);
         Route::post('/partner-profiles/{id}/confirm-termination', [AdminPartnerApplicationController::class, 'confirmTermination']);
 
@@ -307,6 +310,7 @@ Route::middleware('auth:sanctum')
         Route::post('/user/partner-application', [UserPartnerApplicationController::class, 'store']);
         Route::post('/user/partner-application/{id}/cancel', [UserPartnerApplicationController::class, 'cancel']);
         Route::get('/user/partner-application/documents', [UserPartnerApplicationController::class, 'documents']);
+        Route::get('/user/partner-application/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::get('/user/partner-application/pending-contract', [UserPartnerApplicationController::class, 'pendingContract']);
         Route::post('/user/partner-application/sign-contract', [UserPartnerApplicationController::class, 'signContract']);
         Route::get('/files/documents/{id}/download', PartnerDocumentDownloadController::class);

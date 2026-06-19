@@ -21,7 +21,8 @@ class PartnerBankService
                 }
 
                 return collect($banks)
-                    ->filter(fn ($bank) => (int) ($bank['transferSupported'] ?? $bank['isTransfer'] ?? 0) === 1)
+                    ->filter(fn ($bank) => (int) ($bank['lookupSupported'] ?? 1) === 1
+                        && (int) ($bank['transferSupported'] ?? $bank['isTransfer'] ?? 1) === 1)
                     ->map(fn ($bank) => $this->normalizeBank($bank))
                     ->values()
                     ->all();
@@ -39,7 +40,7 @@ class PartnerBankService
         });
     }
 
-    public function verifyAccount(string $bankCode, string $accountNumber, string $accountHolderName, ?string $bin = null): array
+    public function verifyAccount(string $bankCode, string $accountNumber, string $accountHolderName = '', ?string $bin = null): array
     {
         $bank = $this->findBank($bankCode, $bin);
 
@@ -95,7 +96,8 @@ class PartnerBankService
                 ];
             }
 
-            $matched = $this->normalizeName($providerName) === $this->normalizeName($accountHolderName);
+            $matched = trim($accountHolderName) === ''
+                || $this->normalizeName($providerName) === $this->normalizeName($accountHolderName);
 
             return [
                 'status' => $matched ? 'verified' : 'name_mismatch',

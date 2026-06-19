@@ -50,6 +50,9 @@
               </p>
             </div>
             <div class="row-actions">
+              <button class="btn secondary" type="button" @click="openApplicationDetail(application)">
+                Xem chi tiết
+              </button>
               <button v-if="applicationWord(application)" class="btn ghost" type="button" @click="downloadDocument(applicationWord(application))">
                 Tải Mẫu 01
               </button>
@@ -61,6 +64,59 @@
               </button>
             </div>
           </article>
+        </div>
+      </section>
+
+      <section v-if="selectedApplication" class="detail-drawer" role="dialog" aria-modal="true">
+        <div class="drawer-card">
+          <header class="drawer-head">
+            <div>
+              <p class="eyebrow">Hồ sơ đối tác</p>
+              <h2>{{ selectedApplication.venue_name }}</h2>
+              <span :class="['status', selectedApplication.status]">{{ statusLabel(selectedApplication.status) }}</span>
+            </div>
+            <button class="btn ghost" type="button" @click="selectedApplication = null">Đóng</button>
+          </header>
+
+          <div class="detail-grid">
+            <div class="detail-block">
+              <h3>Người đăng ký</h3>
+              <p>{{ selectedApplication.applicant_full_name }} · {{ selectedApplication.applicant_phone }}</p>
+              <small>{{ selectedApplication.applicant_email }} · sinh ngày {{ dateOnly(selectedApplication.applicant_birth_date) }}</small>
+            </div>
+            <div class="detail-block">
+              <h3>Cụm sân</h3>
+              <p>{{ selectedApplication.venue_address }}</p>
+              <small>{{ selectedApplication.venue_ward }} · {{ selectedApplication.venue_province }} · {{ selectedApplication.venue_latitude }}, {{ selectedApplication.venue_longitude }}</small>
+            </div>
+            <div class="detail-block">
+              <h3>Ngân hàng</h3>
+              <p>{{ selectedApplication.bank_name }} · {{ selectedApplication.account_number }}</p>
+              <small>{{ selectedApplication.account_holder_name }} · {{ selectedApplication.bank_verification_status === 'verified' ? 'Đã xác minh' : 'Chưa xác minh' }}</small>
+            </div>
+            <div class="detail-block">
+              <h3>Cấu hình sân</h3>
+              <p>{{ selectedApplication.court_count_total }} sân con · {{ money(selectedApplication.base_price_per_hour) }}/giờ</p>
+              <small>{{ (selectedApplication.courts || []).map((court) => `${court.name} (${court.court_type?.name || court.court_type_name_snapshot || 'Loại sân'})`).join('; ') }}</small>
+            </div>
+          </div>
+
+          <div class="document-section">
+            <h3>Tài liệu đã gửi</h3>
+            <div v-if="!(selectedApplication.documents || []).length" class="empty-files">Chưa có tài liệu đính kèm.</div>
+            <div v-else class="submitted-docs">
+              <button
+                v-for="document in selectedApplication.documents"
+                :key="document.id"
+                class="doc-chip"
+                type="button"
+                @click="downloadApplicationDocument(document)"
+              >
+                {{ document.title || document.document_type }}
+                <small>{{ document.document_group }}</small>
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -89,11 +145,14 @@
               <Field label="Họ tên người đăng ký" required :error="fieldErrors.applicant_full_name">
                 <input ref="applicant_full_name" v-model.trim="form.applicant_full_name" :class="inputClass('applicant_full_name')" />
               </Field>
-              <Field label="Số điện thoại người đăng ký" required hint="Dùng 10 chữ số bắt đầu bằng 0 hoặc +84." :error="fieldErrors.applicant_phone">
-                <input ref="applicant_phone" v-model.trim="form.applicant_phone" :class="inputClass('applicant_phone')" inputmode="tel" />
+              <Field label="Số điện thoại người đăng ký" required hint="Chỉ nhập 10 chữ số, bắt đầu bằng 0." :error="fieldErrors.applicant_phone">
+                <input ref="applicant_phone" v-model.trim="form.applicant_phone" :class="inputClass('applicant_phone')" inputmode="numeric" @input="digitsOnly('applicant_phone', 10)" />
               </Field>
               <Field label="Email người đăng ký" required :error="fieldErrors.applicant_email">
                 <input ref="applicant_email" v-model.trim="form.applicant_email" :class="inputClass('applicant_email')" type="email" />
+              </Field>
+              <Field label="Ngày sinh người đăng ký" required hint="Người đăng ký phải đủ 18 tuổi." :error="fieldErrors.applicant_birth_date">
+                <input ref="applicant_birth_date" v-model="form.applicant_birth_date" :class="inputClass('applicant_birth_date')" type="date" @change="resetPreview" />
               </Field>
               <Field label="Loại chủ thể" required :error="fieldErrors.applicant_type">
                 <select ref="applicant_type" v-model="form.applicant_type" :class="inputClass('applicant_type')">
@@ -115,14 +174,14 @@
                 <input ref="representative_name" v-model.trim="form.representative_name" :class="inputClass('representative_name')" />
               </Field>
               <Field label="Loại giấy tờ" required :error="fieldErrors.representative_identity_type">
-                <select ref="representative_identity_type" v-model="form.representative_identity_type" :class="inputClass('representative_identity_type')">
+                <select ref="representative_identity_type" v-model="form.representative_identity_type" :class="inputClass('representative_identity_type')" @change="normalizeIdentityNumber">
                   <option value="cccd">CCCD</option>
                   <option value="cmnd">CMND</option>
                   <option value="passport">Hộ chiếu</option>
                 </select>
               </Field>
               <Field label="Số CCCD/CMND/Hộ chiếu" required :error="fieldErrors.representative_identity_number">
-                <input ref="representative_identity_number" v-model.trim="form.representative_identity_number" :class="inputClass('representative_identity_number')" />
+                <input ref="representative_identity_number" v-model.trim="form.representative_identity_number" :class="inputClass('representative_identity_number')" @input="normalizeIdentityNumber" />
               </Field>
               <Field label="Ngày cấp" :error="fieldErrors.representative_identity_issued_date">
                 <input ref="representative_identity_issued_date" v-model="form.representative_identity_issued_date" :class="inputClass('representative_identity_issued_date')" type="date" />
@@ -143,7 +202,7 @@
                 <input ref="business_name" v-model.trim="form.business_name" :class="inputClass('business_name')" />
               </Field>
               <Field label="Mã số thuế" :error="fieldErrors.tax_code">
-                <input ref="tax_code" v-model.trim="form.tax_code" :class="inputClass('tax_code')" />
+                <input ref="tax_code" v-model.trim="form.tax_code" :class="inputClass('tax_code')" @input="normalizeTaxCode" />
               </Field>
               <Field label="Số giấy đăng ký kinh doanh/pháp lý" required :error="fieldErrors.business_license_number">
                 <input ref="business_license_number" v-model.trim="form.business_license_number" :class="inputClass('business_license_number')" />
@@ -178,8 +237,8 @@
             <Field label="Tên cụm sân" required :error="fieldErrors.venue_name">
               <input ref="venue_name" v-model.trim="form.venue_name" :class="inputClass('venue_name')" />
             </Field>
-            <Field label="Số điện thoại tại sân" required hint="Dùng 10 chữ số bắt đầu bằng 0 hoặc +84." :error="fieldErrors.venue_phone">
-              <input ref="venue_phone" v-model.trim="form.venue_phone" :class="inputClass('venue_phone')" inputmode="tel" />
+            <Field label="Số điện thoại tại sân" required hint="Chỉ nhập 10 chữ số, bắt đầu bằng 0." :error="fieldErrors.venue_phone">
+              <input ref="venue_phone" v-model.trim="form.venue_phone" :class="inputClass('venue_phone')" inputmode="numeric" @input="digitsOnly('venue_phone', 10)" />
             </Field>
             <Field label="Email tại sân" :error="fieldErrors.venue_email">
               <input ref="venue_email" v-model.trim="form.venue_email" :class="inputClass('venue_email')" type="email" />
@@ -188,16 +247,24 @@
               <input ref="expected_opening_hours" v-model.trim="form.expected_opening_hours" :class="inputClass('expected_opening_hours')" placeholder="05:00 - 23:00" />
             </Field>
             <Field label="Tỉnh/Thành phố" required :error="fieldErrors.venue_province_code">
-              <select ref="venue_province_code" v-model="form.venue_province_code" :class="inputClass('venue_province_code')" @change="onProvinceChange">
-                <option value="">Chọn Tỉnh/Thành phố</option>
-                <option v-for="province in provinces" :key="province.code" :value="province.code">{{ province.name }}</option>
-              </select>
+              <SearchableSelect
+                ref="venue_province_code"
+                v-model="form.venue_province_code"
+                :options="provinces"
+                placeholder="Tìm Tỉnh/Thành phố"
+                :invalid="Boolean(fieldErrors.venue_province_code)"
+                @change="onProvinceChange"
+              />
             </Field>
             <Field label="Phường/Xã" required :error="fieldErrors.venue_ward_code">
-              <select ref="venue_ward_code" v-model="form.venue_ward_code" :class="inputClass('venue_ward_code')" :disabled="!form.venue_province_code">
-                <option value="">Chọn Phường/Xã</option>
-                <option v-for="ward in wards" :key="ward.code" :value="ward.code">{{ ward.name }}</option>
-              </select>
+              <SearchableSelect
+                ref="venue_ward_code"
+                v-model="form.venue_ward_code"
+                :options="wards"
+                placeholder="Tìm Phường/Xã"
+                :disabled="!form.venue_province_code"
+                :invalid="Boolean(fieldErrors.venue_ward_code)"
+              />
             </Field>
             <Field class="full" label="Địa chỉ chi tiết cụm sân" required hint="Địa chỉ thực tế của cụm sân, không dùng quận/huyện 3 cấp." :error="fieldErrors.venue_address">
               <textarea ref="venue_address" v-model.trim="form.venue_address" :class="inputClass('venue_address')" rows="2"></textarea>
@@ -233,18 +300,20 @@
 
           <div class="grid two">
             <Field label="Ngân hàng" required :error="fieldErrors.bank_code">
-              <select ref="bank_code" v-model="form.bank_code" :class="inputClass('bank_code')" @change="selectBank">
-                <option value="">Chọn ngân hàng</option>
-                <option v-for="bank in banks" :key="bank.code" :value="bank.code">
-                  {{ bank.short_name || bank.code }} - {{ bank.name }}
-                </option>
-              </select>
+              <SearchableSelect
+                ref="bank_code"
+                v-model="form.bank_code"
+                :options="banks"
+                placeholder="Tìm ngân hàng"
+                :invalid="Boolean(fieldErrors.bank_code)"
+                @change="selectBank"
+              />
             </Field>
             <Field label="Số tài khoản" required hint="Chỉ nhập chữ số, không nhập dấu cách hoặc ký tự khác." :error="fieldErrors.account_number">
               <input ref="account_number" v-model.trim="form.account_number" :class="inputClass('account_number')" inputmode="numeric" @input="onAccountNumberInput" />
             </Field>
-            <Field label="Tên chủ tài khoản" required hint="Nhập đúng tên chủ tài khoản theo ngân hàng." :error="fieldErrors.account_holder_name">
-              <input ref="account_holder_name" v-model.trim="form.account_holder_name" :class="inputClass('account_holder_name')" @input="resetBankVerification" />
+            <Field label="Tên chủ tài khoản" required hint="Hệ thống tự điền sau khi kiểm tra số tài khoản thành công." :error="fieldErrors.account_holder_name">
+              <input ref="account_holder_name" v-model.trim="form.account_holder_name" :class="inputClass('account_holder_name')" readonly placeholder="Chưa xác minh" />
             </Field>
             <Field label="Chi nhánh" :error="fieldErrors.bank_branch">
               <input ref="bank_branch" v-model.trim="form.bank_branch" :class="inputClass('bank_branch')" />
@@ -287,10 +356,14 @@
                 <input :ref="`courts.${index}.name`" v-model.trim="court.name" :class="inputClass(`courts.${index}.name`)" />
               </Field>
               <Field label="Loại sân" required :error="fieldErrors[`courts.${index}.court_type_id`]">
-                <select :ref="`courts.${index}.court_type_id`" v-model="court.court_type_id" :class="inputClass(`courts.${index}.court_type_id`)">
-                  <option value="">Chọn loại sân</option>
-                  <option v-for="type in courtTypes" :key="type.id" :value="type.id">{{ type.name }}</option>
-                </select>
+                <SearchableSelect
+                  :ref="`courts.${index}.court_type_id`"
+                  v-model="court.court_type_id"
+                  :options="usableCourtTypes"
+                  value-key="id"
+                  placeholder="Tìm loại sân con"
+                  :invalid="Boolean(fieldErrors[`courts.${index}.court_type_id`])"
+                />
               </Field>
               <button class="remove-btn" type="button" :disabled="form.courts.length === 1" @click="removeCourt(index)">Xóa</button>
             </article>
@@ -423,6 +496,103 @@ const Field = {
   `,
 };
 
+const SearchableSelect = {
+  props: {
+    modelValue: [String, Number],
+    options: { type: Array, default: () => [] },
+    placeholder: { type: String, default: 'Chọn dữ liệu' },
+    labelKey: { type: String, default: 'name' },
+    valueKey: { type: String, default: 'code' },
+    disabled: Boolean,
+    invalid: Boolean,
+  },
+  emits: ['update:modelValue', 'change'],
+  data() {
+    return {
+      open: false,
+      search: '',
+    };
+  },
+  computed: {
+    selectedOption() {
+      return this.options.find((option) => String(option[this.valueKey]) === String(this.modelValue));
+    },
+    displayValue() {
+      return this.open ? this.search : (this.selectedOption ? this.optionLabel(this.selectedOption) : '');
+    },
+    filteredOptions() {
+      const keyword = this.normalize(this.search);
+      if (!keyword) return this.options.slice(0, 80);
+      return this.options
+        .filter((option) => this.normalize(this.optionLabel(option)).includes(keyword))
+        .slice(0, 80);
+    },
+  },
+  watch: {
+    modelValue() {
+      if (!this.open) this.search = '';
+    },
+  },
+  methods: {
+    focus() {
+      this.$refs.input?.focus();
+    },
+    optionLabel(option) {
+      const base = option?.[this.labelKey] || '';
+      if (option?.short_name && option?.name && option.short_name !== option.name) {
+        return `${option.short_name} - ${option.name}`;
+      }
+      return base;
+    },
+    normalize(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    },
+    choose(option) {
+      this.$emit('update:modelValue', option[this.valueKey]);
+      this.$emit('change', option);
+      this.search = '';
+      this.open = false;
+    },
+    clear() {
+      this.$emit('update:modelValue', '');
+      this.$emit('change', null);
+      this.search = '';
+      this.open = false;
+      this.focus();
+    },
+  },
+  template: `
+    <div class="combo" :class="{ open, invalid, disabled }">
+      <input
+        ref="input"
+        type="text"
+        :disabled="disabled"
+        :placeholder="placeholder"
+        :value="displayValue"
+        @focus="open = true"
+        @input="search = $event.target.value; open = true"
+        @keydown.esc="open = false"
+      />
+      <button v-if="modelValue && !disabled" class="combo-clear" type="button" @mousedown.prevent="clear">×</button>
+      <div v-if="open && !disabled" class="combo-menu">
+        <button
+          v-for="option in filteredOptions"
+          :key="option[valueKey]"
+          type="button"
+          :class="{ active: String(option[valueKey]) === String(modelValue) }"
+          @mousedown.prevent="choose(option)"
+        >
+          {{ optionLabel(option) }}
+        </button>
+        <p v-if="!filteredOptions.length">Không tìm thấy dữ liệu phù hợp.</p>
+      </div>
+    </div>
+  `,
+};
+
 const UploadGroup = {
   props: ['title', 'description', 'required', 'files', 'error'],
   emits: ['change', 'remove'],
@@ -430,6 +600,11 @@ const UploadGroup = {
     fileSize(file) {
       if (!file?.size) return '';
       return `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+    },
+    openFile(file) {
+      const url = URL.createObjectURL(file);
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     },
   },
   template: `
@@ -444,6 +619,7 @@ const UploadGroup = {
         <li v-for="(file, index) in files" :key="file.name + index">
           <span>{{ file.name }}</span>
           <small>{{ fileSize(file) }} · sẵn sàng tải lên</small>
+          <button type="button" @click="openFile(file)">Xem</button>
           <button type="button" @click="$emit('remove', index)">Xóa</button>
         </li>
       </ul>
@@ -454,13 +630,14 @@ const UploadGroup = {
 
 export default {
   name: 'PartnerApplicationPortal',
-  components: { PublicNavbar, Field, UploadGroup },
+  components: { PublicNavbar, Field, SearchableSelect, UploadGroup },
   data() {
     const user = getAuth();
     return {
       user,
       loading: false,
       applications: [],
+      selectedApplication: null,
       canRegister: true,
       draft: null,
       formOpen: false,
@@ -498,9 +675,13 @@ export default {
     bankStatusTitle() {
       const status = this.bankVerification.status;
       if (status === 'verified') return 'Đã xác minh';
-      if (status === 'manual_required' || status === 'provider_unavailable') return 'Chờ admin xác minh';
+      if (status === 'lookup_not_configured') return 'Chưa cấu hình kiểm tra ngân hàng';
+      if (status === 'provider_unavailable') return 'Không kết nối được dịch vụ ngân hàng';
       if (status === 'name_mismatch') return 'Tên chủ tài khoản không khớp';
       return 'Chưa xác minh';
+    },
+    usableCourtTypes() {
+      return this.courtTypes.filter((type) => type.is_active !== false && Number(type.children_count || 0) === 0);
     },
   },
   async created() {
@@ -524,6 +705,7 @@ export default {
         applicant_full_name: user?.fullName || '',
         applicant_phone: user?.phone || '',
         applicant_email: user?.email || '',
+        applicant_birth_date: '',
         applicant_address: '',
         applicant_type: 'individual',
         representative_name: user?.fullName || '',
@@ -677,14 +859,17 @@ export default {
       };
 
       if (step === 0) {
-        ['applicant_full_name', 'applicant_phone', 'applicant_email', 'applicant_address', 'representative_name', 'representative_identity_number', 'business_name', 'business_license_number', 'business_address'].forEach((field) => required(field, 'Trường này là bắt buộc.'));
-        if (this.form.applicant_phone && !this.validPhone(this.form.applicant_phone)) this.fieldErrors.applicant_phone = 'Số điện thoại phải gồm 10 chữ số bắt đầu bằng 0 hoặc +84.';
+        ['applicant_full_name', 'applicant_phone', 'applicant_email', 'applicant_birth_date', 'applicant_address', 'representative_name', 'representative_identity_number', 'business_name', 'business_license_number', 'business_address'].forEach((field) => required(field, 'Trường này là bắt buộc.'));
+        if (this.form.applicant_phone && !this.validPhone(this.form.applicant_phone)) this.fieldErrors.applicant_phone = 'Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0.';
         if (this.form.applicant_email && !this.validEmail(this.form.applicant_email)) this.fieldErrors.applicant_email = 'Email không đúng định dạng.';
+        if (this.form.applicant_birth_date && !this.isAdult(this.form.applicant_birth_date)) this.fieldErrors.applicant_birth_date = 'Người đăng ký phải đủ 18 tuổi.';
+        if (this.form.representative_identity_number && !this.validIdentityNumber()) this.fieldErrors.representative_identity_number = 'Số giấy tờ không đúng định dạng đã chọn.';
+        if (this.form.tax_code && !this.validTaxCode(this.form.tax_code)) this.fieldErrors.tax_code = 'Mã số thuế phải gồm 10 số hoặc 13 số, có thể dùng dấu gạch trước 3 số cuối.';
       }
 
       if (step === 1) {
         ['venue_map_url', 'venue_name', 'venue_phone', 'venue_address', 'venue_province_code', 'venue_ward_code', 'venue_latitude', 'venue_longitude'].forEach((field) => required(field, 'Trường này là bắt buộc.'));
-        if (this.form.venue_phone && !this.validPhone(this.form.venue_phone)) this.fieldErrors.venue_phone = 'Số điện thoại sân phải gồm 10 chữ số bắt đầu bằng 0 hoặc +84.';
+        if (this.form.venue_phone && !this.validPhone(this.form.venue_phone)) this.fieldErrors.venue_phone = 'Số điện thoại sân phải gồm 10 chữ số và bắt đầu bằng 0.';
         if (this.form.venue_email && !this.validEmail(this.form.venue_email)) this.fieldErrors.venue_email = 'Email sân không đúng định dạng.';
         if (this.form.venue_map_url && !this.validGoogleMapUrl(this.form.venue_map_url)) this.fieldErrors.venue_map_url = 'Vui lòng nhập link Google Maps hợp lệ.';
         if (!this.validCoordinate(this.form.venue_latitude, -90, 90)) this.fieldErrors.venue_latitude = 'Vĩ độ không hợp lệ.';
@@ -692,12 +877,10 @@ export default {
       }
 
       if (step === 2) {
-        ['bank_code', 'account_number', 'account_holder_name'].forEach((field) => required(field, 'Trường này là bắt buộc.'));
+        ['bank_code', 'account_number'].forEach((field) => required(field, 'Trường này là bắt buộc.'));
         if (this.form.account_number && !/^\d{6,19}$/.test(this.form.account_number)) this.fieldErrors.account_number = 'Số tài khoản chỉ được nhập 6-19 chữ số.';
-        if (!this.bankVerification.status) this.fieldErrors.account_number = 'Vui lòng bấm Kiểm tra tài khoản trước khi tiếp tục.';
-        if (['invalid_bank', 'invalid_account_number', 'not_found', 'name_mismatch', 'error'].includes(this.bankVerification.status)) {
-          this.fieldErrors.account_number = this.bankVerification.message || 'Tài khoản ngân hàng không hợp lệ.';
-        }
+        if (this.bankVerification.status !== 'verified') this.fieldErrors.account_number = this.bankVerification.message || 'Vui lòng kiểm tra tài khoản ngân hàng thành công trước khi tiếp tục.';
+        if (!this.form.account_holder_name) this.fieldErrors.account_holder_name = 'Tên chủ tài khoản sẽ được tự động điền sau khi xác minh thành công.';
       }
 
       if (step === 3) {
@@ -708,6 +891,9 @@ export default {
         this.form.courts.forEach((court, index) => {
           if (this.empty(court.name)) this.fieldErrors[`courts.${index}.name`] = 'Vui lòng nhập tên sân con.';
           if (this.empty(court.court_type_id)) this.fieldErrors[`courts.${index}.court_type_id`] = 'Vui lòng chọn loại sân.';
+          if (court.court_type_id && !this.usableCourtTypes.some((type) => String(type.id) === String(court.court_type_id))) {
+            this.fieldErrors[`courts.${index}.court_type_id`] = 'Chỉ được chọn loại sân con đang hoạt động và không còn loại con bên dưới.';
+          }
         });
       }
 
@@ -741,7 +927,45 @@ export default {
       return value === null || value === undefined || String(value).trim() === '';
     },
     validPhone(value) {
-      return /^(0[0-9]{9}|\+84[0-9]{9})$/.test(value);
+      return /^0[0-9]{9}$/.test(value);
+    },
+    validTaxCode(value) {
+      return /^\d{10}(-?\d{3})?$/.test(value);
+    },
+    validIdentityNumber() {
+      const value = this.form.representative_identity_number;
+      if (this.form.representative_identity_type === 'cccd') return /^\d{12}$/.test(value);
+      if (this.form.representative_identity_type === 'cmnd') return /^\d{9}(\d{3})?$/.test(value);
+      return /^[A-Z0-9]{6,20}$/i.test(value);
+    },
+    isAdult(value) {
+      const birthday = new Date(value);
+      if (Number.isNaN(birthday.getTime())) return false;
+      const today = new Date();
+      let age = today.getFullYear() - birthday.getFullYear();
+      const monthDiff = today.getMonth() - birthday.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthday.getDate())) age -= 1;
+      return age >= 18;
+    },
+    digitsOnly(field, maxLength = 99) {
+      this.form[field] = String(this.form[field] || '').replace(/\D/g, '').slice(0, maxLength);
+      this.resetPreview();
+    },
+    normalizeIdentityNumber() {
+      if (this.form.representative_identity_type === 'passport') {
+        this.form.representative_identity_number = String(this.form.representative_identity_number || '')
+          .replace(/[^a-z0-9]/gi, '')
+          .toUpperCase()
+          .slice(0, 20);
+      } else {
+        const maxLength = this.form.representative_identity_type === 'cccd' ? 12 : 12;
+        this.form.representative_identity_number = String(this.form.representative_identity_number || '').replace(/\D/g, '').slice(0, maxLength);
+      }
+      this.resetPreview();
+    },
+    normalizeTaxCode() {
+      this.form.tax_code = String(this.form.tax_code || '').replace(/[^\d-]/g, '').slice(0, 14);
+      this.resetPreview();
     },
     validEmail(value) {
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -809,28 +1033,34 @@ export default {
         this.resolvingMap = false;
       }
     },
-    selectBank() {
-      const bank = this.banks.find((item) => item.code === this.form.bank_code);
+    selectBank(option = null) {
+      const bank = option || this.banks.find((item) => item.code === this.form.bank_code);
       this.form.bank_name = bank?.short_name || bank?.name || '';
       this.form.bank_bin = bank?.bin || '';
       this.resetBankVerification();
     },
     onAccountNumberInput() {
-      this.form.account_number = this.form.account_number.replace(/\D/g, '');
+      this.form.account_number = this.form.account_number.replace(/\D/g, '').slice(0, 19);
       this.resetBankVerification();
     },
     resetBankVerification() {
       this.bankVerification = {};
+      this.form.account_holder_name = '';
+      this.resetPreview();
+    },
+    resetPreview() {
       this.previewDocument = null;
       this.previewData = null;
+      this.confirmed = false;
     },
     async verifyBank() {
       this.fieldErrors.account_number = '';
-      if (!this.form.bank_code || !/^\d{6,19}$/.test(this.form.account_number) || !this.form.account_holder_name) {
-        this.fieldErrors.account_number = 'Vui lòng chọn ngân hàng, nhập số tài khoản và tên chủ tài khoản hợp lệ.';
+      if (!this.form.bank_code || !/^\d{6,19}$/.test(this.form.account_number)) {
+        this.fieldErrors.account_number = 'Vui lòng chọn ngân hàng và nhập số tài khoản hợp lệ.';
         this.focusFirstError();
         return;
       }
+      this.form.account_holder_name = '';
       this.verifyingBank = true;
       try {
         const response = await api('/api/user/partner-application/verify-bank-account', {
@@ -839,10 +1069,12 @@ export default {
             bank_code: this.form.bank_code,
             bank_bin: this.form.bank_bin,
             account_number: this.form.account_number,
-            account_holder_name: this.form.account_holder_name,
           }),
         });
         this.bankVerification = response.data || {};
+        if (this.bankVerification.status === 'verified' && this.bankVerification.provider_account_name) {
+          this.form.account_holder_name = this.bankVerification.provider_account_name;
+        }
       } catch (error) {
         this.bankVerification = { status: 'error', message: error.message };
       } finally {
@@ -919,8 +1151,19 @@ export default {
     downloadDocument(document) {
       apiDownload(`/api/files/documents/${document.id}/download`);
     },
+    downloadApplicationDocument(document) {
+      if (!document?.id) return;
+      apiDownload(`/api/user/partner-application/documents/${document.id}/download`);
+    },
+    openApplicationDetail(application) {
+      this.selectedApplication = application;
+    },
     async submit() {
-      if (!this.validateStep(5)) return;
+      const invalidStep = [0, 1, 2, 3, 4, 5].find((index) => !this.validateStep(index));
+      if (invalidStep !== undefined) {
+        this.step = invalidStep;
+        return;
+      }
       this.submitting = true;
       try {
         const formData = new FormData();
@@ -968,6 +1211,7 @@ export default {
         applicant_full_name: application.applicant_full_name || this.user.fullName,
         applicant_phone: application.applicant_phone || this.user.phone,
         applicant_email: application.applicant_email || this.user.email,
+        applicant_birth_date: application.applicant_birth_date || '',
         applicant_address: application.applicant_address || '',
         applicant_type: application.applicant_type || 'individual',
         representative_name: application.representative_name || this.user.fullName,
@@ -990,7 +1234,7 @@ export default {
         parking_info: application.parking_info || '',
         amenities: application.amenities || [],
         court_count_total: application.courts?.length || 1,
-        base_price_per_hour: '',
+        base_price_per_hour: application.base_price_per_hour || '',
         courts: (application.courts || [{ name: 'Sân 1' }]).map((court) => ({
           local_id: localId(),
           name: court.name,
@@ -1030,6 +1274,17 @@ export default {
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return value;
       return date.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    },
+    dateOnly(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleDateString('vi-VN');
+    },
+    money(value) {
+      const number = Number(value || 0);
+      if (!Number.isFinite(number) || number <= 0) return '-';
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(number);
     },
   },
 };
@@ -1294,6 +1549,73 @@ textarea:focus {
   box-shadow: 0 0 0 3px #dcfce7;
 }
 
+.combo {
+  position: relative;
+}
+
+.combo input {
+  padding-right: 42px;
+}
+
+.combo.invalid input {
+  border-color: #ef4444;
+  background: #fff7f7;
+}
+
+.combo-clear {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #334155;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.combo-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+}
+
+.combo-menu button {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
+  padding: 10px 12px;
+  color: #0f172a;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.combo-menu button:hover,
+.combo-menu button.active {
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.combo-menu p {
+  margin: 0;
+  padding: 12px;
+  color: #64748b;
+}
+
 .invalid,
 .upload-box.invalid {
   border-color: #ef4444 !important;
@@ -1388,6 +1710,8 @@ textarea:focus {
 .verify-text.not_found,
 .verify-text.invalid_bank,
 .verify-text.invalid_account_number,
+.verify-text.lookup_not_configured,
+.verify-text.provider_unavailable,
 .verify-text.error {
   background: #fee2e2;
   color: #991b1b;
@@ -1441,7 +1765,7 @@ textarea:focus {
 
 .file-list li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 4px 10px;
   padding: 10px;
   border-radius: 8px;
@@ -1464,6 +1788,89 @@ textarea:focus {
   color: #b91c1c;
   font-weight: 900;
   cursor: pointer;
+}
+
+.file-list button:first-of-type {
+  color: #166534;
+}
+
+.detail-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.drawer-card {
+  width: min(980px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  padding: 22px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+}
+
+.drawer-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.detail-block,
+.document-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.detail-block p {
+  margin-bottom: 6px;
+  font-weight: 900;
+}
+
+.detail-block small {
+  color: #64748b;
+  overflow-wrap: anywhere;
+}
+
+.document-section {
+  margin-top: 14px;
+}
+
+.submitted-docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.doc-chip {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  padding: 10px 12px;
+  color: #14532d;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.doc-chip small {
+  color: #166534;
+  font-weight: 700;
 }
 
 .preview-actions {
@@ -1592,6 +1999,7 @@ button:disabled {
   .grid.three,
   .upload-grid,
   .court-row,
+  .detail-grid,
   .document-preview dl {
     grid-template-columns: 1fr;
   }

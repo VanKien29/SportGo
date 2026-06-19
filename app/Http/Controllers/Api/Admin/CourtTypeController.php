@@ -11,7 +11,7 @@ class CourtTypeController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = CourtType::query()->with('parent');
+        $query = CourtType::query()->with('parent')->withCount('children');
         $user = $request->user();
 
         if ($request->query('active_only') || !$user || $user->role_group !== 'admin') {
