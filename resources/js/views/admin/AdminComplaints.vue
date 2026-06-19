@@ -122,16 +122,14 @@
           </main>
 
           <aside class="side-panel">
-            <h4>Phân công và kết quả</h4>
+            <h4>Xử lý và kết quả</h4>
             <div class="form-stack">
-              <label>
-                Người xử lý
-                <select v-model="form.assigned_to">
-                  <option value="">Chọn người xử lý</option>
-                  <option v-for="member in staff" :key="member.id" :value="member.id">{{ member.full_name }}</option>
-                </select>
-              </label>
-              <button class="btn secondary" type="button" :disabled="saving || !form.assigned_to" @click="assignComplaint">Lưu phân công</button>
+              <div class="handler-info" style="margin-bottom: 12px; font-size: 13px; color: #475569;">
+                <span style="font-weight: 800; display: block; margin-bottom: 4px;">Người xử lý:</span>
+                <span style="background: #f1f5f9; padding: 6px 10px; border-radius: 6px; display: block; font-weight: 500;">
+                  {{ selected.assigned_to?.full_name || 'Hệ thống tự động gán khi cập nhật' }}
+                </span>
+              </div>
               <label>
                 Kết quả
                 <select v-model="form.status">

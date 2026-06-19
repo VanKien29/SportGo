@@ -597,18 +597,22 @@ export default {
       this.activeCommentFilter = 'all';
       this.loadingComments = true;
       try {
-        const res = await adminUserService.postDetail(item.id);
-        if (res.data) {
-          this.activeItem = {
-            ...item,
-            ...res.data.post,
-            author: {
-              ...item.author,
-              full_name: res.data.post.author_name || item.author?.full_name,
-              avatar_url: res.data.post.author_avatar || item.author?.avatar_url,
-            }
-          };
-          this.postComments = res.data.comments || [];
+        if (this.activeTab === 'community_posts') {
+          const res = await adminUserService.postDetail(item.id);
+          if (res.data) {
+            this.activeItem = {
+              ...item,
+              ...res.data,
+              author: {
+                ...item.author,
+                full_name: res.data.author_name || item.author?.full_name,
+                avatar_url: res.data.author_avatar || item.author?.avatar_url,
+              }
+            };
+            this.postComments = res.data.comments || [];
+          }
+        } else {
+          this.postComments = [];
         }
       } catch (err) {
         console.error('Không thể tải chi tiết bài viết:', err);
@@ -641,12 +645,12 @@ export default {
       }
     },
     async loadModalComments() {
-      if (!this.activeItem) return;
+      if (!this.activeItem || this.activeTab !== 'community_posts') return;
       this.modalTab = 'comments';
       this.loadingComments = true;
       try {
         const res = await adminUserService.postDetail(this.activeItem.id);
-        this.postComments = res.data.comments || [];
+        this.postComments = res.data?.comments || [];
       } catch (err) {
         console.error('Không thể tải bình luận bài đăng:', err);
       } finally {
