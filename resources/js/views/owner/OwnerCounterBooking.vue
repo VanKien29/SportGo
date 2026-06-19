@@ -425,6 +425,74 @@
                         :class="{ disabled: !hasCounterSelection }"
                     >
                         <div class="section-title muted">
+                            <h2>Voucher</h2>
+                        </div>
+                        <div class="voucher-picker">
+                            <div class="voucher-code-row">
+                                <input
+                                    v-model.trim="voucherCodeInput"
+                                    type="text"
+                                    placeholder="Nhập mã voucher"
+                                    :disabled="!hasCounterSelection"
+                                    @keyup.enter="applyVoucherCode"
+                                />
+                                <button
+                                    class="secondary-btn compact"
+                                    type="button"
+                                    :disabled="
+                                        !hasCounterSelection || voucherLoading
+                                    "
+                                    @click="applyVoucherCode"
+                                >
+                                    Áp dụng
+                                </button>
+                            </div>
+                            <small v-if="voucherError" class="field-error">{{
+                                voucherError
+                            }}</small>
+                            <div
+                                v-if="eligibleVouchers.length"
+                                class="voucher-list"
+                            >
+                                <button
+                                    v-for="voucher in eligibleVouchers"
+                                    :key="voucher.id"
+                                    type="button"
+                                    :class="{
+                                        active:
+                                            selectedVoucherId === voucher.id,
+                                    }"
+                                    @click="selectVoucher(voucher)"
+                                >
+                                    <span>
+                                        <strong>{{ voucher.code }}</strong>
+                                        <small>{{ voucher.name }}</small>
+                                    </span>
+                                    <em
+                                        >-{{
+                                            formatCurrency(
+                                                voucher.discount_amount,
+                                            )
+                                        }}</em
+                                    >
+                                </button>
+                            </div>
+                            <small
+                                v-else-if="
+                                    hasCounterSelection && !voucherLoading
+                                "
+                                class="voucher-empty"
+                            >
+                                Chưa có voucher đủ điều kiện cho khung này.
+                            </small>
+                        </div>
+                    </section>
+
+                    <section
+                        class="side-section"
+                        :class="{ disabled: !hasCounterSelection }"
+                    >
+                        <div class="section-title muted">
                             <h2>Thu tiền</h2>
                         </div>
                         <div class="payment-list">
@@ -734,6 +802,69 @@
                     />
                 </label>
 
+                <section class="recurring-payment voucher-section">
+                    <div class="section-title muted">
+                        <h2>Voucher</h2>
+                    </div>
+                    <div class="voucher-picker">
+                        <div class="voucher-code-row">
+                            <input
+                                v-model.trim="voucherCodeInput"
+                                type="text"
+                                placeholder="Nhập mã voucher"
+                                :disabled="!hasCounterSelection"
+                                @keyup.enter="applyVoucherCode"
+                            />
+                            <button
+                                class="secondary-btn compact"
+                                type="button"
+                                :disabled="
+                                    !hasCounterSelection || voucherLoading
+                                "
+                                @click="applyVoucherCode"
+                            >
+                                Áp dụng
+                            </button>
+                        </div>
+                        <small v-if="voucherError" class="field-error">{{
+                            voucherError
+                        }}</small>
+                        <div
+                            v-if="eligibleVouchers.length"
+                            class="voucher-list"
+                        >
+                            <button
+                                v-for="voucher in eligibleVouchers"
+                                :key="voucher.id"
+                                type="button"
+                                :class="{
+                                    active: selectedVoucherId === voucher.id,
+                                }"
+                                @click="selectVoucher(voucher)"
+                            >
+                                <span>
+                                    <strong>{{ voucher.code }}</strong>
+                                    <small
+                                        >{{ voucher.name }} · giảm mỗi
+                                        buổi</small
+                                    >
+                                </span>
+                                <em
+                                    >-{{
+                                        formatCurrency(voucher.discount_amount)
+                                    }}</em
+                                >
+                            </button>
+                        </div>
+                        <small
+                            v-else-if="hasCounterSelection && !voucherLoading"
+                            class="voucher-empty"
+                        >
+                            Chưa có voucher đủ điều kiện cho lịch này.
+                        </small>
+                    </div>
+                </section>
+
                 <section class="recurring-payment">
                     <div class="section-title muted">
                         <h2>Thu tiền</h2>
@@ -845,9 +976,25 @@
                         <dt>Giá mỗi buổi</dt>
                         <dd>{{ formatCurrency(recurringUnitTotal) }}</dd>
                     </div>
+                    <div v-if="selectedVoucher">
+                        <dt>Voucher</dt>
+                        <dd>
+                            {{ selectedVoucher.code }} · -{{
+                                formatCurrency(voucherUnitDiscount)
+                            }}/buổi
+                        </dd>
+                    </div>
                     <div>
-                        <dt>Tổng tiền</dt>
+                        <dt>Tổng tiền gốc</dt>
                         <dd>{{ formatCurrency(recurringTotalAmount) }}</dd>
+                    </div>
+                    <div v-if="selectedVoucher">
+                        <dt>Tổng giảm</dt>
+                        <dd>-{{ formatCurrency(voucherDiscountAmount) }}</dd>
+                    </div>
+                    <div>
+                        <dt>Sau giảm</dt>
+                        <dd>{{ formatCurrency(recurringPayableTotal) }}</dd>
                     </div>
                     <div>
                         <dt>Cần thu</dt>
@@ -966,96 +1113,216 @@
             <div v-else-if="!recurringGroups.length" class="state-card">
                 Chưa có nhóm lịch cố định phù hợp.
             </div>
-            <div v-else class="recurring-group-list">
-                <article
-                    v-for="group in recurringGroups"
-                    :key="group.recurring_group_code"
-                    class="recurring-group-card"
-                >
-                    <div class="group-main">
-                        <span class="group-code">{{
-                            group.recurring_group_code
-                        }}</span>
-                        <strong>{{ recurringGroupCustomer(group) }}</strong>
-                        <small>{{ recurringGroupPhone(group) }}</small>
-                    </div>
-                    <div>
-                        <span>Sân</span>
-                        <strong>{{
-                            (group.court_names || []).join(", ") || "-"
-                        }}</strong>
-                        <small
-                            >{{ group.booking_count }} buổi ·
-                            {{ formatDate(group.start_date) }} -
-                            {{ formatDate(group.end_date) }}</small
+            <div v-else class="recurring-table-card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã / khách</th>
+                            <th>Lịch lặp</th>
+                            <th>Sân & giờ</th>
+                            <th>Thanh toán</th>
+                            <th class="money-col">Còn thu</th>
+                            <th class="action-col">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="group in recurringGroups"
+                            :key="group.recurring_group_code"
                         >
-                    </div>
-                    <div>
-                        <span>Khung giờ</span>
-                        <strong
-                            >{{ recurringGroupTimeText(group) }}</strong
-                        >
-                        <small>{{
-                            paymentOptionLabel(group.payment_option)
-                        }}</small>
-                    </div>
-                    <div>
-                        <span>Bill nhóm</span>
-                        <strong>{{ formatCurrency(group.total_price) }}</strong>
-                        <small
-                            >Đã thu
-                            {{ formatCurrency(group.paid_amount) }}</small
-                        >
-                    </div>
-                    <div>
-                        <span>Còn thu</span>
-                        <strong
-                            :class="{
-                                paid:
-                                    Number(group.outstanding_amount || 0) <= 0,
-                            }"
-                        >
-                            {{ formatCurrency(group.outstanding_amount) }}
-                        </strong>
-                        <small>{{ recurringGroupStatusSummary(group) }}</small>
-                    </div>
-                    <div class="group-actions">
-                        <button
-                            type="button"
-                            class="secondary-btn compact"
-                            :disabled="
-                                recurringGroupCollecting ===
-                                    group.recurring_group_code ||
-                                Number(group.outstanding_amount || 0) <= 0
-                            "
-                            @click="
-                                openRecurringGroupCollectConfirm(group, 'cash')
-                            "
-                        >
-                            <AppIcon name="banknote" size="15" />
-                            <span>Thu tiền mặt</span>
-                        </button>
-                        <button
-                            type="button"
-                            class="secondary-btn compact"
-                            :disabled="
-                                recurringGroupCollecting ===
-                                    group.recurring_group_code ||
-                                Number(group.outstanding_amount || 0) <= 0
-                            "
-                            @click="
-                                collectRecurringGroup(group, 'bank_transfer')
-                            "
-                        >
-                            <AppIcon name="creditCard" size="15" />
-                            <span>Chuyển khoản</span>
-                        </button>
-                    </div>
-                </article>
+                            <td>
+                                <span class="group-code">{{
+                                    group.recurring_group_code
+                                }}</span>
+                                <strong>{{
+                                    recurringGroupCustomer(group)
+                                }}</strong>
+                                <small>{{ recurringGroupPhone(group) }}</small>
+                            </td>
+                            <td>
+                                <strong>{{
+                                    recurringGroupPatternText(group)
+                                }}</strong>
+                                <small>
+                                    {{ group.booking_count }} buổi ·
+                                    {{ formatDate(group.start_date) }} -
+                                    {{ formatDate(group.end_date) }}
+                                </small>
+                            </td>
+                            <td>
+                                <strong>{{
+                                    recurringGroupTimeText(group)
+                                }}</strong>
+                                <small>
+                                    {{
+                                        (group.court_names || []).join(", ") ||
+                                        "-"
+                                    }}
+                                </small>
+                            </td>
+                            <td>
+                                <strong>{{
+                                    paymentOptionLabel(group.payment_option)
+                                }}</strong>
+                                <small>{{
+                                    recurringGroupStatusSummary(group) ||
+                                    "Chưa có trạng thái"
+                                }}</small>
+                            </td>
+                            <td class="money-col">
+                                <strong
+                                    :class="{
+                                        paid:
+                                            Number(
+                                                group.outstanding_amount || 0,
+                                            ) <= 0,
+                                    }"
+                                >
+                                    {{
+                                        formatCurrency(group.outstanding_amount)
+                                    }}
+                                </strong>
+                                <small>
+                                    Tổng {{ formatCurrency(group.total_price) }}
+                                    · Đã thu
+                                    {{ formatCurrency(group.paid_amount) }}
+                                </small>
+                            </td>
+                            <td class="action-col">
+                                <button
+                                    type="button"
+                                    class="secondary-btn compact"
+                                    @click="openRecurringGroupDetail(group)"
+                                >
+                                    <AppIcon name="eye" size="15" />
+                                    <span>Chi tiết</span>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </section>
 
         <Teleport to="body">
+            <div v-if="recurringGroupDetail" class="modal-backdrop">
+                <section class="confirm-modal recurring-detail-modal">
+                    <div class="modal-head">
+                        <div>
+                            <span>LỊCH CỐ ĐỊNH</span>
+                            <h2>
+                                {{ recurringGroupDetail.recurring_group_code }}
+                            </h2>
+                        </div>
+                        <button
+                            type="button"
+                            class="icon-btn"
+                            @click="closeRecurringGroupDetail"
+                        >
+                            <AppIcon name="x" size="18" />
+                        </button>
+                    </div>
+
+                    <div class="detail-hero">
+                        <div>
+                            <span>Khách hàng</span>
+                            <strong>{{
+                                recurringGroupCustomer(recurringGroupDetail)
+                            }}</strong>
+                            <small>{{
+                                recurringGroupPhone(recurringGroupDetail)
+                            }}</small>
+                        </div>
+                        <span
+                            class="status-badge"
+                            :class="{
+                                'tone-paid':
+                                    Number(
+                                        recurringGroupDetail.outstanding_amount ||
+                                            0,
+                                    ) <= 0,
+                                'tone-pending':
+                                    Number(
+                                        recurringGroupDetail.outstanding_amount ||
+                                            0,
+                                    ) > 0,
+                            }"
+                        >
+                            {{
+                                Number(
+                                    recurringGroupDetail.outstanding_amount ||
+                                        0,
+                                ) <= 0
+                                    ? "Đã thu đủ"
+                                    : "Còn phải thu"
+                            }}
+                        </span>
+                    </div>
+
+                    <dl class="summary-list confirm-summary">
+                        <div
+                            v-for="[label, value] in recurringGroupDetailRows"
+                            :key="label"
+                        >
+                            <dt>{{ label }}</dt>
+                            <dd>{{ value }}</dd>
+                        </div>
+                    </dl>
+
+                    <div class="modal-actions">
+                        <button
+                            class="secondary-btn"
+                            type="button"
+                            @click="closeRecurringGroupDetail"
+                        >
+                            Đóng
+                        </button>
+                        <button
+                            class="secondary-btn"
+                            type="button"
+                            :disabled="
+                                recurringGroupCollecting ===
+                                    recurringGroupDetail.recurring_group_code ||
+                                Number(
+                                    recurringGroupDetail.outstanding_amount ||
+                                        0,
+                                ) <= 0
+                            "
+                            @click="
+                                openRecurringGroupCollectConfirm(
+                                    recurringGroupDetail,
+                                    'cash',
+                                )
+                            "
+                        >
+                            <AppIcon name="banknote" size="15" />
+                            Thu tiền mặt
+                        </button>
+                        <button
+                            class="primary-btn"
+                            type="button"
+                            :disabled="
+                                recurringGroupCollecting ===
+                                    recurringGroupDetail.recurring_group_code ||
+                                Number(
+                                    recurringGroupDetail.outstanding_amount ||
+                                        0,
+                                ) <= 0
+                            "
+                            @click="
+                                openRecurringGroupCollectConfirm(
+                                    recurringGroupDetail,
+                                    'bank_transfer',
+                                )
+                            "
+                        >
+                            <AppIcon name="creditCard" size="15" />
+                            Chuyển khoản
+                        </button>
+                    </div>
+                </section>
+            </div>
+
             <div v-if="bookingActionConfirm" class="modal-backdrop">
                 <section class="confirm-modal">
                     <div class="modal-head">
@@ -1114,7 +1381,6 @@
                     </div>
                 </section>
             </div>
-
             <div v-if="recurringGroupConfirm" class="modal-backdrop">
                 <section class="confirm-modal">
                     <div class="modal-head">
@@ -1218,10 +1484,6 @@
                             </dd>
                         </div>
                     </dl>
-                    <p class="qr-waiting">
-                        Đang chờ SePay ghi nhận giao dịch. Màn này sẽ tự đóng
-                        khi thanh toán thành công.
-                    </p>
                 </section>
             </div>
 
@@ -1442,11 +1704,18 @@ export default {
             recurringGroupsLoading: false,
             recurringGroupCollecting: "",
             recurringGroupConfirm: null,
+            recurringGroupDetail: null,
             recurringGroupFilters: {
                 venue_court_id: "",
                 status: "",
                 q: "",
             },
+            eligibleVouchers: [],
+            selectedVoucherId: "",
+            voucherCodeInput: "",
+            voucherLoading: false,
+            voucherError: "",
+            voucherRequestId: 0,
             recurringConflict: null,
             conflictSelections: {},
             contactTouched: {
@@ -1630,15 +1899,47 @@ export default {
         recurringTotalAmount() {
             return this.recurringUnitTotal * this.recurringPreview.length;
         },
+        voucherBaseAmount() {
+            return this.activeTab === "recurring"
+                ? this.recurringUnitTotal
+                : this.selectedTotal;
+        },
+        selectedVoucher() {
+            return (
+                this.eligibleVouchers.find(
+                    (voucher) => voucher.id === this.selectedVoucherId,
+                ) || null
+            );
+        },
+        voucherUnitDiscount() {
+            return Math.min(
+                Number(this.selectedVoucher?.discount_amount || 0),
+                this.voucherBaseAmount,
+            );
+        },
+        voucherDiscountAmount() {
+            return this.activeTab === "recurring"
+                ? this.voucherUnitDiscount * this.recurringPreview.length
+                : this.voucherUnitDiscount;
+        },
+        counterPayableTotal() {
+            return Math.max(this.selectedTotal - this.voucherDiscountAmount, 0);
+        },
+        recurringUnitPayableTotal() {
+            return Math.max(
+                this.recurringUnitTotal - this.voucherUnitDiscount,
+                0,
+            );
+        },
+        recurringPayableTotal() {
+            return (
+                this.recurringUnitPayableTotal * this.recurringPreview.length
+            );
+        },
         recurringRequiredAmount() {
             if (this.form.payment_option === "no_prepay") return 0;
-            if (this.form.payment_option === "deposit") {
-                return Math.round(
-                    (this.recurringTotalAmount * this.depositPercent) / 100,
-                );
-            }
 
-            return this.recurringTotalAmount;
+            return this.recurringPayableTotal;
         },
         recurringCollectionLabel() {
             if (this.form.payment_option === "no_prepay") return "Thu sau";
@@ -1684,17 +1985,17 @@ export default {
                 {
                     value: "cash",
                     label: "Tiền mặt",
-                    amount: this.selectedTotal,
+                    amount: this.counterPayableTotal,
                 },
                 {
                     value: "transfer",
                     label: "Chuyển khoản",
-                    amount: this.selectedTotal,
+                    amount: this.counterPayableTotal,
                 },
                 {
                     value: "later",
                     label: "Thu sau",
-                    amount: this.selectedTotal,
+                    amount: this.counterPayableTotal,
                 },
             ];
         },
@@ -1702,8 +2003,8 @@ export default {
             const config = this.selectedClusterDetail?.booking_config || {};
             const baseAmount =
                 this.activeTab === "recurring"
-                    ? this.recurringTotalAmount
-                    : this.selectedTotal;
+                    ? this.recurringPayableTotal
+                    : this.counterPayableTotal;
             const options = [
                 {
                     value: "full_payment",
@@ -1732,17 +2033,20 @@ export default {
         recurringPaymentOptions() {
             const descriptions = {
                 full_payment: "Ghi nhận thu đủ cho từng buổi trong nhóm lịch.",
-                deposit: `Ghi nhận tiền cọc ${this.depositPercent}% theo chính sách hiện tại.`,
                 no_prepay: "Tạo lịch trước, thu tiền sau khi khách đến chơi.",
             };
 
-            return this.paymentOptions.map((option) => ({
-                ...option,
-                description: descriptions[option.value] || option.label,
-            }));
+            return this.paymentOptions
+                .filter((option) =>
+                    ["full_payment", "no_prepay"].includes(option.value),
+                )
+                .map((option) => ({
+                    ...option,
+                    description: descriptions[option.value] || option.label,
+                }));
         },
         counterSummaryRows() {
-            return [
+            const rows = [
                 ["Cụm sân", this.selectedCluster?.name || "-"],
                 ["Sân", this.selectedCourtText],
                 ["Ngày", this.formatDate(this.form.booking_date)],
@@ -1750,6 +2054,19 @@ export default {
                 ["Thời lượng", this.selectedDurationText],
                 ["Tổng tiền", this.formatCurrency(this.selectedTotal)],
             ];
+
+            if (this.selectedVoucher) {
+                rows.push([
+                    `Voucher ${this.selectedVoucher.code}`,
+                    `-${this.formatCurrency(this.voucherDiscountAmount)}`,
+                ]);
+                rows.push([
+                    "Cần thu",
+                    this.formatCurrency(this.counterPayableTotal),
+                ]);
+            }
+
+            return rows;
         },
         currentScheduleLabel() {
             return `${this.selectedCluster?.name || "Cụm sân"} · ${this.formatDate(this.form.booking_date)}`;
@@ -1883,25 +2200,12 @@ export default {
             const group = this.recurringGroupConfirm?.group;
             if (!group) return [];
 
-            return [
-                ["Mã nhóm", group.recurring_group_code || "-"],
-                [
-                    "Khách",
-                    `${this.recurringGroupCustomer(group)} · ${this.recurringGroupPhone(group)}`,
-                ],
-                ["Cụm sân", group.venue_cluster_name || "-"],
-                ["Sân", (group.court_names || []).join(", ") || "-"],
-                [
-                    "Ngày",
-                    `${this.formatDate(group.start_date)} - ${this.formatDate(group.end_date)}`,
-                ],
-                ["Khung giờ", this.recurringGroupTimeText(group)],
-                ["Số buổi", `${group.booking_count || 0} buổi`],
-                ["Hình thức", this.paymentOptionLabel(group.payment_option)],
-                ["Tổng bill", this.formatCurrency(group.total_price)],
-                ["Đã thu", this.formatCurrency(group.paid_amount)],
-                ["Còn thu", this.formatCurrency(group.outstanding_amount)],
-            ];
+            return this.buildRecurringGroupRows(group);
+        },
+        recurringGroupDetailRows() {
+            if (!this.recurringGroupDetail) return [];
+
+            return this.buildRecurringGroupRows(this.recurringGroupDetail);
         },
         recurringPreview() {
             if (this.activeTab !== "recurring") return [];
@@ -2000,6 +2304,29 @@ export default {
             );
         },
     },
+    watch: {
+        "form.recurring_start_date"() {
+            if (this.activeTab === "recurring") this.loadEligibleVouchers();
+        },
+        "form.recurring_end_date"() {
+            if (this.activeTab === "recurring") this.loadEligibleVouchers();
+        },
+        "form.recurrence_type"() {
+            if (this.activeTab === "recurring") this.loadEligibleVouchers();
+        },
+        "form.recurrence_interval"() {
+            if (this.activeTab === "recurring") this.loadEligibleVouchers();
+        },
+        "form.recurrence_days_of_week": {
+            deep: true,
+            handler() {
+                if (this.activeTab === "recurring") this.loadEligibleVouchers();
+            },
+        },
+        monthDaysInput() {
+            if (this.activeTab === "recurring") this.loadEligibleVouchers();
+        },
+    },
     async created() {
         await this.loadOwnerData();
     },
@@ -2012,6 +2339,8 @@ export default {
             this.error = "";
             this.notice = "";
             this.selectionError = "";
+            this.clearVoucherSelection();
+            this.syncPaymentOption();
 
             if (tab === "recurringList") {
                 await this.loadRecurringGroups();
@@ -2095,6 +2424,7 @@ export default {
             this.selectedOccupiedInterval = null;
             this.selectedBusyBooking = null;
             this.bookingActionConfirm = null;
+            this.clearVoucherSelection();
 
             try {
                 const response = await ownerBookingService.schedule({
@@ -2119,6 +2449,116 @@ export default {
             } finally {
                 this.scheduleLoading = false;
             }
+        },
+        async loadEligibleVouchers(code = "") {
+            this.voucherError = "";
+            const firstRange = this.selectedSlotRanges[0];
+            const courtId =
+                firstRange?.venue_court_id || this.form.venue_court_id;
+
+            if (
+                !this.selectedClusterId ||
+                !courtId ||
+                this.voucherBaseAmount <= 0
+            ) {
+                this.eligibleVouchers = [];
+                this.selectedVoucherId = "";
+                return;
+            }
+
+            const requestId = ++this.voucherRequestId;
+            this.voucherLoading = true;
+
+            try {
+                const response = await ownerBookingService.eligibleVouchers({
+                    venue_cluster_id: this.selectedClusterId,
+                    venue_court_id: courtId,
+                    booking_type:
+                        this.activeTab === "recurring" ? "recurring" : "single",
+                    amount: this.voucherBaseAmount,
+                    usage_count:
+                        this.activeTab === "recurring"
+                            ? Math.max(this.recurringPreview.length, 1)
+                            : 1,
+                    voucher_code: code || "",
+                });
+
+                if (requestId !== this.voucherRequestId) return;
+
+                this.eligibleVouchers = response.data || [];
+
+                if (
+                    this.selectedVoucherId &&
+                    !this.eligibleVouchers.some(
+                        (voucher) => voucher.id === this.selectedVoucherId,
+                    )
+                ) {
+                    this.selectedVoucherId = "";
+                }
+
+                if (code) {
+                    const matched = this.eligibleVouchers[0];
+                    if (matched) {
+                        this.selectedVoucherId = matched.id;
+                        this.voucherCodeInput = matched.code;
+                    } else {
+                        this.voucherError =
+                            "Mã voucher không đủ điều kiện cho booking này.";
+                    }
+                }
+            } catch (error) {
+                if (requestId !== this.voucherRequestId) return;
+                this.eligibleVouchers = [];
+                this.selectedVoucherId = "";
+                this.voucherError =
+                    error.message || "Không thể kiểm tra voucher.";
+            } finally {
+                if (requestId === this.voucherRequestId) {
+                    this.voucherLoading = false;
+                }
+            }
+        },
+        selectVoucher(voucher) {
+            if (!voucher?.id) return;
+            this.selectedVoucherId =
+                this.selectedVoucherId === voucher.id ? "" : voucher.id;
+            if (this.selectedVoucherId) {
+                this.voucherCodeInput = voucher.code || "";
+                this.voucherError = "";
+            }
+        },
+        async applyVoucherCode() {
+            const code = this.voucherCodeInput.trim();
+            if (!code) {
+                this.selectedVoucherId = "";
+                await this.loadEligibleVouchers();
+                return;
+            }
+
+            await this.loadEligibleVouchers(code);
+        },
+        clearVoucherSelection() {
+            this.eligibleVouchers = [];
+            this.selectedVoucherId = "";
+            this.voucherCodeInput = "";
+            this.voucherError = "";
+            this.voucherLoading = false;
+            this.voucherRequestId += 1;
+        },
+        handleVoucherSubmitError(error) {
+            const message = String(error?.message || "");
+            const fieldErrors = error?.data?.errors || {};
+            const hasVoucherError =
+                Boolean(fieldErrors.voucher_code || fieldErrors.voucher_id) ||
+                message.toLowerCase().includes("voucher");
+
+            if (!hasVoucherError) return;
+
+            this.selectedVoucherId = "";
+            this.voucherError =
+                message ||
+                "Voucher không còn đủ điều kiện. Vui lòng chọn voucher khác hoặc bỏ áp dụng voucher.";
+            this.loadEligibleVouchers();
         },
         async loadRecurringGroups() {
             if (!this.selectedClusterId) return;
@@ -2314,6 +2754,7 @@ export default {
                 ? this.selectedSlotKeys.filter((item) => item !== key)
                 : [...this.selectedSlotKeys, key];
             this.syncCounterRangeFields();
+            this.loadEligibleVouchers();
         },
         selectRecurringSlot(court, slot) {
             if (!court?.id || !slot) return;
@@ -2324,6 +2765,7 @@ export default {
                 ? this.selectedSlotKeys.filter((item) => item !== clickedKey)
                 : [...this.selectedSlotKeys, clickedKey];
             this.syncCounterRangeFields();
+            this.loadEligibleVouchers();
         },
         async openOccupiedSlot(court, slot) {
             const interval = this.busyInterval(court?.id, slot);
@@ -2414,6 +2856,8 @@ export default {
                         this.form.collection_mode === "transfer"
                             ? "sepay"
                             : "cash",
+                    voucher_id: this.selectedVoucher?.id || null,
+                    voucher_code: this.selectedVoucher?.code || null,
                 });
 
                 if (response.payment_qr) {
@@ -2425,8 +2869,10 @@ export default {
                 this.selectedSlotKeys = [];
                 this.selectedGridCourtId = "";
                 this.syncCounterRangeFields();
+                this.clearVoucherSelection();
                 await this.loadSchedule();
             } catch (error) {
+                this.handleVoucherSubmitError(error);
                 this.error = error.message || "Không thể tạo booking tại quầy.";
             } finally {
                 this.submitting = false;
@@ -2445,6 +2891,7 @@ export default {
                 if (error.status === 409 && error.data?.conflicts?.length) {
                     this.openRecurringConflict(error.data);
                 } else {
+                    this.handleVoucherSubmitError(error);
                     this.error = error.message || "Không thể tạo lịch cố định.";
                 }
             } finally {
@@ -2485,6 +2932,8 @@ export default {
                         ? this.form.is_paid
                         : false,
                 payment_method: this.form.payment_method,
+                voucher_id: this.selectedVoucher?.id || null,
+                voucher_code: this.selectedVoucher?.code || null,
                 recurring_start_date: this.form.recurring_start_date,
                 recurring_end_date: this.form.recurring_end_date,
                 recurrence_type: this.form.recurrence_type,
@@ -2518,6 +2967,7 @@ export default {
             this.notice = `Đã tạo ${response.data?.created_count || this.recurringPreview.length} buổi cố định${extras.length ? `, ${extras.join(", ")}` : ""}.`;
             this.recurringConflict = null;
             this.conflictSelections = {};
+            this.clearVoucherSelection();
             await this.loadSchedule();
         },
         openRecurringConflict(data) {
@@ -2544,6 +2994,7 @@ export default {
                     this.recurringPayload({ conflict_resolution: "skip" }),
                 );
             } catch (error) {
+                this.handleVoucherSubmitError(error);
                 this.error = error.message || "Không thể tạo lịch cố định.";
             } finally {
                 this.submitting = false;
@@ -2578,19 +3029,25 @@ export default {
                     }),
                 );
             } catch (error) {
+                this.handleVoucherSubmitError(error);
                 this.error = error.message || "Không thể tạo lịch cố định.";
             } finally {
                 this.submitting = false;
             }
         },
         syncPaymentOption() {
+            const availableOptions =
+                this.activeTab === "recurring"
+                    ? this.recurringPaymentOptions
+                    : this.paymentOptions;
+
             if (
-                !this.paymentOptions.some(
+                !availableOptions.some(
                     (option) => option.value === this.form.payment_option,
                 )
             ) {
                 this.form.payment_option =
-                    this.paymentOptions[0]?.value || "no_prepay";
+                    availableOptions[0]?.value || "no_prepay";
             }
             this.syncPaidState();
         },
@@ -3101,7 +3558,6 @@ export default {
                     response.data || this.selectedBusyBooking;
                 this.bookingActionConfirm = null;
                 this.startCounterQrPolling();
-                await this.loadSchedule();
             } catch (error) {
                 this.error =
                     error.message || "Không thể mở thông tin thanh toán.";
@@ -3220,6 +3676,76 @@ export default {
 
             return "-";
         },
+        recurringGroupPatternText(group) {
+            const every =
+                Number(group?.recurrence_interval || 1) > 1
+                    ? `${group.recurrence_interval} `
+                    : "";
+
+            if (group?.recurrence_type === "daily") {
+                return `${every}ngày/lần`;
+            }
+
+            if (group?.recurrence_type === "weekly") {
+                const days = (group.recurrence_days_of_week || [])
+                    .map(
+                        (value) =>
+                            this.weekDays.find(
+                                (day) => Number(day.value) === Number(value),
+                            )?.label,
+                    )
+                    .filter(Boolean)
+                    .join(", ");
+
+                return `${every}tuần/lần${days ? ` · ${days}` : ""}`;
+            }
+
+            if (group?.recurrence_type === "monthly") {
+                return `${every}tháng/lần · ngày ${(group.recurrence_days_of_month || []).join(", ") || "-"}`;
+            }
+
+            return "-";
+        },
+        openRecurringGroupDetail(group) {
+            if (!group?.recurring_group_code) return;
+            this.recurringGroupDetail = group;
+        },
+        closeRecurringGroupDetail() {
+            this.recurringGroupDetail = null;
+        },
+        buildRecurringGroupRows(group) {
+            return [
+                ["Mã nhóm", group?.recurring_group_code || "-"],
+                [
+                    "Khách",
+                    `${this.recurringGroupCustomer(group)} · ${this.recurringGroupPhone(group)}`,
+                ],
+                ["Cụm sân", group?.venue_cluster_name || "-"],
+                ["Lịch lặp", this.recurringGroupPatternText(group)],
+                [
+                    "Ngày",
+                    `${this.formatDate(group?.start_date)} - ${this.formatDate(group?.end_date)}`,
+                ],
+                [
+                    "Sân",
+                    Array.isArray(group?.court_names) &&
+                    group.court_names.length
+                        ? group.court_names.join(", ")
+                        : "-",
+                ],
+                ["Khung giờ", this.recurringGroupTimeText(group)],
+                ["Số buổi", `${group?.booking_count || 0} buổi`],
+                ["Hình thức", this.paymentOptionLabel(group?.payment_option)],
+                [
+                    "Trạng thái",
+                    this.recurringGroupStatusSummary(group) ||
+                        "Chưa có trạng thái",
+                ],
+                ["Tổng bill", this.formatCurrency(group?.total_price)],
+                ["Đã thu", this.formatCurrency(group?.paid_amount)],
+                ["Còn thu", this.formatCurrency(group?.outstanding_amount)],
+            ];
+        },
         openRecurringGroupCollectConfirm(group, method) {
             if (!group?.recurring_group_code) return;
 
@@ -3251,6 +3777,7 @@ export default {
             );
             if (ok) {
                 this.recurringGroupConfirm = null;
+                this.recurringGroupDetail = null;
             }
         },
         async collectRecurringGroup(group, method) {
@@ -3269,7 +3796,6 @@ export default {
                 );
                 this.notice = "Đã ghi nhận thu tiền cho nhóm lịch cố định.";
                 await this.loadRecurringGroups();
-                await this.loadSchedule();
                 return true;
             } catch (error) {
                 this.error =
@@ -3398,23 +3924,128 @@ export default {
     gap: 10px;
 }
 
+.recurring-table-card {
+    overflow: auto;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.recurring-table-card table {
+    width: 100%;
+    min-width: 980px;
+    border-collapse: collapse;
+}
+
+.recurring-table-card th,
+.recurring-table-card td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #e4eee4;
+    text-align: left;
+    vertical-align: top;
+}
+
+.recurring-table-card th {
+    background: #f2f7ef;
+    color: #526458;
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.recurring-table-card tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.recurring-table-card td {
+    color: #263a2d;
+    font-size: 13px;
+}
+
+.recurring-table-card td > strong,
+.recurring-table-card td > small {
+    display: block;
+}
+
+.recurring-table-card td > strong {
+    margin-top: 5px;
+    color: #203428;
+    font-size: 13px;
+    font-weight: 850;
+    line-height: 1.35;
+}
+
+.recurring-table-card td > small {
+    margin-top: 4px;
+    color: #607267;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.recurring-table-card strong.paid {
+    color: #0f7a31;
+}
+
+.money-col {
+    text-align: right !important;
+}
+
+.action-col {
+    width: 120px;
+    text-align: right !important;
+    white-space: nowrap;
+}
+
 .recurring-group-card {
     display: grid;
-    grid-template-columns:
-        minmax(180px, 1.2fr) minmax(220px, 1.3fr) minmax(140px, 0.8fr)
-        minmax(130px, 0.7fr) minmax(150px, 0.8fr) auto;
-    gap: 14px;
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px 18px;
+    align-items: start;
     padding: 14px;
     border: 1px solid #d9e8d9;
     border-radius: 8px;
     background: #fbfdfb;
 }
 
-.recurring-group-card > div {
+.group-card-head {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e4eee4;
+}
+
+.recurring-group-card > div,
+.group-main {
     display: grid;
     gap: 4px;
     min-width: 0;
+}
+
+.group-info-grid {
+    display: grid !important;
+    grid-template-columns: minmax(180px, 0.8fr) minmax(240px, 1.25fr) minmax(
+            150px,
+            0.7fr
+        );
+    gap: 12px;
+}
+
+.group-money-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(95px, 1fr));
+    gap: 8px;
+    min-width: 330px;
+}
+
+.group-money-grid > div {
+    padding: 9px 10px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
 }
 
 .recurring-group-card span {
@@ -3450,6 +4081,7 @@ export default {
 }
 
 .group-actions {
+    grid-column: 2;
     display: flex !important;
     flex-wrap: wrap;
     justify-content: flex-end;
@@ -3459,6 +4091,43 @@ export default {
 .secondary-btn.compact {
     min-height: 34px;
     padding: 8px 10px;
+    font-size: 12px;
+}
+
+.recurring-detail-modal {
+    width: min(620px, 100%);
+}
+
+.detail-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #f7fbf5;
+}
+
+.detail-hero div {
+    display: grid;
+    gap: 3px;
+}
+
+.detail-hero span:not(.status-badge) {
+    color: #607267;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.detail-hero strong {
+    color: #16231a;
+    font-size: 15px;
+    font-weight: 850;
+}
+
+.detail-hero small {
+    color: #607267;
     font-size: 12px;
 }
 
@@ -3685,6 +4354,25 @@ input.invalid {
 .legend i.selected {
     border-color: #2f9e44;
     background: #2f9e44;
+}
+
+.day-grid label {
+    border: 1px solid #d0d7de;
+    background: #fff;
+    color: #334155;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.day-grid label.selected {
+    border-color: #2f9e44;
+    background: #2f9e44;
+    color: #fff;
+}
+
+.day-grid label.selected span {
+    color: #fff;
 }
 
 .legend i.booked-paid {
@@ -4342,6 +5030,7 @@ input.invalid {
 }
 
 .payment-card {
+    display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
@@ -4395,12 +5084,80 @@ input.invalid {
 }
 
 .recurring-payment-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .recurring-payment-list .payment-card {
     grid-template-columns: auto minmax(0, 1fr);
     background: #fff;
+}
+
+.voucher-section {
+    background: #fff;
+}
+
+.voucher-picker {
+    display: grid;
+    gap: 9px;
+}
+
+.voucher-code-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+
+.voucher-code-row input {
+    min-width: 0;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #1f2f25;
+    font-weight: 720;
+}
+
+.voucher-list {
+    display: grid;
+    gap: 8px;
+}
+
+.voucher-list button {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+    padding: 10px 11px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.voucher-list button.active {
+    border-color: #16a34a;
+    background: #ecfdf3;
+}
+
+.voucher-list strong {
+    display: block;
+    color: #14532d;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.voucher-list small,
+.voucher-empty {
+    color: #607267;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.voucher-list em {
+    color: #15803d;
+    font-style: normal;
+    font-weight: 900;
 }
 
 .recurring-collect-actions {
@@ -4520,26 +5277,50 @@ input.invalid {
 }
 
 .day-grid label {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
     min-height: 38px;
-    padding: 8px 12px;
+    min-width: 48px;
+    padding: 8px 14px;
     border: 1px solid #d9e8d9;
-    border-radius: 8px;
+    border-radius: 999px;
     background: #fff;
+    color: #425246;
+    font-weight: 900;
+    cursor: pointer;
+    transition:
+        border-color 0.16s ease,
+        background 0.16s ease,
+        color 0.16s ease,
+        box-shadow 0.16s ease,
+        transform 0.16s ease;
+}
+
+.day-grid label:hover {
+    border-color: #86efac;
+    background: #f0fdf4;
+    transform: translateY(-1px);
 }
 
 .day-grid label.selected {
     border-color: #2f9e44;
-    background: #e8f7ec;
-    color: #216b34;
+    background: #2f9e44;
+    color: #fff;
+    box-shadow: 0 6px 14px rgba(47, 158, 68, 0.18);
 }
 
 .day-grid input {
-    width: 15px;
-    height: 15px;
-    accent-color: #2f9e44;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.day-grid span {
+    color: inherit;
 }
 
 .month-days {

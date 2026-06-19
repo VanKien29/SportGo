@@ -161,7 +161,6 @@
   >
     Lưu phân công
   </button>
-</div>
               <label>
                 Kết quả
                 <select v-model="form.status">

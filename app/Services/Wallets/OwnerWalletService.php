@@ -62,7 +62,7 @@ class OwnerWalletService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $amount = (float) $payment->amount;
+            $amount = $this->ownerCreditAmount($payment);
             $balanceBefore = (float) $wallet->available_balance;
             $balanceAfter = $balanceBefore + $amount;
 
@@ -94,9 +94,29 @@ class OwnerWalletService
                     'customer_id' => $booking->customer_id,
                     'payment_code' => $payment->payment_code,
                     'payment_method' => $payment->method,
+                    'customer_paid_amount' => (float) $payment->amount,
+                    'system_discount_amount' => (float) ($booking->system_discount_amount ?? 0),
+                    'venue_discount_amount' => (float) ($booking->venue_discount_amount ?? 0),
                 ], $metadata),
             ]);
         });
+    }
+
+    private function ownerCreditAmount(Payment $payment): float
+    {
+        $booking = $payment->booking;
+        $customerPayable = (float) ($booking->final_amount ?? $booking->total_price ?? $payment->amount);
+        $ownerGross = (float) ($booking->original_amount ?? $booking->total_price ?? $payment->amount)
+            - (float) ($booking->venue_discount_amount ?? 0);
+
+        if ($customerPayable <= 0) {
+            return round(max($ownerGross, 0), 2);
+        }
+
+        $ratio = min(max((float) $payment->amount / $customerPayable, 0), 1);
+        $amount = $ownerGross * $ratio;
+
+        return round(max($amount, 0), 2);
     }
 
     public function debitRefundedPayment(Payment $payment, float $amount, string $refundId, array $metadata = []): OwnerWalletLedger

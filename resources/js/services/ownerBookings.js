@@ -27,6 +27,11 @@ export const ownerBookingService = {
     return api(`/api/owner/bookings/recurring-groups${query ? `?${query}` : ''}`);
   },
 
+  eligibleVouchers(params = {}) {
+    const query = toQuery(params);
+    return api(`/api/owner/bookings/eligible-vouchers${query ? `?${query}` : ''}`);
+  },
+
   show(id) {
     return api(`/api/owner/bookings/${id}`);
   },

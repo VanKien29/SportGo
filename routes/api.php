@@ -279,6 +279,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/bookings', [OwnerBookingManagementController::class, 'index']);
         Route::get('/bookings/schedule', [OwnerBookingManagementController::class, 'schedule']);
         Route::get('/bookings/recurring-groups', [OwnerBookingManagementController::class, 'recurringGroups']);
+        Route::get('/bookings/eligible-vouchers', [OwnerBookingManagementController::class, 'eligibleVouchers']);
         Route::post('/bookings/counter', [OwnerBookingManagementController::class, 'storeCounter']);
         Route::post('/bookings/recurring', [OwnerBookingManagementController::class, 'storeRecurring']);
         Route::post('/bookings/recurring-groups/{groupCode}/payments/collect', [OwnerBookingManagementController::class, 'collectRecurringGroupPayment']);
