@@ -246,6 +246,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::put('/venue-policies/notices/{id}', [OwnerVenuePolicyController::class, 'updateNotice']);
         Route::get('/pricing', [OwnerPricingController::class, 'index']);
         Route::patch('/booking-configs/{venueClusterId}/duration', [OwnerPricingController::class, 'updateDuration']);
+        Route::put('/base-prices/{courtTypeId}', [OwnerPricingController::class, 'updateBasePrice']);
         Route::post('/price-slots', [OwnerPricingController::class, 'storePriceSlot']);
         Route::patch('/price-slots/{id}', [OwnerPricingController::class, 'updatePriceSlot']);
         Route::delete('/price-slots/{id}', [OwnerPricingController::class, 'destroyPriceSlot']);
@@ -254,7 +255,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::delete('/holiday-prices/{id}', [OwnerPricingController::class, 'destroyHolidayPrice']);
         Route::get('/platform-fees', [OwnerPlatformFeeController::class, 'index']);
         Route::get('/platform-fees/{id}', [OwnerPlatformFeeController::class, 'show']);
-        Route::post('/platform-fees/{id}/payment-proof', [OwnerPlatformFeeController::class, 'submitProof']);
+        Route::post('/platform-fees/{id}/payment', [OwnerPlatformFeeController::class, 'createPayment']);
         Route::get('/schedule-locks', [OwnerScheduleLockController::class, 'index']);
         Route::post('/schedule-locks', [OwnerScheduleLockController::class, 'store']);
         Route::delete('/schedule-locks/{id}', [OwnerScheduleLockController::class, 'destroy']);

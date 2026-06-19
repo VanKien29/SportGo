@@ -82,7 +82,7 @@
 
 .filter-bar {
   display: grid;
-  grid-template-columns: minmax(240px, 1.5fr) repeat(3, minmax(140px, .8fr)) auto;
+  grid-template-columns: minmax(240px, 1.5fr) repeat(5, minmax(130px, .8fr)) auto;
 }
 
 .search-box {

@@ -1,4 +1,4 @@
-import { api, apiFormData } from './api.js';
+import { api } from './api.js';
 
 export const ownerPlatformFeeService = {
   list(clusterId) {
@@ -9,7 +9,9 @@ export const ownerPlatformFeeService = {
     return api(`/api/owner/platform-fees/${id}`);
   },
 
-  submitProof(id, formData) {
-    return apiFormData(`/api/owner/platform-fees/${id}/payment-proof`, formData);
+  createPayment(id) {
+    return api(`/api/owner/platform-fees/${id}/payment`, {
+      method: 'POST',
+    });
   },
 };
