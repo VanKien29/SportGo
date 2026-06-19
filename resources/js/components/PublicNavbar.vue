@@ -57,6 +57,28 @@
                 Thông tin cá nhân
               </router-link>
 
+              <router-link v-if="user.role === 'user'" to="/partner-application" class="dd-item dd-partner" @click="showDropdown = false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 21h18"/>
+                  <path d="M5 21V7l8-4v18"/>
+                  <path d="M19 21V11l-6-4"/>
+                  <path d="M9 9h1"/>
+                  <path d="M9 13h1"/>
+                  <path d="M9 17h1"/>
+                </svg>
+                Đăng ký đối tác
+              </router-link>
+
+              <router-link v-if="user.role === 'owner'" to="/owner/partner-profile" class="dd-item dd-partner" @click="showDropdown = false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <path d="M14 2v6h6"/>
+                  <path d="M16 13H8"/>
+                  <path d="M16 17H8"/>
+                </svg>
+                Hồ sơ đối tác
+              </router-link>
+
               <!-- Owner: Quay lại quản lý sân -->
               <button v-if="user.role === 'owner'" class="dd-item dd-manage" @click="goToManage">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -314,9 +336,17 @@ export default {
   color: #2563eb;
   font-weight: 500;
 }
+.dd-partner {
+  color: #15803d;
+  font-weight: 600;
+}
 .dd-manage:hover {
   background: #eff6ff;
   color: #1d4ed8;
+}
+.dd-partner:hover {
+  background: #f0fdf4;
+  color: #166534;
 }
 .dd-logout {
   color: var(--sg-danger);

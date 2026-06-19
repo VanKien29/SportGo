@@ -298,7 +298,11 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
 Route::middleware('auth:sanctum')
     ->group(function (): void {
         Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
+        Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
+        Route::post('/user/partner-application/verify-bank-account', [UserPartnerApplicationController::class, 'verifyBankAccount']);
+        Route::post('/user/partner-application/resolve-map', [UserPartnerApplicationController::class, 'resolveMap']);
         Route::post('/user/partner-application', [UserPartnerApplicationController::class, 'store']);
+        Route::post('/user/partner-application/{id}/cancel', [UserPartnerApplicationController::class, 'cancel']);
         Route::get('/user/partner-application/documents', [UserPartnerApplicationController::class, 'documents']);
         Route::get('/user/partner-application/pending-contract', [UserPartnerApplicationController::class, 'pendingContract']);
         Route::post('/user/partner-application/sign-contract', [UserPartnerApplicationController::class, 'signContract']);

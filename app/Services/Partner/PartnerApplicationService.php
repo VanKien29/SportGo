@@ -13,7 +13,9 @@ use App\Mail\Partner\PartnerTerminationConfirmedMail;
 use App\Mail\Partner\PartnerTerminationReceivedMail;
 use App\Mail\Partner\PartnerUnilateralTerminationMail;
 use App\Models\AuditLog;
+use App\Models\CourtType;
 use App\Models\GeneratedDocument;
+use App\Models\Media;
 use App\Models\Notification;
 use App\Models\OwnerBankAccount;
 use App\Models\OwnerWallet;
@@ -36,6 +38,7 @@ use App\Models\VenueCourt;
 use App\Models\VenuePlatformFeeLedger;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -54,6 +57,17 @@ class PartnerApplicationService
 
     public function submitApplication(User $user, array $data, ?Request $request = null): PartnerApplication
     {
+        $hasOpenApplication = PartnerApplication::query()
+            ->where('user_id', $user->id)
+            ->whereNotIn('status', ['rejected', 'cancelled'])
+            ->exists();
+
+        if ($hasOpenApplication) {
+            throw ValidationException::withMessages([
+                'application' => 'Bạn đã có một hồ sơ đối tác đang xử lý hoặc đang hiệu lực. Vui lòng theo dõi hồ sơ hiện tại.',
+            ]);
+        }
+
         return DB::transaction(function () use ($user, $data, $request): PartnerApplication {
             $application = PartnerApplication::create([
                 'user_id' => $user->id,
@@ -100,18 +114,23 @@ class PartnerApplicationService
                 'account_number' => $data['account_number'] ?? null,
                 'account_holder_name' => $data['account_holder_name'] ?? null,
                 'bank_branch' => $data['bank_branch'] ?? null,
-                'bank_verification_status' => 'pending',
+                'bank_verification_status' => $data['bank_verification_status'] ?? 'pending',
             ])->save();
 
             foreach ($data['courts'] ?? [] as $index => $court) {
+                $courtType = CourtType::query()->find($court['court_type_id']);
                 PartnerApplicationCourt::create([
                     'partner_application_id' => $application->id,
                     'court_type_id' => $court['court_type_id'],
+                    'court_type_name_snapshot' => $courtType?->name,
+                    'expected_court_count' => $court['expected_court_count'] ?? 1,
                     'name' => $court['name'],
+                    'note' => $this->courtNote($court),
                     'sort_order' => $court['sort_order'] ?? ($index + 1),
                 ]);
             }
 
+            $this->storeApplicationDocuments($application, $data['document_files'] ?? []);
             $this->storeBankAccountFromApplication($application, null, 'pending');
             $this->generateApplicationForm($application, $user);
             $this->applicationHistory($application, null, 'submitted', $user, 'user', 'Nộp hồ sơ đăng ký đối tác.');
@@ -532,7 +551,7 @@ class PartnerApplicationService
             'reviewedBy:id,full_name,username,email',
             'approvedVenueCluster:id,name,status,slug,address,status_reason',
             'courts.courtType:id,name',
-            'documents',
+            'documents.media',
             'bankAccounts',
             'statusHistories.changedBy:id,full_name,username,email',
             'contracts.generatedDocument.signatures.signer:id,full_name,email',
@@ -542,6 +561,32 @@ class PartnerApplicationService
             'terminationRequests.settlement.items',
             'terminationRequests.settlement.withdrawalRequests',
         ];
+    }
+
+    public function cancelApplication(PartnerApplication $application, User $user, ?string $reason = null, ?Request $request = null): PartnerApplication
+    {
+        if ($application->user_id !== $user->id) {
+            abort(403, 'Bạn không có quyền hủy hồ sơ này.');
+        }
+
+        if (! in_array($application->status, ['pending', 'submitted', 'reviewing', 'need_supplement'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Hồ sơ này đã được xử lý, không thể hủy.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($application, $user, $reason, $request): PartnerApplication {
+            $oldStatus = $application->status;
+            $application->forceFill([
+                'status' => 'cancelled',
+                'status_reason' => $reason ?: 'Người dùng hủy hồ sơ đăng ký đối tác.',
+            ])->save();
+
+            $this->applicationHistory($application, $oldStatus, 'cancelled', $user, 'user', $application->status_reason);
+            $this->audit('partner_application_cancelled', $application, $user, 'user', ['status' => $oldStatus], ['status' => 'cancelled'], $request, $application->status_reason);
+
+            return $application->fresh($this->detailRelations());
+        });
     }
 
     private function createVenueCluster(PartnerApplication $application): VenueCluster
@@ -639,28 +684,123 @@ class PartnerApplicationService
         return $contract;
     }
 
+    private function storeApplicationDocuments(PartnerApplication $application, array $documentFiles): void
+    {
+        $definitions = [
+            'identity' => [
+                'group' => 'legal_identity',
+                'title' => 'CCCD/CMND/Hộ chiếu người đại diện',
+                'description' => 'Giấy tờ định danh của người đại diện đăng ký đối tác.',
+            ],
+            'business_license' => [
+                'group' => 'business_license',
+                'title' => 'Giấy đăng ký kinh doanh hoặc giấy tờ pháp lý cơ sở',
+                'description' => 'Tài liệu chứng minh quyền kinh doanh/quản lý cơ sở sân.',
+            ],
+            'facility' => [
+                'group' => 'facility_images',
+                'title' => 'Hình ảnh cơ sở sân',
+                'description' => 'Ảnh tổng quan, mặt sân, khu vực phụ trợ và biển hiệu nếu có.',
+            ],
+        ];
+
+        foreach ($definitions as $type => $definition) {
+            foreach ($documentFiles[$type] ?? [] as $index => $file) {
+                if (! $file instanceof UploadedFile) {
+                    continue;
+                }
+
+                $path = $file->store('partner-applications/' . $application->id . '/' . $type, 'public');
+                $media = Media::query()->create([
+                    'mediable_type' => PartnerApplication::class,
+                    'mediable_id' => $application->id,
+                    'collection' => 'partner_application_' . $type,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_path' => $path,
+                    'mime_type' => $file->getMimeType() ?: $file->getClientMimeType(),
+                    'file_size' => $file->getSize(),
+                    'sort_order' => $index + 1,
+                ]);
+
+                PartnerApplicationDocument::query()->create([
+                    'partner_application_id' => $application->id,
+                    'media_id' => $media->id,
+                    'document_type' => $type,
+                    'document_group' => $definition['group'],
+                    'title' => $definition['title'],
+                    'description' => $definition['description'],
+                    'file_path' => $path,
+                    'status' => 'uploaded',
+                    'sort_order' => $index + 1,
+                ]);
+            }
+        }
+    }
+
     private function generateApplicationForm(PartnerApplication $application, User $actor): GeneratedDocument
     {
+        $application->loadMissing(['courts.courtType', 'documents']);
+
         return $this->documents->generateDocument('partner_application_form', $application, [
             'full_name' => $application->applicant_full_name,
             'id_number' => $application->representative_identity_number,
             'phone' => $application->applicant_phone,
             'email' => $application->applicant_email,
+            'applicant_address' => $application->applicant_address,
             'venue_name' => $application->venue_name,
             'venue_address' => $application->venue_address,
+            'venue_province' => $application->venue_province,
+            'venue_ward' => $application->venue_ward,
+            'venue_map_url' => $application->venue_map_url,
+            'venue_latitude' => $application->venue_latitude,
+            'venue_longitude' => $application->venue_longitude,
             'court_count' => $application->court_count_total,
+            'court_count_total' => $application->court_count_total,
+            'courts_summary' => $this->courtsSummary($application),
             'submitted_at' => $this->timestamp($application->submitted_at),
             'applicant_full_name' => $application->applicant_full_name,
             'business_name' => $application->business_name,
+            'business_license_number' => $application->business_license_number,
+            'business_address' => $application->business_address,
             'tax_code' => $application->tax_code,
             'bank_name' => $application->bank_name,
             'account_number' => $application->account_number,
             'account_holder_name' => $application->account_holder_name,
+            'bank_verification_status' => $application->bank_verification_status,
+            'attachments' => $application->documents->pluck('title')->unique()->implode(', '),
         ], $actor, [
             'partner_application_id' => $application->id,
             'owner_id' => $application->user_id,
             'title' => 'Đơn đăng ký đối tác ' . $application->venue_name,
         ]);
+    }
+
+    private function courtNote(array $court): ?string
+    {
+        $note = [
+            'base_price' => isset($court['base_price']) ? (int) $court['base_price'] : null,
+            'note' => $court['note'] ?? null,
+        ];
+
+        $note = array_filter($note, fn ($value) => $value !== null && $value !== '');
+
+        return $note === [] ? null : json_encode($note, JSON_UNESCAPED_UNICODE);
+    }
+
+    private function courtsSummary(PartnerApplication $application): string
+    {
+        return $application->courts
+            ->map(function (PartnerApplicationCourt $court): string {
+                $note = json_decode((string) $court->note, true) ?: [];
+                $price = isset($note['base_price'])
+                    ? ' - giá cơ bản ' . number_format((int) $note['base_price'], 0, ',', '.') . 'đ'
+                    : '';
+                $typeName = $court->courtType?->name ?: $court->court_type_name_snapshot ?: 'Loại sân';
+
+                return trim($court->name . ' (' . $typeName . ')' . $price);
+            })
+            ->filter()
+            ->implode('; ');
     }
 
     private function generateTerminationRequestDocument(PartnerTerminationRequest $termination, PartnerContract $contract, User $actor): GeneratedDocument

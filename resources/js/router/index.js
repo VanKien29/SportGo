@@ -55,6 +55,12 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: "/partner-application",
+        name: "partner-application",
+        component: () => import("../views/PartnerApplicationPortal.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
         path: "/booking",
         name: "booking-create",
         component: BookingForm,

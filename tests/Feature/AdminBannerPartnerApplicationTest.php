@@ -17,6 +17,7 @@ use App\Services\Partner\PartnerApplicationService;
 use App\Services\Partner\PartnerMailDispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -88,6 +89,118 @@ class AdminBannerPartnerApplicationTest extends TestCase
 
         Storage::disk('public')->assertMissing($imagePath);
         $this->assertDatabaseMissing('banners', ['id' => $bannerId]);
+    }
+
+    public function test_user_can_submit_partner_application_with_bank_courts_and_documents(): void
+    {
+        Storage::fake('public');
+        Queue::fake();
+        Http::fake([
+            'api.vietqr.io/v2/banks' => Http::response([
+                'code' => '00',
+                'data' => [[
+                    'id' => 1,
+                    'name' => 'Ngân hàng TMCP Ngoại thương Việt Nam',
+                    'code' => 'VCB',
+                    'bin' => '970436',
+                    'shortName' => 'Vietcombank',
+                    'transferSupported' => 1,
+                    'lookupSupported' => 1,
+                ]],
+            ]),
+        ]);
+
+        $user = $this->createUser('kien_partner', 'kiennguyennguyen0@gmail.com');
+        $courtType = CourtType::query()->create([
+            'name' => 'Sân cầu lông',
+            'description' => 'Cầu lông',
+            'player_count' => 4,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')->post('/api/user/partner-application', [
+            'applicant_full_name' => 'Nguyễn Kiên',
+            'applicant_phone' => '0912345678',
+            'applicant_email' => 'kiennguyennguyen0@gmail.com',
+            'applicant_address' => 'Hà Nội',
+            'applicant_type' => 'business',
+            'representative_name' => 'Nguyễn Kiên',
+            'representative_identity_type' => 'cccd',
+            'representative_identity_number' => '001203000001',
+            'representative_identity_issued_date' => '2024-01-01',
+            'representative_identity_issued_place' => 'Cục CSQLHC về TTXH',
+            'representative_position' => 'Chủ cơ sở',
+            'business_name' => 'Hộ kinh doanh SportGo Kiên',
+            'tax_code' => '0109999999',
+            'business_code' => 'HKD-KIEN',
+            'business_license_number' => 'GPKD-KIEN-001',
+            'business_address' => '12 Nguyễn Trãi, Hà Nội',
+            'venue_name' => 'SportGo Kiên Test',
+            'venue_address' => '12 Nguyễn Trãi, Phường Thanh Xuân, Hà Nội',
+            'venue_province' => 'Thành phố Hà Nội',
+            'venue_ward' => 'Phường Thanh Xuân',
+            'venue_map_url' => 'https://maps.google.com/?q=21.0278,105.8342',
+            'venue_latitude' => '21.0278000',
+            'venue_longitude' => '105.8342000',
+            'venue_phone' => '0912345678',
+            'venue_email' => 'kiennguyennguyen0@gmail.com',
+            'venue_description' => 'Cụm sân đăng ký thử nghiệm.',
+            'expected_opening_hours' => '05:00 - 23:00',
+            'parking_info' => 'Có bãi xe máy.',
+            'amenities' => json_encode(['Bãi xe', 'Nước uống']),
+            'court_count_total' => 2,
+            'courts' => json_encode([
+                ['court_type_id' => $courtType->id, 'name' => 'Sân 1', 'base_price' => 120000],
+                ['court_type_id' => $courtType->id, 'name' => 'Sân 2', 'base_price' => 120000],
+            ]),
+            'bank_name' => 'Vietcombank',
+            'bank_code' => 'VCB',
+            'bank_bin' => '970436',
+            'account_number' => '1234567890',
+            'account_holder_name' => 'NGUYEN KIEN',
+            'bank_branch' => 'Hà Nội',
+            'confirmed' => '1',
+            'identity_documents' => [
+                UploadedFile::fake()->image('cccd-front.jpg', 800, 500),
+                UploadedFile::fake()->image('cccd-back.jpg', 800, 500),
+            ],
+            'business_license_documents' => [
+                UploadedFile::fake()->create('business-license.pdf', 120, 'application/pdf'),
+            ],
+            'facility_images' => [
+                UploadedFile::fake()->image('facility-1.jpg', 1200, 800),
+                UploadedFile::fake()->image('facility-2.jpg', 1200, 800),
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.user_id', $user->id)
+            ->assertJsonPath('data.status', 'submitted');
+
+        $applicationId = $response->json('data.id');
+
+        $this->assertDatabaseHas('partner_applications', [
+            'id' => $applicationId,
+            'user_id' => $user->id,
+            'venue_name' => 'SportGo Kiên Test',
+            'venue_province' => 'Thành phố Hà Nội',
+            'venue_ward' => 'Phường Thanh Xuân',
+            'bank_code' => 'VCB',
+        ]);
+        $this->assertDatabaseHas('owner_bank_accounts', [
+            'owner_id' => $user->id,
+            'partner_application_id' => $applicationId,
+            'bank_code' => 'VCB',
+            'account_number' => '1234567890',
+            'status' => 'pending',
+        ]);
+        $this->assertSame(2, PartnerApplicationCourt::query()->where('partner_application_id', $applicationId)->count());
+        $this->assertSame(5, \App\Models\PartnerApplicationDocument::query()->where('partner_application_id', $applicationId)->count());
+        $this->assertDatabaseHas('generated_documents', [
+            'partner_application_id' => $applicationId,
+            'document_type' => 'partner_application_form',
+        ]);
     }
 
     public function test_admin_can_approve_partner_application_and_create_venue_cluster(): void

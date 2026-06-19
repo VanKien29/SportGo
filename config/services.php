@@ -48,4 +48,11 @@ return [
         'qr_base_url' => env('SEPAY_QR_BASE_URL', 'https://qr.sepay.vn/img'),
     ],
 
+    'vietqr' => [
+        'banks_url' => env('VIETQR_BANKS_URL', 'https://api.vietqr.io/v2/banks'),
+        'lookup_url' => env('VIETQR_LOOKUP_URL', 'https://api.vietqr.io/v2/lookup'),
+        'client_id' => env('VIETQR_CLIENT_ID'),
+        'api_key' => env('VIETQR_API_KEY'),
+    ],
+
 ];
