@@ -29,6 +29,15 @@
           label="Tải lại"
           @click="triggerReportsRefresh"
         />
+        <button
+          v-if="activeModuleTab === 'complaints'"
+          type="button"
+          class="btn"
+          style="display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e2e8f0; background: #fff; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
+          @click="triggerComplaintsAutoResolve"
+        >
+          <AppIcon name="settings" size="16" /> Cấu hình tự động xử lý khiếu nại
+        </button>
         <ActionIconButton
           v-if="activeModuleTab === 'complaints'"
           icon="refresh"
@@ -111,6 +120,9 @@ export default {
     },
     triggerReportsRefresh() {
       this.$refs.reportsTab?.loadReports();
+    },
+    triggerComplaintsAutoResolve() {
+      this.$refs.complaintsTab?.openAutoResolveModal();
     },
     triggerComplaintsRefresh() {
       this.$refs.complaintsTab?.loadComplaints();

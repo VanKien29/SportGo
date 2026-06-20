@@ -124,44 +124,21 @@
           </main>
 
           <aside class="side-panel">
-<h4>Phân công và kết quả</h4>
+            <h4>Xử lý và kết quả</h4>
 
-<p v-if="isTerminalStatus(selected.status)" class="content-box">
-  Khiếu nại đã kết thúc với trạng thái “{{ statusLabel(selected.status) }}”.
-  Kết quả được giữ lại trong lịch sử xử lý.
-</p>
+            <p v-if="isTerminalStatus(selected.status)" class="content-box">
+              Khiếu nại đã kết thúc với trạng thái “{{ statusLabel(selected.status) }}”.
+              Kết quả được giữ lại trong lịch sử xử lý.
+            </p>
 
-<div class="handler-info" style="margin-bottom: 12px; font-size: 13px; color: #475569;">
-  <span style="font-weight: 800; display: block; margin-bottom: 4px;">Người xử lý:</span>
-  <span style="background: #f1f5f9; padding: 6px 10px; border-radius: 6px; display: block; font-weight: 500;">
-    {{ selected.assigned_to?.full_name || 'Chưa phân công' }}
-  </span>
-</div>
+            <div class="handler-info" style="margin-bottom: 12px; font-size: 13px; color: #475569;">
+              <span style="font-weight: 800; display: block; margin-bottom: 4px;">Người xử lý:</span>
+              <span style="background: #f1f5f9; padding: 6px 10px; border-radius: 6px; display: block; font-weight: 500;">
+                {{ selected.assigned_to?.full_name || 'Hệ thống tự động gán khi cập nhật' }}
+              </span>
+            </div>
 
-<div v-if="!isTerminalStatus(selected.status)" class="form-stack">
-  <label>
-    Phân công người xử lý
-    <select v-model="form.assigned_to">
-      <option value="">Chọn người xử lý</option>
-      <option
-        v-for="member in staff"
-        :key="member.id"
-        :value="member.id"
-      >
-        {{ member.full_name }}
-      </option>
-    </select>
-  </label>
-
-  <button
-    class="btn secondary"
-    type="button"
-    :disabled="saving || !form.assigned_to"
-    @click="assignComplaint"
-  >
-    Lưu phân công
-  </button>
-</div>
+            <div v-if="!isTerminalStatus(selected.status)" class="form-stack">
               <label>
                 Kết quả
                 <select v-model="form.status">
@@ -180,6 +157,72 @@
           </aside>
         </div>
       </section>
+    </div>
+
+    <!-- Modal Cấu hình tự động xử lý khiếu nại -->
+    <div v-if="showAutoResolveModal" class="detail-backdrop" @click.self="closeAutoResolveModal">
+      <div class="modal" style="max-width: 650px; background: #fff; border-radius: 12px; padding: 22px; display: grid; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+        <h3 style="margin: 0;">Cấu hình tự động xử lý khiếu nại</h3>
+        <p class="muted" style="margin: 0; color: #64748b; font-size: 14px;">Thiết lập tự động giải quyết khiếu nại của khách hàng khi vừa được gửi lên.</p>
+        
+        <div v-if="autoResolveLoading" class="state" style="padding: 20px; text-align: center; color: #64748b;">Đang tải cấu hình...</div>
+        <template v-else-if="autoResolveConfigData">
+          <!-- Chọn Đối Tượng Tab cấu hình -->
+          <div class="auto-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
+            <button
+              v-for="cfg in autoResolveConfigData.configs"
+              :key="cfg.target_type"
+              type="button"
+              :class="{ active: activeAutoTab === cfg.target_type }"
+              @click="activeAutoTab = cfg.target_type"
+              style="border: 0; background: transparent; padding: 8px 12px; font-weight: 800; cursor: pointer; border-bottom: 2px solid transparent; color: #64748b; font-size: 14px;"
+              :style="activeAutoTab === cfg.target_type ? 'color: #166534; border-bottom-color: #22c55e;' : ''"
+            >
+              {{ cfg.target_type_label }}
+            </button>
+          </div>
+
+          <div v-if="currentAutoConfig" class="auto-config-body" style="display: grid; gap: 14px;">
+            <!-- Cấu hình chỉnh sửa -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center;">
+                <span style="color: #334155; font-size: 0.9rem; font-weight: 600;">Tự động xử lý khiếu nại:</span>
+                <!-- Switch toggle -->
+                <div 
+                  class="toggle-slider" 
+                  :class="{ on: currentAutoConfig.is_auto_resolve_enabled }" 
+                  @click="currentAutoConfig.is_auto_resolve_enabled = !currentAutoConfig.is_auto_resolve_enabled"
+                  style="width: 48px; height: 26px; border-radius: 13px; background: #e2e8f0; cursor: pointer; transition: background 0.2s; position: relative;"
+                  :style="currentAutoConfig.is_auto_resolve_enabled ? 'background: #16a34a;' : ''"
+                >
+                  <div 
+                    style="position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"
+                    :style="currentAutoConfig.is_auto_resolve_enabled ? 'transform: translateX(22px);' : ''"
+                  ></div>
+                </div>
+              </div>
+              <div v-if="currentAutoConfig.is_auto_resolve_enabled" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+                <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 800; font-size: 13px; color: #334155;">
+                  <span style="color: #64748b;">Phản hồi xử lý tự động:</span>
+                  <input type="text" v-model="currentAutoConfig.reason" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 500;" placeholder="Ví dụ: Hệ thống tự động giải quyết khiếu nại." />
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 4px; padding: 10px 12px; background: #eff6ff; border-radius: 8px; font-size: 0.85rem; color: #1e40af; display: flex; align-items: flex-start; gap: 8px;">
+            <AppIcon name="info" size="16" style="flex-shrink: 0; margin-top: 2px;" />
+            <div>
+              Khi tính năng <strong>Tự động xử lý khiếu nại</strong> được bật, các khiếu nại mới của đối tượng này khi được gửi lên sẽ được hệ thống tự động giải quyết và gửi phản hồi ngay lập tức.
+            </div>
+          </div>
+        </template>
+
+        <footer style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn secondary" @click="closeAutoResolveModal" style="border: 0; background: #f1f5f9; color: #334155; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;">Hủy</button>
+          <button type="button" class="btn primary" style="background: #10b981; color: white; border: 0; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;" @click="saveAutoResolveConfig" :disabled="autoResolveSaving">Lưu cấu hình</button>
+        </footer>
+      </div>
     </div>
   </section>
 </template>
@@ -214,7 +257,20 @@ export default {
       error: '',
       success: '',
       form: { assigned_to: '', status: 'processing', resolve_note: '' },
+      showAutoResolveModal: false,
+      autoResolveLoading: false,
+      autoResolveSaving: false,
+      autoResolveConfigData: null,
+      activeAutoTab: 'venue',
     };
+  },
+  computed: {
+    currentAutoConfig() {
+      if (!this.autoResolveConfigData || !this.autoResolveConfigData.configs) {
+        return null;
+      }
+      return this.autoResolveConfigData.configs[this.activeAutoTab];
+    },
   },
   mounted() {
     this.loadComplaints();
@@ -288,6 +344,39 @@ export default {
         this.error = error.message;
       } finally {
         this.saving = false;
+      }
+    },
+    async openAutoResolveModal() {
+      this.showAutoResolveModal = true;
+      this.autoResolveLoading = true;
+      this.activeAutoTab = 'venue';
+      try {
+        const res = await adminComplaintService.getAutoResolveConfig();
+        this.autoResolveConfigData = res.data;
+      } catch (err) {
+        this.error = 'Không thể tải cấu hình tự động xử lý khiếu nại.';
+        this.showAutoResolveModal = false;
+      } finally {
+        this.autoResolveLoading = false;
+      }
+    },
+    closeAutoResolveModal() {
+      this.showAutoResolveModal = false;
+      this.autoResolveConfigData = null;
+    },
+    async saveAutoResolveConfig() {
+      this.autoResolveSaving = true;
+      try {
+        const payload = {
+          configs: Object.values(this.autoResolveConfigData.configs),
+        };
+        await adminComplaintService.saveAutoResolveConfig(payload);
+        this.success = 'Lưu cấu hình tự động xử lý khiếu nại thành công.';
+        this.closeAutoResolveModal();
+      } catch (err) {
+        this.error = err.message || 'Lỗi khi lưu cấu hình.';
+      } finally {
+        this.autoResolveSaving = false;
       }
     },
     async refreshDetail() {

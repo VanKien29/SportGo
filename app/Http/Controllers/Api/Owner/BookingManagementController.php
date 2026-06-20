@@ -580,6 +580,8 @@ class BookingManagementController extends Controller
         }
         [$hours, $minutes] = explode(':', $time);
         return (int) $hours * 60 + (int) $minutes;
+    }
+
     private function recurringGroupPayload(Collection $bookings): array
     {
         $first = $bookings->sortBy('booking_date')->first();
