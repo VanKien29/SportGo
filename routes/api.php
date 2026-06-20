@@ -267,6 +267,8 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::patch('/holiday-prices/{id}', [OwnerPricingController::class, 'updateHolidayPrice']);
         Route::delete('/holiday-prices/{id}', [OwnerPricingController::class, 'destroyHolidayPrice']);
         Route::get('/platform-fees', [OwnerPlatformFeeController::class, 'index']);
+        Route::get('/platform-fees/overview', [OwnerPlatformFeeController::class, 'overview']);
+        Route::post('/platform-fees/prepay', [OwnerPlatformFeeController::class, 'createAdvancePayment']);
         Route::get('/platform-fees/{id}', [OwnerPlatformFeeController::class, 'show']);
         Route::post('/platform-fees/{id}/payment', [OwnerPlatformFeeController::class, 'createPayment']);
         Route::get('/schedule-locks', [OwnerScheduleLockController::class, 'index']);

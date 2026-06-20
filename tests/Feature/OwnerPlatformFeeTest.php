@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\PlatformFeeTier;
+use App\Models\CourtType;
 use App\Models\Role;
 use App\Models\SystemBankAccount;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Models\VenueAccessRestriction;
 use App\Models\VenueCluster;
+use App\Models\VenueCourt;
 use App\Models\VenuePlatformFeeLedger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -118,6 +120,87 @@ class OwnerPlatformFeeTest extends TestCase
             'action' => 'platform_fee.sepay_qr_created',
             'entity_id' => $this->ledger->id,
         ]);
+    }
+
+    public function test_owner_can_create_advance_payment_for_selected_months(): void
+    {
+        $this->ledger->update([
+            'amount_paid' => $this->ledger->amount_due,
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
+
+        $courtType = CourtType::query()->create([
+            'name' => 'Sân thử nghiệm phí nền tảng',
+            'player_count' => 4,
+            'is_active' => true,
+        ]);
+
+        foreach (range(1, 2) as $courtNumber) {
+            VenueCourt::query()->create([
+                'venue_cluster_id' => $this->cluster->id,
+                'court_type_id' => $courtType->id,
+                'name' => "Sân {$courtNumber}",
+                'status' => 'active',
+                'sort_order' => $courtNumber,
+            ]);
+        }
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/platform-fees/prepay', [
+                'venue_cluster_id' => $this->cluster->id,
+                'months' => 3,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.period_months', 3)
+            ->assertJsonPath('data.court_count', 2)
+            ->assertJsonPath('amount', 600000);
+
+        $this->assertNotSame($this->ledger->id, $response->json('data.id'));
+        $this->assertDatabaseHas('venue_platform_fee_ledgers', [
+            'id' => $response->json('data.id'),
+            'venue_cluster_id' => $this->cluster->id,
+            'period_months' => 3,
+            'amount_due' => 600000,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_advance_payment_rejects_unsupported_month_count(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/platform-fees/prepay', [
+                'venue_cluster_id' => $this->cluster->id,
+                'months' => 2,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('months');
+    }
+
+    public function test_advance_payment_requires_existing_fees_to_be_paid_first(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/platform-fees/prepay', [
+                'venue_cluster_id' => $this->cluster->id,
+                'months' => 3,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'message',
+                'Cụm sân còn kỳ phí chưa thanh toán. Vui lòng hoàn tất các kỳ này trước khi thanh toán trước.',
+            );
+    }
+
+    public function test_overview_shows_outstanding_fee_and_disables_prepay_for_that_cluster(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->getJson('/api/owner/platform-fees/overview')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $this->cluster->id)
+            ->assertJsonPath('data.0.outstanding_count', 1)
+            ->assertJsonPath('data.0.outstanding_amount', 200000)
+            ->assertJsonPath('data.0.can_prepay', false)
+            ->assertJsonPath('data.0.oldest_outstanding.id', $this->ledger->id);
     }
 
     public function test_sepay_webhook_auto_confirms_platform_fee_and_releases_fee_restriction(): void

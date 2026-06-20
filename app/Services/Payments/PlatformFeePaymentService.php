@@ -4,6 +4,7 @@ namespace App\Services\Payments;
 
 use App\Models\AuditLog;
 use App\Models\Payment;
+use App\Models\PlatformFeeTier;
 use App\Models\SystemBankAccount;
 use App\Models\VenueAccessRestriction;
 use App\Models\VenueCluster;
@@ -14,6 +15,87 @@ use RuntimeException;
 
 class PlatformFeePaymentService
 {
+    public function createAdvancePayment(VenueCluster $cluster, int $months, string $actorId): array
+    {
+        if (! in_array($months, [1, 3, 6, 9], true)) {
+            throw new RuntimeException('Số tháng thanh toán trước không hợp lệ.');
+        }
+
+        $ledger = DB::transaction(function () use ($cluster, $months): VenuePlatformFeeLedger {
+            $hasOutstandingFee = VenuePlatformFeeLedger::query()
+                ->where('venue_cluster_id', $cluster->id)
+                ->whereNotIn('status', ['paid', 'cancelled'])
+                ->whereRaw('amount_paid < amount_due')
+                ->lockForUpdate()
+                ->exists();
+
+            if ($hasOutstandingFee) {
+                throw new RuntimeException('Cụm sân còn kỳ phí chưa thanh toán. Vui lòng hoàn tất các kỳ này trước khi thanh toán trước.');
+            }
+
+            $latestLedger = VenuePlatformFeeLedger::query()
+                ->where('venue_cluster_id', $cluster->id)
+                ->where('status', '!=', 'cancelled')
+                ->orderByDesc('period_end')
+                ->lockForUpdate()
+                ->first();
+
+            $courtCount = $cluster->venueCourts()->count();
+            if ($courtCount < 1) {
+                throw new RuntimeException('Cụm sân chưa có sân con để tính phí nền tảng.');
+            }
+
+            $tier = PlatformFeeTier::query()
+                ->where('is_active', true)
+                ->where('min_courts', '<=', $courtCount)
+                ->where(function ($query) use ($courtCount): void {
+                    $query->whereNull('max_courts')
+                        ->orWhere('max_courts', '>=', $courtCount);
+                })
+                ->where(function ($query): void {
+                    $query->whereNull('effective_from')
+                        ->orWhere('effective_from', '<=', now());
+                })
+                ->orderByDesc('min_courts')
+                ->first();
+
+            if (! $tier) {
+                throw new RuntimeException('Chưa có bậc phí phù hợp với số sân hiện tại.');
+            }
+
+            $currentPeriodStart = today()->startOfMonth();
+            $periodStart = $latestLedger?->period_end
+                ? $latestLedger->period_end->copy()->addDay()
+                : $currentPeriodStart->copy();
+
+            if ($periodStart->lt($currentPeriodStart)) {
+                $periodStart = $currentPeriodStart->copy();
+            }
+
+            $periodEnd = $periodStart->copy()->addMonthsNoOverflow($months)->subDay();
+            $amountDue = round($courtCount * (float) $tier->price_per_court_month * $months, 2);
+
+            return VenuePlatformFeeLedger::query()->create([
+                'venue_cluster_id' => $cluster->id,
+                'tier_id' => $tier->id,
+                'court_count' => $courtCount,
+                'billing_cycle' => 'monthly',
+                'period_months' => $months,
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'due_date' => today()->addDays(7),
+                'price_per_court_month' => $tier->price_per_court_month,
+                'discount_percent' => 0,
+                'amount_due' => $amountDue,
+                'amount_paid' => 0,
+                'payment_proof_status' => 'none',
+                'status' => 'pending',
+            ]);
+        });
+
+        return $this->createPayment($ledger, $actorId);
+    }
+
     public function createPayment(VenuePlatformFeeLedger $ledger, string $actorId): array
     {
         return DB::transaction(function () use ($ledger, $actorId): array {
