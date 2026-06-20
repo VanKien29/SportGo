@@ -2,19 +2,13 @@
   <section class="admin-page">
     <PlatformFeeSubnav v-if="isPlatformFeeScope" />
 
-    <header class="page-head">
-      <div>
-        <p class="eyebrow">{{ isPlatformFeeScope ? 'Chính sách phí nền tảng' : 'Quản lý chính sách' }}</p>
-        <h2>{{ isPlatformFeeScope ? 'Chính sách áp dụng cho phí nền tảng' : 'Quản lý chính sách' }}</h2>
-        <p>
-          Quản lý văn bản chính sách và các quy tắc xử lý tự động. Mã kỹ thuật chỉ hiển thị như thông tin phụ.
-        </p>
-      </div>
-      <button class="btn primary" type="button" @click="openCreateModal">
-        <AppIcon name="plus" size="18" />
-        <span>Tạo chính sách</span>
+    <!-- Floating Add Button -->
+    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <button class="btn-float-add" type="button" @click="openCreateModal" title="Tạo chính sách">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Tạo chính sách</span>
       </button>
-    </header>
+    </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -265,6 +259,7 @@ export default {
       policyTypes: Object.entries(POLICY_TYPE_LABELS)
         .filter(([value]) => !['general', 'booking', 'account'].includes(value))
         .map(([value, label]) => ({ value, label })),
+      showScrollTop: false,
     };
   },
   computed: {
@@ -277,6 +272,10 @@ export default {
   },
   mounted() {
     this.loadPolicies();
+    window.addEventListener('scroll', this.handleScroll);
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     defaultForm(platformFeeScope = this.isPlatformFeeScope) {
@@ -411,6 +410,9 @@ export default {
     autoHide() {
       setTimeout(() => { this.success = ''; }, 3500);
     },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 250;
+    },
   },
 };
 </script>
@@ -422,36 +424,10 @@ export default {
   gap: 20px;
 }
 
-.page-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
-}
-
-.eyebrow {
-  margin: 0 0 4px;
-  color: #16a34a;
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
 h2,
 h3,
 p {
   margin: 0;
-}
-
-.page-head h2 {
-  color: #0f172a;
-  font-size: 24px;
-}
-
-.page-head p:not(.eyebrow) {
-  margin-top: 6px;
-  color: #64748b;
-  line-height: 1.55;
 }
 
 .filter-panel,

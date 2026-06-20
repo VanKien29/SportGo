@@ -111,7 +111,9 @@ class PricingController extends Controller
     {
         $validated = $request->validate([
             'venue_cluster_id' => ['required', 'string', 'exists:venue_clusters,id'],
-            'price' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'price' => ['required', 'numeric', 'gt:0', 'max:9999999999.99'],
+        ], [
+            'price.gt' => 'Giá chung phải lớn hơn 0.',
         ]);
 
         $this->ensureClusterAccess($request, $validated['venue_cluster_id']);
@@ -264,7 +266,7 @@ class PricingController extends Controller
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'booking_type' => ['required', Rule::in(['all', 'single', 'recurring'])],
-            'price' => ['required', 'numeric', 'min:0'],
+            'price' => ['required', 'numeric', 'gt:0'],
             'is_active' => ['required', 'boolean'],
         ];
 
@@ -274,7 +276,9 @@ class PricingController extends Controller
             }
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'price.gt' => 'Giá / giờ phải lớn hơn 0.',
+        ]);
 
         if (! $slot) {
             return $validated;
@@ -334,7 +338,7 @@ class PricingController extends Controller
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'booking_type' => ['required', Rule::in(['all', 'single', 'recurring'])],
-            'price' => ['required', 'numeric', 'min:0'],
+            'price' => ['required', 'numeric', 'gt:0'],
             'note' => ['nullable', 'string', 'max:255'],
             'is_active' => ['required', 'boolean'],
         ];
@@ -345,7 +349,9 @@ class PricingController extends Controller
             }
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'price.gt' => 'Giá / giờ phải lớn hơn 0.',
+        ]);
 
         if (! $price) {
             return $validated;

@@ -1,11 +1,8 @@
 <template>
   <section class="user-detail">
-    <header class="page-head">
-      <div>
-        <RouterLink class="back-link" to="/admin/users">← Quay lại danh sách</RouterLink>
-        <h2>{{ profile.full_name || 'Chi tiết tài khoản' }}</h2>
-      </div>
-    </header>
+    <div class="back-action-bar">
+      <RouterLink class="back-link" to="/admin/users">← Quay lại danh sách</RouterLink>
+    </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>

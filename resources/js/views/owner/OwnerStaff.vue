@@ -1,15 +1,12 @@
 <template>
   <section class="page">
-    <header class="page-head">
-      <div>
-        <h2>Quản lý nhân viên sân</h2>
-        <p>Tạo nhân viên sân và gán phạm vi làm việc theo toàn cụm hoặc loại sân.</p>
-      </div>
-      <button class="btn primary" type="button" @click="openCreate">
-        <AppIcon name="plus" size="16" />
-        <span>Thêm nhân viên</span>
+    <!-- Floating Add Button -->
+    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <button class="btn-float-add" type="button" @click="openCreate" title="Thêm nhân viên">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Thêm nhân viên</span>
       </button>
-    </header>
+    </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -104,14 +101,17 @@ export default {
       success: '',
       showModal: false,
       form: this.emptyForm(),
+      showScrollTop: false,
     };
   },
   mounted() {
     window.addEventListener('owner-cluster-changed', this.loadStaff);
+    window.addEventListener('scroll', this.handleScroll);
     this.loadStaff();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.loadStaff);
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     emptyForm() {
@@ -196,10 +196,13 @@ export default {
     statusLabel(status) {
       return { active: 'Đang hoạt động', locked: 'Đã khóa', deactivated: 'Đã vô hiệu hóa' }[status] || status;
     },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 250;
+    },
   },
 };
 </script>
 
 <style scoped>
-.page{display:grid;gap:16px}.page-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.page-head h2{margin:0 0 6px}.page-head p{margin:0;color:#64748b}.table-card,.modal{background:#fff;border:1px solid #e2e8f0;border-radius:12px}.table-card{overflow:auto}table{width:100%;border-collapse:collapse;min-width:880px}th,td{padding:12px;border-bottom:1px solid #e2e8f0;text-align:left}.state{padding:24px;color:#64748b}.btn,.mini-btn{border:0;border-radius:8px;font-weight:800;cursor:pointer}.btn{padding:10px 14px}.mini-btn{padding:7px 10px;margin-right:6px;background:#f1f5f9}.primary{background:#16a34a;color:#fff}.secondary{background:#f1f5f9;color:#0f172a}.danger{background:#fee2e2;color:#b91c1c}.badge{border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;background:#e2e8f0}.badge.active{background:#dcfce7;color:#166534}.badge.locked,.badge.deactivated{background:#fee2e2;color:#b91c1c}.alert{padding:12px;border-radius:10px;font-weight:700}.error{background:#fee2e2;color:#b91c1c}.success{background:#dcfce7;color:#166534}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.56);display:grid;place-items:center;z-index:500;padding:20px}.modal{width:min(680px,calc(100vw - 32px));padding:22px;display:grid;gap:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:6px;font-weight:800}input,select{border:1px solid #dbe3ef;border-radius:8px;padding:10px;font:inherit}.scope-box{display:grid;gap:10px;border:1px solid #e2e8f0;border-radius:10px;padding:12px}.scope-box>span{font-weight:900}.check{display:flex;align-items:center;gap:8px}.check input{width:auto}.court-types{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}footer{display:flex;justify-content:flex-end;gap:10px}@media(max-width:720px){.grid,.court-types{grid-template-columns:1fr}.page-head{flex-direction:column}}
+.page{display:grid;gap:16px}.table-card,.modal{background:#fff;border:1px solid #e2e8f0;border-radius:12px}.table-card{overflow:auto}table{width:100%;border-collapse:collapse;min-width:880px}th,td{padding:12px;border-bottom:1px solid #e2e8f0;text-align:left}.state{padding:24px;color:#64748b}.btn,.mini-btn{border:0;border-radius:8px;font-weight:800;cursor:pointer}.btn{padding:10px 14px}.mini-btn{padding:7px 10px;margin-right:6px;background:#f1f5f9}.primary{background:#16a34a;color:#fff}.secondary{background:#f1f5f9;color:#0f172a}.danger{background:#fee2e2;color:#b91c1c}.badge{border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;background:#e2e8f0}.badge.active{background:#dcfce7;color:#166534}.badge.locked,.badge.deactivated{background:#fee2e2;color:#b91c1c}.alert{padding:12px;border-radius:10px;font-weight:700}.error{background:#fee2e2;color:#b91c1c}.success{background:#dcfce7;color:#166534}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.56);display:grid;place-items:center;z-index:500;padding:20px}.modal{width:min(680px,calc(100vw - 32px));padding:22px;display:grid;gap:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:6px;font-weight:800}input,select{border:1px solid #dbe3ef;border-radius:8px;padding:10px;font:inherit}.scope-box{display:grid;gap:10px;border:1px solid #e2e8f0;border-radius:10px;padding:12px}.scope-box>span{font-weight:900}.check{display:flex;align-items:center;gap:8px}.check input{width:auto}.court-types{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}footer{display:flex;justify-content:flex-end;gap:10px}@media(max-width:720px){.grid,.court-types{grid-template-columns:1fr}}
 </style>

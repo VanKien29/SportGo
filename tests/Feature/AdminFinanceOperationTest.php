@@ -98,6 +98,7 @@ class AdminFinanceOperationTest extends TestCase
 
         $wallet = OwnerWallet::query()->create([
             'owner_id' => $this->owner->id,
+            'venue_cluster_id' => $this->cluster->id,
             'available_balance' => 100000,
             'pending_withdrawal_balance' => 0,
             'total_earned' => 100000,
@@ -124,7 +125,7 @@ class AdminFinanceOperationTest extends TestCase
 
     public function test_refund_only_marks_payment_refunded_when_refund_is_completed(): void
     {
-        $payout = UserPayoutAccount::query()->create([
+        UserPayoutAccount::query()->create([
             'user_id' => $this->customer->id,
             'bank_name' => 'MB Bank',
             'bank_account_number' => '123456789',
@@ -140,7 +141,6 @@ class AdminFinanceOperationTest extends TestCase
             'amount' => 40000,
             'reason' => 'Khách hủy đúng chính sách.',
             'refund_destination' => 'bank_account',
-            'user_payout_account_id' => $payout->id,
             'owner_confirmed_by' => $this->owner->id,
             'owner_confirmed_at' => now(),
             'status' => 'pending_confirmation',
@@ -150,7 +150,10 @@ class AdminFinanceOperationTest extends TestCase
             ->getJson('/api/admin/finance/refunds')
             ->assertOk()
             ->assertJsonPath('data.0.booking.booking_code', 'BKFINANCE01')
-            ->assertJsonPath('data.0.refund_destination.account_number', '123456789')
+            ->assertJsonPath('data.0.refund_destination.type', 'user_wallet')
+            ->assertJsonPath('data.0.refund_destination.label', 'Ví SportGo')
+            ->assertJsonPath('data.0.can_pay_by_qr', false)
+            ->assertJsonPath('data.0.can_complete_wallet_refund', true)
             ->assertJsonPath('data.0.owner_confirmation.confirmed', true);
 
         $this->assertDatabaseHas('payments', ['id' => $this->payment->id, 'status' => 'paid']);
@@ -158,15 +161,30 @@ class AdminFinanceOperationTest extends TestCase
         $this->actingAs($this->finance, 'sanctum')
             ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", [
                 'status' => 'completed',
-                'reason' => 'Đã chuyển hoàn tiền cho khách.',
-                'gateway_refund_txn_id' => 'MB-REFUND-01',
+                'reason' => 'Đã hoàn tiền vào ví SportGo của khách.',
                 'source' => 'mock',
             ])
             ->assertOk()
             ->assertJsonPath('data.status', 'completed')
             ->assertJsonPath('data.receipt.amount', '40000.00');
 
-        $this->assertDatabaseHas('payments', ['id' => $this->payment->id, 'status' => 'refunded']);
+        $this->assertDatabaseHas('payments', ['id' => $this->payment->id, 'status' => 'paid']);
+        $this->assertDatabaseHas('refunds', [
+            'id' => $refund->id,
+            'refund_destination' => 'user_wallet',
+            'gateway_refund_txn_id' => 'USER-WALLET-'.$refund->id,
+        ]);
+        $this->assertDatabaseHas('user_wallets', [
+            'user_id' => $this->customer->id,
+            'balance' => 40000,
+        ]);
+        $this->assertDatabaseHas('user_wallet_ledgers', [
+            'type' => 'refund',
+            'direction' => 'credit',
+            'amount' => 40000,
+            'reference_type' => 'refund',
+            'reference_id' => $refund->id,
+        ]);
         $this->assertDatabaseHas('owner_wallets', ['owner_id' => $this->owner->id, 'available_balance' => 60000]);
         $this->assertDatabaseHas('owner_wallet_ledgers', [
             'payment_id' => $this->payment->id,
@@ -201,6 +219,85 @@ class AdminFinanceOperationTest extends TestCase
         $this->assertDatabaseHas('refunds', [
             'id' => $refund->id,
             'status' => 'pending_confirmation',
+        ]);
+    }
+
+    public function test_admin_can_complete_walk_in_refund_by_creating_wallet_customer_from_phone(): void
+    {
+        $walkInBooking = Booking::query()->create([
+            'booking_code' => 'BKWALKINREF01',
+            'customer_id' => null,
+            'venue_cluster_id' => $this->cluster->id,
+            'booking_date' => '2026-06-12',
+            'total_price' => 30000,
+            'payment_option' => 'full_payment',
+            'required_payment_amount' => 30000,
+            'source' => 'counter',
+            'booking_type' => 'single',
+            'status' => 'confirmed',
+            'walk_in_name' => 'Nguyễn Văn Khách',
+            'walk_in_phone' => '0912345678',
+        ]);
+
+        $walkInPayment = Payment::query()->create([
+            'payment_code' => 'PMWALKINREF01',
+            'booking_id' => $walkInBooking->id,
+            'amount' => 30000,
+            'wallet_amount' => 0,
+            'gateway_amount' => 30000,
+            'payment_kind' => 'full',
+            'method' => 'cash',
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
+
+        $refund = Refund::query()->create([
+            'payment_id' => $walkInPayment->id,
+            'booking_id' => $walkInBooking->id,
+            'customer_id' => null,
+            'amount' => 30000,
+            'reason' => 'Chủ sân khóa lịch, hoàn cho khách tại quầy.',
+            'refund_destination' => 'user_wallet',
+            'owner_confirmed_by' => $this->owner->id,
+            'owner_confirmed_at' => now(),
+            'status' => 'owner_confirmed',
+        ]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->getJson('/api/admin/finance/refunds')
+            ->assertOk()
+            ->assertJsonFragment([
+                'booking_code' => 'BKWALKINREF01',
+                'full_name' => 'Nguyễn Văn Khách',
+                'phone' => '0912345678',
+                'is_walk_in' => true,
+                'can_complete_wallet_refund' => true,
+            ]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", [
+                'status' => 'completed',
+                'reason' => 'Admin hoàn tiền vào ví SportGo của khách tại quầy.',
+                'source' => 'admin',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'completed');
+
+        $createdCustomer = User::query()->where('phone', '0912345678')->firstOrFail();
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $walkInBooking->id,
+            'customer_id' => $createdCustomer->id,
+        ]);
+        $this->assertDatabaseHas('refunds', [
+            'id' => $refund->id,
+            'customer_id' => $createdCustomer->id,
+            'refund_destination' => 'user_wallet',
+            'status' => 'completed',
+        ]);
+        $this->assertDatabaseHas('user_wallets', [
+            'user_id' => $createdCustomer->id,
+            'balance' => 30000,
         ]);
     }
 
@@ -254,10 +351,15 @@ class AdminFinanceOperationTest extends TestCase
         ]);
 
         $this->actingAs($this->finance, 'sanctum')
+            ->getJson('/api/admin/finance/refunds')
+            ->assertOk()
+            ->assertJsonPath('data.0.can_complete_wallet_refund', false)
+            ->assertJsonPath('data.0.policy_evaluation.compliant', false);
+
+        $this->actingAs($this->finance, 'sanctum')
             ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", [
                 'status' => 'completed',
-                'reason' => 'Đã chuyển hoàn tiền theo QR.',
-                'gateway_refund_txn_id' => 'MB-REFUND-POLICY-FAIL',
+                'reason' => 'Đã hoàn tiền vào ví SportGo của khách.',
                 'source' => 'mock',
             ])
             ->assertStatus(422)
@@ -268,8 +370,7 @@ class AdminFinanceOperationTest extends TestCase
         $this->actingAs($this->finance, 'sanctum')
             ->patchJson("/api/admin/finance/refunds/{$refund->id}/status", [
                 'status' => 'completed',
-                'reason' => 'Đã chuyển hoàn tiền theo QR.',
-                'gateway_refund_txn_id' => 'MB-REFUND-POLICY-OK',
+                'reason' => 'Đã hoàn tiền vào ví SportGo của khách.',
                 'source' => 'mock',
             ])
             ->assertOk()
@@ -278,7 +379,7 @@ class AdminFinanceOperationTest extends TestCase
             ->assertJsonPath('data.policy_evaluation.compliant', true);
     }
 
-    public function test_owner_confirmed_bank_refunds_can_be_exported_for_bulk_transfer(): void
+    public function test_refunds_are_not_exported_because_they_credit_user_wallet(): void
     {
         $payout = UserPayoutAccount::query()->create([
             'user_id' => $this->customer->id,
@@ -304,17 +405,15 @@ class AdminFinanceOperationTest extends TestCase
 
         $export = $this->actingAs($this->finance, 'sanctum')
             ->postJson('/api/admin/finance/refunds/export', ['ids' => [$refund->id]])
-            ->assertOk()
-            ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            ->assertStatus(422);
 
-        $xlsx = $export->getContent();
-        $this->assertStringStartsWith('PK', $xlsx);
-        $this->assertStringContainsString($refund->fresh()->payout_transfer_code, $xlsx);
-        $this->assertStringContainsString('29206999999999', $xlsx);
-        $this->assertStringContainsString('Kỹ Thương (TCB)', $xlsx);
+        $this->assertSame(
+            'Hoàn tiền được xử lý vào ví SportGo của khách nên không export chuyển khoản ngân hàng.',
+            $export->json('message')
+        );
     }
 
-    public function test_refund_qr_and_sepay_outbound_webhook_complete_request(): void
+    public function test_refund_qr_is_disabled_because_refunds_credit_user_wallet(): void
     {
         $payout = UserPayoutAccount::query()->create([
             'user_id' => $this->customer->id,
@@ -340,41 +439,16 @@ class AdminFinanceOperationTest extends TestCase
 
         $qr = $this->actingAs($this->finance, 'sanctum')
             ->postJson("/api/admin/finance/refunds/{$refund->id}/payout-qr")
-            ->assertOk()
-            ->assertJsonPath('data.recipient.account_number', '29206999999999')
-            ->assertJsonPath('data.amount', 40000);
+            ->assertStatus(422);
 
-        $transferCode = $qr->json('data.transfer_code');
-        $this->assertStringStartsWith('RF', $transferCode);
-        $this->assertStringContainsString($transferCode, $qr->json('data.qr_url'));
-
-        $this->postJson('/api/sepay/ipn', [
-            'id' => 'SEPAY-RF-OUT-01',
-            'gateway' => 'TPBank',
-            'transactionDate' => now()->format('Y-m-d H:i:s'),
-            'accountNumber' => '729069999999',
-            'code' => $transferCode,
-            'content' => $transferCode.' HOAN TIEN SPORTGO',
-            'transferType' => 'out',
-            'transferAmount' => 40000,
-            'referenceCode' => 'FT-RF-OUT-01',
-        ])->assertOk()
-            ->assertJsonPath('processed', true);
-
-        $this->assertDatabaseHas('refunds', [
-            'id' => $refund->id,
-            'status' => 'completed',
-            'gateway_refund_txn_id' => 'SEPAY-RF-OUT-01',
-        ]);
-        $this->assertDatabaseHas('payments', ['id' => $this->payment->id, 'status' => 'refunded']);
-        $this->assertDatabaseHas('internal_receipts', [
-            'receipt_type' => 'refund',
-            'receiptable_id' => $refund->id,
-            'amount' => 40000,
-        ]);
+        $this->assertSame(
+            'Hoàn tiền hiện được cộng trực tiếp vào ví SportGo của khách, không tạo QR chuyển khoản.',
+            $qr->json('message')
+        );
+        $this->assertDatabaseHas('refunds', ['id' => $refund->id, 'status' => 'owner_confirmed']);
     }
 
-    public function test_original_payment_refund_can_use_customer_default_payout_account_for_qr(): void
+    public function test_original_payment_refund_is_presented_as_user_wallet_refund(): void
     {
         $payout = UserPayoutAccount::query()->create([
             'user_id' => $this->customer->id,
@@ -400,20 +474,19 @@ class AdminFinanceOperationTest extends TestCase
         $this->actingAs($this->finance, 'sanctum')
             ->getJson('/api/admin/finance/refunds')
             ->assertOk()
-            ->assertJsonPath('data.0.can_pay_by_qr', true)
-            ->assertJsonPath('data.0.refund_destination.type', 'bank_account')
-            ->assertJsonPath('data.0.refund_destination.account_number', '29206999999999');
+            ->assertJsonPath('data.0.can_pay_by_qr', false)
+            ->assertJsonPath('data.0.can_complete_wallet_refund', true)
+            ->assertJsonPath('data.0.refund_destination.type', 'user_wallet')
+            ->assertJsonPath('data.0.refund_destination.label', 'Ví SportGo');
 
         $this->actingAs($this->finance, 'sanctum')
             ->postJson("/api/admin/finance/refunds/{$refund->id}/payout-qr")
-            ->assertOk()
-            ->assertJsonPath('data.recipient.account_number', '29206999999999')
-            ->assertJsonPath('data.amount', 2000);
+            ->assertStatus(422);
 
         $this->assertDatabaseHas('refunds', [
             'id' => $refund->id,
-            'refund_destination' => 'bank_account',
-            'user_payout_account_id' => $payout->id,
+            'refund_destination' => 'original_payment',
+            'user_payout_account_id' => null,
         ]);
     }
 

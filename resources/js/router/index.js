@@ -99,10 +99,10 @@ const routes = [
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
             { path: "staffs", name: "admin-staffs", component: AdminStaffs },
+            { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail, meta: { hideFloatingBack: true } },
             { path: "staffs/:id", name: "admin-staff-detail", component: AdminStaffDetail },
-            { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail },
             { path: "vouchers", name: "admin-vouchers", component: AdminVouchers },
-            { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail },
+            { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail, meta: { hideFloatingBack: true } },
             {
                 path: "payments",
                 name: "admin-payments",
@@ -139,7 +139,7 @@ const routes = [
                 name: "admin-platform-fee-policies",
                 component: AdminPolicies,
             },
-            { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
+            { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail, meta: { hideFloatingBack: true } },
             {
                 path: "reports",
                 redirect: { name: "admin-moderation", query: { tab: "reports" } }
@@ -149,7 +149,7 @@ const routes = [
                 redirect: { name: "admin-moderation", query: { tab: "complaints" } }
             },
             { path: "roles", name: "admin-roles", component: AdminRoles },
-            { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail },
+            { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail, meta: { hideFloatingBack: true } },
             {
                 path: "court-types",
                 name: "admin-court-types",
@@ -191,12 +191,14 @@ const routes = [
                 name: "admin-platform-fee-ledger-detail",
                 component: () =>
                     import("../views/admin/AdminPlatformFeeLedgerDetail.vue"),
+                meta: { hideFloatingBack: true },
             },
             {
                 path: "venues/:id/platform-fees",
                 name: "admin-venue-platform-fees",
                 component: () =>
                     import("../views/admin/AdminVenuePlatformFees.vue"),
+                meta: { hideFloatingBack: true },
             },
             {
                 path: "settings/platform-fee",
@@ -209,6 +211,7 @@ const routes = [
                 name: "admin-post-detail",
                 component: () =>
                     import("../views/admin/AdminPostDetail.vue"),
+                meta: { hideFloatingBack: true },
             },
             { path: "", redirect: { name: "admin-dashboard" } },
         ],
@@ -232,7 +235,8 @@ const routes = [
             {
                 path: "venue-courts",
                 name: "owner-venue-courts",
-                redirect: { name: "owner-venue-clusters" },
+                component: () =>
+                    import("../views/owner/OwnerVenueCourts.vue"),
             },
             {
                 path: "bookings",
@@ -264,6 +268,16 @@ const routes = [
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
             { path: "wallet", redirect: { name: "owner-finance" } },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
+            {
+                path: "posts",
+                name: "owner-posts",
+                component: () => import("../views/owner/OwnerPosts.vue"),
+            },
+            {
+                path: "matchmaking",
+                name: "owner-matchmaking",
+                component: () => import("../views/owner/OwnerMatchmaking.vue"),
+            },
             { path: "profile", name: "owner-profile", component: Profile },
             {
                 path: "partner-profile",

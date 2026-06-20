@@ -1,15 +1,12 @@
 <template>
   <div class="bookings-page">
-    <section class="page-head">
-      <div>
-        <h1>Lịch booking</h1>
-        <p>Theo dõi booking theo ngày, sân con và trạng thái; xử lý xác nhận, từ chối, hủy, check-in, hoàn thành, đổi sân.</p>
-      </div>
-      <router-link class="primary-link" to="/owner/counter-booking">
-        <AppIcon name="plus" size="16" />
-        <span>Tạo booking tại quầy</span>
+    <!-- Floating Add Button -->
+    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <router-link class="btn-float-add" to="/owner/counter-booking" title="Tạo booking tại quầy">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Tạo booking</span>
       </router-link>
-    </section>
+    </div>
 
     <section class="filters">
       <label>
@@ -403,6 +400,7 @@ export default {
       statusAction: '',
       statusActionReason: '',
       updatingStatus: false,
+      showScrollTop: false,
       timePeriods: [
         { key: 'business', label: 'Cả ngày', start: 360, end: 1320, range: '06:00 - 22:00' },
         { key: 'morning', label: 'Sáng', start: 360, end: 720, range: '06:00 - 12:00' },
@@ -518,7 +516,8 @@ export default {
       this.refreshSelectedTimeline();
     },
   },
-  async created() {
+  async mounted() {
+    window.addEventListener('scroll', this.handleScroll);
     await this.loadClusters();
 
     const query = this.$route.query;
@@ -547,6 +546,7 @@ export default {
     }, 30000);
   },
   beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
     this.clearCollectPolling();
     this.closeActionMenu();
     if (this.holdClockInterval) clearInterval(this.holdClockInterval);
@@ -1100,6 +1100,9 @@ export default {
         maximumFractionDigits: 0,
       }).format(Number(amount || 0));
     },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 150;
+    },
   },
 };
 </script>
@@ -1113,7 +1116,6 @@ export default {
   margin: 0 auto;
 }
 
-.page-head,
 .filters,
 .schedule-card,
 .table-card,
@@ -1124,26 +1126,6 @@ export default {
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
-}
-
-.page-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: end;
-  padding: 20px;
-}
-
-.page-head h1,
-.modal-panel h2 {
-  margin: 0;
-  color: #0f172a;
-  font-weight: 900;
-}
-
-.page-head p {
-  margin: 6px 0 0;
-  color: #64748b;
 }
 
 .filters {
@@ -2008,7 +1990,6 @@ td strong {
 }
 
 @media (max-width: 980px) {
-  .page-head,
   .filters,
   .collect-summary,
   .method-row,

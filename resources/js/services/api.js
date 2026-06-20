@@ -30,9 +30,10 @@ function clearAuthStorage() {
 }
 
 function extractError(data, fallback) {
-  if (data?.message) return data.message;
   const first = data?.errors ? Object.values(data.errors)[0] : null;
-  return Array.isArray(first) ? first[0] : fallback;
+  if (Array.isArray(first) && first[0]) return first[0];
+  if (data?.message) return data.message;
+  return fallback;
 }
 
 export async function api(path, options = {}) {

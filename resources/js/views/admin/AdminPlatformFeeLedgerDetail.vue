@@ -4,14 +4,12 @@
 
     <div v-if="!ledger" class="panel empty">Không tìm thấy kỳ phí.</div>
     <template v-else>
-      <header class="panel page-head">
-        <div>
-          <p class="eyebrow">Chi tiết kỳ phí</p>
-          <h2>{{ ledger.code }}</h2>
-          <p>{{ ledger.venue?.name }} - {{ ledger.owner?.full_name }}</p>
-        </div>
+      <!-- Ledger Info Bar -->
+      <div class="ledger-info-bar" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+        <h2 style="margin: 0;">{{ ledger.code }}</h2>
+        <span style="color: #64748b; font-size: 14px; font-weight: 600;">{{ ledger.venue?.name }} - {{ ledger.owner?.full_name }}</span>
         <span class="status-dot" :class="ledger.status" :title="statusLabel(ledger.status)" :aria-label="statusLabel(ledger.status)"></span>
-      </header>
+      </div>
 
       <section class="grid">
         <div class="panel metric"><span>Số tiền phải đóng</span><strong>{{ money(ledger.amount_due) }}</strong></div>
@@ -221,8 +219,7 @@ export default {
 <style scoped>
 .detail-page { display: flex; flex-direction: column; gap: 16px; }
 .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
-.page-head, .panel-head, .actions, .modal-head, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
-.eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+.panel-head, .actions, .modal-head, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
 h2, h3, p { margin: 0; }
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .metric span, .info-grid span { display: block; color: #64748b; font-size: 12px; }
@@ -272,6 +269,6 @@ th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: upper
 }
 @media (max-width: 900px) {
   .grid, .info-grid { grid-template-columns: 1fr 1fr; }
-  .page-head, .panel-head { flex-direction: column; }
+  .ledger-info-bar, .panel-head { flex-direction: column; align-items: flex-start; }
 }
 </style>

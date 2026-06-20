@@ -31,11 +31,13 @@
             <input
               v-model.number="basePriceDrafts[type.id]"
               type="number"
-              min="0"
+              min="1"
               step="1000"
+              :class="{ invalid: !isValidBasePrice(basePriceDrafts[type.id]) }"
               :disabled="savingBasePriceId === type.id"
             >
             <span>đ / giờ</span>
+            <small v-if="!isValidBasePrice(basePriceDrafts[type.id])">Giá phải lớn hơn 0.</small>
           </label>
           <button
             class="btn primary"
@@ -46,6 +48,15 @@
             {{ savingBasePriceId === type.id ? 'Đang lưu...' : 'Lưu' }}
           </button>
         </div>
+      </div>
+
+      <div class="filters">
+        <label class="cluster-select">
+          Cụm sân
+          <select v-model="selectedClusterId" :disabled="isLoading || !clusters.length">
+            <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
+          </select>
+        </label>
       </div>
     </section>
 
@@ -219,7 +230,7 @@
         <div class="form-grid">
           <label>
             Giá / giờ
-            <input v-model.number="form.price" type="number" min="0" step="1000" required>
+            <input v-model.number="form.price" type="number" min="1" step="1000" required>
           </label>
           <label v-if="activeTab !== 'weekly'">
             Ghi chú
@@ -245,12 +256,13 @@
 
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import { api } from '../../services/api.js';
 
 export default {
   name: 'OwnerPricing',
-  components: { ActionIconButton, TableActionGroup },
+  components: { ActionIconButton, TableActionGroup, AppIcon },
   data() {
     return {
       clusters: [],
@@ -286,6 +298,7 @@ export default {
         { value: 6, label: 'T7', fullLabel: 'Thứ 7' },
         { value: 7, label: 'CN', fullLabel: 'Chủ nhật' },
       ],
+      showScrollTop: false,
     };
   },
   computed: {
@@ -360,10 +373,12 @@ export default {
   },
   async mounted() {
     window.addEventListener('owner-cluster-changed', this.handleClusterChanged);
+    window.addEventListener('scroll', this.handleScroll);
     await this.loadPricing();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.handleClusterChanged);
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     defaultForm() {
@@ -439,11 +454,14 @@ export default {
       ]));
     },
     isValidBasePrice(value) {
-      return Number.isFinite(Number(value)) && Number(value) >= 0;
+      return Number.isFinite(Number(value)) && Number(value) > 0;
     },
     async saveBasePrice(type) {
-      if (!this.isValidBasePrice(this.basePriceDrafts[type.id])) return;
       this.clearMessages();
+      if (!this.isValidBasePrice(this.basePriceDrafts[type.id])) {
+        this.error = 'Giá chung phải là số lớn hơn 0.';
+        return;
+      }
       this.savingBasePriceId = type.id;
       try {
         const saved = await api(`/api/owner/base-prices/${type.id}`, {
@@ -501,6 +519,10 @@ export default {
       }
       if (this.form.start_time >= this.form.end_time) {
         this.error = 'Giờ kết thúc phải sau giờ bắt đầu.';
+        return;
+      }
+      if (!Number.isFinite(Number(this.form.price)) || Number(this.form.price) <= 0) {
+        this.error = 'Giá / giờ phải là số lớn hơn 0.';
         return;
       }
 
@@ -628,6 +650,9 @@ export default {
     },
     resetFilters() {
       this.filters = { court_type_id: '', day: '', booking_type: '', status: '' };
+    },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 150;
     },
   },
 };

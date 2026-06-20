@@ -3,7 +3,7 @@
     <header class="page-head">
       <div>
         <h1>Yêu cầu hoàn/hủy</h1>
-        <p>Xác nhận yêu cầu hoàn tiền sau khi khách hủy booking. Mức hoàn được kiểm tra theo chính sách đang áp dụng.</p>
+        <p>Xác nhận yêu cầu hoàn tiền; SportGo sẽ cộng tiền hoàn vào ví của khách sau khi xử lý.</p>
       </div>
       <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadRefunds" />
     </header>
@@ -29,6 +29,7 @@
       <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from" />
       <ActionIconButton icon="filter" label="Lọc" variant="primary" type="submit" />
       <ActionIconButton icon="x" label="Xóa lọc" @click="clearFilters" />
+      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadRefunds" />
     </form>
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -121,13 +122,13 @@
         </dl>
 
         <section class="policy-band">
-          <strong>Đối chiếu chính sách</strong>
+          <strong>{{ detailRefund.policy_evaluation?.is_owner_fault_refund ? 'Hoàn do lỗi phía sân' : 'Đối chiếu chính sách' }}</strong>
           <p>{{ detailRefund.policy_evaluation?.summary || 'Chưa đủ dữ liệu để xác định quy tắc tự động.' }}</p>
           <small v-if="detailRefund.policy_evaluation?.warning">{{ detailRefund.policy_evaluation.warning }}</small>
         </section>
 
         <section class="reason-block">
-          <strong>Lý do khách hủy</strong>
+          <strong>{{ detailRefund.policy_evaluation?.is_owner_fault_refund ? 'Lý do hoàn tiền' : 'Lý do khách hủy' }}</strong>
           <p>{{ detailRefund.reason || '-' }}</p>
         </section>
 
@@ -155,7 +156,7 @@
 
         <div v-if="decision === 'approve'" class="amount-summary fixed-amount">
           <div>
-            <span>Số tiền hoàn theo chính sách</span>
+            <span>{{ decisionRefund.policy_evaluation?.is_owner_fault_refund ? 'Số tiền hoàn 100% do lỗi phía sân' : 'Số tiền hoàn theo chính sách' }}</span>
             <small>{{ decisionRefund.policy_evaluation?.summary || 'SportGo sẽ dùng số tiền đã được hệ thống tính cho yêu cầu này.' }}</small>
           </div>
           <strong>{{ formatCurrency(refundAmount(decisionRefund)) }}</strong>
@@ -193,7 +194,7 @@ export default {
       statusTabs: [
         { value: '', label: 'Tất cả' },
         { value: 'pending_owner_confirmation', label: 'Chờ xác nhận' },
-        { value: 'owner_confirmed', label: 'Chờ chuyển khoản' },
+        { value: 'owner_confirmed', label: 'Chờ hoàn ví' },
         { value: 'owner_rejected', label: 'Đã từ chối' },
         { value: 'completed', label: 'Hoàn tất' },
       ],
@@ -279,6 +280,9 @@ export default {
       return Number(refund?.policy_evaluation?.suggested_amount ?? refund?.payment?.amount ?? refund?.amount ?? 0);
     },
     policyText(refund) {
+      if (refund.policy_evaluation?.is_owner_fault_refund) {
+        return 'Hoàn 100% do lỗi phía sân';
+      }
       const percent = refund.policy_evaluation?.refund_percent;
       return percent === undefined ? 'Chờ đối chiếu' : `Chính sách ${Number(percent)}%`;
     },
@@ -288,10 +292,10 @@ export default {
     statusLabel(status) {
       return {
         pending_owner_confirmation: 'Chờ chủ sân',
-        owner_confirmed: 'Chờ SportGo chuyển khoản',
+        owner_confirmed: 'Chờ SportGo hoàn ví',
         owner_rejected: 'Chủ sân từ chối',
-        admin_processing: 'Chờ SportGo chuyển khoản',
-        processing: 'Chờ SportGo chuyển khoản',
+        admin_processing: 'Chờ SportGo hoàn ví',
+        processing: 'Chờ SportGo hoàn ví',
         completed: 'Đã hoàn tiền',
         failed: 'Xử lý thất bại',
         rejected: 'Đã từ chối',
@@ -323,11 +327,6 @@ export default {
   display: grid;
   gap: 16px;
   min-width: 0;
-}
-
-.page-head h1,
-.page-head p {
-  margin: 0;
 }
 
 .status-tabs {

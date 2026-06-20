@@ -25,6 +25,10 @@
         <AppIcon name="eye" size="18" />
       </RouterLink>
 
+      <button class="topbar-icon" type="button" :title="theme === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'" @click="toggleTheme">
+        <AppIcon :name="theme === 'dark' ? 'sun' : 'moon'" size="18" />
+      </button>
+
       <RouterLink class="topbar-icon" to="/admin/profile" title="Hồ sơ admin">
         <AppIcon name="users" size="18" />
       </RouterLink>
@@ -70,7 +74,12 @@ export default {
     return {
       showMenu: false,
       hideTimer: null,
+      theme: 'light',
     };
+  },
+  created() {
+    this.theme = localStorage.getItem('admin-theme') || 'light';
+    document.documentElement.setAttribute('data-theme', this.theme);
   },
   computed: {
     user() {
@@ -108,6 +117,11 @@ export default {
       await adminLogout();
       this.showMenu = false;
       this.$router.push('/admin/login');
+    },
+    toggleTheme() {
+      this.theme = this.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('admin-theme', this.theme);
+      document.documentElement.setAttribute('data-theme', this.theme);
     },
   },
   beforeUnmount() {

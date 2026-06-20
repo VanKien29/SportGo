@@ -1,11 +1,8 @@
 <template>
   <section class="post-detail">
-    <header class="page-head">
-      <div>
-        <a class="back-link" href="#" @click.prevent="$router.back()">← Quay lại</a>
-        <h2>Chi tiết bài đăng</h2>
-      </div>
-    </header>
+    <div class="back-action-bar">
+      <a class="back-link" href="#" @click.prevent="$router.back()">← Quay lại</a>
+    </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="loading" class="state-card">Đang tải chi tiết bài đăng...</div>
@@ -113,8 +110,7 @@ export default {
 
 <style scoped>
 .post-detail { display: grid; gap: 16px; }
-.page-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
-.page-head h2 { margin: 6px 0; }
+.back-action-bar { display: flex; align-items: center; margin-bottom: 12px; }
 .back-link { color: #15803d; font-weight: 800; text-decoration: none; }
 .muted { color: #64748b; }
 

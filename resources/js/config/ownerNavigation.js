@@ -20,10 +20,16 @@ export const ownerNavigationSections = [
     label: 'Vận hành sân',
     items: [
       {
-        label: 'Cụm sân & Sân con',
+        label: 'Cụm sân',
         icon: 'building',
         to: '/owner/venue-clusters',
-        activeNames: ['owner-venue-clusters', 'owner-venue-courts'],
+        activeNames: ['owner-venue-clusters'],
+      },
+      {
+        label: 'Sân con',
+        icon: 'court',
+        to: '/owner/venue-courts',
+        activeNames: ['owner-venue-courts'],
       },
       {
         label: 'Khóa lịch sân',

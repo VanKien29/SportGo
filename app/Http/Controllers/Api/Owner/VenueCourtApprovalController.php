@@ -51,15 +51,26 @@ class VenueCourtApprovalController extends Controller
         }
 
         $data = $request->validate([
-            'court_type_id' => ['required', 'integer', 'exists:court_types,id'],
-            'name'          => ['required', 'string', 'max:100'],
-            'note'          => ['nullable', 'string', 'max:1000'],
+            'court_type_id'  => ['required', 'integer', 'exists:court_types,id'],
+            'name'           => ['required', 'string', 'max:100'],
+            'note'           => ['nullable', 'string', 'max:1000'],
+            'evidence_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ], [
-            'court_type_id.required' => 'Vui lòng chọn loại sân.',
-            'court_type_id.exists'   => 'Loại sân không tồn tại.',
-            'name.required'          => 'Vui lòng nhập tên sân.',
-            'name.max'               => 'Tên sân không được quá 100 ký tự.',
+            'court_type_id.required'  => 'Vui lòng chọn loại sân.',
+            'court_type_id.exists'    => 'Loại sân không tồn tại.',
+            'name.required'           => 'Vui lòng nhập tên sân.',
+            'name.max'                => 'Tên sân không được quá 100 ký tự.',
+            'evidence_image.image'    => 'File minh chứng phải là ảnh.',
+            'evidence_image.mimes'    => 'Ảnh minh chứng phải có định dạng: jpg, jpeg, png, webp.',
+            'evidence_image.max'      => 'Ảnh minh chứng không được quá 5MB.',
         ]);
+
+        // Xử lý upload ảnh minh chứng
+        $evidencePath = null;
+        if ($request->hasFile('evidence_image')) {
+            $evidencePath = $request->file('evidence_image')
+                ->store('approval-evidence/' . $clusterId, 'public');
+        }
 
         $approvalRequest = VenueCourtApprovalRequest::create([
             'venue_cluster_id' => $clusterId,
@@ -68,6 +79,7 @@ class VenueCourtApprovalController extends Controller
             'status'           => 'pending',
             'requested_by'     => $request->user()->id,
             'status_reason'    => $data['note'] ?? null,
+            'evidence_image'   => $evidencePath,
         ]);
 
         return response()->json([
@@ -112,6 +124,8 @@ class VenueCourtApprovalController extends Controller
             'name'                    => $r->name,
             'status'                  => $r->status,
             'status_reason'           => $r->status_reason,
+            'evidence_image'          => $r->evidence_image,
+            'evidence_image_url'      => $r->evidence_image ? asset('storage/' . $r->evidence_image) : null,
             'court_type'              => $r->courtType ? ['id' => $r->courtType->id, 'name' => $r->courtType->name] : null,
             'requested_by'            => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
             'reviewed_by'             => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,

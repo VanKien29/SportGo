@@ -11,6 +11,8 @@ use App\Models\User;
 use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
+use App\Services\BookingService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,9 +21,13 @@ class BookingAvailabilityTest extends TestCase
     use RefreshDatabase;
 
     private User $player;
+
     private VenueCluster $cluster;
+
     private CourtType $courtType;
+
     private VenueCourt $court;
+
     private string $bookingDate;
 
     protected function setUp(): void
@@ -127,13 +133,13 @@ class BookingAvailabilityTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->player, 'sanctum')
-            ->getJson('/api/bookings/schedule?' . http_build_query([
+            ->getJson('/api/bookings/schedule?'.http_build_query([
                 'venue_cluster_id' => $this->cluster->id,
                 'booking_date' => $this->bookingDate,
             ]));
 
         $response->assertOk()
-            ->assertJsonCount(48, 'time_slots')
+            ->assertJsonCount(28, 'time_slots')
             ->assertJsonCount(1, 'courts')
             ->assertJsonFragment([
                 'venue_court_id' => $this->court->id,
@@ -184,7 +190,7 @@ class BookingAvailabilityTest extends TestCase
             'is_active' => true,
         ]);
 
-        $service = app(\App\Services\BookingService::class);
+        $service = app(BookingService::class);
 
         $this->assertSame('price_slot', $service->resolveHourlyRate(
             $this->cluster->id,
@@ -261,5 +267,81 @@ class BookingAvailabilityTest extends TestCase
             ]);
 
         $this->assertSame(1, Booking::count());
+    }
+
+    public function test_special_operating_hours_override_fixed_hours_then_schedule_falls_back(): void
+    {
+        $specialDate = Carbon::parse($this->bookingDate);
+
+        BookingConfig::query()->where('venue_cluster_id', $this->cluster->id)->firstOrFail()->update([
+            'fixed_open_time' => '08:00',
+            'fixed_close_time' => '22:00',
+            'special_operating_hours' => [[
+                'start_date' => $specialDate->toDateString(),
+                'end_date' => $specialDate->copy()->addDays(3)->toDateString(),
+                'open_time' => '05:00',
+                'close_time' => '20:00',
+            ]],
+        ]);
+
+        $specialResponse = $this->actingAs($this->player, 'sanctum')
+            ->getJson('/api/bookings/schedule?'.http_build_query([
+                'venue_cluster_id' => $this->cluster->id,
+                'booking_date' => $specialDate->toDateString(),
+            ]));
+
+        $specialResponse->assertOk()
+            ->assertJsonCount(30, 'time_slots')
+            ->assertJsonPath('operating_hours.source', 'special')
+            ->assertJsonPath('time_slots.0.start_time', '05:00:00')
+            ->assertJsonPath('time_slots.29.end_time', '20:00:00');
+
+        $fallbackResponse = $this->actingAs($this->player, 'sanctum')
+            ->getJson('/api/bookings/schedule?'.http_build_query([
+                'venue_cluster_id' => $this->cluster->id,
+                'booking_date' => $specialDate->copy()->addDays(4)->toDateString(),
+            ]));
+
+        $fallbackResponse->assertOk()
+            ->assertJsonCount(28, 'time_slots')
+            ->assertJsonPath('operating_hours.source', 'fixed')
+            ->assertJsonPath('time_slots.0.start_time', '08:00:00')
+            ->assertJsonPath('time_slots.27.end_time', '22:00:00');
+    }
+
+    public function test_online_booking_respects_operating_hours_and_minimum_advance_notice(): void
+    {
+        Carbon::setTestNow('2026-06-19 10:00:00');
+        $bookingDate = '2026-06-20';
+
+        BookingConfig::query()->where('venue_cluster_id', $this->cluster->id)->firstOrFail()->update([
+            'min_advance_booking_minutes' => 1440,
+            'fixed_open_time' => '08:00',
+            'fixed_close_time' => '20:00',
+        ]);
+
+        $this->actingAs($this->player, 'sanctum')
+            ->postJson('/api/bookings', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $bookingDate,
+                'start_time' => '07:00:00',
+                'end_time' => '08:00:00',
+                'payment_option' => 'no_prepay',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('start_time');
+
+        $this->actingAs($this->player, 'sanctum')
+            ->postJson('/api/bookings', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $bookingDate,
+                'start_time' => '08:00:00',
+                'end_time' => '09:00:00',
+                'payment_option' => 'no_prepay',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('start_time');
+
+        Carbon::setTestNow();
     }
 }

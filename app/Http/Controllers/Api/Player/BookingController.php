@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Player;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\SlotLock;
+use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\BookingService;
 use App\Services\Policies\RefundCancellationPolicyService;
@@ -16,6 +17,7 @@ use Illuminate\Validation\ValidationException;
 class BookingController extends Controller
 {
     protected BookingService $bookingService;
+
     protected RefundCancellationPolicyService $refundCancellationPolicyService;
 
     public function __construct(BookingService $bookingService, RefundCancellationPolicyService $refundCancellationPolicyService)
@@ -29,7 +31,7 @@ class BookingController extends Controller
      */
     public function initData()
     {
-        $clusters = \App\Models\VenueCluster::with(['bookingConfig', 'venueCourts' => function ($query) {
+        $clusters = VenueCluster::with(['bookingConfig', 'venueCourts' => function ($query) {
             $query->where('status', 'active');
         }, 'venueCourts.courtType'])->where('status', 'active')->get();
 
@@ -56,6 +58,10 @@ class BookingController extends Controller
             $request->input('booking_date'),
             $request->input('start_time'),
             $request->input('end_time')
+        ) && $this->bookingService->meetsMinimumAdvanceNotice(
+            VenueCourt::findOrFail($request->input('venue_court_id'))->venue_cluster_id,
+            $request->input('booking_date'),
+            $request->input('start_time'),
         );
 
         $court = VenueCourt::findOrFail($request->input('venue_court_id'));
@@ -114,7 +120,10 @@ class BookingController extends Controller
 
         try {
             $booking = $this->bookingService->createBooking($validated, auth()->id());
+
             return response()->json($booking, 201);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             return response()->json([
                 'message' => $e->getMessage(),

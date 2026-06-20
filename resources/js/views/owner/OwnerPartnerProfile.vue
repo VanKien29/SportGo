@@ -513,16 +513,6 @@ export default {
   padding-bottom: 40px;
 }
 
-.page-header {
-  margin-bottom: 8px;
-}
-
-.page-header h2 {
-  font-size: 24px;
-  font-weight: 800;
-  margin-bottom: 4px;
-}
-
 .card {
   background: #fff;
   border: 1px solid var(--sg-border);

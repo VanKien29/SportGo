@@ -75,6 +75,20 @@ class PolicyRulesTableSeeder extends Seeder
                         'venue_can_block_system_allowed_cancel' => false,
                     ],
                 ]),
+                $this->fromTemplate($templates['owner_fault_full_refund'], 110, [
+                    'rule_name' => 'Hoàn 100% khi chủ sân hủy/khóa/bảo trì',
+                    'condition_json' => ['owner_fault_refund' => true],
+                    'result_json' => [
+                        'refund_percent' => 100,
+                        'refund_basis' => 'paid_amount',
+                        'refund_destination' => 'user_wallet',
+                        'requires_owner_confirm' => false,
+                        'requires_admin_confirm' => true,
+                        'summary_vi' => 'Nếu booking bị ảnh hưởng do chủ sân hủy, khóa sân hoặc bảo trì, khách được hoàn 100% vào ví SportGo.',
+                    ],
+                    'constraint_json' => ['refund_percent' => ['exact' => 100], 'refund_destination' => 'user_wallet'],
+                    'allowed_override_json' => ['venue_can_reduce_refund_percent' => false],
+                ]),
             ],
             'platform_fee' => [
                 $this->fromTemplate($templates['platform_fee_overdue_warning'], 80),

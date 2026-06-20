@@ -28,6 +28,7 @@
         <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadComplaints" />
         <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadComplaints" />
         <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadComplaints" />
+        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadComplaints" />
       </div>
     </section>
 
@@ -138,7 +139,33 @@
               </span>
             </div>
 
+<<<<<<< HEAD
             <div v-if="!isTerminalStatus(selected.status)" class="form-stack">
+=======
+<div v-if="!isTerminalStatus(selected.status)" class="form-stack">
+  <label>
+    Phân công người xử lý
+    <select v-model="form.assigned_to">
+      <option value="">Chọn người xử lý</option>
+      <option
+        v-for="member in staff"
+        :key="member.id"
+        :value="member.id"
+      >
+        {{ member.full_name }}
+      </option>
+    </select>
+  </label>
+
+  <button
+    class="btn secondary"
+    type="button"
+    :disabled="saving || !form.assigned_to"
+    @click="assignComplaint"
+  >
+    Lưu phân công
+  </button>
+>>>>>>> 4307f1c88751775e6d9df0daeec900a92ff20eb6
               <label>
                 Kết quả
                 <select v-model="form.status">

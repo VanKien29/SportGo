@@ -308,13 +308,13 @@
                       <span>Thích</span>
                       <span>Phản hồi</span>
                       <div class="fb-comment-tools">
-                        <button v-if="c.status === 'hidden'" title="Mở ẩn bình luận" @click="actionComment(c, 'unhide')">
+                        <button v-if="c.status === 'hidden'" type="button" title="Mở ẩn bình luận" @click="actionComment(c, 'unhide')">
                           <AppIcon name="eye" size="14" />
                         </button>
-                        <button v-else title="Ẩn bình luận" @click="actionComment(c, 'hide')">
+                        <button v-else type="button" title="Ẩn bình luận" @click="actionComment(c, 'hide')">
                           <AppIcon name="eyeOff" size="14" />
                         </button>
-                        <button title="Xóa bình luận" class="tool-danger" @click="actionComment(c, 'delete')">
+                        <button type="button" title="Xóa bình luận" class="tool-danger" @click="actionComment(c, 'delete')">
                           <AppIcon name="trash" size="14" />
                         </button>
                       </div>
@@ -342,13 +342,13 @@
                         <span>Thích</span>
                         <span>Phản hồi</span>
                         <div class="fb-comment-tools">
-                          <button v-if="reply.status === 'hidden'" title="Mở ẩn" @click="actionComment(reply, 'unhide')">
+                          <button v-if="reply.status === 'hidden'" type="button" title="Mở ẩn" @click="actionComment(reply, 'unhide')">
                             <AppIcon name="eye" size="14" />
                           </button>
-                          <button v-else title="Ẩn" @click="actionComment(reply, 'hide')">
+                          <button v-else type="button" title="Ẩn" @click="actionComment(reply, 'hide')">
                             <AppIcon name="eyeOff" size="14" />
                           </button>
-                          <button title="Xóa" class="tool-danger" @click="actionComment(reply, 'delete')">
+                          <button type="button" title="Xóa" class="tool-danger" @click="actionComment(reply, 'delete')">
                             <AppIcon name="trash" size="14" />
                           </button>
                         </div>

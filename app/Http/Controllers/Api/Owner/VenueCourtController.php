@@ -123,6 +123,7 @@ class VenueCourtController extends Controller
     public function updateLayoutBulk(Request $request): JsonResponse
     {
         $data = $request->validate([
+            'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
             'courts' => ['required', 'array'],
             'courts.*.id' => ['required', 'uuid', 'exists:venue_courts,id'],
             'courts.*.layout_x' => ['nullable', 'numeric'],
@@ -130,18 +131,33 @@ class VenueCourtController extends Controller
             'courts.*.layout_w' => ['nullable', 'numeric', 'min:10'],
             'courts.*.layout_h' => ['nullable', 'numeric', 'min:10'],
             'courts.*.layout_rotation' => ['nullable', 'integer', 'min:0', 'max:359'],
+            'layout_decorations' => ['nullable', 'array'],
+            'layout_decorations.*.id' => ['required', 'string'],
+            'layout_decorations.*.type' => ['required', 'string', 'in:entrance,reception,restroom,seating,parking,custom'],
+            'layout_decorations.*.name' => ['required', 'string', 'max:100'],
+            'layout_decorations.*.layout_x' => ['required', 'numeric'],
+            'layout_decorations.*.layout_y' => ['required', 'numeric'],
+            'layout_decorations.*.layout_w' => ['required', 'numeric', 'min:10'],
+            'layout_decorations.*.layout_h' => ['required', 'numeric', 'min:10'],
+            'layout_decorations.*.layout_rotation' => ['required', 'integer', 'min:0', 'max:359'],
         ]);
 
+        $cluster = VenueCluster::query()->findOrFail($data['venue_cluster_id']);
+
+        if ($cluster->owner_id !== $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền chỉnh sửa cụm sân này.'], 403);
+        }
+
         $courtIds = collect($data['courts'])->pluck('id');
-        $courts = VenueCourt::query()->with('venueCluster')->whereIn('id', $courtIds)->get();
+        $courts = VenueCourt::query()->whereIn('id', $courtIds)->get();
 
         foreach ($courts as $court) {
-            if ($court->venueCluster->owner_id !== $request->user()->id) {
-                return response()->json(['message' => 'Bạn không có quyền chỉnh sửa một số sân con trong danh sách.'], 403);
+            if ($court->venue_cluster_id !== $cluster->id) {
+                return response()->json(['message' => 'Một số sân con không thuộc cụm sân được chỉ định.'], 400);
             }
         }
 
-        DB::transaction(function () use ($data) {
+        DB::transaction(function () use ($cluster, $data) {
             foreach ($data['courts'] as $courtData) {
                 VenueCourt::query()->whereKey($courtData['id'])->update([
                     'layout_x' => $courtData['layout_x'],
@@ -151,6 +167,10 @@ class VenueCourtController extends Controller
                     'layout_rotation' => $courtData['layout_rotation'] ?? 0,
                 ]);
             }
+
+            $cluster->update([
+                'layout_decorations' => $data['layout_decorations'] ?? null,
+            ]);
         });
 
         return response()->json([

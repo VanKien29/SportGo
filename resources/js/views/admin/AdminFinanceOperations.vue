@@ -34,58 +34,105 @@
             </button>
         </div>
 
-    <form class="toolbar" @submit.prevent="loadData(1)">
-      <label class="search-field">
-        <AppIcon name="search" size="17" />
-        <input v-model.trim="filters.keyword" type="search" :placeholder="searchPlaceholder" />
-      </label>
-      <select v-model="filters.status">
-        <option value="">Tất cả trạng thái</option>
-        <option v-for="status in statusOptions" :key="status" :value="status">{{ statusLabel(status) }}</option>
-      </select>
-      <select v-if="tab === 'refunds'" v-model="filters.refund_destination">
-        <option value="">Tất cả nơi nhận</option>
-        <option value="bank_account">Tài khoản ngân hàng</option>
-        <option value="user_wallet">Ví SportGo</option>
-        <option value="original_payment">Phương thức gốc</option>
-      </select>
-      <select v-if="tab === 'refunds'" v-model="filters.owner_confirmed">
-        <option value="">Phản hồi chủ sân</option>
-        <option value="yes">Đã phản hồi</option>
-        <option value="no">Chưa phản hồi</option>
-      </select>
-      <select v-model="filters.date_range">
-        <option value="">{{ tab === 'refunds' ? 'Ngày yêu cầu' : 'Ngày rút' }}</option>
-        <option value="today">Hôm nay</option>
-        <option value="yesterday">Hôm qua</option>
-        <option value="last_3_days">3 ngày gần đây</option>
-        <option value="last_7_days">7 ngày gần đây</option>
-        <option value="last_30_days">30 ngày gần đây</option>
-        <option value="this_month">Tháng này</option>
-        <option value="last_month">Tháng trước</option>
-        <option value="custom">Tùy chỉnh</option>
-      </select>
-      <div v-if="filters.date_range === 'custom'" class="date-range-fields" :aria-label="tab === 'refunds' ? 'Khoảng ngày yêu cầu hoàn tiền tùy chỉnh' : 'Khoảng ngày yêu cầu rút tiền tùy chỉnh'">
-        <input v-model="filters.date_from" type="date" :title="tab === 'refunds' ? 'Yêu cầu hoàn tiền từ ngày' : 'Yêu cầu rút tiền từ ngày'" />
-        <span>đến</span>
-        <input v-model="filters.date_to" type="date" :title="tab === 'refunds' ? 'Yêu cầu hoàn tiền đến ngày' : 'Yêu cầu rút tiền đến ngày'" :min="filters.date_from" />
-      </div>
-      <button class="icon-only primary" type="submit" title="Lọc danh sách" aria-label="Lọc danh sách">
-        <AppIcon name="filter" size="16" />
-      </button>
-      <button class="icon-only" type="button" title="Xóa lọc" aria-label="Xóa lọc" @click="resetFilters">
-        <AppIcon name="x" size="16" />
-      </button>
-      <button
-        class="export-btn"
-        type="button"
-        :disabled="selectedExportableIds.length === 0 || exporting"
-        @click="exportSelected"
-      >
-        <AppIcon name="fileText" size="16" />
-        {{ exporting ? 'Đang export...' : `Export MB (${selectedExportableIds.length})` }}
-      </button>
-    </form>
+        <form class="toolbar" @submit.prevent="loadData(1)">
+            <label class="search-field">
+                <AppIcon name="search" size="17" />
+                <input
+                    v-model.trim="filters.keyword"
+                    type="search"
+                    :placeholder="searchPlaceholder"
+                />
+            </label>
+            <select v-model="filters.status">
+                <option value="">Tất cả trạng thái</option>
+                <option
+                    v-for="status in statusOptions"
+                    :key="status"
+                    :value="status"
+                >
+                    {{ statusLabel(status, tab) }}
+                </option>
+            </select>
+            <select v-if="tab === 'refunds'" v-model="filters.owner_confirmed">
+                <option value="">Phản hồi chủ sân</option>
+                <option value="yes">Đã phản hồi</option>
+                <option value="no">Chưa phản hồi</option>
+            </select>
+            <select v-model="filters.date_range">
+                <option value="">
+                    {{ tab === "refunds" ? "Ngày yêu cầu" : "Ngày rút" }}
+                </option>
+                <option value="today">Hôm nay</option>
+                <option value="yesterday">Hôm qua</option>
+                <option value="last_3_days">3 ngày gần đây</option>
+                <option value="last_7_days">7 ngày gần đây</option>
+                <option value="last_30_days">30 ngày gần đây</option>
+                <option value="this_month">Tháng này</option>
+                <option value="last_month">Tháng trước</option>
+                <option value="custom">Tùy chỉnh</option>
+            </select>
+            <div
+                v-if="filters.date_range === 'custom'"
+                class="date-range-fields"
+                :aria-label="
+                    tab === 'refunds'
+                        ? 'Khoảng ngày yêu cầu hoàn tiền tùy chỉnh'
+                        : 'Khoảng ngày yêu cầu rút tiền tùy chỉnh'
+                "
+            >
+                <input
+                    v-model="filters.date_from"
+                    type="date"
+                    :title="
+                        tab === 'refunds'
+                            ? 'Yêu cầu hoàn tiền từ ngày'
+                            : 'Yêu cầu rút tiền từ ngày'
+                    "
+                />
+                <span>đến</span>
+                <input
+                    v-model="filters.date_to"
+                    type="date"
+                    :title="
+                        tab === 'refunds'
+                            ? 'Yêu cầu hoàn tiền đến ngày'
+                            : 'Yêu cầu rút tiền đến ngày'
+                    "
+                    :min="filters.date_from"
+                />
+            </div>
+            <button
+                class="icon-only primary"
+                type="submit"
+                title="Lọc danh sách"
+                aria-label="Lọc danh sách"
+            >
+                <AppIcon name="filter" size="16" />
+            </button>
+            <button
+                class="icon-only"
+                type="button"
+                title="Xóa lọc"
+                aria-label="Xóa lọc"
+                @click="resetFilters"
+            >
+                <AppIcon name="x" size="16" />
+            </button>
+            <button
+                v-if="tab === 'withdrawals'"
+                class="export-btn"
+                type="button"
+                :disabled="selectedExportableIds.length === 0 || exporting"
+                @click="exportSelected"
+            >
+                <AppIcon name="fileText" size="16" />
+                {{
+                    exporting
+                        ? "Đang export..."
+                        : `Export MB (${selectedExportableIds.length})`
+                }}
+            </button>
+        </form>
 
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="success" class="alert success">{{ success }}</div>
@@ -94,13 +141,13 @@
             <table v-if="tab === 'refunds'">
                 <thead>
                     <tr>
-                        <th>
+                        <!-- <th>
                             <input
                                 type="checkbox"
                                 :checked="allExportableSelected"
                                 @change="toggleAllExportable"
                             />
-                        </th>
+                        </th> -->
                         <th>Booking / Payment</th>
                         <th>Khách hàng</th>
                         <th>Tài khoản nhận tiền</th>
@@ -122,15 +169,16 @@
                             Chưa có yêu cầu hoàn tiền.
                         </td>
                     </tr>
+                    <template v-if="!loading">
                     <tr v-for="refund in items" :key="refund.id">
-                        <td>
+                        <!-- <td>
                             <input
                                 v-if="isExportable(refund)"
                                 v-model="selectedIds"
                                 type="checkbox"
                                 :value="refund.id"
                             />
-                        </td>
+                        </td> -->
                         <td>
                             <strong>{{
                                 refund.booking?.booking_code || "-"
@@ -147,6 +195,12 @@
                                 refund.customer?.phone ||
                                 "-"
                             }}</span>
+                            <span
+                                v-if="refund.customer?.is_walk_in"
+                                class="walk-in-note"
+                            >
+                                Khách tại quầy
+                            </span>
                         </td>
                         <td>
                             <template
@@ -193,10 +247,19 @@
                                 <strong>{{
                                     refund.refund_destination?.label || "-"
                                 }}</strong>
-                                <span class="sub-line">{{
-                                    refund.refund_destination?.account_holder ||
-                                    "-"
-                                }}</span>
+                                <!-- <span class="sub-line">{{
+                                    refund.refund_destination?.type ===
+                                    "user_wallet"
+                                        ? "Cộng trực tiếp vào ví khách hàng"
+                                        : refund.refund_destination
+                                              ?.account_holder || "-"
+                                }}</span> -->
+                                <span
+                                    v-if="refund.wallet_refund_blocked_reason"
+                                    class="inline-warning"
+                                >
+                                    {{ refund.wallet_refund_blocked_reason }}
+                                </span>
                                 <span
                                     v-if="isRefundWaitingTransfer(refund)"
                                     class="inline-warning"
@@ -224,7 +287,10 @@
                                 refund.reason || "-"
                             }}</span>
                             <div
-                                v-if="refund.policy_evaluation"
+                                v-if="
+                                    refund.policy_evaluation &&
+                                    !isOwnerFaultRefund(refund)
+                                "
                                 class="policy-badge"
                                 :class="
                                     policyBadgeClass(refund.policy_evaluation)
@@ -299,9 +365,21 @@
                                 </button>
                             </div>
                             <div
+                                v-else-if="isOwnerFaultRefund(refund)"
+                                class="policy-badge neutral"
+                            >
+                                <span class="policy-icon">
+                                    <AppIcon name="check" size="13" />
+                                </span>
+                                <span class="policy-text">
+                                    Hoàn 100% do chủ sân khóa/bảo trì sân
+                                </span>
+                            </div>
+                            <div
                                 v-if="
                                     expandedPolicies[refund.id] &&
-                                    refund.policy_evaluation
+                                    refund.policy_evaluation &&
+                                    !isOwnerFaultRefund(refund)
                                 "
                                 class="policy-detail"
                             >
@@ -347,12 +425,11 @@
                             </div>
                         </td>
                         <td>
-                            <span class="status-pill" :class="refund.status">{{
-                                statusLabel(refund.status)
-                            }}</span
-                            ><span class="sub-line">{{
-                                refund.status_reason ||
-                                formatDate(refund.processed_at)
+                            <span class="status-pill" :class="refundStatusClass(refund)">{{
+                                refundStatusLabel(refund)
+                            }}</span>
+                            <span class="sub-line">{{
+                                refundStatusNote(refund)
                             }}</span>
                         </td>
                         <td>
@@ -378,7 +455,17 @@
                                     toán
                                 </button>
                                 <button
-                                    v-if="refund.allowed_statuses.length"
+                                    v-if="canCompleteWalletRefund(refund)"
+                                    class="pay-command"
+                                    type="button"
+                                    title="Hoàn tiền vào ví khách hàng"
+                                    :disabled="saving"
+                                    @click="completeWalletRefund(refund)"
+                                >
+                                    <AppIcon name="banknote" size="16" />Hoàn ví
+                                </button>
+                                <button
+                                    v-if="refund.allowed_statuses?.length"
                                     class="icon-only"
                                     type="button"
                                     title="Từ chối yêu cầu"
@@ -389,6 +476,7 @@
                             </div>
                         </td>
                     </tr>
+                    </template>
                 </tbody>
             </table>
 
@@ -423,6 +511,7 @@
                             Chưa có yêu cầu rút tiền.
                         </td>
                     </tr>
+                    <template v-if="!loading">
                     <tr v-for="withdrawal in items" :key="withdrawal.id">
                         <td>
                             <input
@@ -479,7 +568,7 @@
                             <span
                                 class="status-pill"
                                 :class="withdrawal.status"
-                                >{{ statusLabel(withdrawal.status) }}</span
+                                >{{ statusLabel(withdrawal.status, "withdrawals") }}</span
                             ><span class="sub-line">{{
                                 withdrawal.status_reason ||
                                 formatDate(withdrawal.requested_at)
@@ -519,6 +608,7 @@
                             </div>
                         </td>
                     </tr>
+                    </template>
                 </tbody>
             </table>
         </div>
@@ -764,6 +854,7 @@ export default {
             payoutPolling: false,
             copyMessage: "",
             expandedPolicies: {},
+            requestSeq: 0,
         };
     },
     computed: {
@@ -818,8 +909,14 @@ export default {
     },
     methods: {
         async loadData(page = 1) {
+            const requestId = ++this.requestSeq;
+            const requestedTab = this.tab;
             this.loading = true;
             this.error = "";
+            this.items = [];
+            this.selectedIds = [];
+            this.meta = { current_page: page, last_page: 1 };
+            this.summary = this.blankSummary();
             try {
                 const service =
                     this.tab === "refunds"
@@ -828,15 +925,22 @@ export default {
                 const response = await service(
                     this.operationFilterParams(page),
                 );
+                if (requestId !== this.requestSeq || requestedTab !== this.tab) {
+                    return;
+                }
                 this.items = response.data || [];
                 this.summary = response.summary || this.summary;
                 this.meta = response.meta || this.meta;
-                this.selectedIds = [];
             } catch (error) {
+                if (requestId !== this.requestSeq || requestedTab !== this.tab) {
+                    return;
+                }
                 this.error =
                     error.message || "Không tải được dữ liệu tài chính.";
             } finally {
-                this.loading = false;
+                if (requestId === this.requestSeq && requestedTab === this.tab) {
+                    this.loading = false;
+                }
             }
         },
         switchTab(tab) {
@@ -1056,16 +1160,7 @@ export default {
         },
         isExportable(item) {
             if (this.tab === "refunds") {
-                return (
-                    [
-                        "pending_confirmation",
-                        "owner_confirmed",
-                        "admin_processing",
-                        "processing",
-                    ].includes(item.status) &&
-                    item.refund_destination?.type === "bank_account" &&
-                    Boolean(item.refund_destination?.account_number)
-                );
+                return false;
             }
 
             return (
@@ -1075,12 +1170,38 @@ export default {
             );
         },
         canOpenPayout(item) {
+            if (this.tab === "refunds") return false;
             return Boolean(item.can_pay_by_qr) || this.isExportable(item);
+        },
+        canCompleteWalletRefund(refund) {
+            return Boolean(refund.can_complete_wallet_refund);
+        },
+        isOwnerFaultRefund(refund) {
+            return Boolean(refund?.policy_evaluation?.is_owner_fault_refund);
+        },
+        async completeWalletRefund(refund) {
+            this.saving = true;
+            this.error = "";
+            this.success = "";
+            try {
+                await adminFinanceOperationsService.updateRefund(refund.id, {
+                    status: "completed",
+                    source: "admin",
+                    reason: "Admin hoàn tiền vào ví SportGo của khách.",
+                });
+                this.success = "Đã hoàn tiền vào ví SportGo của khách.";
+                await this.loadData(this.meta.current_page);
+            } catch (error) {
+                this.error = error.message || "Không thể hoàn tiền vào ví.";
+            } finally {
+                this.saving = false;
+            }
         },
         hasRefundBankAccount(refund) {
             return Boolean(refund.refund_destination?.account_number);
         },
         isRefundWaitingTransfer(refund) {
+            if (refund.refund_destination?.type === "user_wallet") return false;
             return [
                 "pending_confirmation",
                 "owner_confirmed",
@@ -1097,6 +1218,17 @@ export default {
                 date_range: "",
                 date_from: "",
                 date_to: "",
+            };
+        },
+        blankSummary() {
+            return {
+                total: 0,
+                completed: 0,
+                requested_amount: 0,
+                pending_confirmation: 0,
+                processing: 0,
+                pending: 0,
+                approved: 0,
             };
         },
         operationFilterParams(page) {
@@ -1203,28 +1335,101 @@ export default {
         actionLabel(value) {
             return { rejected: "Từ chối" }[value] || value;
         },
-        statusLabel(value) {
+        statusLabel(value, scope = this.tab) {
+            if (scope === "refunds") {
+                return (
+                    {
+                        pending_confirmation: "Chờ hoàn ví",
+                        pending_owner_confirmation: "Chờ chủ sân",
+                        owner_confirmed: "Chờ hoàn ví",
+                        owner_rejected: "Chủ sân từ chối",
+                        admin_processing: "Chờ hoàn ví",
+                        processing: "Đang hoàn ví",
+                        completed: "Đã hoàn ví",
+                        failed: "Hoàn thất bại",
+                        rejected: "Từ chối",
+                        cancelled: "Đã hủy",
+                    }[value] || value
+                );
+            }
+
             return (
                 {
-                    pending_confirmation: "Chờ chuyển khoản",
+                    pending_confirmation: "Chờ xác nhận",
                     pending_owner_confirmation: "Chờ chủ sân",
-                    owner_confirmed: "Chờ chuyển khoản",
+                    owner_confirmed: "Chờ xác nhận",
                     owner_rejected: "Chủ sân từ chối",
-                    admin_processing: "Chờ chuyển khoản",
-                    processing: "Chờ chuyển khoản",
+                    admin_processing: "Chờ xác nhận",
+                    processing: "Chờ xác nhận",
                     completed: "Hoàn tất",
                     failed: "Thất bại",
                     rejected: "Từ chối",
-                    pending: "Chờ chuyển khoản",
-                    reviewing: "Chờ chuyển khoản",
-                    approved: "Chờ chuyển khoản",
+                    pending: "Chờ xác nhận",
+                    reviewing: "Chờ xác nhận",
+                    approved: "Chờ xác nhận",
                     cancelled: "Đã hủy",
                 }[value] || value
             );
         },
+        refundStatusClass(refund) {
+            if (this.isRefundPolicyBlocked(refund)) {
+                return "policy_blocked";
+            }
+
+            return refund.status;
+        },
+        refundStatusLabel(refund) {
+            if (this.isRefundPolicyBlocked(refund)) {
+                return "Không hoàn";
+            }
+
+            return this.statusLabel(refund.status, "refunds");
+        },
+        refundStatusNote(refund) {
+            if (this.isRefundPolicyBlocked(refund)) {
+                return refund.wallet_refund_blocked_reason || "Chính sách hiện tại không cho hoàn tiền.";
+            }
+
+            if (refund.status === "completed") {
+                return refund.processed_at
+                    ? `Hoàn vào ví lúc ${this.formatDate(refund.processed_at)}`
+                    : "Đã hoàn vào ví SportGo của khách.";
+            }
+
+            if (refund.wallet_refund_blocked_reason) {
+                return refund.wallet_refund_blocked_reason;
+            }
+
+            if (
+                [
+                    "pending_confirmation",
+                    "owner_confirmed",
+                    "admin_processing",
+                ].includes(refund.status)
+            ) {
+                return "Admin có thể hoàn trực tiếp vào ví SportGo của khách.";
+            }
+
+            if (refund.status === "processing") {
+                return "Đang ghi nhận giao dịch hoàn vào ví.";
+            }
+
+            return (
+                refund.status_reason ||
+                this.formatDate(refund.processed_at || refund.created_at)
+            );
+        },
+        isRefundPolicyBlocked(refund) {
+            const detail = refund.policy_evaluation?.detail || {};
+            return (
+                refund.policy_evaluation?.compliant === false ||
+                Number(detail.refund_percent ?? 1) <= 0 ||
+                Number(detail.suggested_amount ?? 1) <= 0
+            );
+        },
         ownerDecisionLabel(refund) {
             return {
-                approved: "Đã đồng ý",
+                approved: "Đã xác nhận",
                 rejected: "Đã từ chối",
                 pending: "Chưa xác nhận",
             }[refund.owner_confirmation?.decision || "pending"];
@@ -1320,6 +1525,17 @@ export default {
     margin-top: 4px;
     color: #b45309;
     font-size: 12px;
+    font-weight: 800;
+}
+.walk-in-note {
+    display: inline-flex;
+    width: fit-content;
+    margin-top: 6px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #f0fdf4;
+    color: #15803d;
+    font-size: 11px;
     font-weight: 800;
 }
 .toolbar {
@@ -1500,6 +1716,10 @@ th {
 .status-pill.cancelled {
     background: #fee2e2;
     color: #991b1b;
+}
+.status-pill.policy_blocked {
+    background: #fef2f2;
+    color: #b91c1c;
 }
 
 /* Policy evaluation badge */

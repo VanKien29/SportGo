@@ -76,6 +76,7 @@ class VenueController extends Controller
         $cluster = VenueCluster::query()
             ->with([
                 'bookingConfig',
+                'amenityCatalog',
                 'venueCourts' => function ($query) {
                     $query->with('courtType:id,name,parent_id')
                         ->where('status', 'active')
@@ -89,6 +90,14 @@ class VenueController extends Controller
             })
             ->firstOrFail();
 
+        $amenitiesDetail = $cluster->amenityCatalog
+            ->where('status', 'active')
+            ->map(fn ($amenity) => [
+                'id' => $amenity->id,
+                'name' => $amenity->name,
+                'description' => $amenity->pivot->description ?? '',
+            ])->values()->all();
+
         return response()->json([
             'data' => array_merge($this->summaryPayload($cluster), [
                 'description' => $cluster->description,
@@ -96,7 +105,9 @@ class VenueController extends Controller
                 'map_url' => $cluster->map_url,
                 'latitude' => $cluster->latitude,
                 'longitude' => $cluster->longitude,
+                'layout_decorations' => $cluster->layout_decorations,
                 'amenities' => $cluster->amenities ?? [],
+                'amenities_detail' => $amenitiesDetail,
                 'booking_config' => $cluster->bookingConfig,
                 'venue_courts' => $cluster->venueCourts,
                 'price_slots' => PriceSlot::query()

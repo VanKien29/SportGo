@@ -70,10 +70,10 @@ export const venueClusterService = {
     const qs = status ? `?status=${status}` : '';
     return api(`/api/owner/venue-clusters/${clusterId}/approval-requests${qs}`);
   },
-  createApprovalRequest(clusterId, data) {
+  createApprovalRequest(clusterId, formData) {
     return api(`/api/owner/venue-clusters/${clusterId}/approval-requests`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: formData,
     });
   },
   cancelApprovalRequest(clusterId, requestId) {
