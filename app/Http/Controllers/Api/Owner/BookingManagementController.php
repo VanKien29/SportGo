@@ -33,6 +33,8 @@ class BookingManagementController extends Controller
             'venue_court_id' => ['nullable', 'uuid', 'exists:venue_courts,id'],
             'booking_date' => ['nullable', 'date_format:Y-m-d'],
             'status' => ['nullable', Rule::in(['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed', 'cancelled', 'expired', 'rejected'])],
+            'booking_type' => ['nullable', Rule::in(['single', 'recurring'])],
+            'recurring_group_code' => ['nullable', 'string', 'max:30'],
         ]);
 
         $bookings = Booking::query()
@@ -46,6 +48,8 @@ class BookingManagementController extends Controller
             ])
             ->whereIn('venue_cluster_id', $clusterIds)
             ->when(! empty($validated['venue_cluster_id']), fn ($query) => $query->where('venue_cluster_id', $validated['venue_cluster_id']))
+            ->when(! empty($validated['booking_type']), fn ($query) => $query->where('booking_type', $validated['booking_type']))
+            ->when(! empty($validated['recurring_group_code']), fn ($query) => $query->where('recurring_group_code', $validated['recurring_group_code']))
             ->when(! empty($validated['venue_court_id']), function ($query) use ($validated) {
                 $courtId = $validated['venue_court_id'];
 
@@ -68,6 +72,67 @@ class BookingManagementController extends Controller
             ->orderBy('start_time')
             ->limit(200)
             ->get();
+
+        return response()->json(['data' => $bookings]);
+    }
+
+    public function recurringGroups(Request $request): JsonResponse
+    {
+        $clusterIds = $this->visibleClusterIds($request->user()->id);
+
+        $validated = $request->validate([
+            'venue_cluster_id' => ['nullable', 'uuid', 'exists:venue_clusters,id'],
+            'venue_court_id' => ['nullable', 'uuid', 'exists:venue_courts,id'],
+            'status' => ['nullable', Rule::in(['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed', 'cancelled', 'expired', 'rejected'])],
+            'q' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $bookings = Booking::query()
+            ->with([
+                'customer:id,username,full_name,phone,email',
+                'venueCluster:id,name',
+                'venueCourt.courtType',
+                'items.venueCourt.courtType',
+                'payments',
+            ])
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->where('source', 'counter')
+            ->where('booking_type', 'recurring')
+            ->whereNotNull('recurring_group_code')
+            ->when(! empty($validated['venue_cluster_id']), fn ($query) => $query->where('venue_cluster_id', $validated['venue_cluster_id']))
+            ->when(! empty($validated['status']), fn ($query) => $query->where('status', $validated['status']))
+            ->when(! empty($validated['venue_court_id']), function ($query) use ($validated) {
+                $courtId = $validated['venue_court_id'];
+
+                $query->where(function ($courtQuery) use ($courtId) {
+                    $courtQuery->where('venue_court_id', $courtId)
+                        ->orWhereHas('items', fn ($itemQuery) => $itemQuery->where('venue_court_id', $courtId));
+                });
+            })
+            ->when(! empty($validated['q']), function ($query) use ($validated) {
+                $keyword = trim($validated['q']);
+
+                $query->where(function ($searchQuery) use ($keyword) {
+                    $searchQuery->where('recurring_group_code', 'like', "%{$keyword}%")
+                        ->orWhere('booking_code', 'like', "%{$keyword}%")
+                        ->orWhere('walk_in_name', 'like', "%{$keyword}%")
+                        ->orWhere('walk_in_phone', 'like', "%{$keyword}%")
+                        ->orWhereHas('customer', function ($customerQuery) use ($keyword) {
+                            $customerQuery->where('username', 'like', "%{$keyword}%")
+                                ->orWhere('full_name', 'like', "%{$keyword}%")
+                                ->orWhere('phone', 'like', "%{$keyword}%")
+                                ->orWhere('email', 'like', "%{$keyword}%");
+                        });
+                });
+            })
+            ->orderByDesc('recurring_start_date')
+            ->orderBy('start_time')
+            ->limit(500)
+            ->get()
+            ->groupBy('recurring_group_code')
+            ->map(fn (Collection $groupBookings): array => $this->recurringGroupPayload($groupBookings))
+            ->sortByDesc('start_date')
+            ->values();
 
         return response()->json(['data' => $bookings]);
     }
@@ -138,6 +203,18 @@ class BookingManagementController extends Controller
             ]);
         }
 
+        if (empty($validated['time_ranges'])) {
+            if ($this->timeToMinutes($validated['start_time']) >= $this->timeToMinutes($validated['end_time'])) {
+                throw ValidationException::withMessages(['end_time' => 'Giờ kết thúc phải sau giờ bắt đầu.']);
+            }
+        } else {
+            foreach ($validated['time_ranges'] as $index => $range) {
+                if ($this->timeToMinutes($range['start_time']) >= $this->timeToMinutes($range['end_time'])) {
+                    throw ValidationException::withMessages(["time_ranges.$index.end_time" => 'Giờ kết thúc phải sau giờ bắt đầu.']);
+                }
+            }
+        }
+
         if (($validated['payment_method'] ?? null) === 'sepay') {
             $validated['is_paid'] = false;
         }
@@ -181,11 +258,20 @@ class BookingManagementController extends Controller
             'recurrence_days_of_week.*' => ['integer', 'between:0,6', 'distinct'],
             'recurrence_days_of_month' => ['nullable', 'array'],
             'recurrence_days_of_month.*' => ['integer', 'between:1,31', 'distinct'],
-            'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
-            'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'start_time' => ['required_without:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'end_time' => ['required_without:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'time_ranges' => ['nullable', 'array', 'min:1', 'max:32'],
+            'time_ranges.*.venue_court_id' => ['nullable', 'uuid', 'exists:venue_courts,id'],
+            'time_ranges.*.start_time' => ['required_with:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'time_ranges.*.end_time' => ['required_with:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => ['required', Rule::in(['full_payment', 'deposit', 'no_prepay'])],
             'is_paid' => ['nullable', 'boolean'],
             'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer'])],
+            'conflict_resolution' => ['nullable', Rule::in(['abort', 'skip', 'mixed'])],
+            'conflict_overrides' => ['nullable', 'array'],
+            'conflict_overrides.*.date' => ['required_with:conflict_overrides', 'date_format:Y-m-d'],
+            'conflict_overrides.*.action' => ['required_with:conflict_overrides', Rule::in(['skip', 'switch'])],
+            'conflict_overrides.*.venue_court_id' => ['nullable', 'uuid', 'exists:venue_courts,id'],
             'customer_id' => ['nullable', 'uuid', 'exists:users,id'],
             'walk_in_name' => ['required_without:customer_id', 'nullable', 'string', 'min:2', 'max:100', "regex:/^[\pL\pM][\pL\pM\s.'-]*$/u"],
             'walk_in_phone' => ['required_without:customer_id', 'nullable', 'string', 'max:15', 'regex:/^(?:\+84|0)(?:3|5|7|8|9)\d{8}$/'],
@@ -199,8 +285,21 @@ class BookingManagementController extends Controller
             throw ValidationException::withMessages(['recurrence_days_of_month' => 'Vui lòng chọn ngày trong tháng.']);
         }
 
+        if ($this->timeToMinutes($validated['start_time']) >= $this->timeToMinutes($validated['end_time'])) {
+            throw ValidationException::withMessages(['end_time' => 'Giờ kết thúc phải sau giờ bắt đầu.']);
+        }
+
         $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
         $this->ensureClusterCanMutate($request, $court->venueCluster);
+
+        $preview = $this->bookingService->previewRecurringConflicts($validated);
+
+        if (! empty($preview['conflicts']) && empty($validated['conflict_resolution'])) {
+            return response()->json([
+                'message' => 'Một số buổi trong lịch cố định đã bị trùng. Vui lòng chọn cách xử lý.',
+                ...$preview,
+            ], 409);
+        }
 
         $result = $this->bookingService->createRecurringBookings($validated, $request->user());
 
@@ -384,6 +483,37 @@ class BookingManagementController extends Controller
         ]);
     }
 
+    public function collectRecurringGroupPayment(Request $request, string $groupCode): JsonResponse
+    {
+        $clusterIds = $this->visibleClusterIds($request->user()->id);
+
+        $exists = Booking::query()
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->where('source', 'counter')
+            ->where('booking_type', 'recurring')
+            ->where('recurring_group_code', $groupCode)
+            ->exists();
+
+        abort_unless($exists, 404);
+
+        $validated = $request->validate([
+            'payment_method' => ['required', Rule::in(['cash', 'bank_transfer'])],
+            'amount' => ['nullable', 'numeric', 'min:1000'],
+        ]);
+
+        $result = $this->bookingService->collectRecurringGroupPayment(
+            $groupCode,
+            $request->user(),
+            $validated['payment_method'],
+            isset($validated['amount']) ? (float) $validated['amount'] : null,
+        );
+
+        return response()->json([
+            'message' => 'Đã ghi nhận thu tiền nhóm lịch cố định.',
+            'data' => $this->recurringGroupPayload($result['bookings']),
+        ]);
+    }
+
     private function normalizeWalkInContact(Request $request): void
     {
         if ($request->has('walk_in_name')) {
@@ -441,6 +571,95 @@ class BookingManagementController extends Controller
             ->merge($assignedClusterIds)
             ->unique()
             ->values();
+    }
+
+    private function timeToMinutes(string $time): int
+    {
+        if (str_starts_with($time, '24:00')) {
+            return 24 * 60;
+        }
+        [$hours, $minutes] = explode(':', $time);
+        return (int) $hours * 60 + (int) $minutes;
+    private function recurringGroupPayload(Collection $bookings): array
+    {
+        $first = $bookings->sortBy('booking_date')->first();
+        $paidAmount = round($bookings->sum(fn (Booking $booking): float => (float) $booking->payments->where('status', 'paid')->sum('amount')), 2);
+        $totalPrice = round($bookings->sum(fn (Booking $booking): float => (float) $booking->total_price), 2);
+        $requiredAmount = round($bookings->sum(fn (Booking $booking): float => (float) $booking->required_payment_amount), 2);
+        $courtNames = $bookings
+            ->flatMap(function (Booking $booking): array {
+                if ($booking->items->isNotEmpty()) {
+                    return $booking->items->map(fn ($item) => $item->venueCourt?->name)->filter()->all();
+                }
+
+                return [$booking->venueCourt?->name];
+            })
+            ->filter()
+            ->unique()
+            ->values();
+        $timeRanges = $bookings
+            ->flatMap(function (Booking $booking): array {
+                if ($booking->items->isNotEmpty()) {
+                    return $booking->items
+                        ->map(fn ($item): array => [
+                            'venue_court_id' => $item->venue_court_id,
+                            'court_name' => $item->venueCourt?->name,
+                            'start_time' => $item->start_time,
+                            'end_time' => $item->end_time,
+                        ])
+                        ->all();
+                }
+
+                return [[
+                    'venue_court_id' => $booking->venue_court_id,
+                    'court_name' => $booking->venueCourt?->name,
+                    'start_time' => $booking->start_time,
+                    'end_time' => $booking->end_time,
+                ]];
+            })
+            ->unique(fn (array $range): string => implode('|', [
+                $range['venue_court_id'],
+                $range['start_time'],
+                $range['end_time'],
+            ]))
+            ->sortBy(fn (array $range): string => sprintf(
+                '%s|%s',
+                $range['court_name'] ?? '',
+                $range['start_time'] ?? '',
+            ))
+            ->values();
+        $statusCounts = $bookings->groupBy('status')->map->count();
+        $paymentOptions = $bookings->pluck('payment_option')->unique()->values();
+
+        return [
+            'recurring_group_code' => $first->recurring_group_code,
+            'booking_ids' => $bookings->pluck('id')->values(),
+            'booking_count' => $bookings->count(),
+            'start_date' => $bookings->min(fn (Booking $booking): string => $booking->booking_date->toDateString()),
+            'end_date' => $bookings->max(fn (Booking $booking): string => $booking->booking_date->toDateString()),
+            'start_time' => $first->start_time,
+            'end_time' => $first->end_time,
+            'venue_cluster_id' => $first->venue_cluster_id,
+            'venue_cluster_name' => $first->venueCluster?->name,
+            'court_names' => $courtNames,
+            'time_ranges' => $timeRanges,
+            'customer' => $first->customer ? [
+                'id' => $first->customer->id,
+                'username' => $first->customer->username,
+                'full_name' => $first->customer->full_name,
+                'phone' => $first->customer->phone,
+                'email' => $first->customer->email,
+            ] : null,
+            'walk_in_name' => $first->walk_in_name,
+            'walk_in_phone' => $first->walk_in_phone,
+            'payment_option' => $paymentOptions->count() === 1 ? $paymentOptions->first() : 'mixed',
+            'total_price' => $totalPrice,
+            'required_payment_amount' => $requiredAmount,
+            'paid_amount' => $paidAmount,
+            'outstanding_amount' => max(round($totalPrice - $paidAmount, 2), 0),
+            'status_counts' => $statusCounts,
+            'has_conflict_sensitive_items' => $bookings->contains(fn (Booking $booking): bool => in_array($booking->status, ['pending_payment', 'confirmed', 'checked_in'], true)),
+        ];
     }
 
 }

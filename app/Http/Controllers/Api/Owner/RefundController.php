@@ -86,8 +86,8 @@ class RefundController extends Controller
 
         $data = $request->validate([
             'decision' => ['required', Rule::in(['approve', 'reject'])],
-            'amount' => ['nullable', 'numeric', 'min:1', 'required_if:decision,approve'],
-            'note' => ['required', 'string', 'max:2000'],
+            'amount' => ['nullable', 'numeric', 'min:1'],
+            'note' => ['nullable', 'string', 'max:2000', 'required_if:decision,reject'],
         ]);
         $oldValues = $refund->toArray();
 
@@ -96,7 +96,7 @@ class RefundController extends Controller
             $request->user(),
             $data['decision'],
             isset($data['amount']) ? (float) $data['amount'] : null,
-            trim($data['note']),
+            trim((string) ($data['note'] ?? '')),
         );
 
         $this->audit->log(
@@ -109,7 +109,7 @@ class RefundController extends Controller
             $updated->toArray(),
             [
                 'context' => 'owner',
-                'reason' => $data['note'],
+                'reason' => $data['note'] ?? null,
                 'severity' => $data['decision'] === 'approve' ? 'info' : 'warning',
             ],
         );

@@ -19,6 +19,7 @@ import AdminProfile from "../views/admin/AdminProfile.vue";
 import AdminUsers from "../views/admin/AdminUsers.vue";
 import AdminStaffs from "../views/admin/AdminStaffs.vue";
 import AdminUserDetail from "../views/admin/AdminUserDetail.vue";
+import AdminStaffDetail from "../views/admin/AdminStaffDetail.vue";
 import AdminVouchers from "../views/admin/AdminVouchers.vue";
 import AdminVoucherDetail from "../views/admin/AdminVoucherDetail.vue";
 import AdminPolicies from "../views/admin/AdminPolicies.vue";
@@ -33,6 +34,7 @@ import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
+import PartnerRegistration from "../views/clients/PartnerRegistration.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
@@ -67,6 +69,12 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: "/become-partner",
+        name: "partner-registration",
+        component: PartnerRegistration,
+        meta: { requiresAuth: true },
+    },
+    {
         path: "/admin/login",
         name: "admin-login",
         component: AdminLogin,
@@ -91,6 +99,7 @@ const routes = [
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
             { path: "staffs", name: "admin-staffs", component: AdminStaffs },
+            { path: "staffs/:id", name: "admin-staff-detail", component: AdminStaffDetail },
             { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail },
             { path: "vouchers", name: "admin-vouchers", component: AdminVouchers },
             { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail },
@@ -108,6 +117,11 @@ const routes = [
                 path: "partner-applications",
                 name: "admin-partner-applications",
                 component: () => import("../views/admin/AdminPartnerApplications.vue"),
+            },
+            {
+                path: "partners/:id",
+                name: "admin-partner-detail",
+                component: () => import("../views/admin/AdminPartnerDetail.vue"),
             },
             {
                 path: "banners",
@@ -225,7 +239,7 @@ const routes = [
             {
                 path: "bookings",
                 name: "owner-bookings",
-                component: () => import("../views/owner/OwnerBookings.vue"),
+                redirect: { name: "owner-counter-booking" },
             },
             {
                 path: "counter-booking",

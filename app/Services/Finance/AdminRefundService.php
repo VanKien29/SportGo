@@ -113,9 +113,9 @@ class AdminRefundService
     private function assertTransitionAllowed(string $from, string $to): void
     {
         $allowed = [
-            'pending_confirmation' => ['processing', 'rejected'],
+            'pending_confirmation' => ['completed', 'processing', 'rejected'],
             'pending_owner_confirmation' => [],
-            'owner_confirmed' => ['admin_processing', 'processing', 'completed', 'rejected'],
+            'owner_confirmed' => ['completed', 'admin_processing', 'processing', 'rejected'],
             'owner_rejected' => [],
             'admin_processing' => ['completed', 'failed', 'rejected'],
             'processing' => ['completed', 'rejected'],
