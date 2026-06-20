@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Booking;
+use App\Models\Notification;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Models\VenueCourtApprovalRequest;
 use App\Models\VenueLocationChangeRequest;
 use App\Models\VenuePlatformFeeLedger;
+use App\Models\VenueUnlockRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -161,6 +163,17 @@ class VenueClusterController extends Controller
             ->get()
             ->map(fn ($r) => $this->locationChangePayload($r));
 
+        // Yêu cầu mở khóa
+        $unlockRequests = VenueUnlockRequest::query()
+            ->where('venue_cluster_id', $id)
+            ->with([
+                'requestedBy:id,full_name,username',
+                'reviewedBy:id,full_name,username',
+            ])
+            ->latest()
+            ->get()
+            ->map(fn ($r) => $this->unlockRequestPayload($r));
+
         return response()->json([
             'data' => [
                 'cluster'                  => $this->detailPayload($cluster),
@@ -169,6 +182,7 @@ class VenueClusterController extends Controller
                 'lock_history'             => $lockHistory,
                 'approval_requests'        => $approvalRequests,
                 'location_change_requests' => $locationChangeRequests,
+                'unlock_requests'          => $unlockRequests,
             ],
         ]);
     }
@@ -484,6 +498,94 @@ class VenueClusterController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────────
+    // Duyệt yêu cầu mở khóa cụm sân
+    // ─────────────────────────────────────────────────────────────────
+    public function approveUnlockRequest(Request $request, string $clusterId, string $requestId): JsonResponse
+    {
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
+        $cluster = VenueCluster::findOrFail($clusterId);
+
+        $unlockRequest = VenueUnlockRequest::query()
+            ->where('venue_cluster_id', $clusterId)
+            ->findOrFail($requestId);
+
+        if ($unlockRequest->status !== 'pending') {
+            return response()->json(['message' => 'Yêu cầu này đã được xử lý.'], 422);
+        }
+
+        $oldClusterValues = $this->lockSnapshot($cluster);
+
+        $unlockRequest->forceFill([
+            'status'      => 'approved',
+            'reviewed_by' => $actor->id,
+            'reviewed_at' => now(),
+            'admin_note'  => $request->input('admin_note'),
+        ])->save();
+
+        // Mở khóa cụm sân
+        $cluster->forceFill([
+            'status'        => 'active',
+            'status_reason' => null,
+            'locked_at'     => null,
+            'locked_until'  => null,
+            'locked_by'     => null,
+        ])->save();
+
+        $this->audit($request, $actor, 'venue_cluster.unlock_request_approved', $cluster, $oldClusterValues, $this->lockSnapshot($cluster));
+
+        // Gửi notification cho owner
+        $this->notifyOwner($cluster, 'Yêu cầu mở khóa đã được duyệt', 'Cụm sân "' . $cluster->name . '" đã được mở khóa. Bạn có thể tiếp tục vận hành bình thường.', $unlockRequest);
+
+        return response()->json([
+            'message' => 'Đã duyệt yêu cầu mở khóa. Cụm sân đã được kích hoạt lại.',
+            'data'    => $this->unlockRequestPayload($unlockRequest->fresh(['requestedBy', 'reviewedBy'])),
+            'cluster' => $this->detailPayload($cluster->fresh(['owner', 'venueCourts.courtType', 'lockedBy'])),
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // Từ chối yêu cầu mở khóa cụm sân
+    // ─────────────────────────────────────────────────────────────────
+    public function rejectUnlockRequest(Request $request, string $clusterId, string $requestId): JsonResponse
+    {
+        $data = $request->validate([
+            'admin_note' => ['required', 'string', 'max:2000'],
+        ], [
+            'admin_note.required' => 'Vui lòng nhập lý do từ chối.',
+        ]);
+
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
+        $cluster = VenueCluster::findOrFail($clusterId);
+
+        $unlockRequest = VenueUnlockRequest::query()
+            ->where('venue_cluster_id', $clusterId)
+            ->findOrFail($requestId);
+
+        if ($unlockRequest->status !== 'pending') {
+            return response()->json(['message' => 'Yêu cầu này đã được xử lý.'], 422);
+        }
+
+        $unlockRequest->forceFill([
+            'status'      => 'rejected',
+            'reviewed_by' => $actor->id,
+            'reviewed_at' => now(),
+            'admin_note'  => $data['admin_note'],
+        ])->save();
+
+        $this->audit($request, $actor, 'venue_cluster.unlock_request_rejected', $cluster, ['status' => 'pending'], ['status' => 'rejected', 'admin_note' => $data['admin_note']]);
+
+        // Gửi notification cho owner
+        $this->notifyOwner($cluster, 'Yêu cầu mở khóa bị từ chối', 'Yêu cầu mở khóa cụm sân "' . $cluster->name . '" đã bị từ chối. Lý do: ' . $data['admin_note'], $unlockRequest);
+
+        return response()->json([
+            'message' => 'Đã từ chối yêu cầu mở khóa.',
+            'data'    => $this->unlockRequestPayload($unlockRequest->fresh(['requestedBy', 'reviewedBy'])),
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
     // Private helpers
     // ─────────────────────────────────────────────────────────────────
 
@@ -621,5 +723,34 @@ class VenueClusterController extends Controller
             'ip_address'  => $request->ip(),
             'user_agent'  => substr((string) $request->userAgent(), 0, 500),
         ]);
+    }
+
+    private function notifyOwner(VenueCluster $cluster, string $title, string $body, VenueUnlockRequest $request): void
+    {
+        if ($cluster->owner_id) {
+            Notification::create([
+                'user_id'        => $cluster->owner_id,
+                'type'           => 'venue_cluster_unlock_appeal',
+                'title'          => $title,
+                'body'           => $body,
+                'reference_type' => 'venue_unlock_request',
+                'reference_id'   => $request->id,
+            ]);
+        }
+    }
+
+    private function unlockRequestPayload(VenueUnlockRequest $r): array
+    {
+        return [
+            'id'               => $r->id,
+            'venue_cluster_id' => $r->venue_cluster_id,
+            'status'           => $r->status,
+            'reason'           => $r->reason,
+            'admin_note'       => $r->admin_note,
+            'requested_by'     => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
+            'reviewed_by'      => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,
+            'reviewed_at'      => $r->reviewed_at,
+            'created_at'       => $r->created_at,
+        ];
     }
 }

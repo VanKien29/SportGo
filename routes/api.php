@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyCont
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
 use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
+use App\Http\Controllers\Api\Owner\VenueUnlockRequestController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
@@ -177,6 +178,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         // Venue Location Change Requests (Admin duyệt/từ chối thay đổi vị trí)
         Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveLocationChange']);
         Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectLocationChange']);
+        Route::patch('/venue-clusters/{clusterId}/unlock-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveUnlockRequest']);
+        Route::patch('/venue-clusters/{clusterId}/unlock-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectUnlockRequest']);
 
         // Content Moderation
         Route::get('/moderation/queue', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'queue']);
@@ -277,6 +280,14 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/bookings/{id}/payments/collect', [OwnerBookingManagementController::class, 'collectPayment']);
         Route::patch('/bookings/{id}/status', [OwnerBookingManagementController::class, 'updateStatus']);
         Route::patch('/bookings/{id}/court', [OwnerBookingManagementController::class, 'changeCourt']);
+    });
+
+Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
+    ->prefix('owner')
+    ->group(function (): void {
+        Route::get('/venue-clusters/{clusterId}/unlock-requests', [VenueUnlockRequestController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/unlock-requests', [VenueUnlockRequestController::class, 'store']);
+        Route::patch('/venue-clusters/{clusterId}/unlock-requests/{requestId}/cancel', [VenueUnlockRequestController::class, 'cancel']);
     });
 
 Route::middleware('auth:sanctum')

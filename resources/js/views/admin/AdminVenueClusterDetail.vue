@@ -35,6 +35,9 @@
           <span v-if="tab.key === 'location_changes' && pendingLocationChangeCount > 0" class="tab-badge-admin">
             {{ pendingLocationChangeCount }}
           </span>
+          <span v-if="tab.key === 'unlock_appeals' && pendingUnlockAppealCount > 0" class="tab-badge-admin">
+            {{ pendingUnlockAppealCount }}
+          </span>
         </button>
       </div>
 
@@ -651,6 +654,47 @@
         </div>
       </div>
 
+      <!-- ┌ Tab: Yêu cầu mở khóa ──────────────────────────────── -->
+      <div v-if="activeTab === 'unlock_appeals'" class="avcd-card card">
+        <h3 class="section-title">Yêu cầu mở khóa cụm sân</h3>
+        <div class="approval-tabs">
+          <button class="tab-sm" :class="{ active: unlockAppealFilter === '' }" @click="unlockAppealFilter = ''">Tất cả</button>
+          <button class="tab-sm" :class="{ active: unlockAppealFilter === 'pending' }" @click="unlockAppealFilter = 'pending'">Chờ duyệt</button>
+          <button class="tab-sm" :class="{ active: unlockAppealFilter === 'approved' }" @click="unlockAppealFilter = 'approved'">Đã duyệt</button>
+          <button class="tab-sm" :class="{ active: unlockAppealFilter === 'rejected' }" @click="unlockAppealFilter = 'rejected'">Từ chối</button>
+        </div>
+        <div v-if="filteredUnlockAppeals.length === 0" class="empty-section">Không có yêu cầu nào.</div>
+        <div v-else class="approval-list">
+          <div v-for="req in filteredUnlockAppeals" :key="req.id" class="approval-card" :class="`approval-${req.status}`">
+            <div class="approval-row">
+              <div style="flex:1">
+                <div class="approval-name fw-bold">Yêu cầu mở khóa từ chủ sân</div>
+                <div class="muted" style="margin-top: 6px;">
+                  <strong>Lý do giải trình của chủ sân:</strong>
+                  <p style="margin: 4px 0; line-height: 1.5; white-space: pre-wrap; background: #fff; padding: 10px; border: 1px solid var(--sg-border); border-radius: 6px;">
+                    {{ req.reason }}
+                  </p>
+                </div>
+                <div class="muted">Người yêu cầu: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
+                <div v-if="req.reviewed_by" class="muted">Người duyệt: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
+                <div v-if="req.admin_note" class="reason-text" style="color: #475569; font-style: normal; margin-top: 6px;">
+                  <strong>Phản hồi của Admin:</strong> {{ req.admin_note }}
+                </div>
+              </div>
+              <div class="approval-right">
+                <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
+                <div v-if="req.status === 'pending'" class="approval-btns">
+                  <button class="btn btn-success btn-sm" :disabled="processingUnlockId === req.id" @click="handleApproveUnlock(req)">
+                    {{ processingUnlockId === req.id ? '...' : 'Duyệt mở khóa' }}
+                  </button>
+                  <button class="btn btn-danger btn-sm" :disabled="processingUnlockId === req.id" @click="openRejectUnlockModal(req)">Từ chối</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
 
     <!-- ── Modal: Khóa cụm sân ── -->
     <div v-if="showLockModal" class="modal-backdrop" @click.self="closeLockModal">
@@ -749,7 +793,35 @@
       </form>
     </div>
 
-
+    <!-- ── Modal: Từ chối yêu cầu mở khóa ── -->
+    <div v-if="rejectUnlockTarget" class="modal-backdrop" @click.self="closeRejectUnlockModal">
+      <form class="modal-box card" @submit.prevent="handleRejectUnlock">
+        <div class="modal-header">
+          <h3>Từ chối yêu cầu mở khóa</h3>
+          <button type="button" class="btn-close" @click="closeRejectUnlockModal">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="muted">Giải trình của chủ sân: <strong>{{ rejectUnlockTarget.reason }}</strong></p>
+          <div v-if="rejectUnlockError" class="alert-error">{{ rejectUnlockError }}</div>
+          <label class="form-label">
+            Lý do từ chối <span class="required">*</span>
+            <textarea
+              v-model="rejectUnlockReason"
+              rows="4"
+              required
+              placeholder="Nhập phản hồi từ chối..."
+              class="form-control"
+            ></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" @click="closeRejectUnlockModal">Hủy</button>
+          <button type="submit" class="btn btn-danger" :disabled="rejectingUnlock">
+            {{ rejectingUnlock ? 'Đang từ chối...' : 'Xác nhận từ chối' }}
+          </button>
+        </div>
+      </form>
+    </div>
 
     </template>
 
@@ -786,6 +858,7 @@ export default {
         { key: 'lock_history', label: 'Lịch sử khóa' },
         { key: 'approvals', label: 'Yêu cầu quy mô' },
         { key: 'location_changes', label: 'Yêu cầu vị trí' },
+        { key: 'unlock_appeals', label: 'Yêu cầu mở khóa' },
       ],
 
       approvalFilter: '',
@@ -816,6 +889,15 @@ export default {
 
 
 
+      // Unlock requests state
+      unlockRequests: [],
+      unlockAppealFilter: '',
+      processingUnlockId: null,
+      rejectUnlockTarget: null,
+      rejectUnlockReason: '',
+      rejectUnlockError: '',
+      rejectingUnlock: false,
+
       // Global message
       globalMsg: '',
       globalMsgType: 'msg-success',
@@ -833,6 +915,13 @@ export default {
     },
     pendingLocationChangeCount() {
       return this.locationChangeRequests.filter((r) => r.status === 'pending').length;
+    },
+    filteredUnlockAppeals() {
+      if (!this.unlockAppealFilter) return this.unlockRequests;
+      return this.unlockRequests.filter((r) => r.status === this.unlockAppealFilter);
+    },
+    pendingUnlockAppealCount() {
+      return this.unlockRequests.filter((r) => r.status === 'pending').length;
     },
   },
   mounted() {
@@ -856,6 +945,7 @@ export default {
         this.lockHistory = data.lock_history || [];
         this.approvalRequests = data.approval_requests || [];
         this.locationChangeRequests = data.location_change_requests || [];
+        this.unlockRequests = data.unlock_requests || [];
       } catch (err) {
         this.error = err.message || 'Không tải được dữ liệu.';
       } finally {
@@ -990,6 +1080,50 @@ export default {
         this.rejectLocationError = err.message || 'Từ chối không thành công.';
       } finally {
         this.rejectingLocation = false;
+      }
+    },
+
+    // ── Approve / Reject Unlock Requests ──
+    async handleApproveUnlock(req) {
+      if (!confirm('Duyệt yêu cầu mở khóa này? Cụm sân sẽ được kích hoạt lại ngay lập tức.')) return;
+      this.processingUnlockId = req.id;
+      try {
+        const res = await adminVenueClusterService.approveUnlockRequest(this.cluster.id, req.id);
+        const idx = this.unlockRequests.findIndex((r) => r.id === req.id);
+        if (idx !== -1) this.unlockRequests.splice(idx, 1, res.data);
+        this.showMsg('Duyệt mở khóa thành công. Cụm sân đã hoạt động trở lại.', 'msg-success');
+        await this.loadDetail();
+      } catch (err) {
+        this.showMsg(err.message || 'Duyệt không thành công.', 'msg-error');
+      } finally {
+        this.processingUnlockId = null;
+      }
+    },
+    openRejectUnlockModal(req) {
+      this.rejectUnlockTarget = req;
+      this.rejectUnlockReason = '';
+      this.rejectUnlockError = '';
+    },
+    closeRejectUnlockModal() {
+      this.rejectUnlockTarget = null;
+    },
+    async handleRejectUnlock() {
+      this.rejectingUnlock = true;
+      this.rejectUnlockError = '';
+      try {
+        const res = await adminVenueClusterService.rejectUnlockRequest(
+          this.cluster.id,
+          this.rejectUnlockTarget.id,
+          { admin_note: this.rejectUnlockReason },
+        );
+        const idx = this.unlockRequests.findIndex((r) => r.id === this.rejectUnlockTarget.id);
+        if (idx !== -1) this.unlockRequests.splice(idx, 1, res.data);
+        this.closeRejectUnlockModal();
+        this.showMsg('Đã từ chối yêu cầu mở khóa.', 'msg-success');
+      } catch (err) {
+        this.rejectUnlockError = err.message || 'Từ chối không thành công.';
+      } finally {
+        this.rejectingUnlock = false;
       }
     },
 

@@ -71,6 +71,16 @@
                         >
                             {{ pendingLocationCount }}
                         </span>
+                        <span
+                            v-if="
+                                tab.key === 'unlock' &&
+                                pendingUnlockCount > 0
+                            "
+                            class="tab-badge"
+                            style="background-color: #dc2626;"
+                        >
+                            {{ pendingUnlockCount }}
+                        </span>
                     </button>
                 </div>
 
@@ -80,6 +90,10 @@
                 <div v-if="activeTab === 'info'" class="cluster-edit card">
                     <div class="edit-header">
                         <h3>Cấu hình chi tiết: {{ selectedCluster.name }}</h3>
+                    </div>
+
+                    <div v-if="isClusterLocked" class="alert alert-danger" style="margin-bottom: 20px;">
+                        Cụm sân này đang bị khóa. Bạn không thể cập nhật cấu hình cho đến khi cụm sân được mở khóa. Vui lòng chuyển sang tab <strong>Yêu cầu mở khóa</strong> để gửi giải trình.
                     </div>
 
                     <form @submit.prevent="handleUpdate">
@@ -102,6 +116,7 @@
                                     type="text"
                                     class="form-control"
                                     required
+                                    :disabled="isClusterLocked"
                                 />
                             </div>
                             <div class="form-group">
@@ -115,6 +130,7 @@
                                     type="text"
                                     class="form-control"
                                     required
+                                    :disabled="isClusterLocked"
                                 />
                             </div>
                         </div>
@@ -136,7 +152,7 @@
                                 <button
                                     type="button"
                                     class="btn btn-outline btn-sm"
-                                    :disabled="pendingLocationCount > 0"
+                                    :disabled="pendingLocationCount > 0 || isClusterLocked"
                                     @click="openLocationChangeModal"
                                 >
                                     <AppIcon name="pencil" size="14" />
@@ -191,6 +207,7 @@
                                                 v-model="form.amenities"
                                                 type="checkbox"
                                                 :value="item"
+                                                :disabled="isClusterLocked"
                                             />
                                             <span>{{ item }}</span>
                                         </label>
@@ -200,6 +217,7 @@
                                             class="btn-edit-amenity-desc"
                                             @click.stop="openAmenityDescModal(item)"
                                             :title="form.amenity_descriptions[item] ? 'Sửa mô tả tiện ích (đã có mô tả)' : 'Thêm mô tả tiện ích'"
+                                            :disabled="isClusterLocked"
                                         >
                                             <AppIcon name="pencil" size="13" />
                                             <span v-if="form.amenity_descriptions[item]" class="has-desc-dot"></span>
@@ -212,7 +230,8 @@
                                 <a
                                     href="#"
                                     class="link-request-amenity"
-                                    @click.prevent="openRequestModal"
+                                    @click.prevent="isClusterLocked ? null : openRequestModal"
+                                    v-if="!isClusterLocked"
                                     >Gửi yêu cầu thêm tiện ích mới</a
                                 >
                             </div>
@@ -235,6 +254,7 @@
                                         class="owner-gallery-img"
                                     />
                                     <button
+                                        v-if="!isClusterLocked"
                                         type="button"
                                         class="btn-delete-img"
                                         @click="handleDeleteImage(img.id)"
@@ -248,7 +268,7 @@
                                 Chưa có hình ảnh nào được tải lên cho cụm sân
                                 này.
                             </div>
-                            <div class="owner-upload-zone">
+                            <div class="owner-upload-zone" :style="isClusterLocked ? 'cursor: not-allowed; opacity: 0.6;' : ''">
                                 <input
                                     type="file"
                                     id="owner-image-upload"
@@ -256,11 +276,12 @@
                                     multiple
                                     class="hidden-file-input"
                                     @change="handleImageUpload"
-                                    :disabled="uploadingImage"
+                                    :disabled="uploadingImage || isClusterLocked"
                                 />
                                 <label
                                     for="owner-image-upload"
                                     class="upload-label-zone"
+                                    :style="isClusterLocked ? 'cursor: not-allowed;' : ''"
                                 >
                                     <span
                                         v-if="uploadingImage"
@@ -284,6 +305,7 @@
                                 v-model="form.description"
                                 class="form-control"
                                 rows="4"
+                                :disabled="isClusterLocked"
                             ></textarea>
                         </div>
 
@@ -291,7 +313,7 @@
                             <button
                                 type="submit"
                                 class="btn btn-primary"
-                                :disabled="updating"
+                                :disabled="updating || isClusterLocked"
                             >
                                 <AppIcon name="check" size="16" />
                                 {{
@@ -320,6 +342,7 @@
                             <button
                                 class="btn btn-outline"
                                 @click="activeTab = 'approvals'"
+                                :disabled="isClusterLocked"
                             >
                                 <AppIcon name="plus" size="15" />
                                 <span>Yêu cầu thêm sân mới</span>
@@ -417,6 +440,7 @@
                                         icon="pencil"
                                         label="Sửa sân con"
                                         @click="openEditCourtModal(court)"
+                                        :disabled="isClusterLocked"
                                     />
                                 </div>
                             </div>
@@ -436,6 +460,7 @@
                                             :class="{ active: editorTool === 'select' }"
                                             @click.stop="editorTool = 'select'"
                                             title="Công cụ Chọn (V)"
+                                            :disabled="isClusterLocked"
                                         >
                                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                                                 <path d="M2 1l12 6-6 2-2 6-4-14z"/>
@@ -446,6 +471,7 @@
                                             :class="{ active: editorTool === 'pan' }"
                                             @click.stop="editorTool = 'pan'"
                                             title="Công cụ Kéo (H)"
+                                            :disabled="isClusterLocked"
                                         >
                                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                                                 <path d="M6 1.5a1 1 0 0 1 2 0V7h1V4.5a1 1 0 0 1 2 0V7h.5a1.5 1.5 0 0 1 1.5 1.5v1A4.5 4.5 0 0 1 9 14H7a4 4 0 0 1-4-4V6a1 1 0 0 1 1-1h.5V4.5a1 1 0 0 1 1-1V1.5z"/>
@@ -456,7 +482,7 @@
                                     <button
                                         class="btn btn-primary"
                                         @click="saveLayout"
-                                        :disabled="savingLayout"
+                                        :disabled="savingLayout || isClusterLocked"
                                     >
                                         <span>{{
                                             savingLayout
@@ -467,12 +493,14 @@
                                     <button
                                         class="btn btn-outline"
                                         @click="autoArrange"
+                                        :disabled="isClusterLocked"
                                     >
                                         <span>Tự động sắp xếp</span>
                                     </button>
                                     <button
                                         class="btn btn-outline btn-danger-outline"
                                         @click="clearLayout"
+                                        :disabled="isClusterLocked"
                                     >
                                         <span>Xóa toàn bộ</span>
                                     </button>
@@ -1143,6 +1171,9 @@
                             Để thêm sân con mới, hãy gửi yêu cầu bên dưới. Admin
                             sẽ xem xét và tạo sân con cho bạn sau khi phê duyệt.
                         </p>
+                        <div v-if="isClusterLocked" class="alert alert-danger" style="margin-bottom: 16px;">
+                            Cụm sân này đang bị khóa. Bạn không thể gửi yêu cầu thay đổi quy mô. Vui lòng giải trình để mở khóa trước.
+                        </div>
                         <div v-if="newReqSuccess" class="alert alert-success">
                             {{ newReqSuccess }}
                         </div>
@@ -1245,6 +1276,7 @@
                                         class="form-control"
                                         placeholder="Ví dụ: Sân số 5, Sân VIP..."
                                         required
+                                        :disabled="isClusterLocked"
                                     />
                                 </div>
                             </div>
@@ -1255,6 +1287,7 @@
                                     class="form-control"
                                     rows="3"
                                     placeholder="Mô tả lý do bạn muốn mở rộng thêm sân con..."
+                                    :disabled="isClusterLocked"
                                 ></textarea>
                             </div>
                             <div class="form-group">
@@ -1266,16 +1299,17 @@
                                     <div
                                         v-if="!evidencePreview"
                                         class="evidence-dropzone"
-                                        @click="$refs.evidenceInput.click()"
+                                        @click="isClusterLocked ? null : $refs.evidenceInput.click()"
                                         @dragover.prevent
-                                        @drop.prevent="handleEvidenceDrop"
+                                        @drop.prevent="isClusterLocked ? null : handleEvidenceDrop($event)"
+                                        :style="isClusterLocked ? 'cursor: not-allowed; opacity: 0.6;' : ''"
                                     >
                                         <div class="evidence-dropzone-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
                                         <div class="evidence-dropzone-text">Click hoặc kéo thả ảnh vào đây</div>
                                     </div>
                                     <div v-else class="evidence-preview-wrapper">
                                         <img :src="evidencePreview" alt="Ảnh minh chứng" class="evidence-preview-img" />
-                                        <button type="button" class="btn-remove-evidence" @click="removeEvidence">&times;</button>
+                                        <button type="button" class="btn-remove-evidence" @click="removeEvidence" v-if="!isClusterLocked">&times;</button>
                                     </div>
                                     <input
                                         ref="evidenceInput"
@@ -1283,6 +1317,7 @@
                                         accept="image/jpeg,image/png,image/webp"
                                         style="display:none"
                                         @change="handleEvidenceSelect"
+                                        :disabled="isClusterLocked"
                                     />
                                 </div>
                             </div>
@@ -1290,7 +1325,7 @@
                                 <button
                                     type="submit"
                                     class="btn btn-primary"
-                                    :disabled="creatingReq"
+                                    :disabled="creatingReq || isClusterLocked"
                                 >
                                     <AppIcon name="send" size="16" />
                                     {{
@@ -1639,6 +1674,114 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ═══════════════════════════════════════════════════
+                     TAB 4: YÊU CẦU MỞ KHÓA
+                ═══════════════════════════════════════════════════ -->
+                <div v-if="activeTab === 'unlock'" class="unlock-tab card" style="padding: 18px; margin-top: 14px;">
+                    <div style="border-left: 5px solid #dc2626; background-color: #fffafb; padding: 14px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #fecaca; border-left-width: 5px;">
+                        <div class="banner-header" style="display: flex; align-items: center; gap: 12px;">
+                            <AppIcon name="lock" size="24" style="color: #dc2626;" />
+                            <div>
+                                <h4 style="margin: 0; font-size: 16px; color: #991b1b;">Cụm sân đang bị khóa</h4>
+                                <p style="margin: 4px 0 0; font-size: 13.5px; color: #b91c1c;">
+                                    Lý do: <strong>{{ selectedCluster.status_reason || 'Không có lý do chi tiết.' }}</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Đang có yêu cầu pending -->
+                    <div v-if="pendingUnlockRequest" class="pending-alert" style="background: #fffbeb; border: 1px solid #fde68a; padding: 16px; margin-bottom: 20px; border-radius: 8px;">
+                        <div class="alert-info" style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #b45309; margin-bottom: 12px;">
+                            <AppIcon name="info" size="18" />
+                            <span>Yêu cầu mở khóa của bạn đang chờ Admin xử lý.</span>
+                        </div>
+                        <div class="pending-reason-preview" style="background: #fff; border: 1px solid #f3f4f6; padding: 10px 12px; border-radius: 4px; margin-bottom: 16px;">
+                            <strong style="font-size: 13px; color: #4b5563;">Nội dung giải trình:</strong>
+                            <p style="margin: 4px 0 0; font-size: 14px; color: #1f2937; white-space: pre-wrap; line-height: 1.45;">{{ pendingUnlockRequest.reason }}</p>
+                        </div>
+                        <button class="btn btn-outline" type="button" :disabled="unlockSubmitting" @click="handleCancelUnlock(pendingUnlockRequest.id)" style="color: #dc2626; border-color: #fca5a5;">
+                            {{ unlockSubmitting ? 'Đang hủy...' : 'Hủy yêu cầu này' }}
+                        </button>
+                    </div>
+
+                    <!-- Chưa có yêu cầu pending -->
+                    <div v-else class="new-appeal-form" style="margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 6px; font-size: 16px; color: #1e293b;">Gửi yêu cầu giải trình & mở khóa</h4>
+                        <p style="margin: 0 0 16px; font-size: 13px; color: #64748b; line-height: 1.4;">
+                            Hãy cung cấp thông tin giải trình chi tiết về lý do vi phạm hoặc các biện pháp khắc phục để Admin phê duyệt mở khóa cụm sân.
+                        </p>
+                        <form @submit.prevent="handleUnlockSubmit">
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label style="font-weight: 700; font-size: 14px; color: #344238; display: block; margin-bottom: 6px;">
+                                    Nội dung giải trình <span class="required" style="color: #dc2626;">*</span>
+                                </label>
+                                <textarea
+                                    v-model.trim="unlockForm.reason"
+                                    rows="5"
+                                    maxlength="2000"
+                                    placeholder="Nhập nội dung giải trình của bạn (tối thiểu 10 ký tự)..."
+                                    class="form-control"
+                                    required
+                                    style="width: 100%; border: 1px solid #c0d1c1; border-radius: 6px; padding: 10px; font-size: 14px; resize: vertical;"
+                                ></textarea>
+                                <small style="display: block; text-align: right; color: #94a3b8; font-size: 11px; margin-top: 4px;">{{ unlockForm.reason.length }}/2000 ký tự</small>
+                            </div>
+
+                            <div v-if="unlockError" class="alert alert-danger" style="margin-bottom: 16px;">{{ unlockError }}</div>
+                            <div v-if="unlockSuccess" class="alert alert-success" style="margin-bottom: 16px;">{{ unlockSuccess }}</div>
+
+                            <button class="btn btn-primary" type="submit" :disabled="unlockSubmitting || !unlockForm.reason || unlockForm.reason.length < 10">
+                                {{ unlockSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu giải trình' }}
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Lịch sử yêu cầu -->
+                    <div class="history-card" style="margin-top: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                            <h4 style="margin: 0; font-size: 15px; color: #1e293b;">Lịch sử yêu cầu mở khóa</h4>
+                            <button class="btn btn-outline btn-sm" :disabled="loadingUnlockRequests" @click="fetchUnlockRequests(selectedCluster.id)">
+                                Tải lại
+                            </button>
+                        </div>
+
+                        <div v-if="loadingUnlockRequests" class="loading-state" style="padding: 30px 0; text-align: center;">
+                            <div class="spinner"></div>
+                            <p>Đang tải lịch sử...</p>
+                        </div>
+                        <div v-else-if="unlockRequests.length === 0" class="empty-state" style="text-align: center; padding: 30px 0; color: #64748b; font-style: italic;">
+                            Chưa có yêu cầu mở khóa nào được gửi cho cụm sân này.
+                        </div>
+                        <div v-else class="table-scroll" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                            <table class="simple-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                                <thead>
+                                    <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; width: 100px;">Mã yêu cầu</th>
+                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; width: 150px;">Thời gian gửi</th>
+                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; max-width: 300px;">Lý do giải trình</th>
+                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; width: 120px;">Trạng thái</th>
+                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; max-width: 300px;">Phản hồi Admin</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="req in unlockRequests" :key="req.id" style="border-bottom: 1px solid #e2e8f0;">
+                                        <td style="padding: 10px 12px; font-family: monospace; font-weight: 700; color: #475569;">{{ shortId(req.id) }}</td>
+                                        <td style="padding: 10px 12px;">{{ formatDateTime(req.created_at) }}</td>
+                                        <td style="padding: 10px 12px; max-width: 300px; white-space: normal; line-height: 1.45; word-break: break-word;">{{ req.reason }}</td>
+                                        <td style="padding: 10px 12px;">
+                                            <span class="status-badge" :class="req.status" style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700;">
+                                                {{ statusLabel(req.status) }}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 10px 12px; max-width: 300px; white-space: normal; line-height: 1.45; word-break: break-word; color: #475569;">{{ req.admin_note || '-' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1980,6 +2123,7 @@ import DecorationVisual from "../../components/DecorationVisual.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
+import { ownerUnlockRequestsService } from "../../services/ownerUnlockRequests";
 
 export default {
     name: "OwnerVenueClusters",
@@ -2113,10 +2257,38 @@ export default {
             wardSearch: "",
             showProvinceDropdown: false,
             showWardDropdown: false,
+
+            // Unlock Requests State
+            unlockRequests: [],
+            loadingUnlockRequests: false,
+            unlockForm: { reason: "" },
+            unlockSubmitting: false,
+            unlockError: "",
+            unlockSuccess: "",
         };
     },
 
     computed: {
+        isClusterLocked() {
+            return this.selectedCluster && this.selectedCluster.status === 'locked';
+        },
+        tabs() {
+            const list = [
+                { key: "info", label: "Thông tin chung" },
+                { key: "approvals", label: "Yêu cầu quy mô" },
+                { key: "location", label: "Yêu cầu vị trí" },
+            ];
+            if (this.isClusterLocked) {
+                list.push({ key: "unlock", label: "Yêu cầu mở khóa" });
+            }
+            return list;
+        },
+        pendingUnlockCount() {
+            return this.unlockRequests.filter((r) => r.status === "pending").length;
+        },
+        pendingUnlockRequest() {
+            return this.unlockRequests.find((r) => r.status === "pending") || null;
+        },
         selectedDecoration() {
             return (
                 this.decorations.find((d) => d.id === this.selectedDecorationId) || null
@@ -2230,6 +2402,9 @@ export default {
             if (newTab === "location" && this.selectedCluster) {
                 this.fetchLocationRequests(this.selectedCluster.id);
             }
+            if (newTab === "unlock" && this.selectedCluster) {
+                this.fetchUnlockRequests(this.selectedCluster.id);
+            }
             if (newTab === "info") {
                 this.$nextTick(() => this.initMap());
             }
@@ -2281,7 +2456,11 @@ export default {
 
         selectCluster(cluster) {
             this.selectedCluster = cluster;
-            this.activeTab = "info";
+            if (cluster && cluster.status === "locked") {
+                this.activeTab = "unlock";
+            } else {
+                this.activeTab = "info";
+            }
             localStorage.setItem("selected_cluster", cluster.id);
             window.dispatchEvent(
                 new CustomEvent("owner-cluster-changed", { detail: cluster }),
@@ -2332,6 +2511,11 @@ export default {
             // Reset location requests khi đổi cluster
             this.locationRequests = [];
             this.locationFilter = "";
+            // Reset unlock requests
+            this.unlockRequests = [];
+            this.unlockError = "";
+            this.unlockSuccess = "";
+            this.unlockForm.reason = "";
             // Load location requests ngay để hiển thị badge đúng
             this.fetchLocationRequests(cluster.id);
             this.$nextTick(() => this.initMap());
@@ -2391,6 +2575,78 @@ export default {
             } finally {
                 this.updating = false;
             }
+        },
+
+        async fetchUnlockRequests(clusterId) {
+            if (!clusterId) return;
+            this.loadingUnlockRequests = true;
+            this.unlockError = "";
+            try {
+                const response = await ownerUnlockRequestsService.list(clusterId);
+                this.unlockRequests = response.data || [];
+            } catch (err) {
+                this.unlockError = err.message || "Không thể tải lịch sử yêu cầu mở khóa.";
+            } finally {
+                this.loadingUnlockRequests = false;
+            }
+        },
+
+        async handleUnlockSubmit() {
+            if (!this.selectedCluster || !this.unlockForm.reason) return;
+            this.unlockSubmitting = true;
+            this.unlockError = "";
+            this.unlockSuccess = "";
+            try {
+                const response = await ownerUnlockRequestsService.create(this.selectedCluster.id, {
+                    reason: this.unlockForm.reason,
+                });
+                this.unlockSuccess = response.message || "Gửi yêu cầu mở khóa thành công!";
+                this.unlockForm.reason = "";
+                await this.fetchUnlockRequests(this.selectedCluster.id);
+            } catch (err) {
+                this.unlockError = err.message || "Không thể gửi yêu cầu giải trình.";
+            } finally {
+                this.unlockSubmitting = false;
+            }
+        },
+
+        async handleCancelUnlock(requestId) {
+            if (!this.selectedCluster || !requestId) return;
+            if (!confirm("Bạn có chắc chắn muốn hủy yêu cầu mở khóa này không?")) return;
+            this.unlockSubmitting = true;
+            this.unlockError = "";
+            this.unlockSuccess = "";
+            try {
+                const response = await ownerUnlockRequestsService.cancel(this.selectedCluster.id, requestId);
+                this.unlockSuccess = response.message || "Hủy yêu cầu mở khóa thành công!";
+                await this.fetchUnlockRequests(this.selectedCluster.id);
+            } catch (err) {
+                this.unlockError = err.message || "Không thể hủy yêu cầu mở khóa.";
+            } finally {
+                this.unlockSubmitting = false;
+            }
+        },
+
+        shortId(value) {
+            return value ? String(value).slice(0, 8).toUpperCase() : "-";
+        },
+
+        formatDateTime(value) {
+            if (!value) return "-";
+            const d = new Date(value);
+            return `${d.toLocaleDateString("vi-VN")} ${d.toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+            })}`;
+        },
+
+        statusLabel(status) {
+            return {
+                pending: "Đang chờ duyệt",
+                approved: "Đã chấp nhận",
+                rejected: "Bị từ chối",
+                cancelled: "Đã hủy",
+            }[status] || status;
         },
 
         imageUrl(path) {
