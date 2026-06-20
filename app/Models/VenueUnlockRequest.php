@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class VenueCourtApprovalRequest extends Model
+class VenueUnlockRequest extends Model
 {
     use HasFactory, HasUuids;
 
@@ -16,28 +16,24 @@ class VenueCourtApprovalRequest extends Model
 
     protected $fillable = [
         'venue_cluster_id',
-        'court_type_id',
-        'name',
-        'status',
         'requested_by',
         'reviewed_by',
-        'status_reason',
-        'evidence_image',
-        'approved_venue_court_id',
+        'status',
+        'reason',
+        'admin_note',
         'reviewed_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'court_type_id' => 'integer',
             'reviewed_at' => 'datetime',
         ];
     }
 
-    public function courtType()
+    public function venueCluster()
     {
-        return $this->belongsTo(CourtType::class, 'court_type_id');
+        return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
     }
 
     public function requestedBy()
@@ -48,10 +44,5 @@ class VenueCourtApprovalRequest extends Model
     public function reviewedBy()
     {
         return $this->belongsTo(User::class, 'reviewed_by');
-    }
-
-    public function venueCluster()
-    {
-        return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
     }
 }

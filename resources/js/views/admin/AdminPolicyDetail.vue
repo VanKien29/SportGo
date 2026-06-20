@@ -15,20 +15,10 @@
 
     <template v-else>
 
-      <!-- Page header -->
-      <header class="page-head">
-        <div>
-          <p class="eyebrow">
-            <button class="back-link" @click="$router.push({ name: 'admin-policies' })">← Danh sách chính sách</button>
-          </p>
-          <div class="policy-title-row">
-            <h2>{{ policy.title }}</h2>
-            <span class="badge" :class="getStatusBadgeClass(policy.status)">{{ policy.status_label || getStatusLabel(policy.status) }}</span>
-            <span class="badge badge-version">v{{ policy.version || 1 }}</span>
-          </div>
-          <p>{{ policy.policy_type_label || getPolicyTypeLabel(policy.policy_type) }} · {{ policy.business_summary_vi || policy.business_summary || 'Chính sách hệ thống SportGo.' }}</p>
-        </div>
-        <div class="page-head-actions">
+      <!-- Back Action Bar -->
+      <div class="back-action-bar">
+        <button class="back-link" @click="$router.push({ name: 'admin-policies' })">← Danh sách chính sách</button>
+        <div class="back-action-buttons">
           <button v-if="policy.status === 'draft'" class="btn danger-ghost" type="button" @click="confirmDelete.show = true">
             <AppIcon name="trash" size="16" />
             Xóa nháp
@@ -46,7 +36,17 @@
             {{ saving ? 'Đang xử lý...' : 'Ngưng áp dụng' }}
           </button>
         </div>
-      </header>
+      </div>
+
+      <!-- Policy Info Bar -->
+      <div class="policy-info-bar">
+        <div class="policy-title-row">
+          <h2>{{ policy.title }}</h2>
+          <span class="badge" :class="getStatusBadgeClass(policy.status)">{{ policy.status_label || getStatusLabel(policy.status) }}</span>
+          <span class="badge badge-version">v{{ policy.version || 1 }}</span>
+        </div>
+        <p class="policy-meta">{{ policy.policy_type_label || getPolicyTypeLabel(policy.policy_type) }} · {{ policy.business_summary_vi || policy.business_summary || 'Chính sách hệ thống SportGo.' }}</p>
+      </div>
 
       <!-- Alerts -->
       <div v-if="success" class="alert success">{{ success }}</div>
@@ -1525,11 +1525,11 @@ export default {
 }
 .back-link:hover { text-decoration: underline; }
 
-/* ── Page head ── */
-.page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.page-head h2 { margin: 4px 0 2px; font-size: 22px; }
-.page-head p { margin: 0; color: #64748b; font-size: 14px; }
-.page-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+/* ── Back action bar ── */
+.back-action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.back-action-buttons { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.policy-info-bar { margin-bottom: 12px; }
+.policy-meta { margin: 4px 0 0; color: #64748b; font-size: 14px; }
 
 .policy-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .policy-title-row h2 { margin: 0; }
@@ -1957,8 +1957,8 @@ export default {
   .config-edit-grid.generic-grid { grid-template-columns: 1fr; }
   .config-edit-grid .wide-field { grid-column: span 1; }
   .param-field-check { grid-column: span 1; }
-  .page-head { flex-direction: column; }
-  .page-head-actions { flex-wrap: wrap; }
+  .back-action-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .back-action-buttons { flex-wrap: wrap; }
 }
 @media (max-width: 600px) {
   .meta-grid { grid-template-columns: 1fr; }

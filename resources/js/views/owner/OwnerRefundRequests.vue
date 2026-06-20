@@ -29,6 +29,7 @@
       <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from" />
       <ActionIconButton icon="filter" label="Lọc" variant="primary" type="submit" />
       <ActionIconButton icon="x" label="Xóa lọc" @click="clearFilters" />
+      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadRefunds" />
     </form>
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -326,11 +327,6 @@ export default {
   display: grid;
   gap: 16px;
   min-width: 0;
-}
-
-.page-head h1,
-.page-head p {
-  margin: 0;
 }
 
 .status-tabs {

@@ -103,4 +103,31 @@ export const adminVenueClusterService = {
       body: JSON.stringify(payload),
     });
   },
+
+  /**
+   * Duyệt yêu cầu mở khóa cụm sân
+   * @param {string} clusterId
+   * @param {string} requestId
+   * @param {Object} payload - { admin_note?: string }
+   */
+  approveUnlockRequest(clusterId, requestId, payload = {}) {
+    return api(`/api/admin/venue-clusters/${clusterId}/unlock-requests/${requestId}/approve`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Từ chối yêu cầu mở khóa cụm sân
+   * @param {string} clusterId
+   * @param {string} requestId
+   * @param {{ admin_note: string }} payload
+   */
+  rejectUnlockRequest(clusterId, requestId, payload) {
+    return api(`/api/admin/venue-clusters/${clusterId}/unlock-requests/${requestId}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
 };
+

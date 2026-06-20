@@ -28,6 +28,7 @@
         <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadComplaints" />
         <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadComplaints" />
         <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadComplaints" />
+        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadComplaints" />
       </div>
     </section>
 

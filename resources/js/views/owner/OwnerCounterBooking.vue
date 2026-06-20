@@ -1,12 +1,26 @@
 <template>
     <div class="owner-counter-page">
-        <section class="page-head">
-            <div>
-                <h1>Booking tại quầy</h1>
-                <p>
-                    Quản lý lịch sân trong ngày, tạo booking vãng lai và lịch cố
-                    định cho khách quen.
-                </p>
+        <div v-if="error" class="alert error">{{ error }}</div>
+        <div v-if="notice" class="alert success">{{ notice }}</div>
+
+        <div class="tabs-and-actions">
+            <div class="tabs">
+                <button
+                    type="button"
+                    :class="{ active: activeTab === 'counter' }"
+                    @click="activeTab = 'counter'"
+                >
+                    <AppIcon name="plus" size="16" />
+                    <span>Booking tại quầy</span>
+                </button>
+                <button
+                    type="button"
+                    :class="{ active: activeTab === 'recurring' }"
+                    @click="activeTab = 'recurring'"
+                >
+                    <AppIcon name="calendar" size="16" />
+                    <span>Đặt lịch cố định</span>
+                </button>
             </div>
             <button class="secondary-btn" type="button" @click="loadSchedule">
                 <AppIcon name="refresh" size="16" />
@@ -6372,6 +6386,18 @@ input.invalid {
 }
 
 @media (max-width: 820px) {
+    .tabs-and-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .tabs-and-actions .secondary-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
     .schedule-filters,
     .form-grid,
     .booking-picker,

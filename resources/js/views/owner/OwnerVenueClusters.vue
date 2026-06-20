@@ -1,12 +1,6 @@
 <template>
     <div class="venue-clusters-container">
-        <!-- Page Header với cluster selector -->
-        <section class="page-head">
-            <div>
-                <h2>Quản lý cụm sân</h2>
-                <p>Thông tin vận hành, sân con và yêu cầu quy mô.</p>
-            </div>
-        </section>
+
 
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -77,6 +71,16 @@
                         >
                             {{ pendingLocationCount }}
                         </span>
+                        <span
+                            v-if="
+                                tab.key === 'unlock' &&
+                                pendingUnlockCount > 0
+                            "
+                            class="tab-badge"
+                            style="background-color: #dc2626;"
+                        >
+                            {{ pendingUnlockCount }}
+                        </span>
                     </button>
                 </div>
 
@@ -86,6 +90,10 @@
                 <div v-if="activeTab === 'info'" class="cluster-edit card">
                     <div class="edit-header">
                         <h3>Cấu hình chi tiết: {{ selectedCluster.name }}</h3>
+                    </div>
+
+                    <div v-if="isClusterLocked" class="alert alert-danger" style="margin-bottom: 20px;">
+                        Cụm sân này đang bị khóa. Bạn không thể cập nhật cấu hình cho đến khi cụm sân được mở khóa. Vui lòng chuyển sang tab <strong>Yêu cầu mở khóa</strong> để gửi giải trình.
                     </div>
 
                     <form @submit.prevent="handleUpdate">
@@ -108,6 +116,7 @@
                                     type="text"
                                     class="form-control"
                                     required
+                                    :disabled="isClusterLocked"
                                 />
                             </div>
                             <div class="form-group">
@@ -121,6 +130,7 @@
                                     type="text"
                                     class="form-control"
                                     required
+                                    :disabled="isClusterLocked"
                                 />
                             </div>
                         </div>
@@ -142,7 +152,7 @@
                                 <button
                                     type="button"
                                     class="btn btn-outline btn-sm"
-                                    :disabled="pendingLocationCount > 0"
+                                    :disabled="pendingLocationCount > 0 || isClusterLocked"
                                     @click="openLocationChangeModal"
                                 >
                                     <AppIcon name="pencil" size="14" />
@@ -174,13 +184,6 @@
                                         selectedCluster.address || "—"
                                     }}</span>
                                 </div>
-                                <div class="location-info-row">
-                                    <span class="location-label">Tọa độ:</span>
-                                    <span class="location-value location-coord"
-                                        >{{ selectedCluster.latitude }},
-                                        {{ selectedCluster.longitude }}</span
-                                    >
-                                </div>
                             </div>
                             <!-- Bản đồ chỉ xem -->
                             <div
@@ -192,25 +195,43 @@
                         <div class="form-group">
                             <label>Tiện ích cụm sân (Amenities)</label>
                             <div class="amenities-grid">
-                                <label
+                                <div
                                     v-for="item in availableAmenities"
                                     :key="item"
-                                    class="amenity-checkbox"
+                                    class="amenity-item-wrapper"
+                                    :class="{ active: form.amenities.includes(item) }"
                                 >
-                                    <input
-                                        v-model="form.amenities"
-                                        type="checkbox"
-                                        :value="item"
-                                    />
-                                    <span>{{ item }}</span>
-                                </label>
+                                    <div class="amenity-item-row">
+                                        <label class="amenity-checkbox">
+                                            <input
+                                                v-model="form.amenities"
+                                                type="checkbox"
+                                                :value="item"
+                                                :disabled="isClusterLocked"
+                                            />
+                                            <span>{{ item }}</span>
+                                        </label>
+                                        <button
+                                            v-if="form.amenities.includes(item)"
+                                            type="button"
+                                            class="btn-edit-amenity-desc"
+                                            @click.stop="openAmenityDescModal(item)"
+                                            :title="form.amenity_descriptions[item] ? 'Sửa mô tả tiện ích (đã có mô tả)' : 'Thêm mô tả tiện ích'"
+                                            :disabled="isClusterLocked"
+                                        >
+                                            <AppIcon name="pencil" size="13" />
+                                            <span v-if="form.amenity_descriptions[item]" class="has-desc-dot"></span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             <div class="amenity-request-tip">
                                 Bạn không tìm thấy tiện ích mong muốn?
                                 <a
                                     href="#"
                                     class="link-request-amenity"
-                                    @click.prevent="openRequestModal"
+                                    @click.prevent="isClusterLocked ? null : openRequestModal"
+                                    v-if="!isClusterLocked"
                                     >Gửi yêu cầu thêm tiện ích mới</a
                                 >
                             </div>
@@ -233,6 +254,7 @@
                                         class="owner-gallery-img"
                                     />
                                     <button
+                                        v-if="!isClusterLocked"
                                         type="button"
                                         class="btn-delete-img"
                                         @click="handleDeleteImage(img.id)"
@@ -246,7 +268,7 @@
                                 Chưa có hình ảnh nào được tải lên cho cụm sân
                                 này.
                             </div>
-                            <div class="owner-upload-zone">
+                            <div class="owner-upload-zone" :style="isClusterLocked ? 'cursor: not-allowed; opacity: 0.6;' : ''">
                                 <input
                                     type="file"
                                     id="owner-image-upload"
@@ -254,11 +276,12 @@
                                     multiple
                                     class="hidden-file-input"
                                     @change="handleImageUpload"
-                                    :disabled="uploadingImage"
+                                    :disabled="uploadingImage || isClusterLocked"
                                 />
                                 <label
                                     for="owner-image-upload"
                                     class="upload-label-zone"
+                                    :style="isClusterLocked ? 'cursor: not-allowed;' : ''"
                                 >
                                     <span
                                         v-if="uploadingImage"
@@ -282,6 +305,7 @@
                                 v-model="form.description"
                                 class="form-control"
                                 rows="4"
+                                :disabled="isClusterLocked"
                             ></textarea>
                         </div>
 
@@ -289,7 +313,7 @@
                             <button
                                 type="submit"
                                 class="btn btn-primary"
-                                :disabled="updating"
+                                :disabled="updating || isClusterLocked"
                             >
                                 <AppIcon name="check" size="16" />
                                 {{
@@ -318,6 +342,7 @@
                             <button
                                 class="btn btn-outline"
                                 @click="activeTab = 'approvals'"
+                                :disabled="isClusterLocked"
                             >
                                 <AppIcon name="plus" size="15" />
                                 <span>Yêu cầu thêm sân mới</span>
@@ -415,6 +440,7 @@
                                         icon="pencil"
                                         label="Sửa sân con"
                                         @click="openEditCourtModal(court)"
+                                        :disabled="isClusterLocked"
                                     />
                                 </div>
                             </div>
@@ -427,10 +453,36 @@
                         >
                             <div class="editor-toolbar">
                                 <div class="toolbar-left">
+                                    <!-- Tool switcher (Figma-style) -->
+                                    <div class="tool-switcher" title="Chọn công cụ (V: chọn, H: kéo)">
+                                        <button
+                                            class="tool-btn"
+                                            :class="{ active: editorTool === 'select' }"
+                                            @click.stop="editorTool = 'select'"
+                                            title="Công cụ Chọn (V)"
+                                            :disabled="isClusterLocked"
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                                <path d="M2 1l12 6-6 2-2 6-4-14z"/>
+                                            </svg>
+                                        </button>
+                                        <button
+                                            class="tool-btn"
+                                            :class="{ active: editorTool === 'pan' }"
+                                            @click.stop="editorTool = 'pan'"
+                                            title="Công cụ Kéo (H)"
+                                            :disabled="isClusterLocked"
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                                <path d="M6 1.5a1 1 0 0 1 2 0V7h1V4.5a1 1 0 0 1 2 0V7h.5a1.5 1.5 0 0 1 1.5 1.5v1A4.5 4.5 0 0 1 9 14H7a4 4 0 0 1-4-4V6a1 1 0 0 1 1-1h.5V4.5a1 1 0 0 1 1-1V1.5z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="toolbar-divider"></div>
                                     <button
                                         class="btn btn-primary"
                                         @click="saveLayout"
-                                        :disabled="savingLayout"
+                                        :disabled="savingLayout || isClusterLocked"
                                     >
                                         <span>{{
                                             savingLayout
@@ -441,51 +493,38 @@
                                     <button
                                         class="btn btn-outline"
                                         @click="autoArrange"
+                                        :disabled="isClusterLocked"
                                     >
                                         <span>Tự động sắp xếp</span>
                                     </button>
                                     <button
                                         class="btn btn-outline btn-danger-outline"
                                         @click="clearLayout"
+                                        :disabled="isClusterLocked"
                                     >
                                         <span>Xóa toàn bộ</span>
                                     </button>
                                 </div>
                                 <div class="toolbar-right">
                                     <span class="info-badge"
-                                        >Không giới hạn (Zoom/Pan) | Chọn sân để
-                                        xoay & chỉnh cỡ</span
+                                        >{{ editorTool === 'select' ? '🖱️ Chế độ Chọn — Click để chọn, kéo để di chuyển' : '✋ Chế độ Kéo — Kéo để di chuyển canvas' }}</span
                                     >
                                 </div>
                             </div>
                             <div class="editor-body">
                                 <div
                                     class="canvas-viewport"
+                                    :class="[`tool-${editorTool}`, { panning: isPanning }]"
                                     ref="canvasViewport"
                                     @wheel.prevent="handleZoom"
                                     @mousedown="startPan"
                                     @mousemove="handleGlobalMove"
                                     @mouseup="handleGlobalUp"
                                     @mouseleave="handleGlobalUp"
-                                    @click="selectedCourtId = null"
+                                    @click="onCanvasClick"
                                 >
-                                    <div class="canvas-interaction-guide">
-                                        <div class="guide-item">
-                                            🖱️ <b>Cuộn chuột:</b> Zoom sơ đồ
-                                        </div>
-                                        <div class="guide-item">
-                                            🖐️ <b>Kéo nền trống:</b> Di chuyển
-                                            góc nhìn
-                                        </div>
-                                        <div class="guide-item">
-                                            🎯 <b>Kéo thả sân:</b> Đổi vị trí
-                                            sân con
-                                        </div>
-                                        <div class="guide-item">
-                                            📐 <b>Kéo các nút góc:</b> Thay đổi
-                                            kích thước
-                                        </div>
-                                    </div>
+
+
                                     <div class="zoom-controls">
                                         <button
                                             class="btn-zoom"
@@ -550,6 +589,7 @@
                                                 startDrag($event, court)
                                             "
                                             @click.stop="selectCourt(court)"
+                                            data-type="court"
                                         >
                                             <CourtVisual
                                                 :name="court.name"
@@ -624,9 +664,89 @@
                                                 ></div>
                                             </template>
                                         </div>
+                                        <div
+                                            v-for="decor in decorations"
+                                            :key="decor.id"
+                                            class="canvas-decor-element"
+                                            :class="{
+                                                selected:
+                                                    selectedDecorationId ===
+                                                    decor.id,
+                                                dragging:
+                                                    draggingDecorationId ===
+                                                    decor.id,
+                                                resizing:
+                                                    resizingDecorationId ===
+                                                    decor.id,
+                                            }"
+                                            :style="getDecorStyle(decor)"
+                                            @mousedown.stop="
+                                                startDragDecor($event, decor)
+                                            "
+                                            @click.stop="selectDecor(decor)"
+                                            data-type="decor"
+                                        >
+                                            <DecorationVisual
+                                                :type="decor.type"
+                                                :name="decor.name"
+                                                :width="decor.layout_w"
+                                                :height="decor.layout_h"
+                                                :rotation="
+                                                    decor.layout_rotation || 0
+                                                "
+                                            />
+                                            <template
+                                                v-if="
+                                                    selectedDecorationId ===
+                                                    decor.id
+                                                "
+                                            >
+                                                <div
+                                                    class="resize-handle tl"
+                                                    @mousedown.stop.prevent="
+                                                        startResizeDecor(
+                                                            $event,
+                                                            decor,
+                                                            'tl',
+                                                        )
+                                                    "
+                                                ></div>
+                                                <div
+                                                    class="resize-handle tr"
+                                                    @mousedown.stop.prevent="
+                                                        startResizeDecor(
+                                                            $event,
+                                                            decor,
+                                                            'tr',
+                                                        )
+                                                    "
+                                                ></div>
+                                                <div
+                                                    class="resize-handle bl"
+                                                    @mousedown.stop.prevent="
+                                                        startResizeDecor(
+                                                            $event,
+                                                            decor,
+                                                            'bl',
+                                                        )
+                                                    "
+                                                ></div>
+                                                <div
+                                                    class="resize-handle br"
+                                                    @mousedown.stop.prevent="
+                                                        startResizeDecor(
+                                                            $event,
+                                                            decor,
+                                                            'br',
+                                                        )
+                                                    "
+                                                ></div>
+                                            </template>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="editor-sidebar">
+                                    <!-- Inspector: Sân con -->
                                     <div
                                         v-if="selectedCourt"
                                         class="sidebar-section inspector-panel"
@@ -649,7 +769,7 @@
                                                 ><span class="value">{{
                                                     selectedCourt.court_type
                                                         ?.name
-                                                }}</span>
+                                                 }}</span>
                                             </div>
                                             <div class="field-group">
                                                 <label>Kích thước (m):</label>
@@ -774,6 +894,121 @@
                                             </button>
                                         </div>
                                     </div>
+
+                                    <!-- Inspector: Vật phẩm trang trí -->
+                                    <div
+                                        v-else-if="selectedDecoration"
+                                        class="sidebar-section inspector-panel"
+                                    >
+                                        <h4 class="section-title">
+                                            Vật phẩm: {{ selectedDecoration.name }}
+                                        </h4>
+                                        <div class="inspector-fields">
+                                            <div class="field-row">
+                                                <span class="label">LOẠI:</span>
+                                                <span class="value font-bold uppercase">{{ selectedDecoration.type }}</span>
+                                            </div>
+                                            <div class="field-group">
+                                                <label>Tên nhãn hiển thị:</label>
+                                                <input
+                                                    type="text"
+                                                    v-model="selectedDecoration.name"
+                                                    class="form-control"
+                                                    placeholder="Nhãn hiển thị..."
+                                                />
+                                            </div>
+                                            <div class="field-group">
+                                                <label>Kích thước (px):</label>
+                                                <div class="input-row">
+                                                    <input
+                                                        type="number"
+                                                        v-model.number="selectedDecoration.layout_w"
+                                                        placeholder="Rộng"
+                                                        style="width: 70px;"
+                                                    />
+                                                    <span class="x">x</span>
+                                                    <input
+                                                        type="number"
+                                                        v-model.number="selectedDecoration.layout_h"
+                                                        placeholder="Dài"
+                                                        style="width: 70px;"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div class="field-group">
+                                                <label>Vị trí X / Y (px):</label>
+                                                <div class="input-row">
+                                                    <input
+                                                        type="number"
+                                                        v-model.number="selectedDecoration.layout_x"
+                                                        placeholder="X"
+                                                        style="width: 70px;"
+                                                    />
+                                                    <span class="comma">,</span>
+                                                    <input
+                                                        type="number"
+                                                        v-model.number="selectedDecoration.layout_y"
+                                                        placeholder="Y"
+                                                        style="width: 70px;"
+                                                     />
+                                                </div>
+                                            </div>
+                                            <div class="field-group">
+                                                <label>Góc xoay: {{ selectedDecoration.layout_rotation || 0 }}°</label>
+                                                <div class="rotation-control">
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max="359"
+                                                        v-model.number="selectedDecoration.layout_rotation"
+                                                        class="rotation-slider"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-outline btn-xs btn-rotate"
+                                                        @click="rotateSelectedDecor90"
+                                                    >
+                                                        Xoay +90°
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                class="btn btn-outline btn-danger-outline btn-block"
+                                                @click="deleteDecoration(selectedDecoration)"
+                                            >
+                                                Xóa khỏi sơ đồ
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Thư viện vật phẩm trang trí -->
+                                    <div class="sidebar-section decoration-library-section">
+                                        <h4 class="section-title">Thêm vật phẩm bổ trợ</h4>
+                                        <p class="section-desc">Click để thêm các vật phẩm định vị không gian:</p>
+                                        <div class="decor-library-grid">
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('entrance', 'Cửa ra vào')">
+                                                🚪 Cửa ra vào
+                                            </button>
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('reception', 'Lễ tân')">
+                                                👤 Quầy lễ tân
+                                            </button>
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('restroom', 'WC')">
+                                                🚻 Nhà vệ sinh
+                                            </button>
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('seating', 'Ghế chờ')">
+                                                🛋️ Ghế ngồi chờ
+                                            </button>
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('parking', 'Bãi đỗ xe')">
+                                                🅿️ Bãi đỗ xe
+                                            </button>
+                                            <button type="button" class="btn-add-decor" @click="addDecoration('custom', 'Khác')">
+                                                📦 Vật thể khác
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Sân chưa xếp -->
                                     <div
                                         class="sidebar-section unplaced-list-section"
                                     >
@@ -936,6 +1171,9 @@
                             Để thêm sân con mới, hãy gửi yêu cầu bên dưới. Admin
                             sẽ xem xét và tạo sân con cho bạn sau khi phê duyệt.
                         </p>
+                        <div v-if="isClusterLocked" class="alert alert-danger" style="margin-bottom: 16px;">
+                            Cụm sân này đang bị khóa. Bạn không thể gửi yêu cầu thay đổi quy mô. Vui lòng giải trình để mở khóa trước.
+                        </div>
                         <div v-if="newReqSuccess" class="alert alert-success">
                             {{ newReqSuccess }}
                         </div>
@@ -1038,6 +1276,7 @@
                                         class="form-control"
                                         placeholder="Ví dụ: Sân số 5, Sân VIP..."
                                         required
+                                        :disabled="isClusterLocked"
                                     />
                                 </div>
                             </div>
@@ -1048,13 +1287,45 @@
                                     class="form-control"
                                     rows="3"
                                     placeholder="Mô tả lý do bạn muốn mở rộng thêm sân con..."
+                                    :disabled="isClusterLocked"
                                 ></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Ảnh minh chứng <span class="text-muted">(không bắt buộc)</span></label>
+                                <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
+                                    Gửi ảnh chụp thực tế sân (hỗ trợ: JPG, PNG, WebP — tối đa 5MB)
+                                </p>
+                                <div class="evidence-upload-area">
+                                    <div
+                                        v-if="!evidencePreview"
+                                        class="evidence-dropzone"
+                                        @click="isClusterLocked ? null : $refs.evidenceInput.click()"
+                                        @dragover.prevent
+                                        @drop.prevent="isClusterLocked ? null : handleEvidenceDrop($event)"
+                                        :style="isClusterLocked ? 'cursor: not-allowed; opacity: 0.6;' : ''"
+                                    >
+                                        <div class="evidence-dropzone-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+                                        <div class="evidence-dropzone-text">Click hoặc kéo thả ảnh vào đây</div>
+                                    </div>
+                                    <div v-else class="evidence-preview-wrapper">
+                                        <img :src="evidencePreview" alt="Ảnh minh chứng" class="evidence-preview-img" />
+                                        <button type="button" class="btn-remove-evidence" @click="removeEvidence" v-if="!isClusterLocked">&times;</button>
+                                    </div>
+                                    <input
+                                        ref="evidenceInput"
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                        style="display:none"
+                                        @change="handleEvidenceSelect"
+                                        :disabled="isClusterLocked"
+                                    />
+                                </div>
                             </div>
                             <div class="form-actions">
                                 <button
                                     type="submit"
                                     class="btn btn-primary"
-                                    :disabled="creatingReq"
+                                    :disabled="creatingReq || isClusterLocked"
                                 >
                                     <AppIcon name="send" size="16" />
                                     {{
@@ -1163,6 +1434,15 @@
                                             {{ req.status_reason }}
                                         </div>
                                         <div
+                                            v-if="req.evidence_image_url"
+                                            class="approval-evidence"
+                                        >
+                                            <span class="approval-evidence-label"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:3px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Ảnh minh chứng:</span>
+                                            <a :href="req.evidence_image_url" target="_blank" class="approval-evidence-link">
+                                                <img :src="req.evidence_image_url" alt="Ảnh minh chứng" class="approval-evidence-thumb" />
+                                            </a>
+                                        </div>
+                                        <div
                                             v-if="
                                                 req.reviewed_by &&
                                                 req.reviewed_at
@@ -1227,13 +1507,6 @@
                                 ><span class="location-value">{{
                                     selectedCluster.address || "—"
                                 }}</span>
-                            </div>
-                            <div class="location-info-row">
-                                <span class="location-label">Tọa độ:</span
-                                ><span class="location-value location-coord"
-                                    >{{ selectedCluster.latitude }},
-                                    {{ selectedCluster.longitude }}</span
-                                >
                             </div>
                         </div>
                         <div class="location-actions">
@@ -1401,6 +1674,114 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ═══════════════════════════════════════════════════
+                     TAB 4: YÊU CẦU MỞ KHÓA
+                ═══════════════════════════════════════════════════ -->
+                <div v-if="activeTab === 'unlock'" class="unlock-tab card" style="padding: 18px; margin-top: 14px;">
+                    <div style="border-left: 5px solid #dc2626; background-color: #fffafb; padding: 14px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #fecaca; border-left-width: 5px;">
+                        <div class="banner-header" style="display: flex; align-items: center; gap: 12px;">
+                            <AppIcon name="lock" size="24" style="color: #dc2626;" />
+                            <div>
+                                <h4 style="margin: 0; font-size: 16px; color: #991b1b;">Cụm sân đang bị khóa</h4>
+                                <p style="margin: 4px 0 0; font-size: 13.5px; color: #b91c1c;">
+                                    Lý do: <strong>{{ selectedCluster.status_reason || 'Không có lý do chi tiết.' }}</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Đang có yêu cầu pending -->
+                    <div v-if="pendingUnlockRequest" class="pending-alert" style="background: #fffbeb; border: 1px solid #fde68a; padding: 16px; margin-bottom: 20px; border-radius: 8px;">
+                        <div class="alert-info" style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #b45309; margin-bottom: 12px;">
+                            <AppIcon name="info" size="18" />
+                            <span>Yêu cầu mở khóa của bạn đang chờ Admin xử lý.</span>
+                        </div>
+                        <div class="pending-reason-preview" style="background: #fff; border: 1px solid #f3f4f6; padding: 10px 12px; border-radius: 4px; margin-bottom: 16px;">
+                            <strong style="font-size: 13px; color: #4b5563;">Nội dung giải trình:</strong>
+                            <p style="margin: 4px 0 0; font-size: 14px; color: #1f2937; white-space: pre-wrap; line-height: 1.45;">{{ pendingUnlockRequest.reason }}</p>
+                        </div>
+                        <button class="btn btn-outline" type="button" :disabled="unlockSubmitting" @click="handleCancelUnlock(pendingUnlockRequest.id)" style="color: #dc2626; border-color: #fca5a5;">
+                            {{ unlockSubmitting ? 'Đang hủy...' : 'Hủy yêu cầu này' }}
+                        </button>
+                    </div>
+
+                    <!-- Chưa có yêu cầu pending -->
+                    <div v-else class="new-appeal-form" style="margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 6px; font-size: 16px; color: #1e293b;">Gửi yêu cầu giải trình & mở khóa</h4>
+                        <p style="margin: 0 0 16px; font-size: 13px; color: #64748b; line-height: 1.4;">
+                            Hãy cung cấp thông tin giải trình chi tiết về lý do vi phạm hoặc các biện pháp khắc phục để Admin phê duyệt mở khóa cụm sân.
+                        </p>
+                        <form @submit.prevent="handleUnlockSubmit">
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label style="font-weight: 700; font-size: 14px; color: #344238; display: block; margin-bottom: 6px;">
+                                    Nội dung giải trình <span class="required" style="color: #dc2626;">*</span>
+                                </label>
+                                <textarea
+                                    v-model.trim="unlockForm.reason"
+                                    rows="5"
+                                    maxlength="2000"
+                                    placeholder="Nhập nội dung giải trình của bạn (tối thiểu 10 ký tự)..."
+                                    class="form-control"
+                                    required
+                                    style="width: 100%; border: 1px solid #c0d1c1; border-radius: 6px; padding: 10px; font-size: 14px; resize: vertical;"
+                                ></textarea>
+                                <small style="display: block; text-align: right; color: #94a3b8; font-size: 11px; margin-top: 4px;">{{ unlockForm.reason.length }}/2000 ký tự</small>
+                            </div>
+
+                            <div v-if="unlockError" class="alert alert-danger" style="margin-bottom: 16px;">{{ unlockError }}</div>
+                            <div v-if="unlockSuccess" class="alert alert-success" style="margin-bottom: 16px;">{{ unlockSuccess }}</div>
+
+                            <button class="btn btn-primary" type="submit" :disabled="unlockSubmitting || !unlockForm.reason || unlockForm.reason.length < 10">
+                                {{ unlockSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu giải trình' }}
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Lịch sử yêu cầu -->
+                    <div class="history-card" style="margin-top: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                            <h4 style="margin: 0; font-size: 15px; color: #1e293b;">Lịch sử yêu cầu mở khóa</h4>
+                            <button class="btn btn-outline btn-sm" :disabled="loadingUnlockRequests" @click="fetchUnlockRequests(selectedCluster.id)">
+                                Tải lại
+                            </button>
+                        </div>
+
+                        <div v-if="loadingUnlockRequests" class="loading-state" style="padding: 30px 0; text-align: center;">
+                            <div class="spinner"></div>
+                            <p>Đang tải lịch sử...</p>
+                        </div>
+                        <div v-else-if="unlockRequests.length === 0" class="empty-state" style="text-align: center; padding: 30px 0; color: #64748b; font-style: italic;">
+                            Chưa có yêu cầu mở khóa nào được gửi cho cụm sân này.
+                        </div>
+                        <div v-else class="table-scroll" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                            <table class="simple-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                                <thead>
+                                    <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; width: 100px;">Mã yêu cầu</th>
+                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; width: 150px;">Thời gian gửi</th>
+                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; max-width: 300px;">Lý do giải trình</th>
+                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; width: 120px;">Trạng thái</th>
+                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; max-width: 300px;">Phản hồi Admin</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="req in unlockRequests" :key="req.id" style="border-bottom: 1px solid #e2e8f0;">
+                                        <td style="padding: 10px 12px; font-family: monospace; font-weight: 700; color: #475569;">{{ shortId(req.id) }}</td>
+                                        <td style="padding: 10px 12px;">{{ formatDateTime(req.created_at) }}</td>
+                                        <td style="padding: 10px 12px; max-width: 300px; white-space: normal; line-height: 1.45; word-break: break-word;">{{ req.reason }}</td>
+                                        <td style="padding: 10px 12px;">
+                                            <span class="status-badge" :class="req.status" style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700;">
+                                                {{ statusLabel(req.status) }}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 10px 12px; max-width: 300px; white-space: normal; line-height: 1.45; word-break: break-word; color: #475569;">{{ req.admin_note || '-' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1504,26 +1885,65 @@
                                     >Tỉnh/Thành phố mới
                                     <span class="required">*</span></label
                                 >
-                                <input
-                                    v-model="locationForm.new_province"
-                                    type="text"
-                                    class="form-control"
-                                    placeholder="Ví dụ: Hà Nội"
-                                    required
-                                />
+                                <div class="searchable-select-container">
+                                    <input
+                                        type="text"
+                                        v-model="provinceSearch"
+                                        class="form-control searchable-select-input"
+                                        placeholder="Gõ để tìm Tỉnh/Thành..."
+                                        required
+                                        @focus="showProvinceDropdown = true"
+                                        @blur="closeProvinceDropdown"
+                                    />
+                                    <span class="searchable-select-arrow" :class="{ open: showProvinceDropdown }">▼</span>
+                                    <div v-if="showProvinceDropdown" class="searchable-select-dropdown">
+                                        <div
+                                            v-for="p in filteredProvinces"
+                                            :key="p.code"
+                                            class="searchable-select-option"
+                                            :class="{ selected: p.name === locationForm.new_province }"
+                                            @mousedown="selectProvince(p)"
+                                        >
+                                            {{ p.name }}
+                                        </div>
+                                        <div v-if="filteredProvinces.length === 0" class="searchable-select-option empty">
+                                            Không tìm thấy kết quả
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label
                                     >Phường/Xã mới
                                     <span class="required">*</span></label
                                 >
-                                <input
-                                    v-model="locationForm.new_ward"
-                                    type="text"
-                                    class="form-control"
-                                    placeholder="Ví dụ: Phường Bến Nghé"
-                                    required
-                                />
+                                <div class="searchable-select-container">
+                                    <input
+                                        type="text"
+                                        v-model="wardSearch"
+                                        class="form-control searchable-select-input"
+                                        placeholder="Gõ để tìm Phường/Xã..."
+                                        required
+                                        :disabled="!locationForm.new_province"
+                                        @focus="showWardDropdown = true"
+                                        @blur="closeWardDropdown"
+                                    />
+                                    <span class="searchable-select-arrow" :class="{ open: showWardDropdown }">▼</span>
+                                    <div v-if="showWardDropdown" class="searchable-select-dropdown">
+                                        <div
+                                            v-for="w in filteredWards"
+                                            :key="w.code"
+                                            class="searchable-select-option"
+                                            :class="{ selected: w.name === locationForm.new_ward }"
+                                            @mousedown="selectWard(w)"
+                                        >
+                                            {{ w.name }}
+                                        </div>
+                                        <div v-if="filteredWards.length === 0" class="searchable-select-option empty">
+                                            Không tìm thấy kết quả
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="form-group">
@@ -1648,6 +2068,50 @@
                 </form>
             </div>
         </div>
+
+        <!-- Modal: Chỉnh sửa mô tả tiện ích -->
+        <div
+            v-if="showAmenityDescModal"
+            class="modal-backdrop"
+            @click.self="closeAmenityDescModal"
+        >
+            <div class="modal card modal-amenity-desc">
+                <div class="modal-header">
+                    <h3>Mô tả tiện ích: {{ editingAmenityName }}</h3>
+                    <button class="btn-close" @click="closeAmenityDescModal">
+                        &times;
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="temp-amenity-desc" class="form-label">Mô tả hiển thị cho khách hàng</label>
+                        <textarea
+                            id="temp-amenity-desc"
+                            v-model="tempAmenityDesc"
+                            class="form-control"
+                            rows="4"
+                            placeholder="Nhập mô tả cụ thể (ví dụ: Mật khẩu Wifi, vị trí bãi đỗ xe, có tính phí hay không...)"
+                        ></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        type="button"
+                        class="btn btn-outline"
+                        @click="closeAmenityDescModal"
+                    >
+                        Hủy
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        @click="saveAmenityDesc"
+                    >
+                        Đồng ý
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -1655,13 +2119,15 @@
 import AppIcon from "../../components/AppIcon.vue";
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
+import DecorationVisual from "../../components/DecorationVisual.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
+import { ownerUnlockRequestsService } from "../../services/ownerUnlockRequests";
 
 export default {
     name: "OwnerVenueClusters",
-    components: { AppIcon, ActionIconButton, CourtVisual },
+    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual },
     data() {
         return {
             // Cluster list
@@ -1669,16 +2135,15 @@ export default {
             selectedCluster: null,
             loading: true,
             error: null,
-
+ 
             // Tabs
             activeTab: "info",
             tabs: [
                 { key: "info", label: "Thông tin chung" },
-                { key: "courts", label: "Sân con" },
                 { key: "approvals", label: "Yêu cầu quy mô" },
                 { key: "location", label: "Yêu cầu vị trí" },
             ],
-
+ 
             // Info tab form
             updating: false,
             updateSuccess: false,
@@ -1698,39 +2163,47 @@ export default {
                 latitude: 21.0285,
                 longitude: 105.8542,
                 amenities: [],
+                amenity_descriptions: {},
                 description: "",
             },
             map: null,
             marker: null,
-
+ 
             // Amenity request modal
             showRequestModal: false,
+            showAmenityDescModal: false,
+            editingAmenityName: "",
+            tempAmenityDesc: "",
             requestSubmitting: false,
             requestError: null,
             requestSuccessMsg: null,
             requestForm: { name: "", description: "" },
-
+ 
             // Courts tab
             courts: [],
             courtTypes: [],
             courtsLoading: false,
             courtsError: null,
             courtView: "list",
-
+ 
             // Edit court modal
             showEditCourtModal: false,
             editingCourtId: null,
             editCourtSubmitting: false,
             editCourtError: null,
             editCourtForm: { name: "", status: "active", sort_order: 0 },
-
+ 
             // Layout/Canvas
+            decorations: [],
             selectedCourtId: null,
+            selectedDecorationId: null,
             draggingCourtId: null,
+            draggingDecorationId: null,
             dragStartX: 0,
             dragStartY: 0,
             savingLayout: false,
             resizingCourtId: null,
+            resizingDecorationId: null,
             resizeDirection: "",
             resizeStartW: 0,
             resizeStartH: 0,
@@ -1742,12 +2215,15 @@ export default {
             isPanning: false,
             panStartX: 0,
             panStartY: 0,
+            editorTool: 'select',
 
             // Approvals tab
             approvalRequests: [],
             approvalFilter: "",
             approvalsLoading: false,
             newReqForm: { court_type_id: "", name: "", note: "" },
+            evidenceFile: null,
+            evidencePreview: null,
             newReqSuccess: null,
             newReqError: null,
             creatingReq: false,
@@ -1775,10 +2251,49 @@ export default {
             },
             locationMap: null,
             locationMarker: null,
+            provincesList: [],
+            wardsList: [],
+            provinceSearch: "",
+            wardSearch: "",
+            showProvinceDropdown: false,
+            showWardDropdown: false,
+
+            // Unlock Requests State
+            unlockRequests: [],
+            loadingUnlockRequests: false,
+            unlockForm: { reason: "" },
+            unlockSubmitting: false,
+            unlockError: "",
+            unlockSuccess: "",
         };
     },
 
     computed: {
+        isClusterLocked() {
+            return this.selectedCluster && this.selectedCluster.status === 'locked';
+        },
+        tabs() {
+            const list = [
+                { key: "info", label: "Thông tin chung" },
+                { key: "approvals", label: "Yêu cầu quy mô" },
+                { key: "location", label: "Yêu cầu vị trí" },
+            ];
+            if (this.isClusterLocked) {
+                list.push({ key: "unlock", label: "Yêu cầu mở khóa" });
+            }
+            return list;
+        },
+        pendingUnlockCount() {
+            return this.unlockRequests.filter((r) => r.status === "pending").length;
+        },
+        pendingUnlockRequest() {
+            return this.unlockRequests.find((r) => r.status === "pending") || null;
+        },
+        selectedDecoration() {
+            return (
+                this.decorations.find((d) => d.id === this.selectedDecorationId) || null
+            );
+        },
         selectedCourt() {
             return (
                 this.courts.find((c) => c.id === this.selectedCourtId) || null
@@ -1848,6 +2363,20 @@ export default {
             return this.locationRequests.filter((r) => r.status === "pending")
                 .length;
         },
+        filteredProvinces() {
+            const query = (this.provinceSearch || "").toLowerCase().trim();
+            if (!query) return this.provincesList;
+            return this.provincesList.filter(p => 
+                p.name.toLowerCase().includes(query)
+            );
+        },
+        filteredWards() {
+            const query = (this.wardSearch || "").toLowerCase().trim();
+            if (!query) return this.wardsList;
+            return this.wardsList.filter(w => 
+                w.name.toLowerCase().includes(query)
+            );
+        },
     },
 
     watch: {
@@ -1873,6 +2402,9 @@ export default {
             if (newTab === "location" && this.selectedCluster) {
                 this.fetchLocationRequests(this.selectedCluster.id);
             }
+            if (newTab === "unlock" && this.selectedCluster) {
+                this.fetchUnlockRequests(this.selectedCluster.id);
+            }
             if (newTab === "info") {
                 this.$nextTick(() => this.initMap());
             }
@@ -1882,6 +2414,7 @@ export default {
     created() {
         this.fetchClusters();
         this.fetchAvailableAmenities();
+        this.fetchProvinces();
     },
 
     mounted() {
@@ -1890,6 +2423,7 @@ export default {
             "owner-cluster-changed",
             this.onOwnerClusterChanged,
         );
+        window.addEventListener('keydown', this.handleCanvasKeydown);
     },
 
     beforeUnmount() {
@@ -1898,6 +2432,7 @@ export default {
             "owner-cluster-changed",
             this.onOwnerClusterChanged,
         );
+        window.removeEventListener('keydown', this.handleCanvasKeydown);
         this.destroyMap();
     },
 
@@ -1921,7 +2456,11 @@ export default {
 
         selectCluster(cluster) {
             this.selectedCluster = cluster;
-            this.activeTab = "info";
+            if (cluster && cluster.status === "locked") {
+                this.activeTab = "unlock";
+            } else {
+                this.activeTab = "info";
+            }
             localStorage.setItem("selected_cluster", cluster.id);
             window.dispatchEvent(
                 new CustomEvent("owner-cluster-changed", { detail: cluster }),
@@ -1933,6 +2472,22 @@ export default {
                     img.file_path &&
                     !img.file_path.includes("default-home.jpg"),
             );
+            const descriptions = {};
+            if (Array.isArray(cluster.amenity_catalog)) {
+                cluster.amenity_catalog.forEach(a => {
+                    if (a.pivot) {
+                        descriptions[a.name] = a.pivot.description || "";
+                    }
+                });
+            }
+            if (Array.isArray(this.availableAmenities)) {
+                this.availableAmenities.forEach(name => {
+                    if (descriptions[name] === undefined) {
+                        descriptions[name] = "";
+                    }
+                });
+            }
+
             this.form = {
                 name: cluster.name,
                 phone_contact: cluster.phone_contact || "",
@@ -1945,11 +2500,22 @@ export default {
                 amenities: Array.isArray(cluster.amenities)
                     ? cluster.amenities
                     : [],
+                amenity_descriptions: descriptions,
                 description: cluster.description || "",
             };
+            this.decorations = Array.isArray(cluster.layout_decorations)
+                ? JSON.parse(JSON.stringify(cluster.layout_decorations))
+                : [];
+            this.selectedDecorationId = null;
+            this.selectedCourtId = null;
             // Reset location requests khi đổi cluster
             this.locationRequests = [];
             this.locationFilter = "";
+            // Reset unlock requests
+            this.unlockRequests = [];
+            this.unlockError = "";
+            this.unlockSuccess = "";
+            this.unlockForm.reason = "";
             // Load location requests ngay để hiển thị badge đúng
             this.fetchLocationRequests(cluster.id);
             this.$nextTick(() => this.initMap());
@@ -2011,6 +2577,78 @@ export default {
             }
         },
 
+        async fetchUnlockRequests(clusterId) {
+            if (!clusterId) return;
+            this.loadingUnlockRequests = true;
+            this.unlockError = "";
+            try {
+                const response = await ownerUnlockRequestsService.list(clusterId);
+                this.unlockRequests = response.data || [];
+            } catch (err) {
+                this.unlockError = err.message || "Không thể tải lịch sử yêu cầu mở khóa.";
+            } finally {
+                this.loadingUnlockRequests = false;
+            }
+        },
+
+        async handleUnlockSubmit() {
+            if (!this.selectedCluster || !this.unlockForm.reason) return;
+            this.unlockSubmitting = true;
+            this.unlockError = "";
+            this.unlockSuccess = "";
+            try {
+                const response = await ownerUnlockRequestsService.create(this.selectedCluster.id, {
+                    reason: this.unlockForm.reason,
+                });
+                this.unlockSuccess = response.message || "Gửi yêu cầu mở khóa thành công!";
+                this.unlockForm.reason = "";
+                await this.fetchUnlockRequests(this.selectedCluster.id);
+            } catch (err) {
+                this.unlockError = err.message || "Không thể gửi yêu cầu giải trình.";
+            } finally {
+                this.unlockSubmitting = false;
+            }
+        },
+
+        async handleCancelUnlock(requestId) {
+            if (!this.selectedCluster || !requestId) return;
+            if (!confirm("Bạn có chắc chắn muốn hủy yêu cầu mở khóa này không?")) return;
+            this.unlockSubmitting = true;
+            this.unlockError = "";
+            this.unlockSuccess = "";
+            try {
+                const response = await ownerUnlockRequestsService.cancel(this.selectedCluster.id, requestId);
+                this.unlockSuccess = response.message || "Hủy yêu cầu mở khóa thành công!";
+                await this.fetchUnlockRequests(this.selectedCluster.id);
+            } catch (err) {
+                this.unlockError = err.message || "Không thể hủy yêu cầu mở khóa.";
+            } finally {
+                this.unlockSubmitting = false;
+            }
+        },
+
+        shortId(value) {
+            return value ? String(value).slice(0, 8).toUpperCase() : "-";
+        },
+
+        formatDateTime(value) {
+            if (!value) return "-";
+            const d = new Date(value);
+            return `${d.toLocaleDateString("vi-VN")} ${d.toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+            })}`;
+        },
+
+        statusLabel(status) {
+            return {
+                pending: "Đang chờ duyệt",
+                approved: "Đã chấp nhận",
+                rejected: "Bị từ chối",
+                cancelled: "Đã hủy",
+            }[status] || status;
+        },
+
         imageUrl(path) {
             if (!path || path.includes("default-home.jpg")) return "";
             if (/^https?:\/\//.test(path)) return path;
@@ -2069,9 +2707,97 @@ export default {
             try {
                 const res = await amenityService.getAll(true);
                 this.availableAmenities = (res.data || []).map((a) => a.name);
+                if (this.form && this.form.amenity_descriptions) {
+                    this.availableAmenities.forEach(name => {
+                        if (this.form.amenity_descriptions[name] === undefined) {
+                            this.form.amenity_descriptions[name] = "";
+                        }
+                    });
+                }
             } catch (err) {
                 console.error("Lỗi khi tải danh sách tiện ích:", err.message);
             }
+        },
+
+        openAmenityDescModal(amenityName) {
+            this.editingAmenityName = amenityName;
+            this.tempAmenityDesc = this.form.amenity_descriptions[amenityName] || "";
+            this.showAmenityDescModal = true;
+        },
+        closeAmenityDescModal() {
+            this.showAmenityDescModal = false;
+            this.editingAmenityName = "";
+            this.tempAmenityDesc = "";
+        },
+        saveAmenityDesc() {
+            if (this.editingAmenityName) {
+                this.form.amenity_descriptions[this.editingAmenityName] = this.tempAmenityDesc;
+            }
+            this.closeAmenityDescModal();
+        },
+
+        async fetchProvinces() {
+            try {
+                const res = await fetch("/api/locations/provinces").then((r) => r.json());
+                this.provincesList = res.data || [];
+            } catch (err) {
+                console.error("Lỗi khi tải danh mục tỉnh thành:", err);
+            }
+        },
+
+        async fetchWards(provinceCode) {
+            if (!provinceCode) {
+                this.wardsList = [];
+                return;
+            }
+            try {
+                const res = await fetch(`/api/locations/wards?province_code=${provinceCode}`).then((r) => r.json());
+                this.wardsList = res.data || [];
+            } catch (err) {
+                console.error("Lỗi khi tải danh mục xã phường:", err);
+                this.wardsList = [];
+            }
+        },
+
+        async onProvinceChange() {
+            const selectedProvinceName = this.locationForm.new_province;
+            const province = this.provincesList.find(
+                (p) => p.name === selectedProvinceName,
+            );
+            this.locationForm.new_ward = "";
+            this.wardSearch = "";
+            if (province) {
+                await this.fetchWards(province.code);
+            } else {
+                this.wardsList = [];
+            }
+        },
+
+        closeProvinceDropdown() {
+            setTimeout(() => {
+                this.showProvinceDropdown = false;
+                this.provinceSearch = this.locationForm.new_province;
+            }, 200);
+        },
+
+        closeWardDropdown() {
+            setTimeout(() => {
+                this.showWardDropdown = false;
+                this.wardSearch = this.locationForm.new_ward;
+            }, 200);
+        },
+
+        selectProvince(province) {
+            this.locationForm.new_province = province.name;
+            this.provinceSearch = province.name;
+            this.showProvinceDropdown = false;
+            this.onProvinceChange();
+        },
+
+        selectWard(ward) {
+            this.locationForm.new_ward = ward.name;
+            this.wardSearch = ward.name;
+            this.showWardDropdown = false;
         },
 
         openRequestModal() {
@@ -2194,7 +2920,7 @@ export default {
             });
             window.L.Marker.prototype.options.icon = DefaultIcon;
             if (!this.map) {
-                this.map = window.L.map("cluster-map").setView([lat, lng], 15);
+                this.map = window.L.map("cluster-map", { scrollWheelZoom: false }).setView([lat, lng], 15);
                 window.L.tileLayer(
                     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                     { attribution: "&copy; OpenStreetMap contributors" },
@@ -2538,12 +3264,94 @@ export default {
             };
         },
 
-        startPan(e) {
-            if (
-                e.target.closest(".canvas-court-element") ||
-                e.target.closest(".zoom-controls")
-            )
+        onCanvasClick(e) {
+            // Nếu đang ở mode select và click vào nền trống → bỏ chọn
+            if (this.editorTool === 'select') {
+                const hitDecor  = e.target.closest('[data-type="decor"]');
+                const hitCourt  = e.target.closest('[data-type="court"]');
+                const hitZoom   = e.target.closest('.zoom-controls');
+                const hitResize = e.target.closest('.resize-handle');
+                if (!hitDecor && !hitCourt && !hitZoom && !hitResize) {
+                    this.selectedCourtId = null;
+                    this.selectedDecorationId = null;
+                }
+            }
+        },
+
+        handleCanvasKeydown(e) {
+            // Bỏ qua nếu đang focus vào input/textarea
+            const tag = document.activeElement?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+            // V → chế độ Select, H → chế độ Pan (giống Figma)
+            if (e.key === 'v' || e.key === 'V') {
+                this.editorTool = 'select';
                 return;
+            }
+            if (e.key === 'h' || e.key === 'H') {
+                this.editorTool = 'pan';
+                return;
+            }
+            // Escape → bỏ chọn
+            if (e.key === 'Escape') {
+                this.selectedCourtId = null;
+                this.selectedDecorationId = null;
+                return;
+            }
+            // Delete / Backspace → xóa vật phẩm bổ trợ được chọn
+            if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedDecorationId) {
+                const decor = this.selectedDecoration;
+                if (decor) this.deleteDecoration(decor);
+                return;
+            }
+
+            // Phím mũi tên (Nudging) kiểu Figma
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                const amount = e.shiftKey ? 10 : 1;
+                let dx = 0;
+                let dy = 0;
+                if (e.key === 'ArrowLeft') dx = -amount;
+                if (e.key === 'ArrowRight') dx = amount;
+                if (e.key === 'ArrowUp') dy = -amount;
+                if (e.key === 'ArrowDown') dy = amount;
+
+                if (this.selectedCourtId) {
+                    const court = this.courts.find(c => c.id === this.selectedCourtId);
+                    if (court) {
+                        court.layout_x = (court.layout_x || 0) + dx;
+                        court.layout_y = (court.layout_y || 0) + dy;
+                    }
+                } else if (this.selectedDecorationId) {
+                    const decor = this.decorations.find(d => d.id === this.selectedDecorationId);
+                    if (decor) {
+                        decor.layout_x = (decor.layout_x || 0) + dx;
+                        decor.layout_y = (decor.layout_y || 0) + dy;
+                    }
+                }
+            }
+        },
+
+        startPan(e) {
+            // Zoom controls không bao giờ pan
+            if (e.target.closest('.zoom-controls')) return;
+
+            if (this.editorTool === 'pan') {
+                // Chế độ Pan: kéo mọi nơi
+                this.isPanning = true;
+                this.panStartX = e.clientX - this.panX;
+                this.panStartY = e.clientY - this.panY;
+                return;
+            }
+
+            // Chế độ Select: chỉ pan khi click vào ĐÚNG nền trống (không phải court/decor)
+            if (
+                e.target.closest('[data-type="court"]') ||
+                e.target.closest('[data-type="decor"]') ||
+                e.target.closest('.resize-handle')
+            ) return;
+
+            // Kéo nền trống ở mode Select cũng cho pan (như Figma: Space+drag)
             this.isPanning = true;
             this.panStartX = e.clientX - this.panX;
             this.panStartY = e.clientY - this.panY;
@@ -2555,13 +3363,19 @@ export default {
                 this.panY = e.clientY - this.panStartY;
                 return;
             }
-            if (this.draggingCourtId || this.resizingCourtId)
+            if (this.draggingCourtId || this.resizingCourtId) {
                 this.handleDrag(e);
+                return;
+            }
+            if (this.draggingDecorationId || this.resizingDecorationId) {
+                this.handleDragDecor(e);
+            }
         },
 
         handleGlobalUp() {
             this.isPanning = false;
             if (this.draggingCourtId || this.resizingCourtId) this.endDrag();
+            if (this.draggingDecorationId || this.resizingDecorationId) this.endDragDecor();
         },
 
         handleZoom(e) {
@@ -2715,6 +3529,7 @@ export default {
             this.savingLayout = true;
             try {
                 await venueClusterService.updateCourtsLayout({
+                    venue_cluster_id: this.selectedCluster.id,
                     courts: this.courts.map((c) => ({
                         id: c.id,
                         layout_x: c.layout_x,
@@ -2723,14 +3538,158 @@ export default {
                         layout_h: c.layout_h,
                         layout_rotation: c.layout_rotation,
                     })),
+                    layout_decorations: this.decorations.map((d) => ({
+                        id: d.id,
+                        type: d.type,
+                        name: d.name,
+                        layout_x: d.layout_x,
+                        layout_y: d.layout_y,
+                        layout_w: d.layout_w,
+                        layout_h: d.layout_h,
+                        layout_rotation: d.layout_rotation || 0,
+                    })),
                 });
-                alert("Sơ đồ sân con đã được lưu thành công.");
+                alert("Sơ đồ sân con và vật phẩm bổ trợ đã được lưu thành công.");
+                this.selectedCluster.layout_decorations = JSON.parse(JSON.stringify(this.decorations));
                 await this.fetchCourts(this.selectedCluster.id);
             } catch (err) {
                 alert(err.message || "Lỗi khi lưu sơ đồ.");
             } finally {
                 this.savingLayout = false;
             }
+        },
+
+        addDecoration(type, defaultName) {
+            const rect = this.$refs.canvasViewport?.getBoundingClientRect();
+            const cx = rect ? rect.width / 2 : 500;
+            const cy = rect ? rect.height / 2 : 300;
+            
+            let defaultW = 100;
+            let defaultH = 100;
+            if (type === 'entrance') { defaultW = 120; defaultH = 60; }
+            else if (type === 'reception') { defaultW = 120; defaultH = 80; }
+            else if (type === 'restroom') { defaultW = 80; defaultH = 80; }
+            else if (type === 'seating') { defaultW = 120; defaultH = 50; }
+            
+            const newDecor = {
+                id: 'decor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                type: type,
+                name: defaultName,
+                layout_x: Math.round((cx - this.panX) / this.zoom - defaultW / 2),
+                layout_y: Math.round((cy - this.panY) / this.zoom - defaultH / 2),
+                layout_w: defaultW,
+                layout_h: defaultH,
+                layout_rotation: 0
+            };
+            
+            this.decorations.push(newDecor);
+            this.selectedDecorationId = newDecor.id;
+            this.selectedCourtId = null;
+        },
+
+        rotateSelectedDecor90() {
+            const decor = this.selectedDecoration;
+            if (decor) {
+                decor.layout_rotation = ((decor.layout_rotation || 0) + 90) % 360;
+            }
+        },
+
+        deleteDecoration(decor) {
+            if (!decor) return;
+            this.decorations = this.decorations.filter(d => d.id !== decor.id);
+            if (this.selectedDecorationId === decor.id) {
+                this.selectedDecorationId = null;
+            }
+        },
+
+        selectDecor(decor) {
+            this.selectedDecorationId = decor.id;
+            this.selectedCourtId = null;
+        },
+
+        startDragDecor(event, decor) {
+            this.draggingDecorationId = decor.id;
+            this.selectedDecorationId = decor.id;
+            this.selectedCourtId = null;
+            const l = this.getLogicalCoords(event);
+            this.dragStartX = l.x - (decor.layout_x || 0);
+            this.dragStartY = l.y - (decor.layout_y || 0);
+        },
+
+        startResizeDecor(event, decor, direction) {
+            this.resizingDecorationId = decor.id;
+            this.resizeDirection = direction;
+            const l = this.getLogicalCoords(event);
+            this.dragStartX = l.x;
+            this.dragStartY = l.y;
+            this.resizeStartW = decor.layout_w;
+            this.resizeStartH = decor.layout_h;
+            this.resizeStartXCoord = decor.layout_x || 0;
+            this.resizeStartYCoord = decor.layout_y || 0;
+        },
+
+        handleDragDecor(event) {
+            if (this.resizingDecorationId) {
+                const decor = this.decorations.find(
+                    (d) => d.id === this.resizingDecorationId,
+                );
+                if (!decor) return;
+                const l = this.getLogicalCoords(event);
+                const dx = l.x - this.dragStartX;
+                const dy = l.y - this.dragStartY;
+                if (this.resizeDirection === "br") {
+                    decor.layout_w = Math.max(30, this.resizeStartW + dx);
+                    decor.layout_h = Math.max(30, this.resizeStartH + dy);
+                } else if (this.resizeDirection === "bl") {
+                    const nw = this.resizeStartW - dx;
+                    if (nw >= 30) {
+                        decor.layout_x = this.resizeStartXCoord + dx;
+                        decor.layout_w = nw;
+                    }
+                    decor.layout_h = Math.max(30, this.resizeStartH + dy);
+                } else if (this.resizeDirection === "tr") {
+                    decor.layout_w = Math.max(30, this.resizeStartW + dx);
+                    const nh = this.resizeStartH - dy;
+                    if (nh >= 30) {
+                        decor.layout_y = this.resizeStartYCoord + dy;
+                        decor.layout_h = nh;
+                    }
+                } else if (this.resizeDirection === "tl") {
+                    const nw = this.resizeStartW - dx;
+                    const nh = this.resizeStartH - dy;
+                    if (nw >= 30) {
+                        decor.layout_x = this.resizeStartXCoord + dx;
+                        decor.layout_w = nw;
+                    }
+                    if (nh >= 30) {
+                        decor.layout_y = this.resizeStartYCoord + dy;
+                        decor.layout_h = nh;
+                    }
+                }
+                return;
+            }
+            if (!this.draggingDecorationId) return;
+            const decor = this.decorations.find(
+                (d) => d.id === this.draggingDecorationId,
+            );
+            if (!decor) return;
+            const l = this.getLogicalCoords(event);
+            decor.layout_x = l.x - this.dragStartX;
+            decor.layout_y = l.y - this.dragStartY;
+        },
+
+        endDragDecor() {
+            this.draggingDecorationId = null;
+            this.resizingDecorationId = null;
+        },
+
+        getDecorStyle(decor) {
+            return {
+                left: `${decor.layout_x}px`,
+                top: `${decor.layout_y}px`,
+                width: `${decor.layout_w}px`,
+                height: `${decor.layout_h}px`,
+            };
         },
 
         autoArrange() {
@@ -2812,6 +3771,37 @@ export default {
             if (el && !el.contains(e.target)) this.showTypeDropdown = false;
         },
 
+        handleEvidenceSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                this.newReqError = 'Ảnh minh chứng không được quá 5MB.';
+                return;
+            }
+            this.evidenceFile = file;
+            this.evidencePreview = URL.createObjectURL(file);
+        },
+        handleEvidenceDrop(e) {
+            const file = e.dataTransfer.files[0];
+            if (!file || !file.type.startsWith('image/')) return;
+            if (file.size > 5 * 1024 * 1024) {
+                this.newReqError = 'Ảnh minh chứng không được quá 5MB.';
+                return;
+            }
+            this.evidenceFile = file;
+            this.evidencePreview = URL.createObjectURL(file);
+        },
+        removeEvidence() {
+            this.evidenceFile = null;
+            if (this.evidencePreview) {
+                URL.revokeObjectURL(this.evidencePreview);
+                this.evidencePreview = null;
+            }
+            if (this.$refs.evidenceInput) {
+                this.$refs.evidenceInput.value = '';
+            }
+        },
+
         async handleCreateApproval() {
             if (!this.newReqForm.court_type_id) {
                 this.newReqError = "Vui lòng chọn loại sân.";
@@ -2821,14 +3811,24 @@ export default {
             this.newReqError = null;
             this.newReqSuccess = null;
             try {
+                const formData = new FormData();
+                formData.append('court_type_id', this.newReqForm.court_type_id);
+                formData.append('name', this.newReqForm.name);
+                if (this.newReqForm.note) {
+                    formData.append('note', this.newReqForm.note);
+                }
+                if (this.evidenceFile) {
+                    formData.append('evidence_image', this.evidenceFile);
+                }
                 const res = await venueClusterService.createApprovalRequest(
                     this.selectedCluster.id,
-                    this.newReqForm,
+                    formData,
                 );
                 this.newReqSuccess =
                     "Gửi yêu cầu thành công! Admin sẽ xem xét và phê duyệt sớm.";
                 this.approvalRequests.unshift(res.data);
                 this.newReqForm = { court_type_id: "", name: "", note: "" };
+                this.removeEvidence();
                 if (!this.courtTypes.length) {
                     const typesRes = await courtTypeService.getAll();
                     this.courtTypes = typesRes.data || [];
@@ -2890,7 +3890,7 @@ export default {
             this.locationFilter = filter;
         },
 
-        openLocationChangeModal() {
+        async openLocationChangeModal() {
             this.locationModalError = null;
             this.locationMapMsg = null;
             this.locationForm = {
@@ -2905,6 +3905,20 @@ export default {
                 note: "",
             };
             this.showLocationModal = true;
+
+            this.provinceSearch = this.locationForm.new_province;
+            this.wardSearch = this.locationForm.new_ward;
+
+            this.wardsList = [];
+            if (this.locationForm.new_province) {
+                const province = this.provincesList.find(
+                    (p) => p.name === this.locationForm.new_province,
+                );
+                if (province) {
+                    await this.fetchWards(province.code);
+                }
+            }
+
             this.$nextTick(() => {
                 this.initLocationModalMap();
             });
@@ -3261,12 +4275,33 @@ export default {
 
 .amenities-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 12px;
     background: var(--sg-surface);
     padding: 16px;
     border-radius: 8px;
     border: 1px solid var(--sg-border);
+}
+.amenity-item-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--sg-background);
+    border: 1px solid var(--sg-border);
+    transition: all 0.2s ease;
+}
+.amenity-item-wrapper.active {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.04);
+}
+.amenity-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
 }
 .amenity-checkbox {
     display: flex;
@@ -3279,7 +4314,40 @@ export default {
 .amenity-checkbox input {
     width: 16px;
     height: 16px;
-    accent-color: #000;
+    accent-color: #10b981;
+}
+.btn-edit-amenity-desc {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    color: #64748b;
+}
+.btn-edit-amenity-desc:hover {
+    background-color: rgba(15, 23, 42, 0.08);
+    color: #10b981;
+}
+.btn-edit-amenity-desc .edit-icon {
+    font-size: 13px;
+}
+.has-desc-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    background-color: #10b981;
+    border-radius: 50%;
+}
+.modal-amenity-desc {
+    max-width: 450px;
+    width: 90%;
 }
 .amenity-request-tip {
     margin-top: 8px;
@@ -3552,6 +4620,44 @@ export default {
     color: rgba(15, 23, 42, 0.5);
     font-style: italic;
 }
+/* ─── Tool Switcher (Figma-style) ─── */
+.tool-switcher {
+    display: flex;
+    background: #f1f5f9;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+}
+.tool-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    transition: all 0.15s;
+}
+.tool-btn:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+.tool-btn.active {
+    background: #fff;
+    color: #3b82f6;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+.toolbar-divider {
+    width: 1px;
+    height: 28px;
+    background: #e2e8f0;
+    align-self: center;
+    margin: 0 2px;
+}
 .editor-body {
     display: flex;
     gap: 12px;
@@ -3565,10 +4671,23 @@ export default {
     border: 1px solid var(--sg-border);
     overflow: hidden;
     position: relative;
-    cursor: grab;
+    cursor: default;
     user-select: none;
 }
-.canvas-viewport:active {
+/* Mode: select → con trỏ chuẩn */
+.canvas-viewport.tool-select {
+    cursor: default;
+}
+/* Mode: pan → con trỏ bàn tay */
+.canvas-viewport.tool-pan {
+    cursor: grab;
+}
+.canvas-viewport.tool-pan:active,
+.canvas-viewport.tool-pan.panning {
+    cursor: grabbing;
+}
+/* Khi đang pan ở mode select (kéo nền trống) */
+.canvas-viewport.tool-select.panning {
     cursor: grabbing;
 }
 .canvas-interaction-guide {
@@ -3651,12 +4770,15 @@ export default {
 }
 .canvas-court-element {
     position: absolute;
-    cursor: grab;
+    cursor: pointer;
     box-sizing: border-box;
     transition: box-shadow 0.1s;
 }
+.canvas-court-element:hover {
+    cursor: pointer;
+}
 .canvas-court-element:active {
-    cursor: grabbing;
+    cursor: move;
 }
 .canvas-court-element.selected {
     outline: 2px solid #3b82f6;
@@ -4285,7 +5407,6 @@ export default {
     overflow: hidden;
 }
 .map-readonly {
-    pointer-events: none;
     opacity: 0.9;
 }
 
@@ -4339,5 +5460,215 @@ export default {
     text-align: center;
     color: rgba(15, 23, 42, 0.45);
     font-size: 14px;
+}
+
+/* ─── Layout Decorations ─── */
+.canvas-decor-element {
+    position: absolute;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: box-shadow 0.1s;
+    z-index: 20;
+}
+.canvas-decor-element:hover {
+    cursor: pointer;
+}
+.canvas-decor-element.dragging {
+    cursor: move;
+    z-index: 60;
+}
+.canvas-decor-element.selected {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+    z-index: 30;
+}
+.decor-library-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.btn-add-decor {
+    padding: 8px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.btn-add-decor:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+/* ─── Searchable Select Custom styles ─── */
+.searchable-select-container {
+    position: relative;
+    width: 100%;
+}
+.searchable-select-input {
+    width: 100%;
+    padding-right: 32px !important;
+}
+.searchable-select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    pointer-events: none;
+    transition: transform 0.2s;
+    font-size: 10px;
+}
+.searchable-select-arrow.open {
+    transform: translateY(-50%) rotate(180deg);
+}
+.searchable-select-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 999;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.searchable-select-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #1e293b;
+    transition: background-color 0.15s, color 0.15s;
+    text-align: left;
+}
+.searchable-select-option:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+.searchable-select-option.selected {
+    background-color: #e2e8f0;
+    font-weight: 600;
+}
+.searchable-select-option.empty {
+    color: #64748b;
+    text-align: center;
+    cursor: default;
+}
+
+/* ─── Evidence Upload ─── */
+.evidence-upload-area {
+    margin-top: 4px;
+}
+.evidence-dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.evidence-dropzone:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+.evidence-dropzone-icon {
+    margin-bottom: 6px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.evidence-dropzone-text {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 500;
+}
+.evidence-preview-wrapper {
+    position: relative;
+    display: inline-block;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #e2e8f0;
+    transition: border-color 0.2s;
+}
+.evidence-preview-wrapper:hover {
+    border-color: #3b82f6;
+}
+.evidence-preview-img {
+    max-width: 100%;
+    max-height: 200px;
+    display: block;
+    object-fit: cover;
+    border-radius: 10px;
+}
+.btn-remove-evidence {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(239, 68, 68, 0.9);
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    backdrop-filter: blur(4px);
+}
+.btn-remove-evidence:hover {
+    background: #dc2626;
+    transform: scale(1.15);
+}
+
+/* ─── Evidence in Approval History ─── */
+.approval-evidence {
+    margin-top: 8px;
+}
+.approval-evidence-label {
+    display: block;
+    font-size: 12.5px;
+    color: rgba(15, 23, 42, 0.55);
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+.approval-evidence-link {
+    display: inline-block;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.approval-evidence-link:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.approval-evidence-thumb {
+    max-width: 180px;
+    max-height: 120px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    display: block;
 }
 </style>

@@ -1,29 +1,24 @@
 <template>
   <section class="admin-users">
-    <header class="page-head">
-      <div>
-        <h2>Quản lý tài khoản</h2>
-        <p>Theo dõi trạng thái, cảnh báo, vai trò và các thao tác nhạy cảm của tài khoản.</p>
-      </div>
-      <div class="head-actions" style="display: flex; gap: 10px;">
-        <button type="button" class="btn" style="display: inline-flex; align-items: center; gap: 6px;" @click="openPolicyModal">
+    <div class="action-bar-layout">
+      <nav class="tabs" aria-label="Lọc nhanh tài khoản">
+        <button
+          v-for="tab in tabs"
+          :key="tab.value"
+          :class="{ active: filters.status === tab.value }"
+          type="button"
+          @click="setStatus(tab.value)"
+        >
+          {{ tab.label }}
+        </button>
+      </nav>
+      <div class="head-actions">
+        <button type="button" class="btn secondary" style="display: inline-flex; align-items: center; gap: 6px;" @click="openPolicyModal">
           <AppIcon name="settings" size="16" /> Cấu hình khóa tự động
         </button>
         <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadUsers" />
       </div>
-    </header>
-
-    <nav class="tabs" aria-label="Lọc nhanh tài khoản">
-      <button
-        v-for="tab in tabs"
-        :key="tab.value"
-        :class="{ active: filters.status === tab.value }"
-        type="button"
-        @click="setStatus(tab.value)"
-      >
-        {{ tab.label }}
-      </button>
-    </nav>
+    </div>
 
     <section class="filters">
       <label>
@@ -450,24 +445,16 @@ export default {
   gap: 16px;
 }
 
-.page-head,
-.filters,
-.pagination {
+.action-bar-layout {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
-  align-items: flex-start;
+  flex-wrap: wrap;
 }
-
-.page-head h2 {
-  margin: 0 0 6px;
-}
-
-.page-head p,
-.muted,
-small {
-  margin: 0;
-  color: #64748b;
+.head-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .tabs,
@@ -724,7 +711,7 @@ td:first-child {
 }
 
 @media (max-width: 720px) {
-  .page-head,
+  .action-bar-layout,
   .filters,
   .pagination,
   .pagination div {

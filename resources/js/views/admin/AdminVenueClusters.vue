@@ -52,15 +52,12 @@
                 <table class="avc-table">
                     <thead>
                         <tr>
-                            <th>Tên cụm sân</th>
-                            <th>Chủ sân</th>
-                            <th>Địa chỉ</th>
-                            <th>Loại sân</th>
-                            <th class="text-center">Số sân con</th>
-                            <th class="text-center">Rating</th>
-                            <th class="text-center">Trạng thái phí</th>
-                            <th class="text-center">Trạng thái</th>
-                            <th class="text-right">Thao tác</th>
+                            <th class="col-name">Tên cụm sân</th>
+                            <th class="col-owner">Chủ sân</th>
+                            <th class="col-courts text-center">Số sân con</th>
+                            <th class="col-fee text-center">Trạng thái phí</th>
+                            <th class="col-status text-center">Trạng thái</th>
+                            <th class="col-actions text-center">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -70,62 +67,28 @@
                             class="avc-row"
                             @click="goDetail(c.id)"
                         >
-                            <td class="cluster-cell-flex">
-                                <div class="cluster-thumb-container">
-                                    <img
-                                        v-if="c.image_path"
-                                        :src="imageUrl(c.image_path)"
-                                        :alt="c.name"
-                                        class="cluster-thumb-img"
-                                        @error="hideBrokenImage"
-                                    />
-                                </div>
+                            <td class="col-name">
                                 <div class="cluster-info-meta">
                                     <div class="cluster-name">{{ c.name }}</div>
                                     <div class="cluster-slug">{{ c.slug }}</div>
                                 </div>
                             </td>
-                            <td>
-                                <div class="owner-name">
-                                    {{ c.owner?.full_name || "—" }}
-                                </div>
-                                <div class="owner-email">
-                                    {{ c.owner?.email || "" }}
-                                </div>
-                            </td>
-                            <td class="address-cell">{{ formatFullAddress(c) }}</td>
-                            <td>
-                                <div class="court-types">
-                                    <span
-                                        v-for="(ct, i) in c.court_types || []"
-                                        :key="i"
-                                        class="ct-chip"
-                                        >{{ ct }}</span
-                                    >
-                                    <span
-                                        v-if="
-                                            !c.court_types ||
-                                            c.court_types.length === 0
-                                        "
-                                        class="text-muted"
-                                        >—</span
-                                    >
+                            <td class="col-owner" data-label="Chủ sân">
+                                <div class="owner-meta-info">
+                                    <div class="owner-name">
+                                        {{ c.owner?.full_name || "—" }}
+                                    </div>
+                                    <div class="owner-email">
+                                        {{ c.owner?.email || "" }}
+                                    </div>
                                 </div>
                             </td>
-                            <td class="text-center">
+                            <td class="col-courts text-center" data-label="Số sân con">
                                 <span class="court-count">{{
                                     c.court_count
                                 }}</span>
                             </td>
-                            <td class="text-center">
-                                <span class="rating">
-                                    {{ Number(c.rating_avg || 0).toFixed(1) }}
-                                    <span class="rating-count"
-                                        >({{ c.rating_count }})</span
-                                    >
-                                </span>
-                            </td>
-                            <td class="text-center">
+                            <td class="col-fee text-center" data-label="Trạng thái phí">
                                 <span
                                     class="status-badge"
                                     :class="`fee-${c.fee_status}`"
@@ -133,7 +96,7 @@
                                     {{ feeStatusLabel(c.fee_status) }}
                                 </span>
                             </td>
-                            <td class="text-center">
+                            <td class="col-status text-center" data-label="Trạng thái">
                                 <span
                                     class="status-badge"
                                     :class="`status-${c.status}`"
@@ -141,7 +104,7 @@
                                     {{ statusLabel(c.status) }}
                                 </span>
                             </td>
-                            <td class="text-right" @click.stop>
+                            <td class="col-actions text-center" data-label="Thao tác" @click.stop>
                                 <ActionIconButton icon="eye" label="Xem chi tiết" @click="goDetail(c.id)" />
                             </td>
                         </tr>
@@ -222,14 +185,7 @@ export default {
             };
             return map[status] || status;
         },
-        imageUrl(path) {
-            if (!path) return "";
-            if (/^https?:\/\//.test(path)) return path;
-            return `/storage/${path}`;
-        },
-        hideBrokenImage(e) {
-            e.target.style.display = "none";
-        },
+
         feeStatusLabel(status) {
             const map = {
                 pending: "Chờ thanh toán",
@@ -266,6 +222,8 @@ export default {
     gap: 20px;
     max-width: 1400px;
     margin: 0 auto;
+    padding: 0 16px;
+    box-sizing: border-box;
 }
 
 .card {
@@ -347,38 +305,47 @@ export default {
     display: flex;
     gap: 6px;
 }
-.tab-btn {
-    padding: 8px 16px;
-    border-radius: 8px;
-    border: 1px solid var(--sg-border);
-    background: var(--sg-surface, #f8fafc);
-    color: rgba(15, 23, 42, 0.6);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.18s;
+.avc-filters .filter-tabs button.tab-btn {
+    height: 38px !important;
+    min-height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 16px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--sg-border) !important;
+    background: var(--sg-surface, #f8fafc) !important;
+    color: rgba(15, 23, 42, 0.6) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.18s !important;
+    box-sizing: border-box !important;
 }
-.tab-btn.active {
-    background: #0f172a;
-    border-color: #0f172a;
-    color: #fff;
+.avc-filters .filter-tabs button.tab-btn.active {
+    background: #0f172a !important;
+    border-color: #0f172a !important;
+    color: #fff !important;
 }
-.tab-btn:not(.active):hover {
-    background: #f1f5f9;
+.avc-filters .filter-tabs button.tab-btn:not(.active):hover {
+    background: #f1f5f9 !important;
 }
-.search-input {
-    padding: 9px 14px;
-    border: 1px solid var(--sg-border);
-    border-radius: 8px;
-    font-size: 14px;
-    outline: none;
-    min-width: 280px;
-    color: var(--sg-text);
-    background: #fff;
-    transition: border-color 0.18s;
+.avc-filters .filter-row input.search-input {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 14px !important;
+    border: 1px solid var(--sg-border) !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    outline: none !important;
+    min-width: 280px !important;
+    color: var(--sg-text) !important;
+    background: #fff !important;
+    transition: border-color 0.18s !important;
+    box-sizing: border-box !important;
 }
-.search-input:focus {
-    border-color: #0f172a;
+.avc-filters .filter-row input.search-input:focus {
+    border-color: #0f172a !important;
 }
 
 /* State */
@@ -426,7 +393,7 @@ export default {
 .avc-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 1000px;
+    min-width: 800px;
 }
 .avc-table th,
 .avc-table td {
@@ -449,25 +416,7 @@ export default {
     background: #f8fafc;
 }
 
-.cluster-cell-flex {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.cluster-thumb-container {
-    width: 44px;
-    height: 44px;
-    border-radius: 8px;
-    overflow: hidden;
-    flex-shrink: 0;
-    border: 1px solid var(--sg-border);
-    background: #f1f5f9;
-}
-.cluster-thumb-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
+
 .cluster-info-meta {
     display: flex;
     flex-direction: column;
@@ -489,44 +438,42 @@ export default {
     color: rgba(15, 23, 42, 0.5);
 }
 .address-cell {
-    max-width: 200px;
     color: rgba(15, 23, 42, 0.7);
     font-size: 13px;
 }
 
-.court-types {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+/* Custom column widths */
+.col-name {
+    min-width: 260px;
 }
-.ct-chip {
-    padding: 3px 8px;
-    border-radius: 6px;
-    background: #f1f5f9;
-    font-size: 12px;
-    font-weight: 600;
-    color: #334155;
+.col-owner {
+    min-width: 180px;
 }
+.col-courts {
+    min-width: 100px;
+}
+.col-fee {
+    min-width: 140px;
+}
+.col-status {
+    min-width: 120px;
+}
+.col-actions {
+    min-width: 110px;
+}
+
 .court-count {
     font-weight: 700;
     font-size: 15px;
-}
-.rating {
-    font-size: 13px;
-    white-space: nowrap;
-}
-.rating-count {
-    color: rgba(15, 23, 42, 0.4);
-    font-size: 12px;
 }
 .text-muted {
     color: rgba(15, 23, 42, 0.4);
 }
 .text-center {
-    text-align: center;
+    text-align: center !important;
 }
 .text-right {
-    text-align: right;
+    text-align: right !important;
 }
 
 /* Status badges */
@@ -608,14 +555,166 @@ export default {
 .btn-view:hover {
     background: #e2e8f0;
 }
-.cluster-thumb-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f1f5f9;
-    color: #94a3b8;
-    font-size: 16px;
+
+/* Responsive Styles for Mobile and Tablet */
+@media (max-width: 768px) {
+    .avc-page {
+        gap: 16px;
+        padding: 0 12px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        min-width: 0 !important;
+    }
+    
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .filter-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 4px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        gap: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .tab-btn {
+        flex: 0 0 auto;
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    .search-input {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box !important;
+    }
+    
+    .avc-table-wrap {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    .table-scroll {
+        overflow-x: hidden !important;
+        width: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    .avc-table {
+        min-width: 0 !important;
+        display: block !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    
+    .avc-table thead {
+        display: none !important; /* Hide headers on mobile */
+    }
+    
+    .avc-table tbody {
+        display: block !important;
+        width: 100% !important;
+    }
+    
+    .avc-row {
+        display: block !important;
+        width: auto !important;
+        box-sizing: border-box !important;
+        background: #fff;
+        border: 1px solid var(--sg-border);
+        border-radius: 12px;
+        margin-bottom: 16px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .avc-row:hover {
+        background: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .avc-table td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 10px 0 !important;
+        border-bottom: 1px dashed #f1f5f9 !important;
+        font-size: 13px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        text-align: right !important;
+        box-sizing: border-box !important;
+    }
+    
+    .avc-table td:last-child {
+        border-bottom: none !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    
+    .avc-table td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: rgba(15, 23, 42, 0.5);
+        text-align: left;
+        margin-right: 12px;
+        flex-shrink: 0;
+    }
+    
+    /* Highlight Venue name at the top of the card */
+    .avc-table td.col-name {
+        display: block !important;
+        text-align: left !important;
+        padding-top: 0 !important;
+        padding-bottom: 12px !important;
+        margin-bottom: 8px !important;
+        border-bottom: 2px solid #f1f5f9 !important;
+        width: auto !important;
+        box-sizing: border-box !important;
+    }
+    
+    .avc-table td.col-name::before {
+        display: none !important;
+    }
+    
+    .cluster-name {
+        font-size: 16px;
+    }
+    
+    .owner-meta-info {
+        text-align: right;
+    }
+    
+    .owner-name {
+        font-size: 13px;
+    }
+    
+    .owner-email {
+        font-size: 11px;
+        word-break: break-all;
+    }
+    
+    .status-badge {
+        padding: 2px 8px;
+        font-size: 11px;
+    }
 }
 </style>

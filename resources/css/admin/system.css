@@ -65,7 +65,7 @@
   border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius-lg) !important;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 248, 241, 0.86)),
+    var(--admin-header-gradient),
     var(--admin-surface) !important;
   box-shadow: var(--admin-shadow-card) !important;
 }
@@ -145,7 +145,7 @@
 ) {
   border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius-lg) !important;
-  background-color: rgba(255, 255, 255, 0.97) !important;
+  background-color: var(--admin-card-bg) !important;
   box-shadow: var(--admin-shadow-card) !important;
 }
 
@@ -161,7 +161,7 @@
   border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius-lg) !important;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 248, 241, 0.88)),
+    var(--admin-filter-gradient),
     var(--admin-surface-muted) !important;
   box-shadow: none !important;
 }
@@ -224,8 +224,8 @@
 
 .sg-shell-admin .content-area :is(th, .data-table th, .simple-table th, .avc-table th) {
   border-bottom: 1px solid var(--admin-border) !important;
-  background: #f2f7ef !important;
-  color: #334238 !important;
+  background: var(--admin-surface-muted) !important;
+  color: var(--admin-muted) !important;
   font-size: 12px !important;
   font-weight: 800 !important;
   letter-spacing: 0.025em !important;
@@ -234,8 +234,8 @@
 }
 
 .sg-shell-admin .content-area :is(td, .data-table td, .simple-table td, .avc-table td) {
-  border-bottom: 1px solid rgba(23, 34, 27, 0.075) !important;
-  color: #16231a !important;
+  border-bottom: 1px solid var(--admin-border-soft) !important;
+  color: var(--admin-text) !important;
   font-weight: 560 !important;
 }
 
@@ -245,7 +245,7 @@
 }
 
 .sg-shell-admin .content-area :is(tbody tr:hover, .data-table tbody tr:hover, .simple-table tbody tr:hover, .avc-table tbody tr:hover) {
-  background: rgba(232, 247, 236, 0.68) !important;
+  background: var(--admin-hover) !important;
 }
 
 .sg-shell-admin .content-area :is(td:last-child, th:last-child, .actions-col, .actions-cell, .row-actions, .payout-actions, .actions-wrapper) {
@@ -271,21 +271,21 @@
 }
 
 .sg-shell-admin .content-area :is(input:not([type='checkbox']):not([type='radio']), select, textarea, .form-control, .search-field, .search-box, .search-input) {
-  min-height: 42px !important;
-  border: 1px solid #b9cbbb !important;
+  min-height: 38px !important;
+  border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius) !important;
-  background: #fff !important;
+  background: var(--admin-surface) !important;
   color: var(--admin-text) !important;
   font: inherit !important;
   transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease !important;
 }
 
 .sg-shell-admin .content-area :is(input:not([type='checkbox']):not([type='radio']), select, textarea, .form-control, .search-input) {
-  padding: 10px 12px !important;
+  padding: 8px 12px !important;
 }
 
 .sg-shell-admin .content-area :is(input, select, textarea)::placeholder {
-  color: #4c5e51 !important;
+  color: var(--admin-faint) !important;
   opacity: 1 !important;
 }
 
@@ -293,8 +293,8 @@
   appearance: none !important;
   padding-right: 36px !important;
   background-image:
-    linear-gradient(45deg, transparent 50%, #526053 50%),
-    linear-gradient(135deg, #526053 50%, transparent 50%) !important;
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%) !important;
   background-position:
     calc(100% - 17px) 50%,
     calc(100% - 11px) 50% !important;
@@ -355,7 +355,7 @@
 }
 
 .sg-shell-admin .content-area :is(label, .field, .form-group label, .form-label) {
-  color: #223127 !important;
+  color: var(--admin-text) !important;
   font-size: 13px !important;
   font-weight: 760 !important;
 }
@@ -394,7 +394,7 @@
   place-items: center !important;
   border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius) !important;
-  background: #fff !important;
+  background: var(--admin-surface) !important;
   color: var(--admin-muted) !important;
   font-size: 0 !important;
 }
@@ -441,8 +441,8 @@
 
 .sg-shell-admin .content-area :is(.secondary, .btn.secondary, .btn-outline, .secondary-btn, .ghost, .ghost-btn, .mini-btn, .icon-btn, .icon-action, .icon-close, .icon-only, .icon-command, .export-btn, .btn-back, .tab-btn, .tabs button, .sort-btn, .btn-action, .btn-action-icon, .btn-map-link, .btn-edit-link) {
   border-color: var(--admin-border) !important;
-  background: #fff !important;
-  color: #344238 !important;
+  background: var(--admin-surface) !important;
+  color: var(--admin-text) !important;
 }
 
 .sg-shell-admin .content-area :is(.secondary:hover, .btn.secondary:hover, .btn-outline:hover, .secondary-btn:hover, .ghost:hover, .ghost-btn:hover, .mini-btn:hover, .icon-btn:hover, .icon-action:hover, .icon-close:hover, .icon-only:hover, .icon-command:hover, .export-btn:hover, .btn-back:hover, .tab-btn:hover, .tabs button:hover, .sort-btn:hover, .btn-action:hover, .btn-action-icon:hover, .btn-map-link:hover, .btn-edit-link:hover) {
@@ -475,13 +475,13 @@
 .sg-shell-admin .content-area :is(.danger, .btn.danger, .btn-danger, .btn-danger-outline, .btn-delete, .btn-delete-mini, .btn-action.danger, .btn-action.btn-delete, .btn-action-mini.btn-delete-mini, .primary-btn.danger, button.danger, a.danger) {
   border-color: rgba(220, 38, 38, 0.2) !important;
   background: var(--admin-danger-soft) !important;
-  color: #991b1b !important;
+  color: var(--admin-danger-text) !important;
 }
 
 .sg-shell-admin .content-area :is(.danger:hover, .btn.danger:hover, .btn-danger:hover, .btn-danger-outline:hover, .btn-delete:hover, .btn-delete-mini:hover, .btn-action.danger:hover, .btn-action.btn-delete:hover, .btn-action-mini.btn-delete-mini:hover, .primary-btn.danger:hover, button.danger:hover, a.danger:hover) {
   border-color: rgba(220, 38, 38, 0.32) !important;
-  background: #fee2e2 !important;
-  color: #7f1d1d !important;
+  background: var(--admin-danger-hover) !important;
+  color: var(--admin-danger-hover-text) !important;
 }
 
 .sg-shell-admin .content-area :is(.status, .status-badge, .status-chip, .badge, .type-badge, .risk-badge, .child-count-badge, .parent-sidebar-badge, .fees-count-badge, .player-count-badge, .status-dot-wrapper, .booking-status, .fee-status-badge, .status-pill, .ct-chip, .email-chip) {
@@ -507,12 +507,12 @@
 
 .sg-shell-admin .content-area :is(.status.pending, .status.open, .status-badge.pending, .status-badge.open, .status-badge.status-pending, .status-chip.pending_payment, .status-chip.pending_approval, .badge.pending, .badge.open, .status-pill.pending, .status-pill.pending_confirmation, .status-pill.reviewing, .status-pill.processing, .fee-status-unpaid, .fee-status-partial, .fee-pending, .status-pending) {
   background: var(--admin-warning-soft) !important;
-  color: #9a3412 !important;
+  color: var(--admin-warning) !important;
 }
 
 .sg-shell-admin .content-area :is(.status.inactive, .status.locked, .status.rejected, .status-badge.inactive, .status-badge.locked, .status-badge.rejected, .status-badge.status-locked, .status-badge.status-rejected, .status-chip.cancelled, .status-chip.rejected, .badge.inactive, .badge.expired, .status-pill.failed, .status-pill.rejected, .status-pill.cancelled, .status-pill.refunded, .fee-status-overdue, .fee-overdue, .status-locked, .status-rejected) {
   background: var(--admin-danger-soft) !important;
-  color: #991b1b !important;
+  color: var(--admin-danger) !important;
 }
 
 .sg-shell-admin .content-area :is(.notice, .alert, .global-alert, .toast, .inline-summary, .preview-banner, .state, .empty, .empty-block) {
@@ -529,7 +529,7 @@
 .sg-shell-admin .content-area :is(.notice.error, .alert.error, .alert-danger, .global-alert.error, .toast.error, .alert-error) {
   border-color: rgba(220, 38, 38, 0.18) !important;
   background: var(--admin-danger-soft) !important;
-  color: #991b1b !important;
+  color: var(--admin-danger-text) !important;
 }
 
 .sg-shell-admin .content-area :is(.modal-backdrop, .detail-backdrop, .drawer-backdrop) {
@@ -545,13 +545,13 @@
 
 .sg-shell-admin .content-area :is(.modal-header, .detail-head, .drawer-header) {
   border-bottom: 1px solid var(--admin-border) !important;
-  background: #fbfdf9 !important;
+  background: var(--admin-surface-muted) !important;
   padding: 16px 18px !important;
 }
 
 .sg-shell-admin .content-area :is(.modal-footer, .modal-actions, .dialog-footer) {
   border-top: 1px solid var(--admin-border) !important;
-  background: #fbfdf9 !important;
+  background: var(--admin-surface-muted) !important;
   padding: 14px 18px !important;
 }
 
@@ -601,3 +601,77 @@
     width: 100% !important;
   }
 }
+
+/* Floating Add Button */
+.floating-add-container {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 9998;
+  transition: right 0.25s ease;
+}
+.floating-add-container.has-scroll {
+  right: 86px;
+}
+.btn-float-add {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: #10b981 !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 12px !important;
+}
+.btn-float-add .btn-float-text {
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+  font-weight: 700;
+  font-size: 13px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+  color: #fff !important;
+}
+.btn-float-add:hover {
+  width: 145px !important;
+  justify-content: flex-start !important;
+  padding-left: 14px !important;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+  background-color: #059669 !important;
+}
+.btn-float-add:hover .btn-float-text {
+  max-width: 100px;
+  opacity: 1;
+  margin-left: 6px;
+}
+@media (max-width: 768px) {
+  .floating-add-container {
+    bottom: 20px;
+    right: 20px;
+  }
+  .floating-add-container.has-scroll {
+    right: 72px;
+  }
+  .btn-float-add {
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+    padding: 0 10px !important;
+  }
+  .btn-float-add:hover {
+    width: 130px !important;
+    padding-left: 12px !important;
+  }
+  .btn-float-add:hover .btn-float-text {
+    max-width: 80px;
+  }
+}
+
