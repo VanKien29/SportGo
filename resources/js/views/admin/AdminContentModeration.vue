@@ -43,6 +43,14 @@
 
 
 
+        <div class="auto-approve-wrapper">
+          <label class="switch">
+            <input type="checkbox" v-model="autoApproveEnabled" @change="toggleAutoApprove" />
+            <span class="slider"></span>
+          </label>
+          <span class="switch-label">Duyệt tự động (5s)</span>
+        </div>
+
         <button class="btn ghost btn-refresh" type="button" @click="refresh">
           <AppIcon name="refresh" size="16" />
           <span>Làm mới</span>
