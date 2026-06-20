@@ -15,14 +15,15 @@ class PartnerContract extends Model
 
     protected $keyType = 'string';
 
+    protected $appends = ['generated_file_path'];
+
     protected $fillable = [
-        'contract_number',
+        'contract_code',
         'partner_application_id',
         'owner_id',
         'venue_cluster_id',
         'contract_title',
         'status',
-        'generated_file_path',
         'generated_document_id',
         'generated_file_media_id',
         'signed_file_media_id',
@@ -46,6 +47,11 @@ class PartnerContract extends Model
             'effective_to' => 'datetime',
             'terminated_at' => 'datetime',
         ];
+    }
+
+    public function getGeneratedFilePathAttribute()
+    {
+        return $this->generatedDocument ? $this->generatedDocument->generated_file_path : null;
     }
 
     public function application()

@@ -76,7 +76,25 @@ export default {
   },
   methods: {
     isActive(item) {
-      return item.activeNames?.includes(this.activeRouteName);
+      const nameMatch = item.activeNames?.includes(this.activeRouteName);
+      if (!nameMatch) return false;
+
+      if (this.activeRouteName === 'admin-moderation') {
+        const currentTab = this.$route.query.tab || 'moderation';
+        if (item.to.includes('tab=moderation')) {
+          return currentTab === 'moderation';
+        }
+        if (item.to.includes('tab=reports')) {
+          return currentTab === 'reports';
+        }
+        if (item.to.includes('tab=complaints')) {
+          return currentTab === 'complaints';
+        }
+        if (!item.to.includes('tab=')) {
+          return currentTab === 'moderation';
+        }
+      }
+      return true;
     },
   },
 };

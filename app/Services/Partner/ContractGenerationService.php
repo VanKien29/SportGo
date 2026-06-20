@@ -23,23 +23,35 @@ class ContractGenerationService
     public function generate(string $profileId, string $templateId): PartnerContract
     {
         $application = PartnerApplication::findOrFail($profileId);
-        $template = ContractTemplate::findOrFail($templateId);
+        $template = \App\Models\DocumentTemplate::findOrFail($templateId);
 
         $contractCode = 'HD-' . strtoupper(Str::random(6)) . '-' . date('Y');
         $filePath = 'contracts/' . $contractCode . '.pdf';
+
+        $generatedDoc = \App\Models\GeneratedDocument::create([
+            'document_code' => $contractCode,
+            'document_type' => 'partner_contract',
+            'template_id' => $template->id,
+            'template_version' => $template->version ?? 1,
+            'status' => 'generated',
+            'render_data' => [],
+            'generated_file_path' => $template->file_path,
+        ]);
 
         $contractData = [
             'partner_application_id' => $profileId,
             'owner_id' => $application->user_id,
             'venue_cluster_id' => $application->approved_venue_cluster_id,
-            'contract_number' => $contractCode,
+            'contract_code' => $contractCode,
             'contract_title' => 'Hợp đồng hợp tác đối tác ' . ($application->venue_name ?: $application->business_name ?: $contractCode),
             'status' => ContractStatus::GENERATED->value,
-            'note' => 'Sinh từ mẫu hợp đồng: ' . $template->name,
-            'generated_file_path' => $template->file_path,
+            'note' => 'Sinh từ mẫu hợp đồng: ' . $template->template_name,
+            'generated_document_id' => $generatedDoc->id,
         ];
 
         $contract = $this->contractRepo->create($contractData);
+
+        $generatedDoc->update(['partner_contract_id' => $contract->id]);
 
         $application->update([
             'current_contract_id' => $contract->id,

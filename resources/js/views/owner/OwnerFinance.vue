@@ -259,9 +259,9 @@
                     aria-label="Lọc theo trạng thái"
                 >
                     <option value="">Tất cả trạng thái</option>
-                    <option value="pending">Chờ xử lý</option>
-                    <option value="reviewing">Đang kiểm tra</option>
-                    <option value="approved">Đã duyệt</option>
+                    <option value="pending">Chờ chuyển khoản</option>
+                    <option value="reviewing">Chờ chuyển khoản</option>
+                    <option value="approved">Chờ chuyển khoản</option>
                     <option value="rejected">Từ chối</option>
                     <option value="completed">Đã chuyển</option>
                 </select>
@@ -293,6 +293,7 @@
                                 <th>Thời gian</th>
                                 <th>Trạng thái</th>
                                 <th>Ghi chú xử lý</th>
+                                <th class="actions-col"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -364,6 +365,15 @@
                                             withdrawal.transfer_reference
                                         }}</small
                                     >
+                                </td>
+                                <td class="actions-col" data-label="Thao tác">
+                                    <ActionIconButton
+                                        v-if="canCancelWithdrawal(withdrawal)"
+                                        icon="x"
+                                        label="Hủy yêu cầu"
+                                        :disabled="cancellingId === withdrawal.id"
+                                        @click="cancelWithdrawal(withdrawal)"
+                                    />
                                 </td>
                             </tr>
                         </tbody>
@@ -503,6 +513,7 @@ export default {
             withdrawalMeta: { current_page: 1, last_page: 1 },
             loading: false,
             submitting: false,
+            cancellingId: null,
             error: "",
             notice: "",
             showWithdrawModal: false,
@@ -672,6 +683,48 @@ export default {
                 this.submitting = false;
             }
         },
+        canCancelWithdrawal(withdrawal) {
+            return (
+                ["pending", "reviewing", "approved"].includes(
+                    withdrawal.status,
+                ) &&
+                !withdrawal.payout_qr_created_at &&
+                !withdrawal.metadata?.mb_bulk_exported_at
+            );
+        },
+        async cancelWithdrawal(withdrawal) {
+            if (
+                !window.confirm(
+                    `Hủy yêu cầu rút ${this.formatCurrency(withdrawal.amount)}? Số tiền đang giữ sẽ được hoàn lại ví.`,
+                )
+            ) {
+                return;
+            }
+
+            this.cancellingId = withdrawal.id;
+            this.error = "";
+            this.notice = "";
+            try {
+                const response = await api(
+                    `/api/owner/finance/withdrawals/${withdrawal.id}/cancel`,
+                    {
+                        method: "PATCH",
+                        body: JSON.stringify({
+                            reason: "Chủ sân hủy yêu cầu rút tiền.",
+                        }),
+                    },
+                );
+                this.notice = response.message;
+                await this.loadWallets();
+                this.activeTab = "withdrawals";
+                await this.loadWithdrawals(this.withdrawalMeta.current_page);
+            } catch (error) {
+                this.error =
+                    error.message || "Không thể hủy yêu cầu rút tiền.";
+            } finally {
+                this.cancellingId = null;
+            }
+        },
         ledgerType(type) {
             return (
                 {
@@ -687,9 +740,9 @@ export default {
         withdrawalStatus(status) {
             return (
                 {
-                    pending: "Chờ xử lý",
-                    reviewing: "Đang kiểm tra",
-                    approved: "Đã duyệt",
+                    pending: "Chờ chuyển khoản",
+                    reviewing: "Chờ chuyển khoản",
+                    approved: "Chờ chuyển khoản",
                     rejected: "Từ chối",
                     completed: "Đã chuyển",
                     cancelled: "Đã hủy",
@@ -921,7 +974,10 @@ td small {
     width: 12%;
 }
 .withdrawal-table th:nth-child(7) {
-    width: 18%;
+    width: 15%;
+}
+.withdrawal-table th:nth-child(8) {
+    width: 9%;
 }
 
 .modal-header,

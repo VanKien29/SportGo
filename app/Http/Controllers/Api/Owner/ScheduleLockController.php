@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Booking;
+use App\Models\BookingItem;
 use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
-use App\Services\BookingService;
+use App\Services\Bookings\OwnerBookingCancellationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -17,7 +19,9 @@ use Illuminate\Validation\ValidationException;
 
 class ScheduleLockController extends Controller
 {
-    public function __construct(private readonly BookingService $bookingService) {}
+    public function __construct(
+        private readonly OwnerBookingCancellationService $ownerBookingCancellationService,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -54,11 +58,23 @@ class ScheduleLockController extends Controller
             'slots.*.venue_court_id' => ['required', 'uuid', 'exists:venue_courts,id'],
             'slots.*.start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'slots.*.end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
-            'booking_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'booking_date' => ['nullable', 'required_without:start_date', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'start_date' => ['nullable', 'required_without:booking_date', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'end_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'start_time' => ['nullable', 'required_with:venue_court_id', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['nullable', 'required_with:venue_court_id', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'reason' => ['required', 'string', 'min:3', 'max:500'],
         ]);
+
+        $startDate = $data['start_date'] ?? $data['booking_date'];
+        $endDate = $data['end_date'] ?? $startDate;
+        $dates = $this->dateRange($startDate, $endDate);
+
+        if ($dates->count() > 31) {
+            throw ValidationException::withMessages([
+                'end_date' => 'Mỗi lần chỉ nên khóa tối đa 31 ngày để dễ kiểm soát lịch sân.',
+            ]);
+        }
 
         $isBatch = ! empty($data['slots']);
         $requestedSlots = collect($data['slots'] ?? [[
@@ -94,7 +110,13 @@ class ScheduleLockController extends Controller
             ]);
         }
 
-        $locks = DB::transaction(function () use ($request, $data, $requestedSlots, $isBatch): Collection {
+        if ($dates->count() * $requestedSlots->count() > 500) {
+            throw ValidationException::withMessages([
+                'slots' => 'Số khoảng khóa quá lớn. Vui lòng chia thành nhiều lần tạo.',
+            ]);
+        }
+
+        $locks = DB::transaction(function () use ($request, $data, $requestedSlots, $isBatch, $dates): Collection {
             $courts = VenueCourt::query()
                 ->with('venueCluster')
                 ->whereIn('id', $requestedSlots->pluck('venue_court_id')->unique())
@@ -105,51 +127,54 @@ class ScheduleLockController extends Controller
 
             $createdLocks = collect();
 
-            foreach ($requestedSlots as $index => $slot) {
-                $court = $courts->get($slot['venue_court_id']);
-                abort_unless($court, 404);
+            foreach ($dates as $date) {
+                foreach ($requestedSlots as $index => $slot) {
+                    $court = $courts->get($slot['venue_court_id']);
+                    abort_unless($court, 404);
 
-                $this->ensureClusterAccess($request, $court->venue_cluster_id);
+                    $this->ensureClusterAccess($request, $court->venue_cluster_id);
 
-                if ($court->status !== 'active') {
-                    throw ValidationException::withMessages([
-                        $isBatch ? "slots.{$index}.venue_court_id" : 'venue_court_id' => "{$court->name} không ở trạng thái hoạt động.",
-                    ]);
+                    if ($court->status !== 'active') {
+                        throw ValidationException::withMessages([
+                            $isBatch ? "slots.{$index}.venue_court_id" : 'venue_court_id' => "{$court->name} không ở trạng thái hoạt động.",
+                        ]);
+                    }
+
+                    if ($court->venueCluster->status === 'locked') {
+                        throw ValidationException::withMessages([
+                            $isBatch ? "slots.{$index}.venue_court_id" : 'venue_court_id' => "Cụm sân của {$court->name} đang bị khóa.",
+                        ]);
+                    }
+
+                    if ($this->hasOverlappingScheduleLock(
+                        $court->id,
+                        $date,
+                        $slot['start_time'],
+                        $slot['end_time']
+                    )) {
+                        throw ValidationException::withMessages([
+                            $isBatch ? "slots.{$index}.start_time" : 'start_time' => "{$court->name} ngày {$date} đã có khoảng khóa trùng giờ.",
+                        ]);
+                    }
+
+                    $lock = SlotLock::query()->create([
+                        'venue_cluster_id' => $court->venue_cluster_id,
+                        'venue_court_id' => $court->id,
+                        'lock_scope' => 'court',
+                        'booking_date' => $date,
+                        'start_time' => $slot['start_time'],
+                        'end_time' => $slot['end_time'],
+                        'locked_by' => $request->user()->id,
+                        'booking_id' => null,
+                        'lock_type' => 'manual',
+                        'reason' => $data['reason'],
+                        'expires_at' => Carbon::parse($date)->endOfDay(),
+                    ])->load('venueCourt.courtType');
+
+                    $this->audit($request, 'schedule_lock.created', $lock, null, $this->payload($lock));
+                    $this->cancelOverlappingBookingItems($request, $lock);
+                    $createdLocks->push($lock);
                 }
-
-                if ($court->venueCluster->status === 'locked') {
-                    throw ValidationException::withMessages([
-                        $isBatch ? "slots.{$index}.venue_court_id" : 'venue_court_id' => "Cụm sân của {$court->name} đang bị khóa.",
-                    ]);
-                }
-
-                if (! $this->bookingService->checkAvailability(
-                    $court->id,
-                    $data['booking_date'],
-                    $slot['start_time'],
-                    $slot['end_time']
-                )) {
-                    throw ValidationException::withMessages([
-                        $isBatch ? "slots.{$index}.start_time" : 'start_time' => "{$court->name} bị trùng booking hoặc khoảng đã khóa.",
-                    ]);
-                }
-
-                $lock = SlotLock::query()->create([
-                    'venue_cluster_id' => $court->venue_cluster_id,
-                    'venue_court_id' => $court->id,
-                    'lock_scope' => 'court',
-                    'booking_date' => $data['booking_date'],
-                    'start_time' => $slot['start_time'],
-                    'end_time' => $slot['end_time'],
-                    'locked_by' => $request->user()->id,
-                    'booking_id' => null,
-                    'lock_type' => 'manual',
-                    'reason' => $data['reason'],
-                    'expires_at' => Carbon::parse($data['booking_date'])->endOfDay(),
-                ])->load('venueCourt.courtType');
-
-                $this->audit($request, 'schedule_lock.created', $lock, null, $this->payload($lock));
-                $createdLocks->push($lock);
             }
 
             return $createdLocks;
@@ -251,10 +276,86 @@ class ScheduleLockController extends Controller
         ]);
     }
 
+    private function hasOverlappingScheduleLock(string $venueCourtId, string $date, string $startTime, string $endTime): bool
+    {
+        return SlotLock::query()
+            ->where('booking_date', $date)
+            ->where(fn ($query) => $this->activeSlotLockConstraint($query))
+            ->whereNull('booking_id')
+            ->where(function ($query) use ($venueCourtId): void {
+                $query->where('venue_court_id', $venueCourtId)
+                    ->orWhere(function ($clusterQuery) use ($venueCourtId): void {
+                        $clusterQuery
+                            ->where('lock_scope', 'cluster')
+                            ->where('venue_cluster_id', VenueCourt::query()->whereKey($venueCourtId)->value('venue_cluster_id'));
+                    });
+            })
+            ->where('start_time', '<', $endTime)
+            ->where('end_time', '>', $startTime)
+            ->exists();
+    }
+
+    private function cancelOverlappingBookingItems(Request $request, SlotLock $lock): void
+    {
+        $items = BookingItem::query()
+            ->where('venue_court_id', $lock->venue_court_id)
+            ->where(fn ($query) => $query->whereNull('status')->orWhereIn('status', ['active', 'moved']))
+            ->where('start_time', '<', $lock->end_time)
+            ->where('end_time', '>', $lock->start_time)
+            ->whereHas('booking', function ($bookingQuery) use ($lock): void {
+                $bookingQuery
+                    ->where('venue_cluster_id', $lock->venue_cluster_id)
+                    ->whereDate('booking_date', $lock->booking_date)
+                    ->whereIn('status', ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed']);
+            })
+            ->get(['id', 'booking_id']);
+
+        $items
+            ->groupBy('booking_id')
+            ->each(function (Collection $bookingItems, string $bookingId) use ($request, $lock): void {
+                $booking = Booking::query()->find($bookingId);
+
+                if (! $booking) {
+                    return;
+                }
+
+                $this->ownerBookingCancellationService->cancelItemsForMaintenance(
+                    $booking,
+                    $bookingItems->pluck('id')->all(),
+                    $request->user(),
+                    $lock->reason ?: 'Sân được khóa để bảo trì.',
+                    $lock->id,
+                );
+            });
+    }
+
+    private function activeSlotLockConstraint($query): void
+    {
+        $query->where('lock_type', 'manual')
+            ->orWhere(function ($autoQuery): void {
+                $autoQuery->where('lock_type', 'auto')
+                    ->where('expires_at', '>', Carbon::now());
+            });
+    }
+
     private function timeToMinutes(string $time): int
     {
         [$hour, $minute] = array_map('intval', explode(':', substr($time, 0, 5)));
 
         return $hour * 60 + $minute;
+    }
+
+    private function dateRange(string $startDate, string $endDate): Collection
+    {
+        $dates = collect();
+        $current = Carbon::parse($startDate)->startOfDay();
+        $end = Carbon::parse($endDate)->startOfDay();
+
+        while ($current->lte($end)) {
+            $dates->push($current->toDateString());
+            $current->addDay();
+        }
+
+        return $dates;
     }
 }

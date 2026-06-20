@@ -160,7 +160,7 @@
 
             <label class="field">
               <span>Thứ tự</span>
-              <input v-model.number="form.sort_order" type="number" min="0" />
+              <input v-model.number="form.sort_order" type="number" min="1" />
             </label>
 
             <label class="field">
@@ -170,7 +170,7 @@
 
             <label class="field">
               <span>Kết thúc</span>
-              <input v-model="form.ends_at" type="datetime-local" />
+              <input v-model="form.ends_at" type="datetime-local" :min="form.starts_at" />
             </label>
           </div>
 

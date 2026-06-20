@@ -38,6 +38,11 @@ class AdminComplaintController extends Controller
             'keyword' => ['nullable', 'string', 'max:100'],
         ]);
 
+        $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
+
         $complaints = Complaint::query()
             ->with([
                 'customer:id,username,full_name,email,phone',
@@ -179,7 +184,7 @@ class AdminComplaintController extends Controller
 
         $complaint->forceFill([
             'status' => $data['status'],
-            'assigned_to' => $complaint->assigned_to ?: $request->user()->id,
+            'assigned_to' => $request->user()->id,
             'resolved_by' => $isFinished ? $request->user()->id : null,
             'resolve_note' => $data['resolve_note'],
             'status_reason' => in_array($data['status'], ['rejected', 'closed'], true) ? $data['resolve_note'] : null,

@@ -85,7 +85,7 @@ class WalletController extends Controller
             }
 
             if ($amount > (float) $wallet->available_balance) {
-                return response()->json(['message' => 'Số dư khả dụng không đủ (sau khi trừ các yêu cầu rút tiền đang chờ duyệt khác).'], 422);
+                return response()->json(['message' => 'Số dư khả dụng không đủ (sau khi trừ các yêu cầu rút tiền đang chờ chuyển khoản khác).'], 422);
             }
 
             // Generate unique request code
@@ -111,7 +111,7 @@ class WalletController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Tạo yêu cầu rút tiền thành công. Vui lòng chờ admin phê duyệt.',
+                'message' => 'Tạo yêu cầu rút tiền thành công. Vui lòng chờ SportGo chuyển khoản.',
                 'data' => $withdrawal,
             ]);
         });

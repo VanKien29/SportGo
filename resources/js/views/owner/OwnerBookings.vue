@@ -500,6 +500,7 @@ export default {
 
       return [
         { label: 'Khách', value: `${this.customerName(booking)} · ${this.customerPhone(booking)}` },
+        { label: 'Mã booking', value: booking.booking_code || '-' },
         { label: 'Sân', value: item.courtName },
         { label: 'Khung giờ', value: item.timeLabel },
         { label: 'Loại booking', value: booking.booking_type === 'recurring' ? 'Lịch cố định' : 'Lẻ' },
@@ -518,6 +519,27 @@ export default {
   async mounted() {
     window.addEventListener('scroll', this.handleScroll);
     await this.loadClusters();
+
+    const query = this.$route.query;
+    if (query.venue_cluster_id) {
+      this.filters.venue_cluster_id = query.venue_cluster_id;
+      try {
+        const response = await venueClusterService.getCourts(query.venue_cluster_id);
+        this.courts = response.data || [];
+      } catch (err) {
+        console.error('Không thể tải danh sách sân con cho cụm:', err);
+      }
+    }
+    if (query.booking_date) {
+      this.filters.booking_date = query.booking_date;
+    }
+    if (query.venue_court_id) {
+      this.filters.venue_court_id = query.venue_court_id;
+    }
+    if (query.status) {
+      this.filters.status = query.status;
+    }
+
     await this.loadBookings();
     this.holdClockInterval = setInterval(() => {
       this.holdClock = Date.now();
@@ -627,6 +649,8 @@ export default {
       const metrics = this.timelineBlockMetrics(start, end);
       const payment = this.paymentStateLabel(booking);
       const status = this.statusLabel(booking.status);
+      const customer = this.customerName(booking);
+      const phone = this.customerPhone(booking);
 
       return {
         key: `booking-${booking.id}-${courtId}-${range.startTime}-${range.endTime}`,
@@ -637,10 +661,10 @@ export default {
         courtName: range.courtName || this.courtName(courtId),
         start,
         end,
-        title: booking.booking_code || 'Booking',
-        subtitle: `${status} · ${payment}`,
+        title: customer || booking.booking_code || 'Booking',
+        subtitle: `${booking.booking_code || 'Booking'} · ${status} · ${payment}`,
         timeLabel: `${this.formatTime(range.startTime)} - ${this.formatTime(range.endTime)}`,
-        titleText: `${booking.booking_code || 'Booking'} · ${range.courtName || this.courtName(courtId)} · ${status} · ${payment}`,
+        titleText: `${customer || 'Khách'}${phone ? ` · ${phone}` : ''} · ${booking.booking_code || 'Booking'} · ${range.courtName || this.courtName(courtId)} · ${status} · ${payment}`,
         style: metrics.style,
         compact: metrics.compact,
         kindClass: this.timelineBookingClass(booking),

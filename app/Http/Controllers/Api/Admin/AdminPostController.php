@@ -36,19 +36,42 @@ class AdminPostController extends Controller
 
         // Override comments bằng phiên bản paginated
         $resourceData['comments'] = $comments->items()
-            ? collect($comments->items())->map(fn ($comment) => [
-                'id' => $comment->id,
-                'content' => $comment->content,
-                'status' => $comment->status,
-                'user_name' => $comment->user?->full_name ?: $comment->user?->username,
-                'user_avatar' => $comment->user?->avatar_url,
-                'replies_count' => $comment->replies_count ?? 0,
-                'media' => $comment->media->map(fn ($m) => [
-                    'id' => $m->id,
-                    'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
-                ]),
-                'created_at' => $comment->created_at,
-            ])
+            ? collect($comments->items())->map(function ($comment) {
+                $reportsCount = \App\Models\Report::where('reportable_type', \App\Models\CommunityPostComment::class)
+                    ->where('reportable_id', $comment->id)
+                    ->count();
+
+                $resolvedReportsCount = \App\Models\Report::where('reportable_type', \App\Models\CommunityPostComment::class)
+                    ->where('reportable_id', $comment->id)
+                    ->where('status', 'resolved')
+                    ->count();
+
+                $pendingReportsCount = \App\Models\Report::where('reportable_type', \App\Models\CommunityPostComment::class)
+                    ->where('reportable_id', $comment->id)
+                    ->where('status', 'pending')
+                    ->count();
+
+                return [
+                    'id' => $comment->id,
+                    'content' => $comment->content,
+                    'status' => $comment->status,
+                    'user_name' => $comment->user?->full_name ?: $comment->user?->username,
+                    'user_avatar' => $comment->user?->avatar_url,
+                    'replies_count' => $comment->replies_count ?? 0,
+                    'reports_count' => $reportsCount,
+                    'resolved_reports_count' => $resolvedReportsCount,
+                    'pending_reports_count' => $pendingReportsCount,
+                    'is_reported' => $reportsCount > 0,
+                    'needs_attention' => $pendingReportsCount > 0,
+                    'threshold_reached' => $resolvedReportsCount >= 3,
+                    'near_threshold' => $resolvedReportsCount >= 2,
+                    'media' => $comment->media->map(fn ($m) => [
+                        'id' => $m->id,
+                        'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
+                    ]),
+                    'created_at' => $comment->created_at,
+                ];
+            })
             : [];
 
         return response()->json([
@@ -77,6 +100,7 @@ class AdminPostController extends Controller
         // Audit logging could be added here if there's a generic audit mechanism
 
         if ($validated['action'] === 'delete') {
+            \App\Models\Report::resolvePendingReportsForTarget($postModel, 'content_deleted', $request->user());
             $postModel->delete();
             return response()->json(['message' => 'Đã xóa bài đăng thành công.']);
         }
@@ -87,6 +111,7 @@ class AdminPostController extends Controller
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
             ]);
+            \App\Models\Report::resolvePendingReportsForTarget($postModel, 'content_hidden', $request->user());
             return response()->json(['message' => 'Đã ẩn bài đăng thành công.']);
         }
 

@@ -4,7 +4,13 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <section class="filter-panel">
+    <nav class="view-tabs">
+      <button type="button" :class="{ active: currentView === 'list' }" @click="currentView = 'list'">Danh sách nhóm quyền</button>
+      <button type="button" :class="{ active: currentView === 'matrix' }" @click="currentView = 'matrix'">Ma trận phân quyền (Grid Matrix)</button>
+    </nav>
+
+    <template v-if="currentView === 'list'">
+      <section class="filter-panel">
       <div class="filter-head">
         <strong>Bộ lọc</strong>
         <span>Lọc theo tên, loại nhóm và trạng thái chỉnh sửa.</span>
@@ -110,6 +116,11 @@
         </table>
       </div>
     </div>
+    </template>
+
+    <template v-else>
+      <AdminPermissionMatrix />
+    </template>
 
     <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
       <form class="modal" @submit.prevent="saveRole">
@@ -183,13 +194,15 @@ import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import ConfirmModal from '../../components/ConfirmModal.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
+import AdminPermissionMatrix from '../../components/admin/AdminPermissionMatrix.vue';
 import { adminRoleService } from '../../services/adminRoles.js';
 
 export default {
   name: 'AdminRoles',
-  components: { ActionIconButton, AppIcon, ConfirmModal, TableActionGroup },
+  components: { ActionIconButton, AppIcon, ConfirmModal, TableActionGroup, AdminPermissionMatrix },
   data() {
     return {
+      currentView: 'list',
       roles: [],
       summary: {},
       filters: { keyword: '', is_system: '' },
@@ -403,6 +416,33 @@ p {
   margin-top: 6px;
   color: #64748b;
   line-height: 1.55;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 2px;
+}
+
+.view-tabs button {
+  background: transparent;
+  border: none;
+  padding: 10px 16px;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.view-tabs button.active {
+  color: #16a34a;
+  border-bottom-color: #16a34a;
+}
+
+.view-tabs button:hover:not(.active) {
+  color: #0f172a;
 }
 
 .filter-panel,

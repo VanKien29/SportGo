@@ -4,20 +4,39 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\PartnerApplication;
+use App\Models\VenueCluster;
 use Illuminate\Http\Request;
 
 class PartnerApplicationController extends Controller
 {
     public function myApplications(Request $request)
     {
+        $ownerId = $request->user()->id;
+        $ownedClusterIds = VenueCluster::query()
+            ->where('owner_id', $ownerId)
+            ->pluck('id');
+
         $applications = PartnerApplication::with([
+            'bankAccounts',
+            'documents',
             'contracts.template',
+            'contracts.generatedDocument',
             'contracts.terminations',
             'courts',
-            'terminationRequests',
-            'liquidations'
+            'terminationRequests'
         ])
-        ->where('user_id', $request->user()->id)
+        ->where(function ($query) use ($ownedClusterIds, $ownerId) {
+            if ($ownedClusterIds->isNotEmpty()) {
+                $query->whereIn('approved_venue_cluster_id', $ownedClusterIds);
+            }
+
+            // Keep pending cluster expansion requests visible before cluster is approved/created.
+            $query->orWhere(function ($pendingQuery) use ($ownerId) {
+                $pendingQuery->where('user_id', $ownerId)
+                    ->whereNull('approved_venue_cluster_id')
+                    ->whereIn('status', ['pending', 'reviewing']);
+            });
+        })
         ->latest()
         ->get();
 
@@ -29,16 +48,31 @@ class PartnerApplicationController extends Controller
      */
     public function myApplication(Request $request)
     {
+        $ownerId = $request->user()->id;
+        $ownedClusterIds = VenueCluster::query()
+            ->where('owner_id', $ownerId)
+            ->pluck('id');
+
         $application = PartnerApplication::with([
             'bankAccounts',
             'documents',
             'contracts.template',
+            'contracts.generatedDocument',
             'contracts.terminations',
             'courts',
-            'terminationRequests',
-            'liquidations'
+            'terminationRequests'
         ])
-        ->where('user_id', $request->user()->id)
+        ->where(function ($query) use ($ownedClusterIds, $ownerId) {
+            if ($ownedClusterIds->isNotEmpty()) {
+                $query->whereIn('approved_venue_cluster_id', $ownedClusterIds);
+            }
+
+            $query->orWhere(function ($pendingQuery) use ($ownerId) {
+                $pendingQuery->where('user_id', $ownerId)
+                    ->whereNull('approved_venue_cluster_id')
+                    ->whereIn('status', ['pending', 'reviewing']);
+            });
+        })
         ->latest()
         ->first();
 
@@ -114,20 +148,8 @@ class PartnerApplicationController extends Controller
 
         $newApplication = PartnerApplication::create($newApplicationData);
 
-        // Copy bank accounts
-        $baseBankAccounts = $baseApplication->bankAccounts()->get();
-        foreach ($baseBankAccounts as $bankAccount) {
-            $newApplication->bankAccounts()->create([
-                'owner_id' => $user->id,
-                'bank_name' => $bankAccount->bank_name,
-                'bank_code' => $bankAccount->bank_code,
-                'account_number' => $bankAccount->account_number,
-                'account_holder_name' => $bankAccount->account_holder_name,
-                'branch_name' => $bankAccount->branch_name,
-                'is_default' => $bankAccount->is_default,
-                'status' => $bankAccount->status,
-            ]);
-        }
+        // Do not copy bank accounts because owner_bank_accounts has a unique constraint on (owner_id, bank_code, account_number).
+        // The owner already has their bank accounts registered globally.
 
         return response()->json([
             'message' => 'Yêu cầu đăng ký cụm sân mới đã được gửi thành công.',

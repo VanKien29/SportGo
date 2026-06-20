@@ -180,9 +180,82 @@ class FinanceController extends Controller
         $this->notifyAdmins($withdrawal);
 
         return response()->json([
-            'message' => 'Đã gửi yêu cầu rút tiền. Số tiền được tạm giữ cho tới khi SportGo xử lý.',
+            'message' => 'Đã gửi yêu cầu rút tiền. Số tiền được tạm giữ, SportGo sẽ chuyển khoản và đối soát.',
             'data' => $withdrawal,
         ], 201);
+    }
+
+    public function cancelWithdrawal(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $withdrawal = DB::transaction(function () use ($request, $id, $data): OwnerWithdrawalRequest {
+            $withdrawal = OwnerWithdrawalRequest::query()
+                ->whereKey($id)
+                ->where('owner_id', $request->user()->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! in_array($withdrawal->status, ['pending', 'reviewing', 'approved'], true)) {
+                throw ValidationException::withMessages([
+                    'status' => 'Chỉ có thể hủy yêu cầu rút tiền đang chờ chuyển khoản.',
+                ]);
+            }
+
+            $metadata = $withdrawal->metadata ?? [];
+            if ($withdrawal->payout_qr_created_at || ! empty($metadata['mb_bulk_exported_at'])) {
+                throw ValidationException::withMessages([
+                    'status' => 'Yêu cầu đã được admin bắt đầu chuyển khoản, không thể hủy từ phía chủ sân.',
+                ]);
+            }
+
+            $reason = trim((string) ($data['reason'] ?? '')) ?: 'Chủ sân hủy yêu cầu rút tiền.';
+
+            if ($this->wallets->hasWithdrawalHold($withdrawal)) {
+                $this->wallets->releaseWithdrawal($withdrawal, [
+                    'reason' => $reason,
+                    'owner_id' => $request->user()->id,
+                    'source' => 'owner_cancelled',
+                ]);
+            }
+
+            $withdrawal->forceFill([
+                'status' => 'cancelled',
+                'status_reason' => $reason,
+                'metadata' => array_merge($metadata, [
+                    'cancelled_at' => now()->toIso8601String(),
+                    'cancelled_by' => $request->user()->id,
+                    'cancelled_source' => 'owner',
+                ]),
+            ])->save();
+
+            return $withdrawal->fresh(['wallet.venueCluster', 'bankAccount']);
+        });
+
+        $this->audit->log(
+            $request,
+            'withdrawal',
+            'withdrawal.owner_cancelled',
+            'owner_withdrawal_requests',
+            $withdrawal->id,
+            [],
+            $withdrawal->toArray(),
+            [
+                'context' => 'owner',
+                'reason' => $withdrawal->status_reason,
+                'metadata' => [
+                    'wallet_id' => $withdrawal->owner_wallet_id,
+                    'amount' => (float) $withdrawal->amount,
+                ],
+            ],
+        );
+
+        return response()->json([
+            'message' => 'Đã hủy yêu cầu rút tiền và hoàn lại số dư tạm giữ.',
+            'data' => $withdrawal,
+        ]);
     }
 
     private function nextRequestCode(): string
