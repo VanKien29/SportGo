@@ -83,6 +83,10 @@ export const adminUserService = {
     return api(`/api/admin/posts/${id}?page=${page}`);
   },
 
+  postLikes(id, page = 1) {
+    return api(`/api/admin/posts/${id}/likes?page=${page}`);
+  },
+
   processContentAction(type, id, action) {
     const endpoint = type === 'post' ? `/api/admin/posts/${id}/action` : `/api/admin/comments/${id}/action`;
     return api(endpoint, {
