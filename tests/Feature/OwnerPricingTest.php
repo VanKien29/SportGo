@@ -173,6 +173,45 @@ class OwnerPricingTest extends TestCase
         ]);
     }
 
+    public function test_all_price_types_must_be_greater_than_zero(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson("/api/owner/base-prices/{$this->courtType->id}", [
+                'venue_cluster_id' => $this->cluster->id,
+                'price' => -1,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('price');
+
+        $commonPayload = [
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $this->courtType->id,
+            'start_time' => '06:00',
+            'end_time' => '08:00',
+            'booking_type' => 'all',
+            'price' => -1,
+            'is_active' => true,
+        ];
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/price-slots', [
+                ...$commonPayload,
+                'apply_to_days' => [1, 2, 3],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('price');
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/holiday-prices', [
+                ...$commonPayload,
+                'date_type' => 'holiday',
+                'holiday_date' => today()->addMonth()->toDateString(),
+                'note' => null,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('price');
+    }
+
     public function test_owner_can_create_price_slot_and_overlap_is_rejected(): void
     {
         $payload = [

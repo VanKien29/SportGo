@@ -31,11 +31,13 @@
             <input
               v-model.number="basePriceDrafts[type.id]"
               type="number"
-              min="0"
+              min="1"
               step="1000"
+              :class="{ invalid: !isValidBasePrice(basePriceDrafts[type.id]) }"
               :disabled="savingBasePriceId === type.id"
             >
             <span>đ / giờ</span>
+            <small v-if="!isValidBasePrice(basePriceDrafts[type.id])">Giá phải lớn hơn 0.</small>
           </label>
           <button
             class="btn primary"
@@ -228,7 +230,7 @@
         <div class="form-grid">
           <label>
             Giá / giờ
-            <input v-model.number="form.price" type="number" min="0" step="1000" required>
+            <input v-model.number="form.price" type="number" min="1" step="1000" required>
           </label>
           <label v-if="activeTab !== 'weekly'">
             Ghi chú
@@ -452,11 +454,14 @@ export default {
       ]));
     },
     isValidBasePrice(value) {
-      return Number.isFinite(Number(value)) && Number(value) >= 0;
+      return Number.isFinite(Number(value)) && Number(value) > 0;
     },
     async saveBasePrice(type) {
-      if (!this.isValidBasePrice(this.basePriceDrafts[type.id])) return;
       this.clearMessages();
+      if (!this.isValidBasePrice(this.basePriceDrafts[type.id])) {
+        this.error = 'Giá chung phải là số lớn hơn 0.';
+        return;
+      }
       this.savingBasePriceId = type.id;
       try {
         const saved = await api(`/api/owner/base-prices/${type.id}`, {
@@ -514,6 +519,10 @@ export default {
       }
       if (this.form.start_time >= this.form.end_time) {
         this.error = 'Giờ kết thúc phải sau giờ bắt đầu.';
+        return;
+      }
+      if (!Number.isFinite(Number(this.form.price)) || Number(this.form.price) <= 0) {
+        this.error = 'Giá / giờ phải là số lớn hơn 0.';
         return;
       }
 
