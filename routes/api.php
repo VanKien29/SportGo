@@ -208,6 +208,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/comments/{comment}', [\App\Http\Controllers\Api\Admin\AdminCommentController::class, 'show']);
         Route::post('/comments/{comment}/action', [\App\Http\Controllers\Api\Admin\AdminCommentController::class, 'processAction']);
         Route::get('/posts/{post}', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'show']);
+        Route::get('/posts/{post}/likes', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'likes']);
         Route::post('/posts/{post}/action', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'processAction']);
     });
 
