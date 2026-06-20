@@ -62,7 +62,7 @@ class OwnerWalletService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $amount = (float) $payment->amount;
+            $amount = $this->ownerCreditAmount($payment);
             $balanceBefore = (float) $wallet->available_balance;
             $balanceAfter = $balanceBefore + $amount;
 
@@ -94,9 +94,29 @@ class OwnerWalletService
                     'customer_id' => $booking->customer_id,
                     'payment_code' => $payment->payment_code,
                     'payment_method' => $payment->method,
+                    'customer_paid_amount' => (float) $payment->amount,
+                    'system_discount_amount' => (float) ($booking->system_discount_amount ?? 0),
+                    'venue_discount_amount' => (float) ($booking->venue_discount_amount ?? 0),
                 ], $metadata),
             ]);
         });
+    }
+
+    private function ownerCreditAmount(Payment $payment): float
+    {
+        $booking = $payment->booking;
+        $customerPayable = (float) ($booking->final_amount ?? $booking->total_price ?? $payment->amount);
+        $ownerGross = (float) ($booking->original_amount ?? $booking->total_price ?? $payment->amount)
+            - (float) ($booking->venue_discount_amount ?? 0);
+
+        if ($customerPayable <= 0) {
+            return round(max($ownerGross, 0), 2);
+        }
+
+        $ratio = min(max((float) $payment->amount / $customerPayable, 0), 1);
+        $amount = $ownerGross * $ratio;
+
+        return round(max($amount, 0), 2);
     }
 
     public function debitRefundedPayment(Payment $payment, float $amount, string $refundId, array $metadata = []): OwnerWalletLedger
@@ -108,8 +128,8 @@ class OwnerWalletService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($payment->status !== 'refunded') {
-                throw new RuntimeException('Chỉ payment đã hoàn tiền mới được trừ khỏi ví chủ sân.');
+            if (! in_array($payment->status, ['paid', 'refunded'], true)) {
+                throw new RuntimeException('Chỉ payment đã thanh toán mới được ghi nhận hoàn tiền khỏi ví chủ sân.');
             }
 
             $booking = $payment->booking;
@@ -122,6 +142,8 @@ class OwnerWalletService
             $existingLedger = OwnerWalletLedger::query()
                 ->where('payment_id', $payment->id)
                 ->where('type', 'debit')
+                ->where('reference_type', 'refund')
+                ->where('reference_id', $refundId)
                 ->first();
 
             if ($existingLedger) {
@@ -137,14 +159,23 @@ class OwnerWalletService
                 throw new RuntimeException('Payment chưa từng được cộng vào ví chủ sân nên không thể ghi nhận hoàn tiền.');
             }
 
+            $alreadyDebited = (float) OwnerWalletLedger::query()
+                ->where('payment_id', $payment->id)
+                ->where('type', 'debit')
+                ->where('reference_type', 'refund')
+                ->sum('amount');
+
             $wallet = OwnerWallet::query()
                 ->where('owner_id', $cluster->owner_id)
+                ->where('venue_cluster_id', $cluster->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
             $balanceBefore = (float) $wallet->available_balance;
 
-            if ($amount <= 0 || $amount > (float) $payment->amount) {
+            $remainingCredit = max(0, (float) $creditLedger->amount - $alreadyDebited);
+
+            if ($amount <= 0 || $amount > $remainingCredit + 0.01) {
                 throw new RuntimeException('Số tiền hoàn không hợp lệ so với payment gốc.');
             }
 

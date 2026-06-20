@@ -4,14 +4,10 @@
 
     <div v-if="!venue" class="panel empty">Không tìm thấy cụm sân.</div>
     <template v-else>
-      <header class="panel page-head">
-        <div>
-          <p class="eyebrow">Phí duy trì theo cụm sân</p>
-          <h2>{{ venue.name }}</h2>
-          <p>{{ venue.owner.full_name }} - {{ venue.court_count }} sân hiện tại</p>
-        </div>
+      <div class="venue-info-bar">
+        <h2>{{ venue.name }}</h2>
         <span class="status-dot" :class="venue.status" :title="venue.status === 'locked' ? 'Đã khóa' : 'Hoạt động'" :aria-label="venue.status === 'locked' ? 'Đã khóa' : 'Hoạt động'"></span>
-      </header>
+      </div>
 
       <div v-if="snapshotChanged" class="notice">
         Số sân của cụm đã thay đổi. Các kỳ phí đã tạo giữ nguyên snapshot cũ. Kỳ phí tiếp theo sẽ dùng số sân mới.
@@ -197,7 +193,8 @@ export default {
 <style scoped>
 .venue-fees { display: flex; flex-direction: column; gap: 16px; }
 .panel, .preview-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
-.page-head, .panel-head, .actions, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
+.venue-info-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.panel-head, .actions, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
 .eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; font-weight: 900; text-transform: uppercase; }
 h2, h3, p { margin: 0; }
 .notice { padding: 12px 14px; border-radius: 8px; background: #fef3c7; color: #92400e; font-weight: 800; }

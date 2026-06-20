@@ -135,7 +135,7 @@ class RefundsTableSeeder extends Seeder
             ];
 
             if (Schema::hasColumn('refunds', 'refund_destination')) {
-                $values['refund_destination'] = 'bank_account';
+                $values['refund_destination'] = 'user_wallet';
             }
 
             Refund::query()->updateOrCreate(

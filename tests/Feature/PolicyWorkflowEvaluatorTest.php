@@ -124,7 +124,7 @@ class PolicyWorkflowEvaluatorTest extends TestCase
                 'reportable_id' => $post->id,
                 'reason' => 'spam',
                 'description' => 'Báo cáo hợp lệ',
-                'status' => 'pending',
+                'status' => 'resolved',
                 'created_at' => now()->subDays(2),
             ]);
         }

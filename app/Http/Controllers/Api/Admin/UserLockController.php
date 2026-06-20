@@ -40,6 +40,8 @@ class UserLockController extends Controller
             $data['duration_hours'] ?? null,
         );
 
+        \App\Models\Report::resolvePendingReportsForTarget($target, 'account_locked', $admin, $data['reason']);
+
         return response()->json([
             'message' => 'Khóa tài khoản thành công.',
         ]);

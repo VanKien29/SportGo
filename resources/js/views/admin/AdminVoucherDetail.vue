@@ -1,17 +1,12 @@
 <template>
   <section class="page">
-    <header class="page-head">
-      <div>
-        <button class="back-link" type="button" @click="$router.push({ name: 'admin-vouchers' })">
-          <AppIcon name="arrow-left" size="16" />
-          Danh sách voucher
-        </button>
-        <p class="eyebrow">Chi tiết voucher hệ thống</p>
-        <h2>{{ voucher?.name || 'Đang tải voucher' }}</h2>
-        <p v-if="voucher">{{ voucher.funding_label }}</p>
-      </div>
+    <div class="back-action-bar">
+      <button class="back-link" type="button" @click="$router.push({ name: 'admin-vouchers' })">
+        <AppIcon name="arrow-left" size="16" />
+        <span>Danh sách voucher</span>
+      </button>
       <span v-if="voucher" class="badge" :class="summary.status_tone">{{ summary.status_label }}</span>
-    </header>
+    </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="loading" class="state">Đang tải chi tiết voucher...</div>
@@ -198,9 +193,8 @@ export default {
 <style scoped>
 .page { display: grid; gap: 16px; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.page-head h2 { margin: 0 0 6px; font-size: 24px; }
-.page-head p { margin: 0; color: #64748b; }
-.back-link { border: 0; background: transparent; color: #2563eb; font-weight: 800; padding: 0 0 8px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.back-action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.back-link { border: 0; background: transparent; color: #2563eb; font-weight: 800; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 .eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; text-transform: uppercase; font-weight: 800; }
 .alert.error { background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: 10px; font-weight: 700; }
 .state { padding: 24px; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }

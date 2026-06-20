@@ -49,6 +49,15 @@
           </button>
         </div>
       </div>
+
+      <div class="filters">
+        <label class="cluster-select">
+          Cụm sân
+          <select v-model="selectedClusterId" :disabled="isLoading || !clusters.length">
+            <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
+          </select>
+        </label>
+      </div>
     </section>
 
     <section class="pricing-card">
@@ -247,12 +256,13 @@
 
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import { api } from '../../services/api.js';
 
 export default {
   name: 'OwnerPricing',
-  components: { ActionIconButton, TableActionGroup },
+  components: { ActionIconButton, TableActionGroup, AppIcon },
   data() {
     return {
       clusters: [],
@@ -288,6 +298,7 @@ export default {
         { value: 6, label: 'T7', fullLabel: 'Thứ 7' },
         { value: 7, label: 'CN', fullLabel: 'Chủ nhật' },
       ],
+      showScrollTop: false,
     };
   },
   computed: {
@@ -362,10 +373,12 @@ export default {
   },
   async mounted() {
     window.addEventListener('owner-cluster-changed', this.handleClusterChanged);
+    window.addEventListener('scroll', this.handleScroll);
     await this.loadPricing();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.handleClusterChanged);
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     defaultForm() {
@@ -637,6 +650,9 @@ export default {
     },
     resetFilters() {
       this.filters = { court_type_id: '', day: '', booking_type: '', status: '' };
+    },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 150;
     },
   },
 };

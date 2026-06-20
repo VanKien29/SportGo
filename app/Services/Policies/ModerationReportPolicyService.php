@@ -372,10 +372,7 @@ class ModerationReportPolicyService
 
                 $rule = $policy->rules->firstWhere('rule_code', 'moderation_score_' . $dbThreshold->target_type)
                      ?? $policy->rules->firstWhere('rule_code', $dbThreshold->target_type . '_report_lock_threshold');
-                $isActionActive = true;
-                if ($dbThreshold->target_type === 'user') {
-                    $isActionActive = $rule ? ($rule->result_json['is_auto_lock_enabled'] ?? false) : false;
-                }
+                $isActionActive = $rule ? ($rule->result_json['is_auto_resolve_enabled'] ?? false) : false;
 
                 // Action threshold
                 $action = in_array($dbThreshold->target_type, ['community_post', 'venue_post', 'comment']) ? 'hide_temporarily' : 'auto_lock';
@@ -616,6 +613,19 @@ class ModerationReportPolicyService
             return true;
         }
 
+        if ($target) {
+            $tableName = $target->getTable();
+            if ($thresholdType === 'community_post' && ($tableName === 'community_posts' || $target instanceof \App\Models\CommunityPost)) {
+                return true;
+            }
+            if ($thresholdType === 'venue_post' && ($tableName === 'venue_posts' || $target instanceof \App\Models\VenuePost)) {
+                return true;
+            }
+            if ($thresholdType === 'venue_cluster' && ($tableName === 'venue_clusters' || $target instanceof \App\Models\VenueCluster)) {
+                return true;
+            }
+        }
+
         if (! $target instanceof User || ! in_array($thresholdType, ['owner', 'user', 'account'], true)) {
             return false;
         }
@@ -707,7 +717,7 @@ class ModerationReportPolicyService
         $query = DB::table('reports')
             ->where('reportable_type', $type)
             ->where('reportable_id', $id)
-            ->whereNotIn('status', ['dismissed', 'resolved'])
+            ->where('status', 'resolved')
             ->where('created_at', '>=', now()->subDays($windowDays));
 
         return [

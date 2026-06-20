@@ -2,37 +2,33 @@
     <section class="pf-page">
         <PlatformFeeSubnav />
 
-        <header class="page-head">
-            <div>
-                <p class="eyebrow">Phí duy trì nền tảng</p>
-            </div>
-            <div class="head-actions">
-                <button
-                    class="btn secondary icon-text"
-                    type="button"
-                    @click="openDiscountSettings"
-                >
-                    <AppIcon name="settings" size="18" />
-                    <span>Cấu hình giảm kỳ</span>
-                </button>
-                <button
-                    class="btn secondary icon-text"
-                    type="button"
-                    @click="checkCoverage"
-                >
-                    <AppIcon name="check" size="18" />
-                    <span>Kiểm tra khoảng bậc phí</span>
-                </button>
-                <button
-                    class="btn primary icon-text"
-                    type="button"
-                    @click="openCreate"
-                >
-                    <AppIcon name="plus" size="18" />
-                    <span>Thêm bậc phí</span>
-                </button>
-            </div>
-        </header>
+        <!-- Action bar with secondary actions -->
+        <div class="action-bar-layout" style="margin-bottom: 12px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button
+                class="btn secondary icon-text"
+                type="button"
+                @click="openDiscountSettings"
+            >
+                <AppIcon name="settings" size="18" />
+                <span>Cấu hình giảm kỳ</span>
+            </button>
+            <button
+                class="btn secondary icon-text"
+                type="button"
+                @click="checkCoverage"
+            >
+                <AppIcon name="check" size="18" />
+                <span>Kiểm tra khoảng bậc phí</span>
+            </button>
+        </div>
+
+        <!-- Floating Add Button -->
+        <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+            <button class="btn-float-add" type="button" @click="openCreate" title="Thêm bậc phí">
+                <AppIcon name="plus" size="20" />
+                <span class="btn-float-text">Thêm bậc phí</span>
+            </button>
+        </div>
 
         <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
 
@@ -651,6 +647,7 @@ export default {
                 { key: "discount_9_months", label: "Giảm kỳ 9 tháng (%)" },
                 { key: "discount_12_months", label: "Giảm kỳ 12 tháng (%)" },
             ],
+            showScrollTop: false,
         };
     },
     computed: {
@@ -696,6 +693,10 @@ export default {
         this.loadDiscountProfiles();
         this.loadTiers();
         this.runPreview();
+        window.addEventListener("scroll", this.handleScroll);
+    },
+    beforeUnmount() {
+        window.removeEventListener("scroll", this.handleScroll);
     },
     methods: {
         loadTiers() {
@@ -949,6 +950,9 @@ export default {
                 this.toast = "";
             }, 3500);
         },
+        handleScroll() {
+            this.showScrollTop = window.scrollY > 250;
+        },
     },
 };
 </script>
@@ -959,7 +963,6 @@ export default {
     flex-direction: column;
     gap: 18px;
 }
-.page-head,
 .head-actions,
 .panel-title,
 .filter-panel,
@@ -970,10 +973,6 @@ export default {
 .icon-text {
     display: flex;
     gap: 12px;
-}
-.page-head {
-    justify-content: space-between;
-    align-items: flex-start;
 }
 .head-actions,
 .modal-actions {
@@ -1289,9 +1288,6 @@ label {
     background: #f8fafc;
 }
 @media (max-width: 900px) {
-    .page-head {
-        flex-direction: column;
-    }
     .info-grid,
     .preview-result,
     .detail-grid {

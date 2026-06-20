@@ -13,7 +13,7 @@
           </option>
         </select>
       </label>
-    </header>
+    </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="notice" class="alert success">{{ notice }}</div>

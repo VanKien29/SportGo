@@ -124,11 +124,13 @@
                   <span class="booking-code">Mã: {{ post.booking.booking_code }}</span>
                   <router-link
                     :to="{
-                      path: '/owner/bookings',
+                      name: 'owner-counter-booking',
                       query: {
                         venue_cluster_id: post.booking.venue_cluster_id,
                         booking_date: post.booking.booking_date,
-                        venue_court_id: post.booking.venue_court_id
+                        venue_court_id: post.booking.venue_court_id,
+                        booking_id: post.booking.id,
+                        booking_code: post.booking.booking_code,
                       }
                     }"
                     class="btn-link"

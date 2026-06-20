@@ -217,7 +217,22 @@
                                 >
                                     Tiện ích
                                 </h2>
-                                <div class="flex flex-wrap gap-2">
+                                <div v-if="amenitiesDetail.length > 0" class="space-y-3">
+                                    <div
+                                        v-for="item in amenitiesDetail"
+                                        :key="item.name"
+                                        class="p-3 bg-white border border-gray-100 rounded-xl shadow-sm transition-all duration-200 hover:border-emerald-300"
+                                    >
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            <span class="text-sm font-black text-gray-800">{{ item.name }}</span>
+                                        </div>
+                                        <p v-if="item.description" class="mt-1 text-xs text-gray-500 ml-4 italic leading-relaxed">
+                                            {{ item.description }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div v-else class="flex flex-wrap gap-2">
                                     <span
                                         v-for="item in amenities"
                                         :key="item"
@@ -349,6 +364,23 @@
                                                 :rotation="court.layout_rotation || 0"
                                                 :interactive="true"
                                                 :show-type="true"
+                                            />
+                                        </div>
+
+                                        <!-- Placed Decorations on client view -->
+                                        <div
+                                            v-for="decor in venue.layout_decorations || []"
+                                            :key="decor.id"
+                                            class="absolute"
+                                            :style="getClientDecorStyle(decor)"
+                                        >
+                                            <DecorationVisual
+                                                :type="decor.type"
+                                                :name="decor.name"
+                                                :width="null"
+                                                :height="null"
+                                                :rotation="decor.layout_rotation || 0"
+                                                :interactive="false"
                                             />
                                         </div>
                                     </div>
@@ -710,12 +742,13 @@
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
+import DecorationVisual from "../../components/DecorationVisual.vue";
 import { getAuth } from "../../stores/auth.js";
 import { venueService } from "../../services/venues.js";
 
 export default {
     name: "VenueDetail",
-    components: { PublicNavbar, CourtVisual },
+    components: { PublicNavbar, CourtVisual, DecorationVisual },
     data() {
         return {
             venue: null,
@@ -762,6 +795,11 @@ export default {
         amenities() {
             return Array.isArray(this.venue?.amenities)
                 ? this.venue.amenities
+                : [];
+        },
+        amenitiesDetail() {
+            return Array.isArray(this.venue?.amenities_detail)
+                ? this.venue.amenities_detail
                 : [];
         },
         selectedCourt() {
@@ -1003,6 +1041,14 @@ export default {
                 top: `${court.layout_y / 6}%`,
                 width: `${court.layout_w / 10}%`,
                 height: `${court.layout_h / 6}%`,
+            };
+        },
+        getClientDecorStyle(decor) {
+            return {
+                left: `${decor.layout_x / 10}%`,
+                top: `${decor.layout_y / 6}%`,
+                width: `${decor.layout_w / 10}%`,
+                height: `${decor.layout_h / 6}%`,
             };
         },
         getCourtMapStatus(court) {

@@ -22,6 +22,7 @@ class VenueCourtApprovalRequest extends Model
         'requested_by',
         'reviewed_by',
         'status_reason',
+        'evidence_image',
         'approved_venue_court_id',
         'reviewed_at',
     ];

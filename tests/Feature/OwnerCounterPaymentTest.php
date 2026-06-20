@@ -454,9 +454,42 @@ class OwnerCounterPaymentTest extends TestCase
 
         $this->assertDatabaseHas('bookings', [
             'id' => $response->json('data.id'),
+            'customer_id' => $response->json('data.customer_id'),
             'walk_in_name' => 'Nguyễn Văn A',
             'walk_in_phone' => '0901234567',
         ]);
+
+        $customer = User::query()
+            ->whereKey($response->json('data.customer_id'))
+            ->firstOrFail();
+
+        $this->assertSame('Nguyễn Văn A', $customer->full_name);
+        $this->assertSame('0901234567', $customer->phone);
+        $this->assertNull($customer->phone_verified_at);
+        $this->assertStringContainsString('4567', $customer->username);
+        $this->assertDatabaseHas('user_wallets', [
+            'user_id' => $customer->id,
+            'balance' => 0,
+            'locked_balance' => 0,
+            'status' => 'active',
+        ]);
+
+        $samePhoneResponse = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $bookingDate,
+                'start_time' => '15:00:00',
+                'end_time' => '16:00:00',
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'Nguyễn Văn A',
+                'walk_in_phone' => '+84901234567',
+            ])
+            ->assertCreated();
+
+        $this->assertSame($customer->id, $samePhoneResponse->json('data.customer_id'));
+        $this->assertSame(1, User::query()
+            ->whereIn('phone', ['0901234567', '+84901234567', '84901234567'])
+            ->count());
     }
 
     public function test_recurring_booking_conflicts_return_alternatives_and_can_switch_court(): void
