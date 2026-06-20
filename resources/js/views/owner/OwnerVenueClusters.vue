@@ -1782,6 +1782,146 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Tab: Affiliate Shop -->
+                <div v-if="activeTab === 'affiliate_shop'" class="affiliate-shop-tab">
+                    <!-- Header Actions -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #1e293b;">
+                            Quản lý cửa hàng tiếp thị liên kết
+                        </h4>
+                    </div>
+
+                    <!-- Alert message if any -->
+                    <div v-if="productsError" class="alert alert-danger" style="margin-bottom: 16px;">
+                        {{ productsError }}
+                    </div>
+
+                    <!-- Products List Table/Grid -->
+                    <div v-if="loadingProducts" class="loading-state" style="padding: 40px 0; text-align: center;">
+                        <div class="spinner"></div>
+                        <p style="margin-top: 10px; color: #64748b;">Đang tải danh sách sản phẩm...</p>
+                    </div>
+                    
+                    <div v-else-if="affiliateProducts.length === 0" class="empty-state card" style="text-align: center; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; justify-content: center; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;">
+                        <div style="width: 64px; height: 64px; background-color: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #94a3b8;">
+                            <AppIcon name="shopping-bag" size="32" />
+                        </div>
+                        <div>
+                            <h5 style="margin: 0 0 6px 0; font-size: 15px; font-weight: 700; color: #1e293b;">Cửa hàng trống</h5>
+                            <p style="margin: 0; font-size: 13px; color: #64748b; max-width: 320px; line-height: 1.5;">Bạn chưa đăng sản phẩm tiếp thị liên kết nào. Hãy thêm sản phẩm để bắt đầu tiếp thị.</p>
+                        </div>
+                        <button type="button" class="btn btn-outline" @click="openCreateProductModal">Thêm sản phẩm đầu tiên</button>
+                    </div>
+
+                    <div v-else class="card" style="padding: 0; overflow: hidden; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div class="table-scroll" style="overflow-x: auto;">
+                            <table class="simple-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                                <thead>
+                                    <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                                        <th style="padding: 14px 16px; text-align: left; font-weight: 700; color: #475569; width: 80px;">Ảnh</th>
+                                        <th style="padding: 14px 16px; text-align: left; font-weight: 700; color: #475569;">Tên sản phẩm</th>
+                                        <th style="padding: 14px 16px; text-align: left; font-weight: 700; color: #475569; width: 120px;">Nền tảng</th>
+                                        <th style="padding: 14px 16px; text-align: right; font-weight: 700; color: #475569; width: 140px;">Giá bán</th>
+                                        <th style="padding: 14px 16px; text-align: center; font-weight: 700; color: #475569; width: 100px;">Lượt click</th>
+                                        <th style="padding: 14px 16px; text-align: center; font-weight: 700; color: #475569; width: 120px;">Trạng thái</th>
+                                        <th style="padding: 14px 16px; text-align: center; font-weight: 700; color: #475569; width: 120px;">Hành động</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="product in affiliateProducts" :key="product.id" style="border-bottom: 1px solid #e2e8f0; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f8fafc';" onmouseout="this.style.backgroundColor='transparent';">
+                                        <td style="padding: 12px 16px; vertical-align: middle;">
+                                            <div style="width: 48px; height: 48px; border-radius: 8px; background-color: #f1f5f9; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0;">
+                                                <img v-if="product.image_path" :src="imageUrl(product.image_path)" style="width: 100%; height: 100%; object-fit: cover;" />
+                                                <AppIcon v-else name="image" size="20" style="color: #cbd5e1;" />
+                                            </div>
+                                        </td>
+                                        <td style="padding: 12px 16px; vertical-align: middle;">
+                                            <div style="font-weight: 700; color: #1e293b; margin-bottom: 2px; line-clamp: 1; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">
+                                                {{ product.name }}
+                                            </div>
+                                            <div style="font-size: 12px; color: #64748b; line-clamp: 1; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">
+                                                {{ product.description || 'Không có mô tả.' }}
+                                            </div>
+                                        </td>
+                                        <td style="padding: 12px 16px; vertical-align: middle;">
+                                            <span 
+                                                style="padding: 4px 8px; border-radius: 9999px; font-size: 11px; font-weight: 800; text-transform: uppercase;"
+                                                :style="{
+                                                    backgroundColor: product.platform_name === 'Shopee' ? '#ffeae6' : 
+                                                                     product.platform_name === 'Lazada' ? '#eef2ff' : 
+                                                                     product.platform_name === 'Tiki' ? '#e0f2fe' : 
+                                                                     product.platform_name === 'TikTok Shop' ? '#f3f4f6' : '#ecfdf5',
+                                                    color: product.platform_name === 'Shopee' ? '#ee4d2d' : 
+                                                           product.platform_name === 'Lazada' ? '#3b82f6' : 
+                                                           product.platform_name === 'Tiki' ? '#0284c7' : 
+                                                           product.platform_name === 'TikTok Shop' ? '#111827' : '#10b981'
+                                                }"
+                                            >
+                                                {{ product.platform_name }}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px 16px; text-align: right; font-weight: 700; color: #0f172a; vertical-align: middle;">
+                                            <div v-if="product.price" style="color: #10b981;">
+                                                {{ formatCurrency(product.price) }}
+                                            </div>
+                                            <div v-if="product.original_price" style="font-size: 11px; color: #94a3b8; text-decoration: line-through; margin-top: 1px;">
+                                                {{ formatCurrency(product.original_price) }}
+                                            </div>
+                                            <div v-if="!product.price" style="font-style: italic; font-weight: normal; color: #94a3b8; font-size: 12px;">
+                                                Liên hệ nơi bán
+                                            </div>
+                                        </td>
+                                        <td style="padding: 12px 16px; text-align: center; font-weight: 700; color: #475569; vertical-align: middle;">
+                                            {{ product.click_count || 0 }}
+                                        </td>
+                                        <td style="padding: 12px 16px; text-align: center; vertical-align: middle;">
+                                            <label style="display: inline-flex; align-items: center; cursor: pointer; user-select: none;">
+                                                <div style="position: relative; width: 36px; height: 20px; background-color: #cbd5e1; border-radius: 9999px; transition: background-color 0.2s;" :style="product.is_active ? 'background-color: #10b981;' : ''">
+                                                    <input type="checkbox" :checked="product.is_active" @change="handleToggleProductStatus(product.id)" style="opacity: 0; width: 0; height: 0; position: absolute;" />
+                                                    <div style="position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background-color: #fff; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" :style="product.is_active ? 'transform: translateX(16px);' : ''"></div>
+                                                </div>
+                                            </label>
+                                        </td>
+                                        <td style="padding: 12px 16px; text-align: center; vertical-align: middle;">
+                                            <div style="display: flex; gap: 8px; justify-content: center;">
+                                                <button 
+                                                    type="button" 
+                                                    class="btn btn-outline" 
+                                                    style="padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center;"
+                                                    @click="openEditProductModal(product)"
+                                                >
+                                                    <AppIcon name="edit" size="14" />
+                                                </button>
+                                                <button 
+                                                    type="button" 
+                                                    class="btn btn-outline" 
+                                                    style="padding: 6px; border-radius: 6px; border-color: #fecaca; color: #dc2626; display: flex; align-items: center; justify-content: center;"
+                                                    @click="handleDeleteProduct(product.id)"
+                                                >
+                                                    <AppIcon name="trash" size="14" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Nút Thêm sản phẩm dạng nổi ở góc dưới -->
+                    <div class="floating-add-container" v-if="!isClusterLocked">
+                        <button 
+                            class="btn-float-add" 
+                            type="button"
+                            @click="openCreateProductModal" 
+                            title="Thêm sản phẩm tiếp thị"
+                        >
+                            <AppIcon name="plus" size="20" />
+                            <span class="btn-float-text">Thêm sản phẩm</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -2112,6 +2252,246 @@
                 </div>
             </div>
         </div>
+        <!-- Modal: Affiliate Product (Thêm/Sửa sản phẩm tiếp thị liên kết) -->
+        <div
+            v-if="showProductModal"
+            class="modal-backdrop"
+            @click.self="closeProductModal"
+        >
+            <div class="modal card" style="max-width: 960px; width: min(960px, calc(100vw - 32px)) !important; border-radius: 16px; border: none; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden;">
+                <div class="modal-header" style="padding: 18px 24px; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+                    <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                        <span>{{ editingProduct ? 'Chỉnh sửa sản phẩm tiếp thị' : 'Thêm sản phẩm tiếp thị liên kết' }}</span>
+                    </h3>
+                    <button class="btn-close" @click="closeProductModal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#94a3b8'">&times;</button>
+                </div>
+                <form @submit.prevent="submitProductForm">
+                    <div class="modal-body" style="padding: 24px; max-height: 75vh; overflow-y: auto; background-color: #fff;">
+                        <div style="display: flex; gap: 32px; align-items: stretch;">
+                            
+                            <!-- Left Column: Form Fields (Nhập liệu) -->
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 16px;">
+                                
+                                <!-- Product Name -->
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-weight: 700; font-size: 13.5px; color: #334155; display: block; margin-bottom: 6px;">
+                                        Tên sản phẩm <span class="required" style="color: #dc2626;">*</span>
+                                    </label>
+                                    <input
+                                        v-model.trim="productForm.name"
+                                        type="text"
+                                        class="form-control"
+                                        placeholder="Ví dụ: Vợt cầu lông Yonex Astrox 88D Play"
+                                        required
+                                        style="border-radius: 8px;"
+                                    />
+                                </div>
+
+                                <!-- Platform & Link Affiliate -->
+                                <div style="display: grid; grid-template-columns: 140px 1fr; gap: 16px;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 700; font-size: 13.5px; color: #334155; display: block; margin-bottom: 6px;">
+                                            Nền tảng <span class="required" style="color: #dc2626;">*</span>
+                                        </label>
+                                        <select v-model="productForm.platform_name" class="form-control" style="background: #fff; width: 100%; border-radius: 8px; height: 42px;">
+                                            <option value="Shopee">Shopee</option>
+                                            <option value="Lazada">Lazada</option>
+                                            <option value="Tiki">Tiki</option>
+                                            <option value="TikTok Shop">TikTok Shop</option>
+                                            <option value="Khác">Liên kết khác</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 700; font-size: 13.5px; color: #334155; display: block; margin-bottom: 6px;">
+                                            Link tiếp thị liên kết <span class="required" style="color: #dc2626;">*</span>
+                                        </label>
+                                        <input
+                                            v-model.trim="productForm.affiliate_url"
+                                            type="url"
+                                            class="form-control"
+                                            placeholder="Dán link sản phẩm Shopee, Lazada..."
+                                            required
+                                            style="border-radius: 8px;"
+                                        />
+                                    </div>
+                                </div>
+
+                                <!-- Price and Original Price -->
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 700; font-size: 13.5px; color: #334155; display: block; margin-bottom: 6px;">
+                                            Giá bán hiển thị (VND)
+                                        </label>
+                                        <input
+                                            v-model.number="productForm.price"
+                                            type="number"
+                                            min="0"
+                                            step="1000"
+                                            class="form-control"
+                                            placeholder="Ví dụ: 990000"
+                                            style="border-radius: 8px;"
+                                        />
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 700; font-size: 13.5px; color: #334155; display: block; margin-bottom: 6px;">
+                                            Giá gốc/so sánh (VND)
+                                        </label>
+                                        <input
+                                            v-model.number="productForm.original_price"
+                                            type="number"
+                                            min="0"
+                                            step="1000"
+                                            class="form-control"
+                                            placeholder="Ví dụ: 1200000"
+                                            style="border-radius: 8px;"
+                                        />
+                                    </div>
+                                </div>
+
+                                <!-- Description -->
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-weight: 700; font-size: 13.5px; color: #334155; display: block; margin-bottom: 6px;">
+                                        Mô tả sản phẩm
+                                    </label>
+                                    <textarea
+                                        v-model.trim="productForm.description"
+                                        rows="3"
+                                        class="form-control"
+                                        placeholder="Nhập mô tả ngắn gọn (chất liệu, công dụng, bảo hành...)"
+                                        style="resize: vertical; min-height: 80px; border-radius: 8px;"
+                                    ></textarea>
+                                </div>
+
+                                <!-- Image Upload & Display Status in Row -->
+                                <div style="display: flex; gap: 24px; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 8px;">
+                                    <!-- Image Upload Area -->
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <div 
+                                            @click="$refs.productImageInput.click()"
+                                            style="width: 80px; height: 80px; background-color: #f8fafc; border-radius: 8px; border: 2px dashed #cbd5e1; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; position: relative; cursor: pointer; transition: all 0.2s;"
+                                            onmouseover="this.style.borderColor='#10b981';this.style.backgroundColor='#f0fdf4';"
+                                            onmouseout="this.style.borderColor='#cbd5e1';this.style.backgroundColor='#f8fafc';"
+                                        >
+                                            <template v-if="productImagePreview">
+                                                <img :src="productImagePreview" style="width: 100%; height: 100%; object-fit: cover;" />
+                                                <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
+                                                    <span style="color: #fff; font-size: 10px; font-weight: bold;">Thay đổi</span>
+                                                </div>
+                                            </template>
+                                            <template v-else>
+                                                <AppIcon name="image" size="20" style="color: #cbd5e1; margin-bottom: 2px;" />
+                                                <span style="font-size: 10px; color: #94a3b8; font-weight: bold;">Ảnh</span>
+                                            </template>
+                                        </div>
+                                        <div>
+                                            <span style="font-weight: 700; font-size: 13px; color: #475569; display: block; margin-bottom: 2px;">Ảnh sản phẩm</span>
+                                            <span style="color: #64748b; display: block; font-size: 10.5px; line-height: 1.2;">JPEG, PNG, WEBP. Tối đa 5MB</span>
+                                        </div>
+                                        <input
+                                            ref="productImageInput"
+                                            type="file"
+                                            accept="image/*"
+                                            @change="handleProductImageChange"
+                                            style="display: none;"
+                                        />
+                                    </div>
+
+                                    <!-- Switch Toggle Container -->
+                                    <div style="margin-left: auto; padding-left: 24px; height: 50px; display: flex; align-items: center;">
+                                        <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; margin: 0;">
+                                            <span style="color: #475569; font-weight: 700; font-size: 13px;">Hiển thị ở cửa hàng:</span>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="position: relative; width: 44px; height: 24px; background-color: #cbd5e1; border-radius: 9999px; transition: background-color 0.2s;" :style="productForm.is_active ? 'background-color: #10b981;' : ''">
+                                                    <input type="checkbox" v-model="productForm.is_active" style="opacity: 0; width: 0; height: 0; position: absolute;" />
+                                                    <div style="position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background-color: #fff; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" :style="productForm.is_active ? 'transform: translateX(20px);' : ''"></div>
+                                                </div>
+                                                <span style="color: #1e293b; font-weight: 600; font-size: 13px;">{{ productForm.is_active ? 'Bật' : 'Tắt' }}</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <!-- Right Column: Demo Preview (Xem trước) -->
+                            <div style="width: 290px; flex-shrink: 0; background-color: #f8fafc; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;">
+                                <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; align-self: flex-start; border-bottom: 1px solid #e2e8f0; width: 100%; padding-bottom: 8px; margin-bottom: 4px;">
+                                    <AppIcon name="eye" size="14" />
+                                    <span>Xem trước hiển thị</span>
+                                </div>
+                                
+                                <!-- Card Preview (Mô phỏng y hệt trang khách hàng) -->
+                                <div style="background-color: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; flex-direction: column; width: 100%; transition: all 0.3s;">
+                                    <!-- Product Image Preview -->
+                                    <div style="height: 170px; width: 100%; background-color: #f1f5f9; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                                        <img v-if="productImagePreview" :src="productImagePreview" style="width: 100%; height: 100%; object-fit: cover;" />
+                                        <div v-else style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #94a3b8;">
+                                            <AppIcon name="image" size="32" />
+                                            <span style="font-size: 11px; font-weight: 600;">Chưa có ảnh sản phẩm</span>
+                                        </div>
+                                        <div style="position: absolute; top: 8px; left: 8px; padding: 2px 8px; background-color: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border: 1px solid #e2e8f0; border-radius: 9999px; font-size: 8px; font-weight: 800; text-transform: uppercase; color: #10b981; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                            {{ productForm.platform_name || 'Liên kết' }}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Product Body Preview -->
+                                    <div style="padding: 14px; flex-grow: 1; display: flex; flex-direction: column; gap: 10px;">
+                                        <div>
+                                            <h4 style="font-size: 13.5px; font-weight: 700; color: #1e293b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 38px; line-height: 1.4; margin: 0;">
+                                                {{ productForm.name || 'Tên sản phẩm tiếp thị' }}
+                                            </h4>
+                                            <p style="font-size: 11px; color: #64748b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 32px; line-height: 1.4; margin: 4px 0 0 0;">
+                                                {{ productForm.description || 'Mô tả ngắn gọn...' }}
+                                            </p>
+                                        </div>
+                                        
+                                        <!-- Price & Buy Button -->
+                                        <div style="border-top: 1px dashed #e2e8f0; padding-top: 10px; margin-top: 4px;">
+                                            <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; min-height: 22px;">
+                                                <span v-if="productForm.price" style="font-size: 15px; font-weight: 900; color: #10b981;">
+                                                    {{ formatCurrency(productForm.price) }}
+                                                </span>
+                                                <span v-if="productForm.original_price" style="font-size: 11px; color: #94a3b8; text-decoration: line-through; margin-left: 6px;">
+                                                    {{ formatCurrency(productForm.original_price) }}
+                                                </span>
+                                            </div>
+                                            
+                                            <!-- Platform Brand Button -->
+                                            <button 
+                                                type="button" 
+                                                style="width: 100%; padding: 8px; border: none; border-radius: 8px; font-weight: 800; font-size: 11px; color: #fff; text-align: center; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: opacity 0.2s;"
+                                                :style="{
+                                                    backgroundColor: productForm.platform_name === 'Shopee' ? '#ee4d2d' : 
+                                                                     productForm.platform_name === 'Lazada' ? '#0f172a' : 
+                                                                     productForm.platform_name === 'Tiki' ? '#1a94ff' : 
+                                                                     productForm.platform_name === 'TikTok Shop' ? '#000' : '#10b981'
+                                                }"
+                                            >
+                                                <span>
+                                                    {{
+                                                        productForm.platform_name === 'Shopee' ? 'Đến Shopee' : 
+                                                        productForm.platform_name === 'Lazada' ? 'Đến Lazada' : 
+                                                        productForm.platform_name === 'Tiki' ? 'Đến Tiki' : 
+                                                        productForm.platform_name === 'TikTok Shop' ? 'Đến TikTok' : 'Đến nơi bán'
+                                                    }}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="padding: 16px 24px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px; border-radius: 0 0 16px 16px;">
+                        <button type="button" class="btn btn-outline" @click="closeProductModal" style="border-radius: 8px;">Hủy</button>
+                        <button type="submit" class="btn btn-primary" :disabled="submittingProduct" style="border-radius: 8px;">
+                            {{ submittingProduct ? 'Đang lưu...' : 'Lưu sản phẩm' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -2124,6 +2504,7 @@ import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
 import { ownerUnlockRequestsService } from "../../services/ownerUnlockRequests";
+import { affiliateProductService } from "../../services/affiliateProducts";
 
 export default {
     name: "OwnerVenueClusters",
@@ -2178,6 +2559,26 @@ export default {
             requestError: null,
             requestSuccessMsg: null,
             requestForm: { name: "", description: "" },
+
+            // Affiliate Shop
+            affiliateProducts: [],
+            loadingProducts: false,
+            productsError: null,
+            showProductModal: false,
+            editingProduct: null,
+            submittingProduct: false,
+            productFormError: null,
+            productForm: {
+                name: "",
+                description: "",
+                price: "",
+                original_price: "",
+                affiliate_url: "",
+                platform_name: "Shopee",
+                is_active: true,
+                image: null,
+            },
+            productImagePreview: null,
  
             // Courts tab
             courts: [],
@@ -2278,6 +2679,9 @@ export default {
                 { key: "approvals", label: "Yêu cầu quy mô" },
                 { key: "location", label: "Yêu cầu vị trí" },
             ];
+            if (!this.isClusterLocked) {
+                list.push({ key: "affiliate_shop", label: "Cửa hàng liên kết" });
+            }
             if (this.isClusterLocked) {
                 list.push({ key: "unlock", label: "Yêu cầu mở khóa" });
             }
@@ -2518,6 +2922,9 @@ export default {
             this.unlockForm.reason = "";
             // Load location requests ngay để hiển thị badge đúng
             this.fetchLocationRequests(cluster.id);
+            if (cluster && cluster.status !== "locked") {
+                this.fetchAffiliateProducts(cluster.id);
+            }
             this.$nextTick(() => this.initMap());
         },
 
@@ -4044,6 +4451,125 @@ export default {
         formatDate(val) {
             if (!val) return "—";
             return new Date(val).toLocaleString("vi-VN");
+        },
+
+        async fetchAffiliateProducts(clusterId) {
+            this.loadingProducts = true;
+            this.productsError = null;
+            try {
+                const res = await affiliateProductService.listForOwner(clusterId);
+                this.affiliateProducts = res.data || [];
+            } catch (err) {
+                this.productsError = err.message || "Không thể tải danh sách sản phẩm.";
+            } finally {
+                this.loadingProducts = false;
+            }
+        },
+
+        openCreateProductModal() {
+            this.editingProduct = null;
+            this.productFormError = null;
+            this.productForm = {
+                name: "",
+                description: "",
+                price: "",
+                original_price: "",
+                affiliate_url: "",
+                platform_name: "Shopee",
+                is_active: true,
+                image: null,
+            };
+            this.productImagePreview = null;
+            this.showProductModal = true;
+        },
+
+        openEditProductModal(product) {
+            this.editingProduct = product;
+            this.productFormError = null;
+            this.productForm = {
+                name: product.name,
+                description: product.description || "",
+                price: product.price ? parseFloat(product.price) : "",
+                original_price: product.original_price ? parseFloat(product.original_price) : "",
+                affiliate_url: product.affiliate_url,
+                platform_name: product.platform_name || "Shopee",
+                is_active: product.is_active !== false,
+                image: null,
+            };
+            this.productImagePreview = product.image_path ? this.imageUrl(product.image_path) : null;
+            this.showProductModal = true;
+        },
+
+        closeProductModal() {
+            this.showProductModal = false;
+            this.editingProduct = null;
+            this.productFormError = null;
+        },
+
+        handleProductImageChange(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            this.productForm.image = file;
+            this.productImagePreview = URL.createObjectURL(file);
+        },
+
+        async submitProductForm() {
+            if (!this.productForm.name || !this.productForm.affiliate_url) {
+                this.productFormError = "Vui lòng nhập đầy đủ các trường bắt buộc.";
+                return;
+            }
+            this.submittingProduct = true;
+            this.productFormError = null;
+            
+            const formData = new FormData();
+            formData.append("name", this.productForm.name);
+            formData.append("description", this.productForm.description || "");
+            if (this.productForm.price !== "" && this.productForm.price !== null && this.productForm.price !== undefined) {
+                formData.append("price", this.productForm.price);
+            }
+            if (this.productForm.original_price !== "" && this.productForm.original_price !== null && this.productForm.original_price !== undefined) {
+                formData.append("original_price", this.productForm.original_price);
+            }
+            formData.append("affiliate_url", this.productForm.affiliate_url);
+            formData.append("platform_name", this.productForm.platform_name);
+            formData.append("is_active", this.productForm.is_active ? "1" : "0");
+            
+            if (this.productForm.image) {
+                formData.append("image", this.productForm.image);
+            }
+
+            try {
+                if (this.editingProduct) {
+                    await affiliateProductService.update(this.editingProduct.id, formData);
+                } else {
+                    await affiliateProductService.create(this.selectedCluster.id, formData);
+                }
+                this.closeProductModal();
+                this.fetchAffiliateProducts(this.selectedCluster.id);
+            } catch (err) {
+                this.productFormError = err.message || "Có lỗi xảy ra khi lưu sản phẩm.";
+            } finally {
+                this.submittingProduct = false;
+            }
+        },
+
+        async handleDeleteProduct(productId) {
+            if (!confirm("Bạn có chắc chắn muốn xóa sản phẩm tiếp thị này?")) return;
+            try {
+                await affiliateProductService.delete(productId);
+                this.fetchAffiliateProducts(this.selectedCluster.id);
+            } catch (err) {
+                alert(err.message || "Không thể xóa sản phẩm.");
+            }
+        },
+
+        async handleToggleProductStatus(productId) {
+            try {
+                await affiliateProductService.toggleStatus(productId);
+                this.fetchAffiliateProducts(this.selectedCluster.id);
+            } catch (err) {
+                alert(err.message || "Không thể cập nhật trạng thái.");
+            }
         },
     },
 };

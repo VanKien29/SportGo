@@ -107,4 +107,9 @@ class VenueCluster extends Model
             ->withPivot(['description', 'is_visible'])
             ->withTimestamps();
     }
+
+    public function affiliateProducts()
+    {
+        return $this->hasMany(AffiliateProduct::class, 'venue_cluster_id');
+    }
 }
