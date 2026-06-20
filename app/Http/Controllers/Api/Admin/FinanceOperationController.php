@@ -66,7 +66,7 @@ class FinanceOperationController extends Controller
         $query = Refund::query()
             ->with([
                 'payment:id,payment_code,booking_id,amount,method,payment_kind,status,gateway_txn_id',
-                'booking:id,booking_code,customer_id,venue_cluster_id,total_price,status,booking_date,start_time,end_time,cancelled_at',
+                'booking:id,booking_code,customer_id,venue_cluster_id,total_price,status,booking_date,start_time,end_time,cancelled_at,walk_in_name,walk_in_phone',
                 'booking.customer:id,username,full_name,email,phone',
                 'booking.venueCluster:id,name,owner_id',
                 'payoutAccount:id,user_id,bank_name,bank_account_number,bank_account_holder,bank_branch,status',
@@ -113,9 +113,6 @@ class FinanceOperationController extends Controller
         $oldValues = $refund->toArray();
 
         $source = $data['source'] ?? 'admin';
-        if ($data['status'] === 'completed' && $source === 'admin') {
-            return response()->json(['message' => 'Không thể hoàn tất thủ công. Vui lòng đối soát tự động qua SePay.'], 422);
-        }
 
         try {
             $updated = $this->refunds->updateStatus($refund, $data['status'], [
@@ -143,40 +140,18 @@ class FinanceOperationController extends Controller
     {
         $this->authorizePermission($request, 'refund.approve');
 
-        try {
-            $payout = $this->sepayPayouts->refundQr($this->loadRefund($id));
-        } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
         return response()->json([
-            'message' => 'Đã tạo QR chuyển khoản hoàn tiền.',
-            'data' => $payout,
-        ]);
+            'message' => 'Hoàn tiền hiện được cộng trực tiếp vào ví SportGo của khách, không tạo QR chuyển khoản.',
+        ], 422);
     }
 
     public function checkRefundPayout(Request $request, string $id): JsonResponse
     {
         $this->authorizePermission($request, 'refund.approve');
 
-        try {
-            $result = $this->sepayPayouts->checkRefund($this->loadRefund($id), $request->user()?->id);
-        } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        $payload = [
-            'message' => $result['message'] ?? ($result['completed'] ? 'Đã đối soát hoàn tiền thành công.' : 'Chưa tìm thấy giao dịch phù hợp.'),
-            'completed' => (bool) ($result['completed'] ?? false),
-            'transaction' => $result['transaction'] ?? null,
-            'payout' => $result['payout'] ?? null,
-        ];
-
-        if ($payload['completed']) {
-            $payload['data'] = $this->refundPayload($this->loadRefund($id));
-        }
-
-        return response()->json($payload);
+        return response()->json([
+            'message' => 'Hoàn tiền hiện xử lý vào ví khách hàng, không đối soát giao dịch chuyển khoản.',
+        ], 422);
     }
 
     public function withdrawals(Request $request): JsonResponse
@@ -366,44 +341,10 @@ class FinanceOperationController extends Controller
     public function exportRefunds(Request $request): Response|JsonResponse
     {
         $this->authorizePermission($request, 'refund.approve');
-        $data = $request->validate([
-            'ids' => ['required', 'array', 'min:1', 'max:500'],
-            'ids.*' => ['required', 'uuid', 'distinct'],
-        ]);
 
-        $refunds = Refund::query()
-            ->with(['payment:id,payment_code', 'payoutAccount'])
-            ->whereIn('id', $data['ids'])
-            ->get();
-
-        $refunds->each(fn(Refund $refund): ?UserPayoutAccount => $this->resolveRefundPayoutAccount($refund, true));
-        $refunds->load('payoutAccount');
-
-        $invalid = $refunds->count() !== count($data['ids'])
-            || $refunds->contains(fn(Refund $refund): bool => ! in_array($refund->status, $this->refundPayableStatuses(), true)
-                || $refund->refund_destination !== 'bank_account'
-                || ! $refund->payoutAccount
-                || $refund->payoutAccount->status !== 'active');
-
-        if ($invalid) {
-            return response()->json(['message' => 'Chỉ được export các yêu cầu hoàn tiền đang chờ chuyển khoản và có tài khoản nhận tiền hợp lệ.'], 422);
-        }
-
-        $rows = $refunds->values()->map(fn(Refund $refund): array => [
-            'account_number' => (string) $refund->payoutAccount?->bank_account_number,
-            'account_holder_name' => (string) $refund->payoutAccount?->bank_account_holder,
-            'bank_code' => '',
-            'bank_name' => (string) $refund->payoutAccount?->bank_name,
-            'amount' => (int) $refund->amount,
-            'content' => $this->sepayPayouts->ensureRefundTransferCode($refund),
-        ]);
-
-        $batchCode = 'MBREFUND-' . now()->format('YmdHis');
-
-        return response($this->mbBulkExport->buildRows($rows), 200, [
-            'Content-Disposition' => 'attachment; filename="' . $batchCode . '.xlsx"',
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ]);
+        return response()->json([
+            'message' => 'Hoàn tiền được xử lý vào ví SportGo của khách nên không export chuyển khoản ngân hàng.',
+        ], 422);
     }
 
     private function applyRefundFilters($query, array $data): void
@@ -477,7 +418,7 @@ class FinanceOperationController extends Controller
     {
         return Refund::query()->with([
             'payment:id,payment_code,booking_id,amount,method,payment_kind,status,gateway_txn_id',
-            'booking:id,booking_code,customer_id,venue_cluster_id,total_price,status,booking_date,start_time,end_time,cancelled_at',
+            'booking:id,booking_code,customer_id,venue_cluster_id,total_price,status,booking_date,start_time,end_time,cancelled_at,walk_in_name,walk_in_phone',
             'booking.customer:id,username,full_name,email,phone',
             'booking.venueCluster:id,name,owner_id',
             'payoutAccount',
@@ -501,31 +442,21 @@ class FinanceOperationController extends Controller
 
     private function refundPayload(Refund $refund): array
     {
-        $payoutAccount = $this->resolveRefundPayoutAccount($refund);
-        $destination = match ($refund->refund_destination) {
-            'bank_account' => [
-                'type' => 'bank_account',
-                'label' => $payoutAccount?->bank_name,
-                'account_number' => $payoutAccount?->bank_account_number,
-                'account_holder' => $payoutAccount?->bank_account_holder,
-            ],
-            'user_wallet' => ['type' => 'user_wallet', 'label' => 'Ví SportGo'],
-            default => $payoutAccount
-                ? [
-                    'type' => 'bank_account',
-                    'label' => $payoutAccount->bank_name,
-                    'account_number' => $payoutAccount->bank_account_number,
-                    'account_holder' => $payoutAccount->bank_account_holder,
-                    'source' => 'customer_default',
-                ]
-                : ['type' => 'original_payment', 'label' => 'Phương thức gốc: ' . strtoupper((string) $refund->payment?->method)],
-        };
+        $destination = ['type' => 'user_wallet', 'label' => 'Ví SportGo'];
+        $customer = $this->refundCustomerPayload($refund);
+        $policyEvaluation = $this->formatPolicyEvaluation($this->refundPolicies->evaluate($refund));
+        $hasWalletRecipient = (bool) (
+            $refund->customer_id
+            ?: $refund->booking?->customer_id
+            ?: $refund->booking?->walk_in_phone
+        );
+        $walletBlockedReason = $this->walletRefundBlockedReason($refund, $policyEvaluation, $hasWalletRecipient);
 
         return [
             'id' => $refund->id,
             'booking' => $refund->booking,
             'payment' => $refund->payment,
-            'customer' => $refund->booking?->customer,
+            'customer' => $customer,
             'venue_cluster' => $refund->booking?->venueCluster,
             'amount' => $refund->amount,
             'reason' => $refund->reason,
@@ -548,11 +479,73 @@ class FinanceOperationController extends Controller
             'processed_at' => $refund->processed_at,
             'created_at' => $refund->created_at,
             'receipt' => $this->receiptPayload($refund->receipt),
-            'policy_evaluation' => $this->formatPolicyEvaluation($this->refundPolicies->evaluate($refund)),
-            'can_pay_by_qr' => in_array($refund->status, $this->refundPayableStatuses(), true)
-                && $payoutAccount !== null,
+            'policy_evaluation' => $policyEvaluation,
+            'can_pay_by_qr' => false,
+            'can_complete_wallet_refund' => $walletBlockedReason === null
+                && in_array($refund->status, $this->refundPayableStatuses(), true),
+            'wallet_refund_blocked_reason' => $walletBlockedReason,
             'allowed_statuses' => [],
         ];
+    }
+
+    private function walletRefundBlockedReason(Refund $refund, array $policyEvaluation, bool $hasWalletRecipient): ?string
+    {
+        if (! $hasWalletRecipient) {
+            return 'Booking tại quầy chưa có tài khoản hoặc số điện thoại khách hàng để hoàn vào ví SportGo.';
+        }
+
+        if ((float) $refund->amount <= 0) {
+            return 'Số tiền hoàn phải lớn hơn 0đ.';
+        }
+
+        if (($policyEvaluation['compliant'] ?? null) === false) {
+            return $policyEvaluation['warning'] ?: 'Số tiền hoàn đang vượt mức chính sách hiện tại.';
+        }
+
+        $detail = $policyEvaluation['detail'] ?? null;
+        if (is_array($detail)) {
+            $refundPercent = $detail['refund_percent'] ?? null;
+            $suggestedAmount = $detail['suggested_amount'] ?? null;
+
+            if ($refundPercent !== null && (float) $refundPercent <= 0) {
+                return 'Chính sách hiện tại cho hoàn 0đ.';
+            }
+
+            if ($suggestedAmount !== null && (float) $suggestedAmount <= 0) {
+                return 'Chính sách hiện tại cho hoàn tối đa 0đ.';
+            }
+        }
+
+        return null;
+    }
+
+    private function refundCustomerPayload(Refund $refund): ?array
+    {
+        $customer = $refund->booking?->customer;
+
+        if ($customer) {
+            return [
+                'id' => $customer->id,
+                'username' => $customer->username,
+                'full_name' => $customer->full_name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'is_walk_in' => false,
+            ];
+        }
+
+        if ($refund->booking?->walk_in_name || $refund->booking?->walk_in_phone) {
+            return [
+                'id' => null,
+                'username' => null,
+                'full_name' => $refund->booking->walk_in_name ?: 'Khách tại quầy',
+                'email' => null,
+                'phone' => $refund->booking->walk_in_phone,
+                'is_walk_in' => true,
+            ];
+        }
+
+        return null;
     }
 
     private function resolveRefundPayoutAccount(Refund $refund, bool $persist = false): ?UserPayoutAccount
@@ -662,6 +655,7 @@ class FinanceOperationController extends Controller
             'summary' => $raw['summary'] ?? null,
             'warning' => $raw['warning'] ?? null,
             'source' => $raw['source'] ?? null,
+            'is_owner_fault_refund' => (bool) ($raw['is_owner_fault_refund'] ?? false),
             'detail' => null,
             'violations' => [],
         ]);
@@ -681,6 +675,7 @@ class FinanceOperationController extends Controller
                     'venue_policy_rule' => 'Chính sách cụm sân',
                     'system_policy_rule' => 'Chính sách hệ thống',
                     'booking_config' => 'Cấu hình đặt sân',
+                    'owner_fault_100' => 'Hoàn 100% do lỗi phía sân',
                     default => null,
                 },
             ];

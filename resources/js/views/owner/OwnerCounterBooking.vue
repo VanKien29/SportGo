@@ -934,19 +934,80 @@
                     </div>
                 </dl>
 
-                <div v-if="recurringPreview.length" class="preview-dates">
-                    <strong>Các buổi sẽ tạo</strong>
-                    <div class="preview-list">
-                        <span
-                            v-for="date in recurringPreview.slice(0, 18)"
-                            :key="date"
-                            >{{ formatDate(date) }}</span
-                        >
-                    </div>
-                </div>
-                <small v-if="recurringPreview.length > 18"
-                    >Còn {{ recurringPreview.length - 18 }} buổi khác.</small
+                <div
+                    v-if="recurringPreview.length"
+                    class="recurring-preview-panel"
                 >
+                    <div class="preview-panel-head">
+                        <strong>Kiểm tra chuỗi lịch</strong>
+                        <span v-if="recurringPreviewLoading"
+                            >Đang kiểm tra...</span
+                        >
+                        <span v-else-if="recurringPreviewResult"
+                            >Đã kiểm tra</span
+                        >
+                        <span v-else>Chưa kiểm tra</span>
+                    </div>
+
+                    <div class="preview-stat-grid">
+                        <div>
+                            <span>Tổng buổi</span>
+                            <strong>{{ recurringPreviewStats.total }}</strong>
+                        </div>
+                        <div class="ok">
+                            <span>Trống</span>
+                            <strong>{{
+                                recurringPreviewStats.available
+                            }}</strong>
+                        </div>
+                        <div
+                            :class="{ danger: recurringPreviewStats.conflict }"
+                        >
+                            <span>Trùng</span>
+                            <strong>{{
+                                recurringPreviewStats.conflict
+                            }}</strong>
+                        </div>
+                    </div>
+
+                    <p v-if="recurringPreviewError" class="preview-warning">
+                        {{ recurringPreviewError }}
+                    </p>
+
+                    <div class="recurring-preview-list">
+                        <article
+                            v-for="row in recurringPreviewRows.slice(0, 18)"
+                            :key="row.date"
+                            :class="`status-${row.status}`"
+                        >
+                            <div>
+                                <strong
+                                    >{{ row.weekday }} · {{ row.label }}</strong
+                                >
+                                <small v-if="row.status === 'conflict'">
+                                    {{ row.conflicts.length }} khung trùng, bấm
+                                    tạo để chọn cách xử lý
+                                </small>
+                                <small v-else-if="row.status === 'available'">
+                                    Các khung đã chọn còn trống
+                                </small>
+                                <small v-else> Chờ kiểm tra từ hệ thống </small>
+                            </div>
+                            <span>
+                                {{
+                                    row.status === "conflict"
+                                        ? "Trùng"
+                                        : row.status === "available"
+                                          ? "Trống"
+                                          : "Chờ"
+                                }}
+                            </span>
+                        </article>
+                    </div>
+                    <small v-if="recurringPreviewRows.length > 18">
+                        Còn {{ recurringPreviewRows.length - 18 }} buổi khác.
+                    </small>
+                </div>
             </aside>
         </section>
 
@@ -1075,6 +1136,36 @@
                                     {{ formatDate(group.start_date) }} -
                                     {{ formatDate(group.end_date) }}
                                 </small>
+                                <div class="fixed-date-chips">
+                                    <span
+                                        v-for="occurrence in recurringGroupDateChips(
+                                            group,
+                                        )"
+                                        :key="
+                                            occurrence.booking_id ||
+                                            occurrence.booking_date
+                                        "
+                                        :class="occurrenceChipClass(occurrence)"
+                                        :title="occurrenceChipTitle(occurrence)"
+                                    >
+                                        {{
+                                            formatShortDate(
+                                                occurrence.booking_date,
+                                            )
+                                        }}
+                                    </span>
+                                    <em
+                                        v-if="
+                                            recurringGroupHiddenDateCount(
+                                                group,
+                                            ) > 0
+                                        "
+                                    >
+                                        +{{
+                                            recurringGroupHiddenDateCount(group)
+                                        }}
+                                    </em>
+                                </div>
                             </td>
                             <td>
                                 <strong>{{
@@ -1150,51 +1241,118 @@
                         </button>
                     </div>
 
-                    <div class="detail-hero">
-                        <div>
-                            <span>Khách hàng</span>
-                            <strong>{{
-                                recurringGroupCustomer(recurringGroupDetail)
-                            }}</strong>
-                            <small>{{
-                                recurringGroupPhone(recurringGroupDetail)
-                            }}</small>
-                        </div>
-                        <span
-                            class="status-badge"
-                            :class="{
-                                'tone-paid':
-                                    Number(
-                                        recurringGroupDetail.outstanding_amount ||
-                                            0,
-                                    ) <= 0,
-                                'tone-pending':
-                                    Number(
-                                        recurringGroupDetail.outstanding_amount ||
-                                            0,
-                                    ) > 0,
-                            }"
-                        >
-                            {{
-                                Number(
-                                    recurringGroupDetail.outstanding_amount ||
-                                        0,
-                                ) <= 0
-                                    ? "Đã thu đủ"
-                                    : "Còn phải thu"
-                            }}
-                        </span>
-                    </div>
+                    <div class="recurring-detail-body">
+                        <div class="recurring-detail-main">
+                            <div class="detail-hero">
+                                <div>
+                                    <span>Khách hàng</span>
+                                    <strong>{{
+                                        recurringGroupCustomer(
+                                            recurringGroupDetail,
+                                        )
+                                    }}</strong>
+                                    <small>{{
+                                        recurringGroupPhone(
+                                            recurringGroupDetail,
+                                        )
+                                    }}</small>
+                                </div>
+                                <span
+                                    class="status-badge"
+                                    :class="{
+                                        'tone-paid':
+                                            Number(
+                                                recurringGroupDetail.outstanding_amount ||
+                                                    0,
+                                            ) <= 0,
+                                        'tone-pending':
+                                            Number(
+                                                recurringGroupDetail.outstanding_amount ||
+                                                    0,
+                                            ) > 0,
+                                    }"
+                                >
+                                    {{
+                                        Number(
+                                            recurringGroupDetail.outstanding_amount ||
+                                                0,
+                                        ) <= 0
+                                            ? "Đã thu đủ"
+                                            : "Còn phải thu"
+                                    }}
+                                </span>
+                            </div>
 
-                    <dl class="summary-list confirm-summary">
-                        <div
-                            v-for="[label, value] in recurringGroupDetailRows"
-                            :key="label"
-                        >
-                            <dt>{{ label }}</dt>
-                            <dd>{{ value }}</dd>
+                            <dl class="summary-list confirm-summary">
+                                <div
+                                    v-for="[
+                                        label,
+                                        value,
+                                    ] in recurringGroupDetailRows"
+                                    :key="label"
+                                >
+                                    <dt>{{ label }}</dt>
+                                    <dd>{{ value }}</dd>
+                                </div>
+                            </dl>
                         </div>
-                    </dl>
+
+                        <section
+                            v-if="recurringGroupDetail.occurrences?.length"
+                            class="recurring-occurrence-panel"
+                        >
+                            <div class="occurrence-head">
+                                <strong>Các buổi trong chuỗi</strong>
+                                <span>
+                                    {{
+                                        recurringGroupDetail.occurrences.length
+                                    }}
+                                    buổi
+                                    <template
+                                        v-if="
+                                            recurringGroupIssueCount(
+                                                recurringGroupDetail,
+                                            )
+                                        "
+                                    >
+                                        ·
+                                        {{
+                                            recurringGroupIssueCount(
+                                                recurringGroupDetail,
+                                            )
+                                        }}
+                                        buổi bị hủy/ảnh hưởng
+                                    </template>
+                                </span>
+                            </div>
+                            <div class="occurrence-list">
+                                <article
+                                    v-for="occurrence in recurringGroupDetail.occurrences"
+                                    :key="occurrence.booking_id"
+                                    :class="occurrenceCardClass(occurrence)"
+                                >
+                                    <div>
+                                        <strong>
+                                            {{
+                                                formatDate(
+                                                    occurrence.booking_date,
+                                                )
+                                            }}
+                                        </strong>
+                                        <small>
+                                            {{ occurrenceTimeText(occurrence) }}
+                                        </small>
+                                        <small v-if="occurrence.status_reason">
+                                            {{ occurrence.status_reason }}
+                                        </small>
+                                    </div>
+                                    <span>{{
+                                        occurrenceStatusLabel(occurrence)
+                                    }}</span>
+                                </article>
+                            </div>
+                        </section>
+                    </div>
 
                     <div class="modal-actions">
                         <button
@@ -1484,7 +1642,9 @@
                                     Bỏ booking ngày này
                                 </option>
                                 <option
-                                    v-for="court in conflict.alternatives"
+                                    v-for="court in conflictAlternativeCourts(
+                                        conflict,
+                                    )"
                                     :key="court.id"
                                     :value="court.id"
                                 >
@@ -1496,7 +1656,10 @@
                                     }}
                                 </option>
                             </select>
-                            <small v-if="!conflict.alternatives?.length"
+                            <small
+                                v-if="
+                                    !conflictAlternativeCourts(conflict).length
+                                "
                                 >Không có sân thay thế trống trong khung
                                 này.</small
                             >
@@ -1509,7 +1672,7 @@
                             type="button"
                             @click="closeRecurringConflict"
                         >
-                            Hủy toàn bộ
+                            Quay lại
                         </button>
                         <button
                             class="secondary-btn"
@@ -1669,6 +1832,11 @@ export default {
             voucherError: "",
             voucherRequestId: 0,
             recurringConflict: null,
+            recurringPreviewLoading: false,
+            recurringPreviewResult: null,
+            recurringPreviewError: "",
+            recurringPreviewTimer: null,
+            recurringPreviewRequestId: 0,
             conflictSelections: {},
             contactTouched: {
                 name: false,
@@ -2199,6 +2367,58 @@ export default {
 
             return dates;
         },
+        recurringPreviewConflictMap() {
+            return (this.recurringPreviewResult?.conflicts || []).reduce(
+                (result, conflict) => {
+                    const date = conflict.date;
+                    if (!date) return result;
+                    if (!result[date]) result[date] = [];
+                    result[date].push(conflict);
+                    return result;
+                },
+                {},
+            );
+        },
+        recurringPreviewRows() {
+            const backendDates =
+                this.recurringPreviewResult?.dates?.length &&
+                this.sameDateSet(
+                    this.recurringPreviewResult.dates,
+                    this.recurringPreview,
+                )
+                    ? this.recurringPreviewResult.dates
+                    : this.recurringPreview;
+
+            return backendDates.map((date) => {
+                const conflicts = this.recurringPreviewConflictMap[date] || [];
+
+                return {
+                    date,
+                    label: this.formatDate(date),
+                    weekday: this.weekdayLabel(date),
+                    status: conflicts.length
+                        ? "conflict"
+                        : this.recurringPreviewResult
+                          ? "available"
+                          : "pending",
+                    conflicts,
+                };
+            });
+        },
+        recurringPreviewStats() {
+            const total = this.recurringPreviewRows.length;
+            const conflict = this.recurringPreviewRows.filter(
+                (row) => row.status === "conflict",
+            ).length;
+
+            return {
+                total,
+                available: this.recurringPreviewResult
+                    ? Math.max(total - conflict, 0)
+                    : 0,
+                conflict,
+            };
+        },
         normalizedWalkInName() {
             return String(this.form.walk_in_name || "")
                 .trim()
@@ -2256,25 +2476,42 @@ export default {
         "form.recurring_start_date"() {
             if (this.activeTab === "recurring")
                 this.handleRecurringStartDateChange();
+            this.queueRecurringPreview();
         },
         "form.recurring_end_date"() {
-            if (this.activeTab === "recurring") this.syncRecurringEndDate();
+            if (this.activeTab === "recurring") {
+                this.syncRecurringEndDate();
+                this.queueRecurringPreview();
+            }
         },
         "form.recurrence_type"() {
             if (this.activeTab === "recurring") this.clearVoucherSelection();
+            this.queueRecurringPreview();
         },
         "form.recurrence_interval"() {
             if (this.activeTab === "recurring") this.clearVoucherSelection();
+            this.queueRecurringPreview();
         },
         "form.recurrence_days_of_week": {
             deep: true,
             handler() {
                 if (this.activeTab === "recurring")
                     this.clearVoucherSelection();
+                this.queueRecurringPreview();
             },
         },
         monthDaysInput() {
             if (this.activeTab === "recurring") this.clearVoucherSelection();
+            this.queueRecurringPreview();
+        },
+        selectedSlotKeys: {
+            deep: true,
+            handler() {
+                this.queueRecurringPreview();
+            },
+        },
+        activeTab() {
+            this.queueRecurringPreview();
         },
     },
     async created() {
@@ -2282,8 +2519,67 @@ export default {
     },
     beforeUnmount() {
         this.clearCounterQrPolling();
+        clearTimeout(this.recurringPreviewTimer);
     },
     methods: {
+        sameDateSet(a = [], b = []) {
+            if (a.length !== b.length) return false;
+            return [...a].sort().join("|") === [...b].sort().join("|");
+        },
+        weekdayLabel(date) {
+            const parsed = this.parseDate(date);
+            if (!parsed) return "";
+
+            return (
+                this.weekDays.find((day) => day.value === this.dayIndex(parsed))
+                    ?.label || ""
+            );
+        },
+        queueRecurringPreview(delay = 260) {
+            clearTimeout(this.recurringPreviewTimer);
+
+            if (this.activeTab !== "recurring") return;
+
+            this.recurringPreviewTimer = setTimeout(
+                () => this.loadRecurringPreview(),
+                delay,
+            );
+        },
+        async loadRecurringPreview() {
+            if (
+                this.activeTab !== "recurring" ||
+                !this.hasCounterSelection ||
+                !this.recurringPreview.length
+            ) {
+                this.recurringPreviewResult = null;
+                this.recurringPreviewError = "";
+                this.recurringPreviewLoading = false;
+                return;
+            }
+
+            const requestId = ++this.recurringPreviewRequestId;
+            this.recurringPreviewLoading = true;
+            this.recurringPreviewError = "";
+
+            try {
+                const response = await ownerBookingService.previewRecurring(
+                    this.recurringPayload(),
+                );
+                if (requestId !== this.recurringPreviewRequestId) return;
+
+                this.recurringPreviewResult = response.data || response;
+            } catch (error) {
+                if (requestId !== this.recurringPreviewRequestId) return;
+
+                this.recurringPreviewResult = null;
+                this.recurringPreviewError =
+                    error.message || "Chưa kiểm tra được lịch cố định.";
+            } finally {
+                if (requestId === this.recurringPreviewRequestId) {
+                    this.recurringPreviewLoading = false;
+                }
+            }
+        },
         async setActiveTab(tab) {
             this.activeTab = tab;
             this.error = "";
@@ -3029,11 +3325,27 @@ export default {
         openRecurringConflict(data) {
             const selections = {};
             (data.conflicts || []).forEach((conflict) => {
-                selections[conflict.date] =
-                    conflict.alternatives?.[0]?.id || "skip";
+                const alternatives = this.conflictAlternativeCourts(conflict);
+                selections[conflict.date] = alternatives?.[0]?.id || "skip";
             });
             this.recurringConflict = data;
             this.conflictSelections = selections;
+        },
+        conflictAlternativeCourts(conflict) {
+            const currentCourtTypeId = conflict?.current_court?.court_type?.id;
+            const alternatives = Array.isArray(conflict?.alternatives)
+                ? conflict.alternatives
+                : [];
+
+            if (!currentCourtTypeId) {
+                return alternatives;
+            }
+
+            return alternatives.filter(
+                (court) =>
+                    String(court?.court_type?.id) ===
+                    String(currentCourtTypeId),
+            );
         },
         closeRecurringConflict() {
             this.recurringConflict = null;
@@ -3671,6 +3983,98 @@ export default {
                 )
                 .join(" · ");
         },
+        recurringGroupDateChips(group, limit = 6) {
+            return (group?.occurrences || []).slice(0, limit);
+        },
+        recurringGroupHiddenDateCount(group, limit = 6) {
+            return Math.max((group?.occurrences || []).length - limit, 0);
+        },
+        recurringGroupIssueCount(group) {
+            return (group?.occurrences || []).filter(
+                (occurrence) =>
+                    occurrence.status === "cancelled" ||
+                    Number(occurrence.cancelled_item_count || 0) > 0,
+            ).length;
+        },
+        occurrenceChipClass(occurrence) {
+            const isPartial =
+                occurrence.status !== "cancelled" &&
+                Number(occurrence.cancelled_item_count || 0) > 0 &&
+                Number(occurrence.active_item_count || 0) > 0;
+
+            return {
+                issue:
+                    !isPartial &&
+                    (occurrence.status === "cancelled" ||
+                        Number(occurrence.cancelled_item_count || 0) > 0),
+                partial: isPartial,
+            };
+        },
+        occurrenceChipTitle(occurrence) {
+            return `${this.formatDate(occurrence.booking_date)} · ${this.occurrenceStatusLabel(occurrence)}`;
+        },
+        occurrenceCardClass(occurrence) {
+            return {
+                cancelled:
+                    occurrence.status === "cancelled" ||
+                    Number(occurrence.active_item_count || 0) === 0,
+                partial:
+                    Number(occurrence.cancelled_item_count || 0) > 0 &&
+                    Number(occurrence.active_item_count || 0) > 0,
+            };
+        },
+        occurrenceStatusLabel(occurrence) {
+            if (occurrence.status === "cancelled") {
+                return occurrence.has_cancelled_by_maintenance
+                    ? "Hủy do khóa sân"
+                    : "Đã hủy";
+            }
+
+            if (
+                Number(occurrence.cancelled_item_count || 0) > 0 &&
+                Number(occurrence.active_item_count || 0) > 0
+            ) {
+                return "Hủy một phần";
+            }
+
+            if (Number(occurrence.cancelled_item_count || 0) > 0) {
+                return occurrence.has_cancelled_by_maintenance
+                    ? "Hủy do khóa sân"
+                    : "Đã hủy";
+            }
+
+            const labels = {
+                pending_payment: "Chờ thanh toán",
+                confirmed: "Đã xác nhận",
+                checked_in: "Đã check-in",
+                completed: "Hoàn thành",
+                pending_approval: "Chờ duyệt",
+            };
+
+            return labels[occurrence.status] || "Hoạt động";
+        },
+        occurrenceTimeText(occurrence) {
+            const items = Array.isArray(occurrence?.items)
+                ? occurrence.items
+                : [];
+
+            if (!items.length) {
+                return `${this.formatTime(occurrence?.start_time)} - ${this.formatTime(occurrence?.end_time)}`;
+            }
+
+            return items
+                .map((item) => {
+                    const time = `${this.formatTime(item.start_time)} - ${this.formatTime(item.end_time)}`;
+                    const status = String(item.status || "active").startsWith(
+                        "cancelled_",
+                    )
+                        ? " · hủy"
+                        : "";
+
+                    return `${item.court_name || "Sân"} ${time}${status}`;
+                })
+                .join(" · ");
+        },
         recurringGroupTimeText(group) {
             const ranges = Array.isArray(group?.time_ranges)
                 ? group.time_ranges
@@ -3910,6 +4314,14 @@ export default {
             if (!date) return "-";
             return new Intl.DateTimeFormat("vi-VN").format(date);
         },
+        formatShortDate(value) {
+            const date = this.parseDate(value);
+            if (!date) return "-";
+            return new Intl.DateTimeFormat("vi-VN", {
+                day: "2-digit",
+                month: "2-digit",
+            }).format(date);
+        },
         formatCurrency(amount) {
             return new Intl.NumberFormat("vi-VN", {
                 style: "currency",
@@ -4043,6 +4455,142 @@ export default {
     line-height: 1.35;
 }
 
+.fixed-date-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 8px;
+}
+
+.fixed-date-chips span,
+.fixed-date-chips em {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 22px;
+    border-radius: 999px;
+    padding: 3px 7px;
+    background: #ecfdf5;
+    color: #15803d;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.fixed-date-chips span.issue {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.fixed-date-chips span.partial {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.fixed-date-chips em {
+    background: #eef2f7;
+    color: #475569;
+}
+
+.recurring-occurrence-panel {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 10px;
+    min-height: 0;
+    padding: 12px;
+    border: 1px solid #d9e8d9;
+    border-radius: 9px;
+    background: #fbfefc;
+}
+
+.occurrence-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.occurrence-head strong {
+    color: #16231a;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.occurrence-head span {
+    color: #607267;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.occurrence-list {
+    display: grid;
+    align-content: start;
+    gap: 7px;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.occurrence-list article {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.occurrence-list article.cancelled {
+    border-color: #fecaca;
+    background: #fff7f7;
+}
+
+.occurrence-list article.partial {
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
+.occurrence-list article > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.occurrence-list strong {
+    color: #1f3326;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.occurrence-list small {
+    color: #607267;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.occurrence-list article > span {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    padding: 5px 9px;
+    background: #dcfce7;
+    color: #15803d;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.occurrence-list article.cancelled > span {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.occurrence-list article.partial > span {
+    background: #fef3c7;
+    color: #b45309;
+}
+
 .recurring-table-card strong.paid {
     color: #0f7a31;
 }
@@ -4155,7 +4703,26 @@ export default {
 }
 
 .recurring-detail-modal {
-    width: min(620px, 100%);
+    width: min(1100px, calc(100vw - 32px));
+    max-height: min(780px, calc(100vh - 40px));
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+}
+
+.recurring-detail-body {
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+    gap: 14px;
+    min-height: 0;
+}
+
+.recurring-detail-main {
+    display: grid;
+    align-content: start;
+    gap: 14px;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
 }
 
 .detail-hero {
@@ -4163,10 +4730,74 @@ export default {
     align-items: flex-start;
     justify-content: space-between;
     gap: 14px;
+    min-width: 0;
     padding: 12px;
     border: 1px solid #d9e8d9;
     border-radius: 8px;
     background: #f7fbf5;
+}
+
+.recurring-detail-modal .confirm-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    align-content: start;
+    max-height: none;
+    overflow: visible;
+}
+
+.recurring-detail-modal .confirm-summary div {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid #e1ece1;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.recurring-detail-modal .confirm-summary dt,
+.recurring-detail-modal .confirm-summary dd {
+    text-align: left;
+}
+
+.recurring-detail-modal .confirm-summary dd {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+}
+
+.recurring-detail-modal .modal-actions {
+    margin-top: 0;
+    padding-top: 12px;
+    border-top: 1px solid #e4eee4;
+}
+
+@media (max-width: 860px) {
+    .recurring-detail-modal {
+        width: min(720px, calc(100vw - 24px));
+        overflow: auto;
+    }
+
+    .recurring-detail-body {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+    }
+
+    .recurring-detail-main,
+    .occurrence-list {
+        overflow: visible;
+    }
+
+    .recurring-occurrence-panel {
+        min-height: 280px;
+    }
+}
+
+@media (max-width: 640px) {
+    .recurring-detail-modal .confirm-summary {
+        grid-template-columns: 1fr;
+    }
 }
 
 .detail-hero div {
@@ -4697,7 +5328,7 @@ input.invalid {
 }
 
 .conflict-modal {
-    width: min(760px, 100%);
+    width: min(900px, calc(100vw - 32px));
     max-height: min(720px, calc(100vh - 40px));
     display: grid;
     gap: 14px;
@@ -4797,7 +5428,7 @@ input.invalid {
 
 .conflict-list article {
     display: grid;
-    grid-template-columns: minmax(210px, 1fr) minmax(240px, 1fr);
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
     gap: 12px;
     align-items: center;
     padding: 12px;
@@ -4809,6 +5440,7 @@ input.invalid {
 .conflict-list article > div {
     display: grid;
     gap: 4px;
+    min-width: 0;
 }
 
 .conflict-list strong {
@@ -4822,10 +5454,23 @@ input.invalid {
     color: #607267;
     font-size: 12px;
     line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.conflict-list select {
+    min-width: 0;
+    width: 100%;
+}
+
+@media (max-width: 720px) {
+    .conflict-list article {
+        grid-template-columns: 1fr;
+    }
 }
 
 .modal-actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: 10px;
     padding-top: 8px;
@@ -5494,6 +6139,152 @@ input.invalid {
     text-transform: uppercase;
 }
 
+.recurring-preview-panel {
+    display: grid;
+    gap: 10px;
+    padding-top: 4px;
+}
+
+.preview-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.preview-panel-head strong {
+    color: #1f3326;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.preview-panel-head span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.preview-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.preview-stat-grid > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    padding: 9px;
+    border: 1px solid #dce8de;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.preview-stat-grid span {
+    color: #607267;
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.preview-stat-grid strong {
+    color: #16231a;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.preview-stat-grid .ok strong {
+    color: #15803d;
+}
+
+.preview-stat-grid .danger {
+    border-color: #fecaca;
+    background: #fff7f7;
+}
+
+.preview-stat-grid .danger strong {
+    color: #dc2626;
+}
+
+.preview-warning {
+    margin: 0;
+    padding: 9px 10px;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #9a3412;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.45;
+}
+
+.recurring-preview-list {
+    display: grid;
+    gap: 7px;
+    max-height: 260px;
+    overflow: auto;
+    padding-right: 2px;
+}
+
+.recurring-preview-list article {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 10px;
+    border: 1px solid #dfeade;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.recurring-preview-list article > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.recurring-preview-list strong {
+    color: #1f3326;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.recurring-preview-list small {
+    color: #607267;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.recurring-preview-list article > span {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    padding: 4px 8px;
+    background: #eef2f7;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.recurring-preview-list .status-available {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+}
+
+.recurring-preview-list .status-available > span {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.recurring-preview-list .status-conflict {
+    border-color: #fecaca;
+    background: #fff7f7;
+}
+
+.recurring-preview-list .status-conflict > span {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
 .preview-list {
     display: flex;
     flex-wrap: wrap;
@@ -5538,6 +6329,34 @@ input.invalid {
     border-color: #bfe8ca;
     background: #e8f7ec;
     color: #216b34;
+}
+
+/* Keep this after the shared modal rules so the recurring detail modal
+   does not collapse back to the generic 520px confirm modal width. */
+.confirm-modal.recurring-detail-modal {
+    width: min(1100px, calc(100vw - 32px));
+    max-height: min(780px, calc(100vh - 40px));
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+}
+
+.confirm-modal.recurring-detail-modal .recurring-detail-body {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+}
+
+.confirm-modal.recurring-detail-modal .modal-actions {
+    flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+    .confirm-modal.recurring-detail-modal {
+        width: min(720px, calc(100vw - 24px));
+        overflow: auto;
+    }
+
+    .confirm-modal.recurring-detail-modal .recurring-detail-body {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 1080px) {

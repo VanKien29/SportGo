@@ -163,20 +163,16 @@ class OwnerBookingCancellationService
                     return;
                 }
 
-                $destination = $payment->method === 'wallet' && (float) ($payment->gateway_amount ?? 0) <= 0
-                    ? 'user_wallet'
-                    : 'original_payment';
-
                 $refund = Refund::query()->create([
                     'payment_id' => $payment->id,
                     'booking_id' => $booking->id,
                     'customer_id' => $booking->customer_id,
                     'amount' => $amount,
                     'reason' => $reason,
-                    'refund_destination' => $destination,
-                    'user_wallet_id' => $destination === 'user_wallet' ? $payment->user_wallet_id : null,
+                    'refund_destination' => 'user_wallet',
+                    'user_wallet_id' => $payment->user_wallet_id,
                     'status' => 'owner_confirmed',
-                    'status_reason' => 'Chủ sân hủy hoặc khóa lịch, yêu cầu hoàn 100% phần đã thanh toán.',
+                    'status_reason' => 'Chủ sân hủy hoặc khóa lịch, hoàn 100% phần bị ảnh hưởng vào ví SportGo của khách.',
                     'owner_confirmed_by' => $actor->id,
                     'owner_confirmed_at' => now(),
                     'owner_confirm_note' => $reason,

@@ -281,6 +281,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/bookings/recurring-groups', [OwnerBookingManagementController::class, 'recurringGroups']);
         Route::get('/bookings/eligible-vouchers', [OwnerBookingManagementController::class, 'eligibleVouchers']);
         Route::post('/bookings/counter', [OwnerBookingManagementController::class, 'storeCounter']);
+        Route::post('/bookings/recurring/preview', [OwnerBookingManagementController::class, 'previewRecurring']);
         Route::post('/bookings/recurring', [OwnerBookingManagementController::class, 'storeRecurring']);
         Route::post('/bookings/recurring-groups/{groupCode}/payments/collect', [OwnerBookingManagementController::class, 'collectRecurringGroupPayment']);
         Route::get('/bookings/{id}', [OwnerBookingManagementController::class, 'show']);
@@ -292,6 +293,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/bookings', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'index']);
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'show']);
         Route::post('/bookings/counter', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'storeCounter']);
+        Route::post('/bookings/recurring/preview', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'previewRecurring']);
         Route::post('/bookings/recurring', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'storeRecurring']);
         Route::patch('/bookings/{id}/status', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'updateStatus']);
         Route::patch('/bookings/{id}/court', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'changeCourt']);

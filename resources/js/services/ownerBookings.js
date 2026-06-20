@@ -50,6 +50,13 @@ export const ownerBookingService = {
     });
   },
 
+  previewRecurring(payload) {
+    return api('/api/owner/bookings/recurring/preview', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   collectPayment(id, payload) {
     return api(`/api/owner/bookings/${id}/payments/collect`, {
       method: 'POST',

@@ -129,6 +129,39 @@
                             </div>
                         </div>
 
+                        <section v-if="lockPreviewRows.length" class="lock-preview-panel">
+                            <div class="preview-headline">
+                                <div>
+                                    <strong>Preview áp dụng</strong>
+                                    <span>{{ lockPreviewStats.total }} lượt khóa</span>
+                                </div>
+                                <em v-if="lockPreviewStats.knownBusy">
+                                    {{ lockPreviewStats.knownBusy }} lượt đang bận ở ngày đang xem
+                                </em>
+                            </div>
+
+                            <div class="lock-preview-list">
+                                <article
+                                    v-for="row in lockPreviewRows.slice(0, 12)"
+                                    :key="row.key"
+                                    :class="{ busy: row.isBusy }"
+                                >
+                                    <div>
+                                        <strong>{{ row.dateLabel }}</strong>
+                                        <small>{{ row.courtName }} · {{ row.timeText }}</small>
+                                    </div>
+                                    <span>{{ row.statusLabel }}</span>
+                                </article>
+                            </div>
+
+                            <small v-if="lockPreviewRows.length > 12" class="preview-more">
+                                Còn {{ lockPreviewRows.length - 12 }} lượt khóa khác.
+                            </small>
+                            <p class="preview-note">
+                                Nếu khung giờ đang có booking, hệ thống sẽ hủy phần booking bị dính và tạo yêu cầu hoàn tiền nếu khách đã thanh toán.
+                            </p>
+                        </section>
+
                         <label>
                             Lý do khóa
                             <textarea
@@ -420,6 +453,67 @@ export default {
                 }))
                 .sort((a, b) => a.courtName.localeCompare(b.courtName));
         },
+        dateRangeDates() {
+            const start = new Date(`${this.form.start_date}T00:00:00`);
+            const end = new Date(`${this.form.end_date}T00:00:00`);
+            if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+                return [];
+            }
+
+            const dates = [];
+            for (let date = new Date(start); date <= end && dates.length <= 45; date.setDate(date.getDate() + 1)) {
+                dates.push(this.isoDate(date));
+            }
+
+            return dates;
+        },
+        lockTargetRanges() {
+            return this.form.lock_mode === "whole_day"
+                ? this.buildWholeDayRanges().map((range) => ({
+                      ...range,
+                      court_name:
+                          this.scheduleCourts.find((court) => court.id === range.venue_court_id)?.name ||
+                          "Sân",
+                  }))
+                : this.buildSelectedRanges().map((range) => ({
+                      ...range,
+                      court_name:
+                          this.selectedSlots.find((slot) => slot.venue_court_id === range.venue_court_id)
+                              ?.court_name ||
+                          this.scheduleCourts.find((court) => court.id === range.venue_court_id)?.name ||
+                          "Sân",
+                  }));
+        },
+        lockPreviewRows() {
+            return this.dateRangeDates.flatMap((date) =>
+                this.lockTargetRanges.map((range) => {
+                    const isStartDate = date === this.form.start_date;
+                    const representativeSlot = {
+                        start_time: range.start_time,
+                        end_time: range.end_time,
+                    };
+                    const isBusy = isStartDate
+                        ? this.isRangeBusy(range.venue_court_id, representativeSlot)
+                        : false;
+
+                    return {
+                        key: `${date}-${range.venue_court_id}-${range.start_time}-${range.end_time}`,
+                        date,
+                        dateLabel: this.date(date),
+                        courtName: range.court_name,
+                        timeText: `${this.time(range.start_time)} - ${this.time(range.end_time)}`,
+                        isBusy,
+                        statusLabel: isBusy ? "Đang có lịch" : isStartDate ? "Trống" : "Sẽ kiểm tra khi khóa",
+                    };
+                }),
+            );
+        },
+        lockPreviewStats() {
+            return {
+                total: this.lockPreviewRows.length,
+                knownBusy: this.lockPreviewRows.filter((row) => row.isBusy).length,
+            };
+        },
         activePeriod() {
             return (
                 this.quickRanges.find(
@@ -590,6 +684,21 @@ export default {
         isBusy(courtId, slot) {
             return !this.statusFor(courtId, slot)?.is_available;
         },
+        isRangeBusy(courtId, range) {
+            const start = this.minutes(range.start_time);
+            const end = this.minutes(range.end_time);
+
+            return this.scheduleSlotStatuses.some((status) => {
+                if (status.venue_court_id !== courtId || status.is_available) {
+                    return false;
+                }
+
+                const statusStart = this.minutes(status.start_time);
+                const statusEnd = this.minutes(status.end_time);
+
+                return statusStart < end && statusEnd > start;
+            });
+        },
         slotClass(courtId, slot) {
             const status = this.statusFor(courtId, slot);
             if (this.isSelected(courtId, slot)) return "selected";
@@ -696,6 +805,21 @@ export default {
         },
         time(value) {
             return (value || "").slice(0, 5);
+        },
+        minutes(value) {
+            const normalized = this.withSeconds(value || "00:00:00");
+            if (normalized.startsWith("24:00")) return 24 * 60;
+            const [hour, minute] = normalized
+                .slice(0, 5)
+                .split(":")
+                .map(Number);
+            return hour * 60 + minute;
+        },
+        isoDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            return `${year}-${month}-${day}`;
         },
         date(value) {
             if (!value) return "-";
@@ -1278,6 +1402,94 @@ export default {
     font-size: 12px;
     font-weight: 850;
     cursor: pointer;
+}
+.lock-preview-panel {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #d9e8d9;
+    border-radius: 10px;
+    background: #fbfefc;
+}
+.preview-headline {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+.preview-headline > div {
+    display: grid;
+    gap: 2px;
+}
+.preview-headline strong {
+    color: #16231a;
+    font-size: 13px;
+    font-weight: 900;
+}
+.preview-headline span,
+.preview-headline em {
+    color: #64748b;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 750;
+}
+.preview-headline em {
+    color: #b45309;
+}
+.lock-preview-list {
+    display: grid;
+    gap: 7px;
+    max-height: 220px;
+    overflow: auto;
+}
+.lock-preview-list article {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+}
+.lock-preview-list article.busy {
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+.lock-preview-list article > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+.lock-preview-list strong {
+    color: #1f2937;
+    font-size: 13px;
+    font-weight: 900;
+}
+.lock-preview-list small {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.35;
+}
+.lock-preview-list article > span {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    padding: 4px 8px;
+    background: #eef2ff;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 900;
+}
+.lock-preview-list article.busy > span {
+    background: #ffedd5;
+    color: #c2410c;
+}
+.preview-note,
+.preview-more {
+    margin: 0;
+    color: #607267;
+    font-size: 12px;
+    line-height: 1.45;
 }
 .slot-cell.selected {
     background: #10b981;

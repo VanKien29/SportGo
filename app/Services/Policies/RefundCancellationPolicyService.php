@@ -790,21 +790,7 @@ class RefundCancellationPolicyService
                 continue;
             }
 
-            $walletAmount = min((float) ($payment->wallet_amount ?? 0), (float) $payment->amount);
-            $gatewayAmount = max(0, (float) ($payment->gateway_amount ?? 0));
-
-            if ($walletAmount > 0 && $paymentRefundAmount > 0) {
-                $walletRefund = min($paymentRefundAmount, round($walletAmount * ((float) ($result['refund_percent'] ?? 0) / 100), 2));
-                if ($walletRefund > 0) {
-                    $created[] = $this->createRefundRow($booking, $payment, $walletRefund, 'user_wallet', $status, $result, $actor, $reason);
-                    $paymentRefundAmount -= $walletRefund;
-                }
-            }
-
-            if ($paymentRefundAmount > 0 || ($gatewayAmount > 0 && (float) ($payment->wallet_amount ?? 0) <= 0)) {
-                $destination = ($payment->method === 'wallet' && $gatewayAmount <= 0) ? 'user_wallet' : 'original_payment';
-                $created[] = $this->createRefundRow($booking, $payment, round($paymentRefundAmount, 2), $destination, $status, $result, $actor, $reason);
-            }
+            $created[] = $this->createRefundRow($booking, $payment, round($paymentRefundAmount, 2), 'user_wallet', $status, $result, $actor, $reason);
         }
 
         return collect($created)

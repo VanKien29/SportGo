@@ -188,6 +188,16 @@
               </tbody>
             </table>
           </div>
+          <div class="policy-rule-note" :class="{ disabled: !ownerFaultFullRefund.enabled }">
+            <div>
+              <span class="config-kicker">Trường hợp lỗi phía sân</span>
+              <strong>{{ ownerFaultFullRefund.rule_name }}</strong>
+              <p>{{ ownerFaultFullRefund.summary }}</p>
+            </div>
+            <span class="badge" :class="ownerFaultFullRefund.enabled ? 'status-active' : 'status-inactive'">
+              {{ ownerFaultFullRefund.enabled ? 'Đang bật' : 'Đang tắt' }}
+            </span>
+          </div>
         </article>
 
         <AdminModerationConfig v-else-if="configurationType === 'moderation_thresholds'" :policy-id="policy.id" :can-edit-config="canEditConfig" />
@@ -482,6 +492,13 @@
               Thêm mốc
             </button>
           </div>
+          <label class="owner-fault-config">
+            <input v-model="ownerFaultFullRefundDraft" type="checkbox" />
+            <span>
+              <strong>Hoàn 100% khi lỗi phát sinh từ phía sân</strong>
+              <small>Áp dụng cho chủ sân hủy, khóa sân hoặc bảo trì làm ảnh hưởng booking đã thanh toán; tiền hoàn vào ví SportGo của khách.</small>
+            </span>
+          </label>
           <article v-for="tier in cancelRefundDraft" :key="tier.key" class="config-edit-row">
             <div class="config-edit-grid cancel-grid">
               <label>
@@ -656,6 +673,7 @@ export default {
       reportModal: false,
       genericConfigModal: false,
       cancelRefundDraft: [],
+      ownerFaultFullRefundDraft: true,
       reportThresholdDraft: [],
       genericConfigDraft: {},
       confirmDelete: { show: false },
@@ -714,6 +732,15 @@ export default {
     },
     cancelRefundConfiguration() {
       return this.detail?.cancel_refund_tiers || null;
+    },
+    ownerFaultFullRefund() {
+      return this.cancelRefundConfiguration?.owner_fault_full_refund || {
+        enabled: true,
+        rule_name: 'Hoàn 100% khi chủ sân hủy/khóa/bảo trì',
+        refund_percent: 100,
+        refund_destination: 'user_wallet',
+        summary: 'Nếu booking bị ảnh hưởng do chủ sân hủy, khóa sân hoặc bảo trì, khách được hoàn 100% vào ví SportGo.',
+      };
     },
     moderationConfiguration() {
       return this.detail?.moderation_thresholds || this.detail?.report_configuration || null;
@@ -1071,6 +1098,7 @@ export default {
         require_admin_confirm: tier.require_admin_confirm !== false,
         customer_message: tier.customer_message || '',
       }));
+      this.ownerFaultFullRefundDraft = this.ownerFaultFullRefund.enabled !== false;
       this.cancelRefundModal = true;
     },
 
@@ -1110,6 +1138,7 @@ export default {
       this.error = '';
       try {
         await adminPolicyService.saveCancelRefundTiers(this.policy.id, {
+          owner_fault_full_refund_enabled: !!this.ownerFaultFullRefundDraft,
           tiers: this.sortedCancelRefundDraft.map((tier) => ({
             label: tier.label || this.dynamicTierLabel(tier),
             from_hours: Number(tier.from_hours),
@@ -1817,6 +1846,46 @@ export default {
 }
 .config-table th { background: #f8fafc; color: #334155; font-weight: 800; }
 .config-table tr:last-child td { border-bottom: 0; }
+.policy-rule-note,
+.owner-fault-config {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 14px;
+  background: #f0fdf4;
+}
+.policy-rule-note.disabled {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+.policy-rule-note strong,
+.owner-fault-config strong {
+  display: block;
+  margin: 4px 0 4px;
+  color: #14532d;
+}
+.policy-rule-note p,
+.owner-fault-config small {
+  display: block;
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.owner-fault-config {
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+}
+.owner-fault-config input {
+  width: 18px;
+  height: 18px;
+  accent-color: #16a34a;
+  flex: 0 0 auto;
+}
 .modal-box.wide { width: min(980px, calc(100vw - 32px)); }
 .edit-toolbar { display: flex; justify-content: flex-end; }
 .config-edit-row {

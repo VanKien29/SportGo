@@ -527,17 +527,28 @@ class AdminPolicyController extends Controller
             'tiers.*.require_owner_confirm' => ['nullable', 'boolean'],
             'tiers.*.require_admin_confirm' => ['nullable', 'boolean'],
             'tiers.*.customer_message' => ['nullable', 'string', 'max:500'],
+            'owner_fault_full_refund_enabled' => ['nullable', 'boolean'],
         ]);
 
         $tiers = $this->refundPolicies->validateSystemCancelRefundTiers($data['tiers']);
+        $ownerFaultEnabled = $data['owner_fault_full_refund_enabled'] ?? true;
 
-        $rule = DB::transaction(function () use ($request, $policy, $tiers): PolicyRule {
+        $rule = DB::transaction(function () use ($request, $policy, $tiers, $ownerFaultEnabled): PolicyRule {
             $policy->actionBindings()->updateOrCreate(
                 ['action_code' => 'booking.cancel_by_customer'],
                 [
                     'module' => 'booking',
                     'description' => 'Khách hủy booking theo bảng mốc hủy & hoàn.',
                     'is_active' => true,
+                ]
+            );
+
+            $policy->actionBindings()->updateOrCreate(
+                ['action_code' => 'refund.owner_fault_100'],
+                [
+                    'module' => 'refund',
+                    'description' => 'Hoàn 100% khi lỗi phát sinh từ phía sân.',
+                    'is_active' => (bool) $ownerFaultEnabled,
                 ]
             );
 
@@ -590,8 +601,14 @@ class AdminPolicyController extends Controller
                 'policy_rule_id' => $rule->id,
             ]);
 
+            $this->syncOwnerFaultFullRefundRule($request, $policy, (bool) $ownerFaultEnabled);
+
             return $rule;
         });
+
+        if ($rule->wasRecentlyCreated === false) {
+            $this->syncOwnerFaultFullRefundRule($request, $policy, (bool) $ownerFaultEnabled);
+        }
 
         $policy->load(['rules', 'actionBindings']);
 
@@ -928,6 +945,61 @@ class AdminPolicyController extends Controller
         return response()->json(['data' => $templates]);
     }
 
+    private function syncOwnerFaultFullRefundRule(Request $request, SystemPolicy $policy, bool $enabled): PolicyRule
+    {
+        $oldRule = PolicyRule::query()
+            ->where('system_policy_id', $policy->id)
+            ->where('rule_type', 'owner_fault_full_refund')
+            ->orderByDesc('priority')
+            ->first();
+
+        $payload = [
+            'action_code' => 'refund.owner_fault_100',
+            'rule_code' => $oldRule?->rule_code ?: 'owner_fault_full_refund',
+            'rule_name' => 'Hoàn 100% khi chủ sân hủy/khóa/bảo trì',
+            'rule_type' => 'owner_fault_full_refund',
+            'decision_key' => 'refund_percent',
+            'conflict_group' => 'owner_fault_refund',
+            'condition_json' => ['owner_fault_refund' => true],
+            'result_json' => [
+                'refund_percent' => 100,
+                'refund_basis' => 'paid_amount',
+                'refund_destination' => 'user_wallet',
+                'requires_owner_confirm' => false,
+                'requires_admin_confirm' => true,
+                'summary_vi' => 'Nếu booking bị ảnh hưởng do chủ sân hủy, khóa sân hoặc bảo trì, khách được hoàn 100% vào ví SportGo.',
+            ],
+            'constraint_json' => ['refund_percent' => ['exact' => 100], 'refund_destination' => 'user_wallet'],
+            'allowed_override_json' => ['venue_can_reduce_refund_percent' => false],
+            'priority' => 110,
+            'is_active' => $enabled,
+            'updated_by' => $request->user()->id,
+        ];
+
+        if ($oldRule) {
+            $oldValues = $oldRule->toArray();
+            $oldRule->update($payload);
+            $this->audit->log($request, 'policy', 'policy.owner_fault_refund_saved', 'policy_rules', $oldRule->id, $oldValues, $oldRule->fresh()->toArray(), [
+                'policy_id' => $policy->id,
+                'policy_rule_id' => $oldRule->id,
+            ]);
+
+            return $oldRule->fresh();
+        }
+
+        $rule = $policy->rules()->create([
+            ...$payload,
+            'created_by' => $request->user()->id,
+        ]);
+
+        $this->audit->log($request, 'policy', 'policy.owner_fault_refund_saved', 'policy_rules', $rule->id, [], $rule->toArray(), [
+            'policy_id' => $policy->id,
+            'policy_rule_id' => $rule->id,
+        ]);
+
+        return $rule;
+    }
+
     private function policyData(Request $request, ?SystemPolicy $policy = null): array
     {
         $key = $request->input('key', $policy?->key);
@@ -1139,6 +1211,8 @@ class AdminPolicyController extends Controller
 
         $rules = $policy->relationLoaded('rules') ? $policy->rules : $policy->rules()->get();
         $rule = $rules->firstWhere('rule_type', RefundCancellationPolicyService::CANCELLATION_RULE_TYPE);
+        $ownerFaultRule = $rules->firstWhere('rule_type', 'owner_fault_full_refund');
+        $ownerFaultResult = $ownerFaultRule?->result_json ?: [];
         $tiers = $this->refundPolicies->cancelRefundTiersFromRule($rule);
 
         return [
@@ -1153,6 +1227,16 @@ class AdminPolicyController extends Controller
             'limits' => $this->refundPolicies->cancelRefundPayload($tiers)['limits'],
             'can_edit' => $policy->status !== 'active',
             'status_label' => $rule ? ($rule->is_active ? 'Đang bật' : 'Đang tắt') : 'Chưa cấu hình',
+            'owner_fault_full_refund' => [
+                'has_rule' => (bool) $ownerFaultRule,
+                'enabled' => $ownerFaultRule ? (bool) $ownerFaultRule->is_active : true,
+                'rule_id' => $ownerFaultRule?->id,
+                'rule_name' => $ownerFaultRule?->rule_name ?: 'Hoàn 100% khi chủ sân hủy/khóa/bảo trì',
+                'refund_percent' => (float) ($ownerFaultResult['refund_percent'] ?? 100),
+                'refund_destination' => $ownerFaultResult['refund_destination'] ?? 'user_wallet',
+                'summary' => $ownerFaultResult['summary_vi']
+                    ?? 'Nếu booking bị ảnh hưởng do chủ sân hủy, khóa sân hoặc bảo trì, khách được hoàn 100% vào ví SportGo.',
+            ],
         ];
     }
 
@@ -1489,6 +1573,18 @@ class AdminPolicyController extends Controller
                 }
                 if (($result['admin_can_complete_without_owner'] ?? null) !== false) {
                     $errors['result_json.admin_can_complete_without_owner'] = 'Admin không được hoàn tất nếu chủ sân chưa xác nhận.';
+                }
+                break;
+
+            case 'owner_fault_full_refund':
+                if (($condition['owner_fault_refund'] ?? null) !== true) {
+                    $errors['condition_json.owner_fault_refund'] = 'Rule phải áp dụng cho trường hợp lỗi phát sinh từ phía sân.';
+                }
+                if ((float) ($result['refund_percent'] ?? 0) !== 100.0) {
+                    $errors['result_json.refund_percent'] = 'Hủy do chủ sân/khóa sân phải hoàn 100%.';
+                }
+                if (($result['refund_destination'] ?? null) !== 'user_wallet') {
+                    $errors['result_json.refund_destination'] = 'Hoàn tiền do lỗi phía sân phải chuyển vào ví SportGo của khách.';
                 }
                 break;
 

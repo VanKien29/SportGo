@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\VenueBasePrice;
 use App\Models\VenueCourt;
 use App\Models\VenueCluster;
+use App\Services\Customers\WalkInCustomerService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Collection;
@@ -24,6 +25,10 @@ use Illuminate\Validation\ValidationException;
 class BookingService
 {
     private const BLOCKING_BOOKING_STATUSES = ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'];
+
+    public function __construct(
+        private readonly WalkInCustomerService $walkInCustomers,
+    ) {}
 
     /**
      * Kiểm tra xem sân con có trống trong khung giờ yêu cầu không.
@@ -463,6 +468,7 @@ class BookingService
         return [
             'total_dates' => $dates->count(),
             'conflict_count' => $conflicts->count(),
+            'dates' => $dates->values()->all(),
             'conflicts' => $conflicts->values()->all(),
         ];
     }
@@ -851,9 +857,15 @@ class BookingService
         $rangeCourts = $data['range_courts'] ?? $this->courtsForTimeRanges($timeRanges, $court);
         $durationMinutes = $this->rangesDurationMinutes($timeRanges);
         $originalAmount = $this->calculateTotalPriceForRanges($rangeCourts, $bookingDate, $timeRanges, $bookingType);
+        $customer = $this->walkInCustomers->resolveOrCreate(
+            $data['customer_id'] ?? null,
+            $data['walk_in_name'] ?? null,
+            $data['walk_in_phone'] ?? null,
+        );
+        $data['customer_id'] = $customer->id;
         $voucher = $this->resolveVoucherForBooking(
             $data,
-            $data['customer_id'] ?? $actor->id,
+            $customer->id,
             $court->venue_cluster_id,
             (string) $court->court_type_id,
             $bookingType,
@@ -871,7 +883,7 @@ class BookingService
 
         $booking = Booking::query()->create([
             'booking_code' => $this->uniqueBookingCode(),
-            'customer_id' => $data['customer_id'] ?? null,
+            'customer_id' => $customer->id,
             'venue_court_id' => $court->id,
             'requested_venue_court_id' => $court->id,
             'venue_cluster_id' => $court->venue_cluster_id,
@@ -916,7 +928,7 @@ class BookingService
         $this->ensurePendingPaymentLocks($booking->setRelation('items', $bookingItems), $actor->id);
 
         if ($voucher) {
-            $this->recordVoucherUsage($voucher, $booking, $data['customer_id'] ?? $actor->id);
+            $this->recordVoucherUsage($voucher, $booking, $customer->id);
         }
 
         $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash');
@@ -1463,9 +1475,12 @@ class BookingService
     {
         if (count($timeRanges) === 1) {
             $range = $timeRanges[0];
+            $rangeCourt = VenueCourt::query()
+                ->with('courtType')
+                ->findOrFail($range['venue_court_id']);
 
             return $this->recurringConflictPayload(
-                $court,
+                $rangeCourt,
                 $dates,
                 $range['start_time'],
                 $range['end_time'],
@@ -1483,24 +1498,34 @@ class BookingService
                         $range['start_time'],
                         $range['end_time'],
                     ))
-                    ->map(fn (array $range): array => [
-                        'key' => implode('|', [
-                            $dateString,
-                            $range['venue_court_id'],
-                            $range['start_time'],
-                            $range['end_time'],
-                        ]),
-                        'date' => $dateString,
-                        'start_time' => $range['start_time'],
-                        'end_time' => $range['end_time'],
-                        'current_court' => $this->recurringCourtPayload(
-                            VenueCourt::query()
-                                ->with('courtType')
-                                ->findOrFail($range['venue_court_id']),
-                        ),
-                        'reason' => 'Một khung trong nhóm lịch đã có booking hoặc đang bị khóa.',
-                        'alternatives' => [],
-                    ]);
+                    ->map(function (array $range) use ($dateString): array {
+                        $rangeCourt = VenueCourt::query()
+                            ->with('courtType')
+                            ->findOrFail($range['venue_court_id']);
+
+                        return [
+                            'key' => implode('|', [
+                                $dateString,
+                                $range['venue_court_id'],
+                                $range['start_time'],
+                                $range['end_time'],
+                            ]),
+                            'date' => $dateString,
+                            'start_time' => $range['start_time'],
+                            'end_time' => $range['end_time'],
+                            'current_court' => $this->recurringCourtPayload($rangeCourt),
+                            'reason' => 'Một khung trong nhóm lịch đã có booking hoặc đang bị khóa.',
+                            'alternatives' => $this->availableAlternativeCourts(
+                                $rangeCourt,
+                                $dateString,
+                                $range['start_time'],
+                                $range['end_time'],
+                            )
+                                ->map(fn (VenueCourt $candidate): array => $this->recurringCourtPayload($candidate))
+                                ->values()
+                                ->all(),
+                        ];
+                    });
             })
             ->values();
     }
@@ -1510,9 +1535,9 @@ class BookingService
         return VenueCourt::query()
             ->with('courtType')
             ->where('venue_cluster_id', $court->venue_cluster_id)
+            ->where('court_type_id', $court->court_type_id)
             ->where('status', 'active')
             ->whereKeyNot($court->id)
-            ->orderByRaw('CASE WHEN court_type_id = ? THEN 0 ELSE 1 END', [$court->court_type_id])
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
