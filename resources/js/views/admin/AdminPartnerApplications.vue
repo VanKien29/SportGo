@@ -5,7 +5,7 @@
         <h2>Quản lý Đơn đăng ký & Hồ sơ đối tác</h2>
         <p>Rà soát hồ sơ chủ sân, trạng thái duyệt và thông tin kinh doanh gửi về hệ thống.</p>
       </div>
-
+    </header>
 
     <div class="tabs-container">
       <div class="tabs">

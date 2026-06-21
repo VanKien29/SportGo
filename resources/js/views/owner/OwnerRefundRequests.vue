@@ -118,6 +118,7 @@
           <div><dt>Thời gian chơi</dt><dd>{{ formatDate(detailRefund.booking?.booking_date) }}, {{ formatTime(detailRefund.booking?.start_time) }} - {{ formatTime(detailRefund.booking?.end_time) }}</dd></div>
           <div><dt>Đã thanh toán</dt><dd>{{ formatCurrency(detailRefund.payment?.amount) }}</dd></div>
           <div><dt>Số tiền sẽ hoàn</dt><dd>{{ formatCurrency(refundAmount(detailRefund)) }}</dd></div>
+          <div><dt>Hình thức hoàn</dt><dd>{{ refundDestinationLabel(detailRefund) }}</dd></div>
           <div><dt>Trạng thái</dt><dd>{{ statusLabel(detailRefund.status) }}</dd></div>
         </dl>
 
@@ -133,13 +134,19 @@
         </section>
 
         <section v-if="detailRefund.owner_confirm_note" class="reason-block">
-          <strong>Phản hồi của chủ sân</strong>
+          <strong>{{ detailRefund.status === 'owner_rejected' ? 'Lý do từ chối' : detailRefund.status === 'cancelled' ? 'Lý do hủy' : 'Phản hồi của chủ sân' }}</strong>
           <p>{{ detailRefund.owner_confirm_note }}</p>
+        </section>
+
+        <section v-else-if="detailRefund.status_reason" class="reason-block warning-block">
+          <strong>{{ detailRefund.status === 'cancelled' ? 'Lý do hủy' : detailRefund.status === 'owner_rejected' ? 'Lý do từ chối' : 'Ghi chú xử lý' }}</strong>
+          <p>{{ detailRefund.status_reason }}</p>
         </section>
 
         <footer v-if="detailRefund.can_decide" class="modal-actions">
           <button class="secondary-btn danger-text" type="button" @click="openDecision(detailRefund, 'reject')">Từ chối</button>
-          <button class="primary-btn" type="button" @click="openDecision(detailRefund, 'approve')">Đồng ý hoàn</button>
+          <button class="primary-btn" type="button" @click="openDecision(detailRefund, 'approve')">Hoàn ví</button>
+          <button v-if="detailRefund.can_refund_cash" class="cash-btn" type="button" @click="openDecision(detailRefund, 'approve_cash')">Hoàn tiền mặt</button>
         </footer>
       </article>
     </div>
@@ -148,29 +155,29 @@
       <form class="decision-modal" @submit.prevent="submitDecision">
         <header class="modal-header">
           <div>
-            <h2>{{ decision === 'approve' ? 'Xác nhận hoàn tiền' : 'Từ chối yêu cầu' }}</h2>
+            <h2>{{ decisionTitle }}</h2>
             <p>{{ decisionRefund.booking?.booking_code }} · {{ customerName(decisionRefund) }}</p>
           </div>
           <ActionIconButton icon="x" label="Đóng" @click="closeDecision" />
         </header>
 
-        <div v-if="decision === 'approve'" class="amount-summary fixed-amount">
+        <div v-if="['approve', 'approve_cash'].includes(decision)" class="amount-summary fixed-amount">
           <div>
-            <span>{{ decisionRefund.policy_evaluation?.is_owner_fault_refund ? 'Số tiền hoàn 100% do lỗi phía sân' : 'Số tiền hoàn theo chính sách' }}</span>
+            <span>{{ decision === 'approve_cash' ? 'Số tiền đã hoàn tiền mặt' : (decisionRefund.policy_evaluation?.is_owner_fault_refund ? 'Số tiền hoàn 100% do lỗi phía sân' : 'Số tiền hoàn theo chính sách') }}</span>
             <small>{{ decisionRefund.policy_evaluation?.summary || 'SportGo sẽ dùng số tiền đã được hệ thống tính cho yêu cầu này.' }}</small>
           </div>
           <strong>{{ formatCurrency(refundAmount(decisionRefund)) }}</strong>
         </div>
 
         <label class="field">
-          <span>{{ decision === 'approve' ? 'Ghi chú xác nhận' : 'Lý do từ chối' }}</span>
+          <span>{{ decisionNoteLabel }}</span>
           <textarea v-model.trim="decisionForm.note" rows="4" maxlength="2000" :required="decision === 'reject'" />
         </label>
 
         <footer class="modal-actions">
           <button class="secondary-btn" type="button" :disabled="submitting" @click="closeDecision">Đóng</button>
-          <button :class="decision === 'approve' ? 'primary-btn' : 'danger-btn'" type="submit" :disabled="submitting">
-            {{ submitting ? 'Đang xử lý...' : (decision === 'approve' ? 'Xác nhận' : 'Từ chối') }}
+          <button :class="decision === 'reject' ? 'danger-btn' : decision === 'approve_cash' ? 'cash-btn' : 'primary-btn'" type="submit" :disabled="submitting">
+            {{ submitting ? 'Đang xử lý...' : decisionSubmitLabel }}
           </button>
         </footer>
       </form>
@@ -194,9 +201,10 @@ export default {
       statusTabs: [
         { value: '', label: 'Tất cả' },
         { value: 'pending_owner_confirmation', label: 'Chờ xác nhận' },
-        { value: 'owner_confirmed', label: 'Chờ hoàn ví' },
         { value: 'owner_rejected', label: 'Đã từ chối' },
-        { value: 'completed', label: 'Hoàn tất' },
+        { value: 'completed', label: 'Hoàn ví' },
+        { value: 'completed_cash', label: 'Hoàn tiền mặt' },
+        { value: 'cancelled', label: 'Không hoàn' },
       ],
       meta: { current_page: 1, last_page: 1, total: 0 },
       loading: false,
@@ -208,6 +216,29 @@ export default {
       decision: 'approve',
       decisionForm: { note: '' },
     };
+  },
+  computed: {
+    decisionTitle() {
+      return {
+        approve: 'Xác nhận hoàn vào ví',
+        approve_cash: 'Xác nhận hoàn tiền mặt',
+        reject: 'Từ chối yêu cầu',
+      }[this.decision] || 'Xử lý yêu cầu';
+    },
+    decisionNoteLabel() {
+      return {
+        approve: 'Ghi chú xác nhận',
+        approve_cash: 'Ghi chú hoàn tiền mặt',
+        reject: 'Lý do từ chối',
+      }[this.decision] || 'Ghi chú';
+    },
+    decisionSubmitLabel() {
+      return {
+        approve: 'Xác nhận hoàn ví',
+        approve_cash: 'Xác nhận tiền mặt',
+        reject: 'Từ chối',
+      }[this.decision] || 'Xác nhận';
+    },
   },
   mounted() {
     this.loadRefunds();
@@ -292,11 +323,12 @@ export default {
     statusLabel(status) {
       return {
         pending_owner_confirmation: 'Chờ chủ sân',
-        owner_confirmed: 'Chờ SportGo hoàn ví',
+        owner_confirmed: 'Đã xác nhận',
         owner_rejected: 'Chủ sân từ chối',
-        admin_processing: 'Chờ SportGo hoàn ví',
-        processing: 'Chờ SportGo hoàn ví',
-        completed: 'Đã hoàn tiền',
+        admin_processing: 'Đang xử lý',
+        processing: 'Đang xử lý',
+        completed: 'Đã hoàn ví',
+        completed_cash: 'Đã hoàn tiền mặt',
         failed: 'Xử lý thất bại',
         rejected: 'Đã từ chối',
         cancelled: 'Đã hủy',
@@ -304,6 +336,14 @@ export default {
     },
     paymentMethod(method) {
       return { sepay: 'Chuyển khoản', wallet: 'Ví SportGo', cash: 'Tiền mặt' }[method] || method || '-';
+    },
+    refundDestinationLabel(refund) {
+      return {
+        user_wallet: 'Ví SportGo của khách',
+        cash: 'Tiền mặt tại sân',
+        original_payment: 'Theo phương thức thanh toán gốc',
+        bank_account: 'Tài khoản ngân hàng',
+      }[refund?.refund_destination] || refund?.refund_destination || '-';
     },
     formatCurrency(value) {
       return `${Number(value || 0).toLocaleString('vi-VN')} đ`;
@@ -389,6 +429,13 @@ td small {
   white-space: nowrap;
 }
 
+.status-note {
+  max-width: 240px;
+  color: #9a3412;
+  line-height: 1.45;
+  white-space: normal;
+}
+
 .pending_owner_confirmation {
   background: #fff4d6;
   color: #8a4b08;
@@ -401,7 +448,8 @@ td small {
   color: #216b34;
 }
 
-.completed {
+.completed,
+.completed_cash {
   background: #dcfce7;
   color: #166534;
 }
@@ -501,6 +549,11 @@ td small {
   background: #f3faf4;
 }
 
+.warning-block {
+  border-left-color: #dc2626;
+  background: #fff5f5;
+}
+
 .policy-band p,
 .reason-block p {
   margin: 6px 0 0;
@@ -558,7 +611,8 @@ td small {
 
 .primary-btn,
 .secondary-btn,
-.danger-btn {
+.danger-btn,
+.cash-btn {
   min-height: 38px;
   padding: 0 15px;
   border-radius: 7px;
@@ -581,6 +635,12 @@ td small {
 .danger-btn {
   border: 1px solid #dc2626;
   background: #dc2626;
+  color: #fff;
+}
+
+.cash-btn {
+  border: 1px solid #0f766e;
+  background: #0f766e;
   color: #fff;
 }
 

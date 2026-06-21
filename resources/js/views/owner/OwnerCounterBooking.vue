@@ -8,7 +8,7 @@
                 <button
                     type="button"
                     :class="{ active: activeTab === 'counter' }"
-                    @click="activeTab = 'counter'"
+                    @click="setActiveTab('counter')"
                 >
                     <AppIcon name="plus" size="16" />
                     <span>Booking tại quầy</span>
@@ -16,45 +16,23 @@
                 <button
                     type="button"
                     :class="{ active: activeTab === 'recurring' }"
-                    @click="activeTab = 'recurring'"
+                    @click="setActiveTab('recurring')"
                 >
                     <AppIcon name="calendar" size="16" />
                     <span>Đặt lịch cố định</span>
+                </button>
+                <button
+                    type="button"
+                    :class="{ active: activeTab === 'recurringList' }"
+                    @click="setActiveTab('recurringList')"
+                >
+                    <AppIcon name="fileText" size="16" />
+                    <span>Danh sách cố định</span>
                 </button>
             </div>
             <button class="secondary-btn" type="button" @click="loadSchedule">
                 <AppIcon name="refresh" size="16" />
                 <span>Tải lại lịch</span>
-            </button>
-        </section>
-
-        <div v-if="error" class="alert error">{{ error }}</div>
-        <div v-if="notice" class="alert success">{{ notice }}</div>
-
-        <div class="tabs">
-            <button
-                type="button"
-                :class="{ active: activeTab === 'counter' }"
-                @click="setActiveTab('counter')"
-            >
-                <AppIcon name="plus" size="16" />
-                <span>Booking tại quầy</span>
-            </button>
-            <button
-                type="button"
-                :class="{ active: activeTab === 'recurring' }"
-                @click="setActiveTab('recurring')"
-            >
-                <AppIcon name="calendar" size="16" />
-                <span>Đặt lịch cố định</span>
-            </button>
-            <button
-                type="button"
-                :class="{ active: activeTab === 'recurringList' }"
-                @click="setActiveTab('recurringList')"
-            >
-                <AppIcon name="fileText" size="16" />
-                <span>Danh sách cố định</span>
             </button>
         </div>
 
@@ -5148,6 +5126,32 @@ input.invalid {
     color: #16231a;
     font-size: 14px;
     font-weight: 850;
+}
+
+.tabs-and-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.tabs-and-actions .tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.tabs-and-actions .tabs button {
+    margin-right: 0;
+    white-space: nowrap;
+}
+
+.tabs-and-actions .secondary-btn {
+    flex: 0 0 auto;
+    margin-left: auto;
 }
 
 .tabs button {

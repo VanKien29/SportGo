@@ -155,6 +155,12 @@ class DatabaseSeeder extends Seeder
         $this->callIfTablesExist(PaymentLogsTableSeeder::class, ['payments', 'payment_logs']);
         $this->callIfTablesExist(RefundsTableSeeder::class, ['payments', 'refunds']);
         $this->callIfTablesExist(RefundStatusHistoriesTableSeeder::class, ['refunds', 'refund_status_histories']);
+        $this->callIfTablesExist(SlotLocksTableSeeder::class, [
+            'slot_locks',
+            'bookings',
+            'booking_items',
+            'venue_courts',
+        ]);
         $this->callIfTablesExist(OwnerWithdrawalRequestsTableSeeder::class, [
             'owner_wallets',
             'owner_bank_accounts',
@@ -197,6 +203,17 @@ class DatabaseSeeder extends Seeder
         $this->callIfTablesExist(MediaTableSeeder::class, ['media']);
         $this->callIfTablesExist(AuditLogsTableSeeder::class, ['audit_logs']);
         $this->callIfTablesExist(NotificationsTableSeeder::class, ['users', 'notifications']);
+
+        $this->callIfTablesExist(BookingFinanceTestDataSeeder::class, [
+            'users',
+            'venue_clusters',
+            'venue_courts',
+            'bookings',
+            'booking_items',
+            'payments',
+            'refunds',
+            'slot_locks',
+        ]);
     }
 
     private function callIfTablesExist(string $seeder, array $tables): void

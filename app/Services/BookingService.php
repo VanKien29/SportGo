@@ -345,17 +345,6 @@ class BookingService
                 $data['end_time'],
             ));
 
-            $conflicts = $dates
-                ->filter(fn (Carbon $date) => ! $this->checkAvailability(
-                    $court->id,
-                    $date->toDateString(),
-                    $data['start_time'],
-                    $data['end_time'],
-                ))
-                ->values()
-                ->map(fn (Carbon $date) => $date->toDateString());
-
-            if ($conflicts->isNotEmpty()) {
             $dates = $dates
                 ->reject(fn (Carbon $date) => $skippedDates->contains($date->toDateString()))
                 ->values();

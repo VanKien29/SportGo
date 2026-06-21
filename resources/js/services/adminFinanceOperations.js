@@ -43,6 +43,10 @@ export const adminFinanceOperationsService = {
     return api(`/api/admin/finance/withdrawals${query(params)}`);
   },
 
+  userWithdrawals(params = {}) {
+    return api(`/api/admin/finance/user-withdrawals${query(params)}`);
+  },
+
   updateWithdrawal(id, payload) {
     return api(`/api/admin/finance/withdrawals/${id}/status`, {
       method: 'PATCH',
