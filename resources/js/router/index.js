@@ -237,6 +237,12 @@ const routes = [
                     import("../views/owner/OwnerVenueClusters.vue"),
             },
             {
+                path: "affiliate",
+                name: "owner-affiliate",
+                component: () =>
+                    import("../views/owner/OwnerAffiliate.vue"),
+            },
+            {
                 path: "venue-courts",
                 name: "owner-venue-courts",
                 component: () =>

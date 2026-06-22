@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
 use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
 use App\Http\Controllers\Api\Owner\VenueUnlockRequestController;
+use App\Http\Controllers\Api\Owner\CourtTypeRequestController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
@@ -280,6 +281,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/schedule-locks', [OwnerScheduleLockController::class, 'store']);
         Route::delete('/schedule-locks/{id}', [OwnerScheduleLockController::class, 'destroy']);
         Route::post('/amenities/request', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'requestAmenity']);
+        Route::post('/court-types/request', [CourtTypeRequestController::class, 'store']);
 
         // Finance / Wallet
         Route::get('/finance/wallets', [OwnerFinanceController::class, 'wallets']);
