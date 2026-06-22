@@ -94,14 +94,18 @@
                                 target="_blank"
                                 rel="noopener"
                                 class="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-white/90 text-gray-900 text-sm font-black hover:bg-white transition-colors"
-                                >📍 Chỉ đường</a
                             >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                <span>Chỉ đường</span>
+                            </a>
                             <a
                                 v-if="venue.phone_contact"
                                 :href="`tel:${venue.phone_contact}`"
                                 class="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-sportgo-accent text-white text-sm font-black hover:bg-sportgo-dark transition-colors"
-                                >📞 Liên hệ sân</a
                             >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                                <span>Liên hệ sân</span>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -164,17 +168,19 @@
                                                 Rating
                                             </dt>
                                             <dd
-                                                class="font-black text-gray-900"
+                                                class="font-black text-gray-900 flex items-center gap-1"
                                             >
-                                                ⭐
-                                                {{
-                                                    venue.rating_avg || "0.0"
-                                                }}
-                                                /
-                                                {{
-                                                    venue.rating_count || 0
-                                                }}
-                                                đánh giá
+                                                <AppIcon name="star" size="14" class="text-amber-500 inline-block fill-amber-500" />
+                                                <span>
+                                                    {{
+                                                        venue.rating_avg || "0.0"
+                                                    }}
+                                                    /
+                                                    {{
+                                                        venue.rating_count || 0
+                                                    }}
+                                                    đánh giá
+                                                </span>
                                             </dd>
                                         </div>
                                         <div
@@ -333,7 +339,8 @@
                                             :class="showMapMode ? 'bg-sportgo-accent text-white border-sportgo-accent' : 'bg-white text-gray-700 border-gray-200'"
                                             @click="showMapMode = !showMapMode"
                                         >
-                                            🗺️ {{ showMapMode ? 'Ẩn sơ đồ' : 'Xem sơ đồ sân' }}
+                                            <AppIcon name="layers" size="13" class="inline-block mr-1" />
+                                            <span>{{ showMapMode ? 'Ẩn sơ đồ' : 'Xem sơ đồ sân' }}</span>
                                         </button>
                                     </div>
                                 </div>
@@ -344,7 +351,10 @@
                                     class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-2xl"
                                 >
                                     <h4 class="text-sm font-black text-gray-800 mb-1">Vị trí các sân con ngoài thực tế:</h4>
-                                    <p class="text-xs text-gray-500 mb-4">📍 Click chọn sân con trên sơ đồ để định vị nhanh dòng đặt lịch bên dưới</p>
+                                    <p class="text-xs text-gray-500 mb-4">
+                                        <AppIcon name="layers" size="12" class="inline-block mr-1 text-gray-500" />
+                                        <span>Click chọn sân con trên sơ đồ để định vị nhanh dòng đặt lịch bên dưới</span>
+                                    </p>
                                     <div class="relative w-full aspect-[1000/600] border border-gray-200 rounded-xl bg-slate-100 overflow-hidden shadow-inner">
                                         <!-- Grid markings background -->
                                         <div class="absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.02)_1px,transparent_1px)] bg-[size:30px_30px] pointer-events-none"></div>
@@ -519,8 +529,10 @@
                             <div
                                 class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-medium"
                             >
-                                💡 Giá ngày đặc biệt được ưu tiên trước giá theo
-                                khung giờ. Hệ thống tính từng block 30 phút.
+                                <div class="flex items-start gap-2">
+                                    <AppIcon name="alert" size="16" class="text-amber-600 mt-0.5" />
+                                    <span>Giá ngày đặc biệt được ưu tiên trước giá theo khung giờ. Hệ thống tính từng block 30 phút.</span>
+                                </div>
                             </div>
 
                             <h2 class="text-xl font-black text-gray-900 mb-4">
@@ -722,12 +734,68 @@
                             </div>
                         </section>
 
+                        <!-- Shop / Affiliate Products -->
+                        <section v-else-if="activeTab === 'shop'">
+                            <div v-if="!venue.affiliate_products || venue.affiliate_products.length === 0" class="flex flex-col items-center justify-center py-20 text-gray-400">
+                                <AppIcon name="tag" size="48" class="mb-4 text-gray-300" />
+                                <p class="font-bold text-gray-500">Cửa hàng chưa có sản phẩm nào được giới thiệu.</p>
+                            </div>
+                            <div v-else>
+                                <h2 class="text-2xl font-black text-gray-950 mb-6">Sản phẩm khuyên dùng từ sân</h2>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                                    <div v-for="product in venue.affiliate_products" :key="product.id" class="flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-lg transition-all duration-300">
+                                        <!-- Product Image -->
+                                        <div class="h-48 bg-gray-50 relative overflow-hidden flex items-center justify-center border-b border-gray-100">
+                                            <img v-if="product.image_path" :src="imageUrl(product.image_path)" :alt="product.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                            <AppIcon v-else name="image" size="48" class="text-gray-300" />
+                                            <!-- Platform badge -->
+                                            <div class="absolute top-3 left-3">
+                                                <span class="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1.5 rounded-lg shadow-sm uppercase tracking-wider">
+                                                    {{ product.platform_name || 'Liên kết' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <!-- Product Body -->
+                                        <div class="p-5 flex-1 flex flex-col justify-between">
+                                            <div>
+                                                <h3 class="font-black text-gray-900 text-base mb-2 line-clamp-2 h-11 leading-tight group-hover:text-sportgo-accent transition-colors">
+                                                    {{ product.name }}
+                                                </h3>
+                                                <p class="text-xs text-gray-500 mb-4 line-clamp-2 h-8 leading-snug">
+                                                    {{ product.description || 'Không có mô tả sản phẩm.' }}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <!-- Price -->
+                                                <div class="flex items-baseline gap-2 mb-4">
+                                                    <span v-if="product.price" class="font-black text-sportgo-accent text-lg">
+                                                        {{ formatCurrency(product.price) }}
+                                                    </span>
+                                                    <span v-if="product.original_price" class="text-xs text-gray-400 line-through">
+                                                        {{ formatCurrency(product.original_price) }}
+                                                    </span>
+                                                    <span v-if="!product.price" class="text-sm font-bold text-gray-400 italic">Liên hệ nơi bán</span>
+                                                </div>
+                                                <!-- Buy Button -->
+                                                <button @click="buyProduct(product)" class="w-full py-3 bg-sportgo-accent hover:bg-sportgo-dark text-white rounded-xl font-black text-sm tracking-wide transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer">
+                                                    <span>Mua ngay</span>
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
                         <!-- Other tabs placeholder -->
                         <section
                             v-else
                             class="flex flex-col items-center justify-center py-20 text-gray-400"
                         >
-                            <div class="text-5xl mb-4">🏗️</div>
+                            <AppIcon name="settings" size="48" class="mb-4 text-gray-300" />
                             <p class="font-medium">
                                 Chức năng này đang được phát triển.
                             </p>
@@ -743,12 +811,14 @@
 import PublicNavbar from "../../components/PublicNavbar.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
 import DecorationVisual from "../../components/DecorationVisual.vue";
+import AppIcon from "../../components/AppIcon.vue";
 import { getAuth } from "../../stores/auth.js";
 import { venueService } from "../../services/venues.js";
+import { affiliateProductService } from "../../services/affiliateProducts.js";
 
 export default {
     name: "VenueDetail",
-    components: { PublicNavbar, CourtVisual, DecorationVisual },
+    components: { PublicNavbar, CourtVisual, DecorationVisual, AppIcon },
     data() {
         return {
             venue: null,
@@ -771,6 +841,7 @@ export default {
                 { key: "overview", label: "Tổng quan" },
                 { key: "booking", label: "Lịch & Đặt sân" },
                 { key: "pricing", label: "Bảng giá" },
+                { key: "shop", label: "Cửa hàng" },
                 { key: "community", label: "Giao lưu" },
                 { key: "posts", label: "Bài đăng sân" },
                 { key: "reviews", label: "Đánh giá" },
@@ -868,6 +939,14 @@ export default {
             } finally {
                 this.loading = false;
             }
+        },
+        async buyProduct(product) {
+            try {
+                affiliateProductService.trackClick(product.id).catch(err => console.error(err));
+            } catch (e) {
+                console.error(e);
+            }
+            window.open(product.affiliate_url, "_blank");
         },
         async loadSchedule() {
             if (!this.venue || !this.bookingDate) return;

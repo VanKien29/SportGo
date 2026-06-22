@@ -83,6 +83,9 @@ class VenueController extends Controller
                         ->orderBy('sort_order')
                         ->orderBy('name');
                 },
+                'affiliateProducts' => function ($query) {
+                    $query->where('is_active', true)->latest();
+                },
             ])
             ->where('status', 'active')
             ->where(function ($query) use ($id) {
@@ -130,6 +133,7 @@ class VenueController extends Controller
                     ->orderBy('court_type_id')
                     ->get(),
                 'gallery' => $this->gallery($cluster),
+                'affiliate_products' => $cluster->affiliateProducts ?? [],
                 'reviews' => [],
             ]),
         ]);
