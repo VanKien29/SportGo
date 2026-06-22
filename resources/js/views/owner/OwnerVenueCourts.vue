@@ -1,13 +1,5 @@
 <template>
     <div class="venue-courts-container">
-        <!-- Header action bar with Back Button -->
-        <div class="owner-back-header">
-            <BackButton to="/owner/venue-clusters" />
-            <h2 class="owner-page-title">
-                Quản lý sân con: <span class="cluster-highlight">{{ cluster?.name || 'Đang tải...' }}</span>
-            </h2>
-        </div>
-
         <!-- Floating Add Button -->
         <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
             <button class="btn-float-add" type="button" :disabled="!cluster" @click="openCreateModal" title="Thêm sân con">
@@ -884,13 +876,12 @@ import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
 import DecorationVisual from "../../components/DecorationVisual.vue";
-import BackButton from "../../components/BackButton.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { courtTypeService } from "../../services/courtTypes";
 
 export default {
     name: "OwnerVenueCourts",
-    components: { ActionIconButton, AppIcon, CourtVisual, DecorationVisual, BackButton },
+    components: { ActionIconButton, AppIcon, CourtVisual, DecorationVisual },
     data() {
         return {
             clusterId:
@@ -3109,29 +3100,5 @@ export default {
     background: #f1f5f9;
     border-color: #cbd5e1;
     color: #1e293b;
-}
-
-/* ─── Back Button Header ─── */
-.owner-back-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 24px;
-    background: #fff;
-    padding: 16px 20px;
-    border-radius: 12px;
-    border: 1px solid var(--sg-border, #e2e8f0);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.owner-page-title {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--sg-text, #0f172a);
-}
-
-.cluster-highlight {
-    color: #16a34a;
 }
 </style>

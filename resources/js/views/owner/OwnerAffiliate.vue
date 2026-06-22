@@ -13,21 +13,6 @@
 
         <!-- Khi đã chọn cụm sân -->
         <div v-else>
-            <!-- Thống kê sản phẩm tiếp thị -->
-            <div class="card affiliate-summary-card">
-                <h4 class="card-section-title">Thống kê cửa hàng tiếp thị - {{ selectedCluster.name }}</h4>
-                <div class="scale-summary-grid">
-                    <div class="scale-stat-item">
-                        <span class="scale-stat-label">Tổng số sản phẩm tiếp thị:</span>
-                        <span class="scale-stat-value">{{ affiliateProducts.length }}</span>
-                    </div>
-                    <div class="scale-stat-item">
-                        <span class="scale-stat-label">Tổng số lượt click:</span>
-                        <span class="scale-stat-value">{{ totalProductClicks }}</span>
-                    </div>
-                </div>
-            </div>
-
             <!-- Alert message if any -->
             <div v-if="productsError" class="alert alert-danger" style="margin-bottom: 16px;">
                 {{ productsError }}
@@ -332,11 +317,6 @@ export default {
             ],
         };
     },
-    computed: {
-        totalProductClicks() {
-            return this.affiliateProducts.reduce((sum, p) => sum + (p.click_count || 0), 0);
-        },
-    },
     mounted() {
         window.addEventListener("owner-cluster-changed", this.handleClusterChange);
         this.initSelectedCluster();
@@ -565,41 +545,6 @@ export default {
     line-height: 1.5;
 }
 
-/* Summary Card */
-.affiliate-summary-card {
-    margin-bottom: 20px;
-    background: #fff;
-    border-radius: 12px;
-    padding: 20px;
-    border: 1px solid #e2e8f0;
-}
-.card-section-title {
-    font-size: 15px;
-    font-weight: 800;
-    color: #0f172a;
-    margin: 0 0 16px 0;
-}
-.scale-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
-}
-.scale-stat-item {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-.scale-stat-label {
-    font-size: 13px;
-    font-weight: 700;
-    color: #64748b;
-}
-.scale-stat-value {
-    font-size: 24px;
-    font-weight: 800;
-    color: #0f172a;
-}
-
 /* Table View */
 .affiliate-list-card {
     padding: 0;
@@ -801,6 +746,69 @@ export default {
     100% { transform: rotate(360deg); }
 }
 
+/* Modal Backdrop & Container Styles */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.46);
+    backdrop-filter: blur(4px);
+    display: grid;
+    place-items: center;
+    z-index: 10000;
+    padding: 20px;
+}
+
+.modal {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+    font-size: 18px;
+    font-weight: 800;
+    margin: 0;
+    color: #0f172a;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: rgba(15, 23, 42, 0.4);
+}
+
+.modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    max-height: calc(90vh - 140px);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 24px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
 /* Modal Design styles (Premium Glassmorphism-style) */
 .product-edit-modal {
     max-width: 900px;
@@ -827,6 +835,31 @@ export default {
     padding-left: 28px;
     display: flex;
     flex-direction: column;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.form-control {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    font-size: 14px;
+    color: #1e293b;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
 .form-label-bold {
