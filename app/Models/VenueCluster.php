@@ -69,11 +69,6 @@ class VenueCluster extends Model
         return $this->hasMany(VenueCourt::class, 'venue_cluster_id');
     }
 
-    public function affiliatePosts()
-    {
-        return $this->hasMany(VenueAffiliatePost::class, 'venue_cluster_id');
-    }
-
     public function bookingConfig()
     {
         return $this->hasOne(BookingConfig::class, 'venue_cluster_id');
