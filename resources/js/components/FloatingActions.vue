@@ -8,25 +8,16 @@
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
     </button>
-    <button 
-      v-if="showScrollTop" 
-      class="action-btn scroll-btn" 
-      @click="scrollToTop"
-      title="Lên đầu trang"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-    </button>
+    <ScrollToTopButton />
   </div>
 </template>
 
 <script>
+import ScrollToTopButton from './ScrollToTopButton.vue';
+
 export default {
   name: 'FloatingActions',
-  data() {
-    return {
-      showScrollTop: false,
-    }
-  },
+  components: { ScrollToTopButton },
   computed: {
     canGoBack() {
       if (!this.$route) return false;
@@ -49,20 +40,7 @@ export default {
       return isDetail || isDeep;
     }
   },
-  mounted() {
-    window.addEventListener('scroll', this.handleScroll);
-  },
-  beforeUnmount() {
-    window.removeEventListener('scroll', this.handleScroll);
-  },
   methods: {
-    handleScroll() {
-      // Show scroll-to-top when scrolled down 250px
-      this.showScrollTop = window.scrollY > 250;
-    },
-    scrollToTop() {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    },
     goBack() {
       if (window.history.length > 1) {
         this.$router.back();
