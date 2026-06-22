@@ -1,23 +1,20 @@
 <template>
   <div class="floating-actions">
-    <button 
+    <BackButton 
       v-if="canGoBack" 
-      class="action-btn back-btn" 
-      @click="goBack"
-      title="Quay lại"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-    </button>
+      floating 
+    />
     <ScrollToTopButton />
   </div>
 </template>
 
 <script>
 import ScrollToTopButton from './ScrollToTopButton.vue';
+import BackButton from './BackButton.vue';
 
 export default {
   name: 'FloatingActions',
-  components: { ScrollToTopButton },
+  components: { ScrollToTopButton, BackButton },
   computed: {
     canGoBack() {
       if (!this.$route) return false;
@@ -39,22 +36,6 @@ export default {
 
       return isDetail || isDeep;
     }
-  },
-  methods: {
-    goBack() {
-      if (window.history.length > 1) {
-        this.$router.back();
-      } else {
-        // Fallback route if opened directly
-        const segments = this.$route.path.split('/').filter(Boolean);
-        if (segments.length > 1) {
-          segments.pop();
-          this.$router.push('/' + segments.join('/'));
-        } else {
-          this.$router.push('/');
-        }
-      }
-    }
   }
 }
 </script>
@@ -70,46 +51,10 @@ export default {
   z-index: 9999;
 }
 
-.action-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--sg-text, #0f172a);
-  color: #fff;
-  border: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-
-.action-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  background-color: #1e293b;
-}
-
-.back-btn {
-  background-color: #fff;
-  color: var(--sg-text, #0f172a);
-  border: 1px solid var(--sg-border, #e2e8f0);
-}
-
-.back-btn:hover {
-  background-color: #f8fafc;
-  color: #0f172a;
-}
-
 @media (max-width: 768px) {
   .floating-actions {
     bottom: 20px;
     right: 20px;
-  }
-  .action-btn {
-    width: 40px;
-    height: 40px;
   }
 }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <section class="user-detail">
     <div class="back-action-bar">
-      <RouterLink class="back-link" to="/admin/users">← Quay lại danh sách</RouterLink>
+      <BackButton to="/admin/users" />
     </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -483,6 +483,7 @@
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import BackButton from '../../components/BackButton.vue';
 import { adminUserService } from '../../services/adminUserService.js';
 import { getAccountStatusLabel, getPostStatusLabel, getReportStatusLabel } from '../../utils/labelMaps.js';
 
@@ -498,7 +499,7 @@ const Metric = {
 
 export default {
   name: 'AdminUserDetail',
-  components: { AppIcon, InfoItem, Metric },
+  components: { AppIcon, InfoItem, Metric, BackButton },
   data() {
     return {
       detail: null,
