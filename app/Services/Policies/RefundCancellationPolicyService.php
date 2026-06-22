@@ -22,6 +22,7 @@ class RefundCancellationPolicyService
     public const CANCELLATION_RULE_TYPE = 'cancel_before_hours';
     public const REFUND_RULE_TYPE = 'refund_percent_by_cancel_time';
     public const RULE_TYPE = self::REFUND_RULE_TYPE;
+    private const FULL_REFUND_REASON_TYPES = ['owner_maintenance', 'owner_emergency', 'venue_locked'];
 
     public function defaultCancellationTiers(): array
     {
@@ -601,6 +602,30 @@ class RefundCancellationPolicyService
         $startAt = Carbon::parse($booking->booking_date->format('Y-m-d') . ' ' . substr((string) $booking->start_time, 0, 5));
         $hoursBefore = $cancelAt->diffInMinutes($startAt, false) / 60;
 
+        if ($this->requiresFullRefundByCancellationReason($booking)) {
+            $paidAmount = $this->paidAmount($booking);
+            $result = [
+                'hours_before' => round($hoursBefore, 2),
+                'allow_cancel' => true,
+                'cancellation_tier' => [
+                    'key' => $booking->cancellation_reason_type,
+                    'label' => 'Full refund by cancellation reason',
+                ],
+                'refund_tier' => null,
+                'refund_percent' => 100.0,
+                'paid_amount' => $paidAmount,
+                'refund_amount' => $booking->payment_option === 'no_prepay' ? 0.0 : round($paidAmount, 2),
+                'requires_owner_confirm' => false,
+                'requires_admin_confirm' => false,
+                'customer_message' => 'Booking duoc hoan 100% do chu san/he thong huy vi bao tri, su co hoac khoa san.',
+                'summary' => 'Hoan 100% do ly do huy thuoc nhom chu san/bao tri/khoa san.',
+            ];
+
+            $this->logEvaluation($booking, $actor, $cancelAt, $result, null, null, null);
+
+            return $result;
+        }
+
         $cancellationPolicy = $this->activePolicy('booking_cancellation', self::CANCELLATION_RULE_TYPE);
         $cancellationRule = $cancellationPolicy?->rules->first();
         $systemCombinedTiers = $this->cancelRefundTiersFromRule($cancellationRule);
@@ -678,6 +703,8 @@ class RefundCancellationPolicyService
                 'status' => 'cancelled',
                 'status_reason' => $reason ?: ($result['customer_message'] ?: 'Khách hủy booking theo chính sách.'),
                 'cancelled_by' => $actor->id,
+                'cancellation_initiator' => 'customer',
+                'cancellation_reason_type' => 'customer_request',
                 'cancelled_at' => now(),
             ])->save();
 
@@ -689,6 +716,38 @@ class RefundCancellationPolicyService
                 'policy_result' => $result,
                 'refunds' => $refunds,
             ];
+        });
+    }
+
+    public function createRefundsForProviderCancellation(Booking $booking, User $actor, ?string $reason = null): array
+    {
+        return DB::transaction(function () use ($booking, $actor, $reason): array {
+            $booking = Booking::query()
+                ->with('payments')
+                ->whereKey($booking->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $this->requiresFullRefundByCancellationReason($booking)) {
+                return [];
+            }
+
+            if (! in_array($booking->status, ['cancelled', 'rejected'], true)) {
+                return [];
+            }
+
+            if (Refund::query()->where('booking_id', $booking->id)->exists()) {
+                return Refund::query()
+                    ->where('booking_id', $booking->id)
+                    ->latest()
+                    ->get()
+                    ->map(fn (Refund $refund): array => $refund->toArray())
+                    ->all();
+            }
+
+            $result = $this->evaluateBookingCancellation($booking, $actor, $booking->cancelled_at ?: now());
+
+            return $this->createRefundRequests($booking, $result, $actor, $reason);
         });
     }
 
@@ -704,6 +763,11 @@ class RefundCancellationPolicyService
         }
 
         return null;
+    }
+
+    private function requiresFullRefundByCancellationReason(Booking $booking): bool
+    {
+        return in_array((string) $booking->cancellation_reason_type, self::FULL_REFUND_REASON_TYPES, true);
     }
 
     public function cancellationResultJson(array $tiers, array $extra = []): array

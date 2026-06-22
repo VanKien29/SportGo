@@ -16,6 +16,7 @@ class Complaint extends Model
 
     protected $fillable = [
         'complaint_type',
+        'is_vip_priority',
         'booking_id',
         'venue_cluster_id',
         'customer_id',
@@ -31,6 +32,7 @@ class Complaint extends Model
     protected function casts(): array
     {
         return [
+            'is_vip_priority' => 'boolean',
             'resolved_at' => 'datetime',
         ];
     }

@@ -35,4 +35,14 @@ class SystemBankAccount extends Model
     {
         return $this->hasMany(Payment::class, 'system_bank_account_id');
     }
+
+    public function walletBalance()
+    {
+        return $this->hasOne(SystemWalletBalance::class, 'system_bank_account_id');
+    }
+
+    public function walletLedgers()
+    {
+        return $this->hasMany(SystemWalletLedger::class, 'system_bank_account_id');
+    }
 }
