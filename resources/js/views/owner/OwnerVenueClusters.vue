@@ -1509,20 +1509,7 @@
                                 }}</span>
                             </div>
                         </div>
-                        <div class="location-actions">
-                            <button
-                                class="btn btn-primary"
-                                :disabled="pendingLocationCount > 0"
-                                @click="openLocationChangeModal"
-                            >
-                                <AppIcon name="pencil" size="15" />
-                                {{
-                                    pendingLocationCount > 0
-                                        ? "⏳ Đang có yêu cầu chờ duyệt"
-                                        : "Gửi yêu cầu thay đổi vị trí"
-                                }}
-                            </button>
-                        </div>
+
                     </div>
 
                     <!-- Lịch sử yêu cầu -->
@@ -1605,17 +1592,17 @@
                                             Thay đổi vị trí
                                         </div>
                                         <div class="approval-meta">
-                                            🏠 Địa chỉ mới:
+                                            Địa chỉ mới:
                                             {{ req.new_address }},
                                             {{ req.new_ward }},
                                             {{ req.new_province }}
                                         </div>
                                         <div class="approval-meta">
-                                            🧭 Tọa độ: {{ req.new_latitude }},
+                                            Tọa độ: {{ req.new_latitude }},
                                             {{ req.new_longitude }}
                                         </div>
                                         <div class="approval-meta">
-                                            📝 Lý do: {{ req.note }}
+                                            Lý do: {{ req.note }}
                                         </div>
                                         <div class="approval-meta">
                                             Gửi lúc:
@@ -1672,6 +1659,16 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    <!-- Nút Yêu cầu thay đổi vị trí dạng nổi ở góc dưới -->
+                    <div class="floating-add-container" v-if="!isClusterLocked">
+                        <FloatAddButton
+                            icon="pencil"
+                            :disabled="pendingLocationCount > 0"
+                            :label="pendingLocationCount > 0 ? 'Đang có yêu cầu chờ duyệt' : 'Yêu cầu thay đổi vị trí'"
+                            :title="pendingLocationCount > 0 ? 'Đang có yêu cầu chờ duyệt' : 'Yêu cầu thay đổi vị trí'"
+                            @click="openLocationChangeModal"
+                        />
                     </div>
                 </div>
 

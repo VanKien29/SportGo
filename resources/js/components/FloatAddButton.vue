@@ -10,7 +10,7 @@
     :aria-label="title"
     @click="!to ? $emit('click', $event) : undefined"
   >
-    <AppIcon name="plus" size="20" />
+    <AppIcon :name="icon" size="20" />
     <span class="btn-float-text">
       <slot>{{ label }}</slot>
     </span>
@@ -29,6 +29,11 @@ export default {
     label: {
       type: String,
       default: 'Thêm mới',
+    },
+    /** Icon name */
+    icon: {
+      type: String,
+      default: 'plus',
     },
     /** If set, renders as <router-link :to="to"> */
     to: {
