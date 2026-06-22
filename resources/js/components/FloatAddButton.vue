@@ -2,7 +2,7 @@
   <!-- Render as router-link if `to` prop is provided, otherwise as button -->
   <component
     :is="to ? 'router-link' : 'button'"
-    class="btn-float-add"
+    class="sg-btn-float-add"
     :to="to || undefined"
     :type="to ? undefined : (type || 'button')"
     :disabled="to ? undefined : disabled"
@@ -55,8 +55,10 @@ export default {
 </script>
 
 <style scoped>
-.btn-float-add {
-  width: 44px;
+.sg-btn-float-add {
+  width: auto;
+  min-width: 44px;
+  max-width: 44px;
   height: 44px;
   border-radius: 22px;
   display: inline-flex;
@@ -74,7 +76,7 @@ export default {
   text-decoration: none;
 }
 
-.btn-float-add .btn-float-text {
+.sg-btn-float-add .btn-float-text {
   max-width: 0;
   opacity: 0;
   margin-left: 0;
@@ -85,40 +87,42 @@ export default {
   color: #fff;
 }
 
-.btn-float-add:hover:not(:disabled) {
-  width: 145px;
-  justify-content: flex-start;
+.sg-btn-float-add:hover:not(:disabled) {
+  max-width: 300px;
   padding-left: 14px;
+  padding-right: 16px;
   box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
   background-color: #059669;
 }
 
-.btn-float-add:hover:not(:disabled) .btn-float-text {
-  max-width: 100px;
+.sg-btn-float-add:hover:not(:disabled) .btn-float-text {
+  max-width: 240px;
   opacity: 1;
   margin-left: 6px;
 }
 
-.btn-float-add:disabled {
+.sg-btn-float-add:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
-  .btn-float-add {
-    width: 40px;
+  .sg-btn-float-add {
+    min-width: 40px;
+    max-width: 40px;
     height: 40px;
     border-radius: 20px;
     padding: 0 10px;
   }
 
-  .btn-float-add:hover:not(:disabled) {
-    width: 130px;
+  .sg-btn-float-add:hover:not(:disabled) {
+    max-width: 220px;
     padding-left: 12px;
+    padding-right: 14px;
   }
 
-  .btn-float-add:hover:not(:disabled) .btn-float-text {
-    max-width: 80px;
+  .sg-btn-float-add:hover:not(:disabled) .btn-float-text {
+    max-width: 160px;
   }
 }
 </style>

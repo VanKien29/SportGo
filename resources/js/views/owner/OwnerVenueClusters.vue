@@ -1911,15 +1911,11 @@
                     
                     <!-- Nút Thêm sản phẩm dạng nổi ở góc dưới -->
                     <div class="floating-add-container" v-if="!isClusterLocked">
-                        <button 
-                            class="btn-float-add" 
-                            type="button"
-                            @click="openCreateProductModal" 
+                        <FloatAddButton 
+                            label="Thêm sản phẩm tiếp thị"
                             title="Thêm sản phẩm tiếp thị"
-                        >
-                            <AppIcon name="plus" size="20" />
-                            <span class="btn-float-text">Thêm sản phẩm</span>
-                        </button>
+                            @click="openCreateProductModal" 
+                        />
                     </div>
                 </div>
             </div>
@@ -2293,13 +2289,34 @@
                                         <label style="font-weight: 700; font-size: 13.5px; color: #334155; display: block; margin-bottom: 6px;">
                                             Nền tảng <span class="required" style="color: #dc2626;">*</span>
                                         </label>
-                                        <select v-model="productForm.platform_name" class="form-control" style="background: #fff; width: 100%; border-radius: 8px; height: 42px;">
-                                            <option value="Shopee">Shopee</option>
-                                            <option value="Lazada">Lazada</option>
-                                            <option value="Tiki">Tiki</option>
-                                            <option value="TikTok Shop">TikTok Shop</option>
-                                            <option value="Khác">Liên kết khác</option>
-                                        </select>
+                                        <div class="platform-select-wrapper" style="position: relative; width: 100%;">
+                                            <div 
+                                                class="form-control" 
+                                                @click.stop="showPlatformDropdown = !showPlatformDropdown"
+                                                style="background: #fff; width: 100%; border-radius: 8px; height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; cursor: pointer; border: 1px solid #cbd5e1; user-select: none;"
+                                            >
+                                                <span style="font-size: 14px; color: #0f172a; font-weight: 600;">
+                                                    {{ platformLabel(productForm.platform_name) }}
+                                                </span>
+                                                <span class="searchable-select-arrow" :class="{ open: showPlatformDropdown }">▼</span>
+                                            </div>
+                                            
+                                            <div 
+                                                v-if="showPlatformDropdown" 
+                                                class="searchable-select-dropdown"
+                                                style="top: calc(100% + 4px); padding: 4px 0; max-height: 250px;"
+                                            >
+                                                <div 
+                                                    v-for="opt in platformOptions" 
+                                                    :key="opt.value"
+                                                    class="searchable-select-option"
+                                                    :class="{ selected: productForm.platform_name === opt.value }"
+                                                    @click="selectPlatform(opt.value)"
+                                                >
+                                                    {{ opt.label }}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="form-group" style="margin: 0;">
                                         <label style="font-weight: 700; font-size: 13.5px; color: #334155; display: block; margin-bottom: 6px;">
@@ -2500,6 +2517,7 @@ import AppIcon from "../../components/AppIcon.vue";
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
 import DecorationVisual from "../../components/DecorationVisual.vue";
+import FloatAddButton from "../../components/FloatAddButton.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
@@ -2508,7 +2526,7 @@ import { affiliateProductService } from "../../services/affiliateProducts";
 
 export default {
     name: "OwnerVenueClusters",
-    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual },
+    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual, FloatAddButton },
     data() {
         return {
             // Cluster list
@@ -2579,6 +2597,14 @@ export default {
                 image: null,
             },
             productImagePreview: null,
+            showPlatformDropdown: false,
+            platformOptions: [
+                { value: "Shopee", label: "Shopee" },
+                { value: "Lazada", label: "Lazada" },
+                { value: "Tiki", label: "Tiki" },
+                { value: "TikTok Shop", label: "TikTok Shop" },
+                { value: "Khác", label: "Liên kết khác" },
+            ],
  
             // Courts tab
             courts: [],
@@ -4176,6 +4202,9 @@ export default {
         handleOutsideClick(e) {
             const el = this.$el?.querySelector(".custom-select-wrapper");
             if (el && !el.contains(e.target)) this.showTypeDropdown = false;
+
+            const platformEl = this.$el?.querySelector(".platform-select-wrapper");
+            if (platformEl && !platformEl.contains(e.target)) this.showPlatformDropdown = false;
         },
 
         handleEvidenceSelect(e) {
@@ -4570,6 +4599,16 @@ export default {
             } catch (err) {
                 alert(err.message || "Không thể cập nhật trạng thái.");
             }
+        },
+
+        selectPlatform(val) {
+            this.productForm.platform_name = val;
+            this.showPlatformDropdown = false;
+        },
+
+        platformLabel(val) {
+            const opt = this.platformOptions.find(o => o.value === val);
+            return opt ? opt.label : val;
         },
     },
 };
