@@ -21,7 +21,10 @@ class VenueCluster extends Model
         'description',
         'phone_contact',
         'province',
+        'province_code',
+        'district_code',
         'ward',
+        'ward_code',
         'address',
         'map_url',
         'latitude',
@@ -64,6 +67,11 @@ class VenueCluster extends Model
         return $this->hasMany(VenueCourt::class, 'venue_cluster_id');
     }
 
+    public function affiliatePosts()
+    {
+        return $this->hasMany(VenueAffiliatePost::class, 'venue_cluster_id');
+    }
+
     public function bookingConfig()
     {
         return $this->hasOne(BookingConfig::class, 'venue_cluster_id');
@@ -82,6 +90,21 @@ class VenueCluster extends Model
     public function partnerContracts()
     {
         return $this->hasMany(PartnerContract::class, 'venue_cluster_id');
+    }
+
+    public function membershipTiers()
+    {
+        return $this->hasMany(CourtMembershipTier::class, 'venue_cluster_id');
+    }
+
+    public function memberRanks()
+    {
+        return $this->hasMany(UserCourtMembership::class, 'venue_cluster_id');
+    }
+
+    public function outgoingTransferRequests()
+    {
+        return $this->hasMany(VenueTransferRequest::class, 'venue_cluster_id');
     }
 
     public function media()

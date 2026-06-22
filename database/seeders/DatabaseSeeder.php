@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
         $this->callIfTablesExist(RolePermissionsTableSeeder::class, ['roles', 'permissions', 'role_permissions']);
         $this->callIfTablesExist(UsersTableSeeder::class, ['users']);
         $this->callIfTablesExist(UserRolesTableSeeder::class, ['users', 'roles', 'user_roles']);
+        $this->callIfTablesExist(AdministrativeUnitsSeeder::class, ['administrative_units']);
 
         $this->callIfTablesExist(CourtTypesTableSeeder::class, ['court_types']);
         $this->callIfTablesExist(VenueClustersTableSeeder::class, ['users', 'venue_clusters']);
@@ -36,6 +37,7 @@ class DatabaseSeeder extends Seeder
         $this->callIfTablesExist(HolidayPricesTableSeeder::class, ['court_types', 'venue_clusters', 'holiday_prices']);
         $this->callIfTablesExist(PlatformFeeTiersTableSeeder::class, ['platform_fee_tiers']);
         $this->callIfTablesExist(SystemBankAccountSeeder::class, ['system_bank_accounts']);
+        $this->callIfTablesExist(MembershipPackagesSeeder::class, ['membership_packages']);
 
         $this->callIfTablesExist(SystemPoliciesTableSeeder::class, ['users', 'system_policies']);
         $this->callIfTablesExist(ViolationTypesSeeder::class, ['violation_types']);

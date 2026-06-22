@@ -9,6 +9,7 @@ use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\BookingService;
 use App\Services\Payments\SepayPaymentService;
+use App\Services\Policies\RefundCancellationPolicyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -22,6 +23,7 @@ class BookingManagementController extends Controller
     public function __construct(
         private readonly BookingService $bookingService,
         private readonly SepayPaymentService $sepayPaymentService,
+        private readonly RefundCancellationPolicyService $refundCancellationPolicyService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -218,6 +220,7 @@ class BookingManagementController extends Controller
         $validated = $request->validate([
             'action' => ['required', Rule::in(['confirm', 'reject', 'cancel', 'check_in', 'complete'])],
             'status_reason' => ['required_if:action,reject,cancel', 'nullable', 'string', 'max:1000'],
+            'cancellation_reason_type' => ['nullable', Rule::in(['owner_maintenance', 'owner_emergency', 'venue_locked', 'admin_action'])],
         ]);
 
         $allowedActions = match ($booking->status) {
@@ -270,16 +273,27 @@ class BookingManagementController extends Controller
             'status' => $status,
             'status_reason' => $validated['status_reason'] ?? null,
             'cancelled_by' => in_array($status, ['cancelled', 'rejected'], true) ? $request->user()->id : $booking->cancelled_by,
+            'cancellation_initiator' => in_array($status, ['cancelled', 'rejected'], true) ? 'owner' : $booking->cancellation_initiator,
+            'cancellation_reason_type' => in_array($status, ['cancelled', 'rejected'], true)
+                ? ($validated['cancellation_reason_type'] ?? 'owner_maintenance')
+                : $booking->cancellation_reason_type,
             'cancelled_at' => in_array($status, ['cancelled', 'rejected'], true) ? now() : $booking->cancelled_at,
         ]);
 
+        $refunds = [];
         if (in_array($status, ['cancelled', 'rejected'], true)) {
             SlotLock::query()->where('booking_id', $booking->id)->delete();
+            $refunds = $this->refundCancellationPolicyService->createRefundsForProviderCancellation(
+                $booking->fresh(),
+                $request->user(),
+                $validated['status_reason'] ?? null,
+            );
         }
 
         return response()->json([
             'message' => 'Đã cập nhật trạng thái booking.',
             'data' => $booking->fresh(['venueCourt.courtType', 'customer', 'payments']),
+            'refunds' => $refunds,
         ]);
     }
 
