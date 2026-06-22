@@ -4,15 +4,18 @@ namespace App\Services\Partner;
 
 use App\Models\GeneratedDocument;
 use App\Models\GeneratedDocumentSignature;
-use App\Models\Media;
 use App\Models\DocumentTemplate;
+use App\Models\Media;
 use App\Models\PartnerApplication;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use PhpOffice\PhpWord\Settings;
+use PhpOffice\PhpWord\TemplateProcessor;
 use RuntimeException;
+use Throwable;
 use ZipArchive;
 
 class PartnerDocumentService
@@ -56,8 +59,9 @@ class PartnerDocumentService
             throw new RuntimeException("Không tìm thấy template DOCX cho {$documentType}.");
         }
 
-        Storage::disk('local')->put($filePath, file_get_contents($sourcePath));
-        $this->replaceDocxPlaceholders(Storage::disk('local')->path($filePath), $renderData, $documentType);
+        $targetPath = Storage::disk('local')->path($filePath);
+        $this->ensureLocalDirectory($targetPath);
+        $this->renderDocxTemplate($sourcePath, $targetPath, $renderData, $documentType);
 
         $document = GeneratedDocument::create([
             'document_code' => $documentCode,
@@ -197,7 +201,7 @@ class PartnerDocumentService
                 'storage_disk' => 'local',
                 'template_variables' => [],
                 'required_fields' => [],
-                'render_engine' => 'docx_placeholder',
+                'render_engine' => 'phpword_template',
                 'status' => 'active',
                 'is_active' => true,
                 'activated_at' => now(),
@@ -210,6 +214,60 @@ class PartnerDocumentService
         $fileName = self::TEMPLATE_FALLBACKS[$documentType] ?? null;
 
         return $fileName ? base_path('database/seeders/templates/partner-documents/' . $fileName) : null;
+    }
+
+    private function ensureLocalDirectory(string $targetPath): void
+    {
+        $directory = dirname($targetPath);
+
+        if (! is_dir($directory)) {
+            mkdir($directory, 0775, true);
+        }
+    }
+
+    private function renderDocxTemplate(string $sourcePath, string $targetPath, array $data, string $documentType): void
+    {
+        try {
+            $previousEscaping = Settings::isOutputEscapingEnabled();
+            Settings::setOutputEscapingEnabled(true);
+
+            try {
+                $processor = new TemplateProcessor($sourcePath);
+                $processor->setMacroChars('{{', '}}');
+
+                foreach ($data as $key => $value) {
+                    $text = $this->plainValue($value);
+                    $processor->setValue($key, $text);
+                    $processor->setValue(' ' . $key . ' ', $text);
+                }
+
+                $processor->saveAs($targetPath);
+            } finally {
+                Settings::setOutputEscapingEnabled($previousEscaping);
+            }
+        } catch (Throwable) {
+            copy($sourcePath, $targetPath);
+            $this->replaceDocxPlaceholders($targetPath, $data, $documentType);
+
+            return;
+        }
+
+        $this->appendApplicationAppendixToFile($targetPath, $data, $documentType);
+    }
+
+    private function appendApplicationAppendixToFile(string $docxPath, array $data, string $documentType): void
+    {
+        if ($documentType !== 'partner_application_form' || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $this->appendApplicationAppendix($zip, $data);
+        $zip->close();
     }
 
     private function replaceDocxPlaceholders(string $docxPath, array $data, string $documentType): void
@@ -299,7 +357,7 @@ class PartnerDocumentService
                 continue;
             }
 
-            $paragraphs[] = $this->docxParagraph($label . ': ' . $this->stringValue($value));
+            $paragraphs[] = $this->docxParagraph($label . ': ' . $this->plainValue($value));
         }
 
         $insert = implode('', $paragraphs);
@@ -374,10 +432,15 @@ class PartnerDocumentService
 
     private function stringValue(mixed $value): string
     {
+        return htmlspecialchars($this->plainValue($value), ENT_XML1 | ENT_COMPAT, 'UTF-8');
+    }
+
+    private function plainValue(mixed $value): string
+    {
         if (is_array($value)) {
             $value = implode("\n", array_map(fn ($item) => is_scalar($item) ? (string) $item : json_encode($item, JSON_UNESCAPED_UNICODE), $value));
         }
 
-        return htmlspecialchars((string) $value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
+        return (string) $value;
     }
 }

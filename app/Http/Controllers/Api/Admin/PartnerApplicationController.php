@@ -252,6 +252,22 @@ class PartnerApplicationController extends Controller
                 'download_url' => url('/api/files/documents/' . $document->id . '/download'),
                 'signatures' => $document->signatures,
             ]);
+        $payload['uploaded_documents'] = $application->documents
+            ->values()
+            ->map(fn ($document) => [
+                'id' => $document->id,
+                'partner_application_id' => $document->partner_application_id,
+                'document_type' => $document->document_type,
+                'document_group' => $document->document_group,
+                'title' => $document->title,
+                'description' => $document->description,
+                'status' => $document->status,
+                'file_name' => $document->media?->file_name,
+                'mime_type' => $document->media?->mime_type,
+                'file_size' => $document->media?->file_size,
+                'uploaded_at' => $document->created_at,
+                'download_url' => url('/api/admin/partner-profiles/documents/' . $document->id . '/download'),
+            ]);
         $payload['contracts'] = $application->contracts;
         $payload['status_histories'] = $application->statusHistories;
         $payload['termination_requests'] = $application->terminationRequests;

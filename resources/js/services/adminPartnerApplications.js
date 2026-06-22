@@ -65,6 +65,10 @@ export const adminPartnerApplicationService = {
     return apiDownload(`/api/files/documents/${id}/download`);
   },
 
+  downloadUploadedDocument(id) {
+    return apiDownload(`/api/admin/partner-profiles/documents/${id}/download`);
+  },
+
   courtTypes() {
     return api('/api/admin/court-types');
   },

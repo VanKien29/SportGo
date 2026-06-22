@@ -154,6 +154,20 @@
             </section>
 
             <section v-if="detailTab === 'documents'" class="doc-list">
+              <h4 class="doc-section-title">Hồ sơ gốc người đăng ký tải lên</h4>
+              <div v-for="document in activeApplication.uploaded_documents || []" :key="`uploaded-${document.id}`" class="doc-row">
+                <div>
+                  <div class="strong">{{ document.title || uploadedDocumentTypeLabel(document.document_type) }}</div>
+                  <div class="muted">{{ document.file_name || uploadedDocumentTypeLabel(document.document_type) }} · {{ formatFileSize(document.file_size) }} · {{ formatDate(document.uploaded_at) }}</div>
+                  <div v-if="document.description" class="signature-line">{{ document.description }}</div>
+                </div>
+                <button class="btn ghost small" type="button" @click="downloadUploadedDocument(document.id)">
+                  <AppIcon name="download" size="15" /> Tải hồ sơ
+                </button>
+              </div>
+              <p v-if="!activeApplication.uploaded_documents?.length" class="muted">Chưa có hồ sơ gốc nào.</p>
+
+              <h4 class="doc-section-title">Văn bản hệ thống sinh ra</h4>
               <div v-for="document in activeApplication.documents || []" :key="document.id" class="doc-row">
                 <div>
                   <div class="strong">{{ document.title || documentTypeLabel(document.document_type) }}</div>
@@ -542,6 +556,13 @@ export default {
         this.error = err.message || 'Không tải được văn bản.';
       }
     },
+    async downloadUploadedDocument(id) {
+      try {
+        await adminPartnerApplicationService.downloadUploadedDocument(id);
+      } catch (err) {
+        this.error = err.message || 'Không tải được hồ sơ gốc.';
+      }
+    },
     prepareCanvas() {
       const canvas = this.$refs.signatureCanvas;
       if (!canvas) return;
@@ -612,6 +633,14 @@ export default {
         settlement_minutes: 'Biên bản quyết toán',
       }[type] || type;
     },
+    uploadedDocumentTypeLabel(type) {
+      return {
+        identity: 'CCCD/CMND/Hộ chiếu',
+        business_license: 'Giấy đăng ký kinh doanh',
+        facility: 'Hình ảnh cơ sở sân',
+        additional: 'Tài liệu bổ sung',
+      }[type] || type || 'Tài liệu';
+    },
     documentStatusLabel(status) {
       return {
         generated: 'Đã sinh',
@@ -630,6 +659,16 @@ export default {
     },
     money(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value || 0));
+    },
+    formatFileSize(value) {
+      const bytes = Number(value || 0);
+      if (!bytes) return 'không rõ dung lượng';
+
+      const units = ['B', 'KB', 'MB', 'GB'];
+      const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+      const size = bytes / (1024 ** index);
+
+      return `${size.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
     },
     formatDate(value) {
       if (!value) return '-';
