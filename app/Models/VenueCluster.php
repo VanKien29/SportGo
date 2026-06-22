@@ -29,6 +29,7 @@ class VenueCluster extends Model
         'map_url',
         'latitude',
         'longitude',
+        'layout_decorations',
         'amenities',
         'status',
         'status_reason',
@@ -44,6 +45,7 @@ class VenueCluster extends Model
         return [
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
+            'layout_decorations' => 'array',
             'amenities' => 'array',
             'locked_at' => 'datetime',
             'locked_until' => 'datetime',
@@ -75,6 +77,11 @@ class VenueCluster extends Model
     public function bookingConfig()
     {
         return $this->hasOne(BookingConfig::class, 'venue_cluster_id');
+    }
+
+    public function basePrices()
+    {
+        return $this->hasMany(VenueBasePrice::class, 'venue_cluster_id');
     }
 
     public function latestPlatformFeeLedger()

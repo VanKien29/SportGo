@@ -1,27 +1,16 @@
 <template>
   <section class="admin-page">
-    <header class="page-head">
-      <div>
-        <p class="eyebrow">Phân quyền nội bộ</p>
-        <h2>Quản lý nhóm quyền hệ thống</h2>
-        <p>Phân quyền cho nhân sự quản trị SportGo.</p>
-      </div>
-      <button class="btn primary" type="button" @click="openCreateModal">
-        <AppIcon name="plus" size="18" />
-        <span>Tạo nhóm quyền</span>
-      </button>
-    </header>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
     <nav class="view-tabs">
       <button type="button" :class="{ active: currentView === 'list' }" @click="currentView = 'list'">Danh sách nhóm quyền</button>
-      <button type="button" :class="{ active: currentView === 'matrix' }" @click="currentView = 'matrix'">Ma trận phân quyền</button>
+      <button type="button" :class="{ active: currentView === 'matrix' }" @click="currentView = 'matrix'">Ma trận phân quyền (Grid Matrix)</button>
     </nav>
 
     <template v-if="currentView === 'list'">
-    <section class="filter-panel">
+      <section class="filter-panel">
       <div class="filter-head">
         <strong>Bộ lọc</strong>
         <span>Lọc theo tên, loại nhóm và trạng thái chỉnh sửa.</span>
@@ -129,7 +118,9 @@
     </div>
     </template>
 
-    <AdminPermissionMatrix v-else />
+    <template v-else>
+      <AdminPermissionMatrix />
+    </template>
 
     <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
       <form class="modal" @submit.prevent="saveRole">
@@ -187,6 +178,14 @@
       type="danger"
       @confirm="deleteRole"
     />
+
+    <!-- Floating Add Button -->
+    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <button class="btn-float-add" @click="openCreateModal">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Tạo nhóm quyền</span>
+      </button>
+    </div>
   </section>
 </template>
 
@@ -219,6 +218,7 @@ export default {
       sortKey: 'display_name',
       sortDir: 'asc',
       confirmDelete: { show: false, role: null },
+      showScrollTop: false,
     };
   },
   computed: {
@@ -241,6 +241,10 @@ export default {
   },
   mounted() {
     this.loadRoles();
+    window.addEventListener('scroll', this.handleScroll);
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     defaultForm() {
@@ -375,6 +379,9 @@ export default {
     autoHide() {
       setTimeout(() => { this.success = ''; }, 3500);
     },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 250;
+    },
   },
 };
 </script>
@@ -384,13 +391,6 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.page-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
 }
 
 .eyebrow {
@@ -426,18 +426,23 @@ p {
 }
 
 .view-tabs button {
-  border: 0;
-  border-bottom: 3px solid transparent;
   background: transparent;
-  padding: 10px 14px;
+  border: none;
+  padding: 10px 16px;
+  font-weight: 700;
   color: #64748b;
-  font-weight: 800;
   cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
 }
 
 .view-tabs button.active {
-  border-color: #16a34a;
   color: #16a34a;
+  border-bottom-color: #16a34a;
+}
+
+.view-tabs button:hover:not(.active) {
+  color: #0f172a;
 }
 
 .filter-panel,
@@ -776,7 +781,6 @@ small {
 }
 
 @media (max-width: 760px) {
-  .page-head,
   .fixed-note {
     flex-direction: column;
     align-items: flex-start;

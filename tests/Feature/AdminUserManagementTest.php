@@ -252,7 +252,7 @@ class AdminUserManagementTest extends TestCase
      */
     private function assignRole(User $user, Role $role): void
     {
-        UserRole::query()->create([
+        UserRole::query()->firstOrCreate([
             'user_id' => $user->id,
             'role_id' => $role->id,
             'scope_type' => 'system',

@@ -1,12 +1,39 @@
 <template>
     <section class="finance-page">
-        <header class="page-head">
-            <div>
-                <h1>Ví tài chính</h1>
-                <p>
-                    Theo dõi doanh thu online, lịch sử dòng tiền và yêu cầu
-                    chuyển tiền về tài khoản ngân hàng đã xác thực.
-                </p>
+        <!-- Floating Add Button -->
+        <div v-if="activeTab === 'withdrawals' && withdrawableWallets.length && bankAccounts.length" class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+            <button class="btn-float-add" type="button" @click="openWithdrawalModal(withdrawableWallets[0])" title="Yêu cầu rút tiền">
+                <AppIcon name="plus" size="20" />
+                <span class="btn-float-text">Yêu cầu rút tiền</span>
+            </button>
+        </div>
+
+        <div class="tabs-and-actions">
+            <div class="tabs">
+                <button
+                    type="button"
+                    :class="{ active: activeTab === 'wallets' }"
+                    @click="activeTab = 'wallets'"
+                >
+                    <AppIcon name="banknote" size="16" />
+                    <span>Số dư ví</span>
+                </button>
+                <button
+                    type="button"
+                    :class="{ active: activeTab === 'ledgers' }"
+                    @click="openLedgers()"
+                >
+                    <AppIcon name="history" size="16" />
+                    <span>Dòng tiền</span>
+                </button>
+                <button
+                    type="button"
+                    :class="{ active: activeTab === 'withdrawals' }"
+                    @click="openWithdrawals()"
+                >
+                    <AppIcon name="creditCard" size="16" />
+                    <span>Yêu cầu rút tiền</span>
+                </button>
             </div>
             <ActionIconButton
                 icon="refresh"
@@ -14,33 +41,6 @@
                 :disabled="loading"
                 @click="refreshCurrentTab"
             />
-        </header>
-
-        <div class="tabs">
-            <button
-                type="button"
-                :class="{ active: activeTab === 'wallets' }"
-                @click="activeTab = 'wallets'"
-            >
-                <AppIcon name="banknote" size="16" />
-                <span>Số dư ví</span>
-            </button>
-            <button
-                type="button"
-                :class="{ active: activeTab === 'ledgers' }"
-                @click="openLedgers()"
-            >
-                <AppIcon name="history" size="16" />
-                <span>Dòng tiền</span>
-            </button>
-            <button
-                type="button"
-                :class="{ active: activeTab === 'withdrawals' }"
-                @click="openWithdrawals()"
-            >
-                <AppIcon name="creditCard" size="16" />
-                <span>Yêu cầu rút tiền</span>
-            </button>
         </div>
 
         <div v-if="error" class="alert error">{{ error }}</div>
@@ -259,9 +259,9 @@
                     aria-label="Lọc theo trạng thái"
                 >
                     <option value="">Tất cả trạng thái</option>
-                    <option value="pending">Chờ xử lý</option>
-                    <option value="reviewing">Đang kiểm tra</option>
-                    <option value="approved">Đã duyệt</option>
+                    <option value="pending">Chờ chuyển khoản</option>
+                    <option value="reviewing">Chờ chuyển khoản</option>
+                    <option value="approved">Chờ chuyển khoản</option>
                     <option value="rejected">Từ chối</option>
                     <option value="completed">Đã chuyển</option>
                 </select>
@@ -276,17 +276,6 @@
                     label="Xóa lọc"
                     @click="clearWithdrawalFilter"
                 />
-                <button
-                    class="primary-btn create-withdrawal"
-                    type="button"
-                    :disabled="
-                        !withdrawableWallets.length || !bankAccounts.length
-                    "
-                    @click="openWithdrawalModal(withdrawableWallets[0])"
-                >
-                    <AppIcon name="plus" size="17" />
-                    <span>Tạo yêu cầu</span>
-                </button>
             </form>
 
             <div class="table-card">
@@ -304,6 +293,7 @@
                                 <th>Thời gian</th>
                                 <th>Trạng thái</th>
                                 <th>Ghi chú xử lý</th>
+                                <th class="actions-col"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -375,6 +365,15 @@
                                             withdrawal.transfer_reference
                                         }}</small
                                     >
+                                </td>
+                                <td class="actions-col" data-label="Thao tác">
+                                    <ActionIconButton
+                                        v-if="canCancelWithdrawal(withdrawal)"
+                                        icon="x"
+                                        label="Hủy yêu cầu"
+                                        :disabled="cancellingId === withdrawal.id"
+                                        @click="cancelWithdrawal(withdrawal)"
+                                    />
                                 </td>
                             </tr>
                         </tbody>
@@ -514,6 +513,7 @@ export default {
             withdrawalMeta: { current_page: 1, last_page: 1 },
             loading: false,
             submitting: false,
+            cancellingId: null,
             error: "",
             notice: "",
             showWithdrawModal: false,
@@ -524,6 +524,7 @@ export default {
                 amount: 50000,
                 owner_note: "",
             },
+            showScrollTop: false,
         };
     },
     computed: {
@@ -545,7 +546,11 @@ export default {
         },
     },
     mounted() {
+        window.addEventListener("scroll", this.handleScroll);
         this.loadWallets();
+    },
+    beforeUnmount() {
+        window.removeEventListener("scroll", this.handleScroll);
     },
     methods: {
         async loadWallets() {
@@ -678,6 +683,48 @@ export default {
                 this.submitting = false;
             }
         },
+        canCancelWithdrawal(withdrawal) {
+            return (
+                ["pending", "reviewing", "approved"].includes(
+                    withdrawal.status,
+                ) &&
+                !withdrawal.payout_qr_created_at &&
+                !withdrawal.metadata?.mb_bulk_exported_at
+            );
+        },
+        async cancelWithdrawal(withdrawal) {
+            if (
+                !window.confirm(
+                    `Hủy yêu cầu rút ${this.formatCurrency(withdrawal.amount)}? Số tiền đang giữ sẽ được hoàn lại ví.`,
+                )
+            ) {
+                return;
+            }
+
+            this.cancellingId = withdrawal.id;
+            this.error = "";
+            this.notice = "";
+            try {
+                const response = await api(
+                    `/api/owner/finance/withdrawals/${withdrawal.id}/cancel`,
+                    {
+                        method: "PATCH",
+                        body: JSON.stringify({
+                            reason: "Chủ sân hủy yêu cầu rút tiền.",
+                        }),
+                    },
+                );
+                this.notice = response.message;
+                await this.loadWallets();
+                this.activeTab = "withdrawals";
+                await this.loadWithdrawals(this.withdrawalMeta.current_page);
+            } catch (error) {
+                this.error =
+                    error.message || "Không thể hủy yêu cầu rút tiền.";
+            } finally {
+                this.cancellingId = null;
+            }
+        },
         ledgerType(type) {
             return (
                 {
@@ -693,9 +740,9 @@ export default {
         withdrawalStatus(status) {
             return (
                 {
-                    pending: "Chờ xử lý",
-                    reviewing: "Đang kiểm tra",
-                    approved: "Đã duyệt",
+                    pending: "Chờ chuyển khoản",
+                    reviewing: "Chờ chuyển khoản",
+                    approved: "Chờ chuyển khoản",
                     rejected: "Từ chối",
                     completed: "Đã chuyển",
                     cancelled: "Đã hủy",
@@ -715,6 +762,9 @@ export default {
         shortId(value) {
             return value ? String(value).slice(0, 8).toUpperCase() : "-";
         },
+        handleScroll() {
+            this.showScrollTop = window.scrollY > 150;
+        },
     },
 };
 </script>
@@ -726,9 +776,11 @@ export default {
     min-width: 0;
 }
 
-.page-head h1,
-.page-head p {
-    margin: 0;
+.tabs-and-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
 }
 
 .tabs {
@@ -922,7 +974,10 @@ td small {
     width: 12%;
 }
 .withdrawal-table th:nth-child(7) {
-    width: 18%;
+    width: 15%;
+}
+.withdrawal-table th:nth-child(8) {
+    width: 9%;
 }
 
 .modal-header,

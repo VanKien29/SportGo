@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Schema;
 
 class RefundPolicyEvaluator
 {
-    private const REFUND_RULE_TYPES = ['refund_by_cancel_time', 'refund_time_window'];
+    private const REFUND_RULE_TYPES = ['refund_by_cancel_time', 'refund_time_window', 'owner_fault_full_refund'];
 
     public function evaluate(Refund $refund, bool $log = false, string $actorType = 'system', ?string $actorId = null): array
     {
@@ -23,6 +23,34 @@ class RefundPolicyEvaluator
         $this->ensureBookingTimingLoaded($refund);
 
         $input = $this->buildInput($refund);
+
+        $input['owner_fault_refund'] = $this->isOwnerFaultRefund($refund);
+
+        if ($input['owner_fault_refund']) {
+            $amount = (float) $refund->amount;
+            $matched = $this->matchOwnerFaultRule($input);
+            $refundPercent = (float) ($matched['result']['refund_percent'] ?? 100);
+
+            return $this->maybeLog($refund, [
+                'evaluated' => true,
+                'compliant' => true,
+                'source' => 'owner_fault_100',
+                'action_code' => $matched['action_code'] ?? 'refund.owner_fault_100',
+                'is_owner_fault_refund' => true,
+                'refund_percent' => $refundPercent,
+                'suggested_amount' => $amount,
+                'requested_amount' => $amount,
+                'paid_amount' => $this->paidAmount($refund),
+                'requires_admin_review' => false,
+                'hours_before_start' => $input['hours_before_start'] ?? null,
+                'policy' => $matched['policy'] ?? null,
+                'rule' => $matched['rule'] ?? null,
+                'summary' => $matched['result']['summary_vi']
+                    ?? 'Hoàn 100% do chủ sân hủy hoặc khóa/bảo trì sân, không áp dụng chính sách hủy của khách.',
+                'warning' => null,
+                'input' => $input,
+            ], $log, $actorType, $actorId);
+        }
 
         if (! $input['has_booking_time']) {
             return $this->maybeLog($refund, [
@@ -87,6 +115,20 @@ class RefundPolicyEvaluator
         }
 
         return $result;
+    }
+
+    private function isOwnerFaultRefund(Refund $refund): bool
+    {
+        $text = mb_strtolower(implode(' ', array_filter([
+            (string) $refund->reason,
+            (string) $refund->status_reason,
+            (string) $refund->owner_confirm_note,
+        ])));
+
+        return str_contains($text, 'chủ sân hủy')
+            || str_contains($text, 'khóa sân')
+            || str_contains($text, 'bảo trì')
+            || str_contains($text, 'hoàn 100% phần bị ảnh hưởng');
     }
 
     private function ensureBookingTimingLoaded(Refund $refund): void
@@ -183,6 +225,41 @@ class RefundPolicyEvaluator
             ->orderByDesc('priority')
             ->get()
             ->first(fn (PolicyRule $rule): bool => $this->policyHasActiveAction($rule->policy, $rule->action_code)
+                && $this->conditionsMatch($rule->condition_json ?? [], $input));
+
+        if (! $rule) {
+            return null;
+        }
+
+        return [
+            'source' => 'system_policy_rule',
+            'action_code' => $rule->action_code,
+            'result' => $rule->result_json ?? [],
+            'policy' => $this->policyPayload($rule->policy),
+            'rule' => [
+                'id' => $rule->id,
+                'code' => $rule->rule_code,
+                'name' => $rule->rule_name,
+                'type' => $rule->rule_type,
+            ],
+        ];
+    }
+
+    private function matchOwnerFaultRule(array $input): ?array
+    {
+        if (! Schema::hasTable('policy_rules')) {
+            return null;
+        }
+
+        $rule = PolicyRule::query()
+            ->with('policy.actionBindings')
+            ->where('is_active', true)
+            ->where('action_code', 'refund.owner_fault_100')
+            ->where('rule_type', 'owner_fault_full_refund')
+            ->orderByDesc('priority')
+            ->get()
+            ->first(fn (PolicyRule $rule): bool => $this->policyIsActiveForTypes($rule->policy, ['booking_cancellation', 'refund'])
+                && $this->policyHasActiveAction($rule->policy, $rule->action_code)
                 && $this->conditionsMatch($rule->condition_json ?? [], $input));
 
         if (! $rule) {
@@ -362,11 +439,16 @@ class RefundPolicyEvaluator
 
     private function policyIsActiveRefundPolicy(Model $policy): bool
     {
-        if (! $policy->is_active) {
+        return $this->policyIsActiveForTypes($policy, ['refund']);
+    }
+
+    private function policyIsActiveForTypes(?Model $policy, array $types): bool
+    {
+        if (! $policy || ! $policy->is_active) {
             return false;
         }
 
-        if (($policy->policy_type ?: $policy->type) !== 'refund') {
+        if (! in_array(($policy->policy_type ?: $policy->type), $types, true)) {
             return false;
         }
 

@@ -36,13 +36,8 @@ class SystemBankAccount extends Model
         return $this->hasMany(Payment::class, 'system_bank_account_id');
     }
 
-    public function walletBalance()
+    public function platformFeeLedgers()
     {
-        return $this->hasOne(SystemWalletBalance::class, 'system_bank_account_id');
-    }
-
-    public function walletLedgers()
-    {
-        return $this->hasMany(SystemWalletLedger::class, 'system_bank_account_id');
+        return $this->hasMany(VenuePlatformFeeLedger::class, 'system_bank_account_id');
     }
 }

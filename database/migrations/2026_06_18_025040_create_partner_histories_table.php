@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         if (Schema::hasTable('partner_histories')) {
@@ -17,20 +14,20 @@ return new class extends Migration
 
         Schema::create('partner_histories', function (Blueprint $table) {
             $table->id();
-            $table->foreignUuid('partner_application_id')->constrained('partner_applications')->onDelete('cascade');
+            $table->char('partner_application_id', 36);
             $table->string('action');
-            $table->foreignUuid('actor_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->char('actor_id', 36)->nullable();
             $table->json('old_values')->nullable();
             $table->json('new_values')->nullable();
             $table->string('ip_address')->nullable();
             $table->string('user_agent')->nullable();
             $table->timestamps();
+
+            $table->foreign('partner_application_id')->references('id')->on('partner_applications')->onDelete('cascade');
+            $table->foreign('actor_id')->references('id')->on('users')->onDelete('set null');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('partner_histories');

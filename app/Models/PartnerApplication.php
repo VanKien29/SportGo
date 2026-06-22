@@ -133,17 +133,6 @@ class PartnerApplication extends Model
         return $this->hasMany(PartnerTerminationRequest::class, 'partner_application_id');
     }
 
-    public function liquidations()
-    {
-        return $this->hasManyThrough(
-            PartnerLiquidation::class,
-            PartnerContract::class,
-            'partner_application_id',
-            'partner_contract_id',
-            'id',
-            'id'
-        );
-    }
 
     public function user()
     {

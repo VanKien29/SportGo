@@ -147,6 +147,12 @@ class DatabaseSeeder extends Seeder
 
         $this->callIfTablesExist(BookingsTableSeeder::class, ['users', 'venue_clusters', 'bookings']);
         $this->callIfTablesExist(BookingItemsTableSeeder::class, ['bookings', 'booking_items', 'venue_courts']);
+        $this->callIfTablesExist(PlayerPostsTableSeeder::class, ['users', 'bookings', 'player_posts']);
+        $this->callIfTablesExist(PlayerPostParticipantsTableSeeder::class, [
+            'users',
+            'player_posts',
+            'player_post_participants',
+        ]);
         $this->callIfTablesExist(PaymentsTableSeeder::class, ['bookings', 'payments']);
         $this->callIfTablesExist(PaymentLogsTableSeeder::class, ['payments', 'payment_logs']);
         $this->callIfTablesExist(RefundsTableSeeder::class, ['payments', 'refunds']);

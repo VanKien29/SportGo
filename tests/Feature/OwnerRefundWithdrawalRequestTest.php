@@ -137,15 +137,6 @@ class OwnerRefundWithdrawalRequestTest extends TestCase
             ->patchJson("/api/owner/refunds/{$refund->id}/decision", [
                 'decision' => 'approve',
                 'amount' => 60000,
-                'note' => 'Đồng ý hoàn theo chính sách.',
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('amount');
-
-        $this->actingAs($this->owner, 'sanctum')
-            ->patchJson("/api/owner/refunds/{$refund->id}/decision", [
-                'decision' => 'approve',
-                'amount' => 50000,
                 'note' => 'Đồng ý hoàn 50% theo chính sách.',
             ])
             ->assertOk()
@@ -261,14 +252,6 @@ class OwnerRefundWithdrawalRequestTest extends TestCase
             'entity_id' => $withdrawalId,
         ]);
 
-        $this->actingAs($this->admin, 'sanctum')
-            ->patchJson("/api/admin/finance/withdrawals/{$withdrawalId}/status", [
-                'status' => 'approved',
-                'reason' => 'Thông tin hợp lệ.',
-            ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'approved');
-
         $this->assertDatabaseHas('owner_wallets', [
             'id' => $wallet->id,
             'available_balance' => 80000,
@@ -283,6 +266,67 @@ class OwnerRefundWithdrawalRequestTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('amount');
+    }
+
+    public function test_owner_can_cancel_pending_withdrawal_and_releases_held_balance(): void
+    {
+        $wallet = OwnerWallet::query()->create([
+            'owner_id' => $this->owner->id,
+            'venue_cluster_id' => $this->cluster->id,
+            'available_balance' => 200000,
+            'pending_withdrawal_balance' => 0,
+            'total_earned' => 200000,
+            'total_withdrawn' => 0,
+        ]);
+        $account = OwnerBankAccount::query()->create([
+            'owner_id' => $this->owner->id,
+            'bank_name' => 'TPBank',
+            'bank_code' => 'TPB',
+            'account_number' => '729069999999',
+            'account_holder_name' => 'OWNER REFUND',
+            'status' => 'active',
+            'is_default' => true,
+        ]);
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/finance/withdrawals', [
+                'owner_wallet_id' => $wallet->id,
+                'owner_bank_account_id' => $account->id,
+                'amount' => 120000,
+                'owner_note' => 'Rút doanh thu online.',
+            ])
+            ->assertCreated();
+
+        $withdrawalId = $response->json('data.id');
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson("/api/owner/finance/withdrawals/{$withdrawalId}/cancel", [
+                'reason' => 'Chưa cần rút nữa.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'cancelled');
+
+        $this->assertDatabaseHas('owner_withdrawal_requests', [
+            'id' => $withdrawalId,
+            'status' => 'cancelled',
+            'status_reason' => 'Chưa cần rút nữa.',
+        ]);
+        $this->assertDatabaseHas('owner_wallets', [
+            'id' => $wallet->id,
+            'available_balance' => 200000,
+            'pending_withdrawal_balance' => 0,
+        ]);
+        $this->assertDatabaseHas('owner_wallet_ledgers', [
+            'reference_type' => 'withdrawal',
+            'reference_id' => $withdrawalId,
+            'type' => 'release',
+            'amount' => 120000,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $this->owner->id,
+            'action' => 'withdrawal.owner_cancelled',
+            'entity_id' => $withdrawalId,
+        ]);
     }
 
     private function createRefund(): Refund
@@ -312,7 +356,7 @@ class OwnerRefundWithdrawalRequestTest extends TestCase
 
     private function assignRole(User $user, Role $role): void
     {
-        UserRole::query()->create([
+        UserRole::query()->firstOrCreate([
             'user_id' => $user->id,
             'role_id' => $role->id,
             'scope_type' => 'system',

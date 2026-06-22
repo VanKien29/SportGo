@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('partner_applications', function (Blueprint $table) {
-            $table->timestamp('terminated_at')->nullable()->after('reviewed_at')->comment('Thời điểm chấm dứt hợp đồng hợp tác');
+        Schema::table('venue_clusters', function (Blueprint $table) {
+            $table->json('layout_decorations')->nullable()->after('longitude');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('partner_applications', function (Blueprint $table) {
-            $table->dropColumn('terminated_at');
+        Schema::table('venue_clusters', function (Blueprint $table) {
+            $table->dropColumn('layout_decorations');
         });
     }
 };

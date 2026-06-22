@@ -71,6 +71,7 @@ class AdminCommentController extends Controller
         // Audit logging could be added here if there's a generic audit mechanism
 
         if ($validated['action'] === 'delete') {
+            \App\Models\Report::resolvePendingReportsForTarget($commentModel, 'content_deleted', $request->user());
             $commentModel->delete();
             return response()->json(['message' => 'Đã xóa bình luận thành công.']);
         }
@@ -81,6 +82,7 @@ class AdminCommentController extends Controller
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
             ]);
+            \App\Models\Report::resolvePendingReportsForTarget($commentModel, 'content_hidden', $request->user());
             return response()->json(['message' => 'Đã ẩn bình luận thành công.']);
         }
 

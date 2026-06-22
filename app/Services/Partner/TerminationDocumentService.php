@@ -16,7 +16,7 @@ class TerminationDocumentService
         $isMutual = in_array($request->type, ['mutual_agreement', TerminationType::MUTUAL->value], true);
         $documentType = $isMutual ? 'mutual_liquidation_minutes' : 'unilateral_notice';
         $prefix = $isMutual ? 'LIQ-' : 'UNI-';
-        $contractCode = $contract->contract_code ?: $contract->contract_number ?: $contract->id;
+        $contractCode = $contract->contract_code ?: $contract->id;
         $fileName = $prefix . $contractCode . '-' . time() . '.pdf';
         $filePath = 'liquidations/' . $fileName;
 

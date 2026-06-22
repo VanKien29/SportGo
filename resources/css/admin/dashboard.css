@@ -79,7 +79,7 @@
 .dashboard-panel {
   border: 1px solid var(--admin-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.97);
+  background: var(--admin-card-bg);
   box-shadow: var(--admin-shadow-card);
 }
 
@@ -196,7 +196,7 @@
   gap: 12px;
   border: 1px solid var(--admin-border-soft);
   border-radius: 10px;
-  background: #fff;
+  background: var(--admin-surface);
   color: var(--admin-text);
   text-decoration: none;
   transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease;

@@ -1,15 +1,5 @@
 <template>
   <section class="page">
-    <header class="page-head">
-      <div>
-        <h2>Voucher hệ thống</h2>
-        <p>Voucher do nền tảng phát hành. Nền tảng chịu phần giảm giá.</p>
-      </div>
-      <button class="btn primary" type="button" title="Tạo voucher hệ thống" @click="openForm()">
-        <AppIcon name="plus" size="17" />
-        <span>Tạo voucher</span>
-      </button>
-    </header>
 
     <section class="filters">
       <input v-model.trim="filters.keyword" placeholder="Tìm mã hoặc tên voucher" @keyup.enter="load" />
@@ -106,6 +96,13 @@
         </footer>
       </form>
     </div>
+    <!-- Floating Add Button -->
+    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <button class="btn-float-add" @click="openForm()">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Tạo voucher</span>
+      </button>
+    </div>
   </section>
 </template>
 
@@ -128,10 +125,15 @@ export default {
       error: '',
       success: '',
       form: this.emptyForm(),
+      showScrollTop: false,
     };
   },
   mounted() {
     this.load();
+    window.addEventListener('scroll', this.handleScroll);
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     emptyForm() {
@@ -205,10 +207,13 @@ export default {
       const date = new Date(value);
       return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 250;
+    },
   },
 };
 </script>
 
 <style scoped>
-.page{display:grid;gap:16px}.page-head,.filters{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.page-head h2{margin:0 0 6px}.page-head p{margin:0;color:#64748b}.filters{justify-content:flex-start;align-items:center}.filters input,.filters select{border:1px solid #dbe3ef;border-radius:8px;padding:10px;font:inherit}.notice{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:10px;padding:12px;font-weight:800}.table-card,.modal{background:#fff;border:1px solid #e2e8f0;border-radius:12px}.table-card{overflow:auto}table{width:100%;border-collapse:collapse;min-width:1040px}th,td{padding:12px;border-bottom:1px solid #e2e8f0;text-align:left}.state{padding:24px;color:#64748b}.btn,.mini-btn{border:0;border-radius:8px;font-weight:800;cursor:pointer}.btn{padding:10px 14px}.mini-btn{padding:7px 10px;margin-right:6px;background:#f1f5f9}.primary{background:#16a34a;color:#fff}.secondary{background:#f1f5f9;color:#0f172a}.danger{background:#fee2e2;color:#b91c1c}.badge{border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;background:#e2e8f0}.badge.active{background:#dcfce7;color:#166534}.badge.inactive,.badge.expired{background:#fee2e2;color:#b91c1c}.badge.draft{background:#f1f5f9;color:#475569}.alert{padding:12px;border-radius:10px;font-weight:700}.error{background:#fee2e2;color:#b91c1c}.success{background:#dcfce7;color:#166534}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.56);display:grid;place-items:center;z-index:500;padding:20px}.modal{width:min(760px,calc(100vw - 32px));padding:22px;display:grid;gap:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:6px;font-weight:800}input,select,textarea{border:1px solid #dbe3ef;border-radius:8px;padding:10px;font:inherit}footer{display:flex;justify-content:flex-end;gap:10px}@media(max-width:720px){.grid,.filters{grid-template-columns:1fr;flex-direction:column;align-items:stretch}.page-head{flex-direction:column}}
+.page{display:grid;gap:16px}.filters{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.filters{justify-content:flex-start;align-items:center}.filters input,.filters select{border:1px solid #dbe3ef;border-radius:8px;padding:10px;font:inherit}.notice{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:10px;padding:12px;font-weight:800}.table-card,.modal{background:#fff;border:1px solid #e2e8f0;border-radius:12px}.table-card{overflow:auto}table{width:100%;border-collapse:collapse;min-width:1040px}th,td{padding:12px;border-bottom:1px solid #e2e8f0;text-align:left}.state{padding:24px;color:#64748b}.btn,.mini-btn{border:0;border-radius:8px;font-weight:800;cursor:pointer}.btn{padding:10px 14px}.mini-btn{padding:7px 10px;margin-right:6px;background:#f1f5f9}.primary{background:#16a34a;color:#fff}.secondary{background:#f1f5f9;color:#0f172a}.danger{background:#fee2e2;color:#b91c1c}.badge{border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;background:#e2e8f0}.badge.active{background:#dcfce7;color:#166534}.badge.inactive,.badge.expired{background:#fee2e2;color:#b91c1c}.badge.draft{background:#f1f5f9;color:#475569}.alert{padding:12px;border-radius:10px;font-weight:700}.error{background:#fee2e2;color:#b91c1c}.success{background:#dcfce7;color:#166534}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.56);display:grid;place-items:center;z-index:500;padding:20px}.modal{width:min(760px,calc(100vw - 32px));padding:22px;display:grid;gap:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:6px;font-weight:800}input,select,textarea{border:1px solid #dbe3ef;border-radius:8px;padding:10px;font:inherit}footer{display:flex;justify-content:flex-end;gap:10px}@media(max-width:720px){.grid,.filters{grid-template-columns:1fr;flex-direction:column;align-items:stretch}}
 </style>

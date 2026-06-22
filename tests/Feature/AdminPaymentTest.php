@@ -161,156 +161,45 @@ class AdminPaymentTest extends TestCase
             ->assertJsonPath('redirect_to', '/admin/dashboard');
     }
 
-    public function test_retry_creates_a_new_attempt_and_marks_pending_attempt_failed(): void
+    public function test_retry_is_forbidden_for_admin(): void
     {
-        $this->payment->update([
-            'method' => 'mixed',
-            'wallet_amount' => 25000,
-            'gateway_amount' => 75000,
-        ]);
-
         $response = $this->actingAs($this->finance, 'sanctum')
             ->postJson("/api/admin/payments/{$this->payment->id}/retry", [
                 'source' => 'admin',
-                'reason' => 'Khởi tạo lại giao dịch sau lỗi gateway.',
+                'reason' => 'Khởi tạo lại giao dịch.',
             ]);
 
-        $response->assertCreated()
-            ->assertJsonPath('data.status', 'pending')
-            ->assertJsonPath('data.booking_id', $this->booking->id);
+        $response->assertStatus(403)
+            ->assertJsonPath('message', 'Thao tác này chỉ dành cho người dùng và chủ sân.');
 
-        $newPaymentId = $response->json('data.id');
-
-        $this->assertNotSame($this->payment->id, $newPaymentId);
         $this->assertDatabaseHas('payments', [
             'id' => $this->payment->id,
-            'status' => 'failed',
-        ]);
-        $this->assertDatabaseHas('payments', [
-            'id' => $newPaymentId,
             'status' => 'pending',
-            'method' => 'mixed',
-            'wallet_amount' => 25000,
-            'gateway_amount' => 75000,
-        ]);
-        $this->assertDatabaseHas('payment_logs', [
-            'payment_id' => $this->payment->id,
-            'event_type' => 'admin_payment_retry_replaced',
-        ]);
-        $this->assertDatabaseHas('payment_logs', [
-            'payment_id' => $newPaymentId,
-            'event_type' => 'admin_payment_retry_created',
         ]);
     }
 
-    public function test_admin_paid_status_confirms_booking_and_credits_owner_wallet(): void
+    public function test_status_update_is_forbidden_for_admin(): void
     {
         $response = $this->actingAs($this->finance, 'sanctum')
             ->patchJson("/api/admin/payments/{$this->payment->id}/status", [
                 'status' => 'paid',
                 'source' => 'mock',
-                'reason' => 'Mock giao dịch thành công để đối soát.',
+                'reason' => 'Mock giao dịch thành công.',
                 'gateway_txn_id' => 'MOCK-ADMIN-PAY-01',
-                'gateway_response' => ['result' => 'success'],
             ]);
 
-        $response->assertOk()
-            ->assertJsonPath('data.status', 'paid')
-            ->assertJsonPath('data.gateway_txn_id', 'MOCK-ADMIN-PAY-01');
+        $response->assertStatus(403)
+            ->assertJsonPath('message', 'Thao tác này chỉ dành cho người dùng và chủ sân.');
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $this->payment->id,
+            'status' => 'pending',
+        ]);
 
         $this->assertDatabaseHas('bookings', [
             'id' => $this->booking->id,
-            'status' => 'confirmed',
+            'status' => 'pending_payment',
         ]);
-        $this->assertDatabaseHas('owner_wallets', [
-            'owner_id' => $this->owner->id,
-            'available_balance' => 100000,
-            'total_earned' => 100000,
-        ]);
-        $this->assertDatabaseHas('owner_wallet_ledgers', [
-            'payment_id' => $this->payment->id,
-            'type' => 'credit',
-            'direction' => 'credit',
-            'amount' => 100000,
-        ]);
-        $this->assertDatabaseHas('payment_logs', [
-            'payment_id' => $this->payment->id,
-            'event_type' => 'admin_payment_status_updated',
-            'status_before' => 'pending',
-            'status_after' => 'paid',
-        ]);
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_id' => $this->finance->id,
-            'action' => 'payment.status_updated',
-            'entity_id' => $this->payment->id,
-        ]);
-    }
-
-    public function test_admin_can_record_pay_later_payment_without_reverting_completed_booking(): void
-    {
-        $this->booking->update([
-            'source' => 'counter',
-            'payment_option' => 'no_prepay',
-            'required_payment_amount' => 0,
-            'status' => 'completed',
-        ]);
-
-        $this->actingAs($this->finance, 'sanctum')
-            ->patchJson("/api/admin/payments/{$this->payment->id}/status", [
-                'status' => 'paid',
-                'source' => 'admin',
-                'reason' => 'Đối soát khoản thu sau khi khách đã chơi.',
-                'gateway_txn_id' => 'POSTPLAY-ADMIN-PAY-01',
-            ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'paid');
-
-        $this->assertDatabaseHas('bookings', [
-            'id' => $this->booking->id,
-            'status' => 'completed',
-        ]);
-    }
-
-    public function test_admin_cannot_mark_payment_refunded_directly(): void
-    {
-        $this->actingAs($this->finance, 'sanctum')
-            ->patchJson("/api/admin/payments/{$this->payment->id}/status", [
-                'status' => 'paid',
-                'source' => 'mock',
-                'reason' => 'Thanh toán thành công.',
-                'gateway_txn_id' => 'MOCK-ADMIN-PAY-02',
-            ])
-            ->assertOk();
-
-        $this->actingAs($this->finance, 'sanctum')
-            ->patchJson("/api/admin/payments/{$this->payment->id}/status", [
-                'status' => 'refunded',
-                'source' => 'admin',
-                'reason' => 'Đã hoàn tiền cho khách.',
-            ])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('status');
-
-        $this->assertDatabaseHas('owner_wallets', [
-            'owner_id' => $this->owner->id,
-            'available_balance' => 100000,
-        ]);
-        $this->assertDatabaseMissing('refunds', ['payment_id' => $this->payment->id]);
-    }
-
-    public function test_retry_is_rejected_when_booking_is_no_longer_waiting_for_payment(): void
-    {
-        $this->booking->update(['status' => 'cancelled']);
-
-        $this->actingAs($this->finance, 'sanctum')
-            ->postJson("/api/admin/payments/{$this->payment->id}/retry", [
-                'source' => 'admin',
-                'reason' => 'Không được tạo attempt cho booking đã hủy.',
-            ])
-            ->assertStatus(422)
-            ->assertJsonPath('message', 'Chỉ được retry khi booking vẫn đang chờ thanh toán.');
-
-        $this->assertSame(1, Payment::query()->where('booking_id', $this->booking->id)->count());
     }
 
     private function createUser(string $username, string $email): User
@@ -327,7 +216,7 @@ class AdminPaymentTest extends TestCase
 
     private function assignRole(User $user, Role $role): void
     {
-        UserRole::query()->create([
+        UserRole::query()->firstOrCreate([
             'user_id' => $user->id,
             'role_id' => $role->id,
             'scope_type' => 'system',

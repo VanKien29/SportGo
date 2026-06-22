@@ -1,12 +1,6 @@
 <template>
   <section class="moderation-page">
-    <header class="page-head">
-      <div>
-        <h2>Xử lý báo cáo</h2>
-        <p>Kiểm duyệt nội dung và xử lý hành vi vi phạm trong cộng đồng.</p>
-      </div>
-      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadReports" />
-    </header>
+
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -29,9 +23,15 @@
           <option value="">Tất cả trạng thái</option>
           <option v-for="item in statuses" :key="item.value" :value="item.value">{{ item.label }}</option>
         </select>
+        <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadReports" />
+        <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadReports" />
         <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadReports" />
+        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadReports" />
       </div>
     </section>
+
+    <div v-if="error" class="alert error">{{ error }}</div>
+    <div v-if="success" class="alert success">{{ success }}</div>
 
     <div v-if="loading" class="empty-state">Đang tải danh sách báo cáo...</div>
     <div v-else-if="reports.length === 0" class="empty-state">Không có báo cáo phù hợp.</div>
@@ -120,33 +120,123 @@
 
           <aside class="side-panel">
             <h4>Thao tác xử lý</h4>
-            <div class="form-stack">
+            <p v-if="isTerminalStatus(selected.status)" class="content-box">
+              Báo cáo đã kết thúc với trạng thái “{{ statusLabel(selected.status) }}”. Nội dung xử lý được giữ lại trong lịch sử.
+            </p>
+            <div v-else class="form-stack">
               <button v-if="selected.status === 'pending'" class="btn secondary" type="button" :disabled="saving" @click="takeReview">
                 Nhận kiểm duyệt
               </button>
-              <label>
-                Hành động
-                <select v-model="form.action_taken">
-                  <option value="">Chọn hành động</option>
-                  <option v-for="action in selected.available_actions" :key="action" :value="action">{{ actionLabel(action) }}</option>
-                </select>
-              </label>
-              <label v-if="['account_locked', 'venue_locked'].includes(form.action_taken)">
-                Số ngày khóa
-                <input v-model.number="form.lock_days" type="number" min="1" max="365" placeholder="Bỏ trống để khóa vĩnh viễn" />
-              </label>
+              <button v-if="selected.status === 'resolved' || selected.status === 'dismissed'" class="btn secondary" type="button" :disabled="saving" @click="takeReview">
+                Hủy thao tác & Xử lý lại
+              </button>
               <label>
                 Ghi chú xử lý
-                <textarea v-model.trim="form.action_note" rows="6" placeholder="Nêu kết quả kiểm tra và căn cứ xử lý"></textarea>
+                <textarea v-model.trim="form.action_note" rows="6" placeholder="Nêu kết quả kiểm tra và căn cứ xử lý" :disabled="saving || selected.status === 'resolved' || selected.status === 'dismissed'"></textarea>
               </label>
-              <div class="modal-actions">
-                <button class="btn secondary" type="button" :disabled="saving" @click="submitDecision('dismissed')">Bỏ qua</button>
-                <button class="btn danger" type="button" :disabled="saving || !form.action_taken" @click="submitDecision('resolved')">Xử lý vi phạm</button>
+              <div v-if="selected.status !== 'resolved' && selected.status !== 'dismissed'" class="modal-actions">
+                <button class="btn secondary" type="button" :disabled="saving" @click="submitDecision('dismissed')">Từ chối</button>
+                <button class="btn danger" type="button" :disabled="saving" @click="submitDecision('resolved')">Xác nhận</button>
               </div>
             </div>
           </aside>
         </div>
       </section>
+    </div>
+
+    <!-- Modal Cấu hình tự động xử lý báo cáo -->
+    <div v-if="showAutoResolveModal" class="detail-backdrop" @click.self="closeAutoResolveModal">
+      <div class="modal" style="max-width: 650px; background: #fff; border-radius: 12px; padding: 22px; display: grid; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+        <h3 style="margin: 0;">Cấu hình tự động xử lý báo cáo</h3>
+        <p class="muted" style="margin: 0; color: #64748b; font-size: 14px;">Thiết lập tự động ẩn nội dung hoặc khóa cụm sân khi đạt ngưỡng báo cáo vi phạm.</p>
+        
+        <div v-if="autoResolveLoading" class="state" style="padding: 20px; text-align: center; color: #64748b;">Đang tải cấu hình...</div>
+        <template v-else-if="autoResolveConfigData">
+          <!-- Chọn Đối Tượng Tab cấu hình -->
+          <div class="auto-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
+            <button
+              v-for="cfg in autoResolveConfigData.configs"
+              :key="cfg.target_type"
+              type="button"
+              :class="{ active: activeAutoTab === cfg.target_type }"
+              @click="activeAutoTab = cfg.target_type"
+              style="border: 0; background: transparent; padding: 8px 12px; font-weight: 800; cursor: pointer; border-bottom: 2px solid transparent; color: #64748b; font-size: 14px;"
+              :style="activeAutoTab === cfg.target_type ? 'color: #166534; border-bottom-color: #22c55e;' : ''"
+            >
+              {{ cfg.target_type_label }}
+            </button>
+          </div>
+
+          <div v-if="currentAutoConfig" class="auto-config-body" style="display: grid; gap: 14px;">
+            <!-- Thông tin chính sách (chỉ đọc) -->
+            <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
+              <div style="font-weight: 700; color: #334155; margin-bottom: 10px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.3px;">Ngưỡng từ chính sách</div>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng cảnh báo:</span>
+                  <strong style="color: #d97706;">{{ currentAutoConfig.warning_threshold }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
+                  <strong style="color: #dc2626;">{{ currentAutoConfig.action_threshold }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo khác nhau:</span>
+                  <strong style="color: #2563eb;">{{ currentAutoConfig.unique_reporters_threshold }} người</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #64748b; font-size: 0.9rem;">Thời gian theo dõi:</span>
+                  <strong style="color: #334155;">{{ currentAutoConfig.window_days }} ngày</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cấu hình chỉnh sửa -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center;">
+                <span style="color: #334155; font-size: 0.9rem; font-weight: 600;">Tự động xử lý vi phạm:</span>
+                <!-- Switch toggle -->
+                <div 
+                  class="toggle-slider" 
+                  :class="{ on: currentAutoConfig.is_auto_resolve_enabled }" 
+                  @click="currentAutoConfig.is_auto_resolve_enabled = !currentAutoConfig.is_auto_resolve_enabled"
+                  style="width: 48px; height: 26px; border-radius: 13px; background: #e2e8f0; cursor: pointer; transition: background 0.2s; position: relative;"
+                  :style="currentAutoConfig.is_auto_resolve_enabled ? 'background: #16a34a;' : ''"
+                >
+                  <div 
+                    style="position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"
+                    :style="currentAutoConfig.is_auto_resolve_enabled ? 'transform: translateX(22px);' : ''"
+                  ></div>
+                </div>
+              </div>
+              <div v-if="currentAutoConfig.is_auto_resolve_enabled" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+                <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 800; font-size: 13px; color: #334155;">
+                  <span style="color: #64748b;">Lý do xử lý tự động:</span>
+                  <input type="text" v-model="currentAutoConfig.reason" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 500;" placeholder="Ví dụ: Vi phạm tiêu chuẩn cộng đồng" />
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 4px; padding: 10px 12px; background: #eff6ff; border-radius: 8px; font-size: 0.85rem; color: #1e40af; display: flex; align-items: flex-start; gap: 8px;">
+            <AppIcon name="info" size="16" style="flex-shrink: 0; margin-top: 2px;" />
+            <div>
+              Khi số người báo cáo khác nhau đạt <strong>ngưỡng thực hiện thao tác</strong> và tự động xử lý đang bật, hệ thống sẽ tự động thực thi ẩn bài viết/bình luận hoặc khóa cụm sân.
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 8px;">
+            <router-link v-if="autoResolveConfigData.policy_id" :to="`/admin/policies/${autoResolveConfigData.policy_id}`" class="btn secondary" style="text-decoration: none; display: inline-block; font-size: 0.85rem; padding: 8px 12px; font-weight: 800; border-radius: 6px; background: #f1f5f9; color: #334155;">
+              Chỉnh ngưỡng tại Chính sách hệ thống →
+            </router-link>
+          </div>
+        </template>
+
+        <footer style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn secondary" @click="closeAutoResolveModal" style="border: 0; background: #f1f5f9; color: #334155; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;">Hủy</button>
+          <button type="button" class="btn primary" style="background: #10b981; color: white; border: 0; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;" @click="saveAutoResolveConfig" :disabled="autoResolveSaving">Lưu cấu hình</button>
+        </footer>
+      </div>
     </div>
   </section>
 </template>
@@ -163,7 +253,7 @@ export default {
     return {
       reports: [],
       summary: {},
-      filters: { keyword: '', target_type: '', reason: '', status: '' },
+      filters: { keyword: '', target_type: '', reason: '', status: '', date_from: '', date_to: '' },
       targetTypes: [
         { value: 'post', label: 'Bài viết cộng đồng' },
         { value: 'comment', label: 'Bình luận' },
@@ -194,7 +284,20 @@ export default {
       error: '',
       success: '',
       form: { action_taken: '', action_note: '', lock_days: null },
+      showAutoResolveModal: false,
+      autoResolveLoading: false,
+      autoResolveSaving: false,
+      autoResolveConfigData: null,
+      activeAutoTab: 'community_post',
     };
+  },
+  computed: {
+    currentAutoConfig() {
+      if (!this.autoResolveConfigData || !this.autoResolveConfigData.configs) {
+        return null;
+      }
+      return this.autoResolveConfigData.configs[this.activeAutoTab];
+    },
   },
   mounted() {
     this.loadReports();
@@ -252,10 +355,6 @@ export default {
       }
     },
     async submitDecision(decision) {
-      if (!this.form.action_note) {
-        this.error = 'Vui lòng nhập ghi chú xử lý.';
-        return;
-      }
       this.saving = true;
       try {
         const response = await adminReportService.resolve(this.selected.id, { ...this.form, decision });
@@ -281,6 +380,9 @@ export default {
     },
     statusLabel(value) {
       return this.statuses.find((item) => item.value === value)?.label || value || '-';
+    },
+    isTerminalStatus(value) {
+      return ['resolved', 'dismissed'].includes(value);
     },
     actionLabel(value) {
       return {
@@ -313,6 +415,39 @@ export default {
     },
     mediaUrl(path) {
       return path?.startsWith('http') ? path : `/storage/${path}`;
+    },
+    async openAutoResolveModal() {
+      this.showAutoResolveModal = true;
+      this.autoResolveLoading = true;
+      this.activeAutoTab = 'community_post';
+      try {
+        const res = await adminReportService.getAutoResolveConfig();
+        this.autoResolveConfigData = res.data;
+      } catch (err) {
+        this.error = 'Không thể tải cấu hình tự động xử lý báo cáo.';
+        this.showAutoResolveModal = false;
+      } finally {
+        this.autoResolveLoading = false;
+      }
+    },
+    closeAutoResolveModal() {
+      this.showAutoResolveModal = false;
+      this.autoResolveConfigData = null;
+    },
+    async saveAutoResolveConfig() {
+      this.autoResolveSaving = true;
+      try {
+        const payload = {
+          configs: Object.values(this.autoResolveConfigData.configs),
+        };
+        await adminReportService.saveAutoResolveConfig(payload);
+        this.success = 'Lưu cấu hình tự động xử lý báo cáo thành công.';
+        this.closeAutoResolveModal();
+      } catch (err) {
+        this.error = err.message || 'Lỗi khi lưu cấu hình.';
+      } finally {
+        this.autoResolveSaving = false;
+      }
     },
   },
 };

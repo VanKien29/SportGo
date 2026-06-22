@@ -26,6 +26,21 @@
       <div class="moderation-content">
         <div v-if="loading" class="empty-state">Đang tải cấu hình...</div>
         <div v-else>
+          <!-- Toggle auto lock -->
+          <div class="global-toggle-card">
+            <div class="toggle-header">
+              <div class="toggle-info">
+                <h4>Tự động áp dụng hình phạt khóa tài khoản/cụm sân</h4>
+                <p>Khi bật, hệ thống sẽ tự động gọi lệnh khóa khi số điểm vi phạm đạt ngưỡng tự động xử lý.</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" v-model="autoLockEnabled" :disabled="!canEditConfig" @change="saveAutoLockConfig" />
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <p class="mod-error-text" v-if="toggleError">{{ toggleError }}</p>
+          </div>
+
           <!-- Phần 1: Cấu hình điểm -->
           <div class="score-card">
             <div class="card-header">
@@ -117,6 +132,9 @@ export default {
       scoreDraft: null,
       scoreError: '',
       savingScore: false,
+
+      autoLockEnabled: false,
+      toggleError: '',
     };
   },
   computed: {
@@ -139,10 +157,24 @@ export default {
       try {
         const res = await api(`/api/admin/policies/${this.policyId}/moderation-thresholds`);
         this.scoreThresholds = res.data || [];
+        this.autoLockEnabled = res.auto_lock_enabled || false;
       } catch (e) {
         console.error(e);
       } finally {
         this.loading = false;
+      }
+    },
+    
+    async saveAutoLockConfig() {
+      this.toggleError = '';
+      try {
+        await api(`/api/admin/policies/${this.policyId}/moderation-thresholds`, {
+          method: 'PUT',
+          body: JSON.stringify({ auto_lock_enabled: this.autoLockEnabled })
+        });
+      } catch (e) {
+        this.toggleError = e.message || 'Lỗi khi lưu cấu hình tự động khóa.';
+        this.autoLockEnabled = !this.autoLockEnabled; // revert on fail
       }
     },
     
@@ -202,6 +234,79 @@ export default {
   margin-top: 24px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
+
+.global-toggle-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 32px;
+}
+.toggle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.toggle-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  color: #0f172a;
+}
+.toggle-info p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 28px;
+  flex-shrink: 0;
+  margin-left: 16px;
+}
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: .4s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+input:checked + .slider {
+  background-color: #10b981;
+}
+input:focus + .slider {
+  box-shadow: 0 0 1px #10b981;
+}
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
+.slider.round {
+  border-radius: 34px;
+}
+.slider.round:before {
+  border-radius: 50%;
+}
+
 
 .config-head {
   padding: 24px;

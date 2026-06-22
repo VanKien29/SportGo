@@ -20,16 +20,16 @@ export const ownerNavigationSections = [
     label: 'Vận hành sân',
     items: [
       {
-        label: 'Cụm sân & Sân con',
+        label: 'Cụm sân',
         icon: 'building',
         to: '/owner/venue-clusters',
-        activeNames: ['owner-venue-clusters', 'owner-venue-courts'],
+        activeNames: ['owner-venue-clusters'],
       },
       {
-        label: 'Lịch sân',
-        icon: 'calendar',
-        to: '/owner/bookings',
-        activeNames: ['owner-bookings'],
+        label: 'Sân con',
+        icon: 'court',
+        to: '/owner/venue-courts',
+        activeNames: ['owner-venue-courts'],
       },
       {
         label: 'Khóa lịch sân',
@@ -54,6 +54,12 @@ export const ownerNavigationSections = [
         icon: 'calendar',
         to: '/owner/booking-settings',
         activeNames: ['owner-booking-settings'],
+      },
+      {
+        label: 'Giao lưu tại sân',
+        icon: 'users',
+        to: '/owner/matchmaking',
+        activeNames: ['owner-matchmaking'],
       },
     ],
   },
@@ -90,6 +96,12 @@ export const ownerNavigationSections = [
         to: '/owner/policies',
         activeNames: ['owner-policies'],
       },
+      {
+        label: 'Bài đăng & Thông báo',
+        icon: 'messageWarning',
+        to: '/owner/posts',
+        activeNames: ['owner-posts'],
+      },
     ],
   },
   {
@@ -123,6 +135,8 @@ export const ownerRouteTitles = {
   'owner-staff': 'Nhân viên sân',
   'owner-vouchers': 'Voucher của sân',
   'owner-policies': 'Chính sách sân',
+  'owner-posts': 'Bài đăng & Thông báo',
+  'owner-matchmaking': 'Giao lưu tại sân',
 };
 
 export const ownerRouteSectionLabels = {

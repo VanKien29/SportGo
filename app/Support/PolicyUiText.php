@@ -52,6 +52,7 @@ class PolicyUiText
             self::action('booking', 'Hủy booking', 'booking.cancel_by_customer', 'Khách hủy booking', 'Áp dụng khi khách yêu cầu hủy booking.', ['booking_cancellation']),
             self::action('booking', 'Hủy booking', 'booking.cancel_by_owner', 'Chủ sân hủy booking', 'Áp dụng khi chủ sân hoặc nhân viên sân hủy booking.', ['booking_cancellation']),
             self::action('booking', 'Hủy booking', 'booking.expire_unpaid', 'Hệ thống hủy booking do quá hạn thanh toán', 'Áp dụng khi booking hết thời gian giữ chỗ nhưng chưa thanh toán.', ['booking_cancellation']),
+            self::action('refund', 'Hoàn tiền', 'refund.owner_fault_100', 'Hoàn 100% do lỗi phía sân', 'Áp dụng khi chủ sân hủy, khóa sân hoặc bảo trì làm ảnh hưởng booking đã thanh toán.', ['booking_cancellation', 'refund']),
             self::action('refund', 'Hoàn tiền', 'refund.request', 'Khách gửi yêu cầu hoàn tiền', 'Áp dụng khi khách gửi yêu cầu hoàn tiền.', ['booking_cancellation', 'refund']),
             self::action('refund', 'Hoàn tiền', 'refund.owner_confirm', 'Chủ sân xác nhận yêu cầu hoàn tiền', 'Áp dụng khi chủ sân đồng ý hoặc từ chối yêu cầu hoàn.', ['booking_cancellation', 'refund']),
             self::action('refund', 'Hoàn tiền', 'refund.admin_complete', 'Admin xác nhận hoàn tất hoàn tiền', 'Áp dụng khi admin xác nhận giao dịch hoàn tiền đã hoàn tất.', ['booking_cancellation', 'refund']),
@@ -113,6 +114,20 @@ class PolicyUiText
                 'refund_percent_minimum',
                 true,
                 'high'
+            ),
+            'owner_fault_full_refund' => self::template(
+                'booking_cancellation',
+                'owner_fault_full_refund',
+                'Hoàn 100% khi lỗi phát sinh từ phía sân',
+                'Khi chủ sân hủy, khóa sân hoặc bảo trì làm ảnh hưởng booking đã thanh toán, hệ thống hoàn 100% vào ví SportGo của khách.',
+                'refund.owner_fault_100',
+                ['owner_fault_refund' => true],
+                ['refund_percent' => 100, 'refund_basis' => 'paid_amount', 'refund_destination' => 'user_wallet', 'requires_owner_confirm' => false, 'requires_admin_confirm' => true],
+                'refund_percent',
+                'owner_fault_refund',
+                false,
+                'critical',
+                ['refund.owner_fault_100', 'refund.admin_complete']
             ),
             'owner_confirm_required_before_admin_transfer' => self::template(
                 'refund',
@@ -359,6 +374,7 @@ class PolicyUiText
                         self::scalar($result['refund_percent'] ?? '?')
                     )
             ),
+            'owner_fault_full_refund' => 'Nếu booking bị ảnh hưởng do chủ sân hủy, khóa sân hoặc bảo trì, hệ thống hoàn 100% phần đã thanh toán vào ví SportGo của khách.',
             'owner_confirm_required_before_admin_transfer' => 'Nếu yêu cầu hoàn tiền chưa được chủ sân xác nhận, admin không được chuyển tiền và không được chuyển yêu cầu sang hoàn tất.',
             'platform_fee_overdue_warning' => 'Khi phí nền tảng sắp đến hạn hoặc đã quá hạn, hệ thống gửi nhắc nhở cho chủ sân.',
             'platform_fee_overdue_lock' => sprintf(
@@ -404,6 +420,7 @@ class PolicyUiText
             'refund_percent_by_cancel_time' => ($condition['uses_tier_table'] ?? false)
                 ? 'Tính theo bảng 4 mốc thời gian trước giờ chơi.'
                 : 'Thời gian trước giờ chơi: tối thiểu ' . self::conditionValue($condition, 'hours_before_start') . ' giờ.',
+            'owner_fault_full_refund' => 'Lý do hoàn tiền phát sinh từ lỗi phía sân.',
             'platform_fee_overdue_lock' => 'Quá hạn phí: tối thiểu ' . self::conditionValue($condition, 'overdue_days') . ' ngày.',
             'report_threshold_requires_review' => 'Báo cáo hợp lệ: từ ' . self::conditionValue($condition, 'report_count') . ' báo cáo, bởi ít nhất ' . self::conditionValue($condition, 'unique_reporters') . ' người, trong ' . self::scalar($condition['window_days'] ?? '?') . ' ngày.',
             'contract_signing_required' => 'Có đủ chữ ký chủ sân và chữ ký SportGo.',
@@ -421,6 +438,7 @@ class PolicyUiText
             'refund_percent_by_cancel_time' => isset($result['tiers']) && is_array($result['tiers'])
                 ? self::refundTierSummary($result['tiers'])
                 : 'Đề xuất hoàn ' . self::scalar($result['refund_percent'] ?? '?') . '% số tiền đã thanh toán.',
+            'owner_fault_full_refund' => 'Hoàn 100% vào ví SportGo của khách, không áp dụng mốc hủy do khách.',
             'owner_confirm_required_before_admin_transfer' => 'Bắt buộc chủ sân xác nhận trước khi admin hoàn tất.',
             'platform_fee_overdue_warning' => 'Gửi thông báo nhắc phí cho chủ sân.',
             'platform_fee_overdue_lock' => 'Giới hạn quyền owner: chỉ được đóng phí, xem ví/rút tiền nếu được phép, xem hồ sơ/hợp đồng.',
@@ -502,7 +520,7 @@ class PolicyUiText
         ?array $actionCodes = null
     ): array {
         $policyTypes = [$policyType];
-        if (in_array($ruleType, ['refund_percent_by_cancel_time', 'owner_confirm_required_before_admin_transfer'], true)) {
+        if (in_array($ruleType, ['refund_percent_by_cancel_time', 'owner_confirm_required_before_admin_transfer', 'owner_fault_full_refund'], true)) {
             $policyTypes = array_values(array_unique([...$policyTypes, 'booking_cancellation', 'refund']));
         }
 

@@ -1,10 +1,14 @@
 <template>
   <section class="page">
-    <header class="page-head">
-      <div>
-        <h2>Cấu hình chính sách sân</h2>
-        <p>Thiết lập chính sách riêng theo từng cụm sân trong khung hệ thống cho phép.</p>
-      </div>
+    <!-- Floating Add Button -->
+    <div v-if="tab === 'notices'" class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <button class="btn-float-add" type="button" @click="openNotice()" title="Thêm quy định">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Thêm quy định</span>
+      </button>
+    </div>
+
+    <div class="cluster-selection-bar" v-if="clusters.length > 1 || currentCluster">
       <label class="cluster-picker" v-if="clusters.length > 1">
         <span>Cụm sân đang quản lý</span>
         <select v-model="selectedClusterId" @change="changeCluster">
@@ -15,7 +19,7 @@
         <span>Cụm sân đang quản lý</span>
         <strong>{{ currentCluster.name }}</strong>
       </div>
-    </header>
+    </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -108,10 +112,6 @@
           <h3>Quy định hiển thị cho khách</h3>
           <p>Nội dung này chỉ để khách đọc, không tác động tự động đến hủy, hoàn tiền hoặc booking.</p>
         </div>
-        <button class="btn primary" type="button" @click="openNotice()">
-          <AppIcon name="plus" size="16" />
-          <span>Thêm quy định</span>
-        </button>
       </div>
       <div v-if="customerNotices.length === 0" class="state">Chưa có nội quy hiển thị cho khách.</div>
       <article v-for="notice in customerNotices" :key="notice.id" class="notice-card">
@@ -243,6 +243,7 @@ export default {
       cancelRefundError: '',
       noticeModal: false,
       noticeForm: this.emptyNotice(),
+      showScrollTop: false,
     };
   },
   computed: {
@@ -258,12 +259,14 @@ export default {
       }).join(' ');
     },
   },
-  mounted() {
+  async mounted() {
     window.addEventListener('owner-cluster-changed', this.handleExternalClusterChange);
+    window.addEventListener('scroll', this.handleScroll);
     this.loadClusters();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.handleExternalClusterChange);
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     emptyNotice() {
@@ -486,15 +489,19 @@ export default {
         this.saving = false;
       }
     },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 150;
+    },
   },
 };
 </script>
 
 <style scoped>
 .page { display: grid; gap: 16px; }
-.page-head, .section-head, .card-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
-.page-head h2, .section-head h3, .policy-card h3, .modal h3 { margin: 0 0 6px; }
-.page-head p, .section-head p, .summary-block p, .notice-card p, .modal-head p, small { margin: 0; color: #64748b; }
+.cluster-selection-bar { margin-bottom: 8px; }
+.section-head, .card-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.section-head h3, .policy-card h3, .modal h3 { margin: 0 0 6px; }
+.section-head p, .summary-block p, .notice-card p, .modal-head p, small { margin: 0; color: #64748b; }
 .cluster-picker, .cluster-badge { display: grid; gap: 6px; min-width: 260px; font-weight: 800; }
 .cluster-badge { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; }
 .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
