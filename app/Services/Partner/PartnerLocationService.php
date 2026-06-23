@@ -88,19 +88,26 @@ class PartnerLocationService
         }
 
         $normalizedAddress = $this->normalize($address);
-        $matchedProvince = collect($this->provinces())->first(
-            fn (array $province) => str_contains($normalizedAddress, $this->normalize($province['name']))
-                || str_contains($normalizedAddress, $this->normalize(Str::after($province['name'], ' ')))
-        );
+        
+        $matchedProvince = collect($this->provinces())->first(function (array $province) use ($normalizedAddress) {
+            $normalizedName = $this->normalize($province['name']);
+            $shortName = preg_replace('/^(thanh pho|tinh)\s+/i', '', $normalizedName);
+            
+            return str_contains($normalizedAddress, $normalizedName)
+                || str_contains($normalizedAddress, $shortName);
+        });
 
         if (! $matchedProvince) {
             return [];
         }
 
-        $matchedWard = collect($this->wards($matchedProvince['code']))->first(
-            fn (array $ward) => str_contains($normalizedAddress, $this->normalize($ward['name']))
-                || str_contains($normalizedAddress, $this->normalize(Str::after($ward['name'], ' ')))
-        );
+        $matchedWard = collect($this->wards($matchedProvince['code']))->first(function (array $ward) use ($normalizedAddress) {
+            $normalizedName = $this->normalize($ward['name']);
+            $shortName = preg_replace('/^(phuong|xa|thi tran)\s+/i', '', $normalizedName);
+            
+            return str_contains($normalizedAddress, $normalizedName)
+                || str_contains($normalizedAddress, $shortName);
+        });
 
         return array_filter([
             'province_code' => $matchedProvince['code'],

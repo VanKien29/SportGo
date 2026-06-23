@@ -367,6 +367,7 @@ Route::middleware('auth:sanctum')
         Route::get('/user/partner-application/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::get('/user/partner-application/pending-contract', [UserPartnerApplicationController::class, 'pendingContract']);
         Route::post('/user/partner-application/sign-contract', [UserPartnerApplicationController::class, 'signContract']);
+        Route::post('/user/partner-application/{id}/sign-document', [UserPartnerApplicationController::class, 'signDocument']);
         Route::get('/files/documents/{id}/download', PartnerDocumentDownloadController::class);
 
         Route::get('/policies/required', [PolicyAcceptanceController::class, 'required']);

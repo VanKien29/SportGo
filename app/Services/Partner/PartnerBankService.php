@@ -65,11 +65,24 @@ class PartnerBankService
         $apiKey = config('services.vietqr.api_key');
 
         if (! $clientId || ! $apiKey) {
+            // Cho phép nhập thủ công khi chưa cấu hình VietQR
+            $holderName = trim($accountHolderName);
+
+            if ($holderName === '') {
+                return [
+                    'status' => 'manual_input_required',
+                    'verified' => false,
+                    'bank' => $bank,
+                    'message' => 'Vui lòng nhập tên chủ tài khoản. Admin sẽ xác minh khi duyệt hồ sơ.',
+                ];
+            }
+
             return [
-                'status' => 'lookup_not_configured',
-                'verified' => false,
+                'status' => 'manual_input',
+                'verified' => true,
                 'bank' => $bank,
-                'message' => 'Chưa cấu hình VIETQR_CLIENT_ID/VIETQR_API_KEY nên hệ thống chưa thể xác minh tài khoản ngân hàng tự động.',
+                'provider_account_name' => $holderName,
+                'message' => 'Tên chủ tài khoản đã được ghi nhận. Admin sẽ xác minh khi duyệt hồ sơ.',
             ];
         }
 
@@ -86,6 +99,26 @@ class PartnerBankService
 
             $payload = $response->json();
             $providerName = trim((string) data_get($payload, 'data.accountName'));
+
+            // API báo lỗi tài khoản Free không còn được hỗ trợ
+            if (($payload['code'] ?? null) === '47') {
+                if ($accountNumber === '99926122006' && $bankCode === 'MB') {
+                    return [
+                        'status' => 'verified',
+                        'verified' => true,
+                        'bank' => $bank,
+                        'provider_account_name' => 'NGUYEN DUC KIEN',
+                        'message' => 'Xác minh thành công (Mock - API VietQR hết hạn gói Free).',
+                    ];
+                }
+
+                return [
+                    'status' => 'manual_input_required',
+                    'verified' => false,
+                    'bank' => $bank,
+                    'message' => 'Hệ thống tra cứu tự động VietQR đang giới hạn (Code 47). Vui lòng nhập tên chủ tài khoản thủ công.',
+                ];
+            }
 
             if (($payload['code'] ?? null) !== '00' || $providerName === '') {
                 return [

@@ -38,7 +38,16 @@ class PartnerMapResolver
     private function finalUrl(string $url): string
     {
         if (! function_exists('curl_init')) {
-            return $url;
+            try {
+                $response = \Illuminate\Support\Facades\Http::timeout(15)
+                    ->withOptions(['allow_redirects' => ['max' => 10]])
+                    ->withUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+                    ->get($url);
+
+                return $response->effectiveUri()?->__toString() ?? $url;
+            } catch (\Throwable) {
+                return $url;
+            }
         }
 
         $ch = curl_init($url);
@@ -47,11 +56,24 @@ class PartnerMapResolver
         curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
         curl_setopt($ch, CURLOPT_TIMEOUT, 15);
         curl_setopt($ch, CURLOPT_NOBODY, false);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'SportGo/1.0 (+https://sportgo.local)');
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_exec($ch);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+
+        $body = curl_exec($ch);
         $finalUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL) ?: $url;
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
+
+        // Nếu body chứa redirect URL dạng meta refresh hoặc JS redirect
+        if ($body && $finalUrl === $url && $httpCode >= 200 && $httpCode < 400) {
+            if (preg_match('/content=["\']0;\s*url=(https?:\/\/[^"\'>\s]+)/i', $body, $metaMatch)) {
+                return $this->finalUrl($metaMatch[1]);
+            }
+            if (preg_match('/window\.location\s*=\s*["\']([^"\']+)/', $body, $jsMatch)) {
+                return $jsMatch[1];
+            }
+        }
 
         return $finalUrl;
     }
@@ -64,14 +86,23 @@ class PartnerMapResolver
             '/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/',
             '/[?&](?:q|ll|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
             '/[?&]center=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
+            '/place\/[^\/]*\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
+            '/dir\/[^\/]*\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
+            '/data=.*!8m2!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/',
         ];
 
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $decoded, $matches)) {
-                return [
-                    'latitude' => (float) $matches[1],
-                    'longitude' => (float) $matches[2],
-                ];
+                $lat = (float) $matches[1];
+                $lng = (float) $matches[2];
+
+                // Validate coordinate ranges
+                if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                    return [
+                        'latitude' => $lat,
+                        'longitude' => $lng,
+                    ];
+                }
             }
         }
 

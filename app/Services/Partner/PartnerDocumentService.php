@@ -121,6 +121,24 @@ class PartnerDocumentService
         if ($signatureImage) {
             $media = $this->storeSignatureImage($signature, $signatureImage);
             $signature->forceFill(['signature_media_id' => $media->id])->save();
+            
+            // Inject signature into DOCX
+            try {
+                $filePath = Storage::disk('local')->path($document->generated_file_path);
+                if (file_exists($filePath)) {
+                    $processor = new \PhpOffice\PhpWord\TemplateProcessor($filePath);
+                    $placeholder = 'signature_' . $signerSide;
+                    $processor->setImageValue($placeholder, [
+                        'path' => $media->getPath(),
+                        'width' => 150,
+                        'height' => 75,
+                        'ratio' => false,
+                    ]);
+                    $processor->saveAs($filePath);
+                }
+            } catch (\Throwable $e) {
+                // Ignore if placeholder not found or processing fails
+            }
         }
 
         $document->forceFill([

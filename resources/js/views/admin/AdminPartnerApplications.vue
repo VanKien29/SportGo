@@ -233,9 +233,14 @@
                   <div class="muted">{{ document.document_code }} · {{ documentStatusLabel(document.status) }} · {{ formatDate(document.generated_at) }}</div>
                   <div class="signature-line">{{ signatureSummary(document.signatures) }}</div>
                 </div>
-                <button class="btn ghost small" type="button" @click="downloadDocument(document.id)">
-                  <AppIcon name="download" size="15" /> Tải xuống
-                </button>
+                <div class="flex gap-2">
+                  <button class="btn primary small" type="button" @click="viewDocument(document)">
+                    <AppIcon name="eye" size="15" /> Xem
+                  </button>
+                  <button class="btn ghost small" type="button" @click="downloadDocument(document.id)">
+                    <AppIcon name="download" size="15" />
+                  </button>
+                </div>
               </div>
               <p v-if="!activeApplication.documents?.length" class="muted">Chưa có văn bản nào.</p>
             </section>
@@ -364,16 +369,23 @@
         </div>
       </form>
     </div>
+
+    <DocumentViewerModal
+      :show="showDocumentViewer"
+      :document="viewingDocument"
+      @close="closeDocumentViewer"
+    />
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import DocumentViewerModal from '../../components/DocumentViewerModal.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
 
 export default {
   name: 'AdminPartnerApplications',
-  components: { AppIcon },
+  components: { AppIcon, DocumentViewerModal },
   data() {
     return {
       applications: [],
@@ -389,6 +401,8 @@ export default {
       filters: { tab: 'pending', search: '', status: '' },
       pagination: { current_page: 1, last_page: 1, total: 0 },
       detailTab: 'overview',
+      showDocumentViewer: false,
+      viewingDocument: null,
       detailModal: { open: false },
       approveModal: { open: false },
       rejectModal: { open: false },
@@ -570,6 +584,17 @@ export default {
       } finally {
         this.savingAction = false;
       }
+    },
+    viewDocument(document) {
+      this.viewingDocument = {
+        ...document,
+        download_url: `/api/admin/partner-applications/${this.activeApplication.id}/documents/${document.id}/download`
+      };
+      this.showDocumentViewer = true;
+    },
+    closeDocumentViewer() {
+      this.showDocumentViewer = false;
+      setTimeout(() => { this.viewingDocument = null; }, 300);
     },
     openTerminate(application) {
       this.activeApplication = application;

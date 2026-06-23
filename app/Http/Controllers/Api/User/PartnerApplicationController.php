@@ -212,6 +212,39 @@ class PartnerApplicationController extends Controller
         ]);
     }
 
+    public function signDocument(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'signature_image' => ['required', 'string'],
+        ], $this->messages(), $this->attributes());
+
+        $application = PartnerApplication::with('generatedDocuments')
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $document = $application->generatedDocuments()
+            ->where('document_type', 'partner_application_form')
+            ->latest()
+            ->firstOrFail();
+
+        $signature = app(\App\Services\Partner\PartnerDocumentService::class)->signDocument(
+            $document,
+            $request->user(),
+            'owner',
+            $data['signature_image'],
+            $request
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Ký đơn đề nghị đăng ký thành công.',
+            'data' => [
+                'document' => $document->refresh(),
+                'signature' => $signature,
+            ],
+        ]);
+    }
+
     public function documents(Request $request): JsonResponse
     {
         $applicationIds = PartnerApplication::query()->where('user_id', $request->user()->id)->pluck('id');
@@ -382,9 +415,9 @@ class PartnerApplicationController extends Controller
             $data['bank_bin'] ?? null,
         );
 
-        if (($verification['status'] ?? null) !== 'verified') {
+        if (! in_array($verification['status'] ?? null, ['verified', 'manual_input_required'], true)) {
             throw ValidationException::withMessages([
-                'account_number' => $verification['message'] ?? 'Tài khoản ngân hàng chưa được xác minh tự động.',
+                'account_number' => $verification['message'] ?? 'Tài khoản ngân hàng chưa được xác minh.',
             ]);
         }
 
@@ -397,8 +430,13 @@ class PartnerApplicationController extends Controller
             $data['account_holder_name'] = $verification['provider_account_name'];
         }
 
-        $data['bank_verification_status'] = 'verified';
-        $data['bank_verified_at'] = now()->toDateTimeString();
+        if (($verification['status'] ?? null) === 'verified') {
+            $data['bank_verification_status'] = 'verified';
+            $data['bank_verified_at'] = now()->toDateTimeString();
+        } else {
+            $data['bank_verification_status'] = 'pending';
+            $data['bank_verified_at'] = null;
+        }
 
         return $data;
     }
