@@ -4,7 +4,6 @@
     :subtitle="subtitleText"
     imageSrc="https://i.ibb.co/XrkdGrrv/original-ccdd6d6195fff2386a31b684b7abdd2e-removebg-preview.png"
     quoteText="Reset your password. We've got you covered."
-    quoteAuthor="EaseMize UI"
     backTo="/"
   >
     <!-- Success / Message -->

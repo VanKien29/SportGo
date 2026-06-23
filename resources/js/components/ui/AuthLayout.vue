@@ -48,7 +48,7 @@
           “<Typewriter :key="quoteText" :text="quoteText" :speed="50" :loop="true" :delay="2000" />”
         </p>
         <cite class="block text-xs text-zinc-500 not-italic tracking-wide">
-          — {{ quoteAuthor }}
+          {{ quoteAuthor }}
         </cite>
       </blockquote>
     </div>
@@ -82,7 +82,7 @@ export default {
     },
     quoteAuthor: {
       type: String,
-      default: 'EaseMize UI',
+      default: 'SportGo',
     },
     backTo: {
       type: String,

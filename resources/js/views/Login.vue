@@ -4,7 +4,6 @@
     subtitle="Nhập email của bạn bên dưới để đăng nhập"
     imageSrc="https://i.ibb.co/XrkdGrrv/original-ccdd6d6195fff2386a31b684b7abdd2e-removebg-preview.png"
     quoteText="Bảo bối à, tôi cho phép em được đăng nhập vào hệ thống của tôi."
-    quoteAuthor="EaseMize UI"
     backTo="/"
   >
     <form @submit.prevent="handleLogin" class="flex flex-col gap-5 w-full text-left mt-2" autocomplete="off">
