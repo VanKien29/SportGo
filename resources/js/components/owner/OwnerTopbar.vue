@@ -15,21 +15,7 @@
     </div>
 
     <div class="topbar-actions">
-      <div class="topbar-command">
-        <AppIcon name="search" size="15" />
-        <span>Tìm chức năng</span>
-        <kbd>/</kbd>
-      </div>
-
-      <RouterLink class="topbar-icon" to="/" title="Xem website">
-        <AppIcon name="eye" size="18" />
-      </RouterLink>
-
       <ThemeToggle />
-
-      <RouterLink class="topbar-icon" to="/owner/profile" title="Hồ sơ chủ sân">
-        <AppIcon name="users" size="18" />
-      </RouterLink>
 
       <UserProfileDropdown
         :user="user"

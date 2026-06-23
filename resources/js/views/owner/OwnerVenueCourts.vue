@@ -46,59 +46,86 @@
                 </button>
             </div>
 
-            <!-- Grid List of Courts -->
-            <div v-if="activeView === 'list'" class="courts-grid">
-                <div
-                    v-for="court in courts"
-                    :key="court.id"
-                    class="court-card card"
-                >
-                    <div class="court-header">
-                        <h3 class="court-name">{{ court.name }}</h3>
-                        <span class="status-badge" :class="court.status">
-                            {{ formatStatus(court.status) }}
-                        </span>
+            <!-- Grid List of Courts (SaaS Grouped Compact Rows) -->
+            <div v-if="activeView === 'list'" class="courts-list-wrapper">
+
+                <!-- Grouped Content -->
+                <div class="grouped-courts-list">
+                    <div
+                        v-for="group in groupedCourts"
+                        :key="group.typeName"
+                        class="court-type-group"
+                    >
+                        <div class="group-header">
+                            <span class="group-title">{{ group.typeName.toUpperCase() }}</span>
+                            <span class="group-divider"></span>
+                            <span class="group-count">{{ group.courts.length }} sân</span>
+                        </div>
+
+                        <div class="group-items">
+                            <div
+                                v-for="court in group.courts"
+                                :key="court.id"
+                                class="court-row-item"
+                                :class="{ 'status-inactive': court.status !== 'active' }"
+                            >
+                                <!-- Accent line indicator on hover (handled by CSS) -->
+                                <div class="accent-line"></div>
+
+                                <!-- Left side: Order & Name & Status badge -->
+                                <div class="row-left">
+                                    <span class="row-order">#{{ court.sort_order }}</span>
+                                    <span class="row-name">{{ court.name }}</span>
+                                    <span
+                                        v-if="court.status !== 'active'"
+                                        class="row-status-badge"
+                                        :class="court.status"
+                                    >
+                                        {{ formatStatus(court.status) }}
+                                    </span>
+                                </div>
+
+                                <!-- Middle side: Spatial position status -->
+                                <div class="row-middle">
+                                    <span v-if="court.layout_x !== null" class="spatial-status placed">
+                                        <AppIcon name="circleCheck" size="13" />
+                                        <span>Đã xếp ({{ formatToM(court.layout_x) }}m, {{ formatToM(court.layout_y) }}m)</span>
+                                    </span>
+                                    <button
+                                        v-else
+                                        type="button"
+                                        class="btn-place-quick"
+                                        @click="selectAndSwitchToLayout(court)"
+                                    >
+                                        <span>Chưa xếp &bull; Định vị ngay</span>
+                                        <AppIcon name="chevronRight" size="12" />
+                                    </button>
+                                </div>
+
+                                <!-- Right side: Action Buttons -->
+                                <div class="row-right">
+                                    <ActionIconButton
+                                        icon="pencil"
+                                        label="Sửa sân con"
+                                        size="sm"
+                                        @click="openEditModal(court)"
+                                    />
+                                    <ActionIconButton
+                                        icon="trash"
+                                        label="Xóa sân con"
+                                        variant="danger"
+                                        size="sm"
+                                        @click="confirmDelete(court)"
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="court-body">
-                        <div class="info-row">
-                            <span class="label">Loại sân:</span>
-                            <span class="value">{{
-                                court.court_type?.name
-                            }}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Sơ đồ:</span>
-                            <span class="value">
-                                <span
-                                    v-if="court.layout_x !== null"
-                                    class="badge-placed"
-                                    >Đã xếp ({{ formatToM(court.layout_x) }}m,
-                                    {{ formatToM(court.layout_y) }}m)</span
-                                >
-                                <span v-else class="badge-unplaced"
-                                    >Chưa xếp</span
-                                >
-                            </span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Thứ tự hiển thị:</span>
-                            <span class="value">{{ court.sort_order }}</span>
-                        </div>
-                    </div>
-
-                    <div class="court-actions">
-                        <ActionIconButton
-                            icon="pencil"
-                            label="Sửa sân con"
-                            @click="openEditModal(court)"
-                        />
-                        <ActionIconButton
-                            icon="trash"
-                            label="Xóa sân con"
-                            variant="danger"
-                            @click="confirmDelete(court)"
-                        />
+                    <!-- Empty State for Search -->
+                    <div v-if="groupedCourts.length === 0" class="empty-search-state">
+                        <AppIcon name="alert" size="20" />
+                        <span>Không tìm thấy sân con nào phù hợp với từ khóa.</span>
                     </div>
                 </div>
             </div>
@@ -905,6 +932,7 @@ export default {
             },
             showTypeDropdown: false,
             activeView: "list",
+            searchQuery: "",
             selectedCourtId: null,
             draggingCourtId: null,
             dragStartX: 0,
@@ -933,6 +961,28 @@ export default {
         };
     },
     computed: {
+        groupedCourts() {
+            const filtered = this.courts.filter((c) => {
+                if (!this.searchQuery) return true;
+                return c.name.toLowerCase().includes(this.searchQuery.toLowerCase());
+            });
+
+            const groups = {};
+            filtered.forEach((court) => {
+                const typeName = court.court_type?.name || "Khác";
+                if (!groups[typeName]) {
+                    groups[typeName] = [];
+                }
+                groups[typeName].push(court);
+            });
+
+            return Object.keys(groups).map((typeName) => {
+                return {
+                    typeName,
+                    courts: groups[typeName].sort((a, b) => a.sort_order - b.sort_order),
+                };
+            });
+        },
         selectedCourtType() {
             return this.courtTypes.find(
                 (t) => t.id === this.form.court_type_id,
@@ -1049,6 +1099,17 @@ export default {
                 maintenance: "Bảo trì",
             };
             return map[status] || status;
+        },
+        selectAndSwitchToLayout(court) {
+            this.activeView = "layout";
+            if (court.layout_x === null || court.layout_y === null) {
+                this.placeCourt(court);
+            } else {
+                this.selectedCourtId = court.id;
+            }
+            this.$nextTick(() => {
+                this.fitView();
+            });
         },
         openCreateModal() {
             this.editingId = null;
@@ -2110,102 +2171,251 @@ export default {
     color: #000000;
 }
 
-.courts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
-}
-
-.court-card {
+/* SaaS Grouped Compact Rows */
+.courts-list-wrapper {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    transition:
-        transform 0.2s ease,
-        box-shadow 0.2s ease;
+    width: 100%;
 }
 
-.court-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+.command-search-bar {
+    max-width: 360px;
+    width: 100%;
 }
 
-.court-header {
+.grouped-courts-list {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--sg-border);
-    padding-bottom: 12px;
+    flex-direction: column;
+    gap: 24px;
 }
 
-.court-name {
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--sg-text);
-    margin: 0;
-}
-
-.status-badge {
-    display: inline-flex;
-    padding: 4px 8px;
-    border-radius: 9999px;
-    font-size: 11px;
-    font-weight: 700;
-    border: 1px solid transparent;
-}
-
-.status-badge.active {
-    background: rgba(0, 0, 0, 0.04);
-    color: #000000;
-    border-color: rgba(0, 0, 0, 0.15);
-}
-
-.status-badge.inactive {
-    background: #f3f4f6;
-    color: rgba(0, 0, 0, 0.4);
-    border-color: rgba(0, 0, 0, 0.08);
-}
-
-.status-badge.maintenance {
-    background: #f3f4f6;
-    color: rgba(0, 0, 0, 0.7);
-    border-color: rgba(0, 0, 0, 0.12);
-    border-style: dashed;
-}
-
-.court-body {
-    flex: 1;
+.court-type-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.info-row {
+.group-header {
     display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 4px;
+    user-select: none;
+}
+
+.group-title {
+    font-size: 11px;
+    font-weight: 750;
+    color: rgba(15, 23, 42, 0.4);
+    letter-spacing: 0.06em;
+}
+
+.group-divider {
+    flex: 1;
+    height: 1px;
+    background: rgba(15, 23, 42, 0.05);
+}
+
+.group-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(15, 23, 42, 0.35);
+}
+
+.group-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.court-row-item {
+    position: relative;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    font-size: 13px;
+    height: 52px;
+    padding: 0 16px;
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.04);
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
 }
 
-.info-row .label {
-    color: rgba(15, 23, 42, 0.5);
-    font-weight: 700;
+.court-row-item:hover {
+    background: rgba(15, 23, 42, 0.015);
+    border-color: rgba(15, 23, 42, 0.08);
+    transform: translateX(2px);
 }
 
-.info-row .value {
-    color: var(--sg-text);
-    font-weight: 700;
+.accent-line {
+    position: absolute;
+    left: 0;
+    top: 15%;
+    bottom: 15%;
+    width: 2.5px;
+    background: #000000;
+    border-radius: 0 2px 2px 0;
+    opacity: 0;
+    transform: scaleY(0.7);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.court-actions {
+.court-row-item:hover .accent-line {
+    opacity: 1;
+    transform: scaleY(1);
+}
+
+.row-left {
     display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    border-top: 1px solid var(--sg-border);
-    padding-top: 12px;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
 }
 
-.court-actions button {
-    flex: 0 0 auto;
+.row-order {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(15, 23, 42, 0.3);
+    font-family: monospace;
+}
+
+.row-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sg-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.2s ease;
+}
+
+.court-row-item.status-inactive .row-name {
+    opacity: 0.5;
+}
+
+.row-status-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.row-status-badge.inactive {
+    background: rgba(15, 23, 42, 0.05);
+    color: rgba(15, 23, 42, 0.5);
+}
+
+.row-status-badge.maintenance {
+    background: rgba(245, 158, 11, 0.08);
+    color: #d97706;
+}
+
+.row-middle {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex: 1;
+    padding: 0 24px;
+}
+
+.spatial-status.placed {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #16a34a;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.btn-place-quick {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    padding: 0;
+    color: #d97706;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-place-quick:hover {
+    color: #b45309;
+}
+
+.btn-place-quick:hover .app-icon {
+    transform: translateX(2px);
+}
+
+.btn-place-quick .app-icon {
+    transition: transform 0.2s ease;
+    color: inherit;
+}
+
+.row-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transform: translateX(6px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.court-row-item:hover .row-right {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.empty-search-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 16px;
+    color: rgba(15, 23, 42, 0.4);
+    gap: 12px;
+}
+
+.empty-search-state span {
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+/* Responsive Styles for SaaS Rows */
+@media (max-width: 768px) {
+    .court-row-item {
+        height: auto;
+        padding: 12px 14px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .accent-line {
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        height: auto;
+    }
+
+    .row-middle {
+        padding: 0;
+        margin-left: 24px;
+    }
+
+    .row-right {
+        opacity: 1;
+        transform: none;
+        justify-content: flex-end;
+        border-top: 1px dashed rgba(15, 23, 42, 0.05);
+        padding-top: 8px;
+    }
 }
 
 /* Modal Styling */
