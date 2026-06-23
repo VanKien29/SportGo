@@ -1,15 +1,161 @@
 <template>
     <section class="schedule-lock-page">
         <!-- Floating Lock Button -->
-        <div v-if="selectedSlots.length" class="floating-add-container" style="z-index: 100;">
-            <button class="btn-float-add" type="button" :disabled="saving || !canSubmit" @click="createLock" title="Khóa lịch">
+        <div
+            v-if="selectedSlots.length"
+            class="floating-add-container"
+            style="z-index: 100"
+        >
+            <button
+                class="btn-float-add"
+                type="button"
+                :disabled="saving || previewing || !canSubmit"
+                @click="createLock"
+                title="Khóa lịch"
+            >
                 <AppIcon name="lock" size="20" />
-                <span class="btn-float-text">Khóa {{ selectedSlots.length }} ô</span>
+                <span class="btn-float-text"
+                    >Khóa {{ selectedSlots.length }} ô</span
+                >
             </button>
         </div>
 
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="notice" class="alert success">{{ notice }}</div>
+
+        <div
+            v-if="lockConflictPreview"
+            class="modal-backdrop"
+            @click.self="closeConflictPreview"
+        >
+            <section class="conflict-modal">
+                <header>
+                    <div>
+                        <p class="eyebrow">KHÓA SÂN ĐỘT XUẤT</p>
+                        <h3>
+                            {{ lockConflictPreview.affected_count }} booking bị
+                            ảnh hưởng
+                        </h3>
+                    </div>
+                    <button
+                        type="button"
+                        class="icon-close"
+                        @click="closeConflictPreview"
+                    >
+                        ×
+                    </button>
+                </header>
+
+                <p class="conflict-help">
+                    Ưu tiên đổi sang sân cùng loại còn trống. Nếu không đổi
+                    được, chọn hoàn ví hoặc ghi nhận đã hoàn tiền mặt tại sân.
+                </p>
+
+                <div class="conflict-list">
+                    <article
+                        v-for="item in lockConflictPreview.items"
+                        :key="item.booking_item_id"
+                        class="conflict-row"
+                    >
+                        <div class="conflict-main">
+                            <strong>{{
+                                item.booking_code || "Booking"
+                            }}</strong>
+                            <span
+                                >{{ item.customer?.name || "Khách hàng" }} ·
+                                {{ item.customer?.phone || "-" }}</span
+                            >
+                            <small>
+                                {{ item.court?.name || "Sân" }} ·
+                                {{ time(item.start_time) }} -
+                                {{ time(item.end_time) }} ·
+                                {{
+                                    item.payment_status === "paid"
+                                        ? "Đã thanh toán"
+                                        : "Chưa thanh toán"
+                                }}
+                            </small>
+                        </div>
+
+                        <div class="conflict-actions">
+                            <label
+                                v-if="item.alternatives?.length"
+                                class="radio-line"
+                            >
+                                <input
+                                    v-model="
+                                        lockResolutions[item.booking_item_id]
+                                            .action
+                                    "
+                                    type="radio"
+                                    value="switch"
+                                />
+                                Đổi sân
+                            </label>
+                            <select
+                                v-if="item.alternatives?.length"
+                                v-model="
+                                    lockResolutions[item.booking_item_id]
+                                        .venue_court_id
+                                "
+                                :disabled="
+                                    lockResolutions[item.booking_item_id]
+                                        .action !== 'switch'
+                                "
+                            >
+                                <option
+                                    v-for="court in item.alternatives"
+                                    :key="court.id"
+                                    :value="court.id"
+                                >
+                                    {{ court.name }}
+                                </option>
+                            </select>
+                            <label class="radio-line danger">
+                                <input
+                                    v-model="
+                                        lockResolutions[item.booking_item_id]
+                                            .action
+                                    "
+                                    type="radio"
+                                    value="cancel"
+                                />
+                                Hủy/hoàn ví
+                            </label>
+                            <label class="radio-line cash">
+                                <input
+                                    v-model="
+                                        lockResolutions[item.booking_item_id]
+                                            .action
+                                    "
+                                    type="radio"
+                                    value="cash_refund"
+                                />
+                                Đã hoàn tiền mặt
+                            </label>
+                        </div>
+                    </article>
+                </div>
+
+                <footer>
+                    <button
+                        type="button"
+                        class="secondary-btn"
+                        @click="closeConflictPreview"
+                    >
+                        Đóng
+                    </button>
+                    <button
+                        type="button"
+                        class="primary-btn"
+                        :disabled="saving"
+                        @click="createLockWithResolutions"
+                    >
+                        {{ saving ? "Đang xử lý..." : "Khóa và xử lý booking" }}
+                    </button>
+                </footer>
+            </section>
+        </div>
 
         <div class="content-grid">
             <aside class="side-panel">
@@ -118,14 +264,21 @@
                             </div>
                         </div>
 
-                        <section v-if="lockPreviewRows.length" class="lock-preview-panel">
+                        <section
+                            v-if="lockPreviewRows.length"
+                            class="lock-preview-panel"
+                        >
                             <div class="preview-headline">
                                 <div>
                                     <strong>Preview áp dụng</strong>
-                                    <span>{{ lockPreviewStats.total }} lượt khóa</span>
+                                    <span
+                                        >{{ lockPreviewStats.total }} lượt
+                                        khóa</span
+                                    >
                                 </div>
                                 <em v-if="lockPreviewStats.knownBusy">
-                                    {{ lockPreviewStats.knownBusy }} lượt đang bận ở ngày đang xem
+                                    {{ lockPreviewStats.knownBusy }} lượt đang
+                                    bận ở ngày đang xem
                                 </em>
                             </div>
 
@@ -137,18 +290,22 @@
                                 >
                                     <div>
                                         <strong>{{ row.dateLabel }}</strong>
-                                        <small>{{ row.courtName }} · {{ row.timeText }}</small>
+                                        <small
+                                            >{{ row.courtName }} ·
+                                            {{ row.timeText }}</small
+                                        >
                                     </div>
                                     <span>{{ row.statusLabel }}</span>
                                 </article>
                             </div>
 
-                            <small v-if="lockPreviewRows.length > 12" class="preview-more">
-                                Còn {{ lockPreviewRows.length - 12 }} lượt khóa khác.
+                            <small
+                                v-if="lockPreviewRows.length > 12"
+                                class="preview-more"
+                            >
+                                Còn {{ lockPreviewRows.length - 12 }} lượt khóa
+                                khác.
                             </small>
-                            <p class="preview-note">
-                                Nếu khung giờ đang có booking, hệ thống sẽ hủy phần booking bị dính và tạo yêu cầu hoàn tiền nếu khách đã thanh toán.
-                            </p>
                         </section>
 
                         <label>
@@ -165,9 +322,15 @@
                         <button
                             class="primary-btn"
                             type="submit"
-                            :disabled="saving || !canSubmit"
+                            :disabled="saving || previewing || !canSubmit"
                         >
-                            {{ saving ? "Đang khóa..." : lockButtonLabel }}
+                            {{
+                                saving
+                                    ? "Đang khóa..."
+                                    : previewing
+                                      ? "Đang kiểm tra..."
+                                      : lockButtonLabel
+                            }}
                         </button>
                     </form>
                 </article>
@@ -184,7 +347,12 @@
                             class="text-danger-btn"
                             type="button"
                             :disabled="Boolean(deletingId)"
-                            @click="removeLocks(locks, 'Mở tất cả khoảng đã khóa trong ngày này?')"
+                            @click="
+                                removeLocks(
+                                    locks,
+                                    'Mở tất cả khoảng đã khóa trong ngày này?',
+                                )
+                            "
                         >
                             Mở tất cả
                         </button>
@@ -361,6 +529,10 @@ export default {
                 { key: "evening", label: "Tối", start: "18:00", end: "22:00" },
             ],
             activeTimePeriod: "morning",
+            previewing: false,
+            pendingLockPayload: null,
+            lockConflictPreview: null,
+            lockResolutions: {},
         };
     },
     computed: {
@@ -431,7 +603,8 @@ export default {
         },
         lockGroups() {
             const grouped = this.locks.reduce((result, lock) => {
-                const courtId = lock.venue_court_id || lock.venue_court?.id || "unknown";
+                const courtId =
+                    lock.venue_court_id || lock.venue_court?.id || "unknown";
                 if (!result[courtId]) {
                     result[courtId] = {
                         courtId,
@@ -455,12 +628,20 @@ export default {
         dateRangeDates() {
             const start = new Date(`${this.form.start_date}T00:00:00`);
             const end = new Date(`${this.form.end_date}T00:00:00`);
-            if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+            if (
+                Number.isNaN(start.getTime()) ||
+                Number.isNaN(end.getTime()) ||
+                end < start
+            ) {
                 return [];
             }
 
             const dates = [];
-            for (let date = new Date(start); date <= end && dates.length <= 45; date.setDate(date.getDate() + 1)) {
+            for (
+                let date = new Date(start);
+                date <= end && dates.length <= 45;
+                date.setDate(date.getDate() + 1)
+            ) {
                 dates.push(this.isoDate(date));
             }
 
@@ -471,15 +652,20 @@ export default {
                 ? this.buildWholeDayRanges().map((range) => ({
                       ...range,
                       court_name:
-                          this.scheduleCourts.find((court) => court.id === range.venue_court_id)?.name ||
-                          "Sân",
+                          this.scheduleCourts.find(
+                              (court) => court.id === range.venue_court_id,
+                          )?.name || "Sân",
                   }))
                 : this.buildSelectedRanges().map((range) => ({
                       ...range,
                       court_name:
-                          this.selectedSlots.find((slot) => slot.venue_court_id === range.venue_court_id)
-                              ?.court_name ||
-                          this.scheduleCourts.find((court) => court.id === range.venue_court_id)?.name ||
+                          this.selectedSlots.find(
+                              (slot) =>
+                                  slot.venue_court_id === range.venue_court_id,
+                          )?.court_name ||
+                          this.scheduleCourts.find(
+                              (court) => court.id === range.venue_court_id,
+                          )?.name ||
                           "Sân",
                   }));
         },
@@ -492,7 +678,10 @@ export default {
                         end_time: range.end_time,
                     };
                     const isBusy = isStartDate
-                        ? this.isRangeBusy(range.venue_court_id, representativeSlot)
+                        ? this.isRangeBusy(
+                              range.venue_court_id,
+                              representativeSlot,
+                          )
                         : false;
 
                     return {
@@ -502,7 +691,11 @@ export default {
                         courtName: range.court_name,
                         timeText: `${this.time(range.start_time)} - ${this.time(range.end_time)}`,
                         isBusy,
-                        statusLabel: isBusy ? "Đang có lịch" : isStartDate ? "Trống" : "Sẽ kiểm tra khi khóa",
+                        statusLabel: isBusy
+                            ? "Đang có lịch"
+                            : isStartDate
+                              ? "Trống"
+                              : "Sẽ kiểm tra khi khóa",
                     };
                 }),
             );
@@ -510,7 +703,8 @@ export default {
         lockPreviewStats() {
             return {
                 total: this.lockPreviewRows.length,
-                knownBusy: this.lockPreviewRows.filter((row) => row.isBusy).length,
+                knownBusy: this.lockPreviewRows.filter((row) => row.isBusy)
+                    .length,
             };
         },
         activePeriod() {
@@ -617,21 +811,78 @@ export default {
         async createLock() {
             if (!this.canSubmit) return;
 
+            this.error = "";
+            this.notice = "";
+            try {
+                const payload = this.buildLockPayload();
+                this.previewing = true;
+                const preview = await ownerScheduleLockService.preview(payload);
+                const data = preview.data || {};
+
+                if ((data.affected_count || 0) > 0) {
+                    this.pendingLockPayload = payload;
+                    this.lockConflictPreview = data;
+                    this.lockResolutions = this.defaultLockResolutions(
+                        data.items || [],
+                    );
+                    return;
+                }
+
+                await this.finalizeLock(payload);
+            } catch (error) {
+                this.error = error.message || "Không thể khóa khung giờ.";
+            } finally {
+                this.previewing = false;
+            }
+        },
+        buildLockPayload() {
+            return {
+                start_date: this.form.start_date,
+                end_date: this.form.end_date,
+                reason: this.form.reason,
+                slots:
+                    this.form.lock_mode === "whole_day"
+                        ? this.buildWholeDayRanges()
+                        : this.buildSelectedRanges(),
+            };
+        },
+        defaultLockResolutions(items = []) {
+            return items.reduce((result, item) => {
+                const firstAlternative = item.alternatives?.[0]?.id || "";
+                result[item.booking_item_id] = {
+                    booking_item_id: item.booking_item_id,
+                    action: firstAlternative ? "switch" : "cancel",
+                    venue_court_id: firstAlternative,
+                };
+                return result;
+            }, {});
+        },
+        async createLockWithResolutions() {
+            if (!this.pendingLockPayload) return;
+
+            const resolutions = Object.values(this.lockResolutions).map(
+                (item) => ({
+                    booking_item_id: item.booking_item_id,
+                    action: item.action,
+                    venue_court_id:
+                        item.action === "switch" ? item.venue_court_id : null,
+                }),
+            );
+
+            await this.finalizeLock({
+                ...this.pendingLockPayload,
+                resolutions,
+            });
+        },
+        async finalizeLock(payload) {
             this.saving = true;
             this.error = "";
             this.notice = "";
             try {
-                const response = await ownerScheduleLockService.create({
-                    start_date: this.form.start_date,
-                    end_date: this.form.end_date,
-                    reason: this.form.reason,
-                    slots:
-                        this.form.lock_mode === "whole_day"
-                            ? this.buildWholeDayRanges()
-                            : this.buildSelectedRanges(),
-                });
+                const response = await ownerScheduleLockService.create(payload);
                 this.notice = response.message;
                 this.form.reason = "";
+                this.closeConflictPreview();
                 this.clearSelection();
                 await Promise.all([this.loadSchedule(), this.loadLocks()]);
             } catch (error) {
@@ -639,6 +890,11 @@ export default {
             } finally {
                 this.saving = false;
             }
+        },
+        closeConflictPreview() {
+            this.pendingLockPayload = null;
+            this.lockConflictPreview = null;
+            this.lockResolutions = {};
         },
         async removeLock(lock) {
             await this.removeLocks(
@@ -1593,6 +1849,123 @@ export default {
     opacity: 0.45;
     cursor: not-allowed;
 }
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.55);
+}
+.conflict-modal {
+    width: min(900px, 100%);
+    max-height: min(760px, calc(100vh - 48px));
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 14px;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid #d7ead7;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+.conflict-modal header,
+.conflict-modal footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 0;
+}
+.conflict-modal footer {
+    padding: 0 20px 18px;
+}
+.conflict-modal h3 {
+    margin: 0;
+    color: #163222;
+    font-size: 22px;
+}
+.icon-close {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #d8e8d8;
+    border-radius: 8px;
+    background: #fff;
+    color: #334155;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+.conflict-help {
+    margin: 0 20px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #f0fdf4;
+    color: #496355;
+    line-height: 1.45;
+}
+.conflict-list {
+    display: grid;
+    gap: 10px;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 20px;
+}
+.conflict-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    gap: 14px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid #e2eadf;
+    border-radius: 10px;
+    background: #fbfffb;
+}
+.conflict-main {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+.conflict-main strong {
+    color: #12301f;
+    font-size: 15px;
+}
+.conflict-main span,
+.conflict-main small {
+    color: #5d7165;
+    line-height: 1.35;
+}
+.conflict-actions {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+.conflict-actions select {
+    min-width: 0;
+    height: 38px;
+    border: 1px solid #d8e8d8;
+    border-radius: 8px;
+    padding: 0 10px;
+    background: #fff;
+    color: #1f2937;
+    font-weight: 750;
+}
+.radio-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #2f5a3a;
+    font-weight: 850;
+    white-space: nowrap;
+}
+.radio-line.danger {
+    color: #b91c1c;
+}
+.radio-line.cash {
+    color: #b45309;
+}
 @media (max-width: 720px) {
     .quick-ranges {
         gap: 8px;
@@ -1607,6 +1980,14 @@ export default {
     }
     .quick-ranges button small {
         font-size: 11px;
+    }
+    .conflict-row,
+    .conflict-actions {
+        grid-template-columns: 1fr;
+    }
+    .conflict-modal header,
+    .conflict-modal footer {
+        align-items: stretch;
     }
 }
 </style>

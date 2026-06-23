@@ -38,6 +38,9 @@ class Refund extends Model
         'admin_confirmed_by',
         'admin_confirmed_at',
         'completed_at',
+        'cash_refunded_by',
+        'cash_refunded_at',
+        'cash_refund_note',
         'gateway_refund_txn_id',
         'payout_transfer_code',
         'payout_qr_created_at',
@@ -51,6 +54,7 @@ class Refund extends Model
             'processed_at' => 'datetime',
             'admin_confirmed_at' => 'datetime',
             'completed_at' => 'datetime',
+            'cash_refunded_at' => 'datetime',
             'payout_qr_created_at' => 'datetime',
         ];
     }
@@ -78,6 +82,11 @@ class Refund extends Model
     public function adminConfirmedBy()
     {
         return $this->belongsTo(User::class, 'admin_confirmed_by');
+    }
+
+    public function cashRefundedBy()
+    {
+        return $this->belongsTo(User::class, 'cash_refunded_by');
     }
 
     public function receipt()
