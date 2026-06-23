@@ -105,6 +105,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/finance/refunds/{id}/payout-check', [AdminFinanceOperationController::class, 'checkRefundPayout']);
         Route::post('/finance/refunds/export', [AdminFinanceOperationController::class, 'exportRefunds']);
         Route::get('/finance/withdrawals', [AdminFinanceOperationController::class, 'withdrawals']);
+        Route::get('/finance/user-withdrawals', [AdminFinanceOperationController::class, 'userWithdrawals']);
         Route::patch('/finance/withdrawals/{id}/status', [AdminFinanceOperationController::class, 'updateWithdrawal']);
         Route::post('/finance/withdrawals/{id}/payout-qr', [AdminFinanceOperationController::class, 'withdrawalPayoutQr']);
         Route::post('/finance/withdrawals/{id}/payout-check', [AdminFinanceOperationController::class, 'checkWithdrawalPayout']);
@@ -278,6 +279,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/platform-fees/{id}', [OwnerPlatformFeeController::class, 'show']);
         Route::post('/platform-fees/{id}/payment', [OwnerPlatformFeeController::class, 'createPayment']);
         Route::get('/schedule-locks', [OwnerScheduleLockController::class, 'index']);
+        Route::post('/schedule-locks/preview', [OwnerScheduleLockController::class, 'preview']);
         Route::post('/schedule-locks', [OwnerScheduleLockController::class, 'store']);
         Route::delete('/schedule-locks/{id}', [OwnerScheduleLockController::class, 'destroy']);
         Route::post('/amenities/request', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'requestAmenity']);

@@ -31,6 +31,7 @@ class RefundController extends Controller
                 'admin_processing',
                 'processing',
                 'completed',
+                'completed_cash',
                 'failed',
                 'rejected',
                 'cancelled',
@@ -85,7 +86,7 @@ class RefundController extends Controller
             ->firstOrFail();
 
         $data = $request->validate([
-            'decision' => ['required', Rule::in(['approve', 'reject'])],
+            'decision' => ['required', Rule::in(['approve', 'approve_cash', 'reject'])],
             'amount' => ['nullable', 'numeric', 'min:1'],
             'note' => ['nullable', 'string', 'max:2000', 'required_if:decision,reject'],
         ]);
@@ -102,7 +103,7 @@ class RefundController extends Controller
         $this->audit->log(
             $request,
             'refund',
-            $data['decision'] === 'approve' ? 'refund.owner_approved' : 'refund.owner_rejected',
+            in_array($data['decision'], ['approve', 'approve_cash'], true) ? 'refund.owner_approved' : 'refund.owner_rejected',
             'refunds',
             $updated->id,
             $oldValues,
@@ -110,14 +111,16 @@ class RefundController extends Controller
             [
                 'context' => 'owner',
                 'reason' => $data['note'] ?? null,
-                'severity' => $data['decision'] === 'approve' ? 'info' : 'warning',
+                'severity' => in_array($data['decision'], ['approve', 'approve_cash'], true) ? 'info' : 'warning',
             ],
         );
 
         return response()->json([
-            'message' => $data['decision'] === 'approve'
-                ? 'Đã xác nhận yêu cầu hoàn tiền và chuyển sang bước xử lý của SportGo.'
-                : 'Đã từ chối yêu cầu hoàn tiền.',
+            'message' => match ($data['decision']) {
+                'approve' => 'Đã xác nhận yêu cầu hoàn tiền và hoàn vào ví SportGo của khách.',
+                'approve_cash' => 'Đã ghi nhận chủ sân hoàn tiền mặt cho khách.',
+                default => 'Đã từ chối yêu cầu hoàn tiền.',
+            },
             'data' => $this->payload($updated),
         ]);
     }
@@ -156,6 +159,9 @@ class RefundController extends Controller
                 ])
                 ->all(),
             'can_decide' => $refund->status === 'pending_owner_confirmation',
+            'can_refund_cash' => $refund->status === 'pending_owner_confirmation'
+                && (in_array($refund->refund_destination, ['cash', 'user_wallet'], true))
+                && (float) $refund->amount > 0,
         ];
     }
 

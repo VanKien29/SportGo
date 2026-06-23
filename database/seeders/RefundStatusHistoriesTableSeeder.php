@@ -20,31 +20,61 @@ class RefundStatusHistoriesTableSeeder extends Seeder
         $owner = User::query()->where('username', 'owner')->first();
         $admin = User::query()->where('username', 'admin')->first();
 
-        $this->seedByPaymentCode('PMADMREF1', [
+        // BK-CANC-01: pending_owner_confirmation (chờ duyệt)
+        $this->seedByPaymentCode('PM-CANC-01', [
             [null, 'pending_owner_confirmation', null, 'system', 'Khách gửi yêu cầu hoàn tiền.'],
         ]);
 
-        $this->seedByPaymentCode('PMADMREFPROC1', [
+        // BK-CANC-02: owner_confirmed (chờ admin)
+        $this->seedByPaymentCode('PM-CANC-02', [
             [null, 'pending_owner_confirmation', null, 'system', 'Khách gửi yêu cầu hoàn tiền.'],
             ['pending_owner_confirmation', 'owner_confirmed', $owner?->id, 'owner', 'Chủ sân xác nhận đồng ý hoàn tiền.'],
         ]);
 
-        $this->seedByPaymentCode('PMADMREFFAIL1', [
+        // BK-CANC-03: admin_processing (đang hoàn)
+        $this->seedByPaymentCode('PM-CANC-03', [
             [null, 'pending_owner_confirmation', null, 'system', 'Khách gửi yêu cầu hoàn tiền.'],
             ['pending_owner_confirmation', 'owner_confirmed', $owner?->id, 'owner', 'Chủ sân xác nhận đồng ý hoàn tiền.'],
             ['owner_confirmed', 'admin_processing', $admin?->id, 'admin', 'Admin gửi yêu cầu hoàn tiền qua kênh thanh toán.'],
         ]);
 
-        $this->seedByPaymentCode('PMADMREFCOMP1', [
+        // BK-CANC-04: completed (hoàn xong)
+        $this->seedByPaymentCode('PM-CANC-04', [
             [null, 'pending_owner_confirmation', null, 'system', 'Khách gửi yêu cầu hoàn tiền.'],
             ['pending_owner_confirmation', 'owner_confirmed', $owner?->id, 'owner', 'Chủ sân xác nhận đồng ý hoàn tiền.'],
             ['owner_confirmed', 'admin_processing', $admin?->id, 'admin', 'Admin gửi yêu cầu hoàn tiền qua kênh thanh toán.'],
             ['admin_processing', 'completed', $admin?->id, 'admin', 'Cổng thanh toán báo hoàn tiền thành công.'],
         ]);
 
-        $this->seedByPaymentCode('PMADMREFREJ1', [
+        // BK-CANC-05: owner_rejected (từ chối)
+        $this->seedByPaymentCode('PM-CANC-05', [
             [null, 'pending_owner_confirmation', null, 'system', 'Khách gửi yêu cầu hoàn tiền.'],
             ['pending_owner_confirmation', 'owner_rejected', $owner?->id, 'owner', 'Khách hủy quá sát giờ chơi nên không đủ điều kiện hoàn tiền.'],
+        ]);
+
+        // BK-CANC-06: pending_owner_confirmation (booking cọc, chờ duyệt)
+        $this->seedByPaymentCode('PM-CANC-06', [
+            [null, 'pending_owner_confirmation', null, 'system', 'Khách gửi yêu cầu hoàn tiền cọc.'],
+        ]);
+
+        // BK-CANC-08: completed (hoàn cọc xong)
+        $this->seedByPaymentCode('PM-CANC-08', [
+            [null, 'pending_owner_confirmation', null, 'system', 'Khách gửi yêu cầu hoàn tiền cọc.'],
+            ['pending_owner_confirmation', 'owner_confirmed', $owner?->id, 'owner', 'Chủ sân đồng ý hoàn cọc.'],
+            ['owner_confirmed', 'admin_processing', $admin?->id, 'admin', 'Admin xử lý hoàn cọc.'],
+            ['admin_processing', 'completed', $admin?->id, 'admin', 'Hoàn cọc thành công.'],
+        ]);
+
+        // BK-CANC-09: pending_owner_confirmation (chờ duyệt)
+        $this->seedByPaymentCode('PM-CANC-09', [
+            [null, 'pending_owner_confirmation', null, 'system', 'Khách gửi yêu cầu hoàn tiền.'],
+        ]);
+
+        // BK-CANC-10: admin_processing (đang xử lý)
+        $this->seedByPaymentCode('PM-CANC-10', [
+            [null, 'pending_owner_confirmation', null, 'system', 'Khách gửi yêu cầu hoàn tiền.'],
+            ['pending_owner_confirmation', 'owner_confirmed', $owner?->id, 'owner', 'Chủ sân đồng ý hoàn tiền.'],
+            ['owner_confirmed', 'admin_processing', $admin?->id, 'admin', 'Admin gửi yêu cầu hoàn tiền qua kênh thanh toán.'],
         ]);
     }
 

@@ -30,13 +30,13 @@ class AdminRefundService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($refund->status === $status && in_array($status, ['completed', 'rejected'], true)) {
+            if ($refund->status === $status && in_array($status, ['completed', 'completed_cash', 'rejected'], true)) {
                 return $refund;
             }
 
             $this->assertTransitionAllowed($refund->status, $status);
 
-            if (in_array($status, ['processing', 'completed'], true)) {
+            if (in_array($status, ['processing', 'completed', 'completed_cash'], true)) {
                 $this->refundPolicies->assertCompliant(
                     $refund,
                     $context['actor_id'] ?? null,
@@ -55,7 +55,7 @@ class AdminRefundService
                 $refund->status_reason = null;
             }
 
-            if ($status === 'completed') {
+            if (in_array($status, ['completed', 'completed_cash'], true)) {
                 $payment = Payment::query()->whereKey($refund->payment_id)->lockForUpdate()->firstOrFail();
 
                 if (! in_array($payment->status, ['paid', 'refunded'], true)) {
@@ -65,7 +65,7 @@ class AdminRefundService
                 $paymentStatusBefore = $payment->status;
                 $refundedAmountBefore = (float) Refund::query()
                     ->where('payment_id', $payment->id)
-                    ->where('status', 'completed')
+                    ->whereIn('status', ['completed', 'completed_cash'])
                     ->whereKeyNot($refund->id)
                     ->sum('amount');
                 $refundedAmountAfter = $refundedAmountBefore + (float) $refund->amount;
@@ -75,19 +75,27 @@ class AdminRefundService
                 $ownerLedger = $this->debitOwnerWalletIfNeeded($payment, $refund, $context);
                 $refund->owner_wallet_ledger_id = $ownerLedger?->id;
 
-                $refund->refund_destination = 'user_wallet';
-                $walletResult = $this->creditUserWallet($refund, $payment, $context);
-                $refund->user_wallet_id = $walletResult['wallet_id'];
-                $refund->user_wallet_ledger_id = $walletResult['ledger_id'];
+                if ($status === 'completed') {
+                    $refund->refund_destination = 'user_wallet';
+                    $walletResult = $this->creditUserWallet($refund, $payment, $context);
+                    $refund->user_wallet_id = $walletResult['wallet_id'];
+                    $refund->user_wallet_ledger_id = $walletResult['ledger_id'];
+                } else {
+                    $refund->refund_destination = 'cash';
+                    $refund->cash_refunded_by = $context['actor_id'] ?? null;
+                    $refund->cash_refunded_at = now();
+                    $refund->cash_refund_note = $context['reason'] ?? 'Đã hoàn tiền mặt tại sân.';
+                }
 
                 $refund->admin_confirmed_by = $context['actor_id'] ?? null;
                 $refund->admin_confirmed_at = now();
+                $refund->completed_at = now();
                 $refund->gateway_refund_txn_id = $context['gateway_refund_txn_id']
-                    ?? 'USER-WALLET-'.$refund->id;
+                    ?? ($status === 'completed_cash' ? 'CASH-'.$refund->id : 'USER-WALLET-'.$refund->id);
 
                 PaymentLog::query()->create([
                     'payment_id' => $payment->id,
-                    'event_type' => 'admin_refund_completed',
+                    'event_type' => $status === 'completed_cash' ? 'cash_refund_completed' : 'admin_refund_completed',
                     'request_payload' => [
                         'refund_id' => $refund->id,
                         'reason' => $context['reason'],
@@ -105,7 +113,7 @@ class AdminRefundService
 
             $refund->save();
 
-            if ($status === 'completed') {
+            if (in_array($status, ['completed', 'completed_cash'], true)) {
                 $this->receipts->createRefundReceipt($refund, $context['actor_id'] ?? null);
             }
 
@@ -116,14 +124,15 @@ class AdminRefundService
     private function assertTransitionAllowed(string $from, string $to): void
     {
         $allowed = [
-            'pending_confirmation' => ['completed', 'processing', 'rejected'],
+            'pending_confirmation' => ['completed', 'completed_cash', 'processing', 'rejected'],
             'pending_owner_confirmation' => [],
-            'owner_confirmed' => ['completed', 'admin_processing', 'processing', 'rejected'],
+            'owner_confirmed' => ['completed', 'completed_cash', 'admin_processing', 'processing', 'rejected'],
             'owner_rejected' => [],
-            'admin_processing' => ['completed', 'failed', 'rejected'],
-            'processing' => ['completed', 'rejected'],
+            'admin_processing' => ['completed', 'completed_cash', 'failed', 'rejected'],
+            'processing' => ['completed', 'completed_cash', 'rejected'],
             'failed' => ['processing', 'rejected'],
             'completed' => [],
+            'completed_cash' => [],
             'rejected' => [],
             'cancelled' => [],
         ];
