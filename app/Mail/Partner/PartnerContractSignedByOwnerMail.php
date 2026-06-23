@@ -2,36 +2,29 @@
 
 namespace App\Mail\Partner;
 
-class PartnerContractSignedByOwnerMail extends PartnerWorkflowMail
+use App\Models\PartnerContract;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class PartnerContractSignedByOwnerMail extends Mailable implements ShouldQueue
 {
-    protected function subjectText(): string
+    use Queueable, SerializesModels;
+
+    public function __construct(public PartnerContract $contract)
     {
-        return '[SportGo] Cảm ơn bạn đã ký hợp đồng hợp tác - Chào mừng đối tác mới!';
     }
 
-    protected function headline(): string
+    public function envelope(): Envelope
     {
-        return 'Bạn đã ký hợp đồng thành công';
+        return new Envelope(subject: '[SportGo] Cảm ơn bạn đã ký hợp đồng hợp tác - Chào mừng đối tác mới!');
     }
 
-    protected function fields(): array
+    public function content(): Content
     {
-        return [
-            'Tên chủ sân' => $this->value('owner_name'),
-            'Số hợp đồng' => $this->value('contract_code'),
-            'Tên cụm sân' => $this->value('venue_name'),
-            'Thời gian ký' => $this->value('signed_at'),
-            'Địa chỉ IP ký' => $this->value('ip_address'),
-        ];
-    }
-
-    protected function messageText(): string
-    {
-        return 'Cảm ơn bạn đã hoàn tất ký hợp đồng hợp tác với SportGo. Tài khoản của bạn đã được cấp quyền Chủ sân và bạn có thể bắt đầu quản lý cụm sân ngay bây giờ. Hợp đồng sẽ được SportGo ký xác nhận trong thời gian sớm nhất để hoàn thiện bản hợp đồng chính thức.';
-    }
-
-    protected function action(): ?array
-    {
-        return $this->value('owner_url') ? ['label' => 'Vào trang quản lý sân', 'url' => $this->value('owner_url')] : null;
+        return new Content(view: 'emails.partner.partner-contract-signed');
     }
 }

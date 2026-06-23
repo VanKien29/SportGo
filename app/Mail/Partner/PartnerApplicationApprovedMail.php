@@ -2,37 +2,29 @@
 
 namespace App\Mail\Partner;
 
-class PartnerApplicationApprovedMail extends PartnerWorkflowMail
+use App\Models\PartnerApplication;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class PartnerApplicationApprovedMail extends Mailable implements ShouldQueue
 {
-    protected function subjectText(): string
+    use Queueable, SerializesModels;
+
+    public function __construct(public PartnerApplication $application)
     {
-        return '[SportGo] Hồ sơ đã được duyệt - Vui lòng ký hợp đồng hợp tác';
     }
 
-    protected function headline(): string
+    public function envelope(): Envelope
     {
-        return 'Hồ sơ đối tác đã được SportGo chấp thuận';
+        return new Envelope(subject: '[SportGo] Hồ sơ đã được duyệt - Vui lòng ký hợp đồng hợp tác');
     }
 
-    protected function fields(): array
+    public function content(): Content
     {
-        return [
-            'Tên người dùng' => $this->value('user_name'),
-            'Tên cụm sân đăng ký' => $this->value('venue_name'),
-            'Thời gian duyệt' => $this->value('approved_at'),
-            'Người duyệt' => $this->value('approved_by'),
-            'Kết quả' => 'Hồ sơ đã được xét duyệt và chấp thuận',
-            'Thời hạn ký' => $this->value('sign_deadline'),
-        ];
-    }
-
-    protected function messageText(): string
-    {
-        return 'Chúc mừng! Hồ sơ đăng ký đối tác của bạn đã được SportGo chấp thuận. Vui lòng đọc kỹ nội dung hợp đồng và ký điện tử để hoàn tất thủ tục trở thành đối tác chính thức.';
-    }
-
-    protected function action(): ?array
-    {
-        return $this->value('sign_url') ? ['label' => 'Xem & ký hợp đồng', 'url' => $this->value('sign_url')] : null;
+        return new Content(view: 'emails.partner.partner-application-approved');
     }
 }

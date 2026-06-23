@@ -2,35 +2,29 @@
 
 namespace App\Mail\Partner;
 
-class PartnerApplicationReceivedMail extends PartnerWorkflowMail
+use App\Models\PartnerApplication;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class PartnerApplicationReceivedMail extends Mailable implements ShouldQueue
 {
-    protected function subjectText(): string
+    use Queueable, SerializesModels;
+
+    public function __construct(public PartnerApplication $application)
     {
-        return '[SportGo] Xác nhận nhận đơn đăng ký đối tác';
     }
 
-    protected function headline(): string
+    public function envelope(): Envelope
     {
-        return 'SportGo đã nhận hồ sơ đăng ký đối tác';
+        return new Envelope(subject: '[SportGo] Xác nhận nhận đơn đăng ký đối tác');
     }
 
-    protected function fields(): array
+    public function content(): Content
     {
-        return [
-            'Tên người dùng' => $this->value('user_name'),
-            'Thời gian nộp đơn' => $this->value('submitted_at'),
-            'Tên cụm sân đăng ký' => $this->value('venue_name'),
-            'Trạng thái' => 'Đang chờ xét duyệt',
-        ];
-    }
-
-    protected function messageText(): string
-    {
-        return 'Chúng tôi đã nhận được đơn đăng ký của bạn và đang trong quá trình xem xét. Thời gian xét duyệt thông thường là 3-5 ngày làm việc. Chúng tôi sẽ thông báo kết quả qua email này.';
-    }
-
-    protected function action(): ?array
-    {
-        return $this->value('status_url') ? ['label' => 'Xem trạng thái đơn', 'url' => $this->value('status_url')] : null;
+        return new Content(view: 'emails.partner.partner-application-received');
     }
 }
