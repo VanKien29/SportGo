@@ -36,14 +36,6 @@
             </div>
 
             <div v-else style="display: flex; flex-direction: column; gap: 16px; width: 100%;">
-                <!-- Tiêu đề trang -->
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                    <h4 style="margin: 0; font-size: 16px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.02em;">Sản phẩm tiếp thị</h4>
-                    <span v-if="filteredProducts.length !== affiliateProducts.length" class="badge" style="background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; display: inline-flex; align-items: center;">
-                        Đã lọc: {{ filteredProducts.length }}/{{ affiliateProducts.length }}
-                    </span>
-                </div>
-
                 <!-- Nếu lọc không ra kết quả -->
                 <div v-if="filteredProducts.length === 0" class="empty-state card" style="padding: 48px 24px; text-align: center; border: 1px solid var(--admin-border); border-radius: 12px; background: #fff;">
                     <div class="empty-icon-wrapper" style="width: 64px; height: 64px; background-color: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #94a3b8; margin: 0 auto 16px;">
@@ -144,7 +136,9 @@
                                         type="text" 
                                         placeholder="Tìm tên hoặc mô tả..." 
                                     />
-                                    <button v-if="searchQuery" type="button" class="clear-input-btn" @click="searchQuery = ''">&times;</button>
+                                    <button v-if="searchQuery" type="button" class="clear-input-btn" @click="searchQuery = ''">
+                                        <AppIcon name="x" size="14" />
+                                    </button>
                                 </div>
                             </div>
 
@@ -219,7 +213,9 @@
                     <h3>
                         <span>{{ editingProduct ? 'Chỉnh sửa sản phẩm tiếp thị' : 'Thêm sản phẩm tiếp thị liên kết' }}</span>
                     </h3>
-                    <button class="btn-close" @click="closeProductModal">&times;</button>
+                    <button class="btn-close" @click="closeProductModal">
+                        <AppIcon name="x" size="18" />
+                    </button>
                 </div>
                 <form @submit.prevent="submitProductForm">
                     <div class="modal-body">

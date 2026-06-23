@@ -961,7 +961,7 @@
                                     class="btn-close"
                                     @click="closeEditCourtModal"
                                 >
-                                    &times;
+                                    <AppIcon name="x" size="18" />
                                 </button>
                             </div>
                             <form @submit.prevent="handleEditCourtSubmit">
@@ -1526,7 +1526,7 @@
                 <div class="modal-header">
                     <h3>Gửi yêu cầu thêm tiện ích</h3>
                     <button class="btn-close" @click="closeRequestModal">
-                        &times;
+                        <AppIcon name="x" size="18" />
                     </button>
                 </div>
                 <form @submit.prevent="handleRequestSubmit">
@@ -1599,7 +1599,7 @@
                 <div class="modal-header">
                     <h3>Gửi yêu cầu mở rộng quy mô</h3>
                     <button class="btn-close" @click="closeCreateApprovalModal">
-                        &times;
+                        <AppIcon name="x" size="18" />
                     </button>
                 </div>
                 <form @submit.prevent="handleCreateApproval">
@@ -1732,7 +1732,9 @@
                                 </div>
                                 <div v-else class="evidence-preview-wrapper">
                                     <img :src="evidencePreview" alt="Ảnh minh chứng" class="evidence-preview-img" />
-                                    <button type="button" class="btn-remove-evidence" @click="removeEvidence">&times;</button>
+                                    <button type="button" class="btn-remove-evidence" @click="removeEvidence">
+                                        <AppIcon name="x" size="12" />
+                                    </button>
                                 </div>
                                 <input
                                     ref="evidenceInput"
@@ -1779,7 +1781,7 @@
                 <div class="modal-header">
                     <h3>Yêu cầu thay đổi vị trí cụm sân</h3>
                     <button class="btn-close" @click="closeLocationChangeModal">
-                        &times;
+                        <AppIcon name="x" size="18" />
                     </button>
                 </div>
                 <form @submit.prevent="handleLocationChangeSubmit">
@@ -1990,7 +1992,7 @@
                 <div class="modal-header">
                     <h3>Mô tả tiện ích: {{ editingAmenityName }}</h3>
                     <button class="btn-close" @click="closeAmenityDescModal">
-                        &times;
+                        <AppIcon name="x" size="18" />
                     </button>
                 </div>
                 <div class="modal-body">
@@ -2033,7 +2035,7 @@
                 <div class="modal-header">
                     <h3>Yêu cầu thêm loại sân mới</h3>
                     <button class="btn-close" @click="closeCourtTypeRequestModal">
-                        &times;
+                        <AppIcon name="x" size="18" />
                     </button>
                 </div>
                 <form @submit.prevent="handleCourtTypeRequestSubmit">

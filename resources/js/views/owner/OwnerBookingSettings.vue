@@ -95,7 +95,12 @@
                 <option v-for="time in closeTimeOptions" :key="time" :value="time">{{ time }}</option>
               </select>
             </label>
-            <button class="remove-btn" type="button" :aria-label="`Xóa khoảng ngày ${index + 1}`" @click="removeSpecialHours(index)">×</button>
+            <button class="remove-btn" type="button" :aria-label="`Xóa khoảng ngày ${index + 1}`" @click="removeSpecialHours(index)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
         </div>
       </article>

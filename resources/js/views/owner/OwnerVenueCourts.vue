@@ -747,7 +747,7 @@
                         }}
                     </h3>
                     <button class="btn-close" @click="closeModal">
-                        &times;
+                        <AppIcon name="x" size="18" />
                     </button>
                 </div>
                 <form @submit.prevent="handleSubmit">
