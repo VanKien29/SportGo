@@ -1,5 +1,6 @@
 # SportGo — Kế hoạch hoàn thiện Module Đối tác (Partner)
-
+## Vai trò
+Bạn là 1 PM khó tính có nền tảng BA và tester, bạn cần rà xoát về chức năng độ thân thiện của giao diện, luồng hoạt động. đảm bảo giao diện UI UX dễ thực hiện ít thao tác next. code chạy ổn định
 ## Bối cảnh
 
 Nhánh hiện tại đã có code module Partner do GPT build trước đó, nhưng làm chưa đúng/chưa rõ ràng ở nhiều điểm. Đây là yêu cầu **rà soát lại toàn bộ và sửa cho khớp với đặc tả dưới đây** — không phải code lại từ đầu.

@@ -126,31 +126,90 @@
           <div class="modal-body">
             <section v-if="detailTab === 'overview'" class="detail-grid">
               <div class="panel">
-                <h4>Người nộp</h4>
+                <h4>Người đăng ký</h4>
                 <dl>
-                  <dt>Họ tên</dt><dd>{{ activeApplication.user?.full_name || '-' }}</dd>
-                  <dt>Email</dt><dd>{{ activeApplication.user?.email || '-' }}</dd>
-                  <dt>Điện thoại</dt><dd>{{ activeApplication.user?.phone || '-' }}</dd>
+                  <dt>Họ tên</dt><dd>{{ activeApplication.applicant_full_name || activeApplication.user?.full_name || '-' }}</dd>
+                  <dt>Email</dt><dd>{{ activeApplication.applicant_email || activeApplication.user?.email || '-' }}</dd>
+                  <dt>Điện thoại</dt><dd>{{ activeApplication.applicant_phone || activeApplication.user?.phone || '-' }}</dd>
+                  <dt>Ngày sinh</dt><dd>{{ dateOnly(activeApplication.applicant_birth_date) }}</dd>
+                  <dt>Địa chỉ liên hệ</dt><dd>{{ activeApplication.applicant_address || '-' }}</dd>
                 </dl>
               </div>
               <div class="panel">
-                <h4>Hồ sơ</h4>
+                <h4>Đại diện pháp lý</h4>
                 <dl>
-                  <dt>Đơn vị</dt><dd>{{ activeApplication.business_name }}</dd>
+                  <dt>Người đại diện</dt><dd>{{ activeApplication.representative_name || '-' }}</dd>
+                  <dt>Loại giấy tờ</dt><dd>{{ activeApplication.representative_identity_type || '-' }}</dd>
+                  <dt>Số giấy tờ</dt><dd>{{ activeApplication.representative_identity_number || '-' }}</dd>
+                  <dt>Ngày cấp</dt><dd>{{ dateOnly(activeApplication.representative_identity_issued_date) }}</dd>
+                  <dt>Nơi cấp</dt><dd>{{ activeApplication.representative_identity_issued_place || '-' }}</dd>
+                  <dt>Chức vụ</dt><dd>{{ activeApplication.representative_position || '-' }}</dd>
+                </dl>
+              </div>
+              <div class="panel">
+                <h4>Đơn vị kinh doanh</h4>
+                <dl>
+                  <dt>Tên đơn vị</dt><dd>{{ activeApplication.business_name || '-' }}</dd>
                   <dt>Mã số thuế</dt><dd>{{ activeApplication.tax_code || '-' }}</dd>
+                  <dt>Mã kinh doanh</dt><dd>{{ activeApplication.business_code || '-' }}</dd>
+                  <dt>Số giấy phép</dt><dd>{{ activeApplication.business_license_number || '-' }}</dd>
+                  <dt>Địa chỉ pháp lý</dt><dd>{{ activeApplication.business_address || '-' }}</dd>
+                </dl>
+              </div>
+              <div class="panel">
+                <h4>Ngân hàng nhận tiền</h4>
+                <dl>
+                  <dt>Ngân hàng</dt><dd>{{ activeApplication.bank_name || '-' }}</dd>
+                  <dt>Mã ngân hàng</dt><dd>{{ activeApplication.bank_code || '-' }}</dd>
+                  <dt>Số tài khoản</dt><dd>{{ activeApplication.account_number || '-' }}</dd>
+                  <dt>Chủ tài khoản</dt><dd>{{ activeApplication.account_holder_name || '-' }}</dd>
+                  <dt>Trạng thái</dt><dd>{{ bankVerificationLabel(activeApplication.bank_verification_status) }}</dd>
+                  <dt>Xác minh lúc</dt><dd>{{ formatDate(activeApplication.bank_verified_at) }}</dd>
+                </dl>
+              </div>
+              <div class="panel full">
+                <h4>Cụm sân đăng ký</h4>
+                <dl>
+                  <dt>Tên cụm</dt><dd>{{ activeApplication.venue_name }}</dd>
+                  <dt>Địa chỉ</dt><dd>{{ activeApplication.venue_address }}</dd>
+                  <dt>Tỉnh/Thành phố</dt><dd>{{ activeApplication.venue_province || '-' }}</dd>
+                  <dt>Phường/Xã</dt><dd>{{ activeApplication.venue_ward || '-' }}</dd>
+                  <dt>Tọa độ</dt><dd>{{ activeApplication.venue_latitude }}, {{ activeApplication.venue_longitude }}</dd>
+                  <dt>Google Maps</dt>
+                  <dd>
+                    <a v-if="activeApplication.venue_map_url" :href="activeApplication.venue_map_url" target="_blank" rel="noopener">Mở vị trí</a>
+                    <span v-else>-</span>
+                  </dd>
+                  <dt>Liên hệ sân</dt><dd>{{ activeApplication.venue_phone || '-' }} · {{ activeApplication.venue_email || '-' }}</dd>
+                  <dt>Giờ mở cửa</dt><dd>{{ activeApplication.expected_opening_hours || '-' }}</dd>
+                  <dt>Bãi xe/phụ trợ</dt><dd>{{ activeApplication.parking_info || '-' }}</dd>
+                  <dt>Số sân con</dt><dd>{{ activeApplication.court_count_total || activeApplication.courts_count || 0 }}</dd>
+                  <dt>Giá cơ bản</dt><dd>{{ money(activeApplication.base_price_per_hour) }}</dd>
+                  <dt>Tiện ích</dt><dd>{{ compactList(activeApplication.amenities) }}</dd>
                   <dt>Trạng thái</dt><dd><span class="status" :class="`status-${activeApplication.status}`">{{ statusLabel(activeApplication.status) }}</span></dd>
                   <dt v-if="activeApplication.status_reason">Ghi chú</dt><dd v-if="activeApplication.status_reason">{{ activeApplication.status_reason }}</dd>
                 </dl>
               </div>
-              <div class="panel full">
-                <h4>Cụm sân</h4>
+            </section>
+
+            <section v-if="detailTab === 'courts'" class="doc-list">
+              <div v-if="activeApplication.approved_venue_cluster" class="panel">
+                <h4>Cụm sân đã tạo</h4>
                 <dl>
-                  <dt>Tên cụm</dt><dd>{{ activeApplication.venue_name }}</dd>
-                  <dt>Địa chỉ</dt><dd>{{ activeApplication.venue_address }}</dd>
-                  <dt>Tọa độ</dt><dd>{{ activeApplication.venue_latitude }}, {{ activeApplication.venue_longitude }}</dd>
-                  <dt>Sân con</dt><dd>{{ activeApplication.courts?.map((court) => court.name).join(', ') || '-' }}</dd>
+                  <dt>Tên cụm</dt><dd>{{ activeApplication.approved_venue_cluster.name }}</dd>
+                  <dt>Trạng thái</dt><dd>{{ activeApplication.approved_venue_cluster.status }}</dd>
+                  <dt>Địa chỉ</dt><dd>{{ activeApplication.approved_venue_cluster.address || activeApplication.venue_address || '-' }}</dd>
                 </dl>
               </div>
+
+              <div v-for="court in activeApplication.courts || []" :key="court.id || court.name" class="doc-row">
+                <div>
+                  <div class="strong">{{ court.name }}</div>
+                  <div class="muted">{{ courtTypeName(court) }} · Số lượng dự kiến: {{ court.expected_court_count || 1 }}</div>
+                  <div v-if="court.note" class="signature-line">{{ court.note }}</div>
+                </div>
+              </div>
+              <p v-if="!activeApplication.courts?.length" class="muted">Chưa có sân con nào trong hồ sơ.</p>
             </section>
 
             <section v-if="detailTab === 'documents'" class="doc-list">
@@ -345,7 +404,8 @@ export default {
       ],
       detailTabs: [
         { value: 'overview', label: 'Tổng quan' },
-        { value: 'documents', label: 'Hợp đồng & văn bản' },
+        { value: 'courts', label: 'Sân quản lý' },
+        { value: 'documents', label: 'Tài liệu & văn bản' },
         { value: 'history', label: 'Lịch sử' },
         { value: 'settlement', label: 'Quyết toán' },
       ],
@@ -657,6 +717,23 @@ export default {
         completed: 'Đã thu hồi quyền',
       }[status] || status;
     },
+    bankVerificationLabel(status) {
+      return {
+        verified: 'Đã xác minh tự động',
+        pending: 'Chưa xác minh',
+        lookup_not_configured: 'Chưa cấu hình VietQR',
+        name_mismatch: 'Tên chủ tài khoản không khớp',
+        not_found: 'Không tìm thấy tài khoản',
+        provider_unavailable: 'Dịch vụ xác minh lỗi',
+      }[status] || status || '-';
+    },
+    compactList(value) {
+      if (Array.isArray(value)) return value.filter(Boolean).join(', ') || '-';
+      return value || '-';
+    },
+    courtTypeName(court) {
+      return court?.court_type?.name || court?.courtType?.name || court?.court_type_name_snapshot || 'Loại sân';
+    },
     money(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value || 0));
     },
@@ -675,6 +752,12 @@ export default {
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return value;
       return date.toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    },
+    dateOnly(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleDateString('vi-VN');
     },
     clearAlerts() {
       this.error = '';
