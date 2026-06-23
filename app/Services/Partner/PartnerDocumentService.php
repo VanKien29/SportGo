@@ -127,6 +127,7 @@ class PartnerDocumentService
                 $filePath = Storage::disk('local')->path($document->generated_file_path);
                 if (file_exists($filePath)) {
                     $processor = new \PhpOffice\PhpWord\TemplateProcessor($filePath);
+                    $processor->setMacroChars('{{', '}}');
                     $placeholder = 'signature_' . $signerSide;
                     $processor->setImageValue($placeholder, [
                         'path' => $media->getPath(),
@@ -245,12 +246,16 @@ class PartnerDocumentService
 
     private function renderDocxTemplate(string $sourcePath, string $targetPath, array $data, string $documentType): void
     {
+        $tempPath = $targetPath . '.tmp.docx';
+        copy($sourcePath, $tempPath);
+        $this->fixSplitMacrosInDocx($tempPath);
+
         try {
             $previousEscaping = Settings::isOutputEscapingEnabled();
             Settings::setOutputEscapingEnabled(true);
 
             try {
-                $processor = new TemplateProcessor($sourcePath);
+                $processor = new TemplateProcessor($tempPath);
                 $processor->setMacroChars('{{', '}}');
 
                 foreach ($data as $key => $value) {
@@ -264,13 +269,51 @@ class PartnerDocumentService
                 Settings::setOutputEscapingEnabled($previousEscaping);
             }
         } catch (Throwable) {
-            copy($sourcePath, $targetPath);
+            copy($tempPath, $targetPath);
             $this->replaceDocxPlaceholders($targetPath, $data, $documentType);
+        }
 
-            return;
+        if (file_exists($tempPath)) {
+            @unlink($tempPath);
         }
 
         $this->appendApplicationAppendixToFile($targetPath, $data, $documentType);
+    }
+
+    private function fixSplitMacrosInDocx(string $docxPath): void
+    {
+        if (! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $entry = $zip->getNameIndex($index);
+            if (! str_starts_with($entry, 'word/') || ! str_ends_with($entry, '.xml')) {
+                continue;
+            }
+
+            $xml = $zip->getFromName($entry);
+            if ($xml === false) {
+                continue;
+            }
+
+            // Remove internal xml tags that split our macros {{ ... }}
+            // We match something like: {<tags>{var_name}<tags>}
+            $replaced = preg_replace_callback('/\{(<[^>]+>)*\{.*?\}(<[^>]+>)*\}/s', function ($matches) {
+                return '{{' . strip_tags($matches[0]) . '}}';
+            }, $xml);
+
+            if ($replaced !== $xml) {
+                $zip->addFromString($entry, $replaced);
+            }
+        }
+
+        $zip->close();
     }
 
     private function appendApplicationAppendixToFile(string $docxPath, array $data, string $documentType): void
