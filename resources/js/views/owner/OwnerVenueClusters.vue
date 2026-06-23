@@ -44,104 +44,77 @@
             <!-- Cluster Detail with Tabs -->
             <div v-if="selectedCluster" class="cluster-detail">
                 <!-- Tabs -->
-                <div class="detail-tabs card">
-                    <button
-                        v-for="tab in tabs"
-                        :key="tab.key"
-                        class="tab-btn"
-                        :class="{ active: activeTab === tab.key }"
-                        @click="activeTab = tab.key"
-                    >
-                        {{ tab.label }}
-                        <span
-                            v-if="
-                                tab.key === 'approvals' &&
-                                pendingApprovalCount > 0
-                            "
-                            class="tab-badge"
+                <div class="detail-tabs card" style="display: flex; justify-content: space-between; align-items: center; padding-right: 16px; position: relative;">
+                    <div style="display: flex; gap: 8px;">
+                        <button
+                            v-for="tab in tabs"
+                            :key="tab.key"
+                            class="tab-btn"
+                            :class="{ active: activeTab === tab.key }"
+                            @click="activeTab = tab.key"
                         >
-                            {{ pendingApprovalCount }}
-                        </span>
-                        <span
-                            v-if="
-                                tab.key === 'location' &&
-                                pendingLocationCount > 0
-                            "
-                            class="tab-badge tab-badge-location"
-                        >
-                            {{ pendingLocationCount }}
-                        </span>
-                        <span
-                            v-if="
-                                tab.key === 'unlock' &&
-                                pendingUnlockCount > 0
-                            "
-                            class="tab-badge"
-                            style="background-color: #dc2626;"
-                        >
-                            {{ pendingUnlockCount }}
-                        </span>
-                    </button>
+                            {{ tab.label }}
+                            <span
+                                v-if="
+                                    tab.key === 'approvals' &&
+                                    pendingApprovalCount > 0
+                                "
+                                class="tab-badge"
+                            >
+                                {{ pendingApprovalCount }}
+                            </span>
+                            <span
+                                v-if="
+                                    tab.key === 'location' &&
+                                    pendingLocationCount > 0
+                                "
+                                class="tab-badge tab-badge-location"
+                            >
+                                {{ pendingLocationCount }}
+                            </span>
+                            <span
+                                v-if="
+                                    tab.key === 'unlock' &&
+                                    pendingUnlockCount > 0
+                                "
+                                class="tab-badge"
+                                style="background-color: #dc2626;"
+                            >
+                                {{ pendingUnlockCount }}
+                            </span>
+                        </button>
+                    </div>
+
+
                 </div>
 
                 <!-- ═══════════════════════════════════════════════════
                      TAB 1: THÔNG TIN CHUNG
                 ═══════════════════════════════════════════════════ -->
                 <div v-if="activeTab === 'info'" class="cluster-edit card">
-                    <div class="edit-header">
-                        <h3>Cấu hình chi tiết: {{ selectedCluster.name }}</h3>
-                    </div>
 
                     <div v-if="isClusterLocked" class="alert alert-danger" style="margin-bottom: 20px;">
                         Cụm sân này đang bị khóa. Bạn không thể cập nhật cấu hình cho đến khi cụm sân được mở khóa. Vui lòng chuyển sang tab <strong>Yêu cầu mở khóa</strong> để gửi giải trình.
                     </div>
 
-                    <form @submit.prevent="handleUpdate">
-                        <div v-if="updateSuccess" class="alert alert-success">
-                            Cập nhật thông tin cụm sân thành công!
-                        </div>
-                        <div v-if="updateError" class="alert alert-danger">
-                            {{ updateError }}
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="name"
-                                    >Tên cụm sân
-                                    <span class="required">*</span></label
-                                >
-                                <input
-                                    id="name"
-                                    v-model="form.name"
-                                    type="text"
-                                    class="form-control"
-                                    required
-                                    :disabled="isClusterLocked"
-                                />
+                    <div class="readonly-detail-container">
+                        <!-- Tên & Điện thoại -->
+                        <div class="info-row-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                            <div class="form-group-readonly">
+                                <label class="info-label">Tên cụm sân</label>
+                                <div class="info-value-text">{{ selectedCluster.name }}</div>
                             </div>
-                            <div class="form-group">
-                                <label for="phone"
-                                    >Số điện thoại liên hệ
-                                    <span class="required">*</span></label
-                                >
-                                <input
-                                    id="phone"
-                                    v-model="form.phone_contact"
-                                    type="text"
-                                    class="form-control"
-                                    required
-                                    :disabled="isClusterLocked"
-                                />
+                            <div class="form-group-readonly">
+                                <label class="info-label">Số điện thoại liên hệ</label>
+                                <div class="info-value-text">{{ selectedCluster.phone_contact }}</div>
                             </div>
                         </div>
 
                         <!-- Vị trí hiện tại (chỉ đọc) -->
-                        <div class="location-readonly-box">
+                        <div class="location-readonly-box" style="margin-bottom: 16px;">
                             <div class="location-readonly-header">
                                 <div>
-                                    <span class="location-readonly-title"
-                                        >Vị trí hiện tại</span
-                                    >
+                                    <span class="location-readonly-title" style="font-weight:700;">Vị trí hiện tại</span>
                                     <span
                                         v-if="pendingLocationCount > 0"
                                         class="pending-location-badge"
@@ -149,99 +122,61 @@
                                         ⏳ Đang có yêu cầu thay đổi chờ duyệt
                                     </span>
                                 </div>
-                                <button
-                                    type="button"
-                                    class="btn btn-outline btn-sm"
-                                    :disabled="pendingLocationCount > 0 || isClusterLocked"
-                                    @click="openLocationChangeModal"
-                                >
-                                    <AppIcon name="pencil" size="14" />
-                                    {{
-                                        pendingLocationCount > 0
-                                            ? "Đang chờ duyệt..."
-                                            : "Yêu cầu thay đổi vị trí"
-                                    }}
-                                </button>
                             </div>
-                            <div class="location-readonly-body">
+                            <div class="location-readonly-body" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
                                 <div class="location-info-row">
-                                    <span class="location-label">Tỉnh/TP:</span>
-                                    <span class="location-value">{{
-                                        selectedCluster.province || "—"
-                                    }}</span>
+                                    <span class="location-label" style="font-weight:600; color:#64748b;">Tỉnh/TP: </span>
+                                    <span class="location-value">{{ selectedCluster.province || "—" }}</span>
                                 </div>
                                 <div class="location-info-row">
-                                    <span class="location-label"
-                                        >Phường/Xã:</span
-                                    >
-                                    <span class="location-value">{{
-                                        selectedCluster.ward || "—"
-                                    }}</span>
+                                    <span class="location-label" style="font-weight:600; color:#64748b;">Phường/Xã: </span>
+                                    <span class="location-value">{{ selectedCluster.ward || "—" }}</span>
                                 </div>
                                 <div class="location-info-row">
-                                    <span class="location-label">Địa chỉ:</span>
-                                    <span class="location-value">{{
-                                        selectedCluster.address || "—"
-                                    }}</span>
+                                    <span class="location-label" style="font-weight:600; color:#64748b;">Địa chỉ: </span>
+                                    <span class="location-value">{{ selectedCluster.address || "—" }}</span>
                                 </div>
                             </div>
                             <!-- Bản đồ chỉ xem -->
                             <div
                                 id="cluster-map"
                                 class="map-container map-readonly"
+                                style="margin-top: 12px;"
                             ></div>
                         </div>
 
-                        <div class="form-group">
-                            <label>Tiện ích cụm sân (Amenities)</label>
-                            <div class="amenities-grid">
-                                <div
-                                    v-for="item in availableAmenities"
+                        <!-- Tiện ích (chỉ đọc) -->
+                        <div class="form-group-readonly" style="margin-top: 20px;">
+                            <label class="info-label">Tiện ích cụm sân (Amenities)</label>
+                            <div class="info-amenities-list" v-if="form.amenities.length > 0" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                                <span
+                                    v-for="item in form.amenities"
                                     :key="item"
-                                    class="amenity-item-wrapper"
-                                    :class="{ active: form.amenities.includes(item) }"
+                                    class="info-amenity-tag"
                                 >
-                                    <div class="amenity-item-row">
-                                        <label class="amenity-checkbox">
-                                            <input
-                                                v-model="form.amenities"
-                                                type="checkbox"
-                                                :value="item"
-                                                :disabled="isClusterLocked"
-                                            />
-                                            <span>{{ item }}</span>
-                                        </label>
-                                        <button
-                                            v-if="form.amenities.includes(item)"
-                                            type="button"
-                                            class="btn-edit-amenity-desc"
-                                            @click.stop="openAmenityDescModal(item)"
-                                            :title="form.amenity_descriptions[item] ? 'Sửa mô tả tiện ích (đã có mô tả)' : 'Thêm mô tả tiện ích'"
-                                            :disabled="isClusterLocked"
-                                        >
-                                            <AppIcon name="pencil" size="13" />
-                                            <span v-if="form.amenity_descriptions[item]" class="has-desc-dot"></span>
-                                        </button>
-                                    </div>
-                                </div>
+                                    {{ item }}
+                                    <button
+                                        type="button"
+                                        class="btn-edit-amenity-desc-readonly"
+                                        @click.stop="openAmenityDescModal(item)"
+                                        :title="form.amenity_descriptions[item] ? 'Sửa mô tả tiện ích (đã có mô tả)' : 'Thêm mô tả tiện ích'"
+                                        :disabled="isClusterLocked"
+                                    >
+                                        <AppIcon name="pencil" size="13" />
+                                        <span v-if="form.amenity_descriptions[item]" class="has-desc-dot"></span>
+                                    </button>
+                                </span>
                             </div>
-                            <div class="amenity-request-tip">
-                                Bạn không tìm thấy tiện ích mong muốn?
-                                <a
-                                    href="#"
-                                    class="link-request-amenity"
-                                    @click.prevent="isClusterLocked ? null : openRequestModal"
-                                    v-if="!isClusterLocked"
-                                    >Gửi yêu cầu thêm tiện ích mới</a
-                                >
-                            </div>
+                            <div v-else class="text-muted" style="font-size: 13px; margin-top: 6px; font-style: italic;">Chưa cấu hình tiện ích nào cho cụm sân.</div>
                         </div>
 
-                        <div class="form-group">
-                            <label>Hình ảnh cụm sân (Album/Gallery)</label>
+                        <!-- Album ảnh (chỉ đọc) -->
+                        <div class="form-group-readonly" style="margin-top: 20px;">
+                            <label class="info-label">Hình ảnh cụm sân (Album/Gallery)</label>
                             <div
                                 class="owner-gallery-grid"
                                 v-if="imagesList.length > 0"
+                                style="margin-top: 8px; margin-bottom: 0;"
                             >
                                 <div
                                     v-for="img in imagesList"
@@ -253,77 +188,19 @@
                                         alt="Hình ảnh cụm sân"
                                         class="owner-gallery-img"
                                     />
-                                    <button
-                                        v-if="!isClusterLocked"
-                                        type="button"
-                                        class="btn-delete-img"
-                                        @click="handleDeleteImage(img.id)"
-                                        title="Xóa hình ảnh này"
-                                    >
-                                        ×
-                                    </button>
                                 </div>
                             </div>
-                            <div v-else class="owner-gallery-empty">
-                                Chưa có hình ảnh nào được tải lên cho cụm sân
-                                này.
-                            </div>
-                            <div class="owner-upload-zone" :style="isClusterLocked ? 'cursor: not-allowed; opacity: 0.6;' : ''">
-                                <input
-                                    type="file"
-                                    id="owner-image-upload"
-                                    accept="image/*"
-                                    multiple
-                                    class="hidden-file-input"
-                                    @change="handleImageUpload"
-                                    :disabled="uploadingImage || isClusterLocked"
-                                />
-                                <label
-                                    for="owner-image-upload"
-                                    class="upload-label-zone"
-                                    :style="isClusterLocked ? 'cursor: not-allowed;' : ''"
-                                >
-                                    <span
-                                        v-if="uploadingImage"
-                                        class="upload-status-text"
-                                    >
-                                        <div class="spinner-sm"></div>
-                                        Đang tải lên ảnh...
-                                    </span>
-                                    <span v-else class="upload-status-text"
-                                        >Nhấp vào đây để tải lên ảnh mới (jpeg,
-                                        png, webp, tối đa 5MB)</span
-                                    >
-                                </label>
+                            <div v-else class="owner-gallery-empty" style="padding: 24px; border-radius: 8px; font-size: 13px; margin-top: 8px; text-align: center; background: #f8fafc; border: 1px dashed #cbd5e1; color: #64748b;">
+                                Chưa có hình ảnh nào được tải lên cho cụm sân này.
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="description">Mô tả cụm sân</label>
-                            <textarea
-                                id="description"
-                                v-model="form.description"
-                                class="form-control"
-                                rows="4"
-                                :disabled="isClusterLocked"
-                            ></textarea>
+                        <!-- Mô tả (chỉ đọc) -->
+                        <div class="form-group-readonly" style="margin-top: 20px;">
+                            <label class="info-label">Mô tả cụm sân</label>
+                            <p class="info-description-text" style="margin-top: 8px;">{{ selectedCluster.description || 'Chưa có mô tả chi tiết.' }}</p>
                         </div>
-
-                        <div class="form-actions">
-                            <button
-                                type="submit"
-                                class="btn btn-primary"
-                                :disabled="updating || isClusterLocked"
-                            >
-                                <AppIcon name="check" size="16" />
-                                {{
-                                    updating
-                                        ? "Đang cập nhật..."
-                                        : "Cập nhật cụm sân"
-                                }}
-                            </button>
-                        </div>
-                    </form>
+                    </div>
                 </div>
 
                 <!-- ═══════════════════════════════════════════════════
@@ -453,32 +330,7 @@
                         >
                             <div class="editor-toolbar">
                                 <div class="toolbar-left">
-                                    <!-- Tool switcher (Figma-style) -->
-                                    <div class="tool-switcher" title="Chọn công cụ (V: chọn, H: kéo)">
-                                        <button
-                                            class="tool-btn"
-                                            :class="{ active: editorTool === 'select' }"
-                                            @click.stop="editorTool = 'select'"
-                                            title="Công cụ Chọn (V)"
-                                            :disabled="isClusterLocked"
-                                        >
-                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                                                <path d="M2 1l12 6-6 2-2 6-4-14z"/>
-                                            </svg>
-                                        </button>
-                                        <button
-                                            class="tool-btn"
-                                            :class="{ active: editorTool === 'pan' }"
-                                            @click.stop="editorTool = 'pan'"
-                                            title="Công cụ Kéo (H)"
-                                            :disabled="isClusterLocked"
-                                        >
-                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                                                <path d="M6 1.5a1 1 0 0 1 2 0V7h1V4.5a1 1 0 0 1 2 0V7h.5a1.5 1.5 0 0 1 1.5 1.5v1A4.5 4.5 0 0 1 9 14H7a4 4 0 0 1-4-4V6a1 1 0 0 1 1-1h.5V4.5a1 1 0 0 1 1-1V1.5z"/>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <div class="toolbar-divider"></div>
+
                                     <button
                                         class="btn btn-primary"
                                         @click="saveLayout"
@@ -507,7 +359,7 @@
                                 </div>
                                 <div class="toolbar-right">
                                     <span class="info-badge"
-                                        >{{ editorTool === 'select' ? '🖱️ Chế độ Chọn — Click để chọn, kéo để di chuyển' : '✋ Chế độ Kéo — Kéo để di chuyển canvas' }}</span
+                                        >{{ editorTool === 'select' ? 'Chế độ Chọn — Click để chọn, kéo để di chuyển' : 'Chế độ Kéo — Kéo để di chuyển canvas' }}</span
                                     >
                                 </div>
                             </div>
@@ -567,6 +419,20 @@
                                         }"
                                     >
                                         <div class="canvas-grid-bg"></div>
+
+                                        <!-- Alignment Guidelines -->
+                                        <div
+                                            v-for="(xCoord, index) in activeGuidelines.x"
+                                            :key="'gl-x-' + index"
+                                            class="canvas-guideline vertical"
+                                            :style="{ left: xCoord + 'px' }"
+                                        ></div>
+                                        <div
+                                            v-for="(yCoord, index) in activeGuidelines.y"
+                                            :key="'gl-y-' + index"
+                                            class="canvas-guideline horizontal"
+                                            :style="{ top: yCoord + 'px' }"
+                                        ></div>
                                         <div
                                             v-for="court in placedCourts"
                                             :key="court.id"
@@ -615,7 +481,7 @@
                                                 class="collision-badge"
                                                 title="Sân đang bị chồng lấn!"
                                             >
-                                                ⚠️ Chồng lấp
+                                                Chồng lấp
                                             </div>
                                             <template
                                                 v-if="
@@ -758,7 +624,7 @@
                                             v-if="collisions[selectedCourt.id]"
                                             class="inspector-warning-box"
                                         >
-                                            ⚠️ Sân đang chồng lấn lên sân khác!
+                                            Sân đang chồng lấn lên sân khác!
                                             Vui lòng dịch chuyển hoặc thay đổi
                                             kích thước để tránh va chạm.
                                         </div>
@@ -988,22 +854,22 @@
                                         <p class="section-desc">Click để thêm các vật phẩm định vị không gian:</p>
                                         <div class="decor-library-grid">
                                             <button type="button" class="btn-add-decor" @click="addDecoration('entrance', 'Cửa ra vào')">
-                                                🚪 Cửa ra vào
+                                                Cửa ra vào
                                             </button>
                                             <button type="button" class="btn-add-decor" @click="addDecoration('reception', 'Lễ tân')">
-                                                👤 Quầy lễ tân
+                                                Quầy lễ tân
                                             </button>
                                             <button type="button" class="btn-add-decor" @click="addDecoration('restroom', 'WC')">
-                                                🚻 Nhà vệ sinh
+                                                Nhà vệ sinh
                                             </button>
                                             <button type="button" class="btn-add-decor" @click="addDecoration('seating', 'Ghế chờ')">
-                                                🛋️ Ghế ngồi chờ
+                                                Ghế ngồi chờ
                                             </button>
                                             <button type="button" class="btn-add-decor" @click="addDecoration('parking', 'Bãi đỗ xe')">
-                                                🅿️ Bãi đỗ xe
+                                                Bãi đỗ xe
                                             </button>
                                             <button type="button" class="btn-add-decor" @click="addDecoration('custom', 'Khác')">
-                                                📦 Vật thể khác
+                                                Vật thể khác
                                             </button>
                                         </div>
                                     </div>
@@ -1162,186 +1028,31 @@
                      TAB 3: YÊU CẦU QUY MÔ
                 ═══════════════════════════════════════════════════ -->
                 <div v-if="activeTab === 'approvals'" class="approvals-tab">
-                    <!-- Send request form -->
-                    <div class="card approval-form-card">
-                        <h3 class="section-title">
-                            Gửi yêu cầu mở rộng quy mô
-                        </h3>
-                        <p class="section-desc">
-                            Để thêm sân con mới, hãy gửi yêu cầu bên dưới. Admin
-                            sẽ xem xét và tạo sân con cho bạn sau khi phê duyệt.
-                        </p>
-                        <div v-if="isClusterLocked" class="alert alert-danger" style="margin-bottom: 16px;">
-                            Cụm sân này đang bị khóa. Bạn không thể gửi yêu cầu thay đổi quy mô. Vui lòng giải trình để mở khóa trước.
-                        </div>
-                        <div v-if="newReqSuccess" class="alert alert-success">
-                            {{ newReqSuccess }}
-                        </div>
-                        <div v-if="newReqError" class="alert alert-danger">
-                            {{ newReqError }}
-                        </div>
-                        <form @submit.prevent="handleCreateApproval">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label
-                                        >Loại sân
-                                        <span class="required">*</span></label
-                                    >
-                                    <div class="custom-select-wrapper">
-                                        <div
-                                            class="custom-select-trigger"
-                                            :class="{
-                                                active: showTypeDropdown,
-                                            }"
-                                            @click.stop="
-                                                showTypeDropdown =
-                                                    !showTypeDropdown
-                                            "
-                                        >
-                                            <span v-if="selectedReqCourtType">
-                                                <span class="parent-name">{{
-                                                    getParentTypeName(
-                                                        selectedReqCourtType,
-                                                    )
-                                                }}</span>
-                                                <span class="separator">/</span>
-                                                <span class="child-name">{{
-                                                    selectedReqCourtType.name
-                                                }}</span>
-                                            </span>
-                                            <span v-else class="placeholder"
-                                                >-- Chọn loại sân --</span
-                                            >
-                                            <span class="arrow">&#9662;</span>
-                                        </div>
-                                        <div
-                                            v-if="showTypeDropdown"
-                                            class="custom-options-container"
-                                        >
-                                            <div
-                                                v-for="group in groupedCourtTypes"
-                                                :key="group.id"
-                                                class="custom-optgroup"
-                                            >
-                                                <div
-                                                    class="custom-optgroup-label"
-                                                >
-                                                    {{ group.name }}
-                                                </div>
-                                                <div
-                                                    v-for="child in group.children"
-                                                    :key="child.id"
-                                                    class="custom-option"
-                                                    :class="{
-                                                        selected:
-                                                            newReqForm.court_type_id ===
-                                                            child.id,
-                                                    }"
-                                                    @click="
-                                                        selectReqCourtType(
-                                                            child,
-                                                        )
-                                                    "
-                                                >
-                                                    <span class="option-text">{{
-                                                        child.name
-                                                    }}</span>
-                                                    <span class="option-details"
-                                                        >({{
-                                                            child.player_count
-                                                        }}
-                                                        người)</span
-                                                    >
-                                                    <span
-                                                        v-if="
-                                                            newReqForm.court_type_id ===
-                                                            child.id
-                                                        "
-                                                        class="check-mark"
-                                                        >&#10003;</span
-                                                    >
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+
+                    <!-- Quy mô hiện tại -->
+                    <div class="card current-scale-card">
+                        <h4 class="card-section-title">Quy mô hiện tại</h4>
+                        <div class="scale-summary-grid">
+                            <div class="scale-stat-item">
+                                <span class="scale-stat-label">Tổng số sân con:</span>
+                                <span class="scale-stat-value">{{ courts.length }}</span>
+                            </div>
+                            <div class="scale-stat-item">
+                                <span class="scale-stat-label">Chi tiết loại sân:</span>
+                                <div class="scale-types-list" v-if="courtTypeStats.length > 0">
+                                    <span v-for="stat in courtTypeStats" :key="stat.name" class="scale-type-tag">
+                                        {{ stat.name }}: <strong>{{ stat.count }}</strong>
+                                    </span>
                                 </div>
-                                <div class="form-group">
-                                    <label
-                                        >Tên sân con đề xuất
-                                        <span class="required">*</span></label
-                                    >
-                                    <input
-                                        v-model="newReqForm.name"
-                                        type="text"
-                                        class="form-control"
-                                        placeholder="Ví dụ: Sân số 5, Sân VIP..."
-                                        required
-                                        :disabled="isClusterLocked"
-                                    />
-                                </div>
+                                <span class="scale-stat-value-empty" v-else>Chưa có sân con</span>
                             </div>
-                            <div class="form-group">
-                                <label>Ghi chú/Lý do mở rộng</label>
-                                <textarea
-                                    v-model="newReqForm.note"
-                                    class="form-control"
-                                    rows="3"
-                                    placeholder="Mô tả lý do bạn muốn mở rộng thêm sân con..."
-                                    :disabled="isClusterLocked"
-                                ></textarea>
-                            </div>
-                            <div class="form-group">
-                                <label>Ảnh minh chứng <span class="text-muted">(không bắt buộc)</span></label>
-                                <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
-                                    Gửi ảnh chụp thực tế sân (hỗ trợ: JPG, PNG, WebP — tối đa 5MB)
-                                </p>
-                                <div class="evidence-upload-area">
-                                    <div
-                                        v-if="!evidencePreview"
-                                        class="evidence-dropzone"
-                                        @click="isClusterLocked ? null : $refs.evidenceInput.click()"
-                                        @dragover.prevent
-                                        @drop.prevent="isClusterLocked ? null : handleEvidenceDrop($event)"
-                                        :style="isClusterLocked ? 'cursor: not-allowed; opacity: 0.6;' : ''"
-                                    >
-                                        <div class="evidence-dropzone-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
-                                        <div class="evidence-dropzone-text">Click hoặc kéo thả ảnh vào đây</div>
-                                    </div>
-                                    <div v-else class="evidence-preview-wrapper">
-                                        <img :src="evidencePreview" alt="Ảnh minh chứng" class="evidence-preview-img" />
-                                        <button type="button" class="btn-remove-evidence" @click="removeEvidence" v-if="!isClusterLocked">&times;</button>
-                                    </div>
-                                    <input
-                                        ref="evidenceInput"
-                                        type="file"
-                                        accept="image/jpeg,image/png,image/webp"
-                                        style="display:none"
-                                        @change="handleEvidenceSelect"
-                                        :disabled="isClusterLocked"
-                                    />
-                                </div>
-                            </div>
-                            <div class="form-actions">
-                                <button
-                                    type="submit"
-                                    class="btn btn-primary"
-                                    :disabled="creatingReq || isClusterLocked"
-                                >
-                                    <AppIcon name="send" size="16" />
-                                    {{
-                                        creatingReq
-                                            ? "Đang gửi..."
-                                            : "Gửi yêu cầu"
-                                    }}
-                                </button>
-                            </div>
-                        </form>
+                        </div>
                     </div>
 
-                    <!-- Approval history list -->
+                    <!-- Lịch sử yêu cầu -->
                     <div class="card">
                         <div class="approval-list-header">
-                            <h3 class="section-title">Lịch sử yêu cầu</h3>
+                            <h3 class="section-title">Lịch sử yêu cầu quy mô</h3>
                             <div class="approval-filter-tabs">
                                 <button
                                     class="tab-sm"
@@ -1480,12 +1191,15 @@
                             </div>
                         </div>
                     </div>
+
+
                 </div>
 
                 <!-- ═══════════════════════════════════════════════════
                      TAB 4: YÊU CẦU THAY ĐỔI VỊ TRÍ
                 ═══════════════════════════════════════════════════ -->
                 <div v-if="activeTab === 'location'" class="location-tab">
+
                     <!-- Thông tin vị trí hiện tại -->
                     <div class="card location-current-card">
                         <h3 class="section-title">Vị trí hiện tại</h3>
@@ -1509,20 +1223,7 @@
                                 }}</span>
                             </div>
                         </div>
-                        <div class="location-actions">
-                            <button
-                                class="btn btn-primary"
-                                :disabled="pendingLocationCount > 0"
-                                @click="openLocationChangeModal"
-                            >
-                                <AppIcon name="pencil" size="15" />
-                                {{
-                                    pendingLocationCount > 0
-                                        ? "⏳ Đang có yêu cầu chờ duyệt"
-                                        : "Gửi yêu cầu thay đổi vị trí"
-                                }}
-                            </button>
-                        </div>
+
                     </div>
 
                     <!-- Lịch sử yêu cầu -->
@@ -1605,17 +1306,17 @@
                                             Thay đổi vị trí
                                         </div>
                                         <div class="approval-meta">
-                                            🏠 Địa chỉ mới:
+                                            Địa chỉ mới:
                                             {{ req.new_address }},
                                             {{ req.new_ward }},
                                             {{ req.new_province }}
                                         </div>
                                         <div class="approval-meta">
-                                            🧭 Tọa độ: {{ req.new_latitude }},
+                                            Tọa độ: {{ req.new_latitude }},
                                             {{ req.new_longitude }}
                                         </div>
                                         <div class="approval-meta">
-                                            📝 Lý do: {{ req.note }}
+                                            Lý do: {{ req.note }}
                                         </div>
                                         <div class="approval-meta">
                                             Gửi lúc:
@@ -1673,18 +1374,21 @@
                             </div>
                         </div>
                     </div>
+
                 </div>
 
                 <!-- ═══════════════════════════════════════════════════
                      TAB 4: YÊU CẦU MỞ KHÓA
                 ═══════════════════════════════════════════════════ -->
-                <div v-if="activeTab === 'unlock'" class="unlock-tab card" style="padding: 18px; margin-top: 14px;">
-                    <div style="border-left: 5px solid #dc2626; background-color: #fffafb; padding: 14px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #fecaca; border-left-width: 5px;">
-                        <div class="banner-header" style="display: flex; align-items: center; gap: 12px;">
-                            <AppIcon name="lock" size="24" style="color: #dc2626;" />
-                            <div>
-                                <h4 style="margin: 0; font-size: 16px; color: #991b1b;">Cụm sân đang bị khóa</h4>
-                                <p style="margin: 4px 0 0; font-size: 13.5px; color: #b91c1c;">
+                <div v-if="activeTab === 'unlock'" class="unlock-tab card">
+
+                    <!-- Banner cảnh báo khóa -->
+                    <div class="unlock-locked-banner">
+                        <div class="banner-header">
+                            <AppIcon name="lock" size="24" class="lock-icon-red" />
+                            <div class="banner-text">
+                                <h4>Cụm sân đang bị khóa</h4>
+                                <p>
                                     Lý do: <strong>{{ selectedCluster.status_reason || 'Không có lý do chi tiết.' }}</strong>
                                 </p>
                             </div>
@@ -1692,45 +1396,44 @@
                     </div>
 
                     <!-- Đang có yêu cầu pending -->
-                    <div v-if="pendingUnlockRequest" class="pending-alert" style="background: #fffbeb; border: 1px solid #fde68a; padding: 16px; margin-bottom: 20px; border-radius: 8px;">
-                        <div class="alert-info" style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: #b45309; margin-bottom: 12px;">
+                    <div v-if="pendingUnlockRequest" class="pending-alert-box">
+                        <div class="alert-info-title">
                             <AppIcon name="info" size="18" />
                             <span>Yêu cầu mở khóa của bạn đang chờ Admin xử lý.</span>
                         </div>
-                        <div class="pending-reason-preview" style="background: #fff; border: 1px solid #f3f4f6; padding: 10px 12px; border-radius: 4px; margin-bottom: 16px;">
-                            <strong style="font-size: 13px; color: #4b5563;">Nội dung giải trình:</strong>
-                            <p style="margin: 4px 0 0; font-size: 14px; color: #1f2937; white-space: pre-wrap; line-height: 1.45;">{{ pendingUnlockRequest.reason }}</p>
+                        <div class="pending-reason-preview">
+                            <strong class="preview-label">Nội dung giải trình:</strong>
+                            <p class="preview-content">{{ pendingUnlockRequest.reason }}</p>
                         </div>
-                        <button class="btn btn-outline" type="button" :disabled="unlockSubmitting" @click="handleCancelUnlock(pendingUnlockRequest.id)" style="color: #dc2626; border-color: #fca5a5;">
+                        <button class="btn btn-outline btn-danger-outline" type="button" :disabled="unlockSubmitting" @click="handleCancelUnlock(pendingUnlockRequest.id)">
                             {{ unlockSubmitting ? 'Đang hủy...' : 'Hủy yêu cầu này' }}
                         </button>
                     </div>
 
                     <!-- Chưa có yêu cầu pending -->
-                    <div v-else class="new-appeal-form" style="margin-bottom: 20px;">
-                        <h4 style="margin: 0 0 6px; font-size: 16px; color: #1e293b;">Gửi yêu cầu giải trình & mở khóa</h4>
-                        <p style="margin: 0 0 16px; font-size: 13px; color: #64748b; line-height: 1.4;">
+                    <div v-else class="new-appeal-form">
+                        <h4 class="form-section-title">Gửi yêu cầu giải trình & mở khóa</h4>
+                        <p class="form-section-desc">
                             Hãy cung cấp thông tin giải trình chi tiết về lý do vi phạm hoặc các biện pháp khắc phục để Admin phê duyệt mở khóa cụm sân.
                         </p>
                         <form @submit.prevent="handleUnlockSubmit">
-                            <div class="form-group" style="margin-bottom: 16px;">
-                                <label style="font-weight: 700; font-size: 14px; color: #344238; display: block; margin-bottom: 6px;">
-                                    Nội dung giải trình <span class="required" style="color: #dc2626;">*</span>
+                            <div class="form-group">
+                                <label class="field-label-bold">
+                                    Nội dung giải trình <span class="required">*</span>
                                 </label>
                                 <textarea
                                     v-model.trim="unlockForm.reason"
                                     rows="5"
                                     maxlength="2000"
                                     placeholder="Nhập nội dung giải trình của bạn (tối thiểu 10 ký tự)..."
-                                    class="form-control"
+                                    class="form-control text-area-appeal"
                                     required
-                                    style="width: 100%; border: 1px solid #c0d1c1; border-radius: 6px; padding: 10px; font-size: 14px; resize: vertical;"
                                 ></textarea>
-                                <small style="display: block; text-align: right; color: #94a3b8; font-size: 11px; margin-top: 4px;">{{ unlockForm.reason.length }}/2000 ký tự</small>
+                                <small class="char-counter">{{ unlockForm.reason.length }}/2000 ký tự</small>
                             </div>
 
-                            <div v-if="unlockError" class="alert alert-danger" style="margin-bottom: 16px;">{{ unlockError }}</div>
-                            <div v-if="unlockSuccess" class="alert alert-success" style="margin-bottom: 16px;">{{ unlockSuccess }}</div>
+                            <div v-if="unlockError" class="alert alert-danger">{{ unlockError }}</div>
+                            <div v-if="unlockSuccess" class="alert alert-success">{{ unlockSuccess }}</div>
 
                             <button class="btn btn-primary" type="submit" :disabled="unlockSubmitting || !unlockForm.reason || unlockForm.reason.length < 10">
                                 {{ unlockSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu giải trình' }}
@@ -1739,9 +1442,9 @@
                     </div>
 
                     <!-- Lịch sử yêu cầu -->
-                    <div class="history-card" style="margin-top: 24px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
-                            <h4 style="margin: 0; font-size: 15px; color: #1e293b;">Lịch sử yêu cầu mở khóa</h4>
+                    <div class="history-section">
+                        <div class="history-header">
+                            <h4 class="history-title">Lịch sử yêu cầu mở khóa</h4>
                             <button class="btn btn-outline btn-sm" :disabled="loadingUnlockRequests" @click="fetchUnlockRequests(selectedCluster.id)">
                                 Tải lại
                             </button>
@@ -1751,37 +1454,38 @@
                             <div class="spinner"></div>
                             <p>Đang tải lịch sử...</p>
                         </div>
-                        <div v-else-if="unlockRequests.length === 0" class="empty-state" style="text-align: center; padding: 30px 0; color: #64748b; font-style: italic;">
+                        <div v-else-if="unlockRequests.length === 0" class="empty-state-text">
                             Chưa có yêu cầu mở khóa nào được gửi cho cụm sân này.
                         </div>
-                        <div v-else class="table-scroll" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
-                            <table class="simple-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <div v-else class="table-scroll border-rounded">
+                            <table class="unlock-history-table">
                                 <thead>
-                                    <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; width: 100px;">Mã yêu cầu</th>
-                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; width: 150px;">Thời gian gửi</th>
-                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; max-width: 300px;">Lý do giải trình</th>
-                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; width: 120px;">Trạng thái</th>
-                                        <th style="padding: 10px 12px; text-align: left; font-weight: 700; color: #475569; max-width: 300px;">Phản hồi Admin</th>
+                                    <tr>
+                                        <th class="col-code">Mã yêu cầu</th>
+                                        <th class="col-time">Thời gian gửi</th>
+                                        <th class="col-reason">Lý do giải trình</th>
+                                        <th class="col-status">Trạng thái</th>
+                                        <th class="col-response">Phản hồi Admin</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="req in unlockRequests" :key="req.id" style="border-bottom: 1px solid #e2e8f0;">
-                                        <td style="padding: 10px 12px; font-family: monospace; font-weight: 700; color: #475569;">{{ shortId(req.id) }}</td>
-                                        <td style="padding: 10px 12px;">{{ formatDateTime(req.created_at) }}</td>
-                                        <td style="padding: 10px 12px; max-width: 300px; white-space: normal; line-height: 1.45; word-break: break-word;">{{ req.reason }}</td>
-                                        <td style="padding: 10px 12px;">
-                                            <span class="status-badge" :class="req.status" style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700;">
+                                    <tr v-for="req in unlockRequests" :key="req.id" class="history-row">
+                                        <td class="cell-code">{{ shortId(req.id) }}</td>
+                                        <td class="cell-time">{{ formatDateTime(req.created_at) }}</td>
+                                        <td class="cell-reason">{{ req.reason }}</td>
+                                        <td class="cell-status">
+                                            <span class="status-badge" :class="req.status">
                                                 {{ statusLabel(req.status) }}
                                             </span>
                                         </td>
-                                        <td style="padding: 10px 12px; max-width: 300px; white-space: normal; line-height: 1.45; word-break: break-word; color: #475569;">{{ req.admin_note || '-' }}</td>
+                                        <td class="cell-response">{{ req.admin_note || '-' }}</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
 
@@ -1849,6 +1553,186 @@
                         >
                             {{
                                 requestSubmitting
+                                    ? "Đang gửi..."
+                                    : "Gửi yêu cầu"
+                            }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Gửi yêu cầu mở rộng quy mô -->
+        <div
+            v-if="showCreateApprovalModal"
+            class="modal-backdrop"
+            @click.self="closeCreateApprovalModal"
+        >
+            <div class="modal card">
+                <div class="modal-header">
+                    <h3>Gửi yêu cầu mở rộng quy mô</h3>
+                    <button class="btn-close" @click="closeCreateApprovalModal">
+                        &times;
+                    </button>
+                </div>
+                <form @submit.prevent="handleCreateApproval">
+                    <div class="modal-body">
+                        <div v-if="newReqError" class="alert alert-danger">
+                            {{ newReqError }}
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label
+                                    >Loại sân đề xuất
+                                    <span class="required">*</span></label
+                                >
+                                <div class="custom-select-wrapper">
+                                    <div
+                                        class="custom-select-trigger"
+                                        :class="{
+                                            active: showTypeDropdown,
+                                        }"
+                                        @click.stop="
+                                            showTypeDropdown =
+                                                !showTypeDropdown
+                                        "
+                                    >
+                                        <span v-if="selectedReqCourtType">
+                                            <span class="parent-name">{{
+                                                getParentTypeName(
+                                                    selectedReqCourtType,
+                                                )
+                                            }}</span>
+                                            <span class="separator">/</span>
+                                            <span class="child-name">{{
+                                                selectedReqCourtType.name
+                                            }}</span>
+                                        </span>
+                                        <span v-else class="placeholder"
+                                            >-- Chọn loại sân --</span
+                                        >
+                                        <span class="arrow">&#9662;</span>
+                                    </div>
+                                    <div
+                                        v-if="showTypeDropdown"
+                                        class="custom-options-container"
+                                    >
+                                        <div
+                                            v-for="group in groupedCourtTypes"
+                                            :key="group.id"
+                                            class="custom-optgroup"
+                                        >
+                                            <div
+                                                class="custom-optgroup-label"
+                                            >
+                                                {{ group.name }}
+                                            </div>
+                                            <div
+                                                v-for="child in group.children"
+                                                :key="child.id"
+                                                class="custom-option"
+                                                :class="{
+                                                    selected:
+                                                        newReqForm.court_type_id ===
+                                                        child.id,
+                                                }"
+                                                @click="
+                                                    selectReqCourtType(
+                                                        child,
+                                                    )
+                                                "
+                                            >
+                                                <span class="option-text">{{
+                                                    child.name
+                                                }}</span>
+                                                <span class="option-details"
+                                                    >({{
+                                                        child.player_count
+                                                    }}
+                                                    người)</span
+                                                >
+                                                <span
+                                                    v-if="
+                                                        newReqForm.court_type_id ===
+                                                        child.id
+                                                    "
+                                                    class="check-mark"
+                                                    >&#10003;</span
+                                                >
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label
+                                    >Tên sân con đề xuất
+                                    <span class="required">*</span></label
+                                >
+                                <input
+                                    v-model="newReqForm.name"
+                                    type="text"
+                                    class="form-control"
+                                    placeholder="Ví dụ: Sân số 5, Sân VIP..."
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Ghi chú/Lý do mở rộng</label>
+                            <textarea
+                                v-model="newReqForm.note"
+                                class="form-control"
+                                rows="3"
+                                placeholder="Mô tả lý do bạn muốn mở rộng thêm sân con..."
+                            ></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Ảnh minh chứng <span class="text-muted">(không bắt buộc)</span></label>
+                            <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
+                                Gửi ảnh chụp thực tế sân (hỗ trợ: JPG, PNG, WebP — tối đa 5MB)
+                            </p>
+                            <div class="evidence-upload-area">
+                                <div
+                                    v-if="!evidencePreview"
+                                    class="evidence-dropzone"
+                                    @click="$refs.evidenceInput.click()"
+                                    @dragover.prevent
+                                    @drop.prevent="handleEvidenceDrop($event)"
+                                >
+                                    <div class="evidence-dropzone-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+                                    <div class="evidence-dropzone-text">Click hoặc kéo thả ảnh vào đây</div>
+                                </div>
+                                <div v-else class="evidence-preview-wrapper">
+                                    <img :src="evidencePreview" alt="Ảnh minh chứng" class="evidence-preview-img" />
+                                    <button type="button" class="btn-remove-evidence" @click="removeEvidence">&times;</button>
+                                </div>
+                                <input
+                                    ref="evidenceInput"
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    style="display:none"
+                                    @change="handleEvidenceSelect"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-outline"
+                            @click="closeCreateApprovalModal"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            :disabled="creatingReq"
+                        >
+                            <AppIcon name="send" size="16" />
+                            {{
+                                creatingReq
                                     ? "Đang gửi..."
                                     : "Gửi yêu cầu"
                             }}
@@ -2112,6 +1996,144 @@
                 </div>
             </div>
         </div>
+        <!-- Modal: Yêu cầu thêm loại sân mới -->
+        <div
+            v-if="showCourtTypeRequestModal"
+            class="modal-backdrop"
+            @click.self="closeCourtTypeRequestModal"
+        >
+            <div class="modal card">
+                <div class="modal-header">
+                    <h3>Yêu cầu thêm loại sân mới</h3>
+                    <button class="btn-close" @click="closeCourtTypeRequestModal">
+                        &times;
+                    </button>
+                </div>
+                <form @submit.prevent="handleCourtTypeRequestSubmit">
+                    <div class="modal-body">
+                        <div v-if="courtTypeRequestError" class="alert alert-danger">
+                            {{ courtTypeRequestError }}
+                        </div>
+                        <div v-if="courtTypeRequestSuccess" class="alert alert-success">
+                            {{ courtTypeRequestSuccess }}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="court-type-req-name">Tên loại sân đề xuất <span class="required">*</span></label>
+                            <input
+                                id="court-type-req-name"
+                                v-model="courtTypeRequestForm.name"
+                                type="text"
+                                class="form-control"
+                                placeholder="Ví dụ: Sân Pickleball đơn, Sân bóng đá 7 người..."
+                                required
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label>Nhóm bộ môn (Loại sân cha) <span class="required">*</span></label>
+                            <div class="custom-select-wrapper req-parent-select">
+                                <div
+                                    class="custom-select-trigger"
+                                    :class="{ active: showReqParentDropdown }"
+                                    @click.stop="showReqParentDropdown = !showReqParentDropdown"
+                                >
+                                    <span v-if="selectedReqParentCourtType">
+                                        {{ selectedReqParentCourtType.name }}
+                                    </span>
+                                    <span v-else class="placeholder">-- Chọn bộ môn --</span>
+                                    <span class="arrow">&#9662;</span>
+                                </div>
+                                <div
+                                    v-if="showReqParentDropdown"
+                                    class="custom-options-container"
+                                >
+                                    <div
+                                        v-for="parent in parentCourtTypes"
+                                        :key="parent.id"
+                                        class="custom-option"
+                                        :class="{ selected: courtTypeRequestForm.parent_id === parent.id }"
+                                        @click="selectReqParent(parent)"
+                                    >
+                                        {{ parent.name }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="court-type-req-players">Số người chơi đề xuất <span class="required">*</span></label>
+                            <input
+                                id="court-type-req-players"
+                                v-model.number="courtTypeRequestForm.player_count"
+                                type="number"
+                                min="1"
+                                class="form-control"
+                                required
+                            />
+                        </div>
+
+                        <!-- Kích thước sơ đồ đề xuất -->
+                        <div class="form-group">
+                            <label>Kích thước sơ đồ quy chuẩn đề xuất (m)</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input
+                                    v-model.number="courtTypeRequestForm.default_layout_w"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    class="form-control"
+                                    placeholder="Ngang (ví dụ: 6.1)"
+                                    style="flex: 1; min-width: 0;"
+                                />
+                                <span class="text-muted">x</span>
+                                <input
+                                    v-model.number="courtTypeRequestForm.default_layout_h"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    class="form-control"
+                                    placeholder="Dọc (ví dụ: 13.4)"
+                                    style="flex: 1; min-width: 0;"
+                                />
+                            </div>
+                            <small class="text-muted" style="margin-top: 4px; display: block;">
+                                Chiều ngang và chiều dọc của loại sân (tính theo mét).
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="court-type-req-description">Mô tả/Lý do đề xuất</label>
+                            <textarea
+                                id="court-type-req-description"
+                                v-model="courtTypeRequestForm.description"
+                                class="form-control"
+                                placeholder="Nhập mô tả hoặc lý do bạn cần thêm loại sân này..."
+                                rows="3"
+                            ></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-outline"
+                            @click="closeCourtTypeRequestModal"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            :disabled="courtTypeRequestSubmitting"
+                        >
+                            {{ courtTypeRequestSubmitting ? "Đang gửi..." : "Gửi yêu cầu" }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- Nut noi hanh dong cum san -->
+        <ClusterActionFloating :is-locked="isClusterLocked" @action="triggerAction" />
     </div>
 </template>
 
@@ -2120,6 +2142,8 @@ import AppIcon from "../../components/AppIcon.vue";
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
 import DecorationVisual from "../../components/DecorationVisual.vue";
+import FloatAddButton from "../../components/FloatAddButton.vue";
+import ClusterActionFloating from "../../components/owner/ClusterActionFloating.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
@@ -2127,7 +2151,7 @@ import { ownerUnlockRequestsService } from "../../services/ownerUnlockRequests";
 
 export default {
     name: "OwnerVenueClusters",
-    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual },
+    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual, FloatAddButton, ClusterActionFloating },
     data() {
         return {
             // Cluster list
@@ -2178,6 +2202,22 @@ export default {
             requestError: null,
             requestSuccessMsg: null,
             requestForm: { name: "", description: "" },
+
+            // Court Type Requests
+            showCourtTypeRequestModal: false,
+            courtTypeRequestSubmitting: false,
+            courtTypeRequestError: null,
+            courtTypeRequestSuccess: null,
+            showReqParentDropdown: false,
+            selectedReqParentCourtType: null,
+            courtTypeRequestForm: {
+                name: "",
+                parent_id: null,
+                player_count: 2,
+                description: "",
+                default_layout_w: null,
+                default_layout_h: null
+            },
  
             // Courts tab
             courts: [],
@@ -2216,6 +2256,7 @@ export default {
             panStartX: 0,
             panStartY: 0,
             editorTool: 'select',
+            activeGuidelines: { x: [], y: [] },
 
             // Approvals tab
             approvalRequests: [],
@@ -2229,6 +2270,7 @@ export default {
             creatingReq: false,
             cancellingId: null,
             showTypeDropdown: false,
+            showCreateApprovalModal: false,
 
             // Location Change Requests
             locationRequests: [],
@@ -2282,6 +2324,10 @@ export default {
                 list.push({ key: "unlock", label: "Yêu cầu mở khóa" });
             }
             return list;
+        },
+        parentCourtTypes() {
+            if (!this.courtTypes) return [];
+            return this.courtTypes.filter((t) => !t.parent_id);
         },
         pendingUnlockCount() {
             return this.unlockRequests.filter((r) => r.status === "pending").length;
@@ -2377,6 +2423,15 @@ export default {
                 w.name.toLowerCase().includes(query)
             );
         },
+        courtTypeStats() {
+            if (!this.courts) return [];
+            const stats = {};
+            this.courts.forEach((court) => {
+                const name = court.court_type?.name || "Chưa phân loại";
+                stats[name] = (stats[name] || 0) + 1;
+            });
+            return Object.entries(stats).map(([name, count]) => ({ name, count }));
+        },
     },
 
     watch: {
@@ -2415,6 +2470,7 @@ export default {
         this.fetchClusters();
         this.fetchAvailableAmenities();
         this.fetchProvinces();
+        this.fetchCourtTypes();
     },
 
     mounted() {
@@ -2451,6 +2507,15 @@ export default {
                 this.error = err.message || "Lỗi khi tải danh sách cụm sân.";
             } finally {
                 this.loading = false;
+            }
+        },
+
+        async fetchCourtTypes() {
+            try {
+                const res = await courtTypeService.getAll();
+                this.courtTypes = res.data || [];
+            } catch (err) {
+                console.error("Lỗi khi tải danh mục bộ môn:", err.message);
             }
         },
 
@@ -2518,6 +2583,10 @@ export default {
             this.unlockForm.reason = "";
             // Load location requests ngay để hiển thị badge đúng
             this.fetchLocationRequests(cluster.id);
+            this.showHamburgerMenu = false;
+            this.showCourtTypeRequestModal = false;
+            this.courtTypeRequestError = null;
+            this.courtTypeRequestSuccess = null;
             this.$nextTick(() => this.initMap());
         },
 
@@ -3452,7 +3521,118 @@ export default {
             this.resizeStartXCoord = court.layout_x || 0;
             this.resizeStartYCoord = court.layout_y || 0;
         },
+        calculateGuidelines(type, draggingId, newX, newY, w, h) {
+            // Ngưỡng snap tính theo pixel màn hình (ví dụ 8px), tự động điều chỉnh theo mức zoom
+            const baseThreshold = 8;
+            const snapThreshold = baseThreshold / (this.zoom || 1);
+            
+            const guidelinesX = [];
+            const guidelinesY = [];
+            const targets = [];
+            
+            this.courts.forEach(court => {
+                if (court.layout_x !== null && court.layout_y !== null) {
+                    if (type !== 'court' || court.id !== draggingId) {
+                        targets.push({
+                            id: court.id,
+                            type: 'court',
+                            x: court.layout_x,
+                            y: court.layout_y,
+                            w: court.layout_w || this.getDefaultWidth(court),
+                            h: court.layout_h || this.getDefaultHeight(court)
+                        });
+                    }
+                }
+            });
 
+            this.decorations.forEach(decor => {
+                if (type !== 'decor' || decor.id !== draggingId) {
+                    targets.push({
+                        id: decor.id,
+                        type: 'decor',
+                        x: decor.layout_x,
+                        y: decor.layout_y,
+                        w: decor.layout_w || 100,
+                        h: decor.layout_h || 100
+                    });
+                }
+            });
+
+            let bestSnapX = null;
+            let minDeltaX = snapThreshold;
+
+            let bestSnapY = null;
+            let minDeltaY = snapThreshold;
+
+            // Tìm snap X tốt nhất (khoảng cách nhỏ nhất)
+            for (const target of targets) {
+                const targetL = target.x;
+                const targetR = target.x + target.w;
+                const targetC = target.x + target.w / 2;
+
+                const myL = newX;
+                const myR = newX + w;
+                const myC = newX + w / 2;
+
+                const checks = [
+                    { diff: Math.abs(myL - targetL), value: targetL, targetValue: targetL },
+                    { diff: Math.abs(myL - targetR), value: targetR, targetValue: targetR },
+                    { diff: Math.abs(myR - targetL), value: targetL - w, targetValue: targetL },
+                    { diff: Math.abs(myR - targetR), value: targetR - w, targetValue: targetR },
+                    { diff: Math.abs(myC - targetC), value: targetC - w / 2, targetValue: targetC }
+                ];
+
+                for (const check of checks) {
+                    if (check.diff < minDeltaX) {
+                        minDeltaX = check.diff;
+                        bestSnapX = check;
+                    }
+                }
+            }
+
+            // Tìm snap Y tốt nhất (khoảng cách nhỏ nhất)
+            for (const target of targets) {
+                const targetT = target.y;
+                const targetB = target.y + target.h;
+                const targetC = target.y + target.h / 2;
+
+                const myT = newY;
+                const myB = newY + h;
+                const myC = newY + h / 2;
+
+                const checks = [
+                    { diff: Math.abs(myT - targetT), value: targetT, targetValue: targetT },
+                    { diff: Math.abs(myT - targetB), value: targetB, targetValue: targetB },
+                    { diff: Math.abs(myB - targetT), value: targetT - h, targetValue: targetT },
+                    { diff: Math.abs(myB - targetB), value: targetB - h, targetValue: targetB },
+                    { diff: Math.abs(myC - targetC), value: targetC - h / 2, targetValue: targetC }
+                ];
+
+                for (const check of checks) {
+                    if (check.diff < minDeltaY) {
+                        minDeltaY = check.diff;
+                        bestSnapY = check;
+                    }
+                }
+            }
+
+            // Thực hiện snap nếu tìm thấy điểm snap hợp lệ
+            if (bestSnapX) {
+                newX = bestSnapX.value;
+                guidelinesX.push(bestSnapX.targetValue);
+            }
+            if (bestSnapY) {
+                newY = bestSnapY.value;
+                guidelinesY.push(bestSnapY.targetValue);
+            }
+
+            return {
+                x: newX,
+                y: newY,
+                guidelinesX,
+                guidelinesY
+            };
+        },
         startDrag(event, court) {
             this.draggingCourtId = court.id;
             this.selectedCourtId = court.id;
@@ -3508,13 +3688,24 @@ export default {
             );
             if (!court) return;
             const l = this.getLogicalCoords(event);
-            court.layout_x = l.x - this.dragStartX;
-            court.layout_y = l.y - this.dragStartY;
+            let newX = l.x - this.dragStartX;
+            let newY = l.y - this.dragStartY;
+
+            const w = court.layout_w || this.getDefaultWidth(court);
+            const h = court.layout_h || this.getDefaultHeight(court);
+            const result = this.calculateGuidelines('court', court.id, newX, newY, w, h);
+
+            court.layout_x = result.x;
+            court.layout_y = result.y;
+            this.activeGuidelines.x = result.guidelinesX;
+            this.activeGuidelines.y = result.guidelinesY;
         },
 
         endDrag() {
             this.draggingCourtId = null;
             this.resizingCourtId = null;
+            this.activeGuidelines.x = [];
+            this.activeGuidelines.y = [];
         },
 
         async saveLayout() {
@@ -3668,19 +3859,29 @@ export default {
                 }
                 return;
             }
-            if (!this.draggingDecorationId) return;
             const decor = this.decorations.find(
                 (d) => d.id === this.draggingDecorationId,
             );
             if (!decor) return;
             const l = this.getLogicalCoords(event);
-            decor.layout_x = l.x - this.dragStartX;
-            decor.layout_y = l.y - this.dragStartY;
+            let newX = l.x - this.dragStartX;
+            let newY = l.y - this.dragStartY;
+
+            const w = decor.layout_w || 100;
+            const h = decor.layout_h || 100;
+            const result = this.calculateGuidelines('decor', decor.id, newX, newY, w, h);
+
+            decor.layout_x = result.x;
+            decor.layout_y = result.y;
+            this.activeGuidelines.x = result.guidelinesX;
+            this.activeGuidelines.y = result.guidelinesY;
         },
 
         endDragDecor() {
             this.draggingDecorationId = null;
             this.resizingDecorationId = null;
+            this.activeGuidelines.x = [];
+            this.activeGuidelines.y = [];
         },
 
         getDecorStyle(decor) {
@@ -3767,8 +3968,11 @@ export default {
         },
 
         handleOutsideClick(e) {
-            const el = this.$el?.querySelector(".custom-select-wrapper");
+            const el = this.$el?.querySelector(".custom-select-wrapper:not(.req-parent-select)");
             if (el && !el.contains(e.target)) this.showTypeDropdown = false;
+
+            const reqParentEl = this.$el?.querySelector(".req-parent-select");
+            if (reqParentEl && !reqParentEl.contains(e.target)) this.showReqParentDropdown = false;
         },
 
         handleEvidenceSelect(e) {
@@ -3802,6 +4006,18 @@ export default {
             }
         },
 
+        openCreateApprovalModal() {
+            this.newReqForm = { court_type_id: "", name: "", note: "" };
+            this.removeEvidence();
+            this.showCreateApprovalModal = true;
+            this.newReqSuccess = null;
+            this.newReqError = null;
+        },
+
+        closeCreateApprovalModal() {
+            this.showCreateApprovalModal = false;
+        },
+
         async handleCreateApproval() {
             if (!this.newReqForm.court_type_id) {
                 this.newReqError = "Vui lòng chọn loại sân.";
@@ -3829,6 +4045,7 @@ export default {
                 this.approvalRequests.unshift(res.data);
                 this.newReqForm = { court_type_id: "", name: "", note: "" };
                 this.removeEvidence();
+                this.closeCreateApprovalModal();
                 if (!this.courtTypes.length) {
                     const typesRes = await courtTypeService.getAll();
                     this.courtTypes = typesRes.data || [];
@@ -4044,6 +4261,72 @@ export default {
         formatDate(val) {
             if (!val) return "—";
             return new Date(val).toLocaleString("vi-VN");
+        },
+
+        triggerAction(type) {
+            if (type === 'location') {
+                this.openLocationChangeModal();
+            } else if (type === 'scale') {
+                this.openCreateApprovalModal();
+            } else if (type === 'amenity') {
+                this.openRequestModal();
+            } else if (type === 'court_type') {
+                this.openCourtTypeRequestModal();
+            }
+        },
+
+        openCourtTypeRequestModal() {
+            this.courtTypeRequestForm = {
+                name: "",
+                parent_id: null,
+                player_count: 2,
+                description: "",
+                default_layout_w: null,
+                default_layout_h: null
+            };
+            this.selectedReqParentCourtType = null;
+            this.courtTypeRequestError = null;
+            this.courtTypeRequestSuccess = null;
+            this.showCourtTypeRequestModal = true;
+            this.showReqParentDropdown = false;
+        },
+
+        closeCourtTypeRequestModal() {
+            this.showCourtTypeRequestModal = false;
+        },
+
+        selectReqParent(parent) {
+            this.courtTypeRequestForm.parent_id = parent.id;
+            this.selectedReqParentCourtType = parent;
+            this.showReqParentDropdown = false;
+        },
+
+        async handleCourtTypeRequestSubmit() {
+            if (!this.courtTypeRequestForm.name || !this.courtTypeRequestForm.parent_id) {
+                this.courtTypeRequestError = "Vui lòng nhập tên loại sân và chọn bộ môn.";
+                return;
+            }
+            this.courtTypeRequestSubmitting = true;
+            this.courtTypeRequestError = null;
+            this.courtTypeRequestSuccess = null;
+
+            const payload = {
+                ...this.courtTypeRequestForm,
+                default_layout_w: this.courtTypeRequestForm.default_layout_w ? parseFloat(this.courtTypeRequestForm.default_layout_w) * 100 : null,
+                default_layout_h: this.courtTypeRequestForm.default_layout_h ? parseFloat(this.courtTypeRequestForm.default_layout_h) * 100 : null,
+            };
+
+            try {
+                const res = await courtTypeService.requestNew(payload);
+                this.courtTypeRequestSuccess = res.message || "Gửi yêu cầu thêm loại sân mới thành công!";
+                setTimeout(() => {
+                    this.closeCourtTypeRequestModal();
+                }, 2000);
+            } catch (err) {
+                this.courtTypeRequestError = err.message || "Không thể gửi yêu cầu thêm loại sân mới.";
+            } finally {
+                this.courtTypeRequestSubmitting = false;
+            }
         },
     },
 };
@@ -4767,6 +5050,25 @@ export default {
     background-size: 40px 40px;
     opacity: 0.35;
     pointer-events: none;
+}
+.canvas-guideline {
+    position: absolute;
+    pointer-events: none;
+    z-index: 99;
+}
+.canvas-guideline.vertical {
+    top: -3000px;
+    bottom: -3000px;
+    width: 1px;
+    border-left: 1px dashed #ef4444;
+    opacity: 0.8;
+}
+.canvas-guideline.horizontal {
+    left: -3000px;
+    right: -3000px;
+    height: 1px;
+    border-top: 1px dashed #ef4444;
+    opacity: 0.8;
 }
 .canvas-court-element {
     position: absolute;
@@ -5670,5 +5972,512 @@ export default {
     border-radius: 10px;
     border: 1px solid #e2e8f0;
     display: block;
+}
+
+/* ─── Tab Headers ─── */
+.tab-header {
+    border-bottom: 1px solid var(--sg-border);
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+}
+.tab-header h3 {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--sg-text);
+    margin: 0;
+}
+.tab-header .subtitle {
+    font-size: 13px;
+    color: rgba(15, 23, 42, 0.55);
+    margin: 4px 0 0 0;
+}
+
+/* ─── Current Scale & Statistics Cards ─── */
+.current-scale-card, .affiliate-summary-card {
+    margin-bottom: 16px;
+}
+.card-section-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--sg-text);
+    margin: 0 0 12px 0;
+}
+.scale-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+.scale-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.scale-stat-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(15, 23, 42, 0.5);
+}
+.scale-stat-value {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--sg-text);
+}
+.scale-types-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.scale-type-tag {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid #e2e8f0;
+}
+.scale-type-tag strong {
+    color: #0f172a;
+}
+.scale-stat-value-empty {
+    font-size: 13px;
+    color: rgba(15, 23, 42, 0.4);
+    font-style: italic;
+}
+
+/* ─── Affiliate Shop Styles ─── */
+.affiliate-list-card {
+    padding: 0 !important;
+    overflow: hidden;
+}
+.affiliate-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+.affiliate-table th {
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 700;
+    color: #475569;
+}
+.affiliate-table td {
+    padding: 12px 16px;
+    vertical-align: middle;
+    border-bottom: 1px solid #e2e8f0;
+}
+.affiliate-table tr.product-row {
+    transition: background-color 0.2s;
+}
+.affiliate-table tr.product-row:hover {
+    background-color: #f8fafc;
+}
+.affiliate-table th.col-img { width: 80px; }
+.affiliate-table th.col-platform { width: 120px; }
+.affiliate-table th.col-price { width: 140px; text-align: right; }
+.affiliate-table td.cell-price { text-align: right; }
+.affiliate-table th.col-clicks { width: 100px; text-align: center; }
+.affiliate-table td.cell-clicks { text-align: center; font-weight: 700; color: #475569; }
+.affiliate-table th.col-status { width: 120px; text-align: center; }
+.affiliate-table td.cell-status { text-align: center; }
+.affiliate-table th.col-actions { width: 120px; text-align: center; }
+.affiliate-table td.cell-actions { text-align: center; }
+
+.product-img-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background-color: #f1f5f9;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e2e8f0;
+}
+.product-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.placeholder-icon {
+    color: #cbd5e1;
+}
+.product-title {
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.product-desc {
+    font-size: 12px;
+    color: #64748b;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.platform-badge {
+    padding: 4px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    display: inline-block;
+}
+.platform-badge.shopee { background-color: #ffeae6; color: #ee4d2d; }
+.platform-badge.lazada { background-color: #eef2ff; color: #3b82f6; }
+.platform-badge.tiki { background-color: #e0f2fe; color: #0284c7; }
+.platform-badge.tiktok-shop { background-color: #f3f4f6; color: #111827; }
+.platform-badge.khac { background-color: #ecfdf5; color: #10b981; }
+
+.price-discount {
+    font-weight: 700;
+    color: #10b981;
+}
+.price-original {
+    font-size: 11px;
+    color: #94a3b8;
+    text-decoration: line-through;
+    margin-top: 1px;
+}
+.price-empty {
+    font-style: italic;
+    font-weight: normal;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+/* Switch Toggle Custom */
+.switch-toggle {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+.switch-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+.slider-round {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+    transition: background-color 0.2s;
+}
+.switch-toggle input:checked + .slider-round {
+    background-color: #10b981;
+}
+.slider-round::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background-color: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.switch-toggle input:checked + .slider-round::after {
+    transform: translateX(16px);
+}
+
+.action-buttons-group {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+.btn-action-icon {
+    background: transparent;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--sg-border);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-action-icon:hover {
+    background-color: var(--sg-surface);
+}
+.btn-action-icon.edit {
+    color: var(--sg-text);
+}
+.btn-action-icon.delete {
+    border-color: #fecaca;
+    color: #dc2626;
+}
+.btn-action-icon.delete:hover {
+    background-color: #fee2e2;
+}
+
+/* ─── Unlock Tab Styles ─── */
+.unlock-locked-banner {
+    border-left: 5px solid #dc2626;
+    background-color: #fffafb;
+    padding: 14px;
+    margin-bottom: 20px;
+    border-radius: 6px;
+    border: 1px solid #fecaca;
+    border-left-width: 5px;
+}
+.banner-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.lock-icon-red {
+    color: #dc2626;
+}
+.banner-text h4 {
+    margin: 0;
+    font-size: 16px;
+    color: #991b1b;
+}
+.banner-text p {
+    margin: 4px 0 0;
+    font-size: 13.5px;
+    color: #b91c1c;
+}
+.pending-alert-box {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    padding: 16px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+}
+.alert-info-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: #b45309;
+    margin-bottom: 12px;
+}
+.pending-reason-preview {
+    background: #fff;
+    border: 1px solid #f3f4f6;
+    padding: 10px 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+.preview-label {
+    font-size: 13px;
+    color: #4b5563;
+    display: block;
+}
+.preview-content {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: #1f2937;
+    white-space: pre-wrap;
+    line-height: 1.45;
+}
+.new-appeal-form {
+    margin-bottom: 20px;
+}
+.form-section-title {
+    margin: 0 0 6px;
+    font-size: 16px;
+    color: #1e293b;
+    font-weight: 700;
+}
+.form-section-desc {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.4;
+}
+.field-label-bold {
+    font-weight: 700;
+    font-size: 14px;
+    color: #344238;
+    display: block;
+    margin-bottom: 6px;
+}
+.text-area-appeal {
+    width: 100%;
+    border: 1px solid #c0d1c1;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 14px;
+    resize: vertical;
+}
+.char-counter {
+    display: block;
+    text-align: right;
+    color: #94a3b8;
+    font-size: 11px;
+    margin-top: 4px;
+}
+.history-section {
+    margin-top: 24px;
+}
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 8px;
+}
+.history-title {
+    margin: 0;
+    font-size: 15px;
+    color: #1e293b;
+    font-weight: 700;
+}
+.empty-state-text {
+    text-align: center;
+    padding: 30px 0;
+    color: #64748b;
+    font-style: italic;
+    font-size: 14px;
+}
+.border-rounded {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.unlock-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+.unlock-history-table th {
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+    color: #475569;
+}
+.unlock-history-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.unlock-history-table tr.history-row {
+    border-bottom: 1px solid #e2e8f0;
+}
+.unlock-history-table th.col-code { width: 100px; }
+.unlock-history-table td.cell-code { font-family: monospace; font-weight: 700; color: #475569; }
+.unlock-history-table th.col-time { width: 150px; }
+.unlock-history-table th.col-reason { max-width: 300px; }
+.unlock-history-table td.cell-reason { max-width: 300px; white-space: normal; line-height: 1.45; word-break: break-word; }
+.unlock-history-table th.col-status { width: 120px; }
+.unlock-history-table th.col-response { max-width: 300px; }
+.unlock-history-table td.cell-response { max-width: 300px; white-space: normal; line-height: 1.45; word-break: break-word; color: #475569; }
+
+/* ─── Read-only Info Display ─── */
+.readonly-detail-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.form-group-readonly {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.info-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.info-value-text {
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: #0f172a;
+}
+.info-description-text {
+    padding: 14px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #334155;
+    white-space: pre-wrap;
+}
+.info-amenity-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 9999px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #334155;
+}
+.btn-edit-amenity-desc-readonly {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    color: #94a3b8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+.btn-edit-amenity-desc-readonly:hover {
+    color: #0f172a;
+    background: rgba(0, 0, 0, 0.05);
+}
+.btn-edit-amenity-desc-readonly:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.location-readonly-box {
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+.location-readonly-title {
+    font-size: 14px;
+    color: #0f172a;
+}
+.pending-location-badge {
+    display: inline-block;
+    margin-left: 10px;
+    font-size: 12px;
+    padding: 2px 8px;
+    background: #fef3c7;
+    color: #d97706;
+    font-weight: 600;
+    border-radius: 9999px;
+}
+.map-readonly {
+    pointer-events: none;
+    opacity: 0.85;
+}
+
+/* ─── Court Type Request Dropdown ─── */
+.req-parent-select .custom-options-container {
+    max-height: 200px;
+    overflow-y: auto;
 }
 </style>

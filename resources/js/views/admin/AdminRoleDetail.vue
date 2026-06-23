@@ -1,8 +1,6 @@
 <template>
   <section class="admin-page">
-    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-roles' })">
-      ← Quay lại danh sách nhóm quyền
-    </button>
+    <BackButton to="/admin/roles" />
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -231,6 +229,7 @@
 
 <script>
 import ConfirmModal from '../../components/ConfirmModal.vue';
+import BackButton from '../../components/BackButton.vue';
 import { adminRoleService } from '../../services/adminRoles.js';
 import {
   buildAuditDiff,
@@ -241,7 +240,7 @@ import {
 
 export default {
   name: 'AdminRoleDetail',
-  components: { ConfirmModal },
+  components: { ConfirmModal, BackButton },
   data() {
     return {
       role: null,

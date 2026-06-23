@@ -345,6 +345,22 @@ class BookingService
                 $data['end_time'],
             ));
 
+            $conflicts = $dates
+                ->filter(fn (Carbon $date) => ! $this->checkAvailability(
+                    $court->id,
+                    $date->toDateString(),
+                    $data['start_time'],
+                    $data['end_time'],
+                ))
+                ->values()
+                ->map(fn (Carbon $date) => $date->toDateString());
+
+            if ($conflicts->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'recurring_start_date' => 'Một số buổi vừa bị trùng lịch. Vui lòng tải lại và thử lại.',
+                ]);
+            }
+
             $dates = $dates
                 ->reject(fn (Carbon $date) => $skippedDates->contains($date->toDateString()))
                 ->values();

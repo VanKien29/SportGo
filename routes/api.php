@@ -30,15 +30,23 @@ use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
 use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
 use App\Http\Controllers\Api\Owner\VenueUnlockRequestController;
+use App\Http\Controllers\Api\Owner\CourtTypeRequestController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Public\LocationController;
+use App\Http\Controllers\Api\Public\VenueController;
+use App\Http\Controllers\Api\Public\PublicAffiliateProductController;
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
 Route::get('/locations/provinces', [LocationController::class, 'provinces']);
 Route::get('/locations/wards', [LocationController::class, 'wards']);
+Route::get('/venues', [VenueController::class, 'index']);
+Route::get('/venues/{id}', [VenueController::class, 'show']);
+Route::get('/venues/{id}/schedule', [VenueController::class, 'schedule']);
+Route::get('/venues/{clusterId}/affiliate-products', [PublicAffiliateProductController::class, 'index']);
+Route::post('/affiliate-products/{id}/click', [PublicAffiliateProductController::class, 'trackClick']);
 
 Route::prefix('auth')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register']);
@@ -275,6 +283,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/schedule-locks', [OwnerScheduleLockController::class, 'store']);
         Route::delete('/schedule-locks/{id}', [OwnerScheduleLockController::class, 'destroy']);
         Route::post('/amenities/request', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'requestAmenity']);
+        Route::post('/court-types/request', [CourtTypeRequestController::class, 'store']);
 
         // Finance / Wallet
         Route::get('/finance/wallets', [OwnerFinanceController::class, 'wallets']);
@@ -310,6 +319,13 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/matchmaking-posts', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'index']);
         Route::patch('/matchmaking-posts/{id}/hide', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'hide']);
         Route::post('/matchmaking-posts/{id}/report', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'report']);
+
+        // Cửa hàng tiếp thị liên kết (Affiliate Shop)
+        Route::get('/venue-clusters/{clusterId}/affiliate-products', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/affiliate-products', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'store']);
+        Route::post('/affiliate-products/{id}', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'update']);
+        Route::delete('/affiliate-products/{id}', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'destroy']);
+        Route::patch('/affiliate-products/{id}/toggle-status', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'toggleStatus']);
     });
 
 Route::middleware(['auth:sanctum', EnsureOwnerRole::class])

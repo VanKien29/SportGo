@@ -110,45 +110,7 @@
             >
                 <div class="editor-toolbar">
                     <div class="toolbar-left">
-                        <!-- Tool switcher (Figma-style) -->
-                        <div
-                            class="tool-switcher"
-                            title="Chọn công cụ (V: chọn, H: kéo)"
-                        >
-                            <button
-                                class="tool-btn"
-                                :class="{ active: editorTool === 'select' }"
-                                @click.stop="editorTool = 'select'"
-                                title="Công cụ Chọn (V) — Click chọn, kéo để di chuyển"
-                            >
-                                <svg
-                                    width="16"
-                                    height="16"
-                                    viewBox="0 0 16 16"
-                                    fill="currentColor"
-                                >
-                                    <path d="M2 1l12 6-6 2-2 6-4-14z" />
-                                </svg>
-                            </button>
-                            <button
-                                class="tool-btn"
-                                :class="{ active: editorTool === 'pan' }"
-                                @click.stop="editorTool = 'pan'"
-                                title="Công cụ Kéo (H) — Kéo canvas"
-                            >
-                                <svg
-                                    width="16"
-                                    height="16"
-                                    viewBox="0 0 16 16"
-                                    fill="currentColor"
-                                >
-                                    <path
-                                        d="M6 1.5a1 1 0 0 1 2 0V7h1V4.5a1 1 0 0 1 2 0V7h.5a1.5 1.5 0 0 1 1.5 1.5v1A4.5 4.5 0 0 1 9 14H7a4 4 0 0 1-4-4V6a1 1 0 0 1 1-1h.5V4.5a1 1 0 0 1 1-1V1.5z"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
-                        <div class="toolbar-divider"></div>
+
                         <button
                             class="btn btn-primary"
                             @click="saveLayout"
@@ -172,8 +134,8 @@
                         <span class="info-badge">
                             {{
                                 editorTool === "select"
-                                    ? "🖱️ Chế độ Chọn — Click chọn, kéo để di chuyển"
-                                    : "✋ Chế độ Kéo — Kéo để di chuyển canvas"
+                                    ? "Chế độ Chọn — Click chọn, kéo để di chuyển"
+                                    : "Chế độ Kéo — Kéo để di chuyển canvas"
                             }}
                         </span>
                     </div>
@@ -216,7 +178,7 @@
                                 @click.stop="fitView"
                                 title="Căn giữa sơ đồ"
                             >
-                                <span class="btn-icon">👁️</span> Căn giữa
+                             Căn giữa
                             </button>
                             <button
                                 class="btn-zoom reset"
@@ -236,6 +198,20 @@
                         >
                             <!-- Grid Background inside canvas content -->
                             <div class="canvas-grid-bg"></div>
+
+                            <!-- Alignment Guidelines -->
+                            <div
+                                v-for="(xCoord, index) in activeGuidelines.x"
+                                :key="'gl-x-' + index"
+                                class="canvas-guideline vertical"
+                                :style="{ left: xCoord + 'px' }"
+                            ></div>
+                            <div
+                                v-for="(yCoord, index) in activeGuidelines.y"
+                                :key="'gl-y-' + index"
+                                class="canvas-guideline horizontal"
+                                :style="{ top: yCoord + 'px' }"
+                            ></div>
 
                             <!-- Placed Courts -->
                             <div
@@ -274,7 +250,7 @@
                                     class="collision-badge"
                                     title="Sân đang bị chồng lấn!"
                                 >
-                                    ⚠️ Chồng lấp
+                                    Chồng lấp
                                 </div>
 
                                 <!-- Resize Handles -->
@@ -393,7 +369,7 @@
                                 v-if="collisions[selectedCourt.id]"
                                 class="inspector-warning-box"
                             >
-                                ⚠️ Sân đang chồng lấn lên sân khác! Vui lòng
+                                Sân đang chồng lấn lên sân khác! Vui lòng
                                 dịch chuyển hoặc thay đổi kích thước để tránh va
                                 chạm.
                             </div>
@@ -649,7 +625,7 @@
                                         addDecoration('entrance', 'Cửa ra vào')
                                     "
                                 >
-                                    🚪 Cửa ra vào
+                                    Cửa ra vào
                                 </button>
                                 <button
                                     type="button"
@@ -657,22 +633,22 @@
                                     @click="
                                         addDecoration('reception', 'Lễ tân')
                                     "
-                                >
-                                    👤 Quầy lễ tân
+                                  >
+                                    Quầy lễ tân
                                 </button>
                                 <button
                                     type="button"
                                     class="btn-add-decor"
                                     @click="addDecoration('restroom', 'WC')"
-                                >
-                                    🚻 Nhà vệ sinh
+                                  >
+                                    Nhà vệ sinh
                                 </button>
                                 <button
                                     type="button"
                                     class="btn-add-decor"
                                     @click="addDecoration('seating', 'Ghế chờ')"
-                                >
-                                    🛋️ Ghế ngồi chờ
+                                  >
+                                    Ghế ngồi chờ
                                 </button>
                                 <button
                                     type="button"
@@ -680,15 +656,15 @@
                                     @click="
                                         addDecoration('parking', 'Bãi đỗ xe')
                                     "
-                                >
-                                    🅿️ Bãi đỗ xe
+                                  >
+                                    Bãi đỗ xe
                                 </button>
                                 <button
                                     type="button"
                                     class="btn-add-decor"
                                     @click="addDecoration('custom', 'Khác')"
-                                >
-                                    📦 Vật thể khác
+                                  >
+                                    Vật thể khác
                                 </button>
                             </div>
                         </div>
@@ -953,6 +929,7 @@ export default {
             draggingDecorationId: null,
             resizingDecorationId: null,
             showScrollTop: false,
+            activeGuidelines: { x: [], y: [] },
         };
     },
     computed: {
@@ -1499,6 +1476,118 @@ export default {
             this.resizeStartXCoord = court.layout_x || 0;
             this.resizeStartYCoord = court.layout_y || 0;
         },
+        calculateGuidelines(type, draggingId, newX, newY, w, h) {
+            // Ngưỡng snap tính theo pixel màn hình (ví dụ 8px), tự động điều chỉnh theo mức zoom
+            const baseThreshold = 8;
+            const snapThreshold = baseThreshold / (this.zoom || 1);
+            
+            const guidelinesX = [];
+            const guidelinesY = [];
+            const targets = [];
+            
+            this.courts.forEach(court => {
+                if (court.layout_x !== null && court.layout_y !== null) {
+                    if (type !== 'court' || court.id !== draggingId) {
+                        targets.push({
+                            id: court.id,
+                            type: 'court',
+                            x: court.layout_x,
+                            y: court.layout_y,
+                            w: court.layout_w || this.getDefaultWidth(court),
+                            h: court.layout_h || this.getDefaultHeight(court)
+                        });
+                    }
+                }
+            });
+
+            this.decorations.forEach(decor => {
+                if (type !== 'decor' || decor.id !== draggingId) {
+                    targets.push({
+                        id: decor.id,
+                        type: 'decor',
+                        x: decor.layout_x,
+                        y: decor.layout_y,
+                        w: decor.layout_w || 100,
+                        h: decor.layout_h || 100
+                    });
+                }
+            });
+
+            let bestSnapX = null;
+            let minDeltaX = snapThreshold;
+
+            let bestSnapY = null;
+            let minDeltaY = snapThreshold;
+
+            // Tìm snap X tốt nhất (khoảng cách nhỏ nhất)
+            for (const target of targets) {
+                const targetL = target.x;
+                const targetR = target.x + target.w;
+                const targetC = target.x + target.w / 2;
+
+                const myL = newX;
+                const myR = newX + w;
+                const myC = newX + w / 2;
+
+                const checks = [
+                    { diff: Math.abs(myL - targetL), value: targetL, targetValue: targetL },
+                    { diff: Math.abs(myL - targetR), value: targetR, targetValue: targetR },
+                    { diff: Math.abs(myR - targetL), value: targetL - w, targetValue: targetL },
+                    { diff: Math.abs(myR - targetR), value: targetR - w, targetValue: targetR },
+                    { diff: Math.abs(myC - targetC), value: targetC - w / 2, targetValue: targetC }
+                ];
+
+                for (const check of checks) {
+                    if (check.diff < minDeltaX) {
+                        minDeltaX = check.diff;
+                        bestSnapX = check;
+                    }
+                }
+            }
+
+            // Tìm snap Y tốt nhất (khoảng cách nhỏ nhất)
+            for (const target of targets) {
+                const targetT = target.y;
+                const targetB = target.y + target.h;
+                const targetC = target.y + target.h / 2;
+
+                const myT = newY;
+                const myB = newY + h;
+                const myC = newY + h / 2;
+
+                const checks = [
+                    { diff: Math.abs(myT - targetT), value: targetT, targetValue: targetT },
+                    { diff: Math.abs(myT - targetB), value: targetB, targetValue: targetB },
+                    { diff: Math.abs(myB - targetT), value: targetT - h, targetValue: targetT },
+                    { diff: Math.abs(myB - targetB), value: targetB - h, targetValue: targetB },
+                    { diff: Math.abs(myC - targetC), value: targetC - h / 2, targetValue: targetC }
+                ];
+
+                for (const check of checks) {
+                    if (check.diff < minDeltaY) {
+                        minDeltaY = check.diff;
+                        bestSnapY = check;
+                    }
+                }
+            }
+
+            // Thực hiện snap nếu tìm thấy điểm snap hợp lệ
+            if (bestSnapX) {
+                newX = bestSnapX.value;
+                guidelinesX.push(bestSnapX.targetValue);
+            }
+            if (bestSnapY) {
+                newY = bestSnapY.value;
+                guidelinesY.push(bestSnapY.targetValue);
+            }
+
+            return {
+                x: newX,
+                y: newY,
+                guidelinesX,
+                guidelinesY
+            };
+        },
         startDrag(event, court) {
             this.draggingCourtId = court.id;
             this.selectedCourtId = court.id;
@@ -1562,12 +1651,20 @@ export default {
             let newX = logical.x - this.dragStartX;
             let newY = logical.y - this.dragStartY;
 
-            court.layout_x = newX;
-            court.layout_y = newY;
+            const w = court.layout_w || this.getDefaultWidth(court);
+            const h = court.layout_h || this.getDefaultHeight(court);
+            const result = this.calculateGuidelines('court', court.id, newX, newY, w, h);
+            
+            court.layout_x = result.x;
+            court.layout_y = result.y;
+            this.activeGuidelines.x = result.guidelinesX;
+            this.activeGuidelines.y = result.guidelinesY;
         },
         endDrag() {
             this.draggingCourtId = null;
             this.resizingCourtId = null;
+            this.activeGuidelines.x = [];
+            this.activeGuidelines.y = [];
         },
         selectCourt(court) {
             this.selectedCourtId = court.id;
@@ -1756,18 +1853,28 @@ export default {
                 }
                 return;
             }
-            if (!this.draggingDecorationId) return;
             const decor = this.decorations.find(
                 (d) => d.id === this.draggingDecorationId,
             );
             if (!decor) return;
             const l = this.getLogicalCoords(event);
-            decor.layout_x = l.x - this.dragStartX;
-            decor.layout_y = l.y - this.dragStartY;
+            let newX = l.x - this.dragStartX;
+            let newY = l.y - this.dragStartY;
+
+            const w = decor.layout_w || 100;
+            const h = decor.layout_h || 100;
+            const result = this.calculateGuidelines('decor', decor.id, newX, newY, w, h);
+
+            decor.layout_x = result.x;
+            decor.layout_y = result.y;
+            this.activeGuidelines.x = result.guidelinesX;
+            this.activeGuidelines.y = result.guidelinesY;
         },
         endDragDecor() {
             this.draggingDecorationId = null;
             this.resizingDecorationId = null;
+            this.activeGuidelines.x = [];
+            this.activeGuidelines.y = [];
         },
         getDecorStyle(decor) {
             return {
@@ -2579,6 +2686,26 @@ export default {
     background-size: 30px 30px;
     pointer-events: none;
     z-index: 1;
+}
+
+.canvas-guideline {
+    position: absolute;
+    pointer-events: none;
+    z-index: 99;
+}
+.canvas-guideline.vertical {
+    top: -5000px;
+    bottom: -5000px;
+    width: 1px;
+    border-left: 1px dashed #ef4444;
+    opacity: 0.8;
+}
+.canvas-guideline.horizontal {
+    left: -5000px;
+    right: -5000px;
+    height: 1px;
+    border-top: 1px dashed #ef4444;
+    opacity: 0.8;
 }
 
 .canvas-court-element {

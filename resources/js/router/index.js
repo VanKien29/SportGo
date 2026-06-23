@@ -35,9 +35,13 @@ import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
 import PartnerRegistration from "../views/clients/PartnerRegistration.vue";
+import VenueList from "../views/clients/VenueList.vue";
+import VenueDetail from "../views/clients/VenueDetail.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
+    { path: "/venues", name: "venues", component: VenueList },
+    { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
     {
@@ -231,6 +235,12 @@ const routes = [
                 name: "owner-venue-clusters",
                 component: () =>
                     import("../views/owner/OwnerVenueClusters.vue"),
+            },
+            {
+                path: "affiliate",
+                name: "owner-affiliate",
+                component: () =>
+                    import("../views/owner/OwnerAffiliate.vue"),
             },
             {
                 path: "venue-courts",
