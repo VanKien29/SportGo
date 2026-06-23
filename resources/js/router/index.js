@@ -34,7 +34,7 @@ import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
-import PartnerRegistration from "../views/clients/PartnerRegistration.vue";
+import PartnerRegistration from "../views/partner/PartnerRegistration.vue";
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
 
@@ -63,7 +63,7 @@ const routes = [
     {
         path: "/partner-application",
         name: "partner-application",
-        component: () => import("../views/clients/PartnerApplicationPortal.vue"),
+        component: () => import("../views/partner/PartnerApplicationPortal.vue"),
         meta: { requiresAuth: true },
     },
     {
