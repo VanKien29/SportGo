@@ -23,23 +23,27 @@
     --color-accent: oklch(0.229 0 0);
     --destructive-foreground: oklch(0.985 0 0);
 }
-
-
-input {
+.auth-layout input,
+.dark input {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     caret-color: #fff;
 }
 
-input::selection {
+.auth-layout input::selection,
+.dark input::selection {
     color: #fff;
     background: rgba(34, 197, 94, .35);
 }
 
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
+.auth-layout input:-webkit-autofill,
+.auth-layout input:-webkit-autofill:hover,
+.auth-layout input:-webkit-autofill:focus,
+.auth-layout input:-webkit-autofill:active,
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     caret-color: #fff !important;
@@ -48,9 +52,11 @@ input:-webkit-autofill:active {
     transition: background-color 9999s ease-out 0s;
 }
 
-input:autofill {
+.auth-layout input:autofill,
+.dark input:autofill {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     box-shadow: 0 0 0 1000px #09090b inset !important;
     -webkit-box-shadow: 0 0 0 1000px #09090b inset !important;
 }
+
