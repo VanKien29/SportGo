@@ -47,7 +47,7 @@ class OwnerAffiliateProductController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'], // Max 5MB
+            'image' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'], // Max 5MB, required on create
             'price' => ['nullable', 'numeric', 'min:0'],
             'original_price' => ['nullable', 'numeric', 'min:0'],
             'affiliate_url' => ['required', 'url', 'max:2000'],
@@ -57,7 +57,7 @@ class OwnerAffiliateProductController extends Controller
 
         $imagePath = null;
         if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('products', 'public');
+            $imagePath = $this->storeAndConvertToWebp($request->file('image'));
         }
 
         $product = AffiliateProduct::create([
@@ -95,7 +95,7 @@ class OwnerAffiliateProductController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'], // Max 5MB
+            'image' => [$product->image_path ? 'nullable' : 'required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'], // Required if no image exists
             'price' => ['nullable', 'numeric', 'min:0'],
             'original_price' => ['nullable', 'numeric', 'min:0'],
             'affiliate_url' => ['required', 'url', 'max:2000'],
@@ -109,7 +109,7 @@ class OwnerAffiliateProductController extends Controller
             if ($product->image_path) {
                 Storage::disk('public')->delete($product->image_path);
             }
-            $imagePath = $request->file('image')->store('products', 'public');
+            $imagePath = $this->storeAndConvertToWebp($request->file('image'));
         }
 
         $product->update([
@@ -171,5 +171,54 @@ class OwnerAffiliateProductController extends Controller
             'message' => 'Thay đổi trạng thái hoạt động sản phẩm thành công.',
             'data' => $product,
         ]);
+    }
+
+    /**
+     * Store the uploaded image file and convert it to WebP format if it is jpeg/jpg/png.
+     */
+    private function storeAndConvertToWebp($file): ?string
+    {
+        if (!$file) {
+            return null;
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        
+        // If it is already webp, store directly
+        if ($extension === 'webp' || $file->getMimeType() === 'image/webp') {
+            return $file->store('products', 'public');
+        }
+
+        // Check if GD and WebP generation is supported
+        if (function_exists('imagewebp')) {
+            $gdImage = null;
+            $mime = $file->getMimeType();
+
+            if (($mime === 'image/jpeg' || in_array($extension, ['jpg', 'jpeg'])) && function_exists('imagecreatefromjpeg')) {
+                $gdImage = @imagecreatefromjpeg($file->getRealPath());
+            } elseif (($mime === 'image/png' || $extension === 'png') && function_exists('imagecreatefrompng')) {
+                $gdImage = @imagecreatefrompng($file->getRealPath());
+                if ($gdImage) {
+                    imagealphablending($gdImage, false);
+                    imagesavealpha($gdImage, true);
+                }
+            }
+
+            if ($gdImage) {
+                ob_start();
+                imagewebp($gdImage, null, 85); // 85% Quality
+                $webpContent = ob_get_clean();
+                imagedestroy($gdImage);
+
+                if ($webpContent !== false) {
+                    $filename = 'products/' . Str::random(40) . '.webp';
+                    Storage::disk('public')->put($filename, $webpContent);
+                    return $filename;
+                }
+            }
+        }
+
+        // Fallback: store as-is if conversion fails or isn't supported
+        return $file->store('products', 'public');
     }
 }
