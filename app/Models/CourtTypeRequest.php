@@ -19,6 +19,8 @@ class CourtTypeRequest extends Model
         'requested_by',
         'status',
         'status_reason',
+        'default_layout_w',
+        'default_layout_h',
     ];
 
     protected function casts(): array
@@ -26,6 +28,8 @@ class CourtTypeRequest extends Model
         return [
             'parent_id' => 'integer',
             'player_count' => 'integer',
+            'default_layout_w' => 'double',
+            'default_layout_h' => 'double',
         ];
     }
 

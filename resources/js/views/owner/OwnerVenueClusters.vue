@@ -2073,6 +2073,35 @@
                             />
                         </div>
 
+                        <!-- Kích thước sơ đồ đề xuất -->
+                        <div class="form-group">
+                            <label>Kích thước sơ đồ quy chuẩn đề xuất (m)</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input
+                                    v-model.number="courtTypeRequestForm.default_layout_w"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    class="form-control"
+                                    placeholder="Ngang (ví dụ: 6.1)"
+                                    style="flex: 1; min-width: 0;"
+                                />
+                                <span class="text-muted">x</span>
+                                <input
+                                    v-model.number="courtTypeRequestForm.default_layout_h"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    class="form-control"
+                                    placeholder="Dọc (ví dụ: 13.4)"
+                                    style="flex: 1; min-width: 0;"
+                                />
+                            </div>
+                            <small class="text-muted" style="margin-top: 4px; display: block;">
+                                Chiều ngang và chiều dọc của loại sân (tính theo mét).
+                            </small>
+                        </div>
+
                         <div class="form-group">
                             <label for="court-type-req-description">Mô tả/Lý do đề xuất</label>
                             <textarea
@@ -2185,7 +2214,9 @@ export default {
                 name: "",
                 parent_id: null,
                 player_count: 2,
-                description: ""
+                description: "",
+                default_layout_w: null,
+                default_layout_h: null
             },
  
             // Courts tab
@@ -4249,7 +4280,9 @@ export default {
                 name: "",
                 parent_id: null,
                 player_count: 2,
-                description: ""
+                description: "",
+                default_layout_w: null,
+                default_layout_h: null
             };
             this.selectedReqParentCourtType = null;
             this.courtTypeRequestError = null;
@@ -4276,8 +4309,15 @@ export default {
             this.courtTypeRequestSubmitting = true;
             this.courtTypeRequestError = null;
             this.courtTypeRequestSuccess = null;
+
+            const payload = {
+                ...this.courtTypeRequestForm,
+                default_layout_w: this.courtTypeRequestForm.default_layout_w ? parseFloat(this.courtTypeRequestForm.default_layout_w) * 100 : null,
+                default_layout_h: this.courtTypeRequestForm.default_layout_h ? parseFloat(this.courtTypeRequestForm.default_layout_h) * 100 : null,
+            };
+
             try {
-                const res = await courtTypeService.requestNew(this.courtTypeRequestForm);
+                const res = await courtTypeService.requestNew(payload);
                 this.courtTypeRequestSuccess = res.message || "Gửi yêu cầu thêm loại sân mới thành công!";
                 setTimeout(() => {
                     this.closeCourtTypeRequestModal();
