@@ -141,14 +141,9 @@ class PartnerApplicationService
             $this->audit('partner_application_submitted', $application, $user, 'user', null, null, $request);
             $this->notifyAdmins('partner_application_submitted', 'Có hồ sơ đối tác mới', $application->venue_name . ' vừa gửi hồ sơ đăng ký đối tác.', $application->id);
 
-            $this->mail->queue($user, new PartnerApplicationReceivedMail([
-                'user_name' => $user->full_name,
-                'submitted_at' => $this->timestamp($application->submitted_at),
-                'venue_name' => $application->venue_name,
-                'status_url' => url('/profile'),
-            ]));
+            $this->mail->queue($application->venue_email ?? $user->email, new PartnerApplicationReceivedMail($application));
 
-            return $application->fresh(['user', 'courts.courtType', 'documents', 'contracts']);
+            return $application->fresh(['user', 'courts.courtType', 'documents', 'contracts', 'generatedDocuments']);
         });
     }
 
@@ -197,14 +192,7 @@ class PartnerApplicationService
             $this->audit('partner_contract_sent', $contract, $admin, 'admin', null, ['contract_code' => $contract->contract_code], $request);
             $this->notifyUser($application->user, 'partner_application_approved', 'Hồ sơ đối tác đã được duyệt', 'Hợp đồng hợp tác đã sẵn sàng, vui lòng ký điện tử.', $application->id);
 
-            $this->mail->queue($application->user, new PartnerApplicationApprovedMail([
-                'user_name' => $application->user->full_name,
-                'venue_name' => $application->venue_name,
-                'approved_at' => $this->timestamp($application->reviewed_at),
-                'approved_by' => ($admin->full_name ?: $admin->username) . ' - Bộ phận vận hành SportGo',
-                'sign_deadline' => $this->timestamp(now()->addDays(7)),
-                'sign_url' => url('/profile'),
-            ]));
+            $this->mail->queue($application->venue_email ?? $application->user->email, new PartnerApplicationApprovedMail($application));
 
             return $application->fresh($this->detailRelations());
         });
@@ -236,13 +224,7 @@ class PartnerApplicationService
             $this->audit('partner_application_rejected', $application, $admin, 'admin', ['status' => $oldStatus], ['status' => 'rejected'], $request, $reason);
             $this->notifyUser($application->user, 'partner_application_rejected', 'Hồ sơ đối tác bị từ chối', 'Lý do: ' . $reason, $application->id);
 
-            $this->mail->queue($application->user, new PartnerApplicationRejectedMail([
-                'user_name' => $application->user->full_name,
-                'venue_name' => $application->venue_name,
-                'reviewed_at' => $this->timestamp($application->reviewed_at),
-                'reason' => $reason,
-                'resubmit_url' => url('/profile'),
-            ]));
+            $this->mail->queue($application->venue_email ?? $application->user->email, new PartnerApplicationRejectedMail($application));
 
             return $application->fresh($this->detailRelations());
         });
@@ -293,14 +275,7 @@ class PartnerApplicationService
             $this->notifyAdmins('partner_contract_signed_owner', 'Hợp đồng chờ SportGo ký', $contract->contract_code . ' đã được chủ sân ký.', $contract->partner_application_id);
             $this->notifyUser($owner, 'partner_contract_signed_owner', 'Bạn đã ký hợp đồng thành công', 'Tài khoản đã được cấp quyền Chủ sân.', $contract->partner_application_id);
 
-            $this->mail->queue($owner, new PartnerContractSignedByOwnerMail([
-                'owner_name' => $owner->full_name,
-                'contract_code' => $contract->contract_code,
-                'venue_name' => $contract->application?->venue_name,
-                'signed_at' => $this->timestamp($contract->owner_signed_at),
-                'ip_address' => $request->ip(),
-                'owner_url' => url('/owner/dashboard'),
-            ]));
+            $this->mail->queue($owner->email ?? $contract->application?->venue_email, new PartnerContractSignedByOwnerMail($contract));
 
             return $contract->fresh(['application', 'generatedDocument.signatures', 'venueCluster']);
         });
@@ -830,10 +805,17 @@ class PartnerApplicationService
                 : 'Chưa xác minh ngân hàng',
             'bank_verified_at' => $this->timestamp($application->bank_verified_at),
             'attachments' => $application->documents->pluck('title')->unique()->implode(', '),
+            'id_issued_info' => ($application->representative_identity_issued_date ? $application->representative_identity_issued_date->format('d/m/Y') : '...') . ', ' . ($application->representative_identity_issued_place ?: '...'),
+            'venue_phone' => $application->venue_phone ?: $application->applicant_phone,
+            'court_types' => $application->courts->pluck('courtType.name')->filter()->unique()->implode(', '),
+            'amenities' => is_array($application->amenities) ? implode(', ', $application->amenities) : ($application->amenities ?: 'Không có'),
+            'expected_opening_hours' => $application->expected_opening_hours ?: '...',
+            'bank_branch' => $application->bank_branch ?: 'Không có',
         ], $actor, [
             'partner_application_id' => $application->id,
             'owner_id' => $application->user_id,
             'title' => 'Đơn đăng ký đối tác ' . $application->venue_name,
+            'status' => 'pending_owner_signature',
         ]);
     }
 

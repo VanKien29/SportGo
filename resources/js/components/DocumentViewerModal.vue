@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+  <div v-if="show" class="fixed inset-0 z-[600] flex items-center justify-center p-4 sm:p-6">
     <div class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm transition-opacity" @click="$emit('close')"></div>
 
     <div class="relative w-full h-full max-h-[90vh] max-w-6xl flex flex-col md:flex-row overflow-hidden rounded-xl bg-white shadow-2xl transition-all">
@@ -92,7 +92,7 @@
 <script setup>
 import { ref, watch, nextTick } from 'vue';
 import { renderAsync } from 'docx-preview';
-import { apiDownload } from '../services/api.js';
+import { apiDownload, readToken } from '../services/api.js';
 
 const props = defineProps({
   show: Boolean,
@@ -131,7 +131,7 @@ async function loadDocument() {
   if (docxContainer.value) docxContainer.value.innerHTML = '';
   
   try {
-    const token = localStorage.getItem('token');
+    const token = readToken();
     const response = await fetch(props.document.download_url, {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
+  <div v-if="show" class="fixed inset-0 z-[700] flex items-center justify-center p-4 sm:p-0">
     <div class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity" @click="$emit('close')"></div>
 
     <div class="relative w-full max-w-lg transform overflow-hidden rounded-xl bg-white shadow-2xl transition-all sm:my-8">

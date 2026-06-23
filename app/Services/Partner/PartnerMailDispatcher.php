@@ -10,11 +10,14 @@ use Throwable;
 
 class PartnerMailDispatcher
 {
-    public function queue(User $recipient, Mailable $mail): void
+    public function queue(User|string $recipient, Mailable $mail): void
     {
-        if (! $recipient->email) {
+        $email = $recipient instanceof User ? $recipient->email : $recipient;
+        $id = $recipient instanceof User ? $recipient->id : 'guest';
+
+        if (! $email) {
             Log::warning('Partner workflow mail skipped: recipient has no email.', [
-                'recipient_id' => $recipient->id,
+                'recipient_id' => $id,
                 'mail' => $mail::class,
             ]);
 
@@ -22,16 +25,16 @@ class PartnerMailDispatcher
         }
 
         try {
-            Mail::to($recipient->email)->queue($mail);
+            Mail::to($email)->queue($mail);
             Log::info('Partner workflow mail queued.', [
-                'recipient_id' => $recipient->id,
-                'recipient_email' => $recipient->email,
+                'recipient_id' => $id,
+                'recipient_email' => $email,
                 'mail' => $mail::class,
             ]);
         } catch (Throwable $exception) {
             Log::error('Partner workflow mail failed to queue.', [
-                'recipient_id' => $recipient->id,
-                'recipient_email' => $recipient->email,
+                'recipient_id' => $id,
+                'recipient_email' => $email,
                 'mail' => $mail::class,
                 'error' => $exception->getMessage(),
             ]);
