@@ -1,127 +1,131 @@
 <template>
     <div class="avc-page">
-        <!-- ── Bộ lọc ── -->
-        <div class="avc-filters card">
-            <div class="filter-row">
-                <div class="filter-tabs">
-                    <button
-                        v-for="tab in statusTabs"
-                        :key="tab.value"
-                        class="tab-btn"
-                        :class="{ active: filterStatus === tab.value }"
-                        @click="filterStatus = tab.value"
-                    >
-                        {{ tab.label }}
-                    </button>
-                </div>
-                <div class="filter-search">
-                    <input
-                        id="search-venue-cluster"
-                        v-model="searchText"
-                        type="text"
-                        placeholder="Tìm theo tên sân, địa chỉ..."
-                        class="search-input"
-                        @input="onSearch"
-                    />
-                </div>
-            </div>
-        </div>
-
         <!-- ── Loading ── -->
-        <div v-if="loading" class="state-box card">
+        <div v-if="loading" class="state-box card animate-fade-in">
             <div class="spinner"></div>
             <p>Đang tải danh sách cụm sân...</p>
         </div>
 
         <!-- ── Error ── -->
-        <div v-else-if="error" class="state-box card error-box">
+        <div v-else-if="error" class="state-box card error-box animate-fade-in">
             <p>{{ error }}</p>
             <button class="btn btn-outline" @click="loadClusters">
                 Thử lại
             </button>
         </div>
 
-        <!-- ── Empty ── -->
-        <div v-else-if="filteredClusters.length === 0" class="state-box card">
-            <p class="empty-msg">Không tìm thấy cụm sân nào phù hợp.</p>
-        </div>
-
-        <!-- ── Table ── -->
-        <div v-else class="avc-table-wrap card">
-            <div class="table-scroll">
-                <table class="avc-table">
-                    <thead>
-                        <tr>
-                            <th class="col-name">Tên cụm sân</th>
-                            <th class="col-owner">Chủ sân</th>
-                            <th class="col-courts text-center">Số sân con</th>
-                            <th class="col-fee text-center">Trạng thái phí</th>
-                            <th class="col-status text-center">Trạng thái</th>
-                            <th class="col-actions text-center">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="c in filteredClusters"
-                            :key="c.id"
-                            class="avc-row"
-                            @click="goDetail(c.id)"
+        <template v-else>
+            <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
+            <div class="avc-filters card animate-fade-in" v-if="clusters.length > 0">
+                <div class="filter-row">
+                    <div class="filter-tabs">
+                        <button
+                            v-for="tab in statusTabs"
+                            :key="tab.value"
+                            class="tab-btn"
+                            :class="{ active: filterStatus === tab.value }"
+                            @click="filterStatus = tab.value"
                         >
-                            <td class="col-name">
-                                <div class="cluster-info-meta">
-                                    <div class="cluster-name">{{ c.name }}</div>
-                                    <div class="cluster-slug">{{ c.slug }}</div>
-                                </div>
-                            </td>
-                            <td class="col-owner" data-label="Chủ sân">
-                                <div class="owner-meta-info">
-                                    <div class="owner-name">
-                                        {{ c.owner?.full_name || "—" }}
-                                    </div>
-                                    <div class="owner-email">
-                                        {{ c.owner?.email || "" }}
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="col-courts text-center" data-label="Số sân con">
-                                <span class="court-count">{{
-                                    c.court_count
-                                }}</span>
-                            </td>
-                            <td class="col-fee text-center" data-label="Trạng thái phí">
-                                <span
-                                    class="status-badge"
-                                    :class="`fee-${c.fee_status}`"
-                                >
-                                    {{ feeStatusLabel(c.fee_status) }}
+                            {{ tab.label }}
+                        </button>
+                    </div>
+                    <div class="filter-search">
+                        <div class="search-box">
+                            <AppIcon name="search" size="16" />
+                            <input
+                                id="search-venue-cluster"
+                                v-model="searchText"
+                                type="text"
+                                placeholder="Tìm kiếm nhanh tên sân, địa chỉ hoặc chủ sân..."
+                                class="search-input"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Empty State khi hệ thống không có cụm sân nào ── -->
+            <div v-if="clusters.length === 0" class="state-box card animate-fade-in">
+                <p class="empty-msg">Chưa có cụm sân nào được đăng ký trên hệ thống.</p>
+            </div>
+
+            <!-- ── Empty State khi tìm kiếm không ra kết quả ── -->
+            <div v-else-if="filteredClusters.length === 0" class="state-box card animate-fade-in">
+                <p class="empty-msg">Không tìm thấy cụm sân nào phù hợp với điều kiện tìm kiếm.</p>
+                <button class="btn btn-outline" @click="searchText = ''; filterStatus = ''">
+                    Xóa bộ lọc
+                </button>
+            </div>
+
+            <!-- ── Compact Rows View ── -->
+            <div v-else class="clusters-list-wrapper animate-fade-in">
+                <div class="clusters-list">
+                    <div
+                        v-for="c in filteredClusters"
+                        :key="c.id"
+                        class="cluster-row-item"
+                        :class="{ 'status-locked': c.status === 'locked' }"
+                        @click="goDetail(c.id)"
+                    >
+                        <!-- Accent hover line -->
+                        <div class="accent-line"></div>
+
+                        <!-- Left: Cluster Name, Slug & Courts count -->
+                        <div class="row-left">
+                            <div class="cluster-info">
+                                <span class="cluster-name">{{ c.name }}</span>
+                                <span class="cluster-meta">
+                                    <span class="cluster-slug">{{ c.slug }}</span>
+                                    <span class="meta-dot">&bull;</span>
+                                    <span class="cluster-address">{{ formatFullAddress(c) }}</span>
                                 </span>
-                            </td>
-                            <td class="col-status text-center" data-label="Trạng thái">
-                                <span
-                                    class="status-badge"
-                                    :class="`status-${c.status}`"
-                                >
+                            </div>
+                            <span class="courts-count-badge">
+                                <AppIcon name="layers" size="12" />
+                                <span>{{ c.court_count }} sân con</span>
+                            </span>
+                        </div>
+
+                        <!-- Middle: Owner & Status Badges -->
+                        <div class="row-middle">
+                            <div class="owner-info hide-on-tablet">
+                                <span class="owner-name">{{ c.owner?.full_name || '—' }}</span>
+                                <span class="owner-email" v-if="c.owner?.email">{{ c.owner.email }}</span>
+                            </div>
+                            <div class="status-badges">
+                                <span class="row-status-badge fee-badge" :class="c.fee_status">
+                                    Phí: {{ feeStatusLabel(c.fee_status) }}
+                                </span>
+                                <span class="row-status-badge status-badge" :class="c.status">
                                     {{ statusLabel(c.status) }}
                                 </span>
-                            </td>
-                            <td class="col-actions text-center" data-label="Thao tác" @click.stop>
-                                <ActionIconButton icon="eye" label="Xem chi tiết" @click="goDetail(c.id)" />
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </div>
+
+                        <!-- Right: Actions -->
+                        <div class="row-right" @click.stop>
+                            <ActionIconButton
+                                icon="eye"
+                                label="Xem chi tiết"
+                                size="sm"
+                                @click="goDetail(c.id)"
+                            />
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
+        </template>
     </div>
 </template>
 
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
+import AppIcon from "../../components/AppIcon.vue";
 import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
 
 export default {
     name: "AdminVenueClusters",
-    components: { ActionIconButton },
+    components: { ActionIconButton, AppIcon },
     data() {
         return {
             clusters: [],
@@ -129,7 +133,6 @@ export default {
             error: "",
             filterStatus: "",
             searchText: "",
-            searchTimer: null,
             statusTabs: [
                 { value: "", label: "Tất cả" },
                 { value: "pending", label: "Chờ duyệt" },
@@ -171,10 +174,6 @@ export default {
             } finally {
                 this.loading = false;
             }
-        },
-        onSearch() {
-            clearTimeout(this.searchTimer);
-            this.searchTimer = setTimeout(() => {}, 0);
         },
 
         statusLabel(status) {
@@ -220,9 +219,9 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-width: 1400px;
+    max-width: 1000px;
+    width: 100%;
     margin: 0 auto;
-    padding: 0 16px;
     box-sizing: border-box;
 }
 
@@ -232,62 +231,6 @@ export default {
     border: 1px solid var(--sg-border);
     padding: 20px 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-/* Header */
-.avc-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 16px;
-}
-.avc-title {
-    font-size: 22px;
-    font-weight: 800;
-    margin: 0;
-    color: var(--sg-text);
-}
-.avc-sub {
-    margin: 4px 0 0;
-    font-size: 14px;
-    color: rgba(15, 23, 42, 0.5);
-}
-
-/* Stats chips */
-.avc-header-stats {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-.stat-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: var(--sg-surface, #f8fafc);
-    border: 1px solid var(--sg-border);
-    font-size: 13px;
-    font-weight: 600;
-}
-.stat-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-.dot-all {
-    background: #94a3b8;
-}
-.dot-pending {
-    background: #f59e0b;
-}
-.dot-active {
-    background: #22c55e;
-}
-.dot-locked {
-    background: #ef4444;
 }
 
 /* Filters */
@@ -313,9 +256,9 @@ export default {
     justify-content: center !important;
     padding: 0 16px !important;
     border-radius: 8px !important;
-    border: 1px solid var(--sg-border) !important;
-    background: var(--sg-surface, #f8fafc) !important;
-    color: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid var(--admin-border) !important;
+    background: var(--admin-surface) !important;
+    color: var(--admin-muted) !important;
     font-size: 13px !important;
     font-weight: 600 !important;
     cursor: pointer !important;
@@ -323,29 +266,17 @@ export default {
     box-sizing: border-box !important;
 }
 .avc-filters .filter-tabs button.tab-btn.active {
-    background: #0f172a !important;
-    border-color: #0f172a !important;
+    background: var(--admin-primary) !important;
+    border-color: var(--admin-primary) !important;
     color: #fff !important;
 }
 .avc-filters .filter-tabs button.tab-btn:not(.active):hover {
-    background: #f1f5f9 !important;
+    background: var(--admin-hover) !important;
+    color: var(--admin-primary-dark) !important;
 }
-.avc-filters .filter-row input.search-input {
-    height: 38px !important;
-    min-height: 38px !important;
-    padding: 0 14px !important;
-    border: 1px solid var(--sg-border) !important;
-    border-radius: 8px !important;
-    font-size: 14px !important;
-    outline: none !important;
-    min-width: 280px !important;
-    color: var(--sg-text) !important;
-    background: #fff !important;
-    transition: border-color 0.18s !important;
-    box-sizing: border-box !important;
-}
-.avc-filters .filter-row input.search-input:focus {
-    border-color: #0f172a !important;
+.filter-search {
+    flex: 1;
+    min-width: 250px;
 }
 
 /* State */
@@ -366,11 +297,12 @@ export default {
 }
 .empty-msg {
     font-size: 15px;
+    font-weight: 600;
 }
 .spinner {
-    width: 36px;
-    height: 36px;
-    border: 3px solid rgba(0, 0, 0, 0.08);
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(0, 0, 0, 0.05);
     border-top-color: #0f172a;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
@@ -381,143 +313,231 @@ export default {
     }
 }
 
-/* Table */
-.avc-table-wrap {
-    padding: 0;
-    overflow: hidden;
-}
-.table-scroll {
-    width: 100%;
-    overflow-x: auto;
-}
-.avc-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 800px;
-}
-.avc-table th,
-.avc-table td {
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--sg-border);
-    font-size: 14px;
-    text-align: left;
-}
-.avc-table th {
-    background: var(--sg-surface, #f8fafc);
-    font-weight: 700;
-    color: var(--sg-text);
-    font-size: 13px;
-}
-.avc-row {
-    cursor: pointer;
-    transition: background 0.12s;
-}
-.avc-row:hover {
-    background: #f8fafc;
-}
-
-
-.cluster-info-meta {
+/* SaaS Compact Rows View */
+.clusters-list-wrapper {
     display: flex;
     flex-direction: column;
+    width: 100%;
 }
+
+.clusters-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cluster-row-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 54px;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.04);
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.cluster-row-item:hover {
+    background: rgba(15, 23, 42, 0.015);
+    border-color: rgba(15, 23, 42, 0.08);
+    transform: translateX(2px);
+}
+
+.accent-line {
+    position: absolute;
+    left: 0;
+    top: 15%;
+    bottom: 15%;
+    width: 2.5px;
+    background: var(--admin-primary, #10b981);
+    border-radius: 0 2px 2px 0;
+    opacity: 0;
+    transform: scaleY(0.7);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cluster-row-item:hover .accent-line {
+    opacity: 1;
+    transform: scaleY(1);
+}
+
+.row-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1.3;
+    min-width: 0;
+}
+
+.cluster-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
 .cluster-name {
-    font-weight: 700;
-    color: var(--sg-text);
-}
-.cluster-slug {
-    font-size: 12px;
-    color: rgba(15, 23, 42, 0.4);
-    margin-top: 2px;
-}
-.owner-name {
+    font-size: 14px;
     font-weight: 600;
+    color: var(--admin-text, #0f172a);
+    transition: opacity 0.2s ease;
 }
-.owner-email {
+
+.cluster-row-item.status-locked .cluster-name {
+    opacity: 0.5;
+}
+
+.cluster-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 12px;
-    color: rgba(15, 23, 42, 0.5);
-}
-.address-cell {
-    color: rgba(15, 23, 42, 0.7);
-    font-size: 13px;
+    color: var(--admin-faint, #64748b);
+    min-width: 0;
 }
 
-/* Custom column widths */
-.col-name {
-    min-width: 260px;
-}
-.col-owner {
-    min-width: 180px;
-}
-.col-courts {
-    min-width: 100px;
-}
-.col-fee {
-    min-width: 140px;
-}
-.col-status {
-    min-width: 120px;
-}
-.col-actions {
-    min-width: 110px;
+.cluster-slug {
+    font-weight: 600;
+    flex-shrink: 0;
 }
 
-.court-count {
-    font-weight: 700;
-    font-size: 15px;
-}
-.text-muted {
-    color: rgba(15, 23, 42, 0.4);
-}
-.text-center {
-    text-align: center !important;
-}
-.text-right {
-    text-align: right !important;
+.meta-dot {
+    opacity: 0.5;
 }
 
-/* Status badges */
-.status-badge {
+.cluster-address {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.courts-count-badge {
     display: inline-flex;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-}
-.status-pending {
-    background: #fef3c7;
-    color: #92400e;
-}
-.status-active {
-    background: #dcfce7;
-    color: #166534;
-}
-.status-locked {
-    background: #fee2e2;
-    color: #991b1b;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    background: rgba(15, 23, 42, 0.04);
+    color: rgba(15, 23, 42, 0.6);
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
-/* Fee status badges */
-.fee-paid {
-    background: #dcfce7;
-    color: #166534;
+.row-middle {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 24px;
+    flex: 1.2;
+    padding-right: 16px;
+    min-width: 0;
 }
-.fee-unpaid,
-.fee-overdue {
-    background: #fee2e2;
-    color: #991b1b;
+
+.owner-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    text-align: right;
+    min-width: 0;
+    flex: 1;
 }
-.fee-pending {
-    background: #fef3c7;
-    color: #92400e;
+
+.owner-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--admin-text, #0f172a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
 }
-.fee-cancelled {
-    background: #f3f4f6;
-    color: #6b7280;
+
+.owner-email {
+    font-size: 11px;
+    color: var(--admin-faint, #64748b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
 }
-.fee-no_fee {
-    background: #f1f5f9;
-    color: #475569;
+
+.status-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.row-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Status styles */
+.status-badge.pending {
+    background: var(--admin-warning-soft, rgba(245, 158, 11, 0.1)) !important;
+    color: var(--admin-warning, #d97706) !important;
+}
+
+.status-badge.active {
+    background: var(--admin-primary-soft, rgba(16, 185, 129, 0.1)) !important;
+    color: var(--admin-primary-dark, #047857) !important;
+}
+
+.status-badge.locked {
+    background: var(--admin-danger-soft, rgba(239, 68, 68, 0.1)) !important;
+    color: var(--admin-danger, #b91c1c) !important;
+}
+
+/* Fee styles */
+.fee-badge.paid {
+    background: var(--admin-primary-soft, rgba(16, 185, 129, 0.1)) !important;
+    color: var(--admin-primary-dark, #047857) !important;
+}
+
+.fee-badge.pending {
+    background: var(--admin-warning-soft, rgba(245, 158, 11, 0.1)) !important;
+    color: var(--admin-warning, #d97706) !important;
+}
+
+.fee-badge.unpaid,
+.fee-badge.overdue {
+    background: var(--admin-danger-soft, rgba(239, 68, 68, 0.1)) !important;
+    color: var(--admin-danger, #b91c1c) !important;
+}
+
+.fee-badge.cancelled {
+    background: var(--admin-surface-muted, #f1f5f9) !important;
+    color: var(--admin-muted, #475569) !important;
+}
+
+.fee-badge.no_fee {
+    background: var(--admin-surface-muted, #f1f5f9) !important;
+    color: var(--admin-muted, #475569) !important;
+}
+
+.row-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transform: translateX(6px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cluster-row-item:hover .row-right {
+    opacity: 1;
+    transform: translateX(0);
 }
 
 /* Buttons */
@@ -538,183 +558,77 @@ export default {
 .btn-outline:hover {
     background: #f1f5f9;
 }
-.btn-action {
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.18s;
-}
-.btn-view {
-    background: #f1f5f9;
-    border-color: #e2e8f0;
-    color: #1e293b;
-}
-.btn-view:hover {
-    background: #e2e8f0;
+
+/* Animations */
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
 }
 
-/* Responsive Styles for Mobile and Tablet */
-@media (max-width: 768px) {
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================
+   RESPONSIVE DESIGN (MOBILE & TABLET)
+   ========================================== */
+
+@media (max-width: 1024px) {
     .avc-page {
         gap: 16px;
-        padding: 0 12px !important;
-        display: flex !important;
-        flex-direction: column !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-        min-width: 0 !important;
+        padding: 0 4px;
     }
-    
-    .filter-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 12px;
-    }
-    
-    .filter-tabs {
-        overflow-x: auto;
-        flex-wrap: nowrap;
-        padding-bottom: 4px;
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-        gap: 8px;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    .tab-btn {
-        flex: 0 0 auto;
-        padding: 6px 12px;
-        font-size: 12px;
-    }
-    
-    .search-input {
-        width: 100%;
-        min-width: 0;
-        box-sizing: border-box !important;
-    }
-    
-    .avc-table-wrap {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-    
-    .table-scroll {
-        overflow-x: hidden !important;
-        width: 100% !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-    
-    .avc-table {
-        min-width: 0 !important;
-        display: block !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-    }
-    
-    .avc-table thead {
-        display: none !important; /* Hide headers on mobile */
-    }
-    
-    .avc-table tbody {
-        display: block !important;
-        width: 100% !important;
-    }
-    
-    .avc-row {
-        display: block !important;
-        width: auto !important;
-        box-sizing: border-box !important;
-        background: #fff;
-        border: 1px solid var(--sg-border);
-        border-radius: 12px;
-        margin-bottom: 16px;
-        padding: 16px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-        cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    .avc-row:hover {
-        background: #fff;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-    
-    .avc-table td {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        padding: 10px 0 !important;
-        border-bottom: 1px dashed #f1f5f9 !important;
-        font-size: 13px !important;
-        width: 100% !important;
-        min-width: 0 !important;
-        text-align: right !important;
-        box-sizing: border-box !important;
-    }
-    
-    .avc-table td:last-child {
-        border-bottom: none !important;
-        padding-bottom: 0 !important;
-        margin-bottom: 0 !important;
-    }
-    
-    .avc-table td::before {
-        content: attr(data-label);
-        font-weight: 700;
-        color: rgba(15, 23, 42, 0.5);
-        text-align: left;
-        margin-right: 12px;
-        flex-shrink: 0;
-    }
-    
-    /* Highlight Venue name at the top of the card */
-    .avc-table td.col-name {
-        display: block !important;
-        text-align: left !important;
-        padding-top: 0 !important;
-        padding-bottom: 12px !important;
-        margin-bottom: 8px !important;
-        border-bottom: 2px solid #f1f5f9 !important;
-        width: auto !important;
-        box-sizing: border-box !important;
-    }
-    
-    .avc-table td.col-name::before {
+}
+
+@media (max-width: 900px) {
+    .hide-on-tablet {
         display: none !important;
     }
-    
-    .cluster-name {
-        font-size: 16px;
+}
+
+@media (max-width: 768px) {
+    .cluster-row-item {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 14px;
+        gap: 10px;
     }
-    
-    .owner-meta-info {
-        text-align: right;
+
+    .row-left {
+        width: 100%;
+        justify-content: space-between;
+        gap: 12px;
     }
-    
-    .owner-name {
-        font-size: 13px;
+
+    .cluster-address {
+        max-width: 180px;
     }
-    
-    .owner-email {
-        font-size: 11px;
-        word-break: break-all;
+
+    .row-middle {
+        width: 100%;
+        justify-content: space-between;
+        padding-right: 0;
+        gap: 12px;
+        border-top: 1px dashed rgba(15, 23, 42, 0.04);
+        padding-top: 8px;
     }
-    
-    .status-badge {
-        padding: 2px 8px;
-        font-size: 11px;
+
+    .row-right {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        opacity: 1;
+        transform: none;
+    }
+
+    .cluster-row-item:hover .row-right {
+        transform: none;
     }
 }
 </style>
