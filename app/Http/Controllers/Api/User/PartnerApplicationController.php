@@ -105,25 +105,7 @@ class PartnerApplicationController extends Controller
         ]);
     }
 
-    public function verifyBankAccount(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'bank_code' => ['required', 'string', 'max:50'],
-            'bank_bin' => ['nullable', 'string', 'max:20'],
-            'account_number' => ['required', 'regex:/^\d{6,19}$/'],
-            'account_holder_name' => ['nullable', 'string', 'max:255'],
-        ], $this->messages(), $this->attributes());
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $this->banks->verifyAccount(
-                $data['bank_code'],
-                $data['account_number'],
-                $data['account_holder_name'] ?? '',
-                $data['bank_bin'] ?? null,
-            ),
-        ]);
-    }
 
     public function resolveMap(Request $request): JsonResponse
     {
@@ -408,35 +390,13 @@ class PartnerApplicationController extends Controller
 
     private function enrichBankVerification(array $data): array
     {
-        $verification = $this->banks->verifyAccount(
-            $data['bank_code'],
-            $data['account_number'],
-            $data['account_holder_name'],
-            $data['bank_bin'] ?? null,
-        );
-
-        if (! in_array($verification['status'] ?? null, ['verified', 'manual_input_required'], true)) {
-            throw ValidationException::withMessages([
-                'account_number' => $verification['message'] ?? 'Tài khoản ngân hàng chưa được xác minh.',
-            ]);
-        }
-
-        if ($bank = $verification['bank'] ?? $this->banks->findBank($data['bank_code'], $data['bank_bin'] ?? null)) {
+        if ($bank = $this->banks->findBank($data['bank_code'], $data['bank_bin'] ?? null)) {
             $data['bank_name'] = $bank['short_name'] ?: $bank['name'];
             $data['bank_code'] = $bank['code'];
         }
 
-        if (! empty($verification['provider_account_name'])) {
-            $data['account_holder_name'] = $verification['provider_account_name'];
-        }
-
-        if (($verification['status'] ?? null) === 'verified') {
-            $data['bank_verification_status'] = 'verified';
-            $data['bank_verified_at'] = now()->toDateTimeString();
-        } else {
-            $data['bank_verification_status'] = 'pending';
-            $data['bank_verified_at'] = null;
-        }
+        $data['bank_verification_status'] = 'pending';
+        $data['bank_verified_at'] = null;
 
         return $data;
     }

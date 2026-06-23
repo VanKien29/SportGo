@@ -20,7 +20,7 @@ use App\Http\Controllers\Api\Owner\PartnerApplicationController as OwnerPartnerA
 use App\Http\Controllers\Api\Owner\PartnerContractController as OwnerPartnerContractController;
 use App\Http\Controllers\Api\Owner\BookingConfigController as OwnerBookingConfigController;
 use App\Http\Controllers\Api\Payment\SepayPaymentController;
-use App\Http\Controllers\Api\PolicyAcceptanceController;
+use App\Http\Controllers\Api\Common\PolicyAcceptanceController;
 use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
 use App\Http\Controllers\Api\Owner\PlatformFeeController as OwnerPlatformFeeController;
 use App\Http\Controllers\Api\Owner\ScheduleLockController as OwnerScheduleLockController;
@@ -29,8 +29,8 @@ use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyCont
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
 use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
-use App\Http\Controllers\Api\PartnerApplicationDocumentDownloadController;
-use App\Http\Controllers\Api\PartnerDocumentDownloadController;
+use App\Http\Controllers\Api\Partner\PartnerApplicationDocumentDownloadController;
+use App\Http\Controllers\Api\Partner\PartnerDocumentDownloadController;
 use App\Http\Controllers\Api\User\PartnerApplicationController as UserPartnerApplicationController;
 use App\Http\Controllers\Api\Owner\VenueUnlockRequestController;
 use App\Http\Controllers\Api\Owner\CourtTypeRequestController;
@@ -64,7 +64,7 @@ Route::prefix('auth')->group(function (): void {
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
-        Route::get('/files/download', [\App\Http\Controllers\Api\FileDownloadController::class, 'download']);
+        Route::get('/files/download', [\App\Http\Controllers\Api\Common\FileDownloadController::class, 'download']);
         Route::post('/set-password', [SetPasswordController::class, 'store']);
     });
 });
@@ -360,7 +360,6 @@ Route::middleware('auth:sanctum')
         Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
         Route::get('/user/partner-application/provinces', [UserPartnerApplicationController::class, 'provinces']);
         Route::get('/user/partner-application/provinces/{provinceCode}/wards', [UserPartnerApplicationController::class, 'wards']);
-        Route::post('/user/partner-application/verify-bank-account', [UserPartnerApplicationController::class, 'verifyBankAccount']);
         Route::post('/user/partner-application/resolve-map', [UserPartnerApplicationController::class, 'resolveMap']);
         Route::post('/user/partner-application/preview', [UserPartnerApplicationController::class, 'preview']);
         Route::post('/user/partner-application', [UserPartnerApplicationController::class, 'store']);

@@ -220,9 +220,14 @@
                   <div class="muted">{{ document.file_name || uploadedDocumentTypeLabel(document.document_type) }} · {{ formatFileSize(document.file_size) }} · {{ formatDate(document.uploaded_at) }}</div>
                   <div v-if="document.description" class="signature-line">{{ document.description }}</div>
                 </div>
-                <button class="btn ghost small" type="button" @click="downloadUploadedDocument(document.id)">
-                  <AppIcon name="download" size="15" /> Tải hồ sơ
-                </button>
+                <div class="flex gap-2">
+                  <button class="btn primary small" type="button" @click="viewUploadedDocument(document)">
+                    <AppIcon name="eye" size="15" /> Xem
+                  </button>
+                  <button class="btn ghost small" type="button" @click="downloadUploadedDocument(document.id)">
+                    <AppIcon name="download" size="15" /> Tải
+                  </button>
+                </div>
               </div>
               <p v-if="!activeApplication.uploaded_documents?.length" class="muted">Chưa có hồ sơ gốc nào.</p>
 
@@ -588,7 +593,7 @@ export default {
     viewDocument(document) {
       this.viewingDocument = {
         ...document,
-        download_url: `/api/admin/partner-applications/${this.activeApplication.id}/documents/${document.id}/download`
+        download_url: `/api/files/documents/${document.id}/download`
       };
       this.showDocumentViewer = true;
     },
@@ -639,6 +644,30 @@ export default {
         await adminPartnerApplicationService.downloadDocument(id);
       } catch (err) {
         this.error = err.message || 'Không tải được văn bản.';
+      }
+    },
+    async viewUploadedDocument(document) {
+      if (!document || !document.id) return;
+      
+      const newWin = window.open('', '_blank');
+      if (newWin) newWin.document.write('<div style="font-family:sans-serif;padding:20px;text-align:center;">Đang tải dữ liệu file...</div>');
+      
+      try {
+        const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
+        const headers = { Accept: 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch(`/api/admin/partner-profiles/documents/${document.id}/download`, { headers });
+        if (!response.ok) {
+          if (newWin) newWin.close();
+          this.error = 'Không thể tải file.';
+          return;
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        if (newWin) newWin.location.href = url;
+      } catch (err) {
+        if (newWin) newWin.close();
+        this.error = 'Lỗi xem file.';
       }
     },
     async downloadUploadedDocument(id) {

@@ -63,7 +63,7 @@ const routes = [
     {
         path: "/partner-application",
         name: "partner-application",
-        component: () => import("../views/PartnerApplicationPortal.vue"),
+        component: () => import("../views/clients/PartnerApplicationPortal.vue"),
         meta: { requiresAuth: true },
     },
     {
