@@ -104,6 +104,13 @@ export default {
       if (this.rotation !== 0) {
         style.transform = `rotate(${this.rotation}deg)`;
       }
+      if (this.width && this.height) {
+        const avg = (this.width + this.height) / 2;
+        // Dùng số mũ 1.15 để khi kéo to ra thì icon và chữ sẽ to nhanh hơn nữa, tránh bị bé so với khung
+        const scale = Math.pow(avg / 95, 1.15);
+        const clampedScale = Math.max(0.5, Math.min(scale, 4.0));
+        style.fontSize = `${12 * clampedScale}px`;
+      }
       return style;
     },
     labelStyle() {
@@ -122,13 +129,14 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  border: 2px dashed #94a3b8;
+  border-radius: 0.8em;
+  border: 0.2em dashed #94a3b8;
   background-color: #f8fafc;
   color: #64748b;
   overflow: hidden;
   user-select: none;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
+  font-size: 12px;
 }
 
 .decoration-content {
@@ -136,22 +144,22 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 0.25em;
   width: 100%;
   height: 100%;
-  padding: 6px;
+  padding: 0.3em 0.5em;
   text-align: center;
 }
 
 .decor-svg {
-  width: 24px;
-  height: 24px;
+  width: 3.5em;
+  height: 3.5em;
   opacity: 0.85;
   flex-shrink: 0;
 }
 
 .decor-label {
-  font-size: 10px;
+  font-size: 1em;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -168,37 +176,37 @@ export default {
 }
 
 .decor-entrance {
-  border: 2.5px solid #10b981;
+  border: 0.25em solid #10b981;
   background-color: #ecfdf5;
   color: #047857;
 }
 
 .decor-reception {
-  border: 2.5px solid #3b82f6;
+  border: 0.25em solid #3b82f6;
   background-color: #eff6ff;
   color: #1d4ed8;
 }
 
 .decor-restroom {
-  border: 2.5px solid #8b5cf6;
+  border: 0.25em solid #8b5cf6;
   background-color: #f5f3ff;
   color: #6d28d9;
 }
 
 .decor-seating {
-  border: 2.5px solid #f97316;
+  border: 0.25em solid #f97316;
   background-color: #fff7ed;
   color: #c2410c;
 }
 
 .decor-parking {
-  border: 2.5px solid #06b6d4;
+  border: 0.25em solid #06b6d4;
   background-color: #ecfeff;
   color: #0e7490;
 }
 
 .decor-custom {
-  border: 2px dashed #64748b;
+  border: 0.2em dashed #64748b;
   background-color: #f1f5f9;
   color: #334155;
 }

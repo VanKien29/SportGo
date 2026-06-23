@@ -2,9 +2,7 @@
   <section class="admin-staff-detail">
     <div class="header-section">
       <div class="breadcrumb-nav">
-        <router-link :to="{ name: 'admin-staffs' }" class="back-link">
-          ← Quay lại danh sách nhân sự
-        </router-link>
+        <BackButton :to="{ name: 'admin-staffs' }" />
       </div>
       <div class="title-row mt-3">
         <div>
@@ -248,9 +246,11 @@
 import { adminUserService } from '../../services/adminUserService.js';
 import { adminRoleService } from '../../services/adminRoles.js';
 import { getAuth } from '../../stores/auth.js';
+import BackButton from '../../components/BackButton.vue';
 
 export default {
   name: 'AdminStaffDetail',
+  components: { BackButton },
   data() {
     return {
       userId: this.$route.params.id,

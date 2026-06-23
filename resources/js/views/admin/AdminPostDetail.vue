@@ -1,7 +1,7 @@
 <template>
   <section class="post-detail">
     <div class="back-action-bar">
-      <a class="back-link" href="#" @click.prevent="$router.back()">← Quay lại</a>
+      <BackButton />
     </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -61,9 +61,11 @@
 
 <script>
 import { adminUserService } from '../../services/adminUserService.js';
+import BackButton from '../../components/BackButton.vue';
 
 export default {
   name: 'AdminPostDetail',
+  components: { BackButton },
   data() {
     return {
       post: null,
