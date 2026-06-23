@@ -145,29 +145,56 @@
                             ></div>
                         </div>
 
-                        <!-- Tiện ích (chỉ đọc) -->
-                        <div class="form-group-readonly" style="margin-top: 20px;">
-                            <label class="info-label">Tiện ích cụm sân (Amenities)</label>
-                            <div class="info-amenities-list" v-if="form.amenities.length > 0" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
-                                <span
-                                    v-for="item in form.amenities"
+                        <!-- Tiện ích cụm sân (Amenities) -->
+                        <div class="amenities-management-section" style="margin-top: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <label class="info-label" style="margin-bottom: 0;">Tiện ích cụm sân (Amenities)</label>
+                                <span class="text-muted" style="font-size: 12px; font-style: italic;">Nhấp chọn để bật/tắt tiện ích. Nhấp vào bút chì để nhập mô tả.</span>
+                            </div>
+                            
+                            <!-- Danh sách tất cả tiện ích hệ thống cung cấp -->
+                            <div class="amenities-selector-grid" v-if="availableAmenities.length > 0" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                <div
+                                    v-for="item in availableAmenities"
                                     :key="item"
-                                    class="info-amenity-tag"
+                                    class="amenity-select-tag"
+                                    :class="{ active: form.amenities.includes(item) }"
+                                    @click="toggleAmenity(item)"
                                 >
-                                    {{ item }}
+                                    <span class="amenity-check-icon" v-if="form.amenities.includes(item)">
+                                        <AppIcon name="check" size="12" />
+                                    </span>
+                                    <span class="amenity-name">{{ item }}</span>
+                                    
+                                    <!-- Nút sửa mô tả chỉ hiển thị khi tiện ích được chọn -->
                                     <button
+                                        v-if="form.amenities.includes(item)"
                                         type="button"
-                                        class="btn-edit-amenity-desc-readonly"
+                                        class="btn-edit-amenity-desc"
                                         @click.stop="openAmenityDescModal(item)"
-                                        :title="form.amenity_descriptions[item] ? 'Sửa mô tả tiện ích (đã có mô tả)' : 'Thêm mô tả tiện ích'"
+                                        :title="form.amenity_descriptions[item] ? 'Sửa mô tả (đã có mô tả)' : 'Thêm mô tả'"
                                         :disabled="isClusterLocked"
                                     >
-                                        <AppIcon name="pencil" size="13" />
+                                        <AppIcon name="pencil" size="12" />
                                         <span v-if="form.amenity_descriptions[item]" class="has-desc-dot"></span>
                                     </button>
-                                </span>
+                                </div>
                             </div>
-                            <div v-else class="text-muted" style="font-size: 13px; margin-top: 6px; font-style: italic;">Chưa cấu hình tiện ích nào cho cụm sân.</div>
+                            <div v-else class="text-muted" style="font-size: 13px; font-style: italic;">Không có tiện ích hệ thống nào khả dụng.</div>
+                            
+                            <!-- Nút Lưu cấu hình tiện ích -->
+                            <div class="amenities-actions" style="margin-top: 16px; display: flex; align-items: center; gap: 12px;">
+                                <button
+                                    type="button"
+                                    class="btn btn-primary"
+                                    @click="handleUpdate"
+                                    :disabled="updating || isClusterLocked"
+                                >
+                                    {{ updating ? "Đang lưu..." : "Lưu cấu hình tiện ích" }}
+                                </button>
+                                <span v-if="updateSuccess" class="text-success" style="font-size: 13.5px; font-weight: 600; color: #16a34a;">Lưu cấu hình tiện ích thành công!</span>
+                                <span v-if="updateError" class="text-danger" style="font-size: 13.5px; font-weight: 600; color: #dc2626;">{{ updateError }}</span>
+                            </div>
                         </div>
 
                         <!-- Album ảnh (chỉ đọc) -->
@@ -2798,11 +2825,26 @@ export default {
             this.editingAmenityName = "";
             this.tempAmenityDesc = "";
         },
-        saveAmenityDesc() {
+        async saveAmenityDesc() {
             if (this.editingAmenityName) {
                 this.form.amenity_descriptions[this.editingAmenityName] = this.tempAmenityDesc;
             }
             this.closeAmenityDescModal();
+            await this.handleUpdate();
+        },
+        toggleAmenity(item) {
+            if (this.isClusterLocked) return;
+            this.updateSuccess = false;
+            this.updateError = null;
+            const index = this.form.amenities.indexOf(item);
+            if (index === -1) {
+                this.form.amenities.push(item);
+                if (this.form.amenity_descriptions[item] === undefined) {
+                    this.form.amenity_descriptions[item] = "";
+                }
+            } else {
+                this.form.amenities.splice(index, 1);
+            }
         },
 
         async fetchProvinces() {
@@ -6448,6 +6490,73 @@ export default {
 .btn-edit-amenity-desc-readonly:disabled {
     cursor: not-allowed;
     opacity: 0.5;
+}
+
+/* Amenities Selector Premium Styles */
+.amenity-select-tag {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #64748b;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    transition: all 0.2s ease-in-out;
+    user-select: none;
+}
+.amenity-select-tag:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #334155;
+    transform: translateY(-1px);
+}
+.amenity-select-tag.active {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    box-shadow: 0 2px 4px rgba(22, 163, 74, 0.06);
+}
+.amenity-select-tag.active:hover {
+    background: #dcfce7;
+    border-color: #86efac;
+    transform: translateY(-1px);
+}
+.amenity-check-icon {
+    display: inline-flex;
+    align-items: center;
+    color: #16a34a;
+}
+.btn-edit-amenity-desc {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    border-radius: 4px;
+    color: #86efac;
+    transition: all 0.2s;
+}
+.amenity-select-tag.active .btn-edit-amenity-desc {
+    color: #16a34a;
+}
+.btn-edit-amenity-desc:hover {
+    color: #14532d;
+    background: rgba(22, 163, 74, 0.08);
+}
+.btn-edit-amenity-desc .has-desc-dot {
+    width: 6px;
+    height: 6px;
+    background: #2563eb;
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 2px;
 }
 
 .location-readonly-box {
