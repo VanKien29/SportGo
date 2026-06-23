@@ -7,7 +7,7 @@
     quoteAuthor="SportGo Admin"
     backTo="/"
   >
-    <form @submit.prevent="handleSubmit" class="flex flex-col gap-5 w-full text-left mt-2" autocomplete="off">
+    <form @submit.prevent="handleSubmit" class="flex flex-col gap-5 w-full text-left mt-2" autocomplete="off" novalidate>
       <!-- Error message -->
       <transition name="shake">
         <div v-if="error" class="flex items-center gap-2.5 p-3 rounded-lg border border-red-500/20 bg-red-500/10 text-red-400 text-sm">
@@ -27,7 +27,6 @@
             v-model.trim="loginValue"
             type="text"
             placeholder="Nhập tài khoản quản trị"
-            required
             autocomplete="username"
             class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
           />
@@ -44,7 +43,6 @@
           <PasswordInput
             v-model="password"
             placeholder="Nhập mật khẩu"
-            required
             autocomplete="current-password"
           />
         </div>
@@ -85,6 +83,16 @@ export default {
   methods: {
     async handleSubmit() {
       this.error = "";
+
+      if (!this.loginValue.trim()) {
+        this.error = "Vui lòng nhập tài khoản quản trị.";
+        return;
+      }
+      if (!this.password) {
+        this.error = "Vui lòng nhập mật khẩu quản trị.";
+        return;
+      }
+
       this.isLoading = true;
 
       try {

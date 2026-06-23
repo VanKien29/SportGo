@@ -23,7 +23,7 @@
     </transition>
 
     <!-- STEP 1: IDENTIFY -->
-    <form v-if="step === 'identify'" @submit.prevent="handleIdentify" class="flex flex-col gap-5 w-full text-left mt-2">
+    <form v-if="step === 'identify'" @submit.prevent="handleIdentify" class="flex flex-col gap-5 w-full text-left mt-2" novalidate>
       <div style="width: 0; height: 0; overflow: hidden; position: absolute; z-index: -1;">
         <input type="text" autocomplete="username" tabindex="-1" />
         <input type="email" autocomplete="email" tabindex="-1" />
@@ -38,7 +38,6 @@
           v-model="identifier"
           type="text"
           placeholder="Nhập tên đăng nhập, email hoặc số điện thoại"
-          required
           autocomplete="username"
           class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
         />
@@ -61,7 +60,7 @@
     </form>
 
     <!-- STEP 2: OTP VERIFICATION -->
-    <form v-if="step === 'otp'" @submit.prevent="handleVerifyOtp" class="flex flex-col gap-5 w-full text-left mt-2">
+    <form v-if="step === 'otp'" @submit.prevent="handleVerifyOtp" class="flex flex-col gap-5 w-full text-left mt-2" novalidate>
       <div style="width: 0; height: 0; overflow: hidden; position: absolute; z-index: -1;">
         <input type="text" autocomplete="one-time-code" tabindex="-1" />
       </div>
@@ -77,7 +76,6 @@
           inputmode="numeric"
           maxlength="6"
           placeholder="Mã OTP"
-          required
           autocomplete="one-time-code"
           class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 tracking-widest text-center font-bold"
         />
@@ -108,7 +106,7 @@
     </form>
 
     <!-- STEP 3: RESET PASSWORD -->
-    <form v-if="step === 'reset'" @submit.prevent="handleReset" class="flex flex-col gap-5 w-full text-left mt-2">
+    <form v-if="step === 'reset'" @submit.prevent="handleReset" class="flex flex-col gap-5 w-full text-left mt-2" novalidate>
       <div style="width: 0; height: 0; overflow: hidden; position: absolute; z-index: -1;">
         <input type="password" autocomplete="new-password" tabindex="-1" />
       </div>
@@ -118,7 +116,6 @@
           v-model="password"
           label="Mật khẩu mới"
           placeholder="Mật khẩu mới"
-          required
           autocomplete="new-password"
         />
 
@@ -126,7 +123,6 @@
           v-model="password_confirmation"
           label="Xác nhận mật khẩu"
           placeholder="Xác nhận mật khẩu"
-          required
           autocomplete="new-password"
         />
       </div>
@@ -182,7 +178,10 @@ export default {
     async handleIdentify() {
       this.error = '';
       this.successMsg = '';
-      if (!this.identifier) return;
+      if (!this.identifier.trim()) {
+        this.error = 'Vui lòng nhập tên đăng nhập, email hoặc số điện thoại.';
+        return;
+      }
 
       this.isLoading = true;
       try {
@@ -198,7 +197,10 @@ export default {
     async handleVerifyOtp() {
       this.error = '';
       this.successMsg = '';
-      if (!this.otp) return;
+      if (!this.otp.trim()) {
+        this.error = 'Vui lòng nhập mã OTP.';
+        return;
+      }
 
       this.isLoading = true;
       try {
@@ -227,6 +229,26 @@ export default {
 
       if (!this.password) {
         this.error = 'Vui lòng nhập mật khẩu mới.';
+        return;
+      }
+      if (this.password.length < 8 || this.password.length > 50) {
+        this.error = 'Mật khẩu phải từ 8 đến 50 ký tự.';
+        return;
+      }
+      if (!/[A-Z]/.test(this.password)) {
+        this.error = 'Mật khẩu phải chứa ít nhất 1 chữ hoa.';
+        return;
+      }
+      if (!/\d/.test(this.password)) {
+        this.error = 'Mật khẩu phải chứa ít nhất 1 chữ số.';
+        return;
+      }
+      if (!/[!@#$%^&*(),.?":{}|<>]/.test(this.password)) {
+        this.error = 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt.';
+        return;
+      }
+      if (!this.password_confirmation) {
+        this.error = 'Vui lòng nhập xác nhận mật khẩu.';
         return;
       }
       if (this.password !== this.password_confirmation) {
