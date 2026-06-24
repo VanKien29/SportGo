@@ -17,6 +17,21 @@ export const ownerBookingService = {
     return api(`/api/owner/bookings${query ? `?${query}` : ''}`);
   },
 
+  schedule(params = {}) {
+    const query = toQuery(params);
+    return api(`/api/owner/bookings/schedule${query ? `?${query}` : ''}`);
+  },
+
+  recurringGroups(params = {}) {
+    const query = toQuery(params);
+    return api(`/api/owner/bookings/recurring-groups${query ? `?${query}` : ''}`);
+  },
+
+  eligibleVouchers(params = {}) {
+    const query = toQuery(params);
+    return api(`/api/owner/bookings/eligible-vouchers${query ? `?${query}` : ''}`);
+  },
+
   show(id) {
     return api(`/api/owner/bookings/${id}`);
   },
@@ -35,8 +50,22 @@ export const ownerBookingService = {
     });
   },
 
+  previewRecurring(payload) {
+    return api('/api/owner/bookings/recurring/preview', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   collectPayment(id, payload) {
     return api(`/api/owner/bookings/${id}/payments/collect`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  collectRecurringGroupPayment(groupCode, payload) {
+    return api(`/api/owner/bookings/recurring-groups/${groupCode}/payments/collect`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });

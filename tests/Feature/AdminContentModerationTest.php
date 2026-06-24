@@ -249,6 +249,41 @@ class AdminContentModerationTest extends TestCase
         ]);
     }
 
+    public function test_manual_post_hide_resolves_pending_reports(): void
+    {
+        $post = CommunityPost::query()->create([
+            'author_id' => $this->player->id,
+            'content' => 'Nội dung bị người khác báo cáo cần ẩn thủ công',
+            'status' => 'published',
+        ]);
+
+        $report = Report::query()->create([
+            'reporter_id' => $this->player->id,
+            'reportable_type' => CommunityPost::class,
+            'reportable_id' => $post->id,
+            'reason' => 'spam',
+            'description' => 'Spam quảng cáo nhiều lần.',
+            'status' => 'pending',
+        ]);
+
+        // Gọi API ẩn bài viết trực tiếp
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/admin/moderation/posts/community_posts/{$post->id}/hide", [
+                'reason' => 'Nội dung quảng cáo vi phạm.',
+            ]);
+
+        $response->assertOk();
+
+        // Báo cáo liên quan phải được tự động chuyển sang resolved (confirmed)
+        $this->assertDatabaseHas('reports', [
+            'id' => $report->id,
+            'status' => 'resolved',
+            'action_taken' => 'content_hidden',
+            'action_note' => 'Nội dung quảng cáo vi phạm.',
+            'reviewed_by' => $this->admin->id,
+        ]);
+    }
+
     private function createUser(string $username, string $email): User
     {
         return User::query()->create([

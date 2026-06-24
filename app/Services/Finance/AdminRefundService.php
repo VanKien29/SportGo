@@ -5,9 +5,11 @@ namespace App\Services\Finance;
 use App\Models\Payment;
 use App\Models\PaymentLog;
 use App\Models\Refund;
+use App\Services\Customers\WalkInCustomerService;
 use App\Services\Policies\RefundPolicyEvaluator;
 use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class AdminRefundService
@@ -16,6 +18,7 @@ class AdminRefundService
         private readonly OwnerWalletService $wallets,
         private readonly FinanceReceiptService $receipts,
         private readonly RefundPolicyEvaluator $refundPolicies,
+        private readonly WalkInCustomerService $walkInCustomers,
     ) {}
 
     public function updateStatus(Refund $refund, string $status, array $context): Refund
@@ -27,13 +30,13 @@ class AdminRefundService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($refund->status === $status && in_array($status, ['completed', 'rejected'], true)) {
+            if ($refund->status === $status && in_array($status, ['completed', 'completed_cash', 'rejected'], true)) {
                 return $refund;
             }
 
             $this->assertTransitionAllowed($refund->status, $status);
 
-            if (in_array($status, ['processing', 'completed'], true)) {
+            if (in_array($status, ['processing', 'completed', 'completed_cash'], true)) {
                 $this->refundPolicies->assertCompliant(
                     $refund,
                     $context['actor_id'] ?? null,
@@ -52,39 +55,47 @@ class AdminRefundService
                 $refund->status_reason = null;
             }
 
-            if ($status === 'completed') {
+            if (in_array($status, ['completed', 'completed_cash'], true)) {
                 $payment = Payment::query()->whereKey($refund->payment_id)->lockForUpdate()->firstOrFail();
 
-                if ($payment->status !== 'paid') {
+                if (! in_array($payment->status, ['paid', 'refunded'], true)) {
                     throw new RuntimeException('Chỉ hoàn tất refund khi payment gốc đang ở trạng thái đã thanh toán.');
                 }
 
-                if (empty($context['gateway_refund_txn_id'])) {
-                    throw new RuntimeException('Cần nhập mã giao dịch hoàn tiền trước khi xác nhận hoàn tất.');
-                }
-
-                $payment->status = 'refunded';
+                $paymentStatusBefore = $payment->status;
+                $refundedAmountBefore = (float) Refund::query()
+                    ->where('payment_id', $payment->id)
+                    ->whereIn('status', ['completed', 'completed_cash'])
+                    ->whereKeyNot($refund->id)
+                    ->sum('amount');
+                $refundedAmountAfter = $refundedAmountBefore + (float) $refund->amount;
+                $payment->status = $refundedAmountAfter + 0.01 >= (float) $payment->amount ? 'refunded' : 'paid';
                 $payment->save();
 
-                $ledger = $this->wallets->debitRefundedPayment(
-                    $payment,
-                    (float) $refund->amount,
-                    $refund->id,
-                    [
-                        'source' => $context['source'] ?? 'admin',
-                        'reason' => $context['reason'],
-                        'admin_id' => $context['actor_id'] ?? null,
-                    ],
-                );
+                $ownerLedger = $this->debitOwnerWalletIfNeeded($payment, $refund, $context);
+                $refund->owner_wallet_ledger_id = $ownerLedger?->id;
 
-                $refund->owner_wallet_ledger_id = $ledger->id;
+                if ($status === 'completed') {
+                    $refund->refund_destination = 'user_wallet';
+                    $walletResult = $this->creditUserWallet($refund, $payment, $context);
+                    $refund->user_wallet_id = $walletResult['wallet_id'];
+                    $refund->user_wallet_ledger_id = $walletResult['ledger_id'];
+                } else {
+                    $refund->refund_destination = 'cash';
+                    $refund->cash_refunded_by = $context['actor_id'] ?? null;
+                    $refund->cash_refunded_at = now();
+                    $refund->cash_refund_note = $context['reason'] ?? 'Đã hoàn tiền mặt tại sân.';
+                }
+
                 $refund->admin_confirmed_by = $context['actor_id'] ?? null;
                 $refund->admin_confirmed_at = now();
-                $refund->gateway_refund_txn_id = $context['gateway_refund_txn_id'] ?? null;
+                $refund->completed_at = now();
+                $refund->gateway_refund_txn_id = $context['gateway_refund_txn_id']
+                    ?? ($status === 'completed_cash' ? 'CASH-'.$refund->id : 'USER-WALLET-'.$refund->id);
 
                 PaymentLog::query()->create([
                     'payment_id' => $payment->id,
-                    'event_type' => 'admin_refund_completed',
+                    'event_type' => $status === 'completed_cash' ? 'cash_refund_completed' : 'admin_refund_completed',
                     'request_payload' => [
                         'refund_id' => $refund->id,
                         'reason' => $context['reason'],
@@ -94,15 +105,15 @@ class AdminRefundService
                         'gateway_refund_txn_id' => $refund->gateway_refund_txn_id,
                         'refund_amount' => $refund->amount,
                     ],
-                    'status_before' => 'paid',
-                    'status_after' => 'refunded',
+                    'status_before' => $paymentStatusBefore,
+                    'status_after' => $payment->status,
                     'gateway_txn_id' => $refund->gateway_refund_txn_id,
                 ]);
             }
 
             $refund->save();
 
-            if ($status === 'completed') {
+            if (in_array($status, ['completed', 'completed_cash'], true)) {
                 $this->receipts->createRefundReceipt($refund, $context['actor_id'] ?? null);
             }
 
@@ -113,14 +124,15 @@ class AdminRefundService
     private function assertTransitionAllowed(string $from, string $to): void
     {
         $allowed = [
-            'pending_confirmation' => ['processing', 'rejected'],
+            'pending_confirmation' => ['completed', 'completed_cash', 'processing', 'rejected'],
             'pending_owner_confirmation' => [],
-            'owner_confirmed' => ['admin_processing', 'processing', 'completed', 'rejected'],
+            'owner_confirmed' => ['completed', 'completed_cash', 'admin_processing', 'processing', 'rejected'],
             'owner_rejected' => [],
-            'admin_processing' => ['completed', 'failed', 'rejected'],
-            'processing' => ['completed', 'rejected'],
+            'admin_processing' => ['completed', 'completed_cash', 'failed', 'rejected'],
+            'processing' => ['completed', 'completed_cash', 'rejected'],
             'failed' => ['processing', 'rejected'],
             'completed' => [],
+            'completed_cash' => [],
             'rejected' => [],
             'cancelled' => [],
         ];
@@ -128,5 +140,105 @@ class AdminRefundService
         if (! in_array($to, $allowed[$from] ?? [], true)) {
             throw new RuntimeException("Không thể chuyển trạng thái refund từ {$from} sang {$to}.");
         }
+    }
+
+    private function debitOwnerWalletIfNeeded(Payment $payment, Refund $refund, array $context): ?object
+    {
+        $hasOwnerCredit = DB::table('owner_wallet_ledgers')
+            ->where('payment_id', $payment->id)
+            ->where('type', 'credit')
+            ->exists();
+
+        if (! $hasOwnerCredit) {
+            return null;
+        }
+
+        return $this->wallets->debitRefundedPayment(
+            $payment,
+            (float) $refund->amount,
+            $refund->id,
+            [
+                'source' => $context['source'] ?? 'admin',
+                'reason' => $context['reason'],
+                'admin_id' => $context['actor_id'] ?? null,
+            ],
+        );
+    }
+
+    private function creditUserWallet(Refund $refund, Payment $payment, array $context): array
+    {
+        if ($refund->user_wallet_ledger_id) {
+            return [
+                'wallet_id' => $refund->user_wallet_id,
+                'ledger_id' => $refund->user_wallet_ledger_id,
+            ];
+        }
+
+        $customerId = $refund->customer_id
+            ?: $refund->booking?->customer_id
+            ?: $payment->booking?->customer_id;
+
+        if (! $customerId) {
+            $customerId = $this->resolveWalkInCustomer($refund, $payment);
+        }
+
+        $wallet = $this->walkInCustomers->ensureWallet($customerId);
+
+        if (($wallet->status ?? 'active') !== 'active') {
+            throw new RuntimeException('Ví của khách hàng đang bị khóa hoặc tạm ngưng.');
+        }
+
+        $amount = (float) $refund->amount;
+        $balanceBefore = (float) $wallet->balance;
+        $balanceAfter = $balanceBefore + $amount;
+        $ledgerId = (string) Str::uuid();
+
+        DB::table('user_wallets')
+            ->where('id', $wallet->id)
+            ->update([
+                'balance' => $balanceAfter,
+                'updated_at' => now(),
+            ]);
+
+        DB::table('user_wallet_ledgers')->insert([
+            'id' => $ledgerId,
+            'user_wallet_id' => $wallet->id,
+            'transaction_code' => 'UWR-'.substr(hash('sha256', $refund->id), 0, 32),
+            'type' => 'refund',
+            'direction' => 'credit',
+            'amount' => $amount,
+            'balance_before' => $balanceBefore,
+            'balance_after' => $balanceAfter,
+            'reference_type' => 'refund',
+            'reference_id' => $refund->id,
+            'status' => 'completed',
+            'note' => $context['reason'] ?? 'Hoàn tiền booking vào ví SportGo.',
+            'created_by' => $context['actor_id'] ?? null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return [
+            'wallet_id' => $wallet->id,
+            'ledger_id' => $ledgerId,
+        ];
+    }
+
+    private function resolveWalkInCustomer(Refund $refund, Payment $payment): string
+    {
+        $booking = $refund->booking ?: $payment->booking;
+        $user = $this->walkInCustomers->resolveOrCreate(
+            null,
+            $booking?->walk_in_name,
+            $booking?->walk_in_phone,
+        );
+
+        if ($booking && ! $booking->customer_id) {
+            $booking->forceFill(['customer_id' => $user->id])->save();
+        }
+
+        $refund->customer_id = $user->id;
+
+        return $user->id;
     }
 }

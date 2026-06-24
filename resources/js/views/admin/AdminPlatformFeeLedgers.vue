@@ -2,29 +2,25 @@
     <section class="ledger-page">
         <PlatformFeeSubnav />
 
-        <header class="page-head">
-            <div>
-                <p class="eyebrow">Sổ phí duy trì</p>
-            </div>
-            <div class="head-actions">
-                <button
-                    class="btn secondary icon-text"
-                    type="button"
-                    @click="runReminderCheck"
-                >
-                    <AppIcon name="bell" size="18" />
-                    <span>Chạy kiểm tra nhắc phí</span>
-                </button>
-                <button
-                    class="btn primary icon-text"
-                    type="button"
-                    @click="openCreate"
-                >
-                    <AppIcon name="plus" size="18" />
-                    <span>Tạo kỳ phí</span>
-                </button>
-            </div>
-        </header>
+        <!-- Action bar with reminder check button -->
+        <div class="action-bar-layout" style="margin-bottom: 12px; display: flex; justify-content: flex-end;">
+            <button
+                class="btn secondary icon-text"
+                type="button"
+                @click="runReminderCheck"
+            >
+                <AppIcon name="bell" size="18" />
+                <span>Chạy kiểm tra nhắc phí</span>
+            </button>
+        </div>
+
+        <!-- Floating Add Button -->
+        <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+            <button class="btn-float-add" type="button" @click="openCreate" title="Tạo kỳ phí">
+                <AppIcon name="plus" size="20" />
+                <span class="btn-float-text">Tạo kỳ phí</span>
+            </button>
+        </div>
 
         <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
 
@@ -510,6 +506,7 @@ export default {
             dialog: { type: "", ledger: null, amount: 0, reason: "" },
             toast: "",
             toastType: "success",
+            showScrollTop: false,
         };
     },
     computed: {
@@ -540,6 +537,10 @@ export default {
     },
     mounted() {
         this.loadLedgers();
+        window.addEventListener("scroll", this.handleScroll);
+    },
+    beforeUnmount() {
+        window.removeEventListener("scroll", this.handleScroll);
     },
     methods: {
         async loadLedgers() {
@@ -693,6 +694,9 @@ export default {
                 this.toast = "";
             }, 3500);
         },
+        handleScroll() {
+            this.showScrollTop = window.scrollY > 250;
+        },
     },
 };
 </script>
@@ -703,7 +707,6 @@ export default {
     flex-direction: column;
     gap: 18px;
 }
-.page-head,
 .head-actions,
 .actions,
 .modal-head,
@@ -711,17 +714,6 @@ export default {
 .icon-text {
     display: flex;
     gap: 12px;
-}
-.page-head {
-    justify-content: space-between;
-    align-items: flex-start;
-}
-.eyebrow {
-    margin: 0 0 4px;
-    color: #16a34a;
-    font-size: 12px;
-    font-weight: 900;
-    text-transform: uppercase;
 }
 h2,
 h3,
@@ -731,8 +723,8 @@ p {
 .panel,
 .kpi-card,
 .modal {
-    background: #fff;
-    border: 1px solid #e2e8f0;
+    background: var(--admin-surface, #fff);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
 }
 .panel {
@@ -748,7 +740,7 @@ input,
 select,
 textarea {
     width: 100%;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     padding: 10px 12px;
     font: inherit;
@@ -757,7 +749,7 @@ textarea {
     flex-direction: row;
     align-items: center;
     font-weight: 800;
-    color: #334155;
+    color: var(--admin-text);
 }
 .check-row input {
     width: auto;
@@ -770,14 +762,14 @@ textarea {
 .kpi-card {
     padding: 16px;
     text-decoration: none;
-    color: #0f172a;
+    color: var(--admin-text);
 }
 .kpi-card strong {
     display: block;
     font-size: 24px;
 }
 .kpi-card span {
-    color: #64748b;
+    color: var(--admin-muted);
 }
 .kpi-card.danger strong {
     color: #b91c1c;
@@ -793,13 +785,13 @@ table {
 th,
 td {
     padding: 11px 12px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border);
     text-align: left;
     vertical-align: top;
 }
 th {
-    background: #f8fafc;
-    color: #475569;
+    background: var(--admin-surface-muted);
+    color: var(--admin-faint);
     font-size: 12px;
     text-transform: uppercase;
 }
@@ -822,8 +814,7 @@ th {
     box-shadow: 0 0 0 3px #fef3c7;
 }
 .status-dot.paid {
-    background: #10b981;
-    box-shadow: 0 0 0 3px #d1fae5;
+    background: var(--admin-primary); box-shadow: 0 0 0 3px var(--admin-primary-ring);
 }
 .status-dot.overdue {
     background: #ef4444;
@@ -844,8 +835,8 @@ th {
     place-items: center;
     border: 1px solid #dbe3ea;
     border-radius: 8px;
-    background: #f8fafc;
-    color: #334155;
+    background: var(--admin-surface-muted);
+    color: var(--admin-text);
     cursor: pointer;
 }
 .icon-btn {
@@ -886,12 +877,11 @@ th {
     cursor: pointer;
 }
 .btn.primary {
-    background: #16a34a;
-    color: #fff;
+    background: var(--admin-primary); color: var(--admin-bg);
 }
 .btn.secondary {
-    background: #e2e8f0;
-    color: #334155;
+    background: var(--admin-border);
+    color: var(--admin-text);
 }
 .icon-text {
     align-items: center;
@@ -900,7 +890,7 @@ th {
 .empty {
     padding: 36px;
     text-align: center;
-    color: #64748b;
+    color: var(--admin-muted);
 }
 .toast {
     border-radius: 8px;
@@ -909,7 +899,7 @@ th {
 }
 .toast.success {
     background: #ecfdf5;
-    color: #047857;
+    color: var(--admin-primary);
 }
 .toast.error,
 .alert.error {
@@ -946,7 +936,7 @@ th {
 .modal-head {
     justify-content: space-between;
     padding: 18px 22px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border);
 }
 .modal-head button {
     border: 0;
@@ -968,7 +958,7 @@ label {
     flex-direction: column;
     gap: 6px;
     font-weight: 800;
-    color: #334155;
+    color: var(--admin-text);
 }
 .preview-grid {
     display: grid;
@@ -977,25 +967,22 @@ label {
     padding: 0 18px 10px;
 }
 .preview-grid div {
-    background: #f8fafc;
+    background: var(--admin-surface-muted);
     border-radius: 8px;
     padding: 12px;
 }
 .preview-grid span {
     display: block;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 12px;
 }
 .modal-actions {
     justify-content: flex-end;
     padding: 16px 22px;
-    border-top: 1px solid #e2e8f0;
-    background: #f8fafc;
+    border-top: 1px solid var(--admin-border);
+    background: var(--admin-surface-muted);
 }
 @media (max-width: 1000px) {
-    .page-head {
-        flex-direction: column;
-    }
     .filter-grid,
     .kpi-grid,
     .preview-grid,

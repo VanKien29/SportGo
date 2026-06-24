@@ -2,19 +2,13 @@
   <section class="admin-page">
     <PlatformFeeSubnav v-if="isPlatformFeeScope" />
 
-    <header class="page-head">
-      <div>
-        <p class="eyebrow">{{ isPlatformFeeScope ? 'Chính sách phí nền tảng' : 'Quản lý chính sách' }}</p>
-        <h2>{{ isPlatformFeeScope ? 'Chính sách áp dụng cho phí nền tảng' : 'Quản lý chính sách' }}</h2>
-        <p>
-          Quản lý văn bản chính sách và các quy tắc xử lý tự động. Mã kỹ thuật chỉ hiển thị như thông tin phụ.
-        </p>
-      </div>
-      <button class="btn primary" type="button" @click="openCreateModal">
-        <AppIcon name="plus" size="18" />
-        <span>Tạo chính sách</span>
+    <!-- Floating Add Button -->
+    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <button class="btn-float-add" type="button" @click="openCreateModal" title="Tạo chính sách">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Tạo chính sách</span>
       </button>
-    </header>
+    </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -81,7 +75,7 @@
           <tbody>
             <tr v-for="policy in policies" :key="policy.id">
               <td class="main-cell">
-                <strong>{{ policy.title }}</strong>
+                {{ policy.title }}
                 <span>Mã kỹ thuật: {{ policy.key || 'chưa có' }}</span>
               </td>
               <td>{{ policyTypeLabel(policy) }}</td>
@@ -182,7 +176,7 @@
           </label>
           <label>
             Nội dung chính sách
-            <textarea v-model.trim="form.content" rows="7" required></textarea>
+            <QuillEditor theme="snow" v-model:content="form.content" contentType="html" placeholder="Nhập nội dung chính sách..." />
           </label>
           <label>
             Tóm tắt thay đổi
@@ -236,10 +230,12 @@ import ConfirmModal from '../../components/ConfirmModal.vue';
 import PlatformFeeSubnav from '../../components/PlatformFeeSubnav.vue';
 import { adminPolicyService } from '../../services/adminPolicies.js';
 import { getPolicyTypeLabel, getStatusBadgeClass, getStatusLabel, POLICY_TYPE_LABELS } from '../../utils/labelMaps.js';
+import { QuillEditor } from '@vueup/vue-quill';
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
 export default {
   name: 'AdminPolicies',
-  components: { AppIcon, ConfirmModal, PlatformFeeSubnav },
+  components: { AppIcon, ConfirmModal, PlatformFeeSubnav, QuillEditor },
   data() {
     const platformFeeScope = this.$route.name === 'admin-platform-fee-policies';
     return {
@@ -263,6 +259,7 @@ export default {
       policyTypes: Object.entries(POLICY_TYPE_LABELS)
         .filter(([value]) => !['general', 'booking', 'account'].includes(value))
         .map(([value, label]) => ({ value, label })),
+      showScrollTop: false,
     };
   },
   computed: {
@@ -275,6 +272,10 @@ export default {
   },
   mounted() {
     this.loadPolicies();
+    window.addEventListener('scroll', this.handleScroll);
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     defaultForm(platformFeeScope = this.isPlatformFeeScope) {
@@ -363,7 +364,19 @@ export default {
       await this.runAction(() => adminPolicyService.updateStatus(policy.id, { status: 'archived' }), 'Đã ngưng áp dụng chính sách.');
     },
     async clonePolicy(policy) {
-      await this.runAction(() => adminPolicyService.cloneVersion(policy.id), 'Đã tạo phiên bản mới.');
+      this.error = '';
+      this.success = '';
+      try {
+        const response = await adminPolicyService.cloneVersion(policy.id);
+        this.success = response.message || 'Đã tạo phiên bản mới.';
+        this.$router.push({
+          name: 'admin-policy-detail',
+          params: { id: response.data.id },
+          query: { tab: 'config' },
+        });
+      } catch (error) {
+        this.error = error.message || 'Thao tác không thành công.';
+      }
     },
     async runAction(action, fallbackMessage) {
       this.error = '';
@@ -397,6 +410,9 @@ export default {
     autoHide() {
       setTimeout(() => { this.success = ''; }, 3500);
     },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 250;
+    },
   },
 };
 </script>
@@ -408,44 +424,18 @@ export default {
   gap: 20px;
 }
 
-.page-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
-}
-
-.eyebrow {
-  margin: 0 0 4px;
-  color: #16a34a;
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
 h2,
 h3,
 p {
   margin: 0;
 }
 
-.page-head h2 {
-  color: #0f172a;
-  font-size: 24px;
-}
-
-.page-head p:not(.eyebrow) {
-  margin-top: 6px;
-  color: #64748b;
-  line-height: 1.55;
-}
-
 .filter-panel,
 .table-card,
 .modal {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--admin-surface, #fff);
 }
 
 .filter-panel {
@@ -462,10 +452,10 @@ p {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 0 12px;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .search-box input {
@@ -477,12 +467,12 @@ input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 10px 12px;
-  color: #0f172a;
+  color: var(--admin-text);
   font: inherit;
-  background: #fff;
+  background: var(--admin-surface, #fff);
 }
 
 input:focus,
@@ -490,8 +480,8 @@ select:focus,
 textarea:focus,
 .search-box:focus-within {
   outline: none;
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
 }
 
 .search-box:focus-within input {
@@ -514,22 +504,22 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--admin-border);
   padding: 13px 14px;
   text-align: left;
   vertical-align: middle;
 }
 
 th {
-  background: #f8fafc;
-  color: #475569;
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 tbody tr:hover {
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
 }
 
 .main-cell {
@@ -538,12 +528,12 @@ tbody tr:hover {
 
 .main-cell strong {
   display: block;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .main-cell span,
 .muted-text {
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -559,7 +549,7 @@ tbody tr:hover {
   place-items: center;
   border-radius: 999px;
   background: #eef2f7;
-  color: #334155;
+  color: var(--admin-text);
   font-weight: 900;
 }
 
@@ -607,13 +597,13 @@ tbody tr:hover {
 
 .status-archived,
 .status-default {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
 }
 
 .table-state {
   padding: 36px;
-  color: #64748b;
+  color: var(--admin-muted);
   text-align: center;
 }
 
@@ -653,15 +643,15 @@ tbody tr:hover {
 
 .mini-btn {
   padding: 7px 9px;
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
 }
 
 .icon-btn {
   width: 40px;
   height: 40px;
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
 }
 
 .icon-action {
@@ -671,18 +661,18 @@ tbody tr:hover {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  color: #475569;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface, #fff);
+  color: var(--admin-faint);
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
   font: inherit;
 }
 
 .icon-action:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #0f172a;
+  background: var(--admin-surface-muted);
+  border-color: var(--admin-border);
+  color: var(--admin-text);
   transform: translateY(-1px);
 }
 
@@ -715,8 +705,8 @@ tbody tr:hover {
 }
 
 .btn.secondary {
-  background: #e2e8f0;
-  color: #334155;
+  background: var(--admin-border);
+  color: var(--admin-text);
 }
 
 .mini-btn.danger {
@@ -755,12 +745,12 @@ tbody tr:hover {
 }
 
 .modal-head {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .modal-head p {
   margin-top: 4px;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .form-body {
@@ -780,7 +770,7 @@ label {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #334155;
+  color: var(--admin-text);
   font-weight: 800;
 }
 
@@ -795,8 +785,8 @@ label {
 
 .modal-actions {
   justify-content: flex-end;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border-top: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
 }
 
 @media (max-width: 920px) {

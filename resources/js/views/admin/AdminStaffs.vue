@@ -89,35 +89,34 @@
               </div>
             </td>
             <td>
-              <div class="actions-cell">
-                <button class="btn-action view" title="Xem chi tiết & Audit Logs" @click="openDetailModal(user.id)">
-                  Chi tiết
-                </button>
-                <button 
-                  class="btn-action edit" 
-                  title="Chỉnh sửa thông tin và vai trò" 
+              <TableActionGroup>
+                <ActionIconButton
+                  icon="eye"
+                  label="Xem chi tiết"
+                  @click="$router.push({ name: 'admin-staff-detail', params: { id: user.id } })"
+                />
+                <ActionIconButton
+                  icon="edit"
+                  label="Chỉnh sửa"
                   :disabled="!canManageUser(user)"
                   @click="openEditModal(user)"
-                >
-                  Sửa
-                </button>
-                <button 
-                  v-if="user.status === 'locked'" 
-                  class="btn-action unlock" 
+                />
+                <ActionIconButton
+                  v-if="user.status === 'locked'"
+                  icon="unlock"
+                  label="Mở khóa tài khoản"
                   :disabled="!canManageUser(user) || user.id === currentUserId"
-                  @click="unlockUser(user)"
-                >
-                  Mở khóa
-                </button>
-                <button 
-                  v-else 
-                  class="btn-action lock" 
+                  @click="openUnlockModal(user)"
+                />
+                <ActionIconButton
+                  v-else
+                  icon="lock"
+                  label="Khóa tài khoản"
+                  variant="danger"
                   :disabled="!canManageUser(user) || user.id === currentUserId"
                   @click="openLockModal(user)"
-                >
-                  Khóa
-                </button>
-              </div>
+                />
+              </TableActionGroup>
             </td>
           </tr>
         </tbody>
@@ -132,7 +131,12 @@
             <h3>{{ isEditMode ? 'Chỉnh sửa tài khoản' : 'Thêm nhân sự mới' }}</h3>
             <p class="muted">{{ isEditMode ? 'Cập nhật thông tin tài khoản và gán vai trò.' : 'Tạo mới tài khoản và phân quyền vai trò.' }}</p>
           </div>
-          <button type="button" class="icon-btn" @click="closeFormModal">×</button>
+          <button type="button" class="icon-btn" @click="closeFormModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
         <div class="modal-body scrollable">
@@ -190,9 +194,10 @@
               <div class="roles-grid">
                 <label v-for="role in availableRolesForForm" :key="role.id" class="checkbox-label">
                   <input
-                    type="checkbox"
+                    type="radio"
+                    name="staff_role"
                     :value="role.id"
-                    v-model="form.roles"
+                    v-model="form.role_id"
                   />
                   <div>
                     <strong>{{ role.display_name }}</strong>
@@ -213,131 +218,7 @@
       </form>
     </div>
 
-    <!-- MODAL XEM CHI TIẾT & AUDIT LOGS -->
-    <div v-if="showDetailModal" class="modal-backdrop" @click.self="closeDetailModal">
-      <div class="modal wide">
-        <div class="modal-header">
-          <div>
-            <h3>Chi tiết nhân sự & Lịch sử audit</h3>
-            <p class="muted">Thông tin cá nhân chi tiết và lịch sử tác động hệ thống.</p>
-          </div>
-          <button type="button" class="icon-btn" @click="closeDetailModal">×</button>
-        </div>
 
-        <div v-if="detailLoading" class="detail-loading">Đang tải dữ liệu...</div>
-        <div v-else-if="detailError" class="alert error">{{ detailError }}</div>
-        <div v-else class="modal-body scrollable">
-          <div class="detail-grid">
-            <!-- Thẻ thông tin cá nhân -->
-            <div class="detail-info-card">
-              <div class="detail-avatar">{{ getAvatar(detailData.user) }}</div>
-              <h4>{{ detailData.user.full_name }}</h4>
-              <p class="detail-username">@{{ detailData.user.username }}</p>
-              
-              <div class="detail-meta-list">
-                <div class="detail-meta-item">
-                  <span class="label">Email:</span>
-                  <span class="value">{{ detailData.user.email || '-' }}</span>
-                </div>
-                <div class="detail-meta-item">
-                  <span class="label">SĐT:</span>
-                  <span class="value">{{ detailData.user.phone || '-' }}</span>
-                </div>
-                <div class="detail-meta-item">
-                  <span class="label">Trạng thái:</span>
-                  <span class="status" :class="detailData.user.status">
-                    {{ detailData.user.status === 'locked' ? 'Bị khóa' : 'Hoạt động' }}
-                  </span>
-                </div>
-                <div v-if="detailData.user.status === 'locked'" class="detail-meta-item nested">
-                  <div class="lock-detail-item"><strong>Loại khóa:</strong> {{ detailData.user.lock_type }}</div>
-                  <div class="lock-detail-item"><strong>Lý do:</strong> {{ detailData.user.status_reason }}</div>
-                  <div v-if="detailData.user.locked_until" class="lock-detail-item">
-                    <strong>Đến ngày:</strong> {{ formatDate(detailData.user.locked_until) }}
-                  </div>
-                </div>
-                <div class="detail-meta-item">
-                  <span class="label d-block mb-1">Vai trò hệ thống:</span>
-                  <div class="roles-tags">
-                    <span v-for="role in detailData.user.roles" :key="role" class="role-tag" :class="role">
-                      {{ getRoleDisplayName(role) }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Panel Audit Logs -->
-            <div class="detail-logs-panel">
-              <h5>Lịch sử hoạt động liên quan</h5>
-              <div class="logs-table-wrap">
-                <table class="logs-table">
-                  <thead>
-                    <tr>
-                      <th style="width: 140px;">Thời gian</th>
-                      <th style="width: 150px;">Người thực hiện</th>
-                      <th style="width: 130px;">Hành động</th>
-                      <th>Chi tiết thay đổi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-if="detailData.audit_logs.length === 0">
-                      <td colspan="4" class="empty">Không tìm thấy nhật ký hoạt động nào.</td>
-                    </tr>
-                    <tr v-for="log in detailData.audit_logs" :key="log.id">
-                      <td class="log-date">{{ formatDate(log.created_at) }}</td>
-                      <td>
-                        <strong class="actor-name-text">{{ log.actor_name }}</strong>
-                        <div class="muted ip-text">IP: {{ log.ip_address || 'N/A' }}</div>
-                      </td>
-                      <td>
-                        <span class="log-action-badge" :class="log.action">
-                          {{ translateAction(log.action) }}
-                        </span>
-                      </td>
-                      <td class="log-diff-cell">
-                        <div v-if="log.old_values || log.new_values" class="diff-content">
-                          <div v-if="log.action === 'user.locked'">
-                            <strong>Lý do khóa:</strong> {{ log.new_values?.status_reason || 'Không ghi rõ' }}
-                            <div v-if="log.new_values?.locked_until" class="muted mt-1">
-                              Hạn khóa: {{ formatDate(log.new_values.locked_until) }}
-                            </div>
-                          </div>
-                          <div v-else-if="log.action === 'user.created'">
-                            Tạo mới nhân sự với vai trò: 
-                            <span class="highlight-val">{{ (log.new_values?.roles || []).join(', ') }}</span>
-                          </div>
-                          <div v-else-if="log.action === 'user.updated'">
-                            <div v-if="hasChanges(log.old_values, log.new_values)">
-                              <div v-for="field in getChangedFields(log.old_values, log.new_values)" :key="field" class="diff-line">
-                                <span class="field-name">{{ getFieldLabel(field) }}:</span> 
-                                <span class="old-val">{{ formatVal(log.old_values[field]) }}</span> 
-                                <span class="arrow">→</span> 
-                                <span class="new-val">{{ formatVal(log.new_values[field]) }}</span>
-                              </div>
-                            </div>
-                            <div v-else class="muted">Không có thông tin chi tiết</div>
-                          </div>
-                          <div v-else-if="log.action === 'user.unlocked'">
-                            Mở khóa tài khoản hoạt động bình thường.
-                          </div>
-                          <div v-else>-</div>
-                        </div>
-                        <div v-else>-</div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-actions">
-          <button type="button" class="btn secondary" @click="closeDetailModal">Đóng</button>
-        </div>
-      </div>
-    </div>
 
     <!-- MODAL KHÓA TÀI KHOẢN -->
     <div v-if="lockTarget" class="modal-backdrop" @click.self="closeLockModal">
@@ -347,7 +228,12 @@
             <h3>Khóa tài khoản</h3>
             <p class="muted">Chặn quyền đăng nhập và thu hồi token hiện tại.</p>
           </div>
-          <button type="button" class="icon-btn" @click="closeLockModal">×</button>
+          <button type="button" class="icon-btn" @click="closeLockModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
         <div class="target-user">
@@ -416,7 +302,47 @@
 
         <div class="modal-actions">
           <button type="button" class="btn secondary" @click="closeLockModal">Hủy</button>
-          <button type="submit" class="btn danger" :disabled="saving">Xác nhận khóa</button>
+          <button type="submit" class="btn danger" :disabled="saving">
+            Xác nhận khóa
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- MODAL MỞ KHÓA TÀI KHOẢN -->
+    <div v-if="unlockTarget" class="modal-backdrop" @click.self="closeUnlockModal">
+      <form class="modal" @submit.prevent="unlockUser">
+        <div class="modal-header">
+          <div>
+            <h3>Mở khóa tài khoản</h3>
+            <p class="muted">Khôi phục quyền truy cập cho nhân sự này.</p>
+          </div>
+          <button type="button" class="icon-btn" @click="closeUnlockModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="target-user">
+          <div class="target-avatar">{{ getAvatar(unlockTarget) }}</div>
+          <div>
+            <strong>{{ unlockTarget?.full_name }}</strong>
+            <span>{{ unlockTarget?.username }} · {{ unlockTarget?.email || 'Chưa có email' }}</span>
+          </div>
+        </div>
+
+        <label>
+          Lý do mở khóa
+          <textarea v-model="unlockForm.reason" rows="4" required placeholder="Nhập lý do mở khóa..."></textarea>
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" @click="closeUnlockModal">Hủy</button>
+          <button type="submit" class="btn success" :disabled="saving">
+            Xác nhận mở khóa
+          </button>
         </div>
       </form>
     </div>
@@ -424,12 +350,15 @@
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
 import { adminUserService } from '../../services/adminUserService.js';
 import { adminRoleService } from '../../services/adminRoles.js';
 import { getAuth } from '../../stores/auth.js';
 
 export default {
   name: 'AdminStaffs',
+  components: { ActionIconButton, TableActionGroup },
   data() {
     return {
       users: [],
@@ -458,16 +387,7 @@ export default {
         email: '',
         phone: '',
         password: '',
-        roles: [],
-      },
-
-      // Xem chi tiết & Logs
-      showDetailModal: false,
-      detailLoading: false,
-      detailError: '',
-      detailData: {
-        user: {},
-        audit_logs: [],
+        role_id: null,
       },
 
       // Khóa tài khoản
@@ -478,6 +398,12 @@ export default {
         status_reason: '',
         custom_amount: 1,
         custom_unit: 'days',
+      },
+
+      // Mở khóa tài khoản
+      unlockTarget: null,
+      unlockForm: {
+        reason: '',
       },
       lockTypes: [
         { value: 'temporary', label: 'Tạm thời' },
@@ -623,7 +549,7 @@ export default {
         email: '',
         phone: '',
         password: '',
-        roles: [],
+        role_id: null,
       };
       this.error = '';
       this.success = '';
@@ -639,11 +565,9 @@ export default {
         email: user.email,
         phone: user.phone || '',
         password: '',
-        // Map tên vai trò sang ID vai trò tương ứng để lưu check
-        roles: (user.roles || []).map(rName => {
-          const matched = this.allRoles.find(r => r.name === rName);
-          return matched ? matched.id : null;
-        }).filter(id => id !== null),
+        role_id: (user.roles || []).length > 0 
+          ? (this.allRoles.find(r => r.name === user.roles[0])?.id || null)
+          : null,
       };
       this.error = '';
       this.success = '';
@@ -659,11 +583,13 @@ export default {
       this.error = '';
       this.success = '';
       try {
-        if (this.form.roles.length === 0) {
-          throw new Error('Vui lòng chọn ít nhất một vai trò.');
+        if (!this.form.role_id) {
+          throw new Error('Vui lòng chọn một vai trò cho nhân sự.');
         }
 
-        const payload = { ...this.form };
+        const payload = { ...this.form, roles: [this.form.role_id] };
+        delete payload.role_id;
+        
         if (this.isEditMode) {
           if (!payload.password) {
             delete payload.password; // Bỏ qua mật khẩu nếu bỏ trống khi edit
@@ -683,79 +609,6 @@ export default {
       }
     },
 
-    // Xem chi tiết & Audit Logs
-    async openDetailModal(userId) {
-      this.showDetailModal = true;
-      this.detailLoading = true;
-      this.detailError = '';
-      this.detailData = { user: {}, audit_logs: [] };
-
-      try {
-        const response = await adminUserService.get(userId);
-        const data = response.data || {};
-        
-        // Map profile to user for compatibility with template
-        if (data.profile && !data.user) {
-          data.user = data.profile;
-        }
-        
-        this.detailData = {
-          user: data.user || {},
-          audit_logs: data.audit_logs || [],
-          roles: data.roles || [],
-          permission_summary: data.permission_summary || { revokes: [] }
-        };
-      } catch (err) {
-        this.detailError = err.message || 'Không tải được chi tiết tài khoản.';
-      } finally {
-        this.detailLoading = false;
-      }
-    },
-    closeDetailModal() {
-      this.showDetailModal = false;
-    },
-    translateAction(action) {
-      const mapping = {
-        'user.created': 'Tạo mới',
-        'user.updated': 'Cập nhật',
-        'user.locked': 'Khóa',
-        'user.unlocked': 'Mở khóa',
-      };
-      return mapping[action] || action;
-    },
-    hasChanges(oldVal, newVal) {
-      if (!oldVal || !newVal) return false;
-      return Object.keys(newVal).some(key => {
-        if (key === 'roles' || key === 'role_ids' || key === 'password') return false;
-        return JSON.stringify(oldVal[key]) !== JSON.stringify(newVal[key]);
-      });
-    },
-    getChangedFields(oldVal, newVal) {
-      if (!oldVal || !newVal) return [];
-      return Object.keys(newVal).filter(key => {
-        if (key === 'roles' || key === 'role_ids' || key === 'password') return false;
-        return JSON.stringify(oldVal[key]) !== JSON.stringify(newVal[key]);
-      });
-    },
-    getFieldLabel(field) {
-      const labels = {
-        full_name: 'Họ tên',
-        email: 'Email',
-        phone: 'Số điện thoại',
-        status: 'Trạng thái',
-        lock_type: 'Kiểu khóa',
-        status_reason: 'Lý do',
-        locked_until: 'Thời hạn',
-      };
-      return labels[field] || field;
-    },
-    formatVal(val) {
-      if (val === null || val === '') return '(trống)';
-      if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}/)) {
-        return this.formatDate(val);
-      }
-      return val;
-    },
 
     // Khóa/Mở khóa tài khoản
     openLockModal(user) {
@@ -794,16 +647,32 @@ export default {
         this.saving = false;
       }
     },
-    async unlockUser(user) {
-      if (!confirm(`Mở khóa tài khoản nhân sự: ${user.full_name} (@${user.username})?`)) return;
+    openUnlockModal(user) {
+      this.unlockTarget = user;
+      this.unlockForm.reason = '';
+      this.error = '';
+      this.success = '';
+    },
+    closeUnlockModal() {
+      this.unlockTarget = null;
+    },
+    async unlockUser() {
+      if (!this.unlockTarget) return;
+      this.saving = true;
       this.error = '';
       this.success = '';
       try {
-        const response = await adminUserService.unlock(user.id);
+        const payload = {
+          reason: this.unlockForm.reason,
+        };
+        const response = await adminUserService.unlock(this.unlockTarget.id, payload);
         this.success = response.message;
+        this.closeUnlockModal();
         await this.loadUsers();
       } catch (err) {
         this.error = err.message || 'Mở khóa tài khoản không thành công.';
+      } finally {
+        this.saving = false;
       }
     },
     
@@ -901,10 +770,10 @@ export default {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   padding: 16px;
   border-radius: 12px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
@@ -916,7 +785,7 @@ export default {
 .search-box input {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   outline: none;
   font-size: 14px;
@@ -934,9 +803,9 @@ export default {
 
 .filter-selects select {
   padding: 10px 14px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   font-size: 14px;
   outline: none;
   cursor: pointer;
@@ -949,9 +818,9 @@ export default {
 /* Bảng */
 .table-wrap {
   overflow: auto;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
@@ -970,7 +839,7 @@ th, td {
 }
 
 th {
-  background: #f9fafb;
+  background: var(--admin-surface-muted);
   font-weight: 700;
   color: #374151;
 }
@@ -1025,7 +894,7 @@ tr:last-child td {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  background: #f3f4f6;
+  background: var(--admin-surface-muted);
   color: #4b5563;
 }
 
@@ -1083,6 +952,7 @@ tr:last-child td {
 .actions-cell {
   display: flex;
   gap: 8px;
+  white-space: nowrap;
 }
 
 /* Nút */
@@ -1114,7 +984,7 @@ tr:last-child td {
 }
 
 .btn.secondary {
-  background: #f3f4f6;
+  background: var(--admin-surface-muted);
   color: #111827;
   border: 1px solid #e5e7eb;
 }
@@ -1139,26 +1009,31 @@ tr:last-child td {
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   color: #374151;
   transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-action:hover {
-  background: #f9fafb;
+  background: var(--admin-surface-muted);
 }
 
 .btn-action.view {
-  border-color: #3b82f6;
   color: #2563eb;
-}
-
-.btn-action.view:hover {
+  border-color: #bfdbfe;
   background: #eff6ff;
 }
 
+.btn-action.view:hover {
+  background: #dbeafe;
+}
+
+
+
 .btn-action.edit:hover {
-  background: #f3f4f6;
+  background: var(--admin-surface-muted);
 }
 
 .btn-action.edit:disabled, .btn-action.lock:disabled, .btn-action.unlock:disabled {
@@ -1166,7 +1041,7 @@ tr:last-child td {
   cursor: not-allowed;
   border-color: #e5e7eb !important;
   color: #9ca3af !important;
-  background: #f9fafb !important;
+  background: var(--admin-surface-muted) !important;
 }
 
 .btn-action.lock {
@@ -1203,7 +1078,7 @@ tr:last-child td {
 .modal {
   width: min(580px, calc(100vw - 32px));
   max-height: calc(100vh - 40px);
-  background: #fff;
+  background: var(--admin-surface, #fff);
   border-radius: 16px;
   padding: 24px;
   display: flex;
@@ -1228,15 +1103,15 @@ tr:last-child td {
 .modal h3 {
   margin: 0;
   font-size: 20px;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .icon-btn {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
   font-size: 20px;
   line-height: 1;
   border: none;
@@ -1246,7 +1121,7 @@ tr:last-child td {
 }
 
 .icon-btn:hover {
-  background: #e2e8f0;
+  background: var(--admin-border);
 }
 
 .modal-body {
@@ -1280,7 +1155,7 @@ tr:last-child td {
   gap: 6px;
   font-weight: 700;
   font-size: 14px;
-  color: #334155;
+  color: var(--admin-text);
 }
 
 .full-width {
@@ -1290,12 +1165,12 @@ tr:last-child td {
 .modal input,
 .modal select,
 .modal textarea {
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 10px 12px;
   font: inherit;
   outline: none;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   width: 100%;
 }
 
@@ -1319,10 +1194,10 @@ tr:last-child td {
   align-items: flex-start;
   gap: 10px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   cursor: pointer;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
   transition: all 0.2s;
 }
 
@@ -1341,12 +1216,12 @@ tr:last-child td {
 .checkbox-label strong {
   display: block;
   font-size: 14px;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .role-desc {
   font-size: 12px;
-  color: #64748b;
+  color: var(--admin-muted);
   font-weight: 400;
 }
 
@@ -1358,10 +1233,10 @@ tr:last-child td {
 }
 
 .detail-info-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
   padding: 20px;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1382,13 +1257,13 @@ tr:last-child td {
 
 .detail-info-card h4 {
   font-size: 18px;
-  color: #0f172a;
+  color: var(--admin-text);
   margin: 0 0 4px 0;
 }
 
 .detail-username {
   font-size: 14px;
-  color: #64748b;
+  color: var(--admin-muted);
   margin: 0 0 16px 0;
 }
 
@@ -1397,7 +1272,7 @@ tr:last-child td {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--admin-border);
   padding-top: 16px;
 }
 
@@ -1407,12 +1282,12 @@ tr:last-child td {
 
 .detail-meta-item .label {
   font-weight: 700;
-  color: #475569;
+  color: var(--admin-faint);
   margin-right: 6px;
 }
 
 .detail-meta-item .value {
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .detail-meta-item.nested {
@@ -1439,12 +1314,12 @@ tr:last-child td {
 .detail-logs-panel h5 {
   margin: 0;
   font-size: 16px;
-  color: #1e293b;
+  color: var(--admin-text);
 }
 
 .logs-table-wrap {
   overflow: auto;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   max-height: 400px;
 }
@@ -1461,16 +1336,16 @@ tr:last-child td {
 }
 
 .logs-table th {
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
   font-weight: 700;
 }
 
 .log-date {
-  color: #475569;
+  color: var(--admin-faint);
 }
 
 .actor-name-text {
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .ip-text {
@@ -1483,8 +1358,8 @@ tr:last-child td {
   border-radius: 4px;
   font-size: 11px;
   font-weight: 700;
-  background: #e2e8f0;
-  color: #475569;
+  background: var(--admin-border);
+  color: var(--admin-faint);
 }
 
 .log-action-badge.user\.created {
@@ -1513,7 +1388,7 @@ tr:last-child td {
 
 .diff-content {
   font-size: 11px;
-  color: #334155;
+  color: var(--admin-text);
   line-height: 1.4;
 }
 
@@ -1527,7 +1402,7 @@ tr:last-child td {
 
 .field-name {
   font-weight: 700;
-  color: #475569;
+  color: var(--admin-faint);
   margin-right: 4px;
 }
 
@@ -1538,7 +1413,7 @@ tr:last-child td {
 
 .arrow {
   margin: 0 4px;
-  color: #94a3b8;
+  color: var(--admin-faint);
 }
 
 .new-val {
@@ -1557,9 +1432,9 @@ tr:last-child td {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
 }
 
 .target-avatar {
@@ -1580,7 +1455,7 @@ tr:last-child td {
 
 .target-user span {
   font-size: 12px;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .segmented, .duration-grid {
@@ -1598,10 +1473,10 @@ tr:last-child td {
 
 .segmented button, .duration-grid button {
   min-height: 38px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #f8fafc;
-  color: #334155;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
@@ -1663,7 +1538,7 @@ tr:last-child td {
   right: 10px;
   background: none;
   border: none;
-  color: #64748b;
+  color: var(--admin-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1675,7 +1550,7 @@ tr:last-child td {
 
 .toggle-password-btn:hover {
   color: var(--sg-green);
-  background-color: #f1f5f9;
+  background-color: var(--admin-surface-muted);
 }
 
 /* Responsive */

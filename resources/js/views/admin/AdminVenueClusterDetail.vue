@@ -12,6 +12,16 @@
 
     <!-- ── Main content ── -->
     <template v-else-if="cluster">
+      <!-- Header -->
+      <div class="avcd-header card">
+        <div class="avcd-title-row">
+          <div>
+            <h2 class="avcd-title">{{ cluster.name }}</h2>
+            <p class="avcd-sub">Quản lý và theo dõi thông tin chi tiết cụm sân của đối tác.</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Tabs -->
       <div class="avcd-tabs card">
         <button
@@ -24,6 +34,9 @@
           {{ tab.label }}
           <span v-if="tab.key === 'location_changes' && pendingLocationChangeCount > 0" class="tab-badge-admin">
             {{ pendingLocationChangeCount }}
+          </span>
+          <span v-if="tab.key === 'unlock_appeals' && pendingUnlockAppealCount > 0" class="tab-badge-admin">
+            {{ pendingUnlockAppealCount }}
           </span>
         </button>
       </div>
@@ -94,25 +107,37 @@
                   <span class="info-detail-value">{{ formatFullAddress(cluster) }}</span>
                 </div>
               </div>
+            </div>
 
-              <div class="info-detail-item">
-                <div class="info-detail-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <!-- Bản đồ vị trí cụm sân -->
+            <div class="map-section" style="margin-top: 24px; border-top: 1px solid rgba(15, 23, 42, 0.06); padding-top: 20px;">
+              <div class="map-section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; width: 100%;">
+                <span class="info-detail-label" style="margin-bottom: 0; display: flex; align-items: center; gap: 6px; font-weight: 700; color: rgba(15, 23, 42, 0.55);">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7" />
                   </svg>
-                </div>
-                <div class="info-detail-body">
-                  <span class="info-detail-label">Tọa độ & Bản đồ</span>
-                  <div class="map-coord-row">
-                    <span class="info-detail-value coord-text">{{ cluster.latitude }}, {{ cluster.longitude }}</span>
-                    <a v-if="cluster.map_url" :href="cluster.map_url" target="_blank" rel="noopener" class="btn-map-link">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      Xem Google Maps
-                    </a>
-                  </div>
-                </div>
+                  Bản đồ vị trí
+                </span>
+                <a v-if="cluster.map_url" :href="cluster.map_url" target="_blank" rel="noopener" class="btn-map-link" style="padding: 4px 10px; font-size: 12px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Mở Google Maps
+                </a>
+              </div>
+              <div v-if="cluster.latitude && cluster.longitude" class="map-embed-container" style="width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid rgba(15, 23, 42, 0.08); line-height: 0; box-shadow: var(--admin-shadow-sm);">
+                <iframe
+                  width="100%"
+                  height="300"
+                  style="border:0;"
+                  loading="lazy"
+                  allowfullscreen
+                  referrerpolicy="no-referrer-when-downgrade"
+                  :src="`https://maps.google.com/maps?q=${cluster.latitude},${cluster.longitude}&hl=vi&z=15&output=embed`"
+                ></iframe>
+              </div>
+              <div v-else class="muted" style="font-size: 13px; font-style: italic;">
+                Chưa cấu hình tọa độ cho cụm sân này.
               </div>
             </div>
           </div>
@@ -127,7 +152,7 @@
                 <div class="side-info-item">
                   <span class="side-label">Trạng thái cụm sân</span>
                   <div class="status-action-row">
-                    <span class="status-badge" :class="`status-${cluster.status}`">
+                    <span class="custom-status-badge" :class="`custom-status-${cluster.status}`">
                       {{ statusLabel(cluster.status) }}
                     </span>
                     <button
@@ -195,23 +220,31 @@
             </div>
           </div>
           
-          <div class="info-item full-width" v-if="cluster.status === 'locked'" style="margin-top: 20px;">
-            <span class="info-label">Lý do khóa</span>
-            <span class="info-value lock-reason" style="margin-top: 6px; display: block;">{{ cluster.status_reason }}</span>
-          </div>
-          
-          <div class="info-grid" style="margin-top: 20px;" v-if="cluster.locked_at">
-            <div class="info-item">
-              <span class="info-label">Khóa lúc</span>
-              <span class="info-value">{{ formatDate(cluster.locked_at) }}</span>
+          <!-- Lock Alert Banner -->
+          <div v-if="cluster.status === 'locked'" class="lock-alert-banner">
+            <div class="lock-alert-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
             </div>
-            <div class="info-item" v-if="cluster.locked_until">
-              <span class="info-label">Khóa đến</span>
-              <span class="info-value">{{ formatDate(cluster.locked_until) }}</span>
-            </div>
-            <div class="info-item" v-if="cluster.locked_by">
-              <span class="info-label">Khóa bởi</span>
-              <span class="info-value">{{ cluster.locked_by?.full_name || cluster.locked_by }}</span>
+            <div class="lock-alert-content">
+              <h4 class="lock-alert-title">Cụm sân này đang bị tạm khóa</h4>
+              <p class="lock-alert-reason"><strong>Lý do khóa:</strong> {{ cluster.status_reason || 'Không có lý do cụ thể.' }}</p>
+              
+              <div class="lock-alert-meta" v-if="cluster.locked_at || cluster.locked_by">
+                <div class="lock-meta-item" v-if="cluster.locked_at">
+                  <span class="lock-meta-label">Khóa lúc:</span>
+                  <span class="lock-meta-val">{{ formatDate(cluster.locked_at) }}</span>
+                </div>
+                <div class="lock-meta-item" v-if="cluster.locked_until">
+                  <span class="lock-meta-label">Khóa đến:</span>
+                  <span class="lock-meta-val">{{ formatDate(cluster.locked_until) }}</span>
+                </div>
+                <div class="lock-meta-item" v-if="cluster.locked_by">
+                  <span class="lock-meta-label">Khóa bởi:</span>
+                  <span class="lock-meta-val">{{ cluster.locked_by?.full_name || cluster.locked_by }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -565,6 +598,12 @@
                 <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
                 <div v-if="req.reviewed_by" class="muted">Xử lý bởi: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
                 <div v-if="req.status_reason" class="reason-text">Lý do: {{ req.status_reason }}</div>
+                <div v-if="req.evidence_image_url" class="approval-evidence" style="margin-top: 8px;">
+                  <span class="approval-evidence-label" style="display:block; font-size:12.5px; color:var(--text-secondary); margin-bottom:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:3px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Ảnh minh chứng:</span>
+                  <a :href="req.evidence_image_url" target="_blank" style="display:inline-block;">
+                    <img :src="req.evidence_image_url" alt="Ảnh minh chứng" style="max-width:200px; max-height:140px; border-radius:8px; border:1px solid var(--border-color); object-fit:cover; cursor:pointer; transition: transform 0.2s;" @mouseover="$event.target.style.transform='scale(1.05)'" @mouseout="$event.target.style.transform='scale(1)'" />
+                  </a>
+                </div>
               </div>
               <div class="approval-right">
                 <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
@@ -593,10 +632,10 @@
             <div class="approval-row">
               <div style="flex:1">
                 <div class="approval-name fw-bold">Yêu cầu thay đổi vị trí</div>
-                <div class="muted">🏠 Địa chỉ mới: {{ req.new_address }}, {{ req.new_ward }}, {{ req.new_province }}</div>
-                <div class="muted">🧭 Tọa độ mới: {{ req.new_latitude }}, {{ req.new_longitude }}</div>
-                <div v-if="req.new_map_url" class="muted">🗺️ Map URL: <a :href="req.new_map_url" target="_blank" style="color:#2563eb">Xem bản đồ</a></div>
-                <div class="muted">📝 Lý do: {{ req.note }}</div>
+                <div class="muted">Địa chỉ mới: {{ req.new_address }}, {{ req.new_ward }}, {{ req.new_province }}</div>
+                <div class="muted">Tọa độ mới: {{ req.new_latitude }}, {{ req.new_longitude }}</div>
+                <div v-if="req.new_map_url" class="muted">Map URL: <a :href="req.new_map_url" target="_blank" style="color:#2563eb">Xem bản đồ</a></div>
+                <div class="muted">Lý do: {{ req.note }}</div>
                 <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
                 <div v-if="req.reviewed_by" class="muted">Xử lý bởi: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
                 <div v-if="req.status_reason && req.status === 'rejected'" class="reason-text">Lý do từ chối: {{ req.status_reason }}</div>
@@ -615,13 +654,59 @@
         </div>
       </div>
 
+      <!-- ┌ Tab: Yêu cầu mở khóa ──────────────────────────────── -->
+      <div v-if="activeTab === 'unlock_appeals'" class="avcd-card card">
+        <h3 class="section-title">Yêu cầu mở khóa cụm sân</h3>
+        <div class="approval-tabs">
+          <button class="tab-sm" :class="{ active: unlockAppealFilter === '' }" @click="unlockAppealFilter = ''">Tất cả</button>
+          <button class="tab-sm" :class="{ active: unlockAppealFilter === 'pending' }" @click="unlockAppealFilter = 'pending'">Chờ duyệt</button>
+          <button class="tab-sm" :class="{ active: unlockAppealFilter === 'approved' }" @click="unlockAppealFilter = 'approved'">Đã duyệt</button>
+          <button class="tab-sm" :class="{ active: unlockAppealFilter === 'rejected' }" @click="unlockAppealFilter = 'rejected'">Từ chối</button>
+        </div>
+        <div v-if="filteredUnlockAppeals.length === 0" class="empty-section">Không có yêu cầu nào.</div>
+        <div v-else class="approval-list">
+          <div v-for="req in filteredUnlockAppeals" :key="req.id" class="approval-card" :class="`approval-${req.status}`">
+            <div class="approval-row">
+              <div style="flex:1">
+                <div class="approval-name fw-bold">Yêu cầu mở khóa từ chủ sân</div>
+                <div class="muted" style="margin-top: 6px;">
+                  <strong>Lý do giải trình của chủ sân:</strong>
+                  <p style="margin: 4px 0; line-height: 1.5; white-space: pre-wrap; background: var(--admin-surface, #fff); padding: 10px; border: 1px solid var(--admin-border); border-radius: 6px;">
+                    {{ req.reason }}
+                  </p>
+                </div>
+                <div class="muted">Người yêu cầu: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
+                <div v-if="req.reviewed_by" class="muted">Người duyệt: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
+                <div v-if="req.admin_note" class="reason-text" style="color: #475569; font-style: normal; margin-top: 6px;">
+                  <strong>Phản hồi của Admin:</strong> {{ req.admin_note }}
+                </div>
+              </div>
+              <div class="approval-right">
+                <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
+                <div v-if="req.status === 'pending'" class="approval-btns">
+                  <button class="btn btn-success btn-sm" :disabled="processingUnlockId === req.id" @click="handleApproveUnlock(req)">
+                    {{ processingUnlockId === req.id ? '...' : 'Duyệt mở khóa' }}
+                  </button>
+                  <button class="btn btn-danger btn-sm" :disabled="processingUnlockId === req.id" @click="openRejectUnlockModal(req)">Từ chối</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
 
     <!-- ── Modal: Khóa cụm sân ── -->
     <div v-if="showLockModal" class="modal-backdrop" @click.self="closeLockModal">
       <form class="modal-box card" @submit.prevent="handleLock">
         <div class="modal-header">
           <h3>Khóa cụm sân</h3>
-          <button type="button" class="btn-close" @click="closeLockModal">×</button>
+          <button type="button" class="btn-close" @click="closeLockModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <div v-if="lockError" class="alert-error">{{ lockError }}</div>
@@ -658,7 +743,12 @@
       <form class="modal-box card" @submit.prevent="handleReject">
         <div class="modal-header">
           <h3>Từ chối yêu cầu</h3>
-          <button type="button" class="btn-close" @click="closeRejectModal">×</button>
+          <button type="button" class="btn-close" @click="closeRejectModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <p class="muted">Yêu cầu: <strong>{{ rejectTarget.name }}</strong></p>
@@ -688,7 +778,12 @@
       <form class="modal-box card" @submit.prevent="handleRejectLocation">
         <div class="modal-header">
           <h3>Từ chối yêu cầu thay đổi vị trí</h3>
-          <button type="button" class="btn-close" @click="closeRejectLocationModal">×</button>
+          <button type="button" class="btn-close" @click="closeRejectLocationModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <p class="muted">Địa chỉ mới: <strong>{{ rejectLocationTarget.new_address }}, {{ rejectLocationTarget.new_province }}</strong></p>
@@ -713,7 +808,42 @@
       </form>
     </div>
 
+    <!-- ── Modal: Từ chối yêu cầu mở khóa ── -->
+    <div v-if="rejectUnlockTarget" class="modal-backdrop" @click.self="closeRejectUnlockModal">
+      <form class="modal-box card" @submit.prevent="handleRejectUnlock">
+        <div class="modal-header">
+          <h3>Từ chối yêu cầu mở khóa</h3>
+          <button type="button" class="btn-close" @click="closeRejectUnlockModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="muted">Giải trình của chủ sân: <strong>{{ rejectUnlockTarget.reason }}</strong></p>
+          <div v-if="rejectUnlockError" class="alert-error">{{ rejectUnlockError }}</div>
+          <label class="form-label">
+            Lý do từ chối <span class="required">*</span>
+            <textarea
+              v-model="rejectUnlockReason"
+              rows="4"
+              required
+              placeholder="Nhập phản hồi từ chối..."
+              class="form-control"
+            ></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" @click="closeRejectUnlockModal">Hủy</button>
+          <button type="submit" class="btn btn-danger" :disabled="rejectingUnlock">
+            {{ rejectingUnlock ? 'Đang từ chối...' : 'Xác nhận từ chối' }}
+          </button>
+        </div>
+      </form>
+    </div>
 
+    </template>
 
     <!-- ── Global alert ── -->
     <transition name="fade">
@@ -749,6 +879,7 @@ export default {
         { key: 'lock_history', label: 'Lịch sử khóa' },
         { key: 'approvals', label: 'Yêu cầu quy mô' },
         { key: 'location_changes', label: 'Yêu cầu vị trí' },
+        { key: 'unlock_appeals', label: 'Yêu cầu mở khóa' },
       ],
 
       approvalFilter: '',
@@ -779,6 +910,15 @@ export default {
 
 
 
+      // Unlock requests state
+      unlockRequests: [],
+      unlockAppealFilter: '',
+      processingUnlockId: null,
+      rejectUnlockTarget: null,
+      rejectUnlockReason: '',
+      rejectUnlockError: '',
+      rejectingUnlock: false,
+
       // Global message
       globalMsg: '',
       globalMsgType: 'msg-success',
@@ -796,6 +936,13 @@ export default {
     },
     pendingLocationChangeCount() {
       return this.locationChangeRequests.filter((r) => r.status === 'pending').length;
+    },
+    filteredUnlockAppeals() {
+      if (!this.unlockAppealFilter) return this.unlockRequests;
+      return this.unlockRequests.filter((r) => r.status === this.unlockAppealFilter);
+    },
+    pendingUnlockAppealCount() {
+      return this.unlockRequests.filter((r) => r.status === 'pending').length;
     },
   },
   mounted() {
@@ -819,6 +966,7 @@ export default {
         this.lockHistory = data.lock_history || [];
         this.approvalRequests = data.approval_requests || [];
         this.locationChangeRequests = data.location_change_requests || [];
+        this.unlockRequests = data.unlock_requests || [];
       } catch (err) {
         this.error = err.message || 'Không tải được dữ liệu.';
       } finally {
@@ -956,6 +1104,50 @@ export default {
       }
     },
 
+    // ── Approve / Reject Unlock Requests ──
+    async handleApproveUnlock(req) {
+      if (!confirm('Duyệt yêu cầu mở khóa này? Cụm sân sẽ được kích hoạt lại ngay lập tức.')) return;
+      this.processingUnlockId = req.id;
+      try {
+        const res = await adminVenueClusterService.approveUnlockRequest(this.cluster.id, req.id);
+        const idx = this.unlockRequests.findIndex((r) => r.id === req.id);
+        if (idx !== -1) this.unlockRequests.splice(idx, 1, res.data);
+        this.showMsg('Duyệt mở khóa thành công. Cụm sân đã hoạt động trở lại.', 'msg-success');
+        await this.loadDetail();
+      } catch (err) {
+        this.showMsg(err.message || 'Duyệt không thành công.', 'msg-error');
+      } finally {
+        this.processingUnlockId = null;
+      }
+    },
+    openRejectUnlockModal(req) {
+      this.rejectUnlockTarget = req;
+      this.rejectUnlockReason = '';
+      this.rejectUnlockError = '';
+    },
+    closeRejectUnlockModal() {
+      this.rejectUnlockTarget = null;
+    },
+    async handleRejectUnlock() {
+      this.rejectingUnlock = true;
+      this.rejectUnlockError = '';
+      try {
+        const res = await adminVenueClusterService.rejectUnlockRequest(
+          this.cluster.id,
+          this.rejectUnlockTarget.id,
+          { admin_note: this.rejectUnlockReason },
+        );
+        const idx = this.unlockRequests.findIndex((r) => r.id === this.rejectUnlockTarget.id);
+        if (idx !== -1) this.unlockRequests.splice(idx, 1, res.data);
+        this.closeRejectUnlockModal();
+        this.showMsg('Đã từ chối yêu cầu mở khóa.', 'msg-success');
+      } catch (err) {
+        this.rejectUnlockError = err.message || 'Từ chối không thành công.';
+      } finally {
+        this.rejectingUnlock = false;
+      }
+    },
+
     // ── Helpers ──
     getLogActionDetails(action) {
       switch (action) {
@@ -1027,27 +1219,34 @@ export default {
 }
 
 .card {
-  background: #fff;
+  background: var(--admin-surface, #fff);
   border-radius: 12px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   padding: 20px 24px;
 }
 
 /* Header */
 .avcd-header { display: flex; flex-direction: column; gap: 12px; }
-.btn-back {
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #15803d;
+  font-weight: 850;
+  text-decoration: none;
+  font-size: 14px;
+  margin-bottom: 12px;
+  cursor: pointer;
   background: none;
   border: none;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(15, 23, 42, 0.5);
   padding: 0;
-  width: fit-content;
-  transition: color 0.15s;
+  transition: opacity 0.15s;
 }
-.btn-back:hover { color: var(--sg-text); }
+.back-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
 .avcd-title-row {
   display: flex;
   justify-content: space-between;
@@ -1069,7 +1268,7 @@ export default {
 .tab-btn {
   padding: 8px 16px;
   border-radius: 8px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   background: var(--sg-surface, #f8fafc);
   color: rgba(15, 23, 42, 0.6);
   font-size: 13px;
@@ -1079,10 +1278,10 @@ export default {
 }
 .tab-btn.active {
   background: #0f172a;
-  border-color: #0f172a;
+  border-color: var(--admin-text);
   color: #fff;
 }
-.tab-btn:not(.active):hover { background: #f1f5f9; }
+.tab-btn:not(.active):hover { background: var(--admin-surface-muted); }
 
 /* Card */
 .avcd-card {}
@@ -1104,9 +1303,9 @@ export default {
   flex: 1.6; /* Chiếm khoảng 62% */
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   border-radius: 12px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   padding: 24px;
 }
 .info-side-col {
@@ -1162,8 +1361,8 @@ export default {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1187,7 +1386,7 @@ export default {
 
 .info-detail-value {
   font-size: 14px;
-  color: #1e293b;
+  color: var(--admin-text);
   line-height: 1.4;
 }
 
@@ -1287,7 +1486,7 @@ export default {
 .side-value {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--admin-text);
 }
 
 .status-action-row {
@@ -1343,11 +1542,11 @@ export default {
 .amenity-chip-premium {
   display: inline-block;
   padding: 5px 12px;
-  background: #f1f5f9;
+  background: var(--admin-surface-muted);
   border-radius: 20px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #334155;
+  color: var(--admin-text);
   border: 1px solid rgba(15, 23, 42, 0.05);
 }
 
@@ -1362,7 +1561,7 @@ export default {
   font-size: 14px;
   font-weight: bold;
   cursor: pointer;
-  color: #64748b;
+  color: var(--admin-muted);
   padding: 0 2px;
   transition: color 0.15s;
 }
@@ -1379,17 +1578,17 @@ export default {
 .info-item { display: flex; flex-direction: column; gap: 4px; }
 .full-width { grid-column: 1 / -1; }
 .info-label { font-size: 12px; font-weight: 700; color: rgba(15, 23, 42, 0.4); text-transform: uppercase; letter-spacing: 0.5px; }
-.info-value { font-size: 14px; color: var(--sg-text); }
+.info-value { font-size: 14px; color: var(--admin-text); }
 .muted { color: rgba(15, 23, 42, 0.45); font-size: 13px; }
 .lock-reason { color: #dc2626; font-weight: 600; }
 .amenity-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .amenity-chip {
   padding: 4px 10px;
-  background: #f1f5f9;
+  background: var(--admin-surface-muted);
   border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: var(--admin-text);
 }
 .map-link { margin-top: 18px; }
 
@@ -1410,10 +1609,90 @@ export default {
 .status-locked  { background: #fee2e2; color: #991b1b; }
 .status-approved { background: #dcfce7; color: #166534; }
 .status-rejected { background: #fee2e2; color: #991b1b; }
-.status-cancelled { background: #f3f4f6; color: #6b7280; }
+.status-cancelled { background: var(--admin-surface-muted); color: #6b7280; }
+
+/* Custom Status badges for Venue Cluster status box */
+.custom-status-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 38px !important;
+  padding: 9px 13px !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  border: 1px solid transparent !important;
+}
+.custom-status-pending { background: #fffbeb !important; color: #b45309 !important; border: 1px solid #fde68a !important; }
+.custom-status-active  { background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; }
+.custom-status-locked  { background: #fef2f2 !important; color: #b91c1c !important; border: 1px solid #fecaca !important; }
+.custom-status-approved { background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; }
+.custom-status-rejected { background: #fef2f2 !important; color: #b91c1c !important; border: 1px solid #fecaca !important; }
+.custom-status-cancelled { background: var(--admin-surface-muted) !important; color: var(--admin-faint) !important; border: 1px solid var(--admin-border) !important; }
 .fee-paid { background: #dcfce7; color: #166534; }
 .fee-unpaid, .fee-overdue { background: #fee2e2; color: #991b1b; }
 .fee-partial { background: #fef3c7; color: #92400e; }
+
+/* Lock Alert Banner Style */
+.lock-alert-banner {
+  display: flex;
+  gap: 16px;
+  background: #fef2f2 !important;
+  border: 1px solid #fee2e2 !important;
+  border-radius: 10px !important;
+  padding: 16px 20px !important;
+  margin-top: 20px;
+  align-items: flex-start;
+}
+.lock-alert-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50% !important;
+  background: #fee2e2 !important;
+  color: #ef4444 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.lock-alert-content {
+  flex: 1;
+}
+.lock-alert-title {
+  margin: 0 0 6px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #991b1b !important;
+}
+.lock-alert-reason {
+  margin: 0 0 12px !important;
+  font-size: 13.5px !important;
+  color: #b91c1c !important;
+  line-height: 1.5 !important;
+}
+.lock-alert-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  padding-top: 10px !important;
+  border-top: 1px dashed rgba(239, 68, 68, 0.2) !important;
+}
+.lock-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px !important;
+  color: #7f1d1d !important;
+}
+.lock-meta-label {
+  font-weight: 500 !important;
+  opacity: 0.8;
+}
+.lock-meta-val {
+  font-weight: 700 !important;
+}
 
 /* ── Fee Tab Redesign ── */
 .fees-tab {
@@ -1430,19 +1709,19 @@ export default {
   justify-content: center;
   padding: 60px 24px;
   gap: 14px;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   border-radius: 14px;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--admin-border);
 }
 .fees-empty-icon {
   width: 72px;
   height: 72px;
-  background: #f1f5f9;
+  background: var(--admin-surface-muted);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--admin-faint);
 }
 .fees-empty-text {
   font-size: 14px;
@@ -1467,7 +1746,7 @@ export default {
   padding: 20px;
   border-radius: 14px;
   border: 1px solid transparent;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   transition: transform 0.18s, box-shadow 0.18s;
   position: relative;
@@ -1526,7 +1805,7 @@ export default {
 .fees-stat-value {
   font-size: 16px;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--admin-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1576,7 +1855,7 @@ export default {
   margin: 0;
   font-size: 15px;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--admin-text);
   line-height: 1.2;
 }
 .fees-card-subtitle {
@@ -1601,7 +1880,7 @@ export default {
   grid-template-columns: 160px 170px 110px 130px 130px 1fr 140px;
   gap: 0;
   padding: 10px 24px;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
   border-bottom: 1px solid var(--sg-border);
   font-size: 10.5px;
   font-weight: 700;
@@ -1644,7 +1923,7 @@ export default {
   gap: 8px;
   font-size: 13px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--admin-text);
 }
 .fee-pkg-dot {
   width: 8px;
@@ -1674,7 +1953,7 @@ export default {
 }
 .fee-period-text {
   font-size: 12px;
-  color: #475569;
+  color: var(--admin-faint);
   font-weight: 600;
 }
 .fee-period-sep {
@@ -1692,7 +1971,7 @@ export default {
 .fee-due-date {
   font-size: 12.5px;
   font-weight: 700;
-  color: #334155;
+  color: var(--admin-text);
 }
 .fee-due-date.text-red-600 { color: #dc2626; }
 .fee-overdue-chip {
@@ -1712,14 +1991,14 @@ export default {
 .fee-col-amount .fee-amount-num {
   font-size: 13px;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 /* Column: Paid */
 .fee-col-paid .fee-paid-num {
   font-size: 13px;
   font-weight: 700;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 .fee-col-paid .fee-paid-num.text-green { color: #16a34a; }
 
@@ -1733,7 +2012,7 @@ export default {
 .fee-progress-track {
   width: 100%;
   height: 5px;
-  background: #e2e8f0;
+  background: var(--admin-border);
   border-radius: 99px;
   overflow: hidden;
 }
@@ -1792,8 +2071,8 @@ export default {
   transition: all 0.18s;
 }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
-.btn-outline { background: transparent; border-color: var(--sg-border); color: var(--sg-text); }
-.btn-outline:hover { background: #f1f5f9; }
+.btn-outline { background: transparent; border-color: var(--sg-border); color: var(--admin-text); }
+.btn-outline:hover { background: var(--admin-surface-muted); }
 .btn-danger { background: #dc2626; color: #fff; }
 .btn-danger:hover:not(:disabled) { background: #b91c1c; }
 .btn-danger:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -1831,8 +2110,8 @@ export default {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
 }
 .bs-confirmed { background: #dcfce7; color: #166534; }
 .bs-pending { background: #fef3c7; color: #92400e; }
@@ -1855,7 +2134,7 @@ export default {
   width: 36px;
   height: 36px;
   border: 3px solid rgba(0, 0, 0, 0.08);
-  border-top-color: #0f172a;
+  border-top-color: var(--admin-text);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -1880,7 +2159,7 @@ export default {
   top: 8px;
   bottom: 8px;
   width: 2px;
-  background: #e2e8f0;
+  background: var(--admin-border);
 }
 
 .timeline-item {
@@ -1897,8 +2176,8 @@ export default {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #fff;
-  border: 2px solid #cbd5e1;
+  background: var(--admin-surface, #fff);
+  border: 2px solid var(--admin-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1932,16 +2211,16 @@ export default {
 }
 
 .badge-default {
-  border-color: #cbd5e1;
-  background: #f1f5f9;
-  color: #475569;
+  border-color: var(--admin-border);
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
 }
 
 /* Timeline content card */
 .timeline-content {
   flex: 1;
-  background: #fff;
-  border: 1px solid var(--sg-border, #e2e8f0);
+  background: var(--admin-surface, #fff);
+  border: 1px solid var(--sg-border, var(--admin-border));
   border-radius: 12px;
   padding: 16px 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
@@ -1954,7 +2233,7 @@ export default {
 .timeline-content:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
-  border-color: #cbd5e1;
+  border-color: var(--admin-border);
 }
 
 /* Header inside content card */
@@ -1974,7 +2253,7 @@ export default {
 .text-lock { color: #dc2626; }
 .text-unlock { color: #16a34a; }
 .text-update { color: #2563eb; }
-.text-default { color: #475569; }
+.text-default { color: var(--admin-faint); }
 
 .timeline-meta {
   display: flex;
@@ -1996,8 +2275,8 @@ export default {
 
 /* Reason box stylings */
 .timeline-reason-box {
-  background: #f8fafc;
-  border-left: 3px solid #cbd5e1;
+  background: var(--admin-surface-muted);
+  border-left: 3px solid var(--admin-border);
   padding: 8px 12px;
   border-radius: 0 6px 6px 0;
 }
@@ -2013,7 +2292,7 @@ export default {
 .reason-content {
   margin: 4px 0 0 0;
   font-size: 13px;
-  color: var(--sg-text);
+  color: var(--admin-text);
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -2021,7 +2300,7 @@ export default {
 /* Sub-details (Lock dates) */
 .timeline-sub-details {
   font-size: 13px;
-  color: #475569;
+  color: var(--admin-faint);
   display: flex;
   align-items: center;
 }
@@ -2029,7 +2308,7 @@ export default {
 .duration-label {
   display: inline-flex;
   align-items: center;
-  background: #f1f5f9;
+  background: var(--admin-surface-muted);
   padding: 4px 8px;
   border-radius: 6px;
 }
@@ -2058,8 +2337,8 @@ export default {
 .timeline-amenity-chip {
   font-size: 12px;
   font-weight: 600;
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
   padding: 4px 10px;
   border-radius: 20px;
   border: 1px solid rgba(15, 23, 42, 0.05);
@@ -2076,20 +2355,20 @@ export default {
 .tab-sm {
   padding: 6px 12px;
   border-radius: 6px;
-  border: 1px solid var(--sg-border);
-  background: #f8fafc;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
-.tab-sm.active { background: #0f172a; border-color: #0f172a; color: #fff; }
+.tab-sm.active { background: #0f172a; border-color: var(--admin-text); color: #fff; }
 .approval-list { display: flex; flex-direction: column; gap: 12px; }
 .approval-card {
   padding: 16px;
   border-radius: 10px;
-  border: 1px solid var(--sg-border);
-  background: #f8fafc;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
   transition: box-shadow 0.18s;
 }
 .approval-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
@@ -2139,7 +2418,7 @@ export default {
   display: grid;
   place-items: center;
 }
-.btn-close:hover { background: #f1f5f9; }
+.btn-close:hover { background: var(--admin-surface-muted); }
 .modal-body {
   padding: 20px 24px;
   display: flex;
@@ -2160,20 +2439,20 @@ export default {
   gap: 6px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--sg-text);
+  color: var(--admin-text);
 }
 .form-control {
   padding: 10px 14px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
   outline: none;
-  color: var(--sg-text);
-  background: #fff;
+  color: var(--admin-text);
+  background: var(--admin-surface, #fff);
   transition: border-color 0.18s;
 }
-.form-control:focus { border-color: #0f172a; }
+.form-control:focus { border-color: var(--admin-text); }
 .required { color: #ef4444; }
 .alert-error {
   padding: 10px 14px;
@@ -2204,7 +2483,7 @@ export default {
 
 .empty-gallery {
   padding: 24px;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
   border: 1px dashed var(--sg-border);
   border-radius: 8px;
   text-align: center;
@@ -2223,8 +2502,8 @@ export default {
   aspect-ratio: 4 / 3;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid var(--sg-border);
-  background: #f8fafc;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 .gallery-item:hover {
@@ -2269,5 +2548,4 @@ export default {
   font-weight: 700;
   margin-left: 5px;
 }
-
 </style>

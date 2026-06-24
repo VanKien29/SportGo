@@ -23,6 +23,11 @@ class BookingItem extends Model
         'duration_minutes',
         'unit_price',
         'subtotal',
+        'status',
+        'status_reason',
+        'cancelled_by',
+        'cancelled_at',
+        'maintenance_lock_id',
         'court_changed_by',
         'court_changed_at',
         'court_changed_reason',
@@ -35,6 +40,7 @@ class BookingItem extends Model
             'duration_minutes' => 'integer',
             'unit_price' => 'decimal:2',
             'subtotal' => 'decimal:2',
+            'cancelled_at' => 'datetime',
             'court_changed_at' => 'datetime',
             'sort_order' => 'integer',
         ];
@@ -60,8 +66,18 @@ class BookingItem extends Model
         return $this->belongsTo(User::class, 'court_changed_by');
     }
 
+    public function cancelledBy()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
     public function slotLocks()
     {
         return $this->hasMany(SlotLock::class, 'booking_item_id');
+    }
+
+    public function maintenanceLock()
+    {
+        return $this->belongsTo(SlotLock::class, 'maintenance_lock_id');
     }
 }

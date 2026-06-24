@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Public;
 use App\Http\Controllers\Controller;
 use App\Models\HolidayPrice;
 use App\Models\PriceSlot;
+use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
 use App\Services\BookingService;
 use Illuminate\Http\JsonResponse;
@@ -75,11 +76,15 @@ class VenueController extends Controller
         $cluster = VenueCluster::query()
             ->with([
                 'bookingConfig',
+                'amenityCatalog',
                 'venueCourts' => function ($query) {
                     $query->with('courtType:id,name,parent_id')
                         ->where('status', 'active')
                         ->orderBy('sort_order')
                         ->orderBy('name');
+                },
+                'affiliateProducts' => function ($query) {
+                    $query->where('is_active', true)->latest();
                 },
             ])
             ->where('status', 'active')
@@ -88,6 +93,14 @@ class VenueController extends Controller
             })
             ->firstOrFail();
 
+        $amenitiesDetail = $cluster->amenityCatalog
+            ->where('status', 'active')
+            ->map(fn ($amenity) => [
+                'id' => $amenity->id,
+                'name' => $amenity->name,
+                'description' => $amenity->pivot->description ?? '',
+            ])->values()->all();
+
         return response()->json([
             'data' => array_merge($this->summaryPayload($cluster), [
                 'description' => $cluster->description,
@@ -95,7 +108,9 @@ class VenueController extends Controller
                 'map_url' => $cluster->map_url,
                 'latitude' => $cluster->latitude,
                 'longitude' => $cluster->longitude,
+                'layout_decorations' => $cluster->layout_decorations,
                 'amenities' => $cluster->amenities ?? [],
+                'amenities_detail' => $amenitiesDetail,
                 'booking_config' => $cluster->bookingConfig,
                 'venue_courts' => $cluster->venueCourts,
                 'price_slots' => PriceSlot::query()
@@ -112,7 +127,13 @@ class VenueController extends Controller
                     ->orderBy('holiday_date')
                     ->orderBy('start_time')
                     ->get(),
+                'base_prices' => VenueBasePrice::query()
+                    ->with('courtType:id,name,parent_id')
+                    ->where('venue_cluster_id', $cluster->id)
+                    ->orderBy('court_type_id')
+                    ->get(),
                 'gallery' => $this->gallery($cluster),
+                'affiliate_products' => $cluster->affiliateProducts ?? [],
                 'reviews' => [],
             ]),
         ]);
@@ -146,13 +167,27 @@ class VenueController extends Controller
         $courtTypeIds = $cluster->venueCourts->pluck('court_type_id')->unique()->values();
         $priceCourtTypeIds = $this->courtTypeIdsWithAncestors($courtTypeIds);
 
-        $minPrice = $courtTypeIds->isEmpty()
+        $weeklyMinPrice = $courtTypeIds->isEmpty()
             ? null
             : PriceSlot::query()
                 ->where('venue_cluster_id', $cluster->id)
                 ->whereIn('court_type_id', $priceCourtTypeIds)
                 ->where('is_active', true)
                 ->min('price');
+        $baseMinPrice = $courtTypeIds->isEmpty()
+            ? null
+            : VenueBasePrice::query()
+                ->where('venue_cluster_id', $cluster->id)
+                ->whereIn('court_type_id', $priceCourtTypeIds)
+                ->min('price');
+        $minPrice = collect([$weeklyMinPrice, $baseMinPrice])
+            ->filter(fn ($price) => $price !== null)
+            ->map(fn ($price) => (float) $price)
+            ->min();
+
+        if ($minPrice === null && $courtTypeIds->isNotEmpty()) {
+            $minPrice = 10000.0;
+        }
 
         $courtTypes = $cluster->venueCourts
             ->pluck('courtType')
@@ -178,7 +213,7 @@ class VenueController extends Controller
             'rating_count' => (int) $cluster->rating_count,
             'court_count' => $cluster->venueCourts->count(),
             'court_types' => $courtTypes,
-            'min_price' => $minPrice ? (float) $minPrice : null,
+            'min_price' => $minPrice,
             'image_path' => $this->coverImage($cluster),
         ];
     }

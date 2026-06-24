@@ -1,21 +1,16 @@
 <template>
   <section class="admin-page">
-    <header class="page-head">
-      <div>
-        <p class="eyebrow">Phân quyền nội bộ</p>
-        <h2>Quản lý nhóm quyền hệ thống</h2>
-        <p>Phân quyền cho nhân sự quản trị SportGo.</p>
-      </div>
-      <button class="btn primary" type="button" @click="openCreateModal">
-        <AppIcon name="plus" size="18" />
-        <span>Tạo nhóm quyền</span>
-      </button>
-    </header>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <section class="filter-panel">
+    <nav class="view-tabs">
+      <button type="button" :class="{ active: currentView === 'list' }" @click="currentView = 'list'">Danh sách nhóm quyền</button>
+      <button type="button" :class="{ active: currentView === 'matrix' }" @click="currentView = 'matrix'">Ma trận phân quyền (Grid Matrix)</button>
+    </nav>
+
+    <template v-if="currentView === 'list'">
+      <section class="filter-panel">
       <div class="filter-head">
         <strong>Bộ lọc</strong>
         <span>Lọc theo tên, loại nhóm và trạng thái chỉnh sửa.</span>
@@ -74,7 +69,7 @@
           <tbody>
             <tr v-for="role in sortedRoles" :key="role.id">
               <td class="main-cell">
-                <strong>{{ role.display_name || role.name }}</strong>
+                {{ role.display_name || role.name }}
                 <span>{{ role.name }}</span>
               </td>
               <td class="desc-cell">{{ role.description || 'Chưa có mô tả phạm vi sử dụng.' }}</td>
@@ -121,6 +116,11 @@
         </table>
       </div>
     </div>
+    </template>
+
+    <template v-else>
+      <AdminPermissionMatrix />
+    </template>
 
     <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
       <form class="modal" @submit.prevent="saveRole">
@@ -178,6 +178,14 @@
       type="danger"
       @confirm="deleteRole"
     />
+
+    <!-- Floating Add Button -->
+    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <button class="btn-float-add" @click="openCreateModal">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Tạo nhóm quyền</span>
+      </button>
+    </div>
   </section>
 </template>
 
@@ -186,13 +194,15 @@ import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import ConfirmModal from '../../components/ConfirmModal.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
+import AdminPermissionMatrix from '../../components/admin/AdminPermissionMatrix.vue';
 import { adminRoleService } from '../../services/adminRoles.js';
 
 export default {
   name: 'AdminRoles',
-  components: { ActionIconButton, AppIcon, ConfirmModal, TableActionGroup },
+  components: { ActionIconButton, AppIcon, ConfirmModal, TableActionGroup, AdminPermissionMatrix },
   data() {
     return {
+      currentView: 'list',
       roles: [],
       summary: {},
       filters: { keyword: '', is_system: '' },
@@ -208,6 +218,7 @@ export default {
       sortKey: 'display_name',
       sortDir: 'asc',
       confirmDelete: { show: false, role: null },
+      showScrollTop: false,
     };
   },
   computed: {
@@ -230,6 +241,10 @@ export default {
   },
   mounted() {
     this.loadRoles();
+    window.addEventListener('scroll', this.handleScroll);
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
     defaultForm() {
@@ -364,6 +379,9 @@ export default {
     autoHide() {
       setTimeout(() => { this.success = ''; }, 3500);
     },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 250;
+    },
   },
 };
 </script>
@@ -373,13 +391,6 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.page-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
 }
 
 .eyebrow {
@@ -397,23 +408,50 @@ p {
 }
 
 .page-head h2 {
-  color: #0f172a;
+  color: var(--admin-text);
   font-size: 24px;
 }
 
 .page-head p:not(.eyebrow) {
   margin-top: 6px;
-  color: #64748b;
+  color: var(--admin-muted);
   line-height: 1.55;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--admin-border);
+  padding-bottom: 2px;
+}
+
+.view-tabs button {
+  background: transparent;
+  border: none;
+  padding: 10px 16px;
+  font-weight: 700;
+  color: var(--admin-muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.view-tabs button.active {
+  color: #16a34a;
+  border-bottom-color: #16a34a;
+}
+
+.view-tabs button:hover:not(.active) {
+  color: var(--admin-text);
 }
 
 .filter-panel,
 .fixed-note,
 .table-card,
 .modal {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--admin-surface, #fff);
 }
 
 .filter-panel {
@@ -429,11 +467,11 @@ p {
 }
 
 .filter-head strong {
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .filter-head span {
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -451,10 +489,10 @@ p {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 0 12px;
-  color: #64748b;
+  color: var(--admin-muted);
   font-weight: normal;
 }
 
@@ -467,25 +505,25 @@ input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 10px 12px;
-  color: #0f172a;
+  color: var(--admin-text);
   font: inherit;
-  background: #fff;
+  background: var(--admin-surface, #fff);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
 }
 
 .search-box:focus-within {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
 }
 
 .search-box:focus-within input {
@@ -497,12 +535,12 @@ textarea:focus {
   gap: 10px;
   align-items: center;
   padding: 12px 14px;
-  color: #475569;
-  background: #f8fafc;
+  color: var(--admin-faint);
+  background: var(--admin-surface-muted);
 }
 
 .fixed-note strong {
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .table-card {
@@ -521,22 +559,22 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--admin-border);
   padding: 13px 14px;
   text-align: left;
   vertical-align: middle;
 }
 
 th {
-  background: #f8fafc;
-  color: #475569;
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 tbody tr:hover {
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
 }
 
 .main-cell {
@@ -545,12 +583,12 @@ tbody tr:hover {
 
 .main-cell strong {
   display: block;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .main-cell span,
 .desc-cell {
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -566,7 +604,7 @@ tbody tr:hover {
   place-items: center;
   border-radius: 999px;
   background: #eef2f7;
-  color: #334155;
+  color: var(--admin-text);
   font-weight: 900;
 }
 
@@ -594,7 +632,7 @@ tbody tr:hover {
 
 .risk-low {
   background: #eef2f7;
-  color: #334155;
+  color: var(--admin-text);
 }
 
 .risk-medium {
@@ -608,8 +646,8 @@ tbody tr:hover {
 }
 
 .risk-locked {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
 }
 
 .actions-col {
@@ -630,7 +668,7 @@ tbody tr:hover {
 
 .table-state {
   padding: 36px;
-  color: #64748b;
+  color: var(--admin-muted);
   text-align: center;
 }
 
@@ -669,8 +707,8 @@ tbody tr:hover {
 }
 
 .btn.secondary {
-  background: #e2e8f0;
-  color: #334155;
+  background: var(--admin-border);
+  color: var(--admin-text);
 }
 
 .btn:disabled {
@@ -702,12 +740,12 @@ tbody tr:hover {
 }
 
 .modal-head {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .modal-head p {
   margin-top: 4px;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .form-body {
@@ -721,19 +759,19 @@ label {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #334155;
+  color: var(--admin-text);
   font-weight: 800;
 }
 
 small {
-  color: #64748b;
+  color: var(--admin-muted);
   font-weight: 400;
 }
 
 .modal-actions {
   justify-content: flex-end;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border-top: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
 }
 
 @media (max-width: 1120px) {
@@ -743,7 +781,6 @@ small {
 }
 
 @media (max-width: 760px) {
-  .page-head,
   .fixed-note {
     flex-direction: column;
     align-items: flex-start;

@@ -16,6 +16,17 @@ export const adminModerationService = {
     return api(`/api/admin/moderation/queue${query(params)}`);
   },
 
+  getConfig() {
+    return api('/api/admin/moderation/config');
+  },
+
+  saveConfig(data) {
+    return api('/api/admin/moderation/config', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   approvePost(type, id) {
     return api(`/api/admin/moderation/posts/${type}/${id}/approve`, {
       method: 'POST',
@@ -67,6 +78,15 @@ export const adminReportService = {
     return api(`/api/admin/reports/${id}/resolve`, {
       method: 'PATCH',
       body: JSON.stringify(data),
+    });
+  },
+  getAutoResolveConfig() {
+    return api('/api/admin/reports/auto-resolve-config');
+  },
+  saveAutoResolveConfig(payload) {
+    return api('/api/admin/report-resolve-policy', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
 };

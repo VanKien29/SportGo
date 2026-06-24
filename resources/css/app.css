@@ -10,41 +10,53 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --radius: 1rem;
+    --color-accent: oklch(0.89 0 0);
+    --color-destructive-foreground: var(--destructive-foreground);
 }
 
-.login-page input,
-.modal-overlay input {
+:root {
+    --destructive-foreground: oklch(0.985 0 0);
+}
+
+.dark {
+    --color-accent: oklch(0.229 0 0);
+    --destructive-foreground: oklch(0.985 0 0);
+}
+.auth-layout input,
+.dark input {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     caret-color: #fff;
 }
 
-.login-page input::selection,
-.modal-overlay input::selection {
+.auth-layout input::selection,
+.dark input::selection {
     color: #fff;
-    background: rgba(34, 197, 94, .35);
+    background: rgba(255, 255, 255, .3);
 }
 
-.login-page input:-webkit-autofill,
-.login-page input:-webkit-autofill:hover,
-.login-page input:-webkit-autofill:focus,
-.login-page input:-webkit-autofill:active,
-.modal-overlay input:-webkit-autofill,
-.modal-overlay input:-webkit-autofill:hover,
-.modal-overlay input:-webkit-autofill:focus,
-.modal-overlay input:-webkit-autofill:active {
+.auth-layout input:-webkit-autofill,
+.auth-layout input:-webkit-autofill:hover,
+.auth-layout input:-webkit-autofill:focus,
+.auth-layout input:-webkit-autofill:active,
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     caret-color: #fff !important;
-    box-shadow: 0 0 0 1000px #222b34 inset !important;
-    -webkit-box-shadow: 0 0 0 1000px #222b34 inset !important;
+    box-shadow: 0 0 0 1000px #09090b inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #09090b inset !important;
     transition: background-color 9999s ease-out 0s;
 }
 
-.login-page input:autofill,
-.modal-overlay input:autofill {
+.auth-layout input:autofill,
+.dark input:autofill {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
-    background: transparent !important;
+    box-shadow: 0 0 0 1000px #09090b inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #09090b inset !important;
 }
 @source '../js/views/owner/*.vue';

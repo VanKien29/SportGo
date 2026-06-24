@@ -94,9 +94,24 @@ class PaymentController extends Controller
             ])
             ->findOrFail($id);
 
+        $ownerWallet = null;
+        if ($payment->booking && $payment->booking->venueCluster) {
+            $ownerWallet = \App\Models\OwnerWallet::query()
+                ->where('owner_id', $payment->booking->venueCluster->owner_id)
+                ->where('venue_cluster_id', $payment->booking->venue_cluster_id)
+                ->first();
+        }
+
         return response()->json([
             'data' => [
                 'payment' => $this->paymentPayload($payment),
+                'owner_wallet' => $ownerWallet ? [
+                    'id' => $ownerWallet->id,
+                    'available_balance' => $ownerWallet->available_balance,
+                    'pending_withdrawal_balance' => $ownerWallet->pending_withdrawal_balance,
+                    'total_earned' => $ownerWallet->total_earned,
+                    'total_withdrawn' => $ownerWallet->total_withdrawn,
+                ] : null,
                 'logs' => $payment->logs->map(fn($log): array => [
                     'id' => $log->id,
                     'event_type' => $log->event_type,
@@ -130,78 +145,18 @@ class PaymentController extends Controller
     {
         $this->authorizePermission($request, 'payment.manage');
 
-        $data = $request->validate([
-            'reason' => ['required', 'string', 'max:2000'],
-            'source' => ['nullable', Rule::in(['mock', 'gateway', 'admin'])],
-        ]);
-
-        $payment = Payment::query()->findOrFail($id);
-        $oldValues = $payment->toArray();
-
-        try {
-            $newPayment = $this->payments->retry($payment, [
-                'actor_id' => $request->user()->id,
-                'source' => $data['source'] ?? 'admin',
-                'reason' => $data['reason'],
-            ]);
-        } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        $this->audit->log($request, 'payment', 'payment.retry_created', 'payments', $newPayment->id, $oldValues, $newPayment->toArray(), [
-            'reason' => $data['reason'],
-            'severity' => 'warning',
-            'metadata' => ['source_payment_id' => $payment->id],
-        ]);
-
         return response()->json([
-            'message' => 'Đã tạo payment attempt mới.',
-            'data' => $this->paymentPayload($newPayment->load(['booking.customer', 'booking.venueCluster'])->loadCount('logs')),
-        ], 201);
+            'message' => 'Thao tác này chỉ dành cho người dùng và chủ sân.',
+        ], 403);
     }
 
     public function updateStatus(Request $request, string $id): JsonResponse
     {
         $this->authorizePermission($request, 'payment.manage');
 
-        $payment = Payment::query()->findOrFail($id);
-        $data = $request->validate([
-            'status' => ['required', Rule::in(['paid', 'failed'])],
-            'source' => ['required', Rule::in(['mock', 'gateway', 'admin'])],
-            'reason' => ['required', 'string', 'max:2000'],
-            'gateway_txn_id' => [
-                'nullable',
-                'string',
-                'max:100',
-                Rule::unique('payments', 'gateway_txn_id')->ignore($payment->id),
-            ],
-            'gateway_response' => ['nullable', 'array'],
-        ]);
-
-        $oldValues = $payment->toArray();
-
-        try {
-            $updated = $this->payments->updateStatus($payment, $data['status'], [
-                'actor_id' => $request->user()->id,
-                'source' => $data['source'],
-                'reason' => $data['reason'],
-                'gateway_txn_id' => $data['gateway_txn_id'] ?? null,
-                'gateway_response' => $data['gateway_response'] ?? [],
-            ]);
-        } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        $this->audit->log($request, 'payment', 'payment.status_updated', 'payments', $updated->id, $oldValues, $updated->toArray(), [
-            'reason' => $data['reason'],
-            'severity' => $data['status'] === 'paid' ? 'critical' : 'warning',
-            'metadata' => ['source' => $data['source']],
-        ]);
-
         return response()->json([
-            'message' => 'Đã cập nhật trạng thái payment.',
-            'data' => $this->paymentPayload($updated->load(['booking.customer', 'booking.venueCluster'])->loadCount('logs')),
-        ]);
+            'message' => 'Thao tác này chỉ dành cho người dùng và chủ sân.',
+        ], 403);
     }
 
     private function applyFilters($query, array $data): void
@@ -265,13 +220,14 @@ class PaymentController extends Controller
             'created_at' => $payment->created_at,
             'updated_at' => $payment->updated_at,
             'logs_count' => (int) ($payment->logs_count ?? $payment->logs?->count() ?? 0),
-            'can_retry' => in_array($payment->status, ['pending', 'failed'], true),
-            'allowed_statuses' => [
-                'pending' => ['paid', 'failed'],
-                'failed' => ['paid'],
-                'paid' => [],
-                'refunded' => [],
-            ][$payment->status] ?? [],
+            'can_retry' => false,
+            'allowed_statuses' => [],
+            'system_bank_account' => $payment->systemBankAccount ? [
+                'id' => $payment->systemBankAccount->id,
+                'bank_name' => $payment->systemBankAccount->bank_name,
+                'account_number' => $payment->systemBankAccount->account_number,
+                'account_holder' => $payment->systemBankAccount->account_holder,
+            ] : null,
         ];
     }
 

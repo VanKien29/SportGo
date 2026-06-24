@@ -6,17 +6,19 @@
     :policies="requiredPolicies"
     @accepted="handlePoliciesAccepted"
   />
+  <FloatingActions />
 </template>
 
 <script>
 import PolicyAcceptanceModal from './components/PolicyAcceptanceModal.vue';
 import SetPasswordModal from './components/SetPasswordModal.vue';
+import FloatingActions from './components/FloatingActions.vue';
 import { getAuth, needsPasswordSetup } from './stores/auth.js';
 import { policyService } from './services/policies.js';
 
 export default {
   name: 'App',
-  components: { PolicyAcceptanceModal, SetPasswordModal },
+  components: { PolicyAcceptanceModal, SetPasswordModal, FloatingActions },
   data() {
     return {
       showSetPasswordModal: false,
@@ -73,10 +75,10 @@ export default {
 
 <style>
 :root {
-  --sg-green: #22c55e;
-  --sg-green-dark: #16a34a;
-  --sg-green-light: #4ade80;
-  --sg-green-pale: #dcfce7;
+  --sg-green: #000000;
+  --sg-green-dark: #000000;
+  --sg-green-light: #3f3f46;
+  --sg-green-pale: #f3f4f6;
   --sg-dark: #111827;
   --sg-darker: #0a0f1a;
   --sg-surface: #f8fafc;

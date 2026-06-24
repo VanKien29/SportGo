@@ -19,6 +19,7 @@ import AdminProfile from "../views/admin/AdminProfile.vue";
 import AdminUsers from "../views/admin/AdminUsers.vue";
 import AdminStaffs from "../views/admin/AdminStaffs.vue";
 import AdminUserDetail from "../views/admin/AdminUserDetail.vue";
+import AdminStaffDetail from "../views/admin/AdminStaffDetail.vue";
 import AdminVouchers from "../views/admin/AdminVouchers.vue";
 import AdminVoucherDetail from "../views/admin/AdminVoucherDetail.vue";
 import AdminPolicies from "../views/admin/AdminPolicies.vue";
@@ -33,12 +34,13 @@ import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
+import PartnerRegistration from "../views/clients/PartnerRegistration.vue";
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
-    { path: "/venues", name: "venue-list", component: VenueList },
+    { path: "/venues", name: "venues", component: VenueList },
     { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
@@ -71,6 +73,12 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: "/become-partner",
+        name: "partner-registration",
+        component: PartnerRegistration,
+        meta: { requiresAuth: true },
+    },
+    {
         path: "/admin/login",
         name: "admin-login",
         component: AdminLogin,
@@ -95,9 +103,10 @@ const routes = [
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
             { path: "staffs", name: "admin-staffs", component: AdminStaffs },
-            { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail },
+            { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail, meta: { hideFloatingBack: true } },
+            { path: "staffs/:id", name: "admin-staff-detail", component: AdminStaffDetail },
             { path: "vouchers", name: "admin-vouchers", component: AdminVouchers },
-            { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail },
+            { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail, meta: { hideFloatingBack: true } },
             {
                 path: "payments",
                 name: "admin-payments",
@@ -114,6 +123,11 @@ const routes = [
                 component: () => import("../views/admin/AdminPartnerApplications.vue"),
             },
             {
+                path: "partners/:id",
+                name: "admin-partner-detail",
+                component: () => import("../views/admin/AdminPartnerDetail.vue"),
+            },
+            {
                 path: "banners",
                 name: "admin-banners",
                 component: () => import("../views/admin/AdminBanners.vue"),
@@ -121,7 +135,7 @@ const routes = [
             {
                 path: "moderation",
                 name: "admin-moderation",
-                component: () => import("../views/admin/AdminContentModeration.vue"),
+                component: () => import("../views/admin/AdminModeration.vue"),
             },
             { path: "policies", name: "admin-policies", component: AdminPolicies },
             {
@@ -129,19 +143,17 @@ const routes = [
                 name: "admin-platform-fee-policies",
                 component: AdminPolicies,
             },
-            { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail },
+            { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail, meta: { hideFloatingBack: true } },
             {
                 path: "reports",
-                name: "admin-reports",
-                component: () => import("../views/admin/AdminReports.vue"),
+                redirect: { name: "admin-moderation", query: { tab: "reports" } }
             },
             {
                 path: "complaints",
-                name: "admin-complaints",
-                component: () => import("../views/admin/AdminComplaints.vue"),
+                redirect: { name: "admin-moderation", query: { tab: "complaints" } }
             },
             { path: "roles", name: "admin-roles", component: AdminRoles },
-            { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail },
+            { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail, meta: { hideFloatingBack: true } },
             {
                 path: "venue-posts",
                 name: "admin-venue-posts",
@@ -188,18 +200,27 @@ const routes = [
                 name: "admin-platform-fee-ledger-detail",
                 component: () =>
                     import("../views/admin/AdminPlatformFeeLedgerDetail.vue"),
+                meta: { hideFloatingBack: true },
             },
             {
                 path: "venues/:id/platform-fees",
                 name: "admin-venue-platform-fees",
                 component: () =>
                     import("../views/admin/AdminVenuePlatformFees.vue"),
+                meta: { hideFloatingBack: true },
             },
             {
                 path: "settings/platform-fee",
                 name: "admin-platform-fee-settings",
                 component: () =>
                     import("../views/admin/AdminPlatformFeeSettings.vue"),
+            },
+            {
+                path: "posts/:id",
+                name: "admin-post-detail",
+                component: () =>
+                    import("../views/admin/AdminPostDetail.vue"),
+                meta: { hideFloatingBack: true },
             },
             { path: "", redirect: { name: "admin-dashboard" } },
         ],
@@ -221,14 +242,21 @@ const routes = [
                     import("../views/owner/OwnerVenueClusters.vue"),
             },
             {
+                path: "affiliate",
+                name: "owner-affiliate",
+                component: () =>
+                    import("../views/owner/OwnerAffiliate.vue"),
+            },
+            {
                 path: "venue-courts",
                 name: "owner-venue-courts",
-                redirect: { name: "owner-venue-clusters" },
+                component: () =>
+                    import("../views/owner/OwnerVenueCourts.vue"),
             },
             {
                 path: "bookings",
                 name: "owner-bookings",
-                component: () => import("../views/owner/OwnerBookings.vue"),
+                redirect: { name: "owner-counter-booking" },
             },
             {
                 path: "counter-booking",
@@ -260,6 +288,16 @@ const routes = [
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
             { path: "wallet", redirect: { name: "owner-finance" } },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
+            {
+                path: "posts",
+                name: "owner-posts",
+                component: () => import("../views/owner/OwnerPosts.vue"),
+            },
+            {
+                path: "matchmaking",
+                name: "owner-matchmaking",
+                component: () => import("../views/owner/OwnerMatchmaking.vue"),
+            },
             { path: "profile", name: "owner-profile", component: Profile },
             {
                 path: "partner-profile",

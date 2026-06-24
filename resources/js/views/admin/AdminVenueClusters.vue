@@ -1,164 +1,131 @@
 <template>
     <div class="avc-page">
-        <!-- ── Bộ lọc ── -->
-        <div class="avc-filters card">
-            <div class="filter-row">
-                <div class="filter-tabs">
-                    <button
-                        v-for="tab in statusTabs"
-                        :key="tab.value"
-                        class="tab-btn"
-                        :class="{ active: filterStatus === tab.value }"
-                        @click="filterStatus = tab.value"
-                    >
-                        {{ tab.label }}
-                    </button>
-                </div>
-                <div class="filter-search">
-                    <input
-                        id="search-venue-cluster"
-                        v-model="searchText"
-                        type="text"
-                        placeholder="Tìm theo tên sân, địa chỉ..."
-                        class="search-input"
-                        @input="onSearch"
-                    />
-                </div>
-            </div>
-        </div>
-
         <!-- ── Loading ── -->
-        <div v-if="loading" class="state-box card">
+        <div v-if="loading" class="state-box card animate-fade-in">
             <div class="spinner"></div>
             <p>Đang tải danh sách cụm sân...</p>
         </div>
 
         <!-- ── Error ── -->
-        <div v-else-if="error" class="state-box card error-box">
+        <div v-else-if="error" class="state-box card error-box animate-fade-in">
             <p>{{ error }}</p>
             <button class="btn btn-outline" @click="loadClusters">
                 Thử lại
             </button>
         </div>
 
-        <!-- ── Empty ── -->
-        <div v-else-if="filteredClusters.length === 0" class="state-box card">
-            <p class="empty-msg">Không tìm thấy cụm sân nào phù hợp.</p>
-        </div>
-
-        <!-- ── Table ── -->
-        <div v-else class="avc-table-wrap card">
-            <div class="table-scroll">
-                <table class="avc-table">
-                    <thead>
-                        <tr>
-                            <th>Tên cụm sân</th>
-                            <th>Chủ sân</th>
-                            <th>Địa chỉ</th>
-                            <th>Loại sân</th>
-                            <th class="text-center">Số sân con</th>
-                            <th class="text-center">Rating</th>
-                            <th class="text-center">Trạng thái phí</th>
-                            <th class="text-center">Trạng thái</th>
-                            <th class="text-right">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="c in filteredClusters"
-                            :key="c.id"
-                            class="avc-row"
-                            @click="goDetail(c.id)"
+        <template v-else>
+            <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
+            <div class="avc-filters card animate-fade-in" v-if="clusters.length > 0">
+                <div class="filter-row">
+                    <div class="filter-tabs">
+                        <button
+                            v-for="tab in statusTabs"
+                            :key="tab.value"
+                            class="tab-btn"
+                            :class="{ active: filterStatus === tab.value }"
+                            @click="filterStatus = tab.value"
                         >
-                            <td class="cluster-cell-flex">
-                                <div class="cluster-thumb-container">
-                                    <img
-                                        v-if="c.image_path"
-                                        :src="imageUrl(c.image_path)"
-                                        :alt="c.name"
-                                        class="cluster-thumb-img"
-                                        @error="hideBrokenImage"
-                                    />
-                                </div>
-                                <div class="cluster-info-meta">
-                                    <div class="cluster-name">{{ c.name }}</div>
-                                    <div class="cluster-slug">{{ c.slug }}</div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="owner-name">
-                                    {{ c.owner?.full_name || "—" }}
-                                </div>
-                                <div class="owner-email">
-                                    {{ c.owner?.email || "" }}
-                                </div>
-                            </td>
-                            <td class="address-cell">{{ formatFullAddress(c) }}</td>
-                            <td>
-                                <div class="court-types">
-                                    <span
-                                        v-for="(ct, i) in c.court_types || []"
-                                        :key="i"
-                                        class="ct-chip"
-                                        >{{ ct }}</span
-                                    >
-                                    <span
-                                        v-if="
-                                            !c.court_types ||
-                                            c.court_types.length === 0
-                                        "
-                                        class="text-muted"
-                                        >—</span
-                                    >
-                                </div>
-                            </td>
-                            <td class="text-center">
-                                <span class="court-count">{{
-                                    c.court_count
-                                }}</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="rating">
-                                    {{ Number(c.rating_avg || 0).toFixed(1) }}
-                                    <span class="rating-count"
-                                        >({{ c.rating_count }})</span
-                                    >
+                            {{ tab.label }}
+                        </button>
+                    </div>
+                    <div class="filter-search">
+                        <div class="search-box">
+                            <AppIcon name="search" size="16" />
+                            <input
+                                id="search-venue-cluster"
+                                v-model="searchText"
+                                type="text"
+                                placeholder="Tìm kiếm nhanh tên sân, địa chỉ hoặc chủ sân..."
+                                class="search-input"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Empty State khi hệ thống không có cụm sân nào ── -->
+            <div v-if="clusters.length === 0" class="state-box card animate-fade-in">
+                <p class="empty-msg">Chưa có cụm sân nào được đăng ký trên hệ thống.</p>
+            </div>
+
+            <!-- ── Empty State khi tìm kiếm không ra kết quả ── -->
+            <div v-else-if="filteredClusters.length === 0" class="state-box card animate-fade-in">
+                <p class="empty-msg">Không tìm thấy cụm sân nào phù hợp với điều kiện tìm kiếm.</p>
+                <button class="btn btn-outline" @click="searchText = ''; filterStatus = ''">
+                    Xóa bộ lọc
+                </button>
+            </div>
+
+            <!-- ── Compact Rows View ── -->
+            <div v-else class="clusters-list-wrapper animate-fade-in">
+                <div class="clusters-list">
+                    <div
+                        v-for="c in filteredClusters"
+                        :key="c.id"
+                        class="cluster-row-item"
+                        :class="{ 'status-locked': c.status === 'locked' }"
+                        @click="goDetail(c.id)"
+                    >
+                        <!-- Accent hover line -->
+                        <div class="accent-line"></div>
+
+                        <!-- Left: Cluster Name, Slug & Courts count -->
+                        <div class="row-left">
+                            <div class="cluster-info">
+                                <span class="cluster-name">{{ c.name }}</span>
+                                <span class="cluster-meta">
+                                    <span class="cluster-slug">{{ c.slug }}</span>
+                                    <span class="meta-dot">&bull;</span>
+                                    <span class="cluster-address">{{ formatFullAddress(c) }}</span>
                                 </span>
-                            </td>
-                            <td class="text-center">
-                                <span
-                                    class="status-badge"
-                                    :class="`fee-${c.fee_status}`"
-                                >
-                                    {{ feeStatusLabel(c.fee_status) }}
+                            </div>
+                            <span class="courts-count-badge">
+                                <AppIcon name="layers" size="12" />
+                                <span>{{ c.court_count }} sân con</span>
+                            </span>
+                        </div>
+
+                        <!-- Middle: Owner & Status Badges -->
+                        <div class="row-middle">
+                            <div class="owner-info hide-on-tablet">
+                                <span class="owner-name">{{ c.owner?.full_name || '—' }}</span>
+                                <span class="owner-email" v-if="c.owner?.email">{{ c.owner.email }}</span>
+                            </div>
+                            <div class="status-badges">
+                                <span class="row-status-badge fee-badge" :class="c.fee_status">
+                                    Phí: {{ feeStatusLabel(c.fee_status) }}
                                 </span>
-                            </td>
-                            <td class="text-center">
-                                <span
-                                    class="status-badge"
-                                    :class="`status-${c.status}`"
-                                >
+                                <span class="row-status-badge status-badge" :class="c.status">
                                     {{ statusLabel(c.status) }}
                                 </span>
-                            </td>
-                            <td class="text-right" @click.stop>
-                                <ActionIconButton icon="eye" label="Xem chi tiết" @click="goDetail(c.id)" />
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </div>
+
+                        <!-- Right: Actions -->
+                        <div class="row-right" @click.stop>
+                            <ActionIconButton
+                                icon="eye"
+                                label="Xem chi tiết"
+                                size="sm"
+                                @click="goDetail(c.id)"
+                            />
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
+        </template>
     </div>
 </template>
 
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
+import AppIcon from "../../components/AppIcon.vue";
 import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
 
 export default {
     name: "AdminVenueClusters",
-    components: { ActionIconButton },
+    components: { ActionIconButton, AppIcon },
     data() {
         return {
             clusters: [],
@@ -166,7 +133,6 @@ export default {
             error: "",
             filterStatus: "",
             searchText: "",
-            searchTimer: null,
             statusTabs: [
                 { value: "", label: "Tất cả" },
                 { value: "pending", label: "Chờ duyệt" },
@@ -209,10 +175,6 @@ export default {
                 this.loading = false;
             }
         },
-        onSearch() {
-            clearTimeout(this.searchTimer);
-            this.searchTimer = setTimeout(() => {}, 0);
-        },
 
         statusLabel(status) {
             const map = {
@@ -222,14 +184,7 @@ export default {
             };
             return map[status] || status;
         },
-        imageUrl(path) {
-            if (!path) return "";
-            if (/^https?:\/\//.test(path)) return path;
-            return `/storage/${path}`;
-        },
-        hideBrokenImage(e) {
-            e.target.style.display = "none";
-        },
+
         feeStatusLabel(status) {
             const map = {
                 pending: "Chờ thanh toán",
@@ -264,72 +219,18 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-width: 1400px;
+    max-width: 1000px;
+    width: 100%;
     margin: 0 auto;
+    box-sizing: border-box;
 }
 
 .card {
-    background: #fff;
+    background: var(--admin-surface, #fff);
     border-radius: 12px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     padding: 20px 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-/* Header */
-.avc-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 16px;
-}
-.avc-title {
-    font-size: 22px;
-    font-weight: 800;
-    margin: 0;
-    color: var(--sg-text);
-}
-.avc-sub {
-    margin: 4px 0 0;
-    font-size: 14px;
-    color: rgba(15, 23, 42, 0.5);
-}
-
-/* Stats chips */
-.avc-header-stats {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-.stat-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: var(--sg-surface, #f8fafc);
-    border: 1px solid var(--sg-border);
-    font-size: 13px;
-    font-weight: 600;
-}
-.stat-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-.dot-all {
-    background: #94a3b8;
-}
-.dot-pending {
-    background: #f59e0b;
-}
-.dot-active {
-    background: #22c55e;
-}
-.dot-locked {
-    background: #ef4444;
 }
 
 /* Filters */
@@ -347,38 +248,35 @@ export default {
     display: flex;
     gap: 6px;
 }
-.tab-btn {
-    padding: 8px 16px;
-    border-radius: 8px;
-    border: 1px solid var(--sg-border);
-    background: var(--sg-surface, #f8fafc);
-    color: rgba(15, 23, 42, 0.6);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.18s;
+.avc-filters .filter-tabs button.tab-btn {
+    height: 38px !important;
+    min-height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 16px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--admin-border) !important;
+    background: var(--admin-surface) !important;
+    color: var(--admin-muted) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.18s !important;
+    box-sizing: border-box !important;
 }
-.tab-btn.active {
-    background: #0f172a;
-    border-color: #0f172a;
-    color: #fff;
+.avc-filters .filter-tabs button.tab-btn.active {
+    background: var(--admin-primary) !important;
+    border-color: var(--admin-primary) !important;
+    color: #fff !important;
 }
-.tab-btn:not(.active):hover {
-    background: #f1f5f9;
+.avc-filters .filter-tabs button.tab-btn:not(.active):hover {
+    background: var(--admin-hover) !important;
+    color: var(--admin-primary-dark) !important;
 }
-.search-input {
-    padding: 9px 14px;
-    border: 1px solid var(--sg-border);
-    border-radius: 8px;
-    font-size: 14px;
-    outline: none;
-    min-width: 280px;
-    color: var(--sg-text);
-    background: #fff;
-    transition: border-color 0.18s;
-}
-.search-input:focus {
-    border-color: #0f172a;
+.filter-search {
+    flex: 1;
+    min-width: 250px;
 }
 
 /* State */
@@ -399,12 +297,13 @@ export default {
 }
 .empty-msg {
     font-size: 15px;
+    font-weight: 600;
 }
 .spinner {
-    width: 36px;
-    height: 36px;
-    border: 3px solid rgba(0, 0, 0, 0.08);
-    border-top-color: #0f172a;
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(0, 0, 0, 0.05);
+    border-top-color: var(--admin-text);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -414,163 +313,231 @@ export default {
     }
 }
 
-/* Table */
-.avc-table-wrap {
-    padding: 0;
-    overflow: hidden;
-}
-.table-scroll {
-    width: 100%;
-    overflow-x: auto;
-}
-.avc-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 1000px;
-}
-.avc-table th,
-.avc-table td {
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--sg-border);
-    font-size: 14px;
-    text-align: left;
-}
-.avc-table th {
-    background: var(--sg-surface, #f8fafc);
-    font-weight: 700;
-    color: var(--sg-text);
-    font-size: 13px;
-}
-.avc-row {
-    cursor: pointer;
-    transition: background 0.12s;
-}
-.avc-row:hover {
-    background: #f8fafc;
-}
-
-.cluster-cell-flex {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.cluster-thumb-container {
-    width: 44px;
-    height: 44px;
-    border-radius: 8px;
-    overflow: hidden;
-    flex-shrink: 0;
-    border: 1px solid var(--sg-border);
-    background: #f1f5f9;
-}
-.cluster-thumb-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.cluster-info-meta {
+/* SaaS Compact Rows View */
+.clusters-list-wrapper {
     display: flex;
     flex-direction: column;
-}
-.cluster-name {
-    font-weight: 700;
-    color: var(--sg-text);
-}
-.cluster-slug {
-    font-size: 12px;
-    color: rgba(15, 23, 42, 0.4);
-    margin-top: 2px;
-}
-.owner-name {
-    font-weight: 600;
-}
-.owner-email {
-    font-size: 12px;
-    color: rgba(15, 23, 42, 0.5);
-}
-.address-cell {
-    max-width: 200px;
-    color: rgba(15, 23, 42, 0.7);
-    font-size: 13px;
+    width: 100%;
 }
 
-.court-types {
+.clusters-list {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 4px;
 }
-.ct-chip {
-    padding: 3px 8px;
-    border-radius: 6px;
-    background: #f1f5f9;
-    font-size: 12px;
+
+.cluster-row-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 54px;
+    padding: 10px 16px;
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid rgba(15, 23, 42, 0.04);
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.cluster-row-item:hover {
+    background: rgba(15, 23, 42, 0.015);
+    border-color: rgba(15, 23, 42, 0.08);
+    transform: translateX(2px);
+}
+
+.accent-line {
+    position: absolute;
+    left: 0;
+    top: 15%;
+    bottom: 15%;
+    width: 2.5px;
+    background: var(--admin-primary);
+    border-radius: 0 2px 2px 0;
+    opacity: 0;
+    transform: scaleY(0.7);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cluster-row-item:hover .accent-line {
+    opacity: 1;
+    transform: scaleY(1);
+}
+
+.row-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1.3;
+    min-width: 0;
+}
+
+.cluster-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.cluster-name {
+    font-size: 14px;
     font-weight: 600;
-    color: #334155;
+    color: var(--admin-text, #0f172a);
+    transition: opacity 0.2s ease;
 }
-.court-count {
-    font-weight: 700;
-    font-size: 15px;
+
+.cluster-row-item.status-locked .cluster-name {
+    opacity: 0.5;
 }
-.rating {
-    font-size: 13px;
+
+.cluster-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--admin-faint, #64748b);
+    min-width: 0;
+}
+
+.cluster-slug {
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.meta-dot {
+    opacity: 0.5;
+}
+
+.cluster-address {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.courts-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    background: rgba(15, 23, 42, 0.04);
+    color: rgba(15, 23, 42, 0.6);
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
     white-space: nowrap;
 }
-.rating-count {
-    color: rgba(15, 23, 42, 0.4);
-    font-size: 12px;
+
+.row-middle {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 24px;
+    flex: 1.2;
+    padding-right: 16px;
+    min-width: 0;
 }
-.text-muted {
-    color: rgba(15, 23, 42, 0.4);
-}
-.text-center {
-    text-align: center;
-}
-.text-right {
+
+.owner-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
     text-align: right;
+    min-width: 0;
+    flex: 1;
 }
 
-/* Status badges */
-.status-badge {
+.owner-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--admin-text, #0f172a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.owner-email {
+    font-size: 11px;
+    color: var(--admin-faint, #64748b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.status-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.row-status-badge {
     display: inline-flex;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
     font-weight: 700;
-}
-.status-pending {
-    background: #fef3c7;
-    color: #92400e;
-}
-.status-active {
-    background: #dcfce7;
-    color: #166534;
-}
-.status-locked {
-    background: #fee2e2;
-    color: #991b1b;
+    white-space: nowrap;
 }
 
-/* Fee status badges */
-.fee-paid {
-    background: #dcfce7;
-    color: #166534;
+/* Status styles */
+.status-badge.pending {
+    background: var(--admin-warning-soft, rgba(245, 158, 11, 0.1)) !important;
+    color: var(--admin-warning, #d97706) !important;
 }
-.fee-unpaid,
-.fee-overdue {
-    background: #fee2e2;
-    color: #991b1b;
+
+.status-badge.active {
+    background: var(--admin-primary-soft, rgba(16, 185, 129, 0.1)) !important;
+    color: var(--admin-primary-dark, #047857) !important;
 }
-.fee-pending {
-    background: #fef3c7;
-    color: #92400e;
+
+.status-badge.locked {
+    background: var(--admin-danger-soft, rgba(239, 68, 68, 0.1)) !important;
+    color: var(--admin-danger, #b91c1c) !important;
 }
-.fee-cancelled {
-    background: #f3f4f6;
-    color: #6b7280;
+
+/* Fee styles */
+.fee-badge.paid {
+    background: var(--admin-primary-soft, rgba(16, 185, 129, 0.1)) !important;
+    color: var(--admin-primary-dark, #047857) !important;
 }
-.fee-no_fee {
-    background: #f1f5f9;
-    color: #475569;
+
+.fee-badge.pending {
+    background: var(--admin-warning-soft, rgba(245, 158, 11, 0.1)) !important;
+    color: var(--admin-warning, #d97706) !important;
+}
+
+.fee-badge.unpaid,
+.fee-badge.overdue {
+    background: var(--admin-danger-soft, rgba(239, 68, 68, 0.1)) !important;
+    color: var(--admin-danger, #b91c1c) !important;
+}
+
+.fee-badge.cancelled {
+    background: var(--admin-surface-muted, #f1f5f9) !important;
+    color: var(--admin-muted, #475569) !important;
+}
+
+.fee-badge.no_fee {
+    background: var(--admin-surface-muted, #f1f5f9) !important;
+    color: var(--admin-muted, #475569) !important;
+}
+
+.row-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transform: translateX(6px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cluster-row-item:hover .row-right {
+    opacity: 1;
+    transform: translateX(0);
 }
 
 /* Buttons */
@@ -586,36 +553,82 @@ export default {
 .btn-outline {
     background: transparent;
     border-color: var(--sg-border);
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 .btn-outline:hover {
-    background: #f1f5f9;
+    background: var(--admin-surface-muted);
 }
-.btn-action {
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.18s;
+
+/* Animations */
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
 }
-.btn-view {
-    background: #f1f5f9;
-    border-color: #e2e8f0;
-    color: #1e293b;
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
-.btn-view:hover {
-    background: #e2e8f0;
+
+/* ==========================================
+   RESPONSIVE DESIGN (MOBILE & TABLET)
+   ========================================== */
+
+@media (max-width: 1024px) {
+    .avc-page {
+        gap: 16px;
+        padding: 0 4px;
+    }
 }
-.cluster-thumb-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f1f5f9;
-    color: #94a3b8;
-    font-size: 16px;
+
+@media (max-width: 900px) {
+    .hide-on-tablet {
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .cluster-row-item {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 14px;
+        gap: 10px;
+    }
+
+    .row-left {
+        width: 100%;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .cluster-address {
+        max-width: 180px;
+    }
+
+    .row-middle {
+        width: 100%;
+        justify-content: space-between;
+        padding-right: 0;
+        gap: 12px;
+        border-top: 1px dashed rgba(15, 23, 42, 0.04);
+        padding-top: 8px;
+    }
+
+    .row-right {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        opacity: 1;
+        transform: none;
+    }
+
+    .cluster-row-item:hover .row-right {
+        transform: none;
+    }
 }
 </style>

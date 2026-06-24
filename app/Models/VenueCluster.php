@@ -29,6 +29,7 @@ class VenueCluster extends Model
         'map_url',
         'latitude',
         'longitude',
+        'layout_decorations',
         'amenities',
         'status',
         'status_reason',
@@ -44,6 +45,7 @@ class VenueCluster extends Model
         return [
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
+            'layout_decorations' => 'array',
             'amenities' => 'array',
             'locked_at' => 'datetime',
             'locked_until' => 'datetime',
@@ -70,6 +72,11 @@ class VenueCluster extends Model
     public function bookingConfig()
     {
         return $this->hasOne(BookingConfig::class, 'venue_cluster_id');
+    }
+
+    public function basePrices()
+    {
+        return $this->hasMany(VenueBasePrice::class, 'venue_cluster_id');
     }
 
     public function latestPlatformFeeLedger()
@@ -117,5 +124,10 @@ class VenueCluster extends Model
         return $this->belongsToMany(Amenity::class, 'venue_cluster_amenities')
             ->withPivot(['description', 'is_visible'])
             ->withTimestamps();
+    }
+
+    public function affiliateProducts()
+    {
+        return $this->hasMany(AffiliateProduct::class, 'venue_cluster_id');
     }
 }

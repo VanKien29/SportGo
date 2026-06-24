@@ -1,0 +1,149 @@
+<?php
+ 
+namespace App\Http\Controllers\Api\Owner;
+ 
+use App\Http\Controllers\Controller;
+use App\Models\PlayerPost;
+use App\Models\VenueCluster;
+use App\Models\Report;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+ 
+class OwnerPlayerPostController extends Controller
+{
+    /**
+     * Get owned or assigned cluster IDs for the authenticated user.
+     */
+    private function getOwnerClusterIds(Request $request): \Illuminate\Support\Collection
+    {
+        $ownedClusterIds = VenueCluster::query()
+            ->where('owner_id', $request->user()->id)
+            ->pluck('id');
+ 
+        $assignedClusterIds = DB::table('venue_staff_assignments')
+            ->where('user_id', $request->user()->id)
+            ->where('status', 'active')
+            ->pluck('venue_cluster_id');
+ 
+        return $ownedClusterIds->merge($assignedClusterIds)->unique()->values();
+    }
+ 
+    /**
+     * Display a listing of the player matchmaking posts.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $clusterIds = $this->getOwnerClusterIds($request);
+ 
+        $posts = PlayerPost::query()
+            ->whereHas('booking', function ($query) use ($clusterIds) {
+                $query->whereIn('venue_cluster_id', $clusterIds);
+            })
+            ->with([
+                'author:id,username,full_name,email,phone,avatar_url',
+                'booking:id,booking_code,booking_date,start_time,end_time,venue_cluster_id,venue_court_id',
+                'booking.venueCluster:id,name',
+                'booking.venueCourt:id,name',
+            ])
+            ->when($request->filled('status'), function ($query) use ($request) {
+                $query->where('status', $request->query('status'));
+            })
+            ->when($request->filled('venue_cluster_id'), function ($query) use ($request, $clusterIds) {
+                if ($clusterIds->contains($request->query('venue_cluster_id'))) {
+                    $query->whereHas('booking', function ($q) use ($request) {
+                        $q->where('venue_cluster_id', $request->query('venue_cluster_id'));
+                    });
+                }
+            })
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $search = '%' . $request->query('search') . '%';
+                $query->where(function ($q) use ($search) {
+                    $q->where('title', 'like', $search)
+                      ->orWhere('description', 'like', $search)
+                      ->orWhereHas('author', function ($aq) use ($search) {
+                          $aq->where('username', 'like', $search)
+                             ->orWhere('full_name', 'like', $search);
+                      });
+                });
+            })
+            ->latest()
+            ->paginate($request->integer('per_page', 10));
+ 
+        return response()->json([
+            'status' => 'success',
+            'data' => $posts,
+        ]);
+    }
+ 
+    /**
+     * Hide (close) a matchmaking post by owner.
+     */
+    public function hide(Request $request, string $id): JsonResponse
+    {
+        $post = PlayerPost::query()->with('booking')->findOrFail($id);
+        $clusterIds = $this->getOwnerClusterIds($request);
+ 
+        if (!$clusterIds->contains($post->booking->venue_cluster_id)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bạn không có quyền ẩn bài đăng này.',
+            ], 403);
+        }
+ 
+        $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ], [
+            'reason.required' => 'Vui lòng nhập lý do ẩn bài viết.',
+        ]);
+ 
+        $post->status = 'closed';
+        $post->status_reason = 'Ẩn bởi chủ sân. Lý do: ' . $request->input('reason');
+        $post->save();
+ 
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã ẩn bài giao lưu thành công.',
+            'data' => $post,
+        ]);
+    }
+ 
+    /**
+     * Report a matchmaking post by owner.
+     */
+    public function report(Request $request, string $id): JsonResponse
+    {
+        $post = PlayerPost::query()->with('booking')->findOrFail($id);
+        $clusterIds = $this->getOwnerClusterIds($request);
+ 
+        if (!$clusterIds->contains($post->booking->venue_cluster_id)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bạn không có quyền báo cáo bài đăng này.',
+            ], 403);
+        }
+ 
+        $request->validate([
+            'reason' => ['required', 'string', 'in:spam,offensive,fake,harassment,other'],
+            'description' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'reason.required' => 'Vui lòng chọn loại vi phạm.',
+        ]);
+ 
+        $report = Report::create([
+            'reporter_id' => $request->user()->id,
+            'reportable_type' => PlayerPost::class,
+            'reportable_id' => $post->id,
+            'reason' => $request->input('reason'),
+            'description' => $request->input('description'),
+            'status' => 'pending',
+        ]);
+ 
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã gửi báo cáo vi phạm thành công.',
+            'data' => $report,
+        ]);
+    }
+}

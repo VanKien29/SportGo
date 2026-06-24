@@ -92,7 +92,7 @@
             </thead>
             <tbody>
               <tr v-for="item in history.data" :key="item.id">
-                <td><strong>{{ item.request_code }}</strong></td>
+                <td>{{ item.request_code }}</td>
                 <td>
                   <span v-if="item.bank_account">
                     {{ item.bank_account.bank_name }} - {{ item.bank_account.account_number }}
@@ -213,7 +213,7 @@ export default {
           body: JSON.stringify(this.form),
         });
 
-        this.successMsg = 'Yêu cầu rút tiền của bạn đã được gửi thành công. Vui lòng chờ admin duyệt.';
+        this.successMsg = 'Yêu cầu rút tiền của bạn đã được gửi thành công. Vui lòng chờ SportGo chuyển khoản.';
         this.form.amount = null;
         this.form.owner_note = '';
         
@@ -236,9 +236,9 @@ export default {
     },
     getStatusText(status) {
       const map = {
-        pending: 'Chờ duyệt',
-        reviewing: 'Đang xem xét',
-        approved: 'Đã duyệt (Đang chuyển)',
+        pending: 'Chờ chuyển khoản',
+        reviewing: 'Chờ chuyển khoản',
+        approved: 'Chờ chuyển khoản',
         completed: 'Hoàn tất',
         rejected: 'Bị từ chối',
         cancelled: 'Đã hủy',
@@ -282,7 +282,7 @@ export default {
   border: 1px solid #dddddd;
   padding: 20px;
   margin-bottom: 20px;
-  background-color: #ffffff;
+  background-color: var(--admin-surface, #ffffff);
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -295,7 +295,7 @@ export default {
   margin-bottom: 15px;
   border-bottom: 1px solid #dddddd;
   padding-bottom: 8px;
-  color: #000000;
+  color: var(--admin-text);
 }
 
 .wallet-simple-grid {
@@ -327,7 +327,7 @@ export default {
 
 .bold {
   font-weight: 700;
-  color: #000000;
+  color: var(--admin-text);
 }
 
 .form-group-simple {
@@ -356,7 +356,7 @@ export default {
 }
 
 .form-control-simple:focus {
-  border-color: #000000;
+  border-color: var(--admin-text);
 }
 
 .help-text {
@@ -367,7 +367,7 @@ export default {
 
 .btn-simple {
   padding: 10px 20px;
-  background-color: #000000;
+  background-color: var(--admin-text);
   color: #ffffff;
   border: 1px solid #000000;
   border-radius: 4px;
@@ -466,7 +466,7 @@ export default {
 
 .btn-page {
   padding: 5px 12px;
-  background-color: #ffffff;
+  background-color: var(--admin-surface, #ffffff);
   border: 1px solid #cccccc;
   cursor: pointer;
   font-size: 12px;

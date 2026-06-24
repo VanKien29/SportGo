@@ -32,7 +32,15 @@ class PartnerApplicationController extends Controller
             ->withCount('courts');
 
         if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
+            $status = $request->input('status');
+            if (is_string($status) && str_contains($status, ',')) {
+                $status = explode(',', $status);
+            }
+            if (is_array($status)) {
+                $query->whereIn('status', $status);
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         if ($request->filled('user_id')) {
@@ -90,14 +98,35 @@ class PartnerApplicationController extends Controller
                 'approvedVenueCluster:id,name,status,slug,address',
                 'courts.courtType:id,name',
                 'bankAccounts',
+                'documents',
                 'contracts.signatures',
+                'contracts.generatedDocument',
                 'contracts.terminations',
             ])
             ->findOrFail($id);
 
+        $otherApplications = PartnerApplication::query()
+            ->where('user_id', $application->user_id)
+            ->where('id', '!=', $application->id)
+            ->with(['approvedVenueCluster:id,name,status'])
+            ->orderByDesc('submitted_at')
+            ->get();
+
+        $payload = $this->payload($application, includeDetail: true);
+        $payload['other_applications'] = $otherApplications->map(function ($app) {
+            return [
+                'id' => $app->id,
+                'venue_name' => $app->venue_name,
+                'status' => $app->status,
+                'submitted_at' => $app->submitted_at,
+                'cluster_name' => $app->approvedVenueCluster?->name,
+                'type' => $app->type,
+            ];
+        });
+
         return response()->json([
             'status' => 'success',
-            'data' => $this->payload($application, includeDetail: true),
+            'data' => $payload,
         ]);
     }
 
@@ -151,7 +180,7 @@ class PartnerApplicationController extends Controller
                 'map_url' => $application->venue_map_url,
                 'latitude' => $application->venue_latitude,
                 'longitude' => $application->venue_longitude,
-                'status' => 'pending_contract',
+                'status' => 'pending',
                 'status_reason' => 'Chờ ký kết hợp đồng đối tác',
                 'amenities' => $application->amenities,
             ]);
@@ -185,8 +214,19 @@ class PartnerApplicationController extends Controller
                 'approved_venue_cluster_id' => $venueCluster->id,
             ])->save();
 
+            // Grant venue_owner role if not already granted
+            $ownerRole = \App\Models\Role::where('name', 'venue_owner')->first();
+            if ($ownerRole) {
+                \App\Models\UserRole::firstOrCreate([
+                    'user_id' => $application->user_id,
+                    'role_id' => $ownerRole->id,
+                    'scope_type' => 'system',
+                    'scope_id' => '00000000-0000-0000-0000-000000000000',
+                ]);
+            }
+
             // Generate contract
-            $template = \App\Models\ContractTemplate::first();
+            $template = \App\Models\DocumentTemplate::first();
             if ($template) {
                 $contractService = app(\App\Services\Partner\ContractGenerationService::class);
                 $contract = $contractService->generate($application->id, $template->id);
@@ -504,6 +544,10 @@ class PartnerApplicationController extends Controller
         // Include contracts for Admin UI
         if ($application->relationLoaded('contracts')) {
             $payload['contracts'] = $application->contracts;
+        }
+
+        if ($application->relationLoaded('documents')) {
+            $payload['documents'] = $application->documents;
         }
 
         return $payload;

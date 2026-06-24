@@ -51,12 +51,24 @@ class OwnerBookingConfigTest extends TestCase
             ->getJson('/api/owner/booking-configs')
             ->assertOk()
             ->assertJsonPath('data.0.id', $this->cluster->id)
-            ->assertJsonPath('data.0.booking_config.slot_hold_minutes', 20);
+            ->assertJsonPath('data.0.booking_config.slot_hold_minutes', 20)
+            ->assertJsonPath('data.0.booking_config.min_advance_booking_minutes', 30)
+            ->assertJsonPath('data.0.booking_config.fixed_open_time', '08:00')
+            ->assertJsonPath('data.0.booking_config.fixed_close_time', '22:00');
 
         $this->actingAs($this->owner, 'sanctum')
             ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
                 'min_duration_minutes' => 60,
                 'max_duration_minutes' => 180,
+                'min_advance_booking_minutes' => 90,
+                'fixed_open_time' => '08:00',
+                'fixed_close_time' => '22:00',
+                'special_operating_hours' => [[
+                    'start_date' => '2026-06-22',
+                    'end_date' => '2026-06-25',
+                    'open_time' => '08:00',
+                    'close_time' => '24:00',
+                ]],
                 'slot_hold_minutes' => 25,
                 'reminder_before_minutes' => 60,
                 'allow_full_payment' => true,
@@ -66,12 +78,14 @@ class OwnerBookingConfigTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('data.min_duration_minutes', 60)
+            ->assertJsonPath('data.min_advance_booking_minutes', 90)
             ->assertJsonPath('data.deposit_percent', '40.00');
 
         $this->assertDatabaseHas('booking_configs', [
             'venue_cluster_id' => $this->cluster->id,
             'min_duration_minutes' => 60,
             'max_duration_minutes' => 180,
+            'min_advance_booking_minutes' => 90,
             'slot_hold_minutes' => 25,
             'reminder_before_minutes' => 60,
             'allow_no_prepay' => false,
@@ -96,6 +110,34 @@ class OwnerBookingConfigTest extends TestCase
             ->assertJsonValidationErrors(['min_duration_minutes', 'max_duration_minutes']);
     }
 
+    public function test_minimum_duration_cannot_exceed_two_hours(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
+                ...$this->validPayload(),
+                'min_duration_minutes' => 150,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('min_duration_minutes');
+    }
+
+    public function test_booking_config_rejects_excessive_duration_and_invalid_time_steps(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
+                ...$this->validPayload(),
+                'max_duration_minutes' => 1470,
+                'slot_hold_minutes' => 7,
+                'reminder_before_minutes' => 17,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'max_duration_minutes',
+                'slot_hold_minutes',
+                'reminder_before_minutes',
+            ]);
+    }
+
     public function test_at_least_one_payment_method_and_valid_deposit_are_required(): void
     {
         $this->actingAs($this->owner, 'sanctum')
@@ -117,6 +159,45 @@ class OwnerBookingConfigTest extends TestCase
             ->assertJsonValidationErrors('deposit_percent');
     }
 
+    public function test_operating_hours_require_valid_duration_and_non_overlapping_special_ranges(): void
+    {
+        $payload = $this->validPayload();
+        $payload['fixed_close_time'] = '08:30';
+        $payload['special_operating_hours'] = [
+            [
+                'start_date' => '2026-06-22',
+                'end_date' => '2026-06-25',
+                'open_time' => '08:00',
+                'close_time' => '24:00',
+            ],
+            [
+                'start_date' => '2026-06-25',
+                'end_date' => '2026-06-27',
+                'open_time' => '05:00',
+                'close_time' => '20:00',
+            ],
+        ];
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'fixed_close_time',
+                'special_operating_hours.1.start_date',
+            ]);
+    }
+
+    public function test_minimum_advance_booking_has_no_maximum_limit(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
+                ...$this->validPayload(),
+                'min_advance_booking_minutes' => 525600,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.min_advance_booking_minutes', 525600);
+    }
+
     public function test_owner_cannot_update_another_owner_cluster(): void
     {
         $this->actingAs($this->otherOwner, 'sanctum')
@@ -129,6 +210,10 @@ class OwnerBookingConfigTest extends TestCase
         return [
             'min_duration_minutes' => 30,
             'max_duration_minutes' => 180,
+            'min_advance_booking_minutes' => 30,
+            'fixed_open_time' => '08:00',
+            'fixed_close_time' => '22:00',
+            'special_operating_hours' => [],
             'slot_hold_minutes' => 20,
             'reminder_before_minutes' => 30,
             'allow_full_payment' => true,

@@ -71,17 +71,17 @@ export default {
 }
 
 .subnav-item:hover {
-    border-color: rgba(34, 166, 83, 0.35);
-    background: var(--admin-primary-soft, #f0fdf4);
-    color: var(--admin-primary-dark, #166534);
+    border-color: var(--admin-border, #e5e7eb);
+    background: var(--admin-primary-soft, #f3f4f6);
+    color: var(--admin-primary-dark, #000000);
 }
 
 .subnav-active,
 .subnav-active:hover {
-    border-color: var(--admin-primary, #22a653);
-    background: var(--admin-primary, #22a653);
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
-    box-shadow: 0 10px 22px rgba(34, 166, 83, 0.2);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
 }
 
 @media (max-width: 720px) {

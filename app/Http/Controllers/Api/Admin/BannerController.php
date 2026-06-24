@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class BannerController extends Controller
 {
@@ -61,15 +62,28 @@ class BannerController extends Controller
     {
         $data = $request->validate($this->rules(requireImage: true), $this->messages());
 
+        $startsAt = $data['starts_at'] ?? null;
+        $endsAt = $data['ends_at'] ?? null;
+        if ($startsAt && $endsAt && strtotime($startsAt) > strtotime($endsAt)) {
+            throw ValidationException::withMessages([
+                'ends_at' => 'Thời gian kết thúc phải sau thời gian bắt đầu.',
+            ]);
+        }
+
         $imagePath = $request->file('image')->store('banners/' . now()->format('Y/m'), 'public');
         $actorId = $request->user()?->id;
+
+        $position = $data['position'];
+        $sortOrder = $data['sort_order'] ?? ((Banner::query()->where('position', $position)->max('sort_order') ?? 0) + 1);
+
+        $this->shiftSortOrders($position, $sortOrder);
 
         $banner = Banner::create([
             'title' => $data['title'],
             'image_path' => $imagePath,
             'link_url' => $data['link_url'] ?? null,
-            'position' => $data['position'],
-            'sort_order' => $data['sort_order'] ?? ((Banner::query()->where('position', $data['position'])->max('sort_order') ?? 0) + 1),
+            'position' => $position,
+            'sort_order' => $sortOrder,
             'is_active' => $request->boolean('is_active', true),
             'starts_at' => $data['starts_at'] ?? null,
             'ends_at' => $data['ends_at'] ?? null,
@@ -89,6 +103,15 @@ class BannerController extends Controller
         $banner = Banner::query()->findOrFail($id);
         $data = $request->validate($this->rules(requireImage: false), $this->messages());
 
+        $startsAt = array_key_exists('starts_at', $data) ? $data['starts_at'] : $banner->starts_at;
+        $endsAt = array_key_exists('ends_at', $data) ? $data['ends_at'] : $banner->ends_at;
+
+        if ($startsAt && $endsAt && strtotime($startsAt) > strtotime($endsAt)) {
+            throw ValidationException::withMessages([
+                'ends_at' => 'Thời gian kết thúc phải sau thời gian bắt đầu.',
+            ]);
+        }
+
         if ($request->hasFile('image')) {
             if ($banner->image_path) {
                 Storage::disk('public')->delete($banner->image_path);
@@ -97,11 +120,20 @@ class BannerController extends Controller
             $banner->image_path = $request->file('image')->store('banners/' . now()->format('Y/m'), 'public');
         }
 
+        $oldPosition = $banner->position;
+        $oldOrder = $banner->sort_order;
+        $newPosition = $data['position'] ?? $oldPosition;
+        $newOrder = $data['sort_order'] ?? $oldOrder;
+
+        if ($oldPosition !== $newPosition || $oldOrder !== $newOrder) {
+            $this->shiftSortOrders($newPosition, $newOrder, $oldOrder, $oldPosition);
+        }
+
         $banner->fill([
             'title' => $data['title'] ?? $banner->title,
             'link_url' => array_key_exists('link_url', $data) ? $data['link_url'] : $banner->link_url,
-            'position' => $data['position'] ?? $banner->position,
-            'sort_order' => $data['sort_order'] ?? $banner->sort_order,
+            'position' => $newPosition,
+            'sort_order' => $newOrder,
             'starts_at' => array_key_exists('starts_at', $data) ? $data['starts_at'] : $banner->starts_at,
             'ends_at' => array_key_exists('ends_at', $data) ? $data['ends_at'] : $banner->ends_at,
         ]);
@@ -124,11 +156,19 @@ class BannerController extends Controller
     {
         $banner = Banner::query()->findOrFail($id);
 
+        $position = $banner->position;
+        $sortOrder = $banner->sort_order;
+
         if ($banner->image_path) {
             Storage::disk('public')->delete($banner->image_path);
         }
 
         $banner->delete();
+
+        Banner::query()
+            ->where('position', $position)
+            ->where('sort_order', '>', $sortOrder)
+            ->decrement('sort_order');
 
         return response()->json([
             'status' => 'success',
@@ -197,7 +237,7 @@ class BannerController extends Controller
             'image' => [$requireImage ? 'required' : 'nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:5120'],
             'link_url' => ['nullable', 'url:http,https', 'max:1000'],
             'position' => $positionRule,
-            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'sort_order' => ['nullable', 'integer', 'min:1'],
             'is_active' => ['nullable', 'boolean'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
@@ -244,5 +284,35 @@ class BannerController extends Controller
             'created_at' => $banner->created_at,
             'updated_at' => $banner->updated_at,
         ];
+    }
+
+    private function shiftSortOrders(string $position, int $newOrder, ?int $oldOrder = null, ?string $oldPosition = null): void
+    {
+        if ($oldPosition && $oldPosition !== $position) {
+            Banner::query()
+                ->where('position', $oldPosition)
+                ->where('sort_order', '>', $oldOrder)
+                ->decrement('sort_order');
+            $oldOrder = null;
+        }
+
+        if ($oldOrder === null) {
+            Banner::query()
+                ->where('position', $position)
+                ->where('sort_order', '>=', $newOrder)
+                ->increment('sort_order');
+        } else {
+            if ($oldOrder > $newOrder) {
+                Banner::query()
+                    ->where('position', $position)
+                    ->whereBetween('sort_order', [$newOrder, $oldOrder - 1])
+                    ->increment('sort_order');
+            } elseif ($oldOrder < $newOrder) {
+                Banner::query()
+                    ->where('position', $position)
+                    ->whereBetween('sort_order', [$oldOrder + 1, $newOrder])
+                    ->decrement('sort_order');
+            }
+        }
     }
 }
