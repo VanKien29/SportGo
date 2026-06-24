@@ -32,6 +32,9 @@ use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
+use App\Http\Controllers\Api\Admin\VenuePostController as AdminVenuePostController;
+use App\Http\Controllers\Api\Owner\VenuePostController as OwnerVenuePostController;
+use App\Http\Controllers\Api\Player\VenuePostController as PlayerVenuePostController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
@@ -175,6 +178,13 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/moderation/posts/{type}/{id}/hide', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'hidePost']);
         Route::delete('/moderation/posts/{type}/{id}', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'deletePost']);
         Route::post('/moderation/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'resolveReport']);
+
+        // Admin Venue Posts
+        Route::get('/venue-posts', [AdminVenuePostController::class, 'index']);
+        Route::get('/venue-posts/{id}', [AdminVenuePostController::class, 'show']);
+        Route::patch('/venue-posts/{id}/approve', [AdminVenuePostController::class, 'approve']);
+        Route::delete('/venue-posts/{id}', [AdminVenuePostController::class, 'destroy']);
+        Route::post('/venue-posts/{id}/restore', [AdminVenuePostController::class, 'restore']);
     });
 
 Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRestrictions::class])
@@ -254,6 +264,10 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/bookings/{id}/payments/collect', [OwnerBookingManagementController::class, 'collectPayment']);
         Route::patch('/bookings/{id}/status', [OwnerBookingManagementController::class, 'updateStatus']);
         Route::patch('/bookings/{id}/court', [OwnerBookingManagementController::class, 'changeCourt']);
+
+        // Owner Venue Posts
+        Route::post('/venue-posts/upload-editor-image', [OwnerVenuePostController::class, 'uploadEditorImage']);
+        Route::apiResource('venue-posts', OwnerVenuePostController::class);
     });
 
 Route::middleware('auth:sanctum')
@@ -272,6 +286,14 @@ Route::middleware('auth:sanctum')
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
+
+        // Player Venue Posts
+        Route::post('/venue-posts/{id}/comments', [PlayerVenuePostController::class, 'comment']);
+        Route::post('/venue-posts/{id}/likes', [PlayerVenuePostController::class, 'toggleLike']);
     });
+
+// Public Player Venue Posts
+Route::get('/venue-posts', [PlayerVenuePostController::class, 'index']);
+Route::get('/venue-posts/{slug}', [PlayerVenuePostController::class, 'show']);
 
 Route::post('/sepay/ipn', [SepayPaymentController::class, 'ipn']);

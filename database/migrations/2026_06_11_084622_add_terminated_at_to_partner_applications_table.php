@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('partner_applications', function (Blueprint $table) {
-            $table->timestamp('terminated_at')->nullable()->after('reviewed_at')->comment('Thời điểm chấm dứt hợp đồng hợp tác');
-        });
+        if (!Schema::hasColumn('partner_applications', 'terminated_at')) {
+            Schema::table('partner_applications', function (Blueprint $table) {
+                $table->timestamp('terminated_at')->nullable()->after('reviewed_at')->comment('Thời điểm chấm dứt hợp đồng hợp tác');
+            });
+        }
     }
 
     /**

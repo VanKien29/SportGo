@@ -8,10 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('slot_locks', function (Blueprint $table) {
-            $table->string('reason', 500)->nullable()->after('lock_type')
-                ->comment('Lý do khóa lịch thủ công như bảo trì, nghỉ hoặc sự kiện riêng.');
-        });
+        if (!Schema::hasColumn('slot_locks', 'reason')) {
+            Schema::table('slot_locks', function (Blueprint $table) {
+                $table->string('reason', 500)->nullable()->after('lock_type')
+                    ->comment('Lý do khóa lịch thủ công như bảo trì, nghỉ hoặc sự kiện riêng.');
+            });
+        }
     }
 
     public function down(): void

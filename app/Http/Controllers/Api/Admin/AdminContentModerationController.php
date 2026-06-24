@@ -75,9 +75,14 @@ class AdminContentModerationController extends Controller
         $this->authorizePermission($request, 'moderation.view');
 
         if (in_array($type, ['venue_post', 'venue_posts'], true)) {
+            $status = $request->input('status', 'pending_review');
+            
             $query = VenuePost::query()
-                ->with(['author:id,username,full_name,email,phone,avatar_url', 'venueCluster:id,name,slug', 'media', 'hashtags'])
-                ->where('status', 'pending_review');
+                ->with(['author:id,username,full_name,email,phone,avatar_url', 'venueCluster:id,name,slug', 'media', 'hashtags']);
+                
+            if ($status !== 'all') {
+                $query->where('status', $status);
+            }
 
             if ($request->filled('search')) {
                 $search = '%' . $request->input('search') . '%';
@@ -100,9 +105,14 @@ class AdminContentModerationController extends Controller
         }
 
         // Mặc định là community_posts
+        $status = $request->input('status', 'pending_review');
+        
         $query = CommunityPost::query()
-            ->with(['author:id,username,full_name,email,phone,avatar_url', 'media', 'hashtags'])
-            ->where('status', 'pending_review');
+            ->with(['author:id,username,full_name,email,phone,avatar_url', 'media', 'hashtags']);
+            
+        if ($status !== 'all') {
+            $query->where('status', $status);
+        }
 
         if ($request->filled('search')) {
             $search = '%' . $request->input('search') . '%';

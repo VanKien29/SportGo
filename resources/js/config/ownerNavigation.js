@@ -90,6 +90,12 @@ export const ownerNavigationSections = [
         to: '/owner/policies',
         activeNames: ['owner-policies'],
       },
+      {
+        label: 'Bài viết & Tin tức',
+        icon: 'fileText',
+        to: '/owner/venue-posts',
+        activeNames: ['owner-venue-posts'],
+      },
     ],
   },
   {
@@ -123,6 +129,7 @@ export const ownerRouteTitles = {
   'owner-staff': 'Nhân viên sân',
   'owner-vouchers': 'Voucher của sân',
   'owner-policies': 'Chính sách sân',
+  'owner-venue-posts': 'Quản lý bài viết',
 };
 
 export const ownerRouteSectionLabels = {

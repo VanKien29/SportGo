@@ -47,3 +47,4 @@
     -webkit-text-fill-color: #fff !important;
     background: transparent !important;
 }
+@source '../js/views/owner/*.vue';

@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VenuePost extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, SoftDeletes;
 
     public $incrementing = false;
 
@@ -17,7 +18,15 @@ class VenuePost extends Model
     protected $fillable = [
         'venue_cluster_id',
         'author_id',
+        'title',
+        'slug',
         'content',
+        'short_description',
+        'meta_title',
+        'meta_description',
+        'post_type',
+        'valid_from',
+        'valid_to',
         'status',
         'reviewed_by',
         'reviewed_at',
@@ -30,6 +39,8 @@ class VenuePost extends Model
     protected function casts(): array
     {
         return [
+            'valid_from' => 'datetime',
+            'valid_to' => 'datetime',
             'reviewed_at' => 'datetime',
             'view_count' => 'integer',
             'like_count' => 'integer',
@@ -61,5 +72,10 @@ class VenuePost extends Model
     {
         return $this->belongsToMany(Hashtag::class, 'post_hashtags', 'post_id', 'hashtag_id')
             ->where('post_hashtags.post_type', 'venue_posts');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(VenuePostComment::class, 'venue_post_id')->where('status', 'published')->latest();
     }
 }

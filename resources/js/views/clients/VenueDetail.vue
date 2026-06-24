@@ -690,6 +690,125 @@
                             </div>
                         </section>
 
+                        <!-- Venue Posts Tab -->
+                        <section v-else-if="activeTab === 'posts'" class="space-y-6">
+                            <!-- Search & Filter Controls -->
+                            <div class="flex flex-col sm:flex-row gap-4 justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                <div class="relative w-full sm:max-w-xs">
+                                    <input 
+                                        v-model="postsQuery.keyword" 
+                                        type="text" 
+                                        placeholder="Tìm bài viết..." 
+                                        class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sportgo-accent focus:border-sportgo-accent"
+                                        @keyup.enter="fetchVenuePosts(1)"
+                                    />
+                                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                                </div>
+                                <div class="flex gap-2 w-full sm:w-auto">
+                                    <select 
+                                        v-model="postsQuery.post_type" 
+                                        class="px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sportgo-accent focus:border-sportgo-accent w-full sm:w-auto"
+                                        @change="fetchVenuePosts(1)"
+                                    >
+                                        <option value="">Tất cả danh mục</option>
+                                        <option value="news">Tin tức</option>
+                                        <option value="promotion">Khuyến mãi</option>
+                                        <option value="tournament">Giải đấu</option>
+                                        <option value="notice">Thông báo</option>
+                                        <option value="recruitment">Tuyển dụng</option>
+                                    </select>
+                                    <button 
+                                        @click="fetchVenuePosts(1)" 
+                                        class="px-4 py-2 bg-sportgo-accent hover:bg-sportgo-dark text-white rounded-xl font-bold text-sm transition-colors"
+                                    >
+                                        Tìm
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Loading Skeleton -->
+                            <div v-if="postsLoading" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div v-for="n in 4" :key="n" class="border border-gray-200 rounded-2xl p-4 bg-white animate-pulse space-y-3">
+                                    <div class="h-40 bg-gray-100 rounded-xl"></div>
+                                    <div class="h-5 bg-gray-100 rounded w-1/3"></div>
+                                    <div class="h-6 bg-gray-100 rounded"></div>
+                                    <div class="h-4 bg-gray-55 rounded w-5/6"></div>
+                                </div>
+                            </div>
+
+                            <!-- Empty State -->
+                            <div v-else-if="posts.length === 0" class="text-center py-16 bg-white border border-gray-200 rounded-2xl">
+                                <div class="text-4xl mb-3">📰</div>
+                                <p class="text-gray-500 font-bold text-sm">Chưa có bài đăng nào từ sân này.</p>
+                            </div>
+
+                            <!-- Posts Grid -->
+                            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <article 
+                                    v-for="post in posts" 
+                                    :key="post.id" 
+                                    class="flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+                                    @click="openPostDetail(post)"
+                                >
+                                    <div class="h-44 bg-gray-50 relative overflow-hidden">
+                                        <img 
+                                            v-if="getPostThumbnail(post)" 
+                                            :src="getPostThumbnail(post)" 
+                                            :alt="post.title" 
+                                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                        />
+                                        <div v-else class="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-600">
+                                            <i class="far fa-newspaper text-3xl"></i>
+                                        </div>
+                                        <span 
+                                            class="absolute top-3 left-3 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm"
+                                            :class="categoryBadgeClass(post.post_type)"
+                                        >
+                                            {{ formatCategoryName(post.post_type) }}
+                                        </span>
+                                    </div>
+                                    <div class="p-5 flex-1 flex flex-col justify-between space-y-3">
+                                        <div class="space-y-2">
+                                            <h3 class="font-black text-gray-900 group-hover:text-sportgo-accent transition-colors line-clamp-1 text-base">{{ post.title }}</h3>
+                                            <p class="text-xs text-gray-500 line-clamp-2 leading-relaxed">{{ post.short_description }}</p>
+                                        </div>
+                                        <div class="flex justify-between items-center text-xs text-gray-400 border-t border-gray-100 pt-3">
+                                            <div class="flex items-center gap-1">
+                                                <i class="far fa-user"></i>
+                                                <span>{{ post.author?.full_name || 'Quản trị viên' }}</span>
+                                            </div>
+                                            <div class="flex items-center gap-3">
+                                                <span><i class="far fa-eye mr-1"></i>{{ post.view_count || 0 }}</span>
+                                                <span><i class="far fa-heart mr-1"></i>{{ post.like_count || 0 }}</span>
+                                                <span><i class="far fa-comment mr-1"></i>{{ post.comment_count || 0 }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </article>
+                            </div>
+
+                            <!-- Posts Pagination -->
+                            <div v-if="postsPagination.last_page > 1" class="flex justify-center gap-2 pt-4">
+                                <button 
+                                    :disabled="postsPagination.current_page === 1" 
+                                    @click="fetchVenuePosts(postsPagination.current_page - 1)" 
+                                    class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-bold disabled:opacity-50"
+                                >
+                                    « Trước
+                                </button>
+                                <span class="px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-bold text-gray-700">
+                                    {{ postsPagination.current_page }} / {{ postsPagination.last_page }}
+                                </span>
+                                <button 
+                                    :disabled="postsPagination.current_page === postsPagination.last_page" 
+                                    @click="fetchVenuePosts(postsPagination.current_page + 1)" 
+                                    class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-bold disabled:opacity-50"
+                                >
+                                    Sau »
+                                </button>
+                            </div>
+                        </section>
+
                         <!-- Other tabs placeholder -->
                         <section
                             v-else
@@ -704,6 +823,112 @@
                 </div>
             </template>
         </main>
+
+        <!-- Post Detail Modal -->
+        <dialog v-if="selectedPost" id="client_post_detail_modal" class="modal modal-open" style="z-index: 150;">
+            <div class="modal-box w-11/12 max-w-3xl rounded-3xl p-6 md:p-8 bg-white border border-gray-100 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+                
+                <!-- Back Button & Close -->
+                <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-100 sticky top-0 bg-white/95 backdrop-blur-sm z-10 -mx-4 px-4 -mt-4 pt-4">
+                    <button type="button" @click="closePostDetail" class="btn btn-sm bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold px-4 flex items-center gap-2 shadow-sm transition-all duration-200">
+                        <i class="fas fa-arrow-left"></i> Quay lại danh sách
+                    </button>
+                    <button type="button" @click="closePostDetail" class="btn btn-sm btn-circle btn-ghost text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors">✕</button>
+                </div>
+
+                <div class="space-y-6">
+                    <!-- Thumbnail -->
+                    <div class="h-64 bg-gray-50 rounded-2xl overflow-hidden relative" v-if="getPostThumbnail(selectedPost)">
+                        <img :src="getPostThumbnail(selectedPost)" class="w-full h-full object-cover" :alt="selectedPost.title" />
+                    </div>
+
+                    <!-- Category & Title -->
+                    <div class="space-y-2">
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-bold inline-block" :class="categoryBadgeClass(selectedPost.post_type)">
+                            {{ formatCategoryName(selectedPost.post_type) }}
+                        </span>
+                        <h2 class="text-2xl font-black text-gray-900 leading-tight">{{ selectedPost.title }}</h2>
+                        <div class="flex items-center gap-4 text-xs text-gray-400 pb-4 border-b border-gray-100">
+                            <span>Tác giả: <strong>{{ selectedPost.author?.full_name || 'Quản trị viên' }}</strong></span>
+                            <span>Cập nhật: {{ formatDate(selectedPost.updated_at || selectedPost.created_at) }}</span>
+                            <span>Lượt xem: {{ selectedPost.view_count || 0 }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Rich Content Description -->
+                    <div class="prose max-w-none text-sm text-gray-700 leading-relaxed font-medium" v-html="selectedPost.content"></div>
+
+                    <!-- Likes & Tags -->
+                    <div class="pt-4 border-t border-gray-100 flex flex-wrap justify-between items-center gap-3">
+                        <div class="flex flex-wrap gap-1.5">
+                            <span v-for="hashtag in selectedPost.hashtags" :key="hashtag.id" class="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-100 font-medium text-xs rounded-lg">
+                                #{{ hashtag.name }}
+                            </span>
+                        </div>
+                        <button 
+                            type="button" 
+                            @click="toggleLikePost(selectedPost)"
+                            class="px-4 py-2 rounded-xl text-sm font-black border flex items-center gap-1.5 transition-all bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                            :class="{'bg-red-50 border-red-200 text-red-600': isLikedByMe}"
+                        >
+                            ❤️ {{ isLikedByMe ? 'Đã thích' : 'Thích bài viết' }}
+                            <span class="text-xs text-gray-400 font-bold ml-1">({{ selectedPost.like_count || 0 }})</span>
+                        </button>
+                    </div>
+
+                    <!-- Comments Section -->
+                    <div class="pt-6 border-t border-gray-100 space-y-4">
+                        <h3 class="font-black text-gray-900 text-base flex items-center gap-2">
+                            Bình luận ({{ selectedPost.comment_count || 0 }})
+                        </h3>
+
+                        <!-- Write Comment Form -->
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+                                ME
+                            </div>
+                            <div class="flex-1 space-y-2">
+                                <textarea 
+                                    v-model="commentText" 
+                                    placeholder="Viết bình luận của bạn tại đây..." 
+                                    class="w-full p-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sportgo-accent focus:border-sportgo-accent h-20 placeholder:text-gray-400 font-medium bg-gray-50 text-gray-900"
+                                    maxlength="1000"
+                                ></textarea>
+                                <div class="flex justify-end">
+                                    <button 
+                                        type="button" 
+                                        @click="submitPostComment(selectedPost)"
+                                        :disabled="submittingComment || !commentText.trim()"
+                                        class="px-4 py-1.5 bg-sportgo-accent hover:bg-sportgo-dark text-white rounded-lg font-bold text-xs disabled:opacity-50 transition-colors"
+                                    >
+                                        Gửi bình luận
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Comments List -->
+                        <div class="space-y-4 max-h-60 overflow-y-auto pr-2">
+                            <div v-for="c in selectedPost.comments" :key="c.id" class="flex gap-3 text-sm pb-3 border-b border-gray-50">
+                                <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs">
+                                    {{ (c.user?.full_name || 'U').charAt(0).toUpperCase() }}
+                                </div>
+                                <div class="flex-1 space-y-1">
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-bold text-gray-900 text-xs">{{ c.user?.full_name || c.user?.username || 'Thành viên' }}</span>
+                                        <span class="text-[10px] text-gray-400">{{ formatDate(c.created_at) }}</span>
+                                    </div>
+                                    <p class="text-gray-700 leading-relaxed font-medium text-xs">{{ c.content }}</p>
+                                </div>
+                            </div>
+                            <div v-if="!selectedPost.comments || selectedPost.comments.length === 0" class="text-center py-6 text-gray-400 text-xs font-semibold">
+                                Chưa có bình luận nào. Hãy là người đầu tiên!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </dialog>
     </div>
 </template>
 
@@ -712,6 +937,7 @@ import PublicNavbar from "../../components/PublicNavbar.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
 import { getAuth } from "../../stores/auth.js";
 import { venueService } from "../../services/venues.js";
+import axios from "axios";
 
 export default {
     name: "VenueDetail",
@@ -734,6 +960,15 @@ export default {
             selectedGridCourtId: "",
             selectedSlotIndexes: [],
             selectionError: "",
+            posts: [],
+            postsLoading: false,
+            postsError: "",
+            postsQuery: { keyword: "", post_type: "" },
+            postsPagination: { current_page: 1, last_page: 1, per_page: 10 },
+            selectedPost: null,
+            commentText: "",
+            submittingComment: false,
+            isLikedByMe: false,
             tabs: [
                 { key: "overview", label: "Tổng quan" },
                 { key: "booking", label: "Lịch & Đặt sân" },
@@ -811,6 +1046,13 @@ export default {
                 ["Tạm tính", this.selectedPriceText],
             ];
         },
+    },
+    watch: {
+        activeTab(newTab) {
+            if (newTab === "posts") {
+                this.fetchVenuePosts(1);
+            }
+        }
     },
     async mounted() {
         await this.loadVenue();
@@ -1030,6 +1272,132 @@ export default {
                     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
             });
+        },
+        async fetchVenuePosts(page = 1) {
+            if (!this.venue) return;
+            this.postsLoading = true;
+            this.postsError = "";
+            try {
+                const params = {
+                    venue_cluster_id: this.venue.id,
+                    keyword: this.postsQuery.keyword,
+                    post_type: this.postsQuery.post_type,
+                    page,
+                };
+                const res = await axios.get("/api/venue-posts", { params });
+                this.posts = res.data.data;
+                this.postsPagination = {
+                    current_page: res.data.current_page,
+                    last_page: res.data.last_page,
+                    per_page: res.data.per_page,
+                };
+            } catch (err) {
+                this.postsError = err.response?.data?.message || "Không thể tải danh sách bài đăng.";
+            } finally {
+                this.postsLoading = false;
+            }
+        },
+        getPostThumbnail(post) {
+            if (post.media && post.media.length > 0) {
+                return this.imageUrl(post.media[0].file_path);
+            }
+            return "";
+        },
+        categoryBadgeClass(type) {
+            const map = {
+                news: "bg-blue-50 text-blue-700 border-blue-100",
+                promotion: "bg-orange-50 text-orange-700 border-orange-100",
+                tournament: "bg-purple-50 text-purple-700 border-purple-100",
+                notice: "bg-amber-50 text-amber-700 border-amber-100",
+                recruitment: "bg-teal-50 text-teal-700 border-teal-100",
+            };
+            return map[type] || "bg-gray-50 text-gray-700 border-gray-100";
+        },
+        formatCategoryName(type) {
+            const map = {
+                news: "Tin tức",
+                promotion: "Khuyến mãi",
+                tournament: "Giải đấu",
+                notice: "Thông báo",
+                recruitment: "Tuyển dụng",
+            };
+            return map[type] || type;
+        },
+        async openPostDetail(post) {
+            try {
+                const res = await axios.get(`/api/venue-posts/${post.id || post.slug}`);
+                this.selectedPost = res.data.data;
+                const auth = getAuth();
+                this.isLikedByMe = false;
+                this.commentText = "";
+            } catch (err) {
+                console.error("Lỗi khi tải chi tiết bài viết", err);
+            }
+        },
+        closePostDetail() {
+            this.selectedPost = null;
+        },
+        async toggleLikePost(post) {
+            const auth = getAuth();
+            if (!auth) {
+                this.$router.push("/login");
+                return;
+            }
+            try {
+                const res = await axios.post(`/api/venue-posts/${post.id}/likes`);
+                if (res.data.message && res.data.message.includes("Đã thích")) {
+                    this.isLikedByMe = true;
+                    post.like_count++;
+                } else {
+                    this.isLikedByMe = false;
+                    post.like_count--;
+                }
+                const listPost = this.posts.find(p => p.id === post.id);
+                if (listPost) {
+                    listPost.like_count = post.like_count;
+                }
+            } catch (err) {
+                console.error("Lỗi khi thích bài viết", err);
+            }
+        },
+        async submitPostComment(post) {
+            const auth = getAuth();
+            if (!auth) {
+                this.$router.push("/login");
+                return;
+            }
+            if (!this.commentText.trim()) return;
+
+            this.submittingComment = true;
+            try {
+                const res = await axios.post(`/api/venue-posts/${post.id}/comments`, {
+                    content: this.commentText
+                });
+                
+                if (!post.comments) post.comments = [];
+                post.comments.unshift({
+                    id: res.data.data.id,
+                    content: this.commentText,
+                    created_at: new Date().toISOString(),
+                    user: {
+                        full_name: auth.fullName || "Tôi",
+                        username: auth.username || "me"
+                    }
+                });
+                
+                post.comment_count++;
+                
+                const listPost = this.posts.find(p => p.id === post.id);
+                if (listPost) {
+                    listPost.comment_count = post.comment_count;
+                }
+
+                this.commentText = "";
+            } catch (err) {
+                console.error("Lỗi khi gửi bình luận", err);
+            } finally {
+                this.submittingComment = false;
+            }
         }
     },
 };

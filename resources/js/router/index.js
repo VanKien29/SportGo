@@ -33,9 +33,13 @@ import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
+import VenueList from "../views/clients/VenueList.vue";
+import VenueDetail from "../views/clients/VenueDetail.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
+    { path: "/venues", name: "venue-list", component: VenueList },
+    { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
     {
@@ -139,6 +143,11 @@ const routes = [
             { path: "roles", name: "admin-roles", component: AdminRoles },
             { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail },
             {
+                path: "venue-posts",
+                name: "admin-venue-posts",
+                component: () => import("../views/admin/AdminVenuePosts.vue"),
+            },
+            {
                 path: "court-types",
                 name: "admin-court-types",
                 component: () =>
@@ -241,6 +250,11 @@ const routes = [
                 path: "schedule-locks",
                 name: "owner-schedule-locks",
                 component: () => import("../views/owner/OwnerScheduleLocks.vue"),
+            },
+            {
+                path: "venue-posts",
+                name: "owner-venue-posts",
+                component: () => import("../views/owner/OwnerVenuePosts.vue"),
             },
             { path: "staff", name: "owner-staff", component: OwnerStaff },
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
