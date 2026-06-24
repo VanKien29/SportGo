@@ -133,11 +133,11 @@
                             }}</span>
                         </td>
                         <td>
-                            <strong>{{
+                            {{
                                 payment.customer?.full_name ||
                                 payment.customer?.username ||
                                 "-"
-                            }}</strong>
+                            }}
                             <span class="sub-line">{{
                                 payment.customer?.email ||
                                 payment.customer?.phone ||
@@ -146,9 +146,9 @@
                         </td>
                         <td>{{ payment.venue_cluster?.name || "-" }}</td>
                         <td>
-                            <strong>{{
+                            {{
                                 formatCurrency(payment.amount)
-                            }}</strong>
+                            }}
                             <span v-if="['sepay', 'bank_transfer', 'mixed'].includes(payment.method)" class="sub-line"
                                 >Gateway:
                                 {{
@@ -718,17 +718,17 @@ export default {
 .page-header h2 {
     margin: 0 0 4px;
     font-size: 22px;
-    color: #0f172a;
+    color: var(--admin-text);
 }
 .page-header p {
     margin: 0;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 13px;
 }
 .sub-line,
 .detail-facts span {
     display: block;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 12px;
 }
 .filters {
@@ -740,8 +740,8 @@ export default {
 .filters input {
     border: 1px solid #dbe2ea;
     border-radius: 7px;
-    background: #fff;
-    color: #0f172a;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text);
     padding: 9px 10px;
     font: inherit;
 }
@@ -753,7 +753,7 @@ export default {
     border: 1px solid #dbe2ea;
     border-radius: 7px;
     padding: 0 10px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
 }
 .search-field input {
     flex: 1;
@@ -768,13 +768,13 @@ export default {
     padding: 0 8px;
     border: 1px solid #dbe2ea;
     border-radius: 7px;
-    background: #f8fafc;
-    color: #64748b;
+    background: var(--admin-surface-muted);
+    color: var(--admin-muted);
 }
 .date-range-fields input {
     width: 142px;
     border-color: transparent;
-    background: #fff;
+    background: var(--admin-surface, #fff);
 }
 .icon-command,
 .icon-only {
@@ -788,16 +788,16 @@ export default {
 }
 .icon-command {
     border: 1px solid #dbe2ea;
-    background: #f8fafc;
-    color: #334155;
+    background: var(--admin-surface-muted);
+    color: var(--admin-text);
     padding: 9px 12px;
 }
 .icon-only {
     width: 34px;
     height: 34px;
     border: 1px solid #dbe2ea;
-    background: #fff;
-    color: #475569;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-faint);
 }
 button:disabled {
     opacity: 0.55;
@@ -818,9 +818,9 @@ button:disabled {
 }
 .table-wrap {
     overflow: auto;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
 }
 table {
     width: 100%;
@@ -830,20 +830,20 @@ table {
 th,
 td {
     padding: 12px 13px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border);
     text-align: left;
     vertical-align: top;
     font-size: 13px;
 }
 th {
-    background: #f8fafc;
-    color: #334155;
+    background: var(--admin-surface-muted);
+    color: var(--admin-text);
     font-weight: 800;
 }
 .empty {
     padding: 28px;
     text-align: center;
-    color: #64748b;
+    color: var(--admin-muted);
 }
 .code-link {
     padding: 0;
@@ -859,8 +859,8 @@ th {
     align-items: center;
     padding: 4px 8px;
     border-radius: 999px;
-    background: #e2e8f0;
-    color: #334155;
+    background: var(--admin-border);
+    color: var(--admin-text);
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
@@ -887,7 +887,7 @@ th {
 .pagination {
     justify-content: flex-end;
     gap: 12px;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 13px;
 }
 
@@ -905,7 +905,7 @@ th {
     width: min(680px, 100vw);
     height: 100%;
     overflow: auto;
-    background: #f8fafc;
+    background: var(--admin-surface-muted);
     box-shadow: -20px 0 50px rgba(15, 23, 42, 0.18);
     padding: 24px;
 }
@@ -918,10 +918,10 @@ th {
     margin: 3px 0 0;
     font-size: 22px;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--admin-text);
 }
 .eyebrow {
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
@@ -931,7 +931,7 @@ th {
 .empty-block {
     padding: 24px;
     text-align: center;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 13px;
 }
 
@@ -943,7 +943,7 @@ th {
     margin-bottom: 16px;
 }
 .paid-time {
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 12px;
 }
 
@@ -951,8 +951,8 @@ th {
 .detail-facts {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    background: #fff;
-    border: 1px solid #e2e8f0;
+    background: var(--admin-surface, #fff);
+    border: 1px solid var(--admin-border);
     border-radius: 10px;
     overflow: hidden;
 }
@@ -969,7 +969,7 @@ th {
 }
 .detail-facts span {
     display: block;
-    color: #94a3b8;
+    color: var(--admin-faint);
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -978,7 +978,7 @@ th {
 .detail-facts strong {
     display: block;
     margin-top: 3px;
-    color: #0f172a;
+    color: var(--admin-text);
     font-size: 13px;
     word-break: break-word;
 }
@@ -1008,7 +1008,7 @@ th {
     font-weight: 800;
 }
 .wallet-credit-body {
-    background: #fff;
+    background: var(--admin-surface, #fff);
     border-radius: 8px;
     padding: 14px 16px;
     border: 1px solid #d1fae5;
@@ -1027,7 +1027,7 @@ th {
 .formula-part span {
     display: block;
     font-size: 11px;
-    color: #64748b;
+    color: var(--admin-muted);
     font-weight: 600;
     text-transform: uppercase;
     margin-bottom: 2px;
@@ -1035,19 +1035,19 @@ th {
 .formula-part strong {
     font-size: 16px;
     font-weight: 800;
-    color: #334155;
+    color: var(--admin-text);
 }
 .formula-part.credited strong {
     color: #16a34a;
 }
 .formula-part.result strong {
-    color: #0f172a;
+    color: var(--admin-text);
     font-size: 18px;
 }
 .formula-op {
     font-size: 20px;
     font-weight: 800;
-    color: #94a3b8;
+    color: var(--admin-faint);
     line-height: 1;
     margin-top: 14px;
 }
@@ -1057,10 +1057,10 @@ th {
     gap: 8px;
     margin-top: 14px;
     padding: 10px 14px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--admin-surface-muted);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 13px;
 }
 
@@ -1072,11 +1072,11 @@ th {
     margin: 0 0 9px;
     font-size: 14px;
     font-weight: 800;
-    color: #334155;
+    color: var(--admin-text);
 }
 .log-row {
-    border: 1px solid #e2e8f0;
-    background: #fff;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface, #fff);
     padding: 12px;
     margin-bottom: 8px;
     border-radius: 8px;
@@ -1087,7 +1087,7 @@ th {
 }
 .log-head time,
 .log-meta {
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 11px;
 }
 .log-meta {
@@ -1104,7 +1104,7 @@ details {
 }
 summary {
     cursor: pointer;
-    color: #475569;
+    color: var(--admin-faint);
     font-size: 12px;
     font-weight: 700;
 }

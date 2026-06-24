@@ -485,7 +485,7 @@ export default {
 }
 .label {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 .value {
   font-weight: 500;
@@ -497,7 +497,7 @@ export default {
 }
 .court-card {
   padding: 12px;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   display: flex;
@@ -522,7 +522,7 @@ export default {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 16px;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
 }
 .contract-header {
   display: flex;
@@ -571,7 +571,7 @@ export default {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 12px;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
 }
 .bank-info {
   display: flex;
@@ -601,7 +601,7 @@ export default {
   background: currentColor;
 }
 .note-box {
-  background: #f1f5f9;
+  background: var(--admin-surface-muted);
   padding: 12px;
   border-radius: 6px;
   margin-top: 8px;

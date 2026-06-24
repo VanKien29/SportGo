@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full min-h-screen md:grid md:grid-cols-2 bg-zinc-950 text-zinc-100 flex flex-col font-sans select-none">
+  <div class="auth-layout w-full min-h-screen md:grid md:grid-cols-2 bg-zinc-950 text-zinc-100 flex flex-col font-sans select-none">
     <!-- Mobile Back Link -->
     <div class="md:hidden flex items-center p-4">
       <router-link :to="backTo" class="inline-flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors text-sm font-medium">

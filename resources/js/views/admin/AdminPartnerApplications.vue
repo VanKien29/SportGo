@@ -606,8 +606,8 @@ export default {
 }
 
 .card {
-  background: #fff;
-  border: 1px solid var(--sg-border);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
 }
 
@@ -632,7 +632,7 @@ export default {
   gap: 6px;
   font-size: 13px;
   font-weight: 800;
-  color: var(--sg-text);
+  color: var(--admin-text);
 }
 
 .field.full {
@@ -643,20 +643,20 @@ export default {
 .field select,
 .field textarea {
   width: 100%;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 0 12px;
   font-size: 14px;
   font-weight: 500;
-  background: #fff;
-  color: var(--sg-text);
+  background: var(--admin-surface);
+  color: var(--admin-text);
 }
 
 .field input:disabled,
 .field select:disabled,
 .field textarea:disabled {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
   cursor: not-allowed;
 }
 
@@ -696,9 +696,9 @@ export default {
 }
 
 .btn.ghost {
-  background: #fff;
+  background: var(--admin-surface);
   border-color: var(--sg-border);
-  color: var(--sg-text);
+  color: var(--admin-text);
 }
 
 .btn.danger {
@@ -714,9 +714,9 @@ export default {
 .icon-btn {
   width: 34px;
   height: 34px;
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #334155;
+  background: var(--admin-surface-muted);
+  border-color: var(--admin-border);
+  color: var(--admin-text);
 }
 
 .icon-btn.approve {
@@ -759,7 +759,7 @@ export default {
   width: 34px;
   height: 34px;
   border: 3px solid rgba(15, 23, 42, 0.08);
-  border-top-color: #0f172a;
+  border-top-color: var(--admin-text);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -794,10 +794,10 @@ td {
 }
 
 th {
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
   font-size: 12px;
   font-weight: 900;
-  color: #475569;
+  color: var(--admin-faint);
   text-transform: uppercase;
 }
 
@@ -810,7 +810,7 @@ th {
 }
 
 .main-title {
-  color: var(--sg-text);
+  color: var(--admin-text);
   font-weight: 800;
 }
 
@@ -881,7 +881,7 @@ th {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #fff;
+  background: var(--admin-surface);
   border-radius: 8px;
   text-overflow: ellipsis;
 }
@@ -902,8 +902,8 @@ th {
 }
 
 .partner-badge {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
 }
 
 .amenities-list {
@@ -914,8 +914,8 @@ th {
 }
 
 .amenity-tag {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
@@ -967,7 +967,7 @@ th {
 }
 
 .detail-section {
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 14px;
   min-width: 0;
@@ -981,7 +981,7 @@ th {
   margin: 0 0 12px;
   font-size: 14px;
   font-weight: 900;
-  color: var(--sg-text);
+  color: var(--admin-text);
 }
 
 dl {
@@ -1000,7 +1000,7 @@ dt {
 dd {
   min-width: 0;
   margin: 0;
-  color: var(--sg-text);
+  color: var(--admin-text);
   font-size: 14px;
   font-weight: 600;
   overflow-wrap: anywhere;
@@ -1019,7 +1019,7 @@ dd {
   gap: 12px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
 }
 
 .mini-item.stacked {
@@ -1048,8 +1048,8 @@ dd {
   padding: 12px;
   margin-bottom: 14px;
   border-radius: 8px;
-  background: #f8fafc;
-  color: #334155;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
   font-weight: 800;
 }
 
