@@ -1,15 +1,10 @@
 <template>
   <div class="partner-detail-page">
-    <header class="page-header">
-      <div class="breadcrumbs">
-        <router-link to="/admin/partner-applications" class="back-link">
-          <AppIcon name="arrowLeft" size="16" /> Quay lại danh sách
-        </router-link>
-      </div>
-      <div>
-        <h2>Chi tiết đối tác: {{ app?.user_info?.full_name || app?.business_info?.business_name || 'Đang tải...' }}</h2>
-      </div>
-    </header>
+    <div class="breadcrumbs" style="margin-bottom: 20px;">
+      <router-link to="/admin/partner-applications" class="back-link">
+        <AppIcon name="arrowLeft" size="16" /> Quay lại danh sách
+      </router-link>
+    </div>
 
     <div v-if="loading" class="state-box card">
       <div class="spinner"></div>

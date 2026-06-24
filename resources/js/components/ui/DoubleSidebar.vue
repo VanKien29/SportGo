@@ -3,8 +3,10 @@
     <!-- Left Column: Icon Navigation -->
     <div class="sidebar-left">
       <div class="logo-container" @click="handleBrandClick">
+        <!-- Custom logo if configured -->
+        <img v-if="customLogo" :src="customLogo" alt="SportGo" class="custom-sidebar-logo" />
         <!-- Double-block premium logo -->
-        <svg class="brand-logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <svg v-else class="brand-logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <rect width="18" height="6" x="3" y="4" rx="1.5" fill="currentColor" />
           <rect width="18" height="6" x="3" y="14" rx="1.5" fill="currentColor" />
         </svg>
@@ -155,7 +157,7 @@
         <!-- Dropdown Dialog Menu -->
         <transition name="dropdown-fade">
           <div v-if="showUserDropdown" class="user-dropdown-menu" v-click-outside="closeUserDropdown">
-            <router-link :to="settingsRoute" class="dropdown-menu-item" @click="showUserDropdown = false">
+            <router-link :to="profileRoute" class="dropdown-menu-item" @click="showUserDropdown = false">
               <AppIcon name="users" size="14" />
               <span>Thông tin cá nhân</span>
             </router-link>
@@ -219,7 +221,15 @@ export default {
       activeSectionIndex: 0,
       searchQuery: '',
       showUserDropdown: false,
+      customLogo: '',
     };
+  },
+  mounted() {
+    this.loadCustomLogo();
+    window.addEventListener('sportgo-settings-updated', this.loadCustomLogo);
+  },
+  beforeUnmount() {
+    window.removeEventListener('sportgo-settings-updated', this.loadCustomLogo);
   },
   directives: {
     'click-outside': {
@@ -244,6 +254,12 @@ export default {
       return this.userName.charAt(0).toUpperCase();
     },
     settingsRoute() {
+      const role = this.user.role || this.user.role_group;
+      return role === 'admin'
+        ? '/admin/settings'
+        : '/owner/booking-settings';
+    },
+    profileRoute() {
       const role = this.user.role || this.user.role_group;
       return role === 'admin'
         ? '/admin/profile'
@@ -340,6 +356,17 @@ export default {
         : '/owner/dashboard';
       this.$router.push(dashboardPath);
       this.$emit('navigate');
+    },
+    loadCustomLogo() {
+      const stored = localStorage.getItem('sportgo_general_settings');
+      if (stored) {
+        try {
+          const settings = JSON.parse(stored);
+          this.customLogo = settings.app_logo || '';
+        } catch (e) {
+          console.error(e);
+        }
+      }
     },
     async handleLogout() {
       this.closeUserDropdown();
@@ -850,5 +877,13 @@ export default {
 .dropdown-fade-leave-to {
   opacity: 0;
   transform: translateY(6px);
+}
+
+.custom-sidebar-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: #ffffff;
 }
 </style>

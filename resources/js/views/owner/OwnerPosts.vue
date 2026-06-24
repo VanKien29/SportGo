@@ -1,10 +1,6 @@
 <template>
   <div class="posts-page">
-    <div class="page-header">
-      <div class="header-left">
-        <h2>Bài đăng & Thông báo</h2>
-        <p class="muted">Tạo và quản lý các bài viết quảng bá, thông báo sự kiện cho cụm sân của bạn.</p>
-      </div>
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
       <button class="btn primary" type="button" @click="openCreateModal">
         <AppIcon name="plus" size="16" />
         <span>Tạo bài đăng mới</span>

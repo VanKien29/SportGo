@@ -1,6 +1,6 @@
 <template>
   <div class="partner-registration-page">
-    <div class="page-header text-center">
+    <div class="text-center" style="margin-bottom: 24px;">
       <h2>Đăng ký trở thành Đối tác SportGo</h2>
       <p class="muted">Gia nhập mạng lưới các sân thể thao hàng đầu và tiếp cận hàng ngàn khách hàng tiềm năng.</p>
     </div>

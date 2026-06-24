@@ -6,7 +6,9 @@
                 <!-- Logo -->
                 <router-link to="/" class="logo-link">
                     <div class="logo-icon">
+                        <img v-if="customLogo" :src="customLogo" alt="SportGo Logo" class="custom-navbar-logo" />
                         <svg
+                            v-else
                             width="18"
                             height="18"
                             viewBox="0 0 32 32"
@@ -363,12 +365,12 @@
                     <div class="mockup-frame">
                         <img
                             class="mockup-img img-dark"
-                            src="https://tailark.com//_next/image?url=%2Fmail2.png&w=3840&q=75"
+                            :src="mockDark"
                             alt="app screen dark"
                         />
                         <img
                             class="mockup-img img-light"
-                            src="https://tailark.com/_next/image?url=%2Fmail2-light.png&w=3840&q=75"
+                            :src="mockLight"
                             alt="app screen light"
                         />
                     </div>
@@ -392,6 +394,9 @@ export default {
             showDropdown: false,
             hideTimer: null,
             isLoaded: false,
+            customLogo: '',
+            mockLight: 'https://tailark.com/_next/image?url=%2Fmail2-light.png&w=3840&q=75',
+            mockDark: 'https://tailark.com//_next/image?url=%2Fmail2.png&w=3840&q=75',
         };
     },
     computed: {
@@ -413,16 +418,32 @@ export default {
         },
     },
     mounted() {
+        this.loadSystemThemeSettings();
+        window.addEventListener('sportgo-settings-updated', this.loadSystemThemeSettings);
         setTimeout(() => {
             this.isLoaded = true;
         }, 100);
     },
     beforeUnmount() {
         this.clearTimer();
+        window.removeEventListener('sportgo-settings-updated', this.loadSystemThemeSettings);
     },
     methods: {
         toggleDropdown() {
             this.showDropdown = !this.showDropdown;
+        },
+        loadSystemThemeSettings() {
+            const stored = localStorage.getItem('sportgo_general_settings');
+            if (stored) {
+                try {
+                    const settings = JSON.parse(stored);
+                    this.customLogo = settings.app_logo || '';
+                    this.mockLight = settings.homepage_mock_light || 'https://tailark.com/_next/image?url=%2Fmail2-light.png&w=3840&q=75';
+                    this.mockDark = settings.homepage_mock_dark || 'https://tailark.com//_next/image?url=%2Fmail2.png&w=3840&q=75';
+                } catch (e) {
+                    console.error(e);
+                }
+            }
         },
         scheduleHide() {
             this.hideTimer = setTimeout(() => {
@@ -1276,5 +1297,10 @@ export default {
 .slide-down-leave-to {
     opacity: 0;
     transform: translateY(-10px);
+}
+.custom-navbar-logo {
+    height: 22px;
+    width: auto;
+    object-fit: contain;
 }
 </style>

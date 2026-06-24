@@ -1,10 +1,6 @@
 <template>
   <div class="owner-profile-page">
-    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <h2>Hồ sơ đối tác & Hợp đồng</h2>
-        <p class="muted">Thông tin đăng ký trở thành đối tác và các hợp đồng của bạn.</p>
-      </div>
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
       <button class="btn primary" @click="openNewClusterModal()">
         <AppIcon name="plus" size="16" /> Đăng ký Cụm sân mới
       </button>

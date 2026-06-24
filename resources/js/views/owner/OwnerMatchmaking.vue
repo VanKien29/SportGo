@@ -1,11 +1,5 @@
 <template>
   <div class="matchmaking-page">
-    <div class="page-header">
-      <div class="header-left">
-        <h2>Giao lưu tại sân</h2>
-        <p class="muted">Theo dõi và quản lý các hoạt động giao lưu bắt cặp từ người chơi tại các cụm sân của bạn.</p>
-      </div>
-    </div>
  
     <!-- Alerts -->
     <div v-if="message" class="notice success">{{ message }}</div>
