@@ -571,7 +571,7 @@ export default {
 }
 
 .court-type-group {
-    background: #ffffff;
+    background: var(--admin-surface);
     border: 1px solid rgba(15, 23, 42, 0.04);
     border-radius: 12px;
     padding: 16px;
@@ -634,7 +634,7 @@ export default {
     justify-content: space-between;
     min-height: 52px;
     padding: 10px 16px;
-    background: #ffffff;
+    background: var(--admin-surface);
     border: 1px solid rgba(15, 23, 42, 0.03);
     border-radius: 8px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -652,7 +652,7 @@ export default {
     top: 15%;
     bottom: 15%;
     width: 2.5px;
-    background: var(--admin-primary, #10b981);
+    background: var(--admin-primary);
     border-radius: 0 2px 2px 0;
     opacity: 0;
     transform: scaleY(0.7);
@@ -788,9 +788,9 @@ export default {
 
 /* Card base */
 .card {
-    background: #fff;
+    background: var(--admin-surface);
     border-radius: 12px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     padding: 24px;
 }
@@ -815,17 +815,17 @@ export default {
 
 .btn-primary:hover {
     background: #222222;
-    border-color: #222222;
+    border-color: var(--admin-text);
 }
 
 .btn-outline {
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     background: transparent;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 
 .btn-outline:hover {
-    background: var(--sg-surface);
+    background: var(--admin-surface-muted);
 }
 
 /* Modal styling */
@@ -862,7 +862,7 @@ export default {
     font-size: 18px;
     font-weight: 800;
     margin: 0;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 
 .btn-close {
@@ -889,7 +889,7 @@ export default {
 .form-group label {
     font-size: 13px;
     font-weight: 700;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 
 .required {
@@ -899,15 +899,15 @@ export default {
 .form-control {
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     font-size: 14px;
-    color: var(--sg-text);
+    color: var(--admin-text);
     outline: none;
     transition: border-color 0.2s ease;
 }
 
 .form-control:focus {
-    border-color: #000000;
+    border-color: var(--admin-text);
 }
 
 .checkbox-group {
@@ -921,13 +921,13 @@ export default {
     cursor: pointer;
     font-weight: 700;
     font-size: 14px;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 
 .checkbox-label input {
     width: 18px;
     height: 18px;
-    accent-color: #000000;
+    accent-color: var(--admin-text);
 }
 
 .modal-footer {
@@ -936,11 +936,11 @@ export default {
     gap: 12px;
     padding: 20px 24px;
     border-top: 1px solid var(--sg-border);
-    background: var(--sg-surface);
+    background: var(--admin-surface-muted);
 }
 
 .alert-danger {
-    background: #f3f4f6;
+    background: var(--admin-surface-muted);
     color: #ef4444;
     padding: 12px 16px;
     border-radius: 8px;
@@ -962,10 +962,10 @@ export default {
     align-items: center;
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--sg-border);
-    background: #fff;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface);
     font-size: 14px;
-    color: var(--sg-text);
+    color: var(--admin-text);
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -990,8 +990,8 @@ export default {
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: #fff;
-    border: 1px solid var(--sg-border);
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     z-index: 1010;
@@ -1019,7 +1019,7 @@ export default {
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 14px;
-    color: var(--sg-text);
+    color: var(--admin-text);
     cursor: pointer;
     transition: background 0.15s ease;
 }
@@ -1044,7 +1044,7 @@ export default {
 
 .option-badge-root {
     background: rgba(0, 0, 0, 0.06);
-    color: rgba(0, 0, 0, 0.6);
+    color: var(--admin-muted);
 }
 
 .option-badge-parent {
@@ -1092,10 +1092,10 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #10b981;
+    background-color: var(--admin-primary);
     color: #fff;
     border: none;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 4px 12px var(--admin-primary-ring);
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
@@ -1167,7 +1167,7 @@ export default {
     width: 32px;
     height: 32px;
     border: 3px solid rgba(0, 0, 0, 0.05);
-    border-top-color: #000000;
+    border-top-color: var(--admin-text);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }

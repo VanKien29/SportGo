@@ -770,10 +770,10 @@ export default {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   padding: 16px;
   border-radius: 12px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
@@ -785,7 +785,7 @@ export default {
 .search-box input {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   outline: none;
   font-size: 14px;
@@ -803,9 +803,9 @@ export default {
 
 .filter-selects select {
   padding: 10px 14px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   font-size: 14px;
   outline: none;
   cursor: pointer;
@@ -818,9 +818,9 @@ export default {
 /* Bảng */
 .table-wrap {
   overflow: auto;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
@@ -839,7 +839,7 @@ th, td {
 }
 
 th {
-  background: #f9fafb;
+  background: var(--admin-surface-muted);
   font-weight: 700;
   color: #374151;
 }
@@ -894,7 +894,7 @@ tr:last-child td {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  background: #f3f4f6;
+  background: var(--admin-surface-muted);
   color: #4b5563;
 }
 
@@ -984,7 +984,7 @@ tr:last-child td {
 }
 
 .btn.secondary {
-  background: #f3f4f6;
+  background: var(--admin-surface-muted);
   color: #111827;
   border: 1px solid #e5e7eb;
 }
@@ -1009,7 +1009,7 @@ tr:last-child td {
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   color: #374151;
   transition: all 0.2s;
   white-space: nowrap;
@@ -1017,7 +1017,7 @@ tr:last-child td {
 }
 
 .btn-action:hover {
-  background: #f9fafb;
+  background: var(--admin-surface-muted);
 }
 
 .btn-action.view {
@@ -1033,7 +1033,7 @@ tr:last-child td {
 
 
 .btn-action.edit:hover {
-  background: #f3f4f6;
+  background: var(--admin-surface-muted);
 }
 
 .btn-action.edit:disabled, .btn-action.lock:disabled, .btn-action.unlock:disabled {
@@ -1041,7 +1041,7 @@ tr:last-child td {
   cursor: not-allowed;
   border-color: #e5e7eb !important;
   color: #9ca3af !important;
-  background: #f9fafb !important;
+  background: var(--admin-surface-muted) !important;
 }
 
 .btn-action.lock {
@@ -1078,7 +1078,7 @@ tr:last-child td {
 .modal {
   width: min(580px, calc(100vw - 32px));
   max-height: calc(100vh - 40px);
-  background: #fff;
+  background: var(--admin-surface, #fff);
   border-radius: 16px;
   padding: 24px;
   display: flex;
@@ -1103,15 +1103,15 @@ tr:last-child td {
 .modal h3 {
   margin: 0;
   font-size: 20px;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .icon-btn {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
   font-size: 20px;
   line-height: 1;
   border: none;
@@ -1121,7 +1121,7 @@ tr:last-child td {
 }
 
 .icon-btn:hover {
-  background: #e2e8f0;
+  background: var(--admin-border);
 }
 
 .modal-body {
@@ -1155,7 +1155,7 @@ tr:last-child td {
   gap: 6px;
   font-weight: 700;
   font-size: 14px;
-  color: #334155;
+  color: var(--admin-text);
 }
 
 .full-width {
@@ -1165,12 +1165,12 @@ tr:last-child td {
 .modal input,
 .modal select,
 .modal textarea {
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 10px 12px;
   font: inherit;
   outline: none;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   width: 100%;
 }
 
@@ -1194,10 +1194,10 @@ tr:last-child td {
   align-items: flex-start;
   gap: 10px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   cursor: pointer;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
   transition: all 0.2s;
 }
 
@@ -1216,12 +1216,12 @@ tr:last-child td {
 .checkbox-label strong {
   display: block;
   font-size: 14px;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .role-desc {
   font-size: 12px;
-  color: #64748b;
+  color: var(--admin-muted);
   font-weight: 400;
 }
 
@@ -1233,10 +1233,10 @@ tr:last-child td {
 }
 
 .detail-info-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
   padding: 20px;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1257,13 +1257,13 @@ tr:last-child td {
 
 .detail-info-card h4 {
   font-size: 18px;
-  color: #0f172a;
+  color: var(--admin-text);
   margin: 0 0 4px 0;
 }
 
 .detail-username {
   font-size: 14px;
-  color: #64748b;
+  color: var(--admin-muted);
   margin: 0 0 16px 0;
 }
 
@@ -1272,7 +1272,7 @@ tr:last-child td {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--admin-border);
   padding-top: 16px;
 }
 
@@ -1282,12 +1282,12 @@ tr:last-child td {
 
 .detail-meta-item .label {
   font-weight: 700;
-  color: #475569;
+  color: var(--admin-faint);
   margin-right: 6px;
 }
 
 .detail-meta-item .value {
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .detail-meta-item.nested {
@@ -1314,12 +1314,12 @@ tr:last-child td {
 .detail-logs-panel h5 {
   margin: 0;
   font-size: 16px;
-  color: #1e293b;
+  color: var(--admin-text);
 }
 
 .logs-table-wrap {
   overflow: auto;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   max-height: 400px;
 }
@@ -1336,16 +1336,16 @@ tr:last-child td {
 }
 
 .logs-table th {
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
   font-weight: 700;
 }
 
 .log-date {
-  color: #475569;
+  color: var(--admin-faint);
 }
 
 .actor-name-text {
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .ip-text {
@@ -1358,8 +1358,8 @@ tr:last-child td {
   border-radius: 4px;
   font-size: 11px;
   font-weight: 700;
-  background: #e2e8f0;
-  color: #475569;
+  background: var(--admin-border);
+  color: var(--admin-faint);
 }
 
 .log-action-badge.user\.created {
@@ -1388,7 +1388,7 @@ tr:last-child td {
 
 .diff-content {
   font-size: 11px;
-  color: #334155;
+  color: var(--admin-text);
   line-height: 1.4;
 }
 
@@ -1402,7 +1402,7 @@ tr:last-child td {
 
 .field-name {
   font-weight: 700;
-  color: #475569;
+  color: var(--admin-faint);
   margin-right: 4px;
 }
 
@@ -1413,7 +1413,7 @@ tr:last-child td {
 
 .arrow {
   margin: 0 4px;
-  color: #94a3b8;
+  color: var(--admin-faint);
 }
 
 .new-val {
@@ -1432,9 +1432,9 @@ tr:last-child td {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
 }
 
 .target-avatar {
@@ -1455,7 +1455,7 @@ tr:last-child td {
 
 .target-user span {
   font-size: 12px;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .segmented, .duration-grid {
@@ -1473,10 +1473,10 @@ tr:last-child td {
 
 .segmented button, .duration-grid button {
   min-height: 38px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #f8fafc;
-  color: #334155;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
@@ -1538,7 +1538,7 @@ tr:last-child td {
   right: 10px;
   background: none;
   border: none;
-  color: #64748b;
+  color: var(--admin-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1550,7 +1550,7 @@ tr:last-child td {
 
 .toggle-password-btn:hover {
   color: var(--sg-green);
-  background-color: #f1f5f9;
+  background-color: var(--admin-surface-muted);
 }
 
 /* Responsive */

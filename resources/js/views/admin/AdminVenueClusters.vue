@@ -226,9 +226,9 @@ export default {
 }
 
 .card {
-    background: #fff;
+    background: var(--admin-surface, #fff);
     border-radius: 12px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     padding: 20px 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
@@ -303,7 +303,7 @@ export default {
     width: 32px;
     height: 32px;
     border: 3px solid rgba(0, 0, 0, 0.05);
-    border-top-color: #0f172a;
+    border-top-color: var(--admin-text);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -333,7 +333,7 @@ export default {
     justify-content: space-between;
     min-height: 54px;
     padding: 10px 16px;
-    background: #ffffff;
+    background: var(--admin-surface, #ffffff);
     border: 1px solid rgba(15, 23, 42, 0.04);
     border-radius: 8px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -352,7 +352,7 @@ export default {
     top: 15%;
     bottom: 15%;
     width: 2.5px;
-    background: var(--admin-primary, #10b981);
+    background: var(--admin-primary);
     border-radius: 0 2px 2px 0;
     opacity: 0;
     transform: scaleY(0.7);
@@ -553,10 +553,10 @@ export default {
 .btn-outline {
     background: transparent;
     border-color: var(--sg-border);
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 .btn-outline:hover {
-    background: #f1f5f9;
+    background: var(--admin-surface-muted);
 }
 
 /* Animations */

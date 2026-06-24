@@ -417,8 +417,8 @@ export default {
 }
 
 .card {
-  background: #fff;
-  border: 1px solid var(--sg-border);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
 }
 
@@ -444,7 +444,7 @@ export default {
   gap: 6px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--sg-text);
+  color: var(--admin-text);
 }
 
 .field.full {
@@ -455,13 +455,13 @@ export default {
 .field select {
   width: 100%;
   height: 40px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 0 12px;
   font-size: 14px;
   font-weight: 500;
-  background: #fff;
-  color: var(--sg-text);
+  background: var(--admin-surface);
+  color: var(--admin-text);
 }
 
 .btn,
@@ -489,9 +489,9 @@ export default {
 }
 
 .btn.ghost {
-  background: #fff;
+  background: var(--admin-surface);
   border-color: var(--sg-border);
-  color: var(--sg-text);
+  color: var(--admin-text);
 }
 
 .btn:disabled {
@@ -502,9 +502,9 @@ export default {
 .icon-btn {
   width: 34px;
   height: 34px;
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #334155;
+  background: var(--admin-surface-muted);
+  border-color: var(--admin-border);
+  color: var(--admin-text);
 }
 
 .icon-btn.danger {
@@ -542,7 +542,7 @@ export default {
   width: 34px;
   height: 34px;
   border: 3px solid rgba(15, 23, 42, 0.08);
-  border-top-color: #0f172a;
+  border-top-color: var(--admin-text);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -577,10 +577,10 @@ td {
 }
 
 th {
-  background: #f8fafc;
+  background: var(--admin-surface-muted);
   font-size: 12px;
   font-weight: 900;
-  color: #475569;
+  color: var(--admin-faint);
   text-transform: uppercase;
 }
 
@@ -604,13 +604,13 @@ th {
   height: 58px;
   flex: 0 0 104px;
   overflow: hidden;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #f1f5f9;
+  background: var(--admin-surface-muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--admin-faint);
   font-size: 12px;
   font-weight: 800;
 }
@@ -631,7 +631,7 @@ th {
 }
 
 .banner-title {
-  color: var(--sg-text);
+  color: var(--admin-text);
   font-weight: 800;
 }
 
@@ -698,7 +698,7 @@ th {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #fff;
+  background: var(--admin-surface);
   border-radius: 8px;
 }
 
@@ -735,7 +735,7 @@ th {
   height: 180px;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
 }
 
 .toggle-row {
@@ -775,10 +775,10 @@ th {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #10b981;
+  background-color: var(--admin-primary);
   color: #fff;
   border: none;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px var(--admin-primary-ring);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;

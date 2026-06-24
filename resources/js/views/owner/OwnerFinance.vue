@@ -70,9 +70,9 @@
                         <tbody>
                             <tr v-for="wallet in wallets" :key="wallet.id">
                                 <td data-label="Cụm sân">
-                                    <strong>{{
+                                    {{
                                         wallet.venue_cluster?.name || "Ví chung"
-                                    }}</strong>
+                                    }}
                                     <small>{{
                                         wallet.venue_cluster?.address ||
                                         shortId(wallet.id)
@@ -195,11 +195,11 @@
                                     >
                                 </td>
                                 <td data-label="Tham chiếu">
-                                    <strong>{{
+                                    {{
                                         ledger.booking?.booking_code ||
                                         ledger.reference_code ||
                                         "-"
-                                    }}</strong>
+                                    }}
                                     <small>{{
                                         ledger.payment?.payment_code ||
                                         ledger.transaction_code
@@ -311,10 +311,10 @@
                                     }}
                                 </td>
                                 <td data-label="Tài khoản nhận">
-                                    <strong>{{
+                                    {{
                                         withdrawal.bank_account?.bank_name ||
                                         "-"
-                                    }}</strong>
+                                    }}
                                     <small
                                         >{{
                                             maskedAccount(
@@ -796,19 +796,25 @@ export default {
     gap: 7px;
     min-height: 38px;
     padding: 0 14px;
-    border: 1px solid #d5e3d6;
+    border: 1px solid var(--admin-border);
     border-radius: 7px;
-    background: #fff;
-    color: #344238;
+    background: var(--admin-surface);
+    color: var(--admin-muted);
     font-weight: 750;
     white-space: nowrap;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tabs button:hover:not(.active) {
+    background: var(--admin-hover);
+    color: var(--admin-text);
 }
 
 .tabs button.active {
-    border-color: #2f9e44;
-    background: #2f9e44;
-    color: #fff;
+    border-color: var(--admin-primary);
+    background: var(--admin-primary);
+    color: var(--admin-bg);
 }
 
 .info-band {
@@ -816,9 +822,9 @@ export default {
     align-items: flex-start;
     gap: 10px;
     padding: 12px 14px;
-    border-left: 3px solid #2f9e44;
-    background: #f3faf4;
-    color: #294332;
+    border-left: 3px solid var(--admin-primary);
+    background: var(--admin-surface-muted);
+    color: var(--admin-text);
 }
 
 .info-band p {
@@ -856,20 +862,20 @@ td small {
 
 .money.positive,
 .money.credit {
-    color: #216b34;
+    color: var(--admin-text);
 }
 
 .money.pending {
-    color: #9a6700;
+    color: var(--admin-warning);
 }
 
 .money.debit {
-    color: #991b1b;
+    color: var(--admin-danger);
 }
 
 .code {
     font-weight: 800;
-    color: #216b34;
+    color: var(--admin-text);
 }
 
 .finance-page .description-cell {
@@ -900,21 +906,21 @@ td small {
 .status-pill.credit,
 .status-pill.approved,
 .status-pill.completed {
-    background: #e8f7ec;
-    color: #216b34;
+    background: var(--admin-primary-soft) !important;
+    color: var(--admin-primary-dark) !important;
 }
 
 .status-pill.debit,
 .status-pill.rejected,
 .status-pill.cancelled {
-    background: #fef2f2;
-    color: #991b1b;
+    background: var(--admin-danger-soft) !important;
+    color: var(--admin-danger) !important;
 }
 
 .status-pill.pending,
 .status-pill.reviewing {
-    background: #fff4d6;
-    color: #8a4b08;
+    background: var(--admin-warning-soft) !important;
+    color: var(--admin-warning) !important;
 }
 
 .pagination {
@@ -928,10 +934,10 @@ td small {
     width: min(560px, calc(100vw - 32px));
     max-height: calc(100vh - 40px);
     overflow-y: auto;
-    border: 1px solid #d7e4d7;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    background: #fff;
-    box-shadow: 0 22px 60px rgba(24, 42, 29, 0.18);
+    background: var(--admin-surface);
+    box-shadow: var(--admin-shadow-lg);
 }
 
 .modal-backdrop {
@@ -986,7 +992,7 @@ td small {
 }
 
 .modal-header {
-    border-bottom: 1px solid #e1eae1;
+    border-bottom: 1px solid var(--admin-border);
 }
 
 .modal-header h2,
@@ -1008,7 +1014,7 @@ td small {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    border-top: 1px solid #e1eae1;
+    border-top: 1px solid var(--admin-border);
 }
 
 .primary-btn,
@@ -1021,15 +1027,15 @@ td small {
 }
 
 .primary-btn {
-    border: 1px solid #2f9e44;
-    background: #2f9e44;
-    color: #fff;
+    border: 1px solid var(--admin-primary);
+    background: var(--admin-primary);
+    color: var(--admin-bg);
 }
 
 .secondary-btn {
-    border: 1px solid #d5e3d6;
-    background: #fff;
-    color: #344238;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface);
+    color: var(--admin-text);
 }
 
 button:disabled {
@@ -1107,7 +1113,7 @@ button:disabled {
 
     .finance-page .responsive-table tr {
         padding: 12px 14px;
-        border-bottom: 1px solid #dce8dc;
+        border-bottom: 1px solid var(--admin-border);
     }
 
     .finance-page .responsive-table td {
@@ -1123,7 +1129,7 @@ button:disabled {
 
     .finance-page .responsive-table td::before {
         content: attr(data-label);
-        color: #536257;
+        color: var(--admin-faint);
         font-size: 11px;
         font-weight: 800;
         text-transform: uppercase;

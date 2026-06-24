@@ -74,7 +74,7 @@
           </tr>
           <tr v-for="user in users" :key="user.id">
             <td>
-              <strong>{{ user.full_name || '-' }}</strong>
+              {{ user.full_name || '-' }}
               <small>{{ user.warning_summary?.message }}</small>
               <span v-if="(user.reports_count_recent || 0) >= 3" class="badge-report">
                 <AppIcon name="alert" size="12" style="margin-right: 4px;" /> {{ user.reports_count_recent }} báo cáo
@@ -177,22 +177,22 @@
         <div v-if="policyLoading" class="state">Đang tải cấu hình...</div>
         <template v-else-if="policyConfig">
           <!-- Thông tin chính sách (chỉ đọc) -->
-          <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-top: 16px;">
+          <div style="background: var(--admin-surface-muted); border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-top: 16px;">
             <div style="font-weight: 700; color: #334155; margin-bottom: 10px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.3px;">Ngưỡng từ chính sách</div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng cảnh báo:</span>
+              <span style="color: var(--admin-muted); font-size: 0.9rem;">Ngưỡng cảnh báo:</span>
               <strong style="color: #d97706;">{{ policyConfig.warning_threshold }}</strong>
             </div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
+              <span style="color: var(--admin-muted); font-size: 0.9rem;">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
               <strong style="color: #dc2626;">{{ policyConfig.lock_threshold }}</strong>
             </div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo khác nhau:</span>
+              <span style="color: var(--admin-muted); font-size: 0.9rem;">Số người báo cáo khác nhau:</span>
               <strong style="color: #2563eb;">{{ policyConfig.unique_reporters_threshold }} người</strong>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Thời gian theo dõi (Ngày):</span>
+              <span style="color: var(--admin-muted); font-size: 0.9rem;">Thời gian theo dõi (Ngày):</span>
               <strong style="color: #334155;">{{ policyConfig.window_days }} ngày</strong>
             </div>
           </div>
@@ -205,11 +205,11 @@
             </div>
             <div v-if="policyConfig.is_auto_lock_enabled" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
               <label style="display: flex; flex-direction: column; gap: 6px;">
-                <span style="color: #64748b; font-size: 0.9rem;">Lý do khóa tự động:</span>
+                <span style="color: var(--admin-muted); font-size: 0.9rem;">Lý do khóa tự động:</span>
                 <input type="text" v-model="policyConfig.reason" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" placeholder="Ví dụ: Vi phạm tiêu chuẩn cộng đồng nhiều lần" />
               </label>
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: #64748b; font-size: 0.9rem;">Thời hạn khóa:</span>
+                <span style="color: var(--admin-muted); font-size: 0.9rem;">Thời hạn khóa:</span>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <input type="number" v-model.number="policyConfig.duration_days" style="width: 80px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px;" min="1" />
                   <span class="muted">ngày</span>
@@ -234,7 +234,7 @@
 
         <footer style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
           <button type="button" class="btn secondary" @click="closePolicyModal">Hủy</button>
-          <button type="button" class="btn primary" style="background: #10b981; color: white;" @click="savePolicyConfig" :disabled="policySaving">Lưu cấu hình</button>
+          <button type="button" class="btn primary" style="background: var(--admin-primary); color: var(--admin-bg);" @click="savePolicyConfig" :disabled="policySaving">Lưu cấu hình</button>
         </footer>
       </div>
     </div>
@@ -467,7 +467,7 @@ export default {
 .tabs button,
 .segmented button {
   border: 1px solid #dbe3ef;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   border-radius: 8px;
   padding: 10px 14px;
   font-weight: 800;
@@ -484,8 +484,8 @@ export default {
 .filters {
   justify-content: flex-start;
   flex-wrap: wrap;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--admin-surface, #fff);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
   padding: 14px;
 }
@@ -494,7 +494,7 @@ label {
   display: grid;
   gap: 6px;
   font-weight: 800;
-  color: #334155;
+  color: var(--admin-text);
 }
 
 label span {
@@ -509,7 +509,7 @@ textarea {
   padding: 10px;
   font: inherit;
   min-width: 220px;
-  background: #fff;
+  background: var(--admin-surface, #fff);
 }
 
 textarea {
@@ -519,8 +519,8 @@ textarea {
 
 .table-card,
 .modal {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--admin-surface, #fff);
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
 }
 
@@ -537,7 +537,7 @@ table {
 th,
 td {
   padding: 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--admin-border);
   text-align: left;
   vertical-align: top;
 }
@@ -550,13 +550,13 @@ td:first-child {
 .actions-col {
   position: sticky;
   right: 0;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   white-space: nowrap;
 }
 
 .state {
   padding: 20px;
-  color: #64748b;
+  color: var(--admin-muted);
   text-align: center;
 }
 
@@ -580,13 +580,13 @@ td:first-child {
   min-height: 34px;
   padding: 7px 10px;
   margin-right: 6px;
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
 }
 
 .secondary {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
 }
 
 .danger,
@@ -602,7 +602,7 @@ td:first-child {
   padding: 5px 9px;
   font-size: 12px;
   font-weight: 800;
-  background: #e2e8f0;
+  background: var(--admin-border);
 }
 
 .status.active,
@@ -643,7 +643,7 @@ td:first-child {
 
 .pagination {
   align-items: center;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .pagination div {
@@ -683,7 +683,7 @@ td:first-child {
   width: 48px;
   height: 26px;
   border-radius: 13px;
-  background: #e2e8f0;
+  background: var(--admin-border);
   cursor: pointer;
   transition: background 0.2s;
   position: relative;
@@ -697,7 +697,7 @@ td:first-child {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--admin-surface, #fff);
   transition: transform 0.2s;
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }

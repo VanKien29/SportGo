@@ -10,20 +10,12 @@
         <AppIcon name="chevronRight" size="13" />
         <span>{{ sectionLabel || 'Tổng quan' }}</span>
         <AppIcon name="chevronRight" size="13" />
-        <strong>{{ title }}</strong>
+        <span class="current-crumb">{{ title }}</span>
       </div>
     </div>
 
     <div class="topbar-actions">
       <ThemeToggle />
-
-      <UserProfileDropdown
-        :user="user"
-        profile-url="/owner/profile"
-        billing-url="/owner/billing"
-        settings-url="/owner/settings"
-        @logout="handleLogout"
-      />
     </div>
   </header>
 </template>
@@ -31,27 +23,14 @@
 <script>
 import AppIcon from '../AppIcon.vue';
 import ThemeToggle from '../ui/ThemeToggle.vue';
-import UserProfileDropdown from '../ui/UserProfileDropdown.vue';
-import { logout, getAuth } from '../../stores/auth.js';
 
 export default {
   name: 'OwnerTopbar',
-  components: { AppIcon, ThemeToggle, UserProfileDropdown },
+  components: { AppIcon, ThemeToggle },
   props: {
     title: { type: String, required: true },
     sectionLabel: { type: String, default: '' },
   },
   emits: ['toggle-sidebar'],
-  computed: {
-    user() {
-      return getAuth() || {};
-    },
-  },
-  methods: {
-    async handleLogout() {
-      await logout();
-      this.$router.push('/login');
-    },
-  },
 };
 </script>

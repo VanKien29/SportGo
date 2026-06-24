@@ -130,7 +130,7 @@
                     <td class="log-diff-cell">
                       <div v-if="log.old_values || log.new_values" class="diff-content">
                         <div v-if="log.action === 'user.locked'">
-                          <strong>Lý do:</strong> {{ log.new_values?.status_reason || 'Không ghi rõ' }}
+                          Lý do: {{ log.new_values?.status_reason || 'Không ghi rõ' }}
                           <div v-if="log.new_values?.locked_until" class="muted mt-1">
                             Hạn khóa: {{ formatDate(log.new_values.locked_until) }}
                           </div>
@@ -636,7 +636,7 @@ export default {
 .logs-table th {
   text-align: left;
   padding: 12px;
-  background: #f9fafb;
+  background: var(--admin-surface-muted);
   color: #374151;
   font-weight: 600;
   border-bottom: 1px solid #e5e7eb;
@@ -666,7 +666,7 @@ export default {
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: #f3f4f6;
+  background: var(--admin-surface-muted);
   color: #374151;
 }
 .log-action-badge.user\.created { background: #dcfce7; color: #166534; }
@@ -703,7 +703,7 @@ hr {
 /* Modal Lock Form styles inherited from global */
 .field-label { display: block; font-weight: 600; margin-bottom: 8px; }
 .segmented { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid #d1d5db; margin-bottom: 16px; }
-.segmented button { flex: 1; padding: 8px 0; background: #f9fafb; border: none; cursor: pointer; border-right: 1px solid #d1d5db; }
+.segmented button { flex: 1; padding: 8px 0; background: var(--admin-surface-muted); border: none; cursor: pointer; border-right: 1px solid #d1d5db; }
 .segmented button:last-child { border-right: none; }
 .segmented button.active { background: #4f46e5; color: white; font-weight: 600; }
 .duration-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }

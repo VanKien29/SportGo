@@ -244,7 +244,8 @@
   font-weight: 600;
 }
 
-.admin-crumbs strong {
+.admin-crumbs strong,
+.admin-crumbs .current-crumb {
   overflow: hidden;
   color: var(--admin-text);
   text-overflow: ellipsis;

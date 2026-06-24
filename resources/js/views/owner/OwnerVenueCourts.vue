@@ -2075,9 +2075,9 @@ export default {
 }
 
 .card {
-    background: #fff;
+    background: var(--admin-surface, #fff);
     border-radius: 12px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     padding: 24px;
 }
@@ -2096,7 +2096,7 @@ export default {
 }
 
 .btn-back {
-    color: rgba(0, 0, 0, 0.6);
+    color: var(--admin-muted);
     text-decoration: none;
     font-weight: 700;
     font-size: 13px;
@@ -2105,19 +2105,19 @@ export default {
 }
 
 .btn-back:hover {
-    color: #000000;
+    color: var(--admin-text);
 }
 
 .header-left h2 {
     font-size: 22px;
     font-weight: 800;
-    color: var(--sg-text);
+    color: var(--admin-text);
     margin: 0;
 }
 
 .subtitle {
     margin-top: 4px;
-    color: rgba(15, 23, 42, 0.5);
+    color: var(--admin-muted);
     font-size: 14px;
 }
 
@@ -2146,29 +2146,29 @@ export default {
 
 .btn-primary:hover {
     background: #222222;
-    border-color: #222222;
+    border-color: var(--admin-text);
 }
 
 .btn-outline {
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     background: transparent;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 
 .btn-outline:hover {
-    background: var(--sg-surface);
+    background: var(--admin-surface-muted);
 }
 
 .btn-danger-outline {
     border: 1px solid rgba(0, 0, 0, 0.15);
     background: transparent;
-    color: rgba(0, 0, 0, 0.7);
+    color: var(--admin-text);
 }
 
 .btn-danger-outline:hover {
     background: rgba(0, 0, 0, 0.05);
-    border-color: rgba(0, 0, 0, 0.25);
-    color: #000000;
+    border-color: var(--admin-faint);
+    color: var(--admin-text);
 }
 
 /* SaaS Grouped Compact Rows */
@@ -2207,20 +2207,20 @@ export default {
 .group-title {
     font-size: 11px;
     font-weight: 750;
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-muted);
     letter-spacing: 0.06em;
 }
 
 .group-divider {
     flex: 1;
     height: 1px;
-    background: rgba(15, 23, 42, 0.05);
+    background: var(--admin-hover);
 }
 
 .group-count {
     font-size: 11px;
     font-weight: 700;
-    color: rgba(15, 23, 42, 0.35);
+    color: var(--admin-faint);
 }
 
 .group-items {
@@ -2236,16 +2236,16 @@ export default {
     justify-content: space-between;
     height: 52px;
     padding: 0 16px;
-    background: #ffffff;
-    border: 1px solid rgba(15, 23, 42, 0.04);
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft);
     border-radius: 8px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
 }
 
 .court-row-item:hover {
-    background: rgba(15, 23, 42, 0.015);
-    border-color: rgba(15, 23, 42, 0.08);
+    background: var(--admin-hover);
+    border-color: var(--admin-faint);
     transform: translateX(2px);
 }
 
@@ -2278,14 +2278,14 @@ export default {
 .row-order {
     font-size: 12px;
     font-weight: 700;
-    color: rgba(15, 23, 42, 0.3);
+    color: var(--admin-faint);
     font-family: monospace;
 }
 
 .row-name {
     font-size: 14px;
     font-weight: 600;
-    color: var(--sg-text);
+    color: var(--admin-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2305,8 +2305,8 @@ export default {
 }
 
 .row-status-badge.inactive {
-    background: rgba(15, 23, 42, 0.05);
-    color: rgba(15, 23, 42, 0.5);
+    background: var(--admin-hover);
+    color: var(--admin-muted);
 }
 
 .row-status-badge.maintenance {
@@ -2378,7 +2378,7 @@ export default {
     align-items: center;
     justify-content: center;
     padding: 48px 16px;
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-muted);
     gap: 12px;
 }
 
@@ -2413,7 +2413,7 @@ export default {
         opacity: 1;
         transform: none;
         justify-content: flex-end;
-        border-top: 1px dashed rgba(15, 23, 42, 0.05);
+        border-top: 1px dashed var(--admin-border-soft);
         padding-top: 8px;
     }
 }
@@ -2422,7 +2422,7 @@ export default {
 .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.4);
+    background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(4px);
     display: grid;
     place-items: center;
@@ -2452,7 +2452,7 @@ export default {
     font-size: 18px;
     font-weight: 800;
     margin: 0;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 
 .btn-close {
@@ -2460,7 +2460,7 @@ export default {
     border: none;
     font-size: 24px;
     cursor: pointer;
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-muted);
 }
 
 .modal-body {
@@ -2479,7 +2479,7 @@ export default {
 .form-group label {
     font-size: 13px;
     font-weight: 700;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 
 .required {
@@ -2489,15 +2489,15 @@ export default {
 .form-control {
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     font-size: 14px;
-    color: var(--sg-text);
+    color: var(--admin-text);
     outline: none;
     transition: border-color 0.2s ease;
 }
 
 .form-control:focus {
-    border-color: #000000;
+    border-color: var(--admin-text);
 }
 
 .modal-footer {
@@ -2506,11 +2506,11 @@ export default {
     gap: 12px;
     padding: 20px 24px;
     border-top: 1px solid var(--sg-border);
-    background: var(--sg-surface);
+    background: var(--admin-surface-muted);
 }
 
 .alert-danger {
-    background: #f3f4f6;
+    background: var(--admin-surface-muted);
     color: #ef4444;
     padding: 12px 16px;
     border-radius: 8px;
@@ -2529,14 +2529,14 @@ export default {
     padding: 60px 24px;
     text-align: center;
     gap: 16px;
-    color: rgba(15, 23, 42, 0.6);
+    color: var(--admin-muted);
 }
 
 .spinner {
     width: 40px;
     height: 40px;
     border: 3px solid rgba(0, 0, 0, 0.1);
-    border-top-color: #000000;
+    border-top-color: var(--admin-text);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -2558,48 +2558,48 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 10px 14px;
-    background: #fff;
-    border: 1px solid var(--sg-border);
+    background: var(--admin-surface, #fff);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     font-size: 14px;
-    color: var(--sg-text);
+    color: var(--admin-text);
     cursor: pointer;
     user-select: none;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .custom-select-trigger:hover {
-    border-color: #000000;
+    border-color: var(--admin-text);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .custom-select-trigger.active {
-    border-color: #000000;
+    border-color: var(--admin-text);
     box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
 }
 
 .custom-select-trigger .parent-name {
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-muted);
     font-weight: 500;
 }
 
 .custom-select-trigger .separator {
     margin: 0 6px;
-    color: rgba(15, 23, 42, 0.2);
+    color: var(--admin-faint);
 }
 
 .custom-select-trigger .child-name {
     font-weight: 700;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 
 .custom-select-trigger .placeholder {
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-muted);
 }
 
 .custom-select-trigger .arrow {
     font-size: 10px;
-    color: rgba(15, 23, 42, 0.5);
+    color: var(--admin-muted);
     transition: transform 0.2s ease;
 }
 
@@ -2613,8 +2613,8 @@ export default {
     top: calc(100% + 6px);
     left: 0;
     right: 0;
-    background: #ffffff;
-    border: 1px solid var(--sg-border);
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border);
     border-radius: 10px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
     z-index: 100;
@@ -2639,8 +2639,8 @@ export default {
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: rgba(15, 23, 42, 0.4);
-    background: rgba(15, 23, 42, 0.02);
+    color: var(--admin-muted);
+    background: var(--admin-hover);
     border-bottom: 1px solid rgba(0, 0, 0, 0.02);
 }
 
@@ -2651,7 +2651,7 @@ export default {
     padding: 10px 14px;
     cursor: pointer;
     font-size: 13.5px;
-    color: var(--sg-text);
+    color: var(--admin-text);
     transition:
         background 0.15s ease,
         color 0.15s ease;
@@ -2673,12 +2673,12 @@ export default {
 .custom-option .option-details {
     margin-left: 6px;
     font-size: 12px;
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-muted);
 }
 
 .custom-option .check-mark {
     margin-left: auto;
-    color: #000000;
+    color: var(--admin-text);
     font-weight: 900;
 }
 
@@ -2696,7 +2696,7 @@ export default {
     padding: 10px 16px;
     font-size: 14px;
     font-weight: 700;
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-muted);
     cursor: pointer;
     border-bottom: 3px solid transparent;
     transition: all 0.2s ease;
@@ -2704,13 +2704,13 @@ export default {
 }
 
 .tab-btn:hover {
-    color: var(--sg-text);
-    border-bottom-color: rgba(0, 0, 0, 0.1);
+    color: var(--admin-text);
+    border-bottom-color: var(--admin-faint);
 }
 
 .tab-btn.active {
-    color: #000000;
-    border-bottom-color: #000000;
+    color: var(--admin-text);
+    border-bottom-color: var(--admin-text);
 }
 
 .badge-placed {
@@ -2741,8 +2741,8 @@ export default {
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
-    background: #ffffff;
-    border: 1px solid var(--sg-border);
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border);
     padding: 12px 20px;
     border-radius: 12px;
 }
@@ -2755,13 +2755,13 @@ export default {
 .info-badge {
     font-size: 12.5px;
     font-weight: 700;
-    color: rgba(15, 23, 42, 0.5);
+    color: var(--admin-muted);
 }
 /* ── Tool Switcher ── */
 .tool-switcher {
     display: flex;
-    background: #f1f5f9;
-    border: 1.5px solid #e2e8f0;
+    background: var(--admin-surface-muted);
+    border: 1.5px solid var(--admin-border);
     border-radius: 8px;
     padding: 3px;
     gap: 2px;
@@ -2776,22 +2776,22 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
+    color: var(--admin-muted);
     transition: all 0.15s;
 }
 .tool-btn:hover {
-    background: #e2e8f0;
-    color: #1e293b;
+    background: var(--admin-border);
+    color: var(--admin-text);
 }
 .tool-btn.active {
-    background: #fff;
+    background: var(--admin-surface, #fff);
     color: #3b82f6;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 .toolbar-divider {
     width: 1px;
     height: 28px;
-    background: #e2e8f0;
+    background: var(--admin-border);
     align-self: center;
     margin: 0 2px;
 }
@@ -2807,8 +2807,8 @@ export default {
     flex: 1;
     min-width: 0;
     height: 600px;
-    background-color: #f8fafc;
-    border: 1px solid var(--sg-border);
+    background-color: var(--admin-surface-muted);
+    border: 1px solid var(--admin-border);
     border-radius: 16px;
     box-shadow:
         inset 0 2px 8px rgba(0, 0, 0, 0.04),
@@ -2847,8 +2847,8 @@ export default {
     right: 20px;
     display: flex;
     align-items: center;
-    background: #ffffff;
-    border: 1px solid var(--sg-border);
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     z-index: 100;
@@ -2862,12 +2862,12 @@ export default {
     font-weight: 700;
     font-size: 16px;
     cursor: pointer;
-    color: var(--sg-text);
+    color: var(--admin-text);
     transition: background 0.2s;
 }
 
 .btn-zoom:hover {
-    background: #f1f5f9;
+    background: var(--admin-surface-muted);
 }
 
 .btn-zoom.reset {
@@ -2879,7 +2879,7 @@ export default {
     font-size: 13px;
     font-weight: 700;
     padding: 0 10px;
-    color: var(--sg-text);
+    color: var(--admin-text);
     min-width: 48px;
     text-align: center;
 }
@@ -2990,7 +2990,7 @@ export default {
     left: 20px;
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(8px);
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     border-radius: 10px;
     padding: 12px 14px;
     z-index: 99;
@@ -3003,7 +3003,7 @@ export default {
 
 .guide-item {
     font-size: 11.5px;
-    color: var(--sg-text);
+    color: var(--admin-text);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -3037,7 +3037,7 @@ export default {
     position: absolute;
     width: 10px;
     height: 10px;
-    background-color: #ffffff;
+    background-color: var(--admin-surface, #ffffff);
     border: 2px solid #000000;
     border-radius: 50%;
     z-index: 25;
@@ -3074,8 +3074,8 @@ export default {
 }
 
 .sidebar-section {
-    background: #ffffff;
-    border: 1px solid var(--sg-border);
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border);
     border-radius: 12px;
     padding: 16px;
 }
@@ -3085,14 +3085,14 @@ export default {
     font-weight: 800;
     margin-top: 0;
     margin-bottom: 12px;
-    color: var(--sg-text);
+    color: var(--admin-text);
     border-bottom: 1px solid var(--sg-border);
     padding-bottom: 8px;
 }
 
 .section-desc {
     font-size: 12px;
-    color: rgba(15, 23, 42, 0.5);
+    color: var(--admin-muted);
     margin-top: 0;
     margin-bottom: 12px;
 }
@@ -3114,12 +3114,12 @@ export default {
 
 .field-row .label {
     font-weight: 700;
-    color: rgba(15, 23, 42, 0.5);
+    color: var(--admin-muted);
 }
 
 .field-row .value {
     font-weight: 700;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 
 .field-group {
@@ -3131,7 +3131,7 @@ export default {
 .field-group label {
     font-size: 12.5px;
     font-weight: 700;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 
 .input-row {
@@ -3144,21 +3144,21 @@ export default {
     width: 100%;
     padding: 8px 10px;
     border-radius: 6px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     font-size: 13px;
     outline: none;
     font-weight: 700;
 }
 
 .input-row input:focus {
-    border-color: #000000;
+    border-color: var(--admin-text);
 }
 
 .input-row .x,
 .input-row .comma {
     font-size: 12px;
     font-weight: 700;
-    color: rgba(15, 23, 42, 0.3);
+    color: var(--admin-faint);
 }
 
 .rotation-control {
@@ -3169,7 +3169,7 @@ export default {
 
 .rotation-slider {
     flex: 1;
-    accent-color: #000000;
+    accent-color: var(--admin-text);
     height: 4px;
 }
 
@@ -3195,16 +3195,16 @@ export default {
 
 .unplaced-court-item {
     padding: 10px 12px;
-    background: var(--sg-surface);
-    border: 1px solid var(--sg-border);
+    background: var(--admin-surface-muted);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
 .unplaced-court-item:hover {
-    background: #ffffff;
-    border-color: #000000;
+    background: var(--admin-surface, #ffffff);
+    border-color: var(--admin-text);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
 }
 
@@ -3217,13 +3217,13 @@ export default {
 .item-name {
     font-weight: 700;
     font-size: 13.5px;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 
 .item-add-hint {
     font-size: 11px;
     font-weight: 700;
-    color: #000000;
+    color: var(--admin-text);
     opacity: 0;
     transition: opacity 0.15s ease;
 }
@@ -3234,13 +3234,13 @@ export default {
 
 .item-type {
     font-size: 11.5px;
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-muted);
     margin-top: 2px;
 }
 
 .empty-unplaced {
     font-size: 12.5px;
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-muted);
     text-align: center;
     padding: 20px 0;
     font-style: italic;
@@ -3291,12 +3291,12 @@ export default {
 }
 .btn-add-decor {
     padding: 8px;
-    background: #f8fafc;
-    border: 1.5px solid #e2e8f0;
+    background: var(--admin-surface-muted);
+    border: 1.5px solid var(--admin-border);
     border-radius: 8px;
     font-size: 11px;
     font-weight: 700;
-    color: #475569;
+    color: var(--admin-faint);
     cursor: pointer;
     text-align: center;
     transition: all 0.2s;
@@ -3307,8 +3307,8 @@ export default {
     gap: 4px;
 }
 .btn-add-decor:hover {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
-    color: #1e293b;
+    background: var(--admin-surface-muted);
+    border-color: var(--admin-border);
+    color: var(--admin-text);
 }
 </style>
