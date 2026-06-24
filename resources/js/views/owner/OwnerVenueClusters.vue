@@ -125,15 +125,15 @@
                             </div>
                             <div class="location-readonly-body" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
                                 <div class="location-info-row">
-                                    <span class="location-label" style="font-weight:600; color:#64748b;">Tỉnh/TP: </span>
+                                    <span class="location-label" style="font-weight:600;">Tỉnh/TP: </span>
                                     <span class="location-value">{{ selectedCluster.province || "—" }}</span>
                                 </div>
                                 <div class="location-info-row">
-                                    <span class="location-label" style="font-weight:600; color:#64748b;">Phường/Xã: </span>
+                                    <span class="location-label" style="font-weight:600;">Phường/Xã: </span>
                                     <span class="location-value">{{ selectedCluster.ward || "—" }}</span>
                                 </div>
                                 <div class="location-info-row">
-                                    <span class="location-label" style="font-weight:600; color:#64748b;">Địa chỉ: </span>
+                                    <span class="location-label" style="font-weight:600;">Địa chỉ: </span>
                                     <span class="location-value">{{ selectedCluster.address || "—" }}</span>
                                 </div>
                             </div>
@@ -192,7 +192,7 @@
                                 >
                                     {{ updating ? "Đang lưu..." : "Lưu cấu hình tiện ích" }}
                                 </button>
-                                <span v-if="updateSuccess" class="text-success" style="font-size: 13.5px; font-weight: 600; color: #16a34a;">Lưu cấu hình tiện ích thành công!</span>
+                                <span v-if="updateSuccess" class="text-success" style="font-size: 13.5px; font-weight: 600; color: var(--admin-primary, #000000);">Lưu cấu hình tiện ích thành công!</span>
                                 <span v-if="updateError" class="text-danger" style="font-size: 13.5px; font-weight: 600; color: #dc2626;">{{ updateError }}</span>
                             </div>
                         </div>
@@ -217,7 +217,7 @@
                                     />
                                 </div>
                             </div>
-                            <div v-else class="owner-gallery-empty" style="padding: 24px; border-radius: 8px; font-size: 13px; margin-top: 8px; text-align: center; background: #f8fafc; border: 1px dashed #cbd5e1; color: #64748b;">
+                            <div v-else class="owner-gallery-empty" style="padding: 24px; border-radius: 8px; font-size: 13px; margin-top: 8px; text-align: center;">
                                 Chưa có hình ảnh nào được tải lên cho cụm sân này.
                             </div>
                         </div>
@@ -4386,9 +4386,9 @@ export default {
 }
 
 .card {
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     border-radius: 12px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border, #e5e7eb);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     padding: 24px;
 }
@@ -4426,21 +4426,21 @@ export default {
     transition: all 0.2s ease;
 }
 .cluster-item:hover {
-    background: var(--sg-surface);
+    background: var(--admin-hover, var(--sg-surface));
 }
 .cluster-item.active {
-    background: rgba(0, 0, 0, 0.05);
-    border-color: rgba(0, 0, 0, 0.2);
+    background: var(--admin-primary-soft, rgba(0, 0, 0, 0.05));
+    border-color: var(--admin-border, rgba(0, 0, 0, 0.2));
 }
 .cluster-name {
     font-size: 14px;
     font-weight: 700;
-    color: var(--sg-text);
+    color: var(--admin-text, var(--sg-text));
     margin: 0;
 }
 .cluster-address {
     font-size: 12px;
-    color: rgba(15, 23, 42, 0.5);
+    color: var(--admin-faint, rgba(15, 23, 42, 0.5));
     margin-top: 4px;
     overflow: hidden;
     white-space: nowrap;
@@ -4458,7 +4458,7 @@ export default {
     display: flex;
     gap: 4px;
     padding: 8px;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
 }
 
 .tab-btn {
@@ -4469,20 +4469,20 @@ export default {
     border-radius: 6px;
     border: 1px solid transparent;
     background: transparent;
-    color: rgba(15, 23, 42, 0.6);
+    color: var(--admin-muted, rgba(15, 23, 42, 0.6));
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
 }
 .tab-btn:hover {
-    background: var(--sg-surface);
-    color: var(--sg-text);
+    background: var(--admin-hover, var(--sg-surface));
+    color: var(--admin-text, var(--sg-text));
 }
 .tab-btn.active {
-    background: #000;
-    color: #fff;
-    border-color: #000;
+    background: var(--admin-primary, #000);
+    color: var(--admin-bg, #fff);
+    border-color: var(--admin-primary, #000);
 }
 
 .tab-badge {
@@ -4542,7 +4542,7 @@ export default {
 .form-group label {
     font-size: 13px;
     font-weight: 700;
-    color: var(--sg-text);
+    color: var(--admin-text, var(--sg-text));
 }
 .required {
     color: #ef4444;
@@ -4550,14 +4550,15 @@ export default {
 .form-control {
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border, var(--sg-border));
+    background: var(--admin-surface, #ffffff);
     font-size: 14px;
-    color: var(--sg-text);
+    color: var(--admin-text, var(--sg-text));
     outline: none;
     transition: border-color 0.2s;
 }
 .form-control:focus {
-    border-color: #000;
+    border-color: var(--admin-primary, #000);
 }
 
 .map-input-group {
@@ -4620,8 +4621,8 @@ export default {
     transition: all 0.2s ease;
 }
 .amenity-item-wrapper.active {
-    border-color: #10b981;
-    background: rgba(16, 185, 129, 0.04);
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary-soft, #f3f4f6);
 }
 .amenity-item-row {
     display: flex;
@@ -4641,7 +4642,7 @@ export default {
 .amenity-checkbox input {
     width: 16px;
     height: 16px;
-    accent-color: #10b981;
+    accent-color: var(--admin-primary, #000000);
 }
 .btn-edit-amenity-desc {
     display: inline-flex;
@@ -4658,7 +4659,7 @@ export default {
 }
 .btn-edit-amenity-desc:hover {
     background-color: rgba(15, 23, 42, 0.08);
-    color: #10b981;
+    color: var(--admin-primary, #000000);
 }
 .btn-edit-amenity-desc .edit-icon {
     font-size: 13px;
@@ -4669,7 +4670,7 @@ export default {
     right: 2px;
     width: 6px;
     height: 6px;
-    background-color: #10b981;
+    background-color: var(--admin-primary, #000000);
     border-radius: 50%;
 }
 .modal-amenity-desc {
@@ -4738,22 +4739,22 @@ export default {
 }
 .owner-gallery-empty {
     padding: 18px;
-    background: #f8fafc;
-    border: 1px dashed var(--sg-border);
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px dashed var(--admin-border, var(--sg-border));
     border-radius: 8px;
     text-align: center;
-    color: rgba(15, 23, 42, 0.45);
+    color: var(--admin-faint, rgba(15, 23, 42, 0.45));
     font-size: 13px;
     margin-bottom: 12px;
 }
 .owner-upload-zone {
-    border: 2px dashed #cbd5e1;
+    border: 2px dashed var(--admin-border, #cbd5e1);
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
 }
 .owner-upload-zone:hover {
-    border-color: #000;
-    background-color: #f8fafc;
+    border-color: var(--admin-primary, #000);
+    background-color: var(--admin-surface-muted, #f8fafc);
 }
 .hidden-file-input {
     display: none;
@@ -5370,7 +5371,7 @@ export default {
     border-left-color: #f59e0b;
 }
 .approval-approved {
-    border-left-color: #22c55e;
+    border-left-color: var(--admin-primary, #000000);
 }
 .approval-rejected {
     border-left-color: #ef4444;
@@ -5422,8 +5423,8 @@ export default {
     color: #713f12;
 }
 .approval-status-approved {
-    background: #dcfce7;
-    color: #14532d;
+    background: var(--admin-primary, #000000);
+    color: var(--admin-bg, #ffffff);
 }
 .approval-status-rejected {
     background: #fee2e2;
@@ -5652,9 +5653,9 @@ export default {
     margin-bottom: 16px;
 }
 .alert-success {
-    background: #f0fdf4;
-    color: #14532d;
-    border: 1px solid #bbf7d0;
+    background: #f3f4f6;
+    color: #000000;
+    border: 1px solid #e5e7eb;
 }
 .alert-danger {
     background: #fef2f2;
@@ -5689,7 +5690,7 @@ export default {
 
 /* ─── Location Readonly Box ─── */
 .location-readonly-box {
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border, var(--sg-border));
     border-radius: 10px;
     overflow: hidden;
     margin-bottom: 8px;
@@ -5699,15 +5700,15 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    background: #f8fafc;
-    border-bottom: 1px solid var(--sg-border);
+    background: var(--admin-surface-muted, #f8fafc);
+    border-bottom: 1px solid var(--admin-border, var(--sg-border));
     gap: 12px;
     flex-wrap: wrap;
 }
 .location-readonly-title {
     font-weight: 700;
     font-size: 13px;
-    color: var(--sg-text);
+    color: var(--admin-text, var(--sg-text));
 }
 .pending-location-badge {
     display: inline-block;
@@ -5716,16 +5717,16 @@ export default {
     border-radius: 20px;
     font-size: 11px;
     font-weight: 700;
-    background: #fef3c7;
-    color: #92400e;
-    border: 1px solid #fde68a;
+    background: var(--admin-warning-soft, #fef3c7);
+    color: var(--admin-warning, #92400e);
+    border: 1px solid var(--admin-warning, #fde68a);
 }
 .location-readonly-body {
     padding: 14px 16px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
 }
 .location-info-row {
     display: flex;
@@ -5735,12 +5736,12 @@ export default {
 }
 .location-label {
     font-weight: 700;
-    color: rgba(15, 23, 42, 0.5);
+    color: var(--admin-faint, rgba(15, 23, 42, 0.5));
     min-width: 80px;
     flex-shrink: 0;
 }
 .location-value {
-    color: var(--sg-text);
+    color: var(--admin-text, var(--sg-text));
 }
 .location-coord {
     font-family: monospace;
@@ -6444,20 +6445,20 @@ export default {
 .info-value-text {
     padding: 10px 14px;
     border-radius: 8px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #e2e8f0);
     font-size: 14.5px;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--admin-text, #0f172a);
 }
 .info-description-text {
     padding: 14px;
     border-radius: 8px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #e2e8f0);
     font-size: 14px;
     line-height: 1.6;
-    color: #334155;
+    color: var(--admin-text, #334155);
     white-space: pre-wrap;
 }
 .info-amenity-tag {
@@ -6465,12 +6466,12 @@ export default {
     align-items: center;
     gap: 8px;
     padding: 6px 12px;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
+    background: var(--admin-primary-soft, #f1f5f9);
+    border: 1px solid var(--admin-border, #e2e8f0);
     border-radius: 9999px;
     font-size: 13.5px;
     font-weight: 600;
-    color: #334155;
+    color: var(--admin-text, #334155);
 }
 .btn-edit-amenity-desc-readonly {
     background: none;
@@ -6504,33 +6505,34 @@ export default {
     border-radius: 20px;
     font-size: 13.5px;
     font-weight: 500;
-    color: #64748b;
-    background: #f8fafc;
-    border: 1px dashed #cbd5e1;
+    color: var(--admin-muted, #64748b);
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px dashed var(--admin-border, #cbd5e1);
     transition: all 0.2s ease-in-out;
     user-select: none;
 }
 .amenity-select-tag:hover {
-    background: #f1f5f9;
-    border-color: #94a3b8;
-    color: #334155;
+    background: var(--admin-hover, #f1f5f9);
+    border-color: var(--admin-faint, #94a3b8);
+    color: var(--admin-text, #334155);
     transform: translateY(-1px);
 }
 .amenity-select-tag.active {
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    color: #166534;
-    box-shadow: 0 2px 4px rgba(22, 163, 74, 0.06);
+    background: var(--admin-primary, #000000);
+    border: 1px solid var(--admin-primary, #000000);
+    color: var(--admin-bg, #ffffff);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 .amenity-select-tag.active:hover {
-    background: #dcfce7;
-    border-color: #86efac;
+    background: var(--admin-primary-light, #1f1f22);
+    border-color: var(--admin-primary-light, #1f1f22);
+    color: var(--admin-bg, #ffffff);
     transform: translateY(-1px);
 }
 .amenity-check-icon {
     display: inline-flex;
     align-items: center;
-    color: #16a34a;
+    color: var(--admin-bg, #ffffff);
 }
 .btn-edit-amenity-desc {
     background: none;
@@ -6542,20 +6544,20 @@ export default {
     justify-content: center;
     margin-left: 6px;
     border-radius: 4px;
-    color: #86efac;
+    color: var(--admin-bg, #86efac);
     transition: all 0.2s;
 }
 .amenity-select-tag.active .btn-edit-amenity-desc {
-    color: #16a34a;
+    color: var(--admin-bg, #ffffff);
 }
 .btn-edit-amenity-desc:hover {
-    color: #14532d;
-    background: rgba(22, 163, 74, 0.08);
+    color: var(--admin-bg, #ffffff);
+    background: rgba(128, 128, 128, 0.25);
 }
 .btn-edit-amenity-desc .has-desc-dot {
     width: 6px;
     height: 6px;
-    background: #2563eb;
+    background: var(--admin-bg, #2563eb);
     border-radius: 50%;
     display: inline-block;
     margin-left: 2px;
@@ -6563,13 +6565,13 @@ export default {
 
 .location-readonly-box {
     padding: 16px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border, #e2e8f0);
     border-radius: 8px;
-    background: #f8fafc;
+    background: var(--admin-surface-muted, #f8fafc);
 }
 .location-readonly-title {
     font-size: 14px;
-    color: #0f172a;
+    color: var(--admin-text, #0f172a);
 }
 .pending-location-badge {
     display: inline-block;

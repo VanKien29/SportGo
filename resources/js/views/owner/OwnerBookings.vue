@@ -1421,7 +1421,7 @@ export default {
 
 .timeline-block:hover,
 .timeline-block.active {
-  outline: 2px solid rgba(22, 163, 74, 0.28);
+  outline: 2px solid var(--admin-primary, #000000);
   outline-offset: 2px;
 }
 
@@ -1909,8 +1909,8 @@ td strong {
 }
 
 .collect-summary .highlight {
-  border-color: rgba(47, 158, 68, 0.45);
-  background: #e8f7ec;
+  border-color: var(--admin-primary, #000000);
+  background: var(--admin-primary-soft, #f3f4f6);
 }
 
 .method-row {
@@ -1933,8 +1933,8 @@ td strong {
 }
 
 .method-row button.active {
-  border-color: #2f9e44;
-  background: #2f9e44;
+  border-color: var(--admin-primary, #000000);
+  background: var(--admin-primary, #000000);
   color: #fff;
 }
 

@@ -1116,7 +1116,7 @@ export default {
 }
 .eyebrow {
     margin: 0 0 6px;
-    color: #059669;
+    color: var(--admin-muted);
     font-size: 11px;
     font-weight: 900;
     letter-spacing: 0.1em;
@@ -1182,9 +1182,9 @@ export default {
     cursor: pointer;
 }
 .mode-switch button.active {
-    background: #16a34a;
+    background: var(--admin-primary, #000000);
     color: #fff;
-    box-shadow: 0 6px 14px rgba(22, 163, 74, 0.18);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 .date-grid {
     display: grid;
@@ -1244,15 +1244,15 @@ export default {
 .picker-head span {
     padding: 4px 8px;
     border-radius: 999px;
-    background: #dcfce7;
-    color: #047857;
+    background: var(--admin-primary-soft, #f3f4f6);
+    color: var(--admin-primary-dark, #000000);
     font-size: 12px;
     font-weight: 900;
 }
 .picker-head button {
     border: 0;
     background: transparent;
-    color: #15803d;
+    color: var(--admin-primary, #000000);
     font: inherit;
     font-size: 12px;
     font-weight: 900;
@@ -1293,18 +1293,18 @@ export default {
     box-shadow: inset 0 0 0 3px #fff;
 }
 .court-chip-grid label:hover {
-    border-color: #86efac;
-    background: #f0fdf4;
+    border-color: var(--admin-border);
+    background: var(--admin-hover);
     transform: translateY(-1px);
 }
 .court-chip-grid label.active {
-    border-color: #16a34a;
-    background: #ecfdf5;
-    box-shadow: 0 8px 18px rgba(22, 163, 74, 0.1);
+    border-color: var(--admin-primary);
+    background: var(--admin-primary-soft);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
 }
 .court-chip-grid label.active::after {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: var(--admin-primary);
+    background: var(--admin-primary);
 }
 .court-chip-grid input {
     position: absolute;
@@ -1337,14 +1337,14 @@ export default {
     cursor: pointer;
 }
 .primary-btn {
-    background: #059669;
+    background: var(--admin-primary, #000000);
     color: #fff;
-    box-shadow: 0 8px 18px rgba(5, 150, 105, 0.18);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
 }
 .secondary-btn {
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border, #e5e7eb);
     background: #fff;
-    color: #334238;
+    color: var(--admin-text, #000000);
 }
 .danger-btn {
     border: 1px solid #fecaca;
@@ -1762,11 +1762,11 @@ export default {
     line-height: 1.45;
 }
 .slot-cell.selected {
-    background: #10b981;
-    box-shadow: inset 0 0 0 2px #047857;
+    background: var(--admin-primary, #000000);
+    box-shadow: inset 0 0 0 2px var(--admin-primary-light, #1f2937);
 }
 .slot-cell.selected:hover {
-    background: #059669;
+    background: var(--admin-primary-dark, #000000);
 }
 .quick-ranges {
     display: flex;
@@ -1822,20 +1822,20 @@ export default {
     transform: translateY(1px);
 }
 .quick-ranges button:hover:not(:disabled):not(.active) {
-    border-color: #86efac;
-    background: #f0fdf4;
-    color: #2f5a3a;
+    border-color: var(--admin-border);
+    background: var(--admin-hover);
+    color: var(--admin-text);
     transform: translateY(-1px);
-    box-shadow: 0 4px 9px rgba(22, 163, 74, 0.08);
+    box-shadow: 0 4px 9px rgba(0, 0, 0, 0.04);
 }
 .quick-ranges button:hover:not(:disabled):not(.active) small {
     opacity: 0.84;
 }
 .quick-ranges button.active {
-    border-color: #2f9e44;
-    background: #2f9e44;
+    border-color: var(--admin-primary);
+    background: var(--admin-primary);
     color: #fff;
-    box-shadow: 0 5px 12px rgba(22, 163, 74, 0.18);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08);
 }
 .quick-ranges button.active strong,
 .quick-ranges button.active small {
@@ -1845,7 +1845,7 @@ export default {
     opacity: 0.88;
 }
 .quick-ranges button:focus-visible {
-    outline: 3px solid rgba(47, 158, 68, 0.22);
+    outline: 3px solid var(--admin-primary-ring);
     outline-offset: 2px;
 }
 .quick-ranges button:disabled {

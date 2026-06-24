@@ -33,7 +33,7 @@
 .auth-layout input::selection,
 .dark input::selection {
     color: #fff;
-    background: rgba(34, 197, 94, .35);
+    background: rgba(255, 255, 255, .3);
 }
 
 .auth-layout input:-webkit-autofill,

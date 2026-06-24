@@ -4977,8 +4977,8 @@ export default {
 }
 
 .duration-pill.active {
-    border-color: rgba(47, 158, 68, 0.45);
-    background: #e8f7ec;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary-soft, #f3f4f6);
 }
 
 label {
@@ -5035,8 +5035,8 @@ input.invalid {
 }
 
 .legend i.selected {
-    border-color: #2f9e44;
-    background: #2f9e44;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
 }
 
 .day-grid label {
@@ -5049,8 +5049,8 @@ input.invalid {
 }
 
 .day-grid label.selected {
-    border-color: #2f9e44;
-    background: #2f9e44;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
@@ -5213,8 +5213,8 @@ input.invalid {
 }
 
 .period-tabs button.active {
-    border-color: #2f9e44;
-    background: #2f9e44;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
@@ -5289,13 +5289,13 @@ input.invalid {
 }
 
 .time-slot:hover:not(:disabled) {
-    background: #e8f7ec;
-    box-shadow: inset 0 0 0 1px rgba(47, 158, 68, 0.4);
+    background: var(--admin-hover, #f3f4f6);
+    box-shadow: inset 0 0 0 1px var(--admin-primary, #000000);
 }
 
 .time-slot.selected {
-    background: #2f9e44;
-    box-shadow: inset 0 0 0 1px #2f9e44;
+    background: var(--admin-primary, #000000);
+    box-shadow: inset 0 0 0 1px var(--admin-primary, #000000);
 }
 
 .time-slot.busy {
@@ -5511,14 +5511,14 @@ input.invalid {
 }
 
 .modal-actions .secondary-btn {
-    border: 1px solid #d6e2d8;
+    border: 1px solid var(--admin-border, #e5e7eb);
     background: #fff;
-    color: #344238;
+    color: var(--admin-text, #000000);
 }
 
 .modal-actions .primary-btn {
-    border: 1px solid #16a34a;
-    background: #16a34a;
+    border: 1px solid var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
@@ -5549,8 +5549,8 @@ input.invalid {
 }
 
 .confirm-reason-field textarea:focus {
-    border-color: #22c55e;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
+    border-color: var(--admin-primary, #000000);
+    box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(0, 0, 0, 0.1));
     outline: none;
 }
 
@@ -5610,26 +5610,26 @@ input.invalid {
 }
 
 .status-actions .action-success {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
 .status-actions .action-primary {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
 .status-actions .action-cash {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
 .status-actions .action-transfer {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
@@ -5797,18 +5797,18 @@ input.invalid {
 }
 
 .payment-card.active {
-    border-color: #2f9e44;
-    background: #e8f7ec;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary-soft, #f3f4f6);
 }
 
 .payment-card input {
     width: 16px;
     height: 16px;
-    accent-color: #2f9e44;
+    accent-color: var(--admin-primary, #000000);
 }
 
 .payment-card strong {
-    color: #216b34;
+    color: var(--admin-text, #000000);
 }
 
 .payment-card small {
@@ -5984,8 +5984,8 @@ input.invalid {
 }
 
 .segmented-field button.active {
-    border-color: #2f9e44;
-    background: #2f9e44;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
@@ -6061,10 +6061,10 @@ input.invalid {
 }
 
 .day-grid label.selected {
-    border-color: #2f9e44;
-    background: #2f9e44;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
-    box-shadow: 0 6px 14px rgba(47, 158, 68, 0.18);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 
 .day-grid input {

@@ -107,8 +107,8 @@ export default {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.owner-cluster-card span {
-  color: #52525b;
+.owner-cluster-card > span {
+  color: #a1a1aa;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -150,12 +150,12 @@ export default {
 }
 
 .custom-select-trigger.active {
-  border-color: #10b981;
+  border-color: #ffffff;
 }
 
 .custom-select-trigger .arrow {
   font-size: 8px;
-  color: #52525b;
+  color: #a1a1aa;
   transition: transform 0.2s;
 }
 
@@ -194,8 +194,8 @@ export default {
 }
 
 .custom-option.selected {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
   font-weight: 700;
 }
 
