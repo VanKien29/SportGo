@@ -1,6 +1,6 @@
 .sg-shell-admin {
   display: grid;
-  grid-template-columns: 272px minmax(0, 1fr);
+  grid-template-columns: 312px minmax(0, 1fr);
   min-height: 100vh;
   background:
     var(--admin-bg-gradient),
@@ -17,10 +17,10 @@
   height: 100vh;
   min-height: 100vh;
   flex-direction: column;
-  overflow-y: auto;
-  border-right: 1px solid var(--admin-border);
-  background: color-mix(in srgb, var(--admin-sidebar) 96%, var(--admin-primary-soft));
-  box-shadow: var(--admin-sidebar-shadow);
+  overflow: visible;
+  border-right: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sg-shell-admin .sidebar::-webkit-scrollbar {
@@ -408,7 +408,7 @@
   .sg-shell-admin .sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    width: min(300px, calc(100vw - 52px));
+    width: min(312px, 100vw);
     transform: translateX(-102%);
     transition: transform 220ms ease;
   }
