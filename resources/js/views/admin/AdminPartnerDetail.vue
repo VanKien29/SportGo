@@ -331,60 +331,12 @@ export default {
     },
     async viewUploadedFile(document) {
       if (!document || !document.id) return;
-      
-      const newWin = window.open('', '_blank');
-      if (newWin) newWin.document.write('<div style="font-family:sans-serif;padding:20px;text-align:center;">Đang tải dữ liệu file...</div>');
-      
-      try {
-        const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
-        const headers = { Accept: 'application/json' };
-        if (token) headers.Authorization = `Bearer ${token}`;
-        const response = await fetch(`/api/admin/partner-profiles/documents/${document.id}/download`, { headers });
-        if (!response.ok) {
-          if (newWin) newWin.close();
-          let serverMessage = '';
-          try {
-            const errorBody = await response.json();
-            serverMessage = errorBody?.message || '';
-          } catch {
-            serverMessage = '';
-          }
-          throw new Error(serverMessage || 'Không thể tải file');
-        }
-        const contentType = (response.headers.get('content-type') || '').toLowerCase();
-        if (response.redirected || contentType.includes('text/html')) {
-          if (newWin) newWin.close();
-          throw new Error('File trả về không hợp lệ');
-        }
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        
-        const canPreviewInBrowser = contentType.includes('pdf') || contentType.startsWith('image/');
-        if (canPreviewInBrowser) {
-          if (newWin) {
-            newWin.location.href = url;
-            newWin.addEventListener('unload', () => setTimeout(() => URL.revokeObjectURL(url), 10000));
-          } else {
-            window.location.href = url;
-          }
-        } else {
-          if (newWin) newWin.close();
-          const disposition = response.headers.get('content-disposition') || '';
-          const filenameFromHeader = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1];
-          const fallbackName = document.file_name || 'downloaded-file';
-          const filename = decodeURIComponent((filenameFromHeader || fallbackName).replace(/"/g, ''));
-          const downloadLink = window.document.createElement('a');
-          downloadLink.href = url;
-          downloadLink.download = filename;
-          window.document.body.appendChild(downloadLink);
-          downloadLink.click();
-          window.document.body.removeChild(downloadLink);
-          setTimeout(() => URL.revokeObjectURL(url), 60000);
-        }
-      } catch (err) {
-        if (newWin) newWin.close();
-        alert(err.message || 'Lỗi tải file');
-      }
+      this.viewingDoc = {
+        ...document,
+        title: document.title || document.type || 'Tài liệu đính kèm',
+        download_url: `/api/admin/partner-profiles/documents/${document.id}/download`,
+      };
+      this.showDocViewer = true;
     },
     openTerminationModal(contract) {
       this.terminationModal = {

@@ -998,46 +998,13 @@ function viewContractDocument(doc, application) {
 }
 function closeDocumentViewer() { showDocumentViewer.value = false; signingContract.value = false; signingApplicationId.value = null; setTimeout(() => { viewingDocument.value = null; }, 300); }
 
-async function viewFile(path) {
+function viewFile(path) {
   if (!path) return;
-  const newWin = window.open('', '_blank');
-  if (newWin) newWin.document.write('<div style="font-family:sans-serif;padding:20px;text-align:center;">Đang tải dữ liệu file...</div>');
-  try {
-    const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
-    const response = await fetch(`/api/auth/files/download?path=${encodeURIComponent(path)}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!response.ok) throw new Error('Không thể tải file');
-    
-    const contentType = (response.headers.get('content-type') || '').toLowerCase();
-    const canPreviewInBrowser = contentType.includes('pdf') || contentType.startsWith('image/');
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    
-    if (canPreviewInBrowser) {
-      if (newWin) {
-        newWin.location.href = url;
-        newWin.addEventListener('unload', () => setTimeout(() => URL.revokeObjectURL(url), 10000));
-      } else {
-        window.location.href = url;
-      }
-    } else {
-      if (newWin) newWin.close();
-      const disposition = response.headers.get('content-disposition') || '';
-      const filenameFromHeader = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1];
-      const fallbackName = decodeURIComponent(String(path).split('/').pop() || 'downloaded-file');
-      const filename = decodeURIComponent((filenameFromHeader || fallbackName).replace(/"/g, ''));
-      
-      const downloadLink = document.createElement('a');
-      downloadLink.href = url;
-      downloadLink.download = filename;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-    }
-  } catch (e) {
-    if (newWin) newWin.close();
-    alert(e.message || 'Lỗi tải file');
-  }
+  viewingDocument.value = {
+    title: 'Tài liệu đính kèm',
+    download_url: `/api/auth/files/download?path=${encodeURIComponent(path)}`
+  };
+  showDocumentViewer.value = true;
 }
 
 const needsSignature = (doc) => doc?.status === 'pending_owner_signature';

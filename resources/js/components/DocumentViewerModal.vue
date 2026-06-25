@@ -31,7 +31,22 @@
             </button>
           </div>
           
-          <div ref="docxContainer" class="bg-white shadow-sm ring-1 ring-gray-900/5 min-h-[800px] w-full max-w-[800px] p-0" :class="{ 'opacity-0': loading }"></div>
+          <div v-show="fileType === 'docx'" ref="docxContainer" class="bg-white shadow-sm ring-1 ring-gray-900/5 min-h-[800px] w-full max-w-[800px] p-0" :class="{ 'opacity-0': loading }"></div>
+          
+          <iframe v-if="fileType === 'pdf'" :src="fileUrl" class="w-full min-h-[800px] border-0 rounded bg-white shadow-sm ring-1 ring-gray-900/5" :class="{ 'opacity-0': loading }"></iframe>
+          
+          <div v-if="fileType === 'image'" class="flex items-start justify-center min-h-[800px] w-full bg-transparent p-4">
+            <img :src="fileUrl" class="max-w-full h-auto shadow-sm ring-1 ring-gray-900/5 rounded bg-white" :class="{ 'opacity-0': loading }" alt="Preview" />
+          </div>
+          
+          <div v-if="fileType === 'unsupported'" class="flex flex-col items-center justify-center min-h-[400px] w-full bg-white rounded-lg shadow-sm ring-1 ring-gray-900/5 p-8 text-center" :class="{ 'opacity-0': loading }">
+            <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            <h4 class="text-lg font-medium text-gray-900 mb-2">Định dạng tệp không được hỗ trợ để xem trước</h4>
+            <p class="text-gray-500 mb-6 max-w-md">Vui lòng tải tệp xuống để xem nội dung.</p>
+            <button v-if="document?.download_url" @click="downloadDocument" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition">
+              Tải xuống
+            </button>
+          </div>
         </div>
       </div>
       
@@ -90,7 +105,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, onUnmounted } from 'vue';
 import { renderAsync } from 'docx-preview';
 import { apiDownload, readToken } from '../services/api.js';
 
@@ -104,13 +119,15 @@ const emit = defineEmits(['close']);
 const docxContainer = ref(null);
 const loading = ref(false);
 const error = ref(null);
+const fileType = ref(null);
+const fileUrl = ref(null);
 
 watch(() => props.show, async (newVal) => {
   if (newVal && props.document) {
     loadDocument();
   } else {
     error.value = null;
-    if (docxContainer.value) docxContainer.value.innerHTML = '';
+    cleanup();
   }
 });
 
@@ -139,22 +156,34 @@ async function loadDocument() {
     if (!response.ok) throw new Error(`HTTP ${response.status} - Lỗi tải file`);
     
     const blob = await response.blob();
+    const mimeType = blob.type.toLowerCase();
     
     await nextTick();
     
-    if (docxContainer.value) {
-      await renderAsync(blob, docxContainer.value, null, {
-        className: 'docx', // class name/prefix for default and document style classes
-        inWrapper: true, // enables rendering of wrapper around document content
-        ignoreWidth: false, // disables rendering width of page
-        ignoreHeight: true, // disables rendering height of page
-        ignoreFonts: false, // disables fonts rendering
-        breakPages: true, // enables page breaking on page breaks
-        ignoreLastRenderedPageBreak: true, // disables page breaking on lastRenderedPageBreak elements
-        experimental: false, // enables experimental features (tab stops calculation)
-        trimXmlDeclaration: true, // if true, xml declaration will be removed from xml string before parsing
-        debug: false, // enables additional logging
-      });
+    if (mimeType === 'application/pdf') {
+      fileType.value = 'pdf';
+      fileUrl.value = URL.createObjectURL(blob);
+    } else if (mimeType.startsWith('image/')) {
+      fileType.value = 'image';
+      fileUrl.value = URL.createObjectURL(blob);
+    } else if (mimeType.includes('officedocument.wordprocessingml') || mimeType.includes('msword')) {
+      fileType.value = 'docx';
+      if (docxContainer.value) {
+        await renderAsync(blob, docxContainer.value, null, {
+          className: 'docx',
+          inWrapper: true,
+          ignoreWidth: false,
+          ignoreHeight: true,
+          ignoreFonts: false,
+          breakPages: true,
+          ignoreLastRenderedPageBreak: true,
+          experimental: false,
+          trimXmlDeclaration: true,
+          debug: false,
+        });
+      }
+    } else {
+      fileType.value = 'unsupported';
     }
   } catch (err) {
     console.error('Error rendering DOCX:', err);
@@ -163,6 +192,19 @@ async function loadDocument() {
     loading.value = false;
   }
 }
+
+function cleanup() {
+  if (fileUrl.value) {
+    URL.revokeObjectURL(fileUrl.value);
+    fileUrl.value = null;
+  }
+  fileType.value = null;
+  if (docxContainer.value) docxContainer.value.innerHTML = '';
+}
+
+onUnmounted(() => {
+  cleanup();
+});
 
 function downloadDocument() {
   if (!props.document?.download_url) return;

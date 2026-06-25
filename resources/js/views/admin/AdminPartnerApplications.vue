@@ -648,27 +648,12 @@ export default {
     },
     async viewUploadedDocument(document) {
       if (!document || !document.id) return;
-      
-      const newWin = window.open('', '_blank');
-      if (newWin) newWin.document.write('<div style="font-family:sans-serif;padding:20px;text-align:center;">Đang tải dữ liệu file...</div>');
-      
-      try {
-        const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
-        const headers = { Accept: 'application/json' };
-        if (token) headers.Authorization = `Bearer ${token}`;
-        const response = await fetch(`/api/admin/partner-profiles/documents/${document.id}/download`, { headers });
-        if (!response.ok) {
-          if (newWin) newWin.close();
-          this.error = 'Không thể tải file.';
-          return;
-        }
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        if (newWin) newWin.location.href = url;
-      } catch (err) {
-        if (newWin) newWin.close();
-        this.error = 'Lỗi xem file.';
-      }
+      this.viewingDocument = {
+        ...document,
+        title: document.title || document.type || 'Tài liệu đính kèm',
+        download_url: `/api/admin/partner-profiles/documents/${document.id}/download`,
+      };
+      this.showDocumentViewer = true;
     },
     async downloadUploadedDocument(id) {
       try {
