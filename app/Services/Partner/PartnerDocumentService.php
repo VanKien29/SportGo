@@ -10,6 +10,7 @@ use App\Models\PartnerApplication;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpWord\Settings;
@@ -130,23 +131,31 @@ class PartnerDocumentService
                     $processor->setMacroChars('{{', '}}');
                     $placeholder = 'signature_' . $signerSide;
                     $processor->setImageValue($placeholder, [
-                        'path' => $media->getPath(),
+                        'path' => Storage::disk('public')->path($media->file_path),
                         'width' => 150,
                         'height' => 75,
                         'ratio' => false,
                     ]);
                     $processor->saveAs($filePath);
+                    $document->forceFill([
+                        'file_hash' => hash_file('sha256', $filePath),
+                    ])->save();
                 }
             } catch (\Throwable $e) {
-                // Ignore if placeholder not found or processing fails
+                Log::error('Failed to inject partner document signature image.', [
+                    'document_id' => $document->id,
+                    'signer_side' => $signerSide,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
+        $isCompleted = $this->checkAllSigned($document->refresh());
         $document->forceFill([
-            'status' => $this->checkAllSigned($document) ? 'completed' : ($signerSide === 'owner' ? 'pending_sportgo_signature' : $document->status),
-            'final_file_path' => $this->checkAllSigned($document) ? ($document->final_file_path ?: $document->generated_file_path) : $document->final_file_path,
+            'status' => $isCompleted ? 'completed' : $this->nextStatusAfterSignature($document, $signerSide),
+            'final_file_path' => $isCompleted ? ($document->final_file_path ?: $document->generated_file_path) : $document->final_file_path,
             'locked_at' => $document->locked_at ?: now(),
-            'completed_at' => $this->checkAllSigned($document) ? now() : $document->completed_at,
+            'completed_at' => $isCompleted ? now() : $document->completed_at,
         ])->save();
 
         return $signature;
@@ -159,7 +168,24 @@ class PartnerDocumentService
             ->pluck('signer_side')
             ->all();
 
+        if ($document->document_type === 'partner_application_form') {
+            return in_array('owner', $signedSides, true);
+        }
+
         return in_array('owner', $signedSides, true) && in_array('sportgo', $signedSides, true);
+    }
+
+    private function nextStatusAfterSignature(GeneratedDocument $document, string $signerSide): string
+    {
+        if ($document->document_type === 'partner_contract') {
+            return $signerSide === 'sportgo' ? 'pending_owner_signature' : 'pending_sportgo_signature';
+        }
+
+        if ($document->document_type === 'partner_application_form' && $signerSide === 'owner') {
+            return 'completed';
+        }
+
+        return $document->status;
     }
 
     public function assertCanDownload(GeneratedDocument $document, User $user, bool $isAdmin = false): void

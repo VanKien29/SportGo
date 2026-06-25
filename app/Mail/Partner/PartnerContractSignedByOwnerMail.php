@@ -20,7 +20,7 @@ class PartnerContractSignedByOwnerMail extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: '[SportGo] Cảm ơn bạn đã ký hợp đồng hợp tác - Chào mừng đối tác mới!');
+        return new Envelope(subject: '[SportGo] Chúc mừng bạn đã trở thành đối tác');
     }
 
     public function content(): Content

@@ -7,7 +7,6 @@ use App\Jobs\SendRevocationReminderJob;
 use App\Mail\Partner\PartnerApplicationApprovedMail;
 use App\Mail\Partner\PartnerApplicationReceivedMail;
 use App\Mail\Partner\PartnerApplicationRejectedMail;
-use App\Mail\Partner\PartnerContractCompletedMail;
 use App\Mail\Partner\PartnerContractSignedByOwnerMail;
 use App\Mail\Partner\PartnerTerminationConfirmedMail;
 use App\Mail\Partner\PartnerTerminationReceivedMail;
@@ -56,7 +55,7 @@ class PartnerApplicationService
     ) {
     }
 
-    public function submitApplication(User $user, array $data, ?Request $request = null): PartnerApplication
+    public function submitApplication(User $user, array $data, ?Request $request = null, bool $requiresApplicationSignature = false): PartnerApplication
     {
         $hasOpenApplication = PartnerApplication::query()
             ->where('user_id', $user->id)
@@ -69,7 +68,8 @@ class PartnerApplicationService
             ]);
         }
 
-        return DB::transaction(function () use ($user, $data, $request): PartnerApplication {
+        return DB::transaction(function () use ($user, $data, $request, $requiresApplicationSignature): PartnerApplication {
+            $initialStatus = $requiresApplicationSignature ? 'draft' : 'submitted';
             $application = PartnerApplication::create([
                 'user_id' => $user->id,
                 'applicant_full_name' => $data['applicant_full_name'] ?? $user->full_name,
@@ -107,7 +107,7 @@ class PartnerApplicationService
                 'amenities' => $data['amenities'] ?? [],
                 'court_count_total' => $data['court_count_total'] ?? count($data['courts'] ?? []),
                 'base_price_per_hour' => (int) ($data['base_price_per_hour'] ?? 0),
-                'status' => 'submitted',
+                'status' => $initialStatus,
                 'submitted_at' => now(),
             ]);
 
@@ -136,14 +136,51 @@ class PartnerApplicationService
 
             $this->storeApplicationDocuments($application, $data['document_files'] ?? []);
             $this->storeBankAccountFromApplication($application, null, 'pending');
-            $this->generateApplicationForm($application, $user, $data);
-            $this->applicationHistory($application, null, 'submitted', $user, 'user', 'Nộp hồ sơ đăng ký đối tác.');
-            $this->audit('partner_application_submitted', $application, $user, 'user', null, null, $request);
-            $this->notifyAdmins('partner_application_submitted', 'Có hồ sơ đối tác mới', $application->venue_name . ' vừa gửi hồ sơ đăng ký đối tác.', $application->id);
+            $this->generateApplicationForm($application, $user, $data, $requiresApplicationSignature);
 
-            $this->mail->queue($application->venue_email ?? $user->email, new PartnerApplicationReceivedMail($application));
+            if ($requiresApplicationSignature) {
+                $this->applicationHistory($application, null, 'draft', $user, 'user', 'Tạo đơn đăng ký đối tác, chờ ký điện tử trước khi gửi.');
+                $this->audit('partner_application_form_generated', $application, $user, 'user', null, ['status' => 'draft'], $request);
+            } else {
+                $this->markApplicationSubmitted($application, $user, $request);
+            }
 
             return $application->fresh(['user', 'courts.courtType', 'documents', 'contracts', 'generatedDocuments']);
+        });
+    }
+
+    public function submitSignedApplication(PartnerApplication $application, User $user, ?Request $request = null): PartnerApplication
+    {
+        if ($application->user_id !== $user->id) {
+            abort(403, 'Bạn không có quyền gửi hồ sơ này.');
+        }
+
+        if ($application->status !== 'draft') {
+            throw ValidationException::withMessages([
+                'status' => 'Chỉ có thể gửi hồ sơ đang chờ ký đơn đăng ký.',
+            ]);
+        }
+
+        $applicationForm = $application->generatedDocuments()
+            ->where('document_type', 'partner_application_form')
+            ->latest()
+            ->first();
+
+        $hasOwnerSignature = $applicationForm?->signatures()
+            ->where('signer_side', 'owner')
+            ->where('status', 'signed')
+            ->exists();
+
+        if (! $applicationForm || ! $hasOwnerSignature) {
+            throw ValidationException::withMessages([
+                'signature' => 'Bạn cần ký điện tử trên đơn đăng ký trước khi gửi hồ sơ.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($application, $user, $request): PartnerApplication {
+            $this->markApplicationSubmitted($application, $user, $request, 'draft');
+
+            return $application->fresh($this->detailRelations());
         });
     }
 
@@ -158,6 +195,20 @@ class PartnerApplicationService
             'entity_id' => $user->id,
             'title' => 'Bản xem trước đơn đăng ký đối tác ' . ($data['venue_name'] ?? ''),
         ]);
+    }
+
+    private function markApplicationSubmitted(PartnerApplication $application, User $user, ?Request $request = null, ?string $oldStatus = null): void
+    {
+        $application->forceFill([
+            'status' => 'submitted',
+            'submitted_at' => now(),
+            'status_reason' => null,
+        ])->save();
+
+        $this->applicationHistory($application, $oldStatus, 'submitted', $user, 'user', 'Nộp hồ sơ đăng ký đối tác đã ký.');
+        $this->audit('partner_application_submitted', $application, $user, 'user', $oldStatus ? ['status' => $oldStatus] : null, ['status' => 'submitted'], $request);
+        $this->notifyAdmins('partner_application_submitted', 'Có hồ sơ đối tác mới', $application->venue_name . ' vừa gửi hồ sơ đăng ký đối tác.', $application->id);
+        $this->mail->queue($application->venue_email ?? $user->email, new PartnerApplicationReceivedMail($application));
     }
 
     public function approve(PartnerApplication $application, User $admin, array $data, ?Request $request = null): PartnerApplication
@@ -177,22 +228,20 @@ class PartnerApplicationService
             $this->activateBankAccounts($application, $admin->id);
 
             $application->forceFill([
-                'status' => 'contract_pending_owner_signature',
+                'status' => 'contract_pending_sportgo_signature',
                 'reviewed_by' => $admin->id,
                 'reviewed_at' => now(),
-                'status_reason' => $data['review_note'] ?? 'Hồ sơ đã được duyệt, đang chờ chủ sân ký hợp đồng.',
+                'status_reason' => $data['review_note'] ?? 'Hồ sơ đã được duyệt, đang chờ SportGo ký hợp đồng trước khi gửi cho chủ sân.',
                 'approved_venue_cluster_id' => $cluster->id,
             ])->save();
 
             $contract = $this->createContractForApplication($application->fresh(['user', 'courts.courtType']), $admin, $cluster);
             $application->forceFill(['current_contract_id' => $contract->id])->save();
 
-            $this->applicationHistory($application, $oldStatus, 'contract_pending_owner_signature', $admin, 'admin', $data['review_note'] ?? null);
+            $this->applicationHistory($application, $oldStatus, 'contract_pending_sportgo_signature', $admin, 'admin', $data['review_note'] ?? null);
             $this->audit('partner_application_approved', $application, $admin, 'admin', ['status' => $oldStatus], ['status' => $application->status], $request);
-            $this->audit('partner_contract_sent', $contract, $admin, 'admin', null, ['contract_code' => $contract->contract_code], $request);
-            $this->notifyUser($application->user, 'partner_application_approved', 'Hồ sơ đối tác đã được duyệt', 'Hợp đồng hợp tác đã sẵn sàng, vui lòng ký điện tử.', $application->id);
-
-            $this->mail->queue($application->venue_email ?? $application->user->email, new PartnerApplicationApprovedMail($application));
+            $this->audit('partner_contract_generated', $contract, $admin, 'admin', null, ['contract_code' => $contract->contract_code], $request);
+            $this->notifyUser($application->user, 'partner_application_approved_pending_sportgo_signature', 'Hồ sơ đối tác đã được duyệt', 'SportGo đang ký hợp đồng đối tác trước khi gửi bạn xác nhận.', $application->id);
 
             return $application->fresh($this->detailRelations());
         });
@@ -252,30 +301,39 @@ class PartnerApplicationService
                 'signer_organization' => $contract->application?->business_name,
             ]);
 
+            $hasSportgoSignature = $this->documentHasSignature($document->refresh(), 'sportgo');
+
             $contract->forceFill([
-                'status' => 'pending_sportgo_signature',
+                'status' => $hasSportgoSignature ? 'signed_active' : 'pending_sportgo_signature',
                 'owner_signed_at' => now(),
                 'effective_from' => $contract->effective_from ?: now(),
+                'effective_to' => $hasSportgoSignature ? ($contract->effective_to ?: now()->addYear()) : $contract->effective_to,
             ])->save();
 
-            $contract->application?->forceFill(['status' => 'contract_pending_sportgo_signature'])->save();
+            $contract->application?->forceFill([
+                'status' => $hasSportgoSignature ? 'completed' : 'contract_pending_sportgo_signature',
+            ])->save();
 
-            if ($contract->venue_cluster_id) {
-                VenueCluster::query()->whereKey($contract->venue_cluster_id)->update([
-                    'status' => 'active',
-                    'status_reason' => null,
-                ]);
-                VenueCourt::query()->where('venue_cluster_id', $contract->venue_cluster_id)->update(['status' => 'active']);
-            }
-
-            $this->grantVenueOwnerRole($owner->id, $owner->id);
-            $this->applicationHistory($contract->application, 'contract_pending_owner_signature', 'contract_pending_sportgo_signature', $owner, 'owner', 'Chủ sân đã ký hợp đồng.');
             $this->audit('partner_contract_signed_owner', $contract, $owner, 'owner', null, ['status' => $contract->status], $request);
-            $this->audit('venue_owner_role_granted', $contract->application, $owner, 'owner', null, ['user_id' => $owner->id], $request);
-            $this->notifyAdmins('partner_contract_signed_owner', 'Hợp đồng chờ SportGo ký', $contract->contract_code . ' đã được chủ sân ký.', $contract->partner_application_id);
-            $this->notifyUser($owner, 'partner_contract_signed_owner', 'Bạn đã ký hợp đồng thành công', 'Tài khoản đã được cấp quyền Chủ sân.', $contract->partner_application_id);
 
-            $this->mail->queue($owner->email ?? $contract->application?->venue_email, new PartnerContractSignedByOwnerMail($contract));
+            if ($hasSportgoSignature) {
+                if ($contract->venue_cluster_id) {
+                    VenueCluster::query()->whereKey($contract->venue_cluster_id)->update([
+                        'status' => 'active',
+                        'status_reason' => null,
+                    ]);
+                    VenueCourt::query()->where('venue_cluster_id', $contract->venue_cluster_id)->update(['status' => 'active']);
+                }
+
+                $this->grantVenueOwnerRole($owner->id, $owner->id);
+                $this->applicationHistory($contract->application, 'contract_pending_owner_signature', 'completed', $owner, 'owner', 'Chủ sân đã ký hợp đồng. Hồ sơ hoàn tất.');
+                $this->audit('venue_owner_role_granted', $contract->application, $owner, 'owner', null, ['user_id' => $owner->id], $request);
+                $this->notifyUser($owner, 'partner_contract_signed_owner', 'Bạn đã trở thành đối tác/chủ sân của SportGo', 'Tài khoản đã được cấp quyền Chủ sân.', $contract->partner_application_id);
+                $this->mail->queue($owner->email ?? $contract->application?->venue_email, new PartnerContractSignedByOwnerMail($contract->fresh(['application.user', 'generatedDocument'])));
+            } else {
+                $this->applicationHistory($contract->application, 'contract_pending_owner_signature', 'contract_pending_sportgo_signature', $owner, 'owner', 'Chủ sân đã ký hợp đồng, chờ SportGo ký xác nhận.');
+                $this->notifyAdmins('partner_contract_signed_owner', 'Hợp đồng chờ SportGo ký', $contract->contract_code . ' đã được chủ sân ký.', $contract->partner_application_id);
+            }
 
             return $contract->fresh(['application', 'generatedDocument.signatures', 'venueCluster']);
         });
@@ -299,26 +357,41 @@ class PartnerApplicationService
                 'signer_organization' => 'SportGo',
             ]);
 
+            $hasOwnerSignature = $this->documentHasSignature($document->refresh(), 'owner');
+
             $contract->forceFill([
-                'status' => 'signed_active',
+                'status' => $hasOwnerSignature ? 'signed_active' : 'pending_owner_signature',
                 'approved_by' => $admin->id,
                 'sportgo_signed_at' => now(),
                 'effective_from' => $contract->effective_from ?: now(),
                 'effective_to' => $contract->effective_to ?: now()->addYear(),
             ])->save();
 
-            $contract->application?->forceFill(['status' => 'completed'])->save();
-            $this->applicationHistory($contract->application, 'contract_pending_sportgo_signature', 'completed', $admin, 'admin', 'SportGo đã ký xác nhận hợp đồng.');
-            $this->audit('partner_contract_signed_admin', $contract, $admin, 'admin', null, ['status' => 'signed_active'], $request);
-            $this->notifyUser($contract->application->user, 'partner_contract_completed', 'Hợp đồng hợp tác đã hoàn thành', 'Bản hợp đồng chính thức đã sẵn sàng để tải xuống.', $contract->partner_application_id);
+            $contract->application?->forceFill([
+                'status' => $hasOwnerSignature ? 'completed' : 'contract_pending_owner_signature',
+            ])->save();
 
-            $this->mail->queue($contract->application->user, new PartnerContractCompletedMail([
-                'owner_name' => $contract->application->user->full_name,
-                'contract_code' => $contract->contract_code,
-                'signed_at' => $this->timestamp($contract->sportgo_signed_at),
-                'admin_name' => ($admin->full_name ?: $admin->username) . ' - Đại diện SportGo',
-                'download_url' => url('/api/files/documents/' . $document->id . '/download'),
-            ]));
+            $this->audit('partner_contract_signed_admin', $contract, $admin, 'admin', null, ['status' => $contract->status], $request);
+
+            if ($hasOwnerSignature) {
+                if ($contract->venue_cluster_id) {
+                    VenueCluster::query()->whereKey($contract->venue_cluster_id)->update([
+                        'status' => 'active',
+                        'status_reason' => null,
+                    ]);
+                    VenueCourt::query()->where('venue_cluster_id', $contract->venue_cluster_id)->update(['status' => 'active']);
+                }
+
+                $this->grantVenueOwnerRole($contract->owner_id, $admin->id);
+                $this->applicationHistory($contract->application, 'contract_pending_sportgo_signature', 'completed', $admin, 'admin', 'SportGo đã ký xác nhận hợp đồng. Hồ sơ hoàn tất.');
+                $this->audit('venue_owner_role_granted', $contract->application, $admin, 'admin', null, ['user_id' => $contract->owner_id], $request);
+                $this->notifyUser($contract->application->user, 'partner_contract_completed', 'Bạn đã trở thành đối tác/chủ sân của SportGo', 'Tài khoản đã được cấp quyền Chủ sân.', $contract->partner_application_id);
+                $this->mail->queue($contract->application->user, new PartnerContractSignedByOwnerMail($contract->fresh(['application.user', 'generatedDocument'])));
+            } else {
+                $this->applicationHistory($contract->application, 'contract_pending_sportgo_signature', 'contract_pending_owner_signature', $admin, 'admin', 'SportGo đã ký hợp đồng, chờ chủ sân ký xác nhận.');
+                $this->notifyUser($contract->application->user, 'partner_application_approved', 'Hồ sơ đối tác đã được duyệt', 'Vui lòng đăng nhập hệ thống để xem và ký giấy/hợp đồng đối tác.', $contract->partner_application_id);
+                $this->mail->queue($contract->application->venue_email ?? $contract->application->user->email, new PartnerApplicationApprovedMail($contract->application->fresh(['user', 'contracts.generatedDocument.signatures'])));
+            }
 
             return $contract->fresh(['application', 'generatedDocument.signatures']);
         });
@@ -557,6 +630,14 @@ class PartnerApplicationService
         ];
     }
 
+    private function documentHasSignature(GeneratedDocument $document, string $side): bool
+    {
+        return $document->signatures()
+            ->where('signer_side', $side)
+            ->where('status', 'signed')
+            ->exists();
+    }
+
     public function cancelApplication(PartnerApplication $application, User $user, ?string $reason = null, ?Request $request = null): PartnerApplication
     {
         if ($application->user_id !== $user->id) {
@@ -677,7 +758,7 @@ class PartnerApplicationService
         $contractCode = $this->uniqueContractCode();
         $renderData = $this->contractRenderData($application, $contractCode);
         $document = $this->documents->generateDocument('partner_contract', $application, $renderData, $admin, [
-            'status' => 'pending_owner_signature',
+            'status' => 'pending_sportgo_signature',
             'partner_application_id' => $application->id,
             'owner_id' => $application->user_id,
             'venue_cluster_id' => $cluster->id,
@@ -690,7 +771,7 @@ class PartnerApplicationService
             'owner_id' => $application->user_id,
             'venue_cluster_id' => $cluster->id,
             'contract_title' => 'Hợp đồng hợp tác đối tác ' . $application->venue_name,
-            'status' => 'pending_owner_signature',
+            'status' => 'pending_sportgo_signature',
             'generated_document_id' => $document->id,
             'generated_by' => $admin->id,
             'approved_by' => $admin->id,
@@ -726,6 +807,16 @@ class PartnerApplicationService
                 'group' => 'facility_images',
                 'title' => 'Hình ảnh cơ sở sân',
                 'description' => 'Ảnh tổng quan, mặt sân, khu vực phụ trợ và biển hiệu nếu có.',
+            ],
+            'bank' => [
+                'group' => 'bank_documents',
+                'title' => 'Chứng từ ngân hàng',
+                'description' => 'Tài liệu chứng minh hoặc xác nhận tài khoản ngân hàng nhận thanh toán.',
+            ],
+            'lease' => [
+                'group' => 'lease_contract',
+                'title' => 'Hợp đồng hoặc giấy tờ thuê mặt bằng',
+                'description' => 'Tài liệu chứng minh quyền sử dụng hoặc khai thác mặt bằng cụm sân.',
             ],
             'additional' => [
                 'group' => 'additional_documents',
@@ -767,7 +858,7 @@ class PartnerApplicationService
         }
     }
 
-    private function generateApplicationForm(PartnerApplication $application, User $actor, array $data = []): GeneratedDocument
+    private function generateApplicationForm(PartnerApplication $application, User $actor, array $data = [], bool $requiresSignature = false): GeneratedDocument
     {
         $application->loadMissing(['courts.courtType', 'documents']);
 
@@ -815,7 +906,7 @@ class PartnerApplicationService
             'partner_application_id' => $application->id,
             'owner_id' => $application->user_id,
             'title' => 'Đơn đăng ký đối tác ' . $application->venue_name,
-            'status' => 'pending_owner_signature',
+            'status' => $requiresSignature ? 'pending_owner_signature' : 'generated',
         ]);
     }
 
@@ -1265,7 +1356,9 @@ class PartnerApplicationService
             'effective_to' => now()->addYear()->format('d/m/Y'),
             'sportgo_company_name' => 'SportGo',
             'sportgo_tax_code' => 'SPORTGO',
+            'sportgo_address' => config('app.url'),
             'sportgo_representative_name' => 'Đại diện SportGo',
+            'sportgo_representative_title' => 'Đại diện pháp lý',
             'owner_full_name' => $application->user?->full_name,
             'owner_phone' => $application->user?->phone,
             'owner_email' => $application->user?->email,

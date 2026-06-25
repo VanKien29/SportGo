@@ -365,6 +365,7 @@ Route::middleware('auth:sanctum')
         Route::post('/user/partner-application/resolve-map', [UserPartnerApplicationController::class, 'resolveMap']);
         Route::post('/user/partner-application/preview', [UserPartnerApplicationController::class, 'preview']);
         Route::post('/user/partner-application', [UserPartnerApplicationController::class, 'store']);
+        Route::post('/user/partner-application/{id}/submit', [UserPartnerApplicationController::class, 'submitSigned']);
         Route::post('/user/partner-application/{id}/cancel', [UserPartnerApplicationController::class, 'cancel']);
         Route::get('/user/partner-application/documents', [UserPartnerApplicationController::class, 'documents']);
         Route::get('/user/partner-application/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);

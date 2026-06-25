@@ -28,16 +28,20 @@ class PartnerContractController extends Controller
 
     public function approveSignature(Request $request, string $id): JsonResponse
     {
+        $data = $request->validate([
+            'signature_image' => ['required', 'string'],
+        ]);
+
         $contract = $this->partners->signAdminContract(
             PartnerContract::with(['application.user', 'generatedDocument'])->findOrFail($id),
             $request->user(),
             $request,
-            $request->input('signature_image')
+            $data['signature_image']
         );
 
         return response()->json([
             'status' => 'success',
-            'message' => 'SportGo đã ký xác nhận hợp đồng.',
+            'message' => 'SportGo đã ký hợp đồng.',
             'data' => $contract,
         ]);
     }

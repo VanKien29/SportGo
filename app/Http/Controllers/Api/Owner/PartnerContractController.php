@@ -17,14 +17,14 @@ class PartnerContractController extends Controller
     public function sign(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'signature_image' => ['nullable', 'string'],
+            'signature_image' => ['required', 'string'],
         ]);
 
         $contract = $this->partners->signOwnerContract(
             PartnerContract::with(['application.user', 'generatedDocument'])->findOrFail($id),
             $request->user(),
             $request,
-            $data['signature_image'] ?? null
+            $data['signature_image']
         );
 
         return response()->json([

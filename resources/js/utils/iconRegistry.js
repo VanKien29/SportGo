@@ -49,6 +49,15 @@ export const ICON_REGISTRY = {
     ['path', { d: 'M16 17H8' }],
     ['path', { d: 'M10 9H8' }],
   ],
+  download: [
+    ['path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }],
+    ['path', { d: 'M7 10l5 5 5-5' }],
+    ['path', { d: 'M12 15V3' }],
+  ],
+  send: [
+    ['path', { d: 'm22 2-7 20-4-9-9-4Z' }],
+    ['path', { d: 'M22 2 11 13' }],
+  ],
   layers: [
     ['path', { d: 'm12 2 9 5-9 5-9-5 9-5Z' }],
     ['path', { d: 'm3 12 9 5 9-5' }],

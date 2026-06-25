@@ -52,13 +52,28 @@ class PartnerApplicationController extends Controller
         $data = $this->enrichBankVerification($data);
         $data['document_files'] = $this->documentFiles($request);
 
-        $application = $this->partners->submitApplication($request->user(), $data, $request);
+        $application = $this->partners->submitApplication($request->user(), $data, $request, true);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Đã gửi hồ sơ đăng ký đối tác.',
+            'message' => 'Đã tạo đơn đăng ký. Vui lòng xem và ký đơn trước khi gửi hồ sơ.',
             'data' => $application,
         ], 201);
+    }
+
+    public function submitSigned(Request $request, string $id): JsonResponse
+    {
+        $application = PartnerApplication::with('generatedDocuments.signatures')
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $application = $this->partners->submitSignedApplication($application, $request->user(), $request);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã gửi hồ sơ đăng ký đối tác. SportGo đã nhận đơn và sẽ xử lý.',
+            'data' => $application,
+        ]);
     }
 
     public function preview(Request $request): JsonResponse
@@ -175,7 +190,7 @@ class PartnerApplicationController extends Controller
     {
         $data = $request->validate([
             'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
-            'signature_image' => ['nullable', 'string'],
+            'signature_image' => ['required', 'string'],
         ], $this->messages(), $this->attributes());
 
         $contract = PartnerContract::with(['application.user', 'generatedDocument'])
@@ -189,7 +204,7 @@ class PartnerApplicationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Bạn đã ký hợp đồng thành công. SportGo sẽ ký xác nhận và gửi hợp đồng chính thức về email của bạn.',
+            'message' => 'Bạn đã ký hợp đồng thành công. Tài khoản đã được cấp quyền chủ sân.',
             'data' => $contract,
         ]);
     }
@@ -251,7 +266,7 @@ class PartnerApplicationController extends Controller
 
         $rules = [
             'applicant_full_name' => ['required', 'string', 'max:255'],
-            'applicant_phone' => ['required', 'regex:/^0[0-9]{9}$/'],
+            'applicant_phone' => ['required', 'regex:/^(0\d{9}|\+84\d{9})$/'],
             'applicant_email' => ['required', 'email', 'max:255'],
             'applicant_birth_date' => ['required', 'date', 'before_or_equal:' . now()->subYears(18)->toDateString()],
             'applicant_address' => ['required', 'string', 'max:1000'],
@@ -269,12 +284,13 @@ class PartnerApplicationController extends Controller
             'business_address' => ['required', 'string', 'max:1000'],
             'venue_name' => ['required', 'string', 'max:255'],
             'venue_address' => ['required', 'string', 'max:1000'],
+            'street_address' => ['required', 'string', 'max:255'],
             'venue_province_code' => ['required', 'string', 'max:20'],
             'venue_ward_code' => ['required', 'string', 'max:20'],
             'venue_map_url' => ['required', 'url', 'max:1000'],
             'venue_latitude' => ['required', 'numeric', 'between:-90,90'],
             'venue_longitude' => ['required', 'numeric', 'between:-180,180'],
-            'venue_phone' => ['required', 'regex:/^0[0-9]{9}$/'],
+            'venue_phone' => ['required', 'regex:/^(0\d{9}|\+84\d{9})$/'],
             'venue_email' => ['nullable', 'email', 'max:255'],
             'venue_description' => ['nullable', 'string'],
             'expected_opening_hours' => ['nullable', 'string', 'max:255'],
@@ -303,6 +319,10 @@ class PartnerApplicationController extends Controller
                 'business_license_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
                 'facility_images' => ['required', 'array', 'min:1', 'max:12'],
                 'facility_images.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'bank_documents' => ['required', 'array', 'min:1', 'max:5'],
+                'bank_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'lease_documents' => ['required', 'array', 'min:1', 'max:5'],
+                'lease_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
                 'additional_documents' => ['nullable', 'array', 'max:10'],
                 'additional_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
             ];
@@ -434,6 +454,8 @@ class PartnerApplicationController extends Controller
             'identity' => $this->filesArray($request->file('identity_documents', [])),
             'business_license' => $this->filesArray($request->file('business_license_documents', [])),
             'facility' => $this->filesArray($request->file('facility_images', [])),
+            'bank' => $this->filesArray($request->file('bank_documents', [])),
+            'lease' => $this->filesArray($request->file('lease_documents', [])),
             'additional' => $this->filesArray($request->file('additional_documents', [])),
         ];
     }
@@ -485,6 +507,7 @@ class PartnerApplicationController extends Controller
             'business_address' => 'Địa chỉ pháp lý',
             'venue_name' => 'Tên cụm sân',
             'venue_address' => 'Địa chỉ chi tiết cụm sân',
+            'street_address' => 'Số nhà, tên đường',
             'venue_province_code' => 'Tỉnh/Thành phố',
             'venue_ward_code' => 'Phường/Xã',
             'venue_map_url' => 'Link Google Maps',
@@ -502,6 +525,8 @@ class PartnerApplicationController extends Controller
             'identity_documents' => 'CCCD/CMND người đăng ký',
             'business_license_documents' => 'Giấy đăng ký kinh doanh/pháp lý',
             'facility_images' => 'Hình ảnh cơ sở/sân',
+            'bank_documents' => 'Chứng từ ngân hàng',
+            'lease_documents' => 'Hợp đồng hoặc giấy tờ thuê mặt bằng',
             'additional_documents' => 'Tài liệu bổ sung',
         ];
     }

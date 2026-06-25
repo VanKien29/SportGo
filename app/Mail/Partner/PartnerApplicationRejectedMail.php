@@ -20,7 +20,7 @@ class PartnerApplicationRejectedMail extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: '[SportGo] Thông báo kết quả xét duyệt hồ sơ đăng ký đối tác');
+        return new Envelope(subject: '[SportGo] Hồ sơ đăng ký đối tác chưa được duyệt');
     }
 
     public function content(): Content

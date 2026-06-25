@@ -98,7 +98,7 @@ class PartnerApplicationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Duyệt hồ sơ thành công. Hợp đồng đã được tạo và chờ chủ sân ký.',
+            'message' => 'Duyệt hồ sơ thành công. Hợp đồng đã được tạo và đang chờ SportGo ký.',
             'data' => $this->payload($application, true),
         ]);
     }
@@ -127,7 +127,7 @@ class PartnerApplicationController extends Controller
     {
         $request->validate([
             'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
-            'signature_image' => ['nullable', 'string'],
+            'signature_image' => ['required', 'string'],
         ]);
 
         $application = PartnerApplication::findOrFail($id);
@@ -146,7 +146,7 @@ class PartnerApplicationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'SportGo đã ký xác nhận hợp đồng.',
+            'message' => 'SportGo đã ký hợp đồng. Người dùng sẽ được thông báo để vào hệ thống ký xác nhận.',
             'data' => $this->payload($contract->application->fresh($this->partners->detailRelations()), true),
         ]);
     }
