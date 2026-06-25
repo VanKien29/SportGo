@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
-use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
@@ -324,6 +323,7 @@ class BookingManagementController extends Controller
         $validated = $request->validate([
             'action' => ['required', Rule::in(['confirm', 'reject', 'cancel', 'check_in', 'complete'])],
             'status_reason' => ['required_if:action,reject,cancel', 'nullable', 'string', 'max:1000'],
+            'cancellation_reason_type' => ['nullable', Rule::in(['owner_maintenance', 'owner_emergency', 'venue_locked', 'admin_action'])],
         ]);
 
         $allowedActions = match ($booking->status) {
@@ -394,6 +394,7 @@ class BookingManagementController extends Controller
             'status_reason' => $validated['status_reason'] ?? null,
         ]);
 
+        $refunds = [];
         if ($status === 'completed') {
             $this->bookingService->syncMembershipForCompletedBooking($booking);
         }
@@ -401,6 +402,7 @@ class BookingManagementController extends Controller
         return response()->json([
             'message' => 'Đã cập nhật trạng thái booking.',
             'data' => $booking->fresh(['venueCourt.courtType', 'customer', 'payments']),
+            'refunds' => $refunds,
         ]);
     }
 

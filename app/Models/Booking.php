@@ -50,12 +50,17 @@ class Booking extends Model
         'walk_in_phone',
         'status_reason',
         'cancelled_by',
+        'cancellation_initiator',
+        'cancellation_reason_type',
         'cancelled_at',
         'created_by',
         'court_changed_by',
         'court_changed_at',
         'court_changed_reason',
         'reminder_sent_at',
+        'membership_tier_discount_amount',
+        'membership_tier',
+        'cashback_amount',
     ];
 
     protected function casts(): array
@@ -72,6 +77,8 @@ class Booking extends Model
             'venue_discount_amount' => 'decimal:2',
             'final_amount' => 'decimal:2',
             'required_payment_amount' => 'decimal:2',
+            'membership_tier_discount_amount' => 'decimal:2',
+            'cashback_amount' => 'decimal:2',
             'recurring_start_date' => 'date',
             'recurring_end_date' => 'date',
             'recurrence_interval' => 'integer',
