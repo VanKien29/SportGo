@@ -13,7 +13,18 @@
           <div class="avatar">{{ userInitial }}</div>
           <div class="avatar-status"></div>
         </div>
-        <h1 class="hero-name">{{ user?.fullName || '—' }}</h1>
+        <div class="hero-name-row">
+          <h1 class="hero-name">{{ user?.fullName || '—' }}</h1>
+          <button
+            v-if="membershipTier"
+            class="membership-pill"
+            type="button"
+            :title="membershipTooltip"
+          >
+            <span>{{ membershipTier.label }}</span>
+            <span class="membership-chevron">&rsaquo;</span>
+          </button>
+        </div>
         <div class="role-badge" :class="user?.role">
           <span class="role-dot"></span>
           {{ roleLabel }}
@@ -86,6 +97,24 @@
             <div class="info-value">{{ roleLabel }}</div>
           </div>
         </div>
+
+        <!-- Membership -->
+        <div v-if="membershipTier" class="membership-card">
+          <div class="membership-card-head">
+            <div>
+              <div class="membership-label">Hạng thành viên</div>
+              <div class="membership-title">{{ membershipTier.label }}</div>
+            </div>
+            <div class="membership-bookings">
+              {{ membershipTier.completed_bookings || 0 }}
+              <span>booking hoàn tất</span>
+            </div>
+          </div>
+          <div class="membership-progress">
+            <span :style="{ width: `${membershipProgress}%` }"></span>
+          </div>
+          <div class="membership-note">{{ membershipNote }}</div>
+        </div>
       </div>
     </div>
 
@@ -116,6 +145,23 @@ export default {
   computed: {
     userInitial() {
       return this.user?.fullName?.charAt(0)?.toUpperCase() || '?';
+    },
+    membershipTier() {
+      return this.user?.membership_tier || null;
+    },
+    membershipProgress() {
+      return Math.min(100, Math.max(0, Number(this.membershipTier?.progress_percent || 0)));
+    },
+    membershipTooltip() {
+      const discount = Number(this.membershipTier?.discount_percent || 0);
+      return discount > 0 ? `Giảm ${discount}% khi đặt sân` : 'Hạng mặc định';
+    },
+    membershipNote() {
+      const nextTier = this.membershipTier?.next_tier;
+      if (!nextTier) return 'Bạn đã đạt hạng cao nhất.';
+
+      const remaining = Number(this.membershipTier?.remaining_bookings || 0);
+      return `Còn ${remaining} booking hoàn tất để lên ${nextTier.label}.`;
     },
     roleLabel() {
       const map = { admin: 'Quản trị viên', owner: 'Chủ sân', user: 'Người dùng' };
@@ -216,12 +262,43 @@ export default {
   box-shadow: 0 0 0 2px rgba(34,197,94,.4);
 }
 
+.hero-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
 .hero-name {
   font-size: 22px;
   font-weight: 800;
   color: #fff;
-  letter-spacing: -0.4px;
-  margin-bottom: 12px;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.membership-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 6px 12px 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 8px 24px rgba(15,23,42,.18);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+}
+.membership-chevron {
+  color: #374151;
+  font-size: 21px;
+  line-height: 1;
 }
 
 /* Role badge */
@@ -278,7 +355,7 @@ export default {
 .info-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 .info-item {
   display: flex;
@@ -342,6 +419,68 @@ export default {
   white-space: nowrap;
 }
 
+/* Membership */
+.membership-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #d1fae5;
+  border-radius: 12px;
+  background: #f0fdf4;
+}
+.membership-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.membership-label {
+  color: #047857;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.membership-title {
+  margin-top: 3px;
+  color: #064e3b;
+  font-size: 18px;
+  font-weight: 850;
+}
+.membership-bookings {
+  display: grid;
+  justify-items: end;
+  color: #065f46;
+  font-size: 18px;
+  font-weight: 850;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.membership-bookings span {
+  margin-top: 3px;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 700;
+}
+.membership-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #bbf7d0;
+}
+.membership-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #16a34a, #0f766e);
+}
+.membership-note {
+  color: #047857;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 /* ── Footer ── */
 .pcard-footer {
   display: flex;
@@ -398,6 +537,8 @@ export default {
   .pcard-footer { padding: 16px 20px 24px; }
   .info-item { padding: 12px; }
   .hero-name { font-size: 20px; }
+  .membership-card-head { display: grid; }
+  .membership-bookings { justify-items: start; }
   .avatar { width: 68px; height: 68px; font-size: 26px; }
 }
 </style>
