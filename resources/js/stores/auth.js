@@ -29,6 +29,7 @@ function normalizeAuth(payload, existingToken = null) {
     phone: user.phone,
     status: user.status,
     membership_tier: user.membership_tier || payload.membership_tier || null,
+    venue_memberships: user.venue_memberships || payload.venue_memberships || [],
   };
 }
 

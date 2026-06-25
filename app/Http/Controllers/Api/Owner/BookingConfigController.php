@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\BookingConfig;
 use App\Models\VenueCluster;
+use App\Services\Memberships\VenueMembershipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -14,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class BookingConfigController extends Controller
 {
+    public function __construct(private readonly VenueMembershipService $venueMemberships) {}
+
     public function index(Request $request): JsonResponse
     {
         $clusterIds = $this->visibleClusterIds($request->user()->id);
@@ -54,12 +57,21 @@ class BookingConfigController extends Controller
             'allow_deposit' => ['required', 'boolean'],
             'allow_no_prepay' => ['required', 'boolean'],
             'deposit_percent' => ['nullable', 'numeric', 'min:1', 'max:100'],
+            'membership_tiers' => ['sometimes', 'array', 'size:4'],
+            'membership_tiers.*.tier_key' => ['required_with:membership_tiers', 'string', 'in:regular,silver,gold,diamond'],
+            'membership_tiers.*.discount_percent' => ['required_with:membership_tiers', 'numeric', 'min:0', 'max:100'],
+            'membership_tiers.*.min_completed_bookings' => ['required_with:membership_tiers', 'integer', 'min:0'],
+            'membership_tiers.*.min_spend_amount' => ['required_with:membership_tiers', 'numeric', 'min:0'],
+            'membership_tiers.*.maintain_period_months' => ['nullable', 'integer', 'min:1', 'max:36'],
+            'membership_tiers.*.maintain_min_bookings' => ['nullable', 'integer', 'min:0'],
+            'membership_tiers.*.maintain_min_spend_amount' => ['nullable', 'numeric', 'min:0'],
         ], [
             'min_advance_booking_minutes.min' => 'Thời gian đặt trước tối thiểu là 30 phút.',
             'special_operating_hours.max' => 'Chỉ được tạo tối đa 30 khoảng ngày tùy chỉnh.',
         ]);
 
         $this->validateOperatingHours($validated);
+        $this->validateMembershipTiers($validated['membership_tiers'] ?? null);
 
         if (
             ! $validated['allow_full_payment']
@@ -83,18 +95,22 @@ class BookingConfigController extends Controller
         $config = BookingConfig::query()->updateOrCreate(
             ['venue_cluster_id' => $venueClusterId],
             [
-                ...$validated,
+                ...collect($validated)->except('membership_tiers')->all(),
                 'deposit_percent' => $validated['allow_deposit']
                     ? $validated['deposit_percent']
                     : null,
             ]
         );
 
+        if (array_key_exists('membership_tiers', $validated)) {
+            $this->venueMemberships->upsertSettings($venueClusterId, $validated['membership_tiers']);
+        }
+
         $this->audit($request, $venueClusterId, $oldValues, $config->fresh()->toArray());
 
         return response()->json([
             'message' => 'Đã lưu cấu hình đặt sân.',
-            'data' => $config,
+            'data' => $this->configPayload($config->fresh(), $venueClusterId),
         ]);
     }
 
@@ -114,7 +130,46 @@ class BookingConfigController extends Controller
             'allow_deposit' => $config?->allow_deposit ?? true,
             'allow_no_prepay' => $config?->allow_no_prepay ?? true,
             'deposit_percent' => $config?->deposit_percent ?? 30,
+            'membership_tiers' => $this->venueMemberships->settingsPayload($clusterId),
         ];
+    }
+
+    private function validateMembershipTiers(?array $tiers): void
+    {
+        if ($tiers === null) {
+            return;
+        }
+
+        $errors = [];
+        $byKey = collect($tiers)->keyBy('tier_key');
+        $expectedKeys = $this->venueMemberships->tierKeys();
+
+        foreach ($expectedKeys as $key) {
+            if (! $byKey->has($key)) {
+                $errors['membership_tiers'] = 'Phải cấu hình đủ 4 hạng thành viên cố định.';
+            }
+        }
+
+        $previousBookings = -1;
+        $previousSpend = -1;
+        foreach ($expectedKeys as $key) {
+            $tier = $byKey->get($key);
+            if (! $tier) {
+                continue;
+            }
+
+            $bookings = (int) ($tier['min_completed_bookings'] ?? 0);
+            $spend = (float) ($tier['min_spend_amount'] ?? 0);
+            if ($bookings < $previousBookings || $spend < $previousSpend) {
+                $errors['membership_tiers'] = 'Mốc lên hạng phải tăng dần theo thứ tự Thường, Bạc, Vàng, Kim cương.';
+            }
+            $previousBookings = $bookings;
+            $previousSpend = $spend;
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     private function validateOperatingHours(array $validated): void

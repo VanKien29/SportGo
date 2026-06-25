@@ -16,7 +16,7 @@
         <div class="hero-name-row">
           <h1 class="hero-name">{{ user?.fullName || '—' }}</h1>
           <button
-            v-if="membershipTier"
+            v-if="showMembershipTier"
             class="membership-pill"
             type="button"
             :title="membershipTooltip"
@@ -99,11 +99,12 @@
         </div>
 
         <!-- Membership -->
-        <div v-if="membershipTier" class="membership-card">
+        <div v-if="showMembershipTier" class="membership-card">
           <div class="membership-card-head">
             <div>
               <div class="membership-label">Hạng thành viên</div>
               <div class="membership-title">{{ membershipTier.label }}</div>
+              <div v-if="membershipTier.venue_name" class="membership-venue">{{ membershipTier.venue_name }}</div>
             </div>
             <div class="membership-bookings">
               {{ membershipTier.completed_bookings || 0 }}
@@ -114,6 +115,12 @@
             <span :style="{ width: `${membershipProgress}%` }"></span>
           </div>
           <div class="membership-note">{{ membershipNote }}</div>
+          <div v-if="membershipVenues.length > 1" class="membership-venues">
+            <div v-for="item in membershipVenues" :key="item.venue_cluster_id" class="membership-venue-row">
+              <span>{{ item.venue_name || 'Cụm sân' }}</span>
+              <strong>{{ item.label }}</strong>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -147,7 +154,15 @@ export default {
       return this.user?.fullName?.charAt(0)?.toUpperCase() || '?';
     },
     membershipTier() {
-      return this.user?.membership_tier || null;
+      return this.normalizeMembership(this.user?.membership_tier);
+    },
+    showMembershipTier() {
+      return this.user?.role === 'user' && Boolean(this.membershipTier);
+    },
+    membershipVenues() {
+      return (this.user?.venue_memberships || [])
+        .map((item) => this.normalizeMembership(item))
+        .filter(Boolean);
     },
     membershipProgress() {
       return Math.min(100, Math.max(0, Number(this.membershipTier?.progress_percent || 0)));
@@ -161,11 +176,40 @@ export default {
       if (!nextTier) return 'Bạn đã đạt hạng cao nhất.';
 
       const remaining = Number(this.membershipTier?.remaining_bookings || 0);
-      return `Còn ${remaining} booking hoàn tất để lên ${nextTier.label}.`;
+      const spend = Number(this.membershipTier?.remaining_spend_amount || 0);
+      const spendText = spend > 0 ? ` và ${this.formatMoney(spend)}` : '';
+      return `Còn ${remaining} booking hoàn tất${spendText} để lên ${nextTier.label}.`;
     },
     roleLabel() {
       const map = { admin: 'Quản trị viên', owner: 'Chủ sân', user: 'Người dùng' };
       return map[this.user?.role] || 'Khách';
+    },
+  },
+  methods: {
+    normalizeMembership(item) {
+      if (!item) return null;
+      const tier = item.tier || item;
+      const nextTier = item.next_tier
+        ? {
+            ...item.next_tier,
+            label: item.next_tier.label || item.next_tier.tier_label,
+          }
+        : null;
+
+      return {
+        ...item,
+        key: tier.key || tier.tier_key,
+        label: tier.label || tier.tier_label,
+        discount_percent: Number(tier.discount_percent || 0),
+        completed_bookings: Number(item.completed_bookings || 0),
+        remaining_bookings: Number(item.remaining_bookings || 0),
+        remaining_spend_amount: Number(item.remaining_spend_amount || 0),
+        progress_percent: Number(item.progress_percent || 0),
+        next_tier: nextTier,
+      };
+    },
+    formatMoney(value) {
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
     },
   },
 };
@@ -447,6 +491,12 @@ export default {
   font-size: 18px;
   font-weight: 850;
 }
+.membership-venue {
+  margin-top: 3px;
+  color: #047857;
+  font-size: 12px;
+  font-weight: 700;
+}
 .membership-bookings {
   display: grid;
   justify-items: end;
@@ -479,6 +529,31 @@ export default {
   font-size: 12px;
   font-weight: 700;
   line-height: 1.35;
+}
+.membership-venues {
+  display: grid;
+  gap: 6px;
+  padding-top: 2px;
+}
+.membership-venue-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #dcfce7;
+  color: #065f46;
+  font-size: 12px;
+  font-weight: 700;
+}
+.membership-venue-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.membership-venue-row strong {
+  white-space: nowrap;
 }
 
 /* ── Footer ── */

@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
 use App\Services\Customers\WalkInCustomerService;
+use App\Services\Memberships\VenueMembershipService;
 use App\Models\VenueCourt;
 use Carbon\Carbon;
 use Exception;
@@ -28,6 +29,7 @@ class BookingService
 
     public function __construct(
         private readonly WalkInCustomerService $walkInCustomers,
+        private readonly VenueMembershipService $venueMemberships,
     ) {}
 
     /**
@@ -167,7 +169,10 @@ class BookingService
             }
 
             // 5. Tính giá tiền đặt sân theo từng ô 30 phút để đúng khi booking đi qua nhiều khung giá.
-            $totalPrice = $this->calculateTotalPrice($court, $bookingDate, $startTime, $endTime, 'single');
+            $originalAmount = $this->calculateTotalPrice($court, $bookingDate, $startTime, $endTime, 'single');
+            $membership = $this->venueMemberships->discountForBooking($customerId, $venueClusterId, $originalAmount);
+            $membershipDiscountAmount = (float) $membership['discount_amount'];
+            $totalPrice = round(max($originalAmount - $membershipDiscountAmount, 0), 2);
 
             // 6. Tính số tiền tối thiểu cần thanh toán
             $requiredPaymentAmount = 0.00;
@@ -197,6 +202,11 @@ class BookingService
                 'end_time' => $endTime,
                 'duration_minutes' => $durationMinutes,
                 'total_price' => $totalPrice,
+                'original_amount' => $originalAmount,
+                'discount_amount' => $membershipDiscountAmount,
+                'membership_discount_amount' => $membershipDiscountAmount,
+                'membership_tier_snapshot' => $membership,
+                'final_amount' => $totalPrice,
                 'payment_option' => $paymentOption,
                 'required_payment_amount' => $requiredPaymentAmount,
                 'source' => 'online',
@@ -356,6 +366,11 @@ class BookingService
                 ->map(fn (Carbon $date) => $date->toDateString());
 
             if ($conflicts->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'recurring_start_date' => 'Một số buổi trong lịch cố định vẫn bị trùng: '.$conflicts->take(8)->implode(', ').($conflicts->count() > 8 ? '...' : ''),
+                ]);
+            }
+
             $dates = $dates
                 ->reject(fn (Carbon $date) => $skippedDates->contains($date->toDateString()))
                 ->values();
@@ -452,6 +467,8 @@ class BookingService
         $bookingType = $data['booking_type'] ?? 'single';
         $usageUserId = $data['customer_id'] ?? $actor->id;
         $usageCount = max((int) ($data['usage_count'] ?? 1), 1);
+        $membership = $this->venueMemberships->discountForBooking($usageUserId, $court->venue_cluster_id, $amount);
+        $amount = round(max($amount - (float) $membership['discount_amount'], 0), 2);
 
         return $this->activeVoucherQuery($court->venue_cluster_id, $data['voucher_code'] ?? null)
             ->get()
@@ -608,10 +625,18 @@ class BookingService
                 $booking->update([
                     'status' => $collectionAmount >= $outstandingAmount ? 'completed' : 'confirmed',
                 ]);
+                if ($booking->status === 'completed') {
+                    $this->syncMembershipForCompletedBooking($booking);
+                }
             }
 
             return $booking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'payments']);
         });
+    }
+
+    public function syncMembershipForCompletedBooking(Booking $booking): void
+    {
+        $this->venueMemberships->syncBooking($booking->fresh());
     }
 
     public function collectRecurringGroupPayment(string $groupCode, User $actor, string $method, ?float $amount = null): array
@@ -937,16 +962,20 @@ class BookingService
             $data['walk_in_phone'] ?? null,
         );
         $data['customer_id'] = $customer->id;
+        $membership = $this->venueMemberships->discountForBooking($customer->id, $court->venue_cluster_id, $originalAmount);
+        $membershipDiscountAmount = (float) $membership['discount_amount'];
+        $amountAfterMembership = round(max($originalAmount - $membershipDiscountAmount, 0), 2);
         $voucher = $this->resolveVoucherForBooking(
             $data,
             $customer->id,
             $court->venue_cluster_id,
             (string) $court->court_type_id,
             $bookingType,
-            $originalAmount,
+            $amountAfterMembership,
         );
-        $discountAmount = (float) ($voucher['discount_amount'] ?? 0);
-        $totalPrice = round(max($originalAmount - $discountAmount, 0), 2);
+        $voucherDiscountAmount = (float) ($voucher['discount_amount'] ?? 0);
+        $discountAmount = round($membershipDiscountAmount + $voucherDiscountAmount, 2);
+        $totalPrice = round(max($amountAfterMembership - $voucherDiscountAmount, 0), 2);
         $requiredPaymentAmount = $this->requiredPaymentAmount($court->venue_cluster_id, $totalPrice, $data['payment_option']);
         $isPaid = $requiredPaymentAmount <= 0 && $data['payment_option'] !== 'no_prepay'
             ? true
@@ -968,8 +997,10 @@ class BookingService
             'total_price' => $totalPrice,
             'original_amount' => $originalAmount,
             'discount_amount' => $discountAmount,
-            'system_discount_amount' => ($voucher['funded_by'] ?? null) === 'system' ? $discountAmount : 0,
-            'venue_discount_amount' => ($voucher['funded_by'] ?? null) === 'venue' ? $discountAmount : 0,
+            'membership_discount_amount' => $membershipDiscountAmount,
+            'membership_tier_snapshot' => $membership,
+            'system_discount_amount' => ($voucher['funded_by'] ?? null) === 'system' ? $voucherDiscountAmount : 0,
+            'venue_discount_amount' => ($voucher['funded_by'] ?? null) === 'venue' ? $voucherDiscountAmount : 0,
             'final_amount' => $totalPrice,
             'voucher_id' => $voucher['id'] ?? null,
             'voucher_code_snapshot' => $voucher['code'] ?? null,
@@ -1006,6 +1037,10 @@ class BookingService
         }
 
         $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash');
+
+        if ($booking->status === 'completed') {
+            $this->syncMembershipForCompletedBooking($booking);
+        }
 
         return $booking;
     }
@@ -1413,11 +1448,13 @@ class BookingService
             return null;
         }
 
-        $inScope = $scopes->contains(function (object $scope) use ($venueClusterId, $courtTypeId, $bookingType): bool {
+        $userTierKey = $this->venueMemberships->userTierKey($usageUserId, $venueClusterId);
+        $inScope = $scopes->contains(function (object $scope) use ($venueClusterId, $courtTypeId, $bookingType, $userTierKey): bool {
             return match ($scope->scope_type) {
                 'venue_cluster' => (string) $scope->scope_id === (string) $venueClusterId,
                 'court_type' => (string) $scope->scope_id === (string) $courtTypeId,
                 'booking_type' => (string) $scope->scope_id === (string) $bookingType,
+                'membership_tier' => (string) $scope->scope_id === (string) $userTierKey,
                 default => false,
             };
         });

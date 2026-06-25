@@ -212,7 +212,7 @@ class VoucherController extends Controller
             'valid_to' => ['required', 'date', 'after:valid_from'],
             'status' => ['required', Rule::in(['draft', 'active', 'inactive', 'expired'])],
             'scopes' => ['array'],
-            'scopes.*.scope_type' => ['required_with:scopes', Rule::in(['all', 'venue_cluster', 'court_type', 'booking_type'])],
+            'scopes.*.scope_type' => ['required_with:scopes', Rule::in(['all', 'venue_cluster', 'court_type', 'booking_type', 'membership_tier'])],
             'scopes.*.scope_id' => ['nullable', 'string', 'max:100'],
         ]);
 
@@ -242,6 +242,12 @@ class VoucherController extends Controller
             if ($scopeType !== 'all' && blank($scopeId)) {
                 throw ValidationException::withMessages([
                     'scopes' => 'Phạm vi cụ thể phải có mã phạm vi.',
+                ]);
+            }
+
+            if ($scopeType === 'membership_tier' && ! in_array($scopeId, ['regular', 'silver', 'gold', 'diamond'], true)) {
+                throw ValidationException::withMessages([
+                    'scopes' => 'Hạng thành viên của voucher không hợp lệ.',
                 ]);
             }
 
@@ -543,7 +549,21 @@ class VoucherController extends Controller
             return 'Toàn hệ thống';
         }
 
+        if ($scope->scope_type === 'membership_tier') {
+            return 'Hạng thành viên: ' . $this->membershipTierLabel($scope->scope_id);
+        }
+
         return $this->scopeTypeLabel($scope->scope_type) . ($scope->scope_id ? ': ' . $scope->scope_id : '');
+    }
+
+    private function membershipTierLabel(?string $tier): string
+    {
+        return [
+            'regular' => 'Thường',
+            'silver' => 'Bạc',
+            'gold' => 'Vàng',
+            'diamond' => 'Kim cương',
+        ][$tier] ?? (string) $tier;
     }
 
     private function usageStatusLabel(?string $status): string

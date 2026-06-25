@@ -208,7 +208,7 @@ class VoucherController extends Controller
             'valid_to' => ['required', 'date', 'after:valid_from'],
             'status' => ['required', Rule::in(['draft', 'active', 'inactive', 'expired'])],
             'scopes' => ['array'],
-            'scopes.*.scope_type' => ['required_with:scopes', Rule::in(['venue_cluster', 'court_type', 'booking_type'])],
+            'scopes.*.scope_type' => ['required_with:scopes', Rule::in(['venue_cluster', 'court_type', 'booking_type', 'membership_tier'])],
             'scopes.*.scope_id' => ['nullable', 'string', 'max:100'],
         ]);
 
@@ -248,6 +248,12 @@ class VoucherController extends Controller
                         'scopes' => 'Loại sân của voucher không thuộc cụm sân này.',
                     ]);
                 }
+            }
+
+            if ($scopeType === 'membership_tier' && ! in_array($scopeId, ['regular', 'silver', 'gold', 'diamond'], true)) {
+                throw ValidationException::withMessages([
+                    'scopes' => 'Hạng thành viên của voucher không hợp lệ.',
+                ]);
             }
 
             DB::table('voucher_scopes')->insert([

@@ -394,6 +394,10 @@ class BookingManagementController extends Controller
             'status_reason' => $validated['status_reason'] ?? null,
         ]);
 
+        if ($status === 'completed') {
+            $this->bookingService->syncMembershipForCompletedBooking($booking);
+        }
+
         return response()->json([
             'message' => 'Đã cập nhật trạng thái booking.',
             'data' => $booking->fresh(['venueCourt.courtType', 'customer', 'payments']),

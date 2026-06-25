@@ -248,6 +248,7 @@ class SepayPaymentService
                     $payment->booking()->update([
                         'status' => 'completed',
                     ]);
+                    $this->bookingService->syncMembershipForCompletedBooking($booking);
                 } elseif (in_array($booking?->status, ['pending_approval', 'pending_payment'], true)) {
                     $payment->booking()->update([
                         'status' => 'confirmed',
