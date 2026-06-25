@@ -405,6 +405,10 @@
   content: "×";
 }
 
+.sg-shell-admin .content-area :is(.btn-close):has(*)::before {
+  content: none !important;
+}
+
 .sg-shell-admin .content-area :is(.btn:hover, .mini-btn:hover, .icon-btn:hover, .icon-action:hover, .icon-close:hover, .btn-action:hover, .btn-action-icon:hover, .btn-switch:hover, .tab-btn:hover, .tabs button:hover, .sort-btn:hover, .btn-back:hover, .primary-btn:hover, .secondary-btn:hover, .primary-link:hover, .ghost-btn:hover, .export-btn:hover, .icon-only:hover, .icon-command:hover, .pay-command:hover) {
   transform: translateY(-1px) !important;
 }

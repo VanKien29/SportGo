@@ -1,17 +1,5 @@
 <template>
   <section class="pricing-page">
-    <header class="page-head">
-      <div>
-        <h2>Cấu hình giá</h2>
-      </div>
-      <label class="cluster-select">
-        <span>Cụm sân</span>
-        <select v-model="selectedClusterId" :disabled="isLoading || !clusters.length">
-          <option v-if="!clusters.length" value="">Chưa có cụm sân</option>
-          <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
-        </select>
-      </label>
-    </header>
 
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="notice" class="alert alert-success">{{ notice }}</div>

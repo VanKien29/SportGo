@@ -1314,7 +1314,8 @@ export default {
     background-color: var(--admin-surface-muted);
 }
 .custom-option.selected {
-    background-color: #e2e8f0;
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
     font-weight: 600;
 }
 
@@ -1336,7 +1337,7 @@ export default {
 }
 .desktop-image-zone:hover {
     border-color: #3b82f6;
-    background-color: #eff6ff;
+    background-color: rgba(59, 130, 246, 0.08);
 }
 .empty-image-placeholder {
     text-align: center;

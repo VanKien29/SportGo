@@ -1,14 +1,5 @@
 <template>
   <div class="owner-profile-page">
-    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <h2>Hồ sơ đối tác & Hợp đồng</h2>
-        <p class="muted">Thông tin đăng ký trở thành đối tác và các hợp đồng của bạn.</p>
-      </div>
-      <button class="btn primary" @click="openNewClusterModal()">
-        <AppIcon name="plus" size="16" /> Đăng ký Cụm sân mới
-      </button>
-    </div>
 
     <div v-if="loading" class="state-box card">
       <div class="spinner"></div>
@@ -22,16 +13,8 @@
     <div v-else-if="applications.length > 0" class="applications-container">
 
       <div v-for="(app, index) in applications" :key="app.id" class="application-details" style="margin-bottom: 40px;">
-        <div style="margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div style="margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
           <h2 style="margin: 0;">Cụm sân: {{ app.venue_name }}</h2>
-          <button
-            v-if="canRequestExpansion(app)"
-            class="btn ghost"
-            type="button"
-            @click="openNewClusterModal(app)"
-          >
-            <AppIcon name="plus" size="16" /> Yêu cầu mở rộng
-          </button>
         </div>
         
         <!-- Trạng thái chung -->
@@ -241,19 +224,27 @@
           </button>
         </div>
       </div>
-      
+
       </div>
     </div>
+
+
+    <!-- Menu nổi dạng 3 gạch -->
+    <FloatMenuButton
+      :actions="floatMenuActions"
+      @action="handleFloatMenuAction"
+    />
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import FloatMenuButton from '../../components/FloatMenuButton.vue';
 import { api } from '../../services/api.js';
 
 export default {
   name: 'OwnerPartnerProfile',
-  components: { AppIcon },
+  components: { AppIcon, FloatMenuButton },
   data() {
     return {
       applications: [],
@@ -279,6 +270,24 @@ export default {
       }
     };
   },
+  computed: {
+    floatMenuActions() {
+      const hasExpansionEligible = this.applications.some((app) => this.canRequestExpansion(app));
+      return [
+        {
+          key: 'register',
+          label: 'Đăng ký Cụm sân mới',
+          icon: 'plus',
+        },
+        {
+          key: 'expand',
+          label: 'Yêu cầu mở rộng',
+          icon: 'pencil',
+          disabled: !hasExpansionEligible,
+        },
+      ];
+    },
+  },
   mounted() {
     this.fetchApplications();
   },
@@ -299,6 +308,15 @@ export default {
     },
     canRequestExpansion(app) {
       return ['approved', 'completed'].includes(app?.status) || Boolean(app?.approved_venue_cluster_id);
+    },
+    handleFloatMenuAction(key) {
+      if (key === 'register') {
+        this.openNewClusterModal();
+      } else if (key === 'expand') {
+        // Mở modal expand với app đầu tiên đủ điều kiện
+        const eligible = this.applications.find((app) => this.canRequestExpansion(app));
+        this.openNewClusterModal(eligible || null);
+      }
     },
     openNewClusterModal(baseApplication = null) {
       this.newClusterForm = {

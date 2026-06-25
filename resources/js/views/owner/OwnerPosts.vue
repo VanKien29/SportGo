@@ -1,16 +1,5 @@
 <template>
   <div class="posts-page">
-    <div class="page-header">
-      <div class="header-left">
-        <h2>Bài đăng & Thông báo</h2>
-        <p class="muted">Tạo và quản lý các bài viết quảng bá, thông báo sự kiện cho cụm sân của bạn.</p>
-      </div>
-      <button class="btn primary" type="button" @click="openCreateModal">
-        <AppIcon name="plus" size="16" />
-        <span>Tạo bài đăng mới</span>
-      </button>
-    </div>
-
     <!-- Alert Notices -->
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
@@ -18,30 +7,40 @@
     <div class="filter-toolbar card">
       <!-- Tabs -->
       <div class="tabs-header">
-        <button
-          v-for="tab in tabs"
-          :key="tab.value"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.value }"
-          type="button"
-          @click="changeTab(tab.value)"
-        >
-          <AppIcon :name="tab.icon" size="16" />
-          <span>{{ tab.label }}</span>
-        </button>
+        <div class="tabs-list-wrapper">
+          <button
+            v-for="tab in tabs"
+            :key="tab.value"
+            class="tab-btn"
+            :class="{ active: activeTab === tab.value }"
+            type="button"
+            @click="changeTab(tab.value)"
+          >
+            <AppIcon :name="tab.icon" size="16" />
+            <span>{{ tab.label }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- Dropdown filter by cluster -->
       <div class="filters">
-        <label class="field compact">
+        <div class="field compact">
           <span>Lọc theo cụm sân</span>
-          <select v-model="filterClusterId" @change="loadPosts(1)">
-            <option value="">Tất cả cụm sân</option>
-            <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">
-              {{ cluster.name }}
-            </option>
-          </select>
-        </label>
+          <div class="custom-select-wrapper">
+            <div class="custom-select-trigger" :class="{ active: showFilterClusterDropdown }" @click.stop="showFilterClusterDropdown = !showFilterClusterDropdown">
+              <span>{{ selectedFilterClusterLabel }}</span>
+              <span class="arrow">&#9662;</span>
+            </div>
+            <div v-if="showFilterClusterDropdown" class="custom-options-container">
+              <div class="custom-option" :class="{ selected: filterClusterId === '' }" @click="selectFilterCluster('')">
+                Tất cả cụm sân
+              </div>
+              <div v-for="cluster in clusters" :key="cluster.id" class="custom-option" :class="{ selected: filterClusterId === cluster.id }" @click="selectFilterCluster(cluster.id)">
+                {{ cluster.name }}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -159,15 +158,20 @@
 
         <form @submit.prevent="submitForm">
           <div class="modal-body form-grid">
-            <label class="field">
+            <div class="field">
               <span>Cụm sân áp dụng <span class="required">*</span></span>
-              <select v-model="form.venue_cluster_id" required :disabled="formModal.isEdit">
-                <option value="" disabled>-- Chọn cụm sân --</option>
-                <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">
-                  {{ cluster.name }}
-                </option>
-              </select>
-            </label>
+              <div class="custom-select-wrapper">
+                <div class="custom-select-trigger" :class="{ active: showFormClusterDropdown, disabled: formModal.isEdit }" @click.stop="!formModal.isEdit && (showFormClusterDropdown = !showFormClusterDropdown)">
+                  <span>{{ selectedFormClusterLabel }}</span>
+                  <span class="arrow" v-if="!formModal.isEdit">&#9662;</span>
+                </div>
+                <div v-if="showFormClusterDropdown && !formModal.isEdit" class="custom-options-container">
+                  <div v-for="cluster in clusters" :key="cluster.id" class="custom-option" :class="{ selected: form.venue_cluster_id === cluster.id }" @click="selectFormCluster(cluster.id)">
+                    {{ cluster.name }}
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <label class="field">
               <span>Nội dung bài viết <span class="required">*</span></span>
@@ -244,17 +248,27 @@
     <div v-if="lightbox.open" class="lightbox-backdrop" @click="lightbox.open = false">
       <img :src="formatImageUrl(lightbox.img)" alt="lightbox zoom" class="lightbox-img" />
     </div>
+
+    <!-- Nút Thêm bài viết dạng nổi ở góc dưới -->
+    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <FloatAddButton
+        label="Tạo bài đăng mới"
+        title="Tạo bài đăng mới"
+        @click="openCreateModal"
+      />
+    </div>
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import FloatAddButton from '../../components/FloatAddButton.vue';
 import { ownerPostService } from '../../services/ownerPosts.js';
 import { venueClusterService } from '../../services/venueClusters.js';
 
 export default {
   name: 'OwnerPosts',
-  components: { AppIcon },
+  components: { AppIcon, FloatAddButton },
   data() {
     return {
       posts: [],
@@ -294,11 +308,30 @@ export default {
         img: '',
       },
       mousedownWasOnBackdrop: false,
+      showScrollTop: false,
+      showFilterClusterDropdown: false,
+      showFormClusterDropdown: false,
     };
   },
+  computed: {
+    selectedFilterClusterLabel() {
+      const cluster = this.clusters.find(c => c.id === this.filterClusterId);
+      return cluster ? cluster.name : 'Tất cả cụm sân';
+    },
+    selectedFormClusterLabel() {
+      const cluster = this.clusters.find(c => c.id === this.form.venue_cluster_id);
+      return cluster ? cluster.name : '-- Chọn cụm sân --';
+    },
+  },
   async mounted() {
+    window.addEventListener('scroll', this.handleScroll);
+    document.addEventListener('click', this.handleOutsideClick);
     await this.loadClusters();
     await this.loadPosts();
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
+    document.removeEventListener('click', this.handleOutsideClick);
   },
   methods: {
     async loadClusters() {
@@ -338,6 +371,31 @@ export default {
     changeTab(tabValue) {
       this.activeTab = tabValue;
       this.loadPosts(1);
+    },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 150;
+    },
+    selectFilterCluster(clusterId) {
+      this.filterClusterId = clusterId;
+      this.showFilterClusterDropdown = false;
+      this.loadPosts(1);
+    },
+    selectFormCluster(clusterId) {
+      this.form.venue_cluster_id = clusterId;
+      this.showFormClusterDropdown = false;
+    },
+    handleOutsideClick(e) {
+      const selectTrigger = this.$el.querySelector(".filters .custom-select-trigger");
+      const selectDropdown = this.$el.querySelector(".filters .custom-options-container");
+      if (selectDropdown && !selectDropdown.contains(e.target) && selectTrigger && !selectTrigger.contains(e.target)) {
+        this.showFilterClusterDropdown = false;
+      }
+      
+      const modalTrigger = this.$el.querySelector(".modal-body .custom-select-trigger");
+      const modalDropdown = this.$el.querySelector(".modal-body .custom-options-container");
+      if (modalDropdown && !modalDropdown.contains(e.target) && modalTrigger && !modalTrigger.contains(e.target)) {
+        this.showFormClusterDropdown = false;
+      }
     },
     clearAlerts() {
       this.error = '';
@@ -395,6 +453,7 @@ export default {
       this.formModal.isEdit = false;
       this.formModal.postId = null;
       this.formModal.open = true;
+      this.showFormClusterDropdown = false;
     },
     openEditModal(post) {
       this.clearAlerts();
@@ -408,6 +467,7 @@ export default {
       this.formModal.isEdit = true;
       this.formModal.postId = post.id;
       this.formModal.open = true;
+      this.showFormClusterDropdown = false;
     },
     closeModal() {
       // Revoke preview URLs to avoid memory leaks
@@ -549,9 +609,17 @@ export default {
 
 .tabs-header {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 8px;
   border-bottom: 1px solid #f1f5f9;
   padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.tabs-list-wrapper {
+  display: flex;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -1096,5 +1164,65 @@ export default {
   max-height: 90%;
   border-radius: 4px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Custom Select Dropdown styles */
+.custom-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+.custom-select-trigger {
+  background-color: var(--admin-surface, #fff);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  transition: all 0.2s;
+  color: var(--admin-text);
+  min-height: 38px;
+  box-sizing: border-box;
+}
+.custom-select-trigger.disabled {
+  background-color: var(--admin-surface-muted, #f8fafc);
+  color: var(--admin-muted, #94a3b8);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.custom-select-trigger:hover:not(.disabled), .custom-select-trigger.active {
+  border-color: var(--admin-faint, #64748b);
+}
+.custom-options-container {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--admin-surface, #fff);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.custom-option {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--admin-text);
+  transition: background-color 0.15s;
+  text-align: left;
+}
+.custom-option:hover {
+  background-color: var(--admin-surface-muted, #f8fafc);
+}
+.custom-option.selected {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  font-weight: 600;
 }
 </style>

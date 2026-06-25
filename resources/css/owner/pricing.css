@@ -1,11 +1,15 @@
+/* ===================================================
+   Pricing Page - Uses CSS variables for dark/light mode
+   =================================================== */
+
 .pricing-page {
   display: grid;
-  gap: 12px;
+  gap: 16px;
   max-width: 1280px;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
-.page-head,
+/* ---- Shared layout helpers ---- */
 .section-head,
 .table-toolbar,
 .modal-head,
@@ -16,40 +20,32 @@
   gap: 18px;
 }
 
-.page-head {
-  min-height: 68px;
-  padding: 14px 18px;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  background: #fff;
-}
-
-.page-head h2,
 .section-head h3,
 .table-toolbar h3,
 .price-modal h3 {
   margin: 0;
 }
 
-.page-head h2 {
-  font-size: 20px;
-}
-
+/* ---- Eyebrow label ---- */
 .eyebrow {
   margin: 0 0 6px !important;
-  color: #000000 !important;
+  color: var(--admin-faint) !important;
   font-size: 11px;
   font-weight: 900;
-  letter-spacing: .1em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
+/* ---- Cluster selector (inside base-price-card filters) ---- */
 .cluster-select {
-  min-width: 280px;
+  min-width: 220px;
   display: grid;
   gap: 5px;
-  color: #64748b;
+  color: var(--admin-faint);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .cluster-select select,
@@ -59,75 +55,106 @@
 .money-input input {
   width: 100%;
   height: 38px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 0 10px;
-  background: #fff;
-  color: #0f172a;
+  background: var(--admin-surface);
+  color: var(--admin-text);
   font: inherit;
+  font-size: 13px;
+  transition: border-color 0.2s;
 }
 
+.cluster-select select:focus,
+.filters select:focus,
+.price-modal input:focus,
+.price-modal select:focus,
+.money-input input:focus {
+  outline: none;
+  border-color: var(--admin-blue);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+}
+
+/* ---- Alert banners ---- */
 .alert {
-  padding: 12px 14px;
-  border-radius: 9px;
-  font-weight: 800;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
 }
 
 .alert-error {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger-text);
+  border: 1px solid var(--admin-danger);
 }
 
 .alert-success {
-  background: #f3f4f6;
-  color: #000000;
-  border: 1px solid #e5e7eb;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border);
 }
 
+/* ---- Cards ---- */
 .base-price-card,
 .pricing-card {
   overflow: hidden;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-border);
   border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, .035);
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-card);
 }
 
 .section-head {
   padding: 14px 18px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .section-head.compact h3 {
   font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--admin-text);
 }
 
-.btn {
+/* ---- Buttons (scoped to pricing-page) ---- */
+.pricing-page .btn {
   height: 38px;
   border: 0;
   border-radius: 8px;
-  padding: 0 14px;
+  padding: 0 16px;
   font: inherit;
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 800;
   cursor: pointer;
+  transition: opacity 0.2s, background 0.2s;
 }
 
-.btn.primary {
-  background: #000000;
-  color: #fff;
+.pricing-page .btn.primary {
+  background: var(--admin-primary);
+  color: var(--admin-bg);
 }
 
-.btn.secondary {
-  background: #f1f5f9;
-  color: #334155;
+.pricing-page .btn.primary:hover:not(:disabled) {
+  background: var(--admin-primary-light);
 }
 
-.btn:disabled {
-  opacity: .5;
+.pricing-page .btn.secondary {
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
+  border: 1px solid var(--admin-border);
+}
+
+.pricing-page .btn.secondary:hover:not(:disabled) {
+  background: var(--admin-hover);
+}
+
+.pricing-page .btn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
+/* ---- Base price grid ---- */
 .base-price-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -138,12 +165,12 @@
   grid-template-columns: minmax(130px, 1fr) minmax(170px, 220px) 64px;
   align-items: start;
   gap: 10px;
-  padding: 11px 18px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .base-price-row:nth-child(odd) {
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid var(--admin-border);
 }
 
 .base-price-row:nth-last-child(-n+2) {
@@ -157,8 +184,10 @@
 
 .base-price-row strong {
   font-size: 13px;
+  color: var(--admin-text);
 }
 
+/* ---- Money input ---- */
 .money-input {
   position: relative;
   display: grid;
@@ -172,8 +201,8 @@
 }
 
 .money-input input.invalid {
-  border-color: #ef4444;
-  background: #fff7f7;
+  border-color: var(--admin-danger);
+  background: var(--admin-danger-soft);
 }
 
 .money-input span {
@@ -181,22 +210,34 @@
   right: 10px;
   top: 18px;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: var(--admin-faint);
   font-size: 10px;
   font-weight: 800;
+  pointer-events: none;
 }
 
 .money-input small {
-  color: #b91c1c;
+  color: var(--admin-danger);
   font-size: 10px;
-  font-weight: 750;
+  font-weight: 700;
 }
 
+/* ---- Filter: cluster select (inside base-price-card) ---- */
+.base-price-card .filters {
+  padding: 12px 18px;
+  border-top: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+/* ---- Price tabs ---- */
 .price-tabs {
   display: flex;
   padding: 0 18px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #ffffff;
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-surface);
 }
 
 .price-tabs button {
@@ -204,16 +245,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 8px;
   min-height: 48px;
   padding: 0 22px;
   border: 0;
   background: transparent;
-  color: #64748b;
+  color: var(--admin-faint);
   font: inherit;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
+  transition: color 0.2s;
 }
 
 .price-tabs button::after {
@@ -225,6 +267,7 @@
   border-radius: 2px;
   background: transparent;
   content: "";
+  transition: background 0.2s;
 }
 
 .price-tabs button small {
@@ -234,44 +277,50 @@
   height: 20px;
   padding: 0 5px;
   border-radius: 999px;
-  background: #f3f4f6;
-  color: #64748b;
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
   font-size: 10px;
+  font-weight: 700;
+  transition: background 0.2s, color 0.2s;
 }
 
 .price-tabs button.active {
-  color: #000000;
+  color: var(--admin-text);
   font-weight: 900;
 }
 
 .price-tabs button.active::after {
-  background: #000000;
+  background: var(--admin-text);
 }
 
 .price-tabs button.active small {
-  background: #000000;
-  color: #ffffff;
+  background: var(--admin-primary);
+  color: var(--admin-bg);
 }
 
+/* ---- Table toolbar ---- */
 .table-toolbar {
   padding: 14px 18px;
 }
 
 .table-toolbar h3 {
   font-size: 15px;
+  font-weight: 800;
+  color: var(--admin-text);
 }
 
-.filters {
+/* ---- Filters bar ---- */
+.pricing-card .filters {
   display: grid;
   grid-template-columns: repeat(3, minmax(150px, 200px));
   gap: 10px;
-  padding: 11px 18px;
-  border-top: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
+  padding: 12px 18px;
+  border-top: 1px solid var(--admin-border);
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
 }
 
-.filters.weekly {
+.pricing-card .filters.weekly {
   grid-template-columns: repeat(4, minmax(140px, 190px));
 }
 
@@ -279,15 +328,18 @@
 .price-modal label {
   display: grid;
   gap: 5px;
-  color: #64748b;
+  color: var(--admin-faint);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .filters select {
   height: 36px;
 }
 
+/* ---- Table ---- */
 .table-wrap {
   overflow: auto;
 }
@@ -301,23 +353,31 @@ table {
 th,
 td {
   padding: 13px 16px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--admin-border);
   text-align: left;
   vertical-align: middle;
 }
 
 th {
-  background: #f9fafb;
-  color: #64748b;
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
   font-size: 10px;
   font-weight: 900;
-  letter-spacing: .05em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 td {
-  color: #334155;
+  color: var(--admin-muted);
   font-size: 13px;
+}
+
+tbody tr:hover {
+  background: var(--admin-hover);
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 td strong,
@@ -328,24 +388,28 @@ td small {
 td small {
   max-width: 240px;
   margin-top: 4px;
-  color: #94a3b8;
+  color: var(--admin-faint);
 }
 
+/* ---- Time pill ---- */
 .time-pill {
   display: inline-flex;
   border-radius: 6px;
-  padding: 5px 8px;
-  background: #f1f5f9;
-  color: #334155;
+  padding: 4px 8px;
+  background: var(--admin-primary-soft);
+  color: var(--admin-text);
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
+/* ---- Price cell ---- */
 .price {
-  color: #000000;
+  color: var(--admin-text);
   font-weight: 900;
 }
 
+/* ---- Toggle switch ---- */
 .switch {
   width: 36px;
   height: 20px;
@@ -354,26 +418,29 @@ td small {
   padding: 2px;
   border: 0;
   border-radius: 999px;
-  background: #cbd5e1;
+  background: var(--admin-border);
   cursor: pointer;
+  transition: background 0.22s;
 }
 
 .switch span {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
-  transition: transform .18s;
+  background: var(--admin-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .switch.on {
-  background: #000000;
+  background: var(--admin-primary);
 }
 
 .switch.on span {
   transform: translateX(16px);
 }
 
+/* ---- Empty / loading states ---- */
 .empty-state {
   display: flex;
   align-items: center;
@@ -382,8 +449,9 @@ td small {
   min-height: 96px;
   padding: 24px;
   text-align: center;
-  color: #94a3b8;
+  color: var(--admin-faint);
   font-size: 13px;
+  flex-direction: column;
 }
 
 .compact-state {
@@ -391,9 +459,10 @@ td small {
 }
 
 .load-error {
-  color: #991b1b;
+  color: var(--admin-danger);
 }
 
+/* ---- Modal ---- */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -401,33 +470,55 @@ td small {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(15, 23, 42, .58);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
 }
 
 .price-modal {
   width: min(620px, calc(100vw - 32px));
   display: grid;
-  gap: 15px;
-  padding: 22px;
+  gap: 16px;
+  padding: 24px;
   border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, .25);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow-lg);
+}
+
+.modal-head {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .modal-head button {
-  border: 0;
-  background: transparent;
-  color: #64748b;
-  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
+  font-size: 18px;
+  line-height: 1;
   cursor: pointer;
+  transition: background 0.2s, color 0.2s;
 }
 
+.modal-head button:hover {
+  background: var(--admin-hover);
+  color: var(--admin-text);
+}
+
+/* ---- Form grid ---- */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
 
+/* ---- Day selector grid ---- */
 .day-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -438,12 +529,18 @@ td small {
   display: grid;
   place-items: center;
   min-height: 38px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  color: #475569;
+  color: var(--admin-faint);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
   cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+
+.day-grid label:hover {
+  border-color: var(--admin-text);
+  color: var(--admin-text);
 }
 
 .day-grid input {
@@ -453,12 +550,13 @@ td small {
 }
 
 .day-grid label.selected {
-  border-color: #000000;
-  background: #f3f4f6;
-  color: #000000;
+  border-color: var(--admin-primary);
+  background: var(--admin-primary-soft);
+  color: var(--admin-text);
   font-weight: 900;
 }
 
+/* ---- Active row (checkbox row) ---- */
 .active-row {
   display: flex !important;
   align-items: center;
@@ -468,13 +566,18 @@ td small {
 .active-row input {
   width: 16px;
   height: 16px;
+  accent-color: var(--admin-primary);
 }
 
+/* ---- Modal actions ---- */
 .modal-actions {
   justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--admin-border);
 }
 
-@media(max-width: 1050px) {
+/* ====== RESPONSIVE ====== */
+@media (max-width: 1050px) {
   .base-price-grid {
     grid-template-columns: 1fr;
   }
@@ -484,22 +587,20 @@ td small {
   }
 
   .base-price-row:nth-last-child(-n+2) {
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--admin-border);
   }
 
   .base-price-row:last-child {
     border-bottom: 0;
   }
 
-  .filters,
-  .filters.weekly {
+  .pricing-card .filters,
+  .pricing-card .filters.weekly {
     grid-template-columns: repeat(2, minmax(150px, 1fr));
   }
 }
 
-@media(max-width: 720px) {
-
-  .page-head,
+@media (max-width: 720px) {
   .table-toolbar,
   .modal-head {
     align-items: stretch;
@@ -526,8 +627,8 @@ td small {
     left: 25%;
   }
 
-  .filters,
-  .filters.weekly,
+  .pricing-card .filters,
+  .pricing-card .filters.weekly,
   .day-grid {
     grid-template-columns: 1fr;
   }
