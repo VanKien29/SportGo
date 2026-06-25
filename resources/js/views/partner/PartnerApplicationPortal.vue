@@ -152,7 +152,7 @@
                 <button
                   type="button"
                   class="rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition"
-                  @click="selectedApplication = application"
+                  @click="openApplicationDetail(application)"
                 >
                   Chi tiết
                 </button>
@@ -161,7 +161,7 @@
                   v-if="applicationWord(application)"
                   type="button"
                   class="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition"
-                  @click="viewDocument(applicationWord(application), application)"
+                  @click="openApplicationDocument(applicationWord(application), application)"
                 >
                   <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -173,12 +173,21 @@
                   v-if="contractWord(application)"
                   type="button"
                   class="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition"
-                  @click="viewContractDocument(contractWord(application), application)"
+                  @click="openApplicationDocument(contractWord(application), application)"
                 >
                   <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   Xem &amp; Ký Hợp đồng
+                </button>
+
+                <button
+                  v-if="canSubmitSignedApplication(application)"
+                  type="button"
+                  class="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition"
+                  @click="submitSignedApplication(application)"
+                >
+                  Gửi hồ sơ
                 </button>
 
                 <button
@@ -276,7 +285,7 @@
                 <input v-model.trim="form.applicant_full_name" :class="inputClass(fieldErrors.applicant_full_name)" />
               </FormField>
               <FormField label="Số điện thoại" required :error="fieldErrors.applicant_phone">
-                <input v-model.trim="form.applicant_phone" :class="inputClass(fieldErrors.applicant_phone)" inputmode="numeric" @input="digitsOnly('applicant_phone', 10)" />
+                <input v-model.trim="form.applicant_phone" :class="inputClass(fieldErrors.applicant_phone)" inputmode="tel" @input="normalizePhone('applicant_phone')" />
               </FormField>
               <FormField label="Email" required :error="fieldErrors.applicant_email">
                 <input v-model.trim="form.applicant_email" :class="inputClass(fieldErrors.applicant_email)" type="email" />
@@ -374,7 +383,7 @@
                 <input v-model.trim="form.venue_name" :class="inputClass(fieldErrors.venue_name)" />
               </FormField>
               <FormField label="Số điện thoại tại sân" required :error="fieldErrors.venue_phone">
-                <input v-model.trim="form.venue_phone" :class="inputClass(fieldErrors.venue_phone)" inputmode="numeric" @input="digitsOnly('venue_phone', 10)" />
+                <input v-model.trim="form.venue_phone" :class="inputClass(fieldErrors.venue_phone)" inputmode="tel" @input="normalizePhone('venue_phone')" />
               </FormField>
               <FormField label="Email tại sân" :error="fieldErrors.venue_email">
                 <input v-model.trim="form.venue_email" :class="inputClass(fieldErrors.venue_email)" type="email" />
@@ -443,6 +452,8 @@
               <UploadBox title="CCCD/CMND người đại diện" required :files="files.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
               <UploadBox title="Giấy đăng ký kinh doanh/pháp lý" required :files="files.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
               <UploadBox title="Hình ảnh cơ sở/sân" required :files="files.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
+              <UploadBox title="Chứng từ ngân hàng" required :files="files.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
+              <UploadBox title="Hợp đồng/giấy tờ thuê mặt bằng" required :files="files.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
               <UploadBox title="Tài liệu bổ sung" :files="files.additional" :error="fieldErrors.additional_documents" @change="setFiles('additional', $event)" @remove="removeFile('additional', $event)" />
             </div>
           </FormSection>
@@ -489,7 +500,7 @@
 </template>
 
 <script setup>
-import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import PublicNavbar from '../../components/PublicNavbar.vue';
 import FloatingActions from '../../components/FloatingActions.vue';
@@ -736,7 +747,7 @@ function defaultForm(authUser) {
   };
 }
 
-function blankFiles() { return { identity: [], business_license: [], facility: [], additional: [] }; }
+function blankFiles() { return { identity: [], business_license: [], facility: [], bank: [], lease: [], additional: [] }; }
 function localId() { return `local-${Math.random().toString(36).slice(2)}-${Date.now()}`; }
 
 function normalizeList(data) {
@@ -805,7 +816,13 @@ async function continueDraft() {
 function clearDraft() { localStorage.removeItem(DRAFT_KEY); draft.value = null; }
 
 // ─── Input handlers ───────────────────────────────────────────────────────────
-function digitsOnly(field, max) { form[field] = String(form[field] || '').replace(/\D/g, '').slice(0, max); }
+function normalizePhone(field) {
+  let value = String(form[field] || '').replace(/[^\d+]/g, '');
+  if (value.includes('+')) value = `+${value.replace(/\+/g, '')}`;
+  if (value.startsWith('+84')) value = `+84${value.slice(3).replace(/\D/g, '').slice(0, 9)}`;
+  else value = value.replace(/\D/g, '').slice(0, 10);
+  form[field] = value;
+}
 
 function normalizeIdentityNumber() {
   const v = String(form.representative_identity_number || '');
@@ -919,8 +936,8 @@ function validateForm() {
   };
   Object.entries(required).forEach(([f, m]) => { if (!form[f]) fieldErrors[f] = m; });
   if (form.applicant_birth_date && new Date(form.applicant_birth_date) > new Date(new Date().setFullYear(new Date().getFullYear() - 18))) fieldErrors.applicant_birth_date = 'Người đăng ký phải đủ 18 tuổi.';
-  if (form.applicant_phone && !/^0\d{9}$/.test(form.applicant_phone)) fieldErrors.applicant_phone = 'Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0.';
-  if (form.venue_phone && !/^0\d{9}$/.test(form.venue_phone)) fieldErrors.venue_phone = 'Số điện thoại sân phải gồm 10 chữ số và bắt đầu bằng 0.';
+  if (form.applicant_phone && !/^(0\d{9}|\+84\d{9})$/.test(form.applicant_phone)) fieldErrors.applicant_phone = 'Số điện thoại phải bắt đầu bằng 0 hoặc +84 và đúng định dạng Việt Nam.';
+  if (form.venue_phone && !/^(0\d{9}|\+84\d{9})$/.test(form.venue_phone)) fieldErrors.venue_phone = 'Số điện thoại sân phải bắt đầu bằng 0 hoặc +84 và đúng định dạng Việt Nam.';
   if (form.applicant_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.applicant_email)) fieldErrors.applicant_email = 'Email không đúng định dạng.';
   if (form.venue_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.venue_email)) fieldErrors.venue_email = 'Email sân không đúng định dạng.';
   if (!isValidIdentity()) fieldErrors.representative_identity_number = 'Số giấy tờ không đúng định dạng đã chọn.';
@@ -930,12 +947,21 @@ function validateForm() {
   if (!files.identity.length) fieldErrors.identity_documents = 'Vui lòng tải lên CCCD/CMND.';
   if (!files.business_license.length) fieldErrors.business_license_documents = 'Vui lòng tải lên giấy tờ pháp lý.';
   if (!files.facility.length) fieldErrors.facility_images = 'Vui lòng tải lên hình ảnh cơ sở.';
+  if (!files.bank.length) fieldErrors.bank_documents = 'Vui lòng tải lên chứng từ ngân hàng.';
+  if (!files.lease.length) fieldErrors.lease_documents = 'Vui lòng tải lên hợp đồng hoặc giấy tờ thuê mặt bằng.';
   if (!confirmed.value) fieldErrors.confirmed = 'Vui lòng xác nhận thông tin trước khi gửi.';
   form.courts.forEach((c, i) => {
     if (!c.name) fieldErrors[`courts.${i}.name`] = 'Vui lòng nhập tên sân.';
     if (!c.court_type_id) fieldErrors[`courts.${i}.court_type_id`] = 'Vui lòng chọn loại sân.';
   });
   return Object.keys(fieldErrors).length === 0;
+}
+
+async function focusFirstError() {
+  await nextTick();
+  const first = document.querySelector('.border-red-400, .border-red-300');
+  if (first && typeof first.focus === 'function') first.focus({ preventScroll: false });
+  first?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
 }
 
 function isValidIdentity() {
@@ -950,14 +976,13 @@ function clearErrors() { Object.keys(fieldErrors).forEach((k) => delete fieldErr
 // ─── Submit ───────────────────────────────────────────────────────────────────
 async function submit() {
   formBanner.value = '';
-  if (!validateForm()) { formBanner.value = `Vui lòng kiểm tra lại các trường đang báo lỗi. (${Object.keys(fieldErrors).join(', ')})`; return; }
+  if (!validateForm()) { await focusFirstError(); return; }
   submitting.value = true;
   try {
     syncVenueAddress();
     const payload = { ...form, court_count_total: Number(form.court_count_total), base_price_per_hour: Number(form.base_price_per_hour), courts: form.courts.map((c) => ({ name: c.name, court_type_id: c.court_type_id, note: c.note || '' })) };
     const formData = new FormData();
     Object.entries(payload).forEach(([k, v]) => {
-      if (k === 'street_address') return;
       if (['courts', 'amenities'].includes(k)) formData.append(k, JSON.stringify(v || []));
       else if (v !== null && v !== undefined) formData.append(k, v);
     });
@@ -965,14 +990,24 @@ async function submit() {
     files.identity.forEach((f) => formData.append('identity_documents[]', f));
     files.business_license.forEach((f) => formData.append('business_license_documents[]', f));
     files.facility.forEach((f) => formData.append('facility_images[]', f));
+    files.bank.forEach((f) => formData.append('bank_documents[]', f));
+    files.lease.forEach((f) => formData.append('lease_documents[]', f));
     files.additional.forEach((f) => formData.append('additional_documents[]', f));
-    await apiFormData('/api/user/partner-application', formData);
-    clearDraft(); formOpen.value = false; await loadApplications();
+    const response = await apiFormData('/api/user/partner-application', formData);
+    clearDraft();
+    const application = response.data;
+    const doc = applicationWord(application);
+    if (doc) {
+      router.push({ name: 'partner-application-document', params: { id: application.id, documentId: doc.id } });
+      return;
+    }
+    formOpen.value = false; await loadApplications();
   } catch (e) {
     clearErrors();
     const errors = e.data?.errors || {};
     Object.entries(errors).forEach(([f, m]) => { fieldErrors[f] = Array.isArray(m) ? m[0] : m; });
-    formBanner.value = e.message || 'Vui lòng kiểm tra lại thông tin hồ sơ.';
+    if (Object.keys(errors).length) await focusFirstError();
+    else formBanner.value = e.message || 'Vui lòng kiểm tra lại thông tin hồ sơ.';
   } finally { submitting.value = false; }
 }
 
@@ -980,6 +1015,26 @@ async function submit() {
 async function cancelApplication(application) {
   if (!window.confirm(`Hủy hồ sơ đăng ký cho ${application.venue_name}?`)) return;
   await api(`/api/user/partner-application/${application.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Người dùng hủy hồ sơ từ trang đăng ký đối tác.' }) });
+  await loadApplications();
+}
+
+function openApplicationDetail(application) {
+  router.push({ name: 'partner-application-detail', params: { id: application.id } });
+}
+
+function openApplicationDocument(document, application) {
+  if (!document || !application) return;
+  router.push({ name: 'partner-application-document', params: { id: application.id, documentId: document.id } });
+}
+
+function canSubmitSignedApplication(application) {
+  const doc = applicationWord(application);
+  return application?.status === 'draft' && doc?.status === 'completed';
+}
+
+async function submitSignedApplication(application) {
+  if (!application?.id) return;
+  await api(`/api/user/partner-application/${application.id}/submit`, { method: 'POST' });
   await loadApplications();
 }
 
@@ -1047,7 +1102,7 @@ function contractWord(application) {
 }
 function canCancel(application) { return ['pending', 'submitted', 'reviewing', 'need_supplement', 'draft'].includes(application.status); }
 function statusLabel(status) {
-  return { pending: 'Chờ xét duyệt', submitted: 'Chờ xét duyệt', reviewing: 'Đang xem xét', need_supplement: 'Cần bổ sung', contract_pending_owner_signature: 'Đã duyệt, chờ ký hợp đồng', contract_pending_sportgo_signature: 'Chờ SportGo ký', completed: 'Đang hoạt động', rejected: 'Bị từ chối', cancelled: 'Đã hủy' }[status] || status || '-';
+  return { draft: 'Chờ ký đơn', pending: 'Chờ xét duyệt', submitted: 'Chờ xét duyệt', reviewing: 'Đang xem xét', need_supplement: 'Cần bổ sung', contract_pending_owner_signature: 'Đã duyệt, chờ ký hợp đồng', contract_pending_sportgo_signature: 'Chờ SportGo ký', completed: 'Đang hoạt động', rejected: 'Bị từ chối', cancelled: 'Đã hủy' }[status] || status || '-';
 }
 function statusClass(status) {
   if (['rejected', 'cancelled'].includes(status)) return 'bg-red-50 text-red-700';

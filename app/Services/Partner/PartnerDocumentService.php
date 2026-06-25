@@ -246,7 +246,7 @@ class PartnerDocumentService
                 'storage_disk' => 'local',
                 'template_variables' => [],
                 'required_fields' => [],
-                'render_engine' => 'phpword_template',
+                'render_engine' => 'docx_placeholder',
                 'status' => 'active',
                 'is_active' => true,
                 'activated_at' => now(),
@@ -331,7 +331,10 @@ class PartnerDocumentService
             // Remove internal xml tags that split our macros {{ ... }}
             // We match something like: {<tags>{var_name}<tags>}
             $replaced = preg_replace_callback('/\{(<[^>]+>)*\{.*?\}(<[^>]+>)*\}/s', function ($matches) {
-                return '{{' . strip_tags($matches[0]) . '}}';
+                $macro = trim(strip_tags($matches[0]));
+                $macro = trim($macro, "{} \t\n\r\0\x0B");
+
+                return '{{' . $macro . '}}';
             }, $xml);
 
             if ($replaced !== $xml) {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CourtType;
 use App\Models\GeneratedDocument;
 use App\Models\PartnerApplication;
 use App\Models\PartnerContract;
@@ -93,6 +94,18 @@ class PartnerApplicationController extends Controller
             'court_type_id' => [Rule::requiredIf($application->courts->isEmpty()), 'nullable', 'integer', 'exists:court_types,id'],
             'review_note' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        if ($application->courts->isEmpty() && ! empty($data['court_type_id'])) {
+            $courtType = CourtType::query()
+                ->withCount('children')
+                ->find((int) $data['court_type_id']);
+
+            if (! $courtType || ! $courtType->is_active || (int) $courtType->children_count > 0) {
+                throw ValidationException::withMessages([
+                    'court_type_id' => 'Vui lòng chọn loại sân con đang hoạt động, không chọn loại sân cha.',
+                ]);
+            }
+        }
 
         $application = $this->partners->approve($application, $request->user(), $data, $request);
 
@@ -278,6 +291,7 @@ class PartnerApplicationController extends Controller
             ->map(fn (GeneratedDocument $document) => [
                 'id' => $document->id,
                 'partner_application_id' => $document->partner_application_id,
+                'partner_contract_id' => $document->partner_contract_id,
                 'document_code' => $document->document_code,
                 'document_type' => $document->document_type,
                 'title' => $document->title,

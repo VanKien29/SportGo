@@ -67,6 +67,18 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: "/partner-application/:id",
+        name: "partner-application-detail",
+        component: () => import("../views/partner/PartnerApplicationDetail.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/partner-application/:id/documents/:documentId",
+        name: "partner-application-document",
+        component: () => import("../views/partner/PartnerDocumentPage.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
         path: "/booking",
         name: "booking-create",
         component: BookingForm,
@@ -129,9 +141,22 @@ const routes = [
                 component: () => import("../views/admin/AdminPartnerApplications.vue"),
             },
             {
+                path: "partner-applications/:id",
+                name: "admin-partner-application-detail",
+                component: () => import("../views/admin/AdminPartnerApplicationDetail.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
+                path: "partner-applications/:id/documents/:documentId",
+                name: "admin-partner-application-document",
+                component: () => import("../views/admin/AdminPartnerDocumentPage.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
                 path: "partners/:id",
                 name: "admin-partner-detail",
-                component: () => import("../views/admin/AdminPartnerDetail.vue"),
+                component: () => import("../views/admin/AdminPartnerApplicationDetail.vue"),
+                meta: { hideFloatingBack: true },
             },
             {
                 path: "banners",

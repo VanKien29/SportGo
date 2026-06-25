@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\CourtType;
+use App\Models\GeneratedDocument;
 use App\Models\OwnerBankAccount;
 use App\Models\PartnerApplication;
 use App\Models\PartnerApplicationCourt;
@@ -132,6 +133,7 @@ class AdminBannerPartnerApplicationTest extends TestCase
             'applicant_full_name' => 'Nguyễn Kiên',
             'applicant_phone' => '0912345678',
             'applicant_email' => 'kiennguyennguyen0@gmail.com',
+            'applicant_birth_date' => '1990-01-01',
             'applicant_address' => 'Hà Nội',
             'applicant_type' => 'business',
             'representative_name' => 'Nguyễn Kiên',
@@ -146,6 +148,7 @@ class AdminBannerPartnerApplicationTest extends TestCase
             'business_license_number' => 'GPKD-KIEN-001',
             'business_address' => '12 Nguyễn Trãi, Hà Nội',
             'venue_name' => 'SportGo Kiên Test',
+            'street_address' => '12 Nguyễn Trãi',
             'venue_address' => '12 Nguyễn Trãi, Phường Thanh Xuân, Hà Nội',
             'venue_province_code' => '1',
             'venue_ward_code' => '10101',
@@ -182,14 +185,39 @@ class AdminBannerPartnerApplicationTest extends TestCase
                 UploadedFile::fake()->image('facility-1.jpg', 1200, 800),
                 UploadedFile::fake()->image('facility-2.jpg', 1200, 800),
             ],
+            'bank_documents' => [
+                UploadedFile::fake()->create('bank-proof.pdf', 80, 'application/pdf'),
+            ],
+            'lease_documents' => [
+                UploadedFile::fake()->create('lease-contract.pdf', 80, 'application/pdf'),
+            ],
         ]);
 
         $response->assertCreated()
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.user_id', $user->id)
-            ->assertJsonPath('data.status', 'submitted');
+            ->assertJsonPath('data.status', 'draft');
 
         $applicationId = $response->json('data.id');
+
+        $this->assertDatabaseHas('generated_documents', [
+            'partner_application_id' => $applicationId,
+            'document_type' => 'partner_application_form',
+            'status' => 'pending_owner_signature',
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/user/partner-application/{$applicationId}/sign-document", [
+                'signature_image' => $this->signatureImage(),
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/user/partner-application/{$applicationId}/submit")
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.status', 'submitted');
 
         $this->assertDatabaseHas('partner_applications', [
             'id' => $applicationId,
@@ -197,7 +225,10 @@ class AdminBannerPartnerApplicationTest extends TestCase
             'venue_name' => 'SportGo Kiên Test',
             'venue_province' => 'Thành phố Hà Nội',
             'venue_ward' => 'Phường Thanh Xuân',
+            'venue_province_code' => '1',
+            'venue_ward_code' => '10101',
             'bank_code' => 'VCB',
+            'status' => 'submitted',
         ]);
         $this->assertDatabaseHas('owner_bank_accounts', [
             'owner_id' => $user->id,
@@ -207,10 +238,28 @@ class AdminBannerPartnerApplicationTest extends TestCase
             'status' => 'pending',
         ]);
         $this->assertSame(2, PartnerApplicationCourt::query()->where('partner_application_id', $applicationId)->count());
-        $this->assertSame(5, \App\Models\PartnerApplicationDocument::query()->where('partner_application_id', $applicationId)->count());
+        $this->assertSame(7, \App\Models\PartnerApplicationDocument::query()->where('partner_application_id', $applicationId)->count());
         $this->assertDatabaseHas('generated_documents', [
             'partner_application_id' => $applicationId,
             'document_type' => 'partner_application_form',
+            'status' => 'completed',
+        ]);
+
+        $applicationDocument = GeneratedDocument::query()
+            ->where('partner_application_id', $applicationId)
+            ->where('document_type', 'partner_application_form')
+            ->firstOrFail();
+
+        $this->assertDocxContains($applicationDocument, [
+            'Nguyễn Kiên',
+            'SportGo Kiên Test',
+            '1234567890',
+            'Sân 1',
+        ]);
+        $this->assertDocxMissing($applicationDocument, [
+            '{{full_name}}',
+            '{{venue_name}}',
+            '{{account_number}}',
         ]);
     }
 
@@ -264,14 +313,14 @@ class AdminBannerPartnerApplicationTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('status', 'success')
-            ->assertJsonPath('data.status', 'contract_pending_owner_signature')
+            ->assertJsonPath('data.status', 'contract_pending_sportgo_signature')
             ->assertJsonPath('data.approved_venue_cluster.name', 'SportGo Test Partner');
 
         $venueClusterId = $response->json('data.approved_venue_cluster_id');
 
         $this->assertDatabaseHas('partner_applications', [
             'id' => $application->id,
-            'status' => 'contract_pending_owner_signature',
+            'status' => 'contract_pending_sportgo_signature',
             'reviewed_by' => $this->admin->id,
             'approved_venue_cluster_id' => $venueClusterId,
         ]);
@@ -303,11 +352,50 @@ class AdminBannerPartnerApplicationTest extends TestCase
             ->where('partner_application_id', $application->id)
             ->firstOrFail();
 
-        $this->assertSame('pending_owner_signature', $contract->status);
+        $this->assertSame('pending_sportgo_signature', $contract->status);
+
+        $contractDocument = GeneratedDocument::query()
+            ->where('partner_contract_id', $contract->id)
+            ->where('document_type', 'partner_contract')
+            ->firstOrFail();
+
+        $this->assertDocxContains($contractDocument, [
+            'Hộ kinh doanh sân test',
+            'MST001',
+            'partner_applicant',
+        ]);
+        $this->assertDocxMissing($contractDocument, [
+            '{{party_b_name}}',
+            '{{owner_email}}',
+            '{{contract_number}}',
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/admin/contracts/{$contract->id}/approve-signature", [
+                'contract_id' => $contract->id,
+                'signature_image' => $this->signatureImage(),
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertDatabaseMissing('user_roles', [
+            'user_id' => $applicant->id,
+            'role_id' => $ownerRoleId,
+            'scope_type' => 'system',
+        ]);
+        $this->assertDatabaseHas('partner_contracts', [
+            'id' => $contract->id,
+            'status' => 'pending_owner_signature',
+        ]);
+        $this->assertDatabaseHas('venue_clusters', [
+            'id' => $venueClusterId,
+            'status' => 'pending',
+        ]);
 
         $this->actingAs($applicant, 'sanctum')
             ->postJson('/api/user/partner-application/sign-contract', [
                 'contract_id' => $contract->id,
+                'signature_image' => $this->signatureImage(),
             ])
             ->assertOk()
             ->assertJsonPath('status', 'success');
@@ -319,21 +407,11 @@ class AdminBannerPartnerApplicationTest extends TestCase
         ]);
         $this->assertDatabaseHas('partner_contracts', [
             'id' => $contract->id,
-            'status' => 'pending_sportgo_signature',
+            'status' => 'signed_active',
         ]);
         $this->assertDatabaseHas('venue_clusters', [
             'id' => $venueClusterId,
             'status' => 'active',
-        ]);
-
-        $this->actingAs($this->admin, 'sanctum')
-            ->postJson("/api/admin/contracts/{$contract->id}/approve-signature")
-            ->assertOk()
-            ->assertJsonPath('status', 'success');
-
-        $this->assertDatabaseHas('partner_contracts', [
-            'id' => $contract->id,
-            'status' => 'signed_active',
         ]);
         $this->assertDatabaseHas('partner_applications', [
             'id' => $application->id,
@@ -405,6 +483,44 @@ class AdminBannerPartnerApplicationTest extends TestCase
             'password' => bcrypt('password'),
             'status' => 'active',
         ]);
+    }
+
+    private function signatureImage(): string
+    {
+        return 'data:image/png;base64,' . base64_encode(base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII='
+        ));
+    }
+
+    private function assertDocxContains(GeneratedDocument $document, array $needles): void
+    {
+        $text = $this->docxText($document);
+
+        foreach ($needles as $needle) {
+            $this->assertStringContainsString($needle, $text);
+        }
+    }
+
+    private function assertDocxMissing(GeneratedDocument $document, array $needles): void
+    {
+        $text = $this->docxText($document);
+
+        foreach ($needles as $needle) {
+            $this->assertStringNotContainsString($needle, $text);
+        }
+    }
+
+    private function docxText(GeneratedDocument $document): string
+    {
+        $path = Storage::disk('local')->path($document->generated_file_path);
+        $zip = new \ZipArchive();
+
+        $this->assertTrue($zip->open($path) === true, "Không mở được file DOCX: {$path}");
+
+        $xml = $zip->getFromName('word/document.xml') ?: '';
+        $zip->close();
+
+        return html_entity_decode(strip_tags(str_replace(['</w:t><w:t>', '</w:t><w:t '], ' ', $xml)), ENT_QUOTES | ENT_XML1, 'UTF-8');
     }
 
     private function assignRole(User $user, Role $role): void

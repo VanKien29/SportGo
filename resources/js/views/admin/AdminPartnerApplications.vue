@@ -82,10 +82,10 @@
                   <button class="icon-btn" type="button" title="Chi tiết" @click="openDetail(application)">
                     <AppIcon name="eye" size="16" />
                   </button>
-                  <button v-if="isReviewable(application.status)" class="icon-btn approve" type="button" title="Duyệt" @click="openApprove(application)">
+                  <button v-if="isReviewable(application.status)" class="icon-btn approve" type="button" title="Mở hồ sơ để duyệt" @click="openDetail(application, 'approve')">
                     <AppIcon name="check" size="16" />
                   </button>
-                  <button v-if="isReviewable(application.status)" class="icon-btn danger" type="button" title="Từ chối" @click="openReject(application)">
+                  <button v-if="isReviewable(application.status)" class="icon-btn danger" type="button" title="Mở hồ sơ để từ chối" @click="openDetail(application, 'reject')">
                     <AppIcon name="x" size="16" />
                   </button>
                 </div>
@@ -502,12 +502,13 @@ export default {
     refresh() {
       this.loadApplications(this.pagination.current_page);
     },
-    async openDetail(application) {
+    async openDetail(application, action = '') {
       this.clearAlerts();
-      this.detailTab = 'overview';
-      this.detailModal.open = true;
-      this.activeApplication = application;
-      await this.fetchApplication(application);
+      this.$router.push({
+        name: 'admin-partner-application-detail',
+        params: { id: application.id },
+        query: action ? { action } : {},
+      });
     },
     closeDetail() {
       this.detailModal.open = false;
