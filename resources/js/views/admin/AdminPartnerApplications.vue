@@ -818,8 +818,8 @@ export default {
 .card,
 .modal,
 .panel {
-  background: #fff;
-  border: 1px solid var(--sg-border);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
 }
 
@@ -836,10 +836,10 @@ export default {
 .tab-btn {
   min-height: 36px;
   padding: 0 14px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #fff;
-  color: #475569;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
   font-weight: 800;
   cursor: pointer;
 }
@@ -873,11 +873,11 @@ export default {
 .field select,
 .field textarea {
   width: 100%;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 0 12px;
-  color: var(--sg-text);
-  background: #fff;
+  color: var(--admin-text);
+  background: var(--admin-surface);
 }
 
 .field input,
@@ -914,7 +914,7 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .spinner {
@@ -947,22 +947,22 @@ table {
 th,
 td {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--sg-border);
+  border-bottom: 1px solid var(--admin-border);
   text-align: left;
   vertical-align: middle;
 }
 
 th {
-  background: #f8fafc;
-  color: #475569;
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
   font-size: 12px;
   text-transform: uppercase;
 }
 
 .center { text-align: center; }
 .right { text-align: right; }
-.strong { font-weight: 900; color: var(--sg-text); }
-.muted { color: #64748b; font-size: 13px; }
+.strong { font-weight: 900; color: var(--admin-text); }
+.muted { color: var(--admin-muted); font-size: 13px; }
 
 .status {
   display: inline-flex;
@@ -970,8 +970,8 @@ th {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 900;
-  background: #e2e8f0;
-  color: #334155;
+  background: var(--admin-border);
+  color: var(--admin-text);
 }
 
 .status-pending,
@@ -1029,9 +1029,9 @@ th {
 
 .btn.ghost,
 .icon-btn {
-  background: #fff;
+  background: var(--admin-surface);
   border-color: var(--sg-border);
-  color: #334155;
+  color: var(--admin-text);
 }
 
 .icon-btn {
@@ -1078,12 +1078,12 @@ th {
 .modal-footer,
 .detail-tabs {
   padding: 14px 18px;
-  border-bottom: 1px solid var(--sg-border);
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .modal-footer {
   justify-content: flex-end;
-  border-top: 1px solid var(--sg-border);
+  border-top: 1px solid var(--admin-border);
   border-bottom: 0;
 }
 
@@ -1126,7 +1126,7 @@ dl {
 }
 
 dt {
-  color: #64748b;
+  color: var(--admin-muted);
   font-weight: 800;
 }
 
@@ -1147,13 +1147,13 @@ dd {
   justify-content: space-between;
   gap: 12px;
   padding: 12px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
 }
 
 .signature-line {
   margin-top: 4px;
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -1180,10 +1180,10 @@ dd {
 .signature-pad {
   width: 100%;
   max-width: 620px;
-  border: 1px solid var(--sg-border);
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   touch-action: none;
-  background: #fff;
+  background: var(--admin-surface);
   display: block;
   margin-bottom: 10px;
 }

@@ -15,6 +15,7 @@ class OwnerRefundService
 {
     public function __construct(
         private readonly RefundPolicyEvaluator $refundPolicies,
+        private readonly AdminRefundService $adminRefunds,
     ) {}
 
     public function decide(
@@ -41,7 +42,7 @@ class OwnerRefundService
             $oldStatus = $refund->status;
             $oldAmount = (float) $refund->amount;
 
-            if ($decision === 'approve') {
+            if (in_array($decision, ['approve', 'approve_cash'], true)) {
                 $policy = $this->refundPolicies->evaluate($refund, true, 'owner', $owner->id);
                 $approvedAmount = $this->policyRefundAmount($refund, $policy);
 
@@ -82,6 +83,21 @@ class OwnerRefundService
                 ]);
             }
 
+            if (in_array($decision, ['approve', 'approve_cash'], true)) {
+                $targetStatus = $decision === 'approve_cash' ? 'completed_cash' : 'completed';
+
+                $refund = $this->adminRefunds->updateStatus($refund, $targetStatus, [
+                    'actor_id' => $owner->id,
+                    'reason' => $note !== ''
+                        ? $note
+                        : ($targetStatus === 'completed_cash'
+                            ? 'Chủ sân đã hoàn tiền mặt trực tiếp cho khách.'
+                            : 'Chủ sân xác nhận hoàn tiền, hệ thống tự hoàn vào ví khách hàng.'),
+                    'source' => $targetStatus === 'completed_cash' ? 'owner_cash_refund' : 'owner_auto_wallet',
+                    'gateway_refund_txn_id' => null,
+                ]);
+            }
+
             $this->notifyDecision($refund, $decision);
 
             return $refund->fresh([
@@ -110,7 +126,7 @@ class OwnerRefundService
             return;
         }
 
-        $approved = $decision === 'approve';
+        $approved = in_array($decision, ['approve', 'approve_cash'], true);
         $bookingCode = $refund->booking?->booking_code ?: 'booking';
 
         if ($refund->customer_id) {
@@ -119,7 +135,9 @@ class OwnerRefundService
                 'type' => $approved ? 'refund_owner_approved' : 'refund_owner_rejected',
                 'title' => $approved ? 'Chủ sân đã đồng ý hoàn tiền' : 'Chủ sân từ chối hoàn tiền',
                 'body' => $approved
-                    ? "Yêu cầu hoàn tiền của {$bookingCode} đã được chủ sân xác nhận và chuyển sang bước xử lý."
+                    ? ($decision === 'approve_cash'
+                        ? "Yêu cầu hoàn tiền của {$bookingCode} đã được chủ sân xác nhận hoàn tiền mặt tại sân."
+                        : "Yêu cầu hoàn tiền của {$bookingCode} đã được chủ sân xác nhận và hoàn vào ví SportGo.")
                     : "Yêu cầu hoàn tiền của {$bookingCode} đã bị từ chối. Lý do: {$refund->status_reason}",
                 'reference_type' => 'refund',
                 'reference_id' => $refund->id,
@@ -135,29 +153,5 @@ class OwnerRefundService
         if (! $approved) {
             return;
         }
-
-        User::query()
-            ->whereHas('roles', fn ($query) => $query->whereIn('roles.name', [
-                'super_admin',
-                'admin',
-                'finance_operator',
-                'system_staff',
-            ]))
-            ->pluck('id')
-            ->each(function (string $userId) use ($refund, $bookingCode): void {
-                Notification::query()->create([
-                    'user_id' => $userId,
-                    'type' => 'refund_ready_for_admin',
-                    'title' => 'Yêu cầu hoàn tiền chờ xử lý',
-                    'body' => "Chủ sân đã xác nhận hoàn tiền cho {$bookingCode}.",
-                    'reference_type' => 'refund',
-                    'reference_id' => $refund->id,
-                    'data' => [
-                        'booking_id' => $refund->booking_id,
-                        'booking_code' => $bookingCode,
-                        'amount' => (float) $refund->amount,
-                    ],
-                ]);
-            });
     }
 }

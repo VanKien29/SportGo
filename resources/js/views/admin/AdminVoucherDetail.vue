@@ -98,11 +98,11 @@
           <tbody>
             <tr v-for="usage in usages" :key="usage.id">
               <td>
-                <strong>{{ usage.user_name || 'Không rõ' }}</strong>
+                {{ usage.user_name || 'Không rõ' }}
                 <span>{{ usage.user_email }}</span>
               </td>
               <td>
-                <strong>{{ usage.booking_code || '-' }}</strong>
+                {{ usage.booking_code || '-' }}
                 <span>{{ usage.booking_status_label }}</span>
               </td>
               <td>{{ money(usage.discount_amount) }}</td>
@@ -197,33 +197,33 @@ export default {
 .back-link { border: 0; background: transparent; color: #2563eb; font-weight: 800; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 .eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; text-transform: uppercase; font-weight: 800; }
 .alert.error { background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: 10px; font-weight: 700; }
-.state { padding: 24px; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
+.state { padding: 24px; color: var(--admin-muted); background: var(--admin-surface, #fff); border: 1px solid var(--admin-border); border-radius: 12px; }
 .state.small { padding: 16px; }
 .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.metric, .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; }
-.metric span { color: #64748b; display: block; margin-bottom: 8px; }
+.metric, .panel { background: var(--admin-surface, #fff); border: 1px solid var(--admin-border); border-radius: 12px; padding: 16px; }
+.metric span { color: var(--admin-muted); display: block; margin-bottom: 8px; }
 .metric strong { font-size: 22px; }
-.badge { border-radius: 999px; padding: 7px 11px; font-size: 12px; font-weight: 800; background: #f1f5f9; }
+.badge { border-radius: 999px; padding: 7px 11px; font-size: 12px; font-weight: 800; background: var(--admin-surface-muted); }
 .badge.success { background: #dcfce7; color: #166534; }
 .badge.danger { background: #fee2e2; color: #b91c1c; }
 .badge.warning { background: #fef3c7; color: #92400e; }
-.tabs { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #e2e8f0; }
-.tabs button { border: 0; background: transparent; padding: 11px 12px; font-weight: 800; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--admin-border); }
+.tabs button { border: 0; background: transparent; padding: 11px 12px; font-weight: 800; color: var(--admin-muted); cursor: pointer; border-bottom: 2px solid transparent; }
 .tabs button.active { color: #16a34a; border-color: #16a34a; }
 .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .panel h3 { margin: 0 0 12px; }
 dl { display: grid; gap: 10px; margin: 0; }
 dl div { display: grid; grid-template-columns: 160px 1fr; gap: 12px; }
-dt { color: #64748b; }
+dt { color: var(--admin-muted); }
 dd { margin: 0; font-weight: 700; }
 table { width: 100%; border-collapse: collapse; }
-th, td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
-td span { display: block; color: #64748b; font-size: 12px; margin-top: 3px; }
-code { background: #f8fafc; padding: 3px 6px; border-radius: 6px; color: #475569; }
+th, td { padding: 12px; border-bottom: 1px solid var(--admin-border); text-align: left; vertical-align: top; }
+td span { display: block; color: var(--admin-muted); font-size: 12px; margin-top: 3px; }
+code { background: var(--admin-surface-muted); padding: 3px 6px; border-radius: 6px; color: var(--admin-faint); }
 .timeline { display: grid; gap: 10px; }
-.timeline-item { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; display: grid; gap: 6px; }
-.timeline-item span { color: #64748b; font-size: 13px; }
-details { color: #475569; }
+.timeline-item { border: 1px solid var(--admin-border); border-radius: 10px; padding: 12px; display: grid; gap: 6px; }
+.timeline-item span { color: var(--admin-muted); font-size: 13px; }
+details { color: var(--admin-faint); }
 summary { cursor: pointer; font-weight: 800; }
 pre { white-space: pre-wrap; word-break: break-word; background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; }
 @media (max-width: 900px) {

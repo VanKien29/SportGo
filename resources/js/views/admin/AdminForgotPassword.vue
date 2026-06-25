@@ -1,137 +1,171 @@
 <template>
-  <main class="admin-auth-page">
-    <section class="auth-shell">
-      <aside class="auth-info">
-        <router-link to="/admin/login" class="home-link">Quay lại đăng nhập Admin</router-link>
+  <AuthLayout
+    :title="titleText"
+    :subtitle="subtitleText"
+    imageSrc="https://i.ibb.co/XrkdGrrv/original-ccdd6d6195fff2386a31b684b7abdd2e-removebg-preview.png"
+    quoteText="Khôi phục quyền truy cập quản trị hệ thống."
+    quoteAuthor="SportGo Admin"
+    backTo="/admin/login"
+  >
+    <!-- Success message -->
+    <transition name="fade">
+      <div v-if="successMsg" class="flex items-center gap-2.5 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 text-sm mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="10"/><polyline points="12 16 16 12 12 8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span>{{ successMsg }}</span>
+      </div>
+    </transition>
 
-        <div class="brand-block">
-          <div class="brand-mark">SG</div>
-          <div>
-            <p class="brand-kicker">SportGo Admin</p>
-            <h1>Khôi phục quyền truy cập</h1>
-          </div>
-        </div>
+    <!-- Error message -->
+    <transition name="shake">
+      <div v-if="error" class="flex items-center gap-2.5 p-3 rounded-lg border border-red-500/20 bg-red-500/10 text-red-400 text-sm mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        <span>{{ error }}</span>
+      </div>
+    </transition>
 
-        <div class="step-list">
-          <div :class="['step-item', { active: step === 'identify', done: step !== 'identify' }]">
-            <span>1</span>
-            <p>Nhập tài khoản</p>
-          </div>
-          <div :class="['step-item', { active: step === 'otp', done: step === 'reset' }]">
-            <span>2</span>
-            <p>Xác nhận OTP</p>
-          </div>
-          <div :class="['step-item', { active: step === 'reset' }]">
-            <span>3</span>
-            <p>Đặt mật khẩu mới</p>
-          </div>
-        </div>
-      </aside>
+    <!-- STEP 1: IDENTIFY -->
+    <form v-if="step === 'identify'" @submit.prevent="handleSendOtp" class="flex flex-col gap-5 w-full text-left mt-2" novalidate>
+      <div style="width: 0; height: 0; overflow: hidden; position: absolute; z-index: -1;">
+        <input type="text" autocomplete="username" tabindex="-1" />
+        <input type="email" autocomplete="email" tabindex="-1" />
+      </div>
 
-      <section class="form-panel">
-        <div class="form-heading">
-          <p class="eyebrow">Tài khoản quản trị</p>
-          <h2>{{ title }}</h2>
-          <p>{{ subtitle }}</p>
-        </div>
+      <div class="flex flex-col gap-2">
+        <label for="admin-forgot-identifier" class="text-sm font-medium text-zinc-200 text-left">
+          Tên đăng nhập / Email / Số điện thoại
+        </label>
+        <input
+          id="admin-forgot-identifier"
+          v-model.trim="identifier"
+          type="text"
+          placeholder="Nhập tài khoản quản trị"
+          autocomplete="username"
+          class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
+        />
+      </div>
 
-        <div v-if="error" class="alert-error">{{ error }}</div>
-        <div v-if="successMsg" class="alert-success">{{ successMsg }}</div>
+      <button
+        type="submit"
+        :disabled="isLoading"
+        class="flex h-10 w-full items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:border-zinc-600 transition-all font-medium text-sm mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <span v-if="!isLoading">Gửi mã OTP</span>
+        <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+      </button>
 
-        <form v-if="step === 'identify'" class="auth-form" autocomplete="off" @submit.prevent="handleSendOtp">
-          <div class="field">
-            <label for="admin-forgot-identifier">Tên đăng nhập / Email / Số điện thoại</label>
-            <input
-              id="admin-forgot-identifier"
-              v-model.trim="identifier"
-              type="text"
-              autocomplete="username"
-              placeholder="Nhập tài khoản quản trị"
-              required
-            />
-          </div>
+      <div class="text-center text-sm text-zinc-400 mt-6 pt-5 border-t border-zinc-900">
+        <router-link to="/admin/login" class="font-semibold text-zinc-100 hover:underline">
+          Tôi nhớ mật khẩu
+        </router-link>
+      </div>
+    </form>
 
-          <button class="primary-btn" type="submit" :disabled="isLoading">
-            <span v-if="!isLoading">Gửi mã OTP</span>
-            <span v-else class="spinner"></span>
-          </button>
+    <!-- STEP 2: OTP VERIFICATION -->
+    <form v-else-if="step === 'otp'" @submit.prevent="handleVerifyOtp" class="flex flex-col gap-5 w-full text-left mt-2" novalidate>
+      <div style="width: 0; height: 0; overflow: hidden; position: absolute; z-index: -1;">
+        <input type="text" autocomplete="one-time-code" tabindex="-1" />
+      </div>
 
-          <router-link to="/admin/login" class="plain-link">Tôi nhớ mật khẩu</router-link>
-        </form>
+      <div class="flex flex-col gap-2">
+        <label for="admin-forgot-otp" class="text-sm font-medium text-zinc-200 text-left">
+          Mã OTP <span class="text-red-500">*</span>
+        </label>
+        <input
+          id="admin-forgot-otp"
+          v-model.trim="otp"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          placeholder="Nhập mã OTP 6 số"
+          autocomplete="one-time-code"
+          class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 tracking-widest text-center font-bold"
+        />
+      </div>
 
-        <form v-else-if="step === 'otp'" class="auth-form" autocomplete="off" @submit.prevent="handleVerifyOtp">
-          <div class="field">
-            <label for="admin-forgot-otp">Mã OTP</label>
-            <input
-              id="admin-forgot-otp"
-              v-model.trim="otp"
-              type="text"
-              inputmode="numeric"
-              maxlength="6"
-              autocomplete="one-time-code"
-              placeholder="Nhập mã OTP 6 số"
-              required
-            />
-          </div>
+      <div class="flex flex-col gap-3 mt-2">
+        <button
+          type="submit"
+          :disabled="isLoading"
+          class="flex h-10 w-full items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:border-zinc-600 transition-all font-medium text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span v-if="!isLoading">Xác nhận OTP</span>
+          <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+        </button>
 
-          <div class="otp-actions">
-            <button class="primary-btn" type="submit" :disabled="isLoading">
-              <span v-if="!isLoading">Xác nhận OTP</span>
-              <span v-else class="spinner"></span>
-            </button>
-            <button class="secondary-btn" type="button" :disabled="isLoading" @click="handleResendOtp">
-              Gửi lại mã OTP
-            </button>
-          </div>
+        <button
+          type="button"
+          :disabled="isLoading"
+          @click.prevent="handleResendOtp"
+          class="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-950 text-zinc-100 hover:bg-zinc-900 hover:border-zinc-600 transition-all font-medium text-sm cursor-pointer"
+        >
+          <span>Gửi lại mã OTP</span>
+        </button>
+      </div>
 
-          <button class="text-btn" type="button" :disabled="isLoading" @click="goBackToIdentify">
-            Đổi tài khoản nhận mã
-          </button>
-        </form>
+      <button
+        type="button"
+        :disabled="isLoading"
+        @click="goBackToIdentify"
+        class="text-center text-sm text-zinc-400 hover:text-zinc-200 transition-colors mt-2 bg-transparent border-0 cursor-pointer"
+      >
+        Đổi tài khoản nhận mã
+      </button>
 
-        <form v-else class="auth-form" autocomplete="off" @submit.prevent="handleResetPassword">
-          <div class="field">
-            <label for="admin-new-password">Mật khẩu mới</label>
-            <input
-              id="admin-new-password"
-              v-model="password"
-              type="password"
-              autocomplete="new-password"
-              placeholder="Nhập mật khẩu mới"
-              required
-            />
-          </div>
+      <div class="text-center text-sm text-zinc-400 mt-4 pt-4 border-t border-zinc-900">
+        <router-link to="/admin/login" class="font-semibold text-zinc-100 hover:underline">
+          Quay lại đăng nhập
+        </router-link>
+      </div>
+    </form>
 
-          <div class="field">
-            <label for="admin-new-password-confirm">Xác nhận mật khẩu</label>
-            <input
-              id="admin-new-password-confirm"
-              v-model="passwordConfirmation"
-              type="password"
-              autocomplete="new-password"
-              placeholder="Nhập lại mật khẩu mới"
-              required
-            />
-          </div>
+    <!-- STEP 3: RESET PASSWORD -->
+    <form v-else @submit.prevent="handleResetPassword" class="flex flex-col gap-5 w-full text-left mt-2" novalidate>
+      <div style="width: 0; height: 0; overflow: hidden; position: absolute; z-index: -1;">
+        <input type="password" autocomplete="new-password" tabindex="-1" />
+      </div>
 
-          <button class="primary-btn" type="submit" :disabled="isLoading">
-            <span v-if="!isLoading">Đặt lại mật khẩu Admin</span>
-            <span v-else class="spinner"></span>
-          </button>
-        </form>
-      </section>
-    </section>
-  </main>
+      <div class="flex flex-col gap-4">
+        <PasswordInput
+          v-model="password"
+          label="Mật khẩu mới"
+          placeholder="Nhập mật khẩu mới"
+          autocomplete="new-password"
+        />
+
+        <PasswordInput
+          v-model="passwordConfirmation"
+          label="Xác nhận mật khẩu"
+          placeholder="Nhập lại mật khẩu mới"
+          autocomplete="new-password"
+        />
+      </div>
+
+      <button
+        type="submit"
+        :disabled="isLoading"
+        class="flex h-10 w-full items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:border-zinc-600 transition-all font-medium text-sm mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <span v-if="!isLoading">Đặt lại mật khẩu Admin</span>
+        <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+      </button>
+    </form>
+  </AuthLayout>
 </template>
 
 <script>
 import { resetAdminPassword, sendAdminForgotOtp, verifyAdminForgotOtp } from '../../stores/auth.js';
+import AuthLayout from '../../components/ui/AuthLayout.vue';
+import PasswordInput from '../../components/ui/PasswordInput.vue';
 
 export default {
   name: 'AdminForgotPassword',
+  components: {
+    AuthLayout,
+    PasswordInput,
+  },
   data() {
     return {
-      step: 'identify',
+      step: 'identify', // identify, otp, reset
       identifier: '',
       otp: '',
       password: '',
@@ -142,18 +176,18 @@ export default {
     };
   },
   computed: {
-    title() {
+    titleText() {
       return {
         identify: 'Quên mật khẩu Admin',
-        otp: 'Nhập mã OTP',
-        reset: 'Đặt mật khẩu mới',
+        otp: 'Xác thực OTP Admin',
+        reset: 'Đặt mật khẩu Admin mới',
       }[this.step];
     },
-    subtitle() {
+    subtitleText() {
       return {
-        identify: 'Nhập tài khoản quản trị. SportGo sẽ gửi mã OTP đến email đã đăng ký.',
-        otp: `Mã OTP đã được gửi đến email của tài khoản ${this.identifier}.`,
-        reset: 'Tạo mật khẩu mới cho tài khoản quản trị.',
+        identify: 'Nhập tài khoản quản trị để nhận mã xác thực OTP qua email.',
+        otp: `Mã OTP đã được gửi đến email đăng ký của tài khoản ${this.identifier}.`,
+        reset: 'Nhập mật khẩu quản trị mới của bạn.',
       }[this.step];
     },
   },
@@ -162,7 +196,7 @@ export default {
       this.error = '';
       this.successMsg = '';
 
-      if (!this.identifier) {
+      if (!this.identifier || !this.identifier.trim()) {
         this.error = 'Vui lòng nhập tài khoản quản trị.';
         return;
       }
@@ -186,7 +220,7 @@ export default {
       this.error = '';
       this.successMsg = '';
 
-      if (!this.otp) {
+      if (!this.otp || !this.otp.trim()) {
         this.error = 'Vui lòng nhập mã OTP.';
         return;
       }
@@ -206,6 +240,30 @@ export default {
       this.error = '';
       this.successMsg = '';
 
+      if (!this.password) {
+        this.error = 'Vui lòng nhập mật khẩu mới.';
+        return;
+      }
+      if (this.password.length < 8 || this.password.length > 50) {
+        this.error = 'Mật khẩu phải từ 8 đến 50 ký tự.';
+        return;
+      }
+      if (!/[A-Z]/.test(this.password)) {
+        this.error = 'Mật khẩu phải chứa ít nhất 1 chữ hoa.';
+        return;
+      }
+      if (!/\d/.test(this.password)) {
+        this.error = 'Mật khẩu phải chứa ít nhất 1 chữ số.';
+        return;
+      }
+      if (!/[!@#$%^&*(),.?":{}|<>]/.test(this.password)) {
+        this.error = 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt.';
+        return;
+      }
+      if (!this.passwordConfirmation) {
+        this.error = 'Vui lòng nhập xác nhận mật khẩu.';
+        return;
+      }
       if (this.password !== this.passwordConfirmation) {
         this.error = 'Xác nhận mật khẩu không khớp.';
         return;
@@ -233,298 +291,20 @@ export default {
 </script>
 
 <style scoped>
-.admin-auth-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 32px 20px;
-  background:
-    linear-gradient(180deg, rgba(247, 251, 245, 0.9), rgba(238, 246, 240, 0.98)),
-    #eef6f0;
-  color: #111827;
+.shake-enter-active {
+  animation: shakeAnim .4s ease;
 }
-
-.auth-shell {
-  width: min(940px, 100%);
-  min-height: 590px;
-  display: grid;
-  grid-template-columns: 0.95fr 1.05fr;
-  border: 1px solid #dce8dc;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #fff;
-  box-shadow: 0 24px 70px rgba(23, 34, 27, 0.14);
+@keyframes shakeAnim {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
 }
-
-.auth-info {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 34px;
-  background:
-    linear-gradient(135deg, rgba(33, 107, 52, 0.96), rgba(47, 158, 68, 0.9)),
-    #2f9e44;
-  color: #f8fff9;
+.fade-enter-active, .fade-leave-active {
+  transition: opacity .3s;
 }
-
-.home-link {
-  width: fit-content;
-  color: rgba(248, 255, 249, 0.78);
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.home-link:hover {
-  color: #fff;
-}
-
-.brand-block {
-  display: grid;
-  gap: 18px;
-}
-
-.brand-mark {
-  width: 52px;
-  height: 52px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #216b34;
-  font-weight: 900;
-}
-
-.brand-kicker {
-  margin: 0 0 8px;
-  color: #d8ffe1;
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-
-.brand-block h1 {
-  margin: 0;
-  max-width: 320px;
-  color: #fff;
-  font-size: 34px;
-  line-height: 1.12;
-  font-weight: 900;
-}
-
-.step-list {
-  display: grid;
-  gap: 14px;
-}
-
-.step-item {
-  display: grid;
-  grid-template-columns: 34px 1fr;
-  gap: 12px;
-  align-items: center;
-  color: rgba(248, 255, 249, 0.78);
-}
-
-.step-item span {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(248, 255, 249, 0.8);
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.step-item p {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.step-item.active span,
-.step-item.done span {
-  border-color: rgba(255, 255, 255, 0.88);
-  background: rgba(255, 255, 255, 0.92);
-  color: #216b34;
-}
-
-.step-item.active p,
-.step-item.done p {
-  color: #fff;
-}
-
-.form-panel {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 48px;
-}
-
-.form-heading {
-  margin-bottom: 26px;
-}
-
-.eyebrow {
-  margin: 0 0 8px;
-  color: #16a34a;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-.form-heading h2 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 28px;
-  font-weight: 900;
-}
-
-.form-heading p {
-  margin: 8px 0 0;
-  color: #64748b;
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-.alert-error,
-.alert-success {
-  margin-bottom: 18px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.45;
-}
-
-.alert-error {
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
-}
-
-.alert-success {
-  border: 1px solid #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.auth-form {
-  display: grid;
-  gap: 18px;
-}
-
-.field {
-  display: grid;
-  gap: 8px;
-}
-
-.field label {
-  color: #334155;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.field input {
-  width: 100%;
-  height: 46px;
-  padding: 0 14px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  outline: none;
-  background: #fff;
-  color: #0f172a;
-  font-size: 14px;
-}
-
-.field input:focus {
-  border-color: #2f9e44;
-  box-shadow: 0 0 0 3px rgba(47, 158, 68, 0.14);
-}
-
-.primary-btn,
-.secondary-btn {
-  min-height: 48px;
-  padding: 0 16px;
-  border-radius: 8px;
-  font-weight: 900;
-}
-
-.primary-btn {
-  background: #2f9e44;
-  color: #fff;
-}
-
-.secondary-btn {
-  border: 1px solid #2f9e44;
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.primary-btn:disabled,
-.secondary-btn:disabled,
-.text-btn:disabled {
-  opacity: .72;
-  cursor: not-allowed;
-}
-
-.otp-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.plain-link,
-.text-btn {
-  width: fit-content;
-  justify-self: center;
-  color: #15803d;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.text-btn {
-  background: transparent;
-}
-
-.plain-link:hover,
-.text-btn:hover {
-  color: #166534;
-}
-
-.spinner {
-  width: 20px;
-  height: 20px;
-  display: inline-block;
-  border: 3px solid rgba(255, 255, 255, .35);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin .7s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@media (max-width: 760px) {
-  .auth-shell {
-    min-height: auto;
-    grid-template-columns: 1fr;
-  }
-
-  .auth-info {
-    gap: 28px;
-  }
-
-  .form-panel {
-    padding: 34px 24px;
-  }
-
-  .otp-actions {
-    grid-template-columns: 1fr;
-  }
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
 }
 </style>

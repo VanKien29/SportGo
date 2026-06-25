@@ -60,16 +60,16 @@
                 <small>{{ customerName(refund) }} · {{ refund.customer?.phone || refund.customer?.email || '-' }}</small>
               </td>
               <td data-label="Thời gian chơi">
-                <strong>{{ formatDate(refund.booking?.booking_date) }}</strong>
+                {{ formatDate(refund.booking?.booking_date) }}
                 <small>{{ formatTime(refund.booking?.start_time) }} - {{ formatTime(refund.booking?.end_time) }}</small>
               </td>
               <td data-label="Thanh toán">
-                <strong>{{ formatCurrency(refund.payment?.amount) }}</strong>
+                {{ formatCurrency(refund.payment?.amount) }}
                 <small>{{ paymentMethod(refund.payment?.method) }} · {{ refund.payment?.payment_code || '-' }}</small>
               </td>
               <td class="reason-cell" data-label="Lý do hủy">{{ refund.reason || refund.booking?.status_reason || '-' }}</td>
               <td data-label="Mức hoàn">
-                <strong>{{ formatCurrency(refundAmount(refund)) }}</strong>
+                {{ formatCurrency(refundAmount(refund)) }}
                 <small>{{ policyText(refund) }}</small>
               </td>
               <td data-label="Trạng thái">
@@ -118,6 +118,7 @@
           <div><dt>Thời gian chơi</dt><dd>{{ formatDate(detailRefund.booking?.booking_date) }}, {{ formatTime(detailRefund.booking?.start_time) }} - {{ formatTime(detailRefund.booking?.end_time) }}</dd></div>
           <div><dt>Đã thanh toán</dt><dd>{{ formatCurrency(detailRefund.payment?.amount) }}</dd></div>
           <div><dt>Số tiền sẽ hoàn</dt><dd>{{ formatCurrency(refundAmount(detailRefund)) }}</dd></div>
+          <div><dt>Hình thức hoàn</dt><dd>{{ refundDestinationLabel(detailRefund) }}</dd></div>
           <div><dt>Trạng thái</dt><dd>{{ statusLabel(detailRefund.status) }}</dd></div>
         </dl>
 
@@ -133,13 +134,19 @@
         </section>
 
         <section v-if="detailRefund.owner_confirm_note" class="reason-block">
-          <strong>Phản hồi của chủ sân</strong>
+          <strong>{{ detailRefund.status === 'owner_rejected' ? 'Lý do từ chối' : detailRefund.status === 'cancelled' ? 'Lý do hủy' : 'Phản hồi của chủ sân' }}</strong>
           <p>{{ detailRefund.owner_confirm_note }}</p>
+        </section>
+
+        <section v-else-if="detailRefund.status_reason" class="reason-block warning-block">
+          <strong>{{ detailRefund.status === 'cancelled' ? 'Lý do hủy' : detailRefund.status === 'owner_rejected' ? 'Lý do từ chối' : 'Ghi chú xử lý' }}</strong>
+          <p>{{ detailRefund.status_reason }}</p>
         </section>
 
         <footer v-if="detailRefund.can_decide" class="modal-actions">
           <button class="secondary-btn danger-text" type="button" @click="openDecision(detailRefund, 'reject')">Từ chối</button>
-          <button class="primary-btn" type="button" @click="openDecision(detailRefund, 'approve')">Đồng ý hoàn</button>
+          <button class="primary-btn" type="button" @click="openDecision(detailRefund, 'approve')">Hoàn ví</button>
+          <button v-if="detailRefund.can_refund_cash" class="cash-btn" type="button" @click="openDecision(detailRefund, 'approve_cash')">Hoàn tiền mặt</button>
         </footer>
       </article>
     </div>
@@ -148,29 +155,29 @@
       <form class="decision-modal" @submit.prevent="submitDecision">
         <header class="modal-header">
           <div>
-            <h2>{{ decision === 'approve' ? 'Xác nhận hoàn tiền' : 'Từ chối yêu cầu' }}</h2>
+            <h2>{{ decisionTitle }}</h2>
             <p>{{ decisionRefund.booking?.booking_code }} · {{ customerName(decisionRefund) }}</p>
           </div>
           <ActionIconButton icon="x" label="Đóng" @click="closeDecision" />
         </header>
 
-        <div v-if="decision === 'approve'" class="amount-summary fixed-amount">
+        <div v-if="['approve', 'approve_cash'].includes(decision)" class="amount-summary fixed-amount">
           <div>
-            <span>{{ decisionRefund.policy_evaluation?.is_owner_fault_refund ? 'Số tiền hoàn 100% do lỗi phía sân' : 'Số tiền hoàn theo chính sách' }}</span>
+            <span>{{ decision === 'approve_cash' ? 'Số tiền đã hoàn tiền mặt' : (decisionRefund.policy_evaluation?.is_owner_fault_refund ? 'Số tiền hoàn 100% do lỗi phía sân' : 'Số tiền hoàn theo chính sách') }}</span>
             <small>{{ decisionRefund.policy_evaluation?.summary || 'SportGo sẽ dùng số tiền đã được hệ thống tính cho yêu cầu này.' }}</small>
           </div>
           <strong>{{ formatCurrency(refundAmount(decisionRefund)) }}</strong>
         </div>
 
         <label class="field">
-          <span>{{ decision === 'approve' ? 'Ghi chú xác nhận' : 'Lý do từ chối' }}</span>
+          <span>{{ decisionNoteLabel }}</span>
           <textarea v-model.trim="decisionForm.note" rows="4" maxlength="2000" :required="decision === 'reject'" />
         </label>
 
         <footer class="modal-actions">
           <button class="secondary-btn" type="button" :disabled="submitting" @click="closeDecision">Đóng</button>
-          <button :class="decision === 'approve' ? 'primary-btn' : 'danger-btn'" type="submit" :disabled="submitting">
-            {{ submitting ? 'Đang xử lý...' : (decision === 'approve' ? 'Xác nhận' : 'Từ chối') }}
+          <button :class="decision === 'reject' ? 'danger-btn' : decision === 'approve_cash' ? 'cash-btn' : 'primary-btn'" type="submit" :disabled="submitting">
+            {{ submitting ? 'Đang xử lý...' : decisionSubmitLabel }}
           </button>
         </footer>
       </form>
@@ -194,9 +201,10 @@ export default {
       statusTabs: [
         { value: '', label: 'Tất cả' },
         { value: 'pending_owner_confirmation', label: 'Chờ xác nhận' },
-        { value: 'owner_confirmed', label: 'Chờ hoàn ví' },
         { value: 'owner_rejected', label: 'Đã từ chối' },
-        { value: 'completed', label: 'Hoàn tất' },
+        { value: 'completed', label: 'Hoàn ví' },
+        { value: 'completed_cash', label: 'Hoàn tiền mặt' },
+        { value: 'cancelled', label: 'Không hoàn' },
       ],
       meta: { current_page: 1, last_page: 1, total: 0 },
       loading: false,
@@ -208,6 +216,29 @@ export default {
       decision: 'approve',
       decisionForm: { note: '' },
     };
+  },
+  computed: {
+    decisionTitle() {
+      return {
+        approve: 'Xác nhận hoàn vào ví',
+        approve_cash: 'Xác nhận hoàn tiền mặt',
+        reject: 'Từ chối yêu cầu',
+      }[this.decision] || 'Xử lý yêu cầu';
+    },
+    decisionNoteLabel() {
+      return {
+        approve: 'Ghi chú xác nhận',
+        approve_cash: 'Ghi chú hoàn tiền mặt',
+        reject: 'Lý do từ chối',
+      }[this.decision] || 'Ghi chú';
+    },
+    decisionSubmitLabel() {
+      return {
+        approve: 'Xác nhận hoàn ví',
+        approve_cash: 'Xác nhận tiền mặt',
+        reject: 'Từ chối',
+      }[this.decision] || 'Xác nhận';
+    },
   },
   mounted() {
     this.loadRefunds();
@@ -292,11 +323,12 @@ export default {
     statusLabel(status) {
       return {
         pending_owner_confirmation: 'Chờ chủ sân',
-        owner_confirmed: 'Chờ SportGo hoàn ví',
+        owner_confirmed: 'Đã xác nhận',
         owner_rejected: 'Chủ sân từ chối',
-        admin_processing: 'Chờ SportGo hoàn ví',
-        processing: 'Chờ SportGo hoàn ví',
-        completed: 'Đã hoàn tiền',
+        admin_processing: 'Đang xử lý',
+        processing: 'Đang xử lý',
+        completed: 'Đã hoàn ví',
+        completed_cash: 'Đã hoàn tiền mặt',
         failed: 'Xử lý thất bại',
         rejected: 'Đã từ chối',
         cancelled: 'Đã hủy',
@@ -304,6 +336,14 @@ export default {
     },
     paymentMethod(method) {
       return { sepay: 'Chuyển khoản', wallet: 'Ví SportGo', cash: 'Tiền mặt' }[method] || method || '-';
+    },
+    refundDestinationLabel(refund) {
+      return {
+        user_wallet: 'Ví SportGo của khách',
+        cash: 'Tiền mặt tại sân',
+        original_payment: 'Theo phương thức thanh toán gốc',
+        bank_account: 'Tài khoản ngân hàng',
+      }[refund?.refund_destination] || refund?.refund_destination || '-';
     },
     formatCurrency(value) {
       return `${Number(value || 0).toLocaleString('vi-VN')} đ`;
@@ -340,19 +380,25 @@ export default {
 .status-tabs button {
   min-height: 38px;
   padding: 0 14px;
-  border: 1px solid #d5e3d6;
+  border: 1px solid var(--admin-border);
   border-radius: 7px;
-  background: #fff;
-  color: #344238;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.status-tabs button:hover:not(.active) {
+  background: var(--admin-hover);
+  color: var(--admin-text);
 }
 
 .status-tabs button.active {
-  border-color: #2f9e44;
-  background: #2f9e44;
-  color: #fff;
+  border-color: var(--admin-primary);
+  background: var(--admin-primary);
+  color: var(--admin-bg);
 }
 
 .filters {
@@ -389,29 +435,33 @@ td small {
   white-space: nowrap;
 }
 
+.status-note {
+  max-width: 240px;
+  color: var(--admin-warning);
+  line-height: 1.45;
+  white-space: normal;
+}
+
 .pending_owner_confirmation {
-  background: #fff4d6;
-  color: #8a4b08;
+  background: var(--admin-warning-soft) !important;
+  color: var(--admin-warning) !important;
 }
 
 .owner_confirmed,
 .processing,
-.admin_processing {
-  background: #e8f7ec;
-  color: #216b34;
-}
-
-.completed {
-  background: #dcfce7;
-  color: #166534;
+.admin_processing,
+.completed,
+.completed_cash {
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
 }
 
 .owner_rejected,
 .rejected,
 .failed,
 .cancelled {
-  background: #fef2f2;
-  color: #991b1b;
+  background: var(--admin-danger-soft) !important;
+  color: var(--admin-danger) !important;
 }
 
 .actions-col {
@@ -433,10 +483,10 @@ td small {
   max-height: calc(100vh - 40px);
   overflow-y: auto;
   padding: 0;
-  border: 1px solid #d7e4d7;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 22px 60px rgba(24, 42, 29, .18);
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-lg);
 }
 
 .modal-backdrop {
@@ -457,7 +507,7 @@ td small {
 }
 
 .modal-header {
-  border-bottom: 1px solid #e1eae1;
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .modal-header h2,
@@ -479,7 +529,7 @@ td small {
 
 .detail-grid div {
   padding: 12px 0;
-  border-bottom: 1px solid #edf2ed;
+  border-bottom: 1px solid var(--admin-border-soft);
 }
 
 .detail-grid dt {
@@ -497,8 +547,15 @@ td small {
 .reason-block {
   margin: 12px 18px;
   padding: 14px;
-  border-left: 3px solid #2f9e44;
-  background: #f3faf4;
+  border-left: 3px solid var(--admin-primary);
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
+}
+
+.warning-block {
+  border-left-color: var(--admin-danger);
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger-text);
 }
 
 .policy-band p,
@@ -510,14 +567,14 @@ td small {
 .policy-band small {
   display: block;
   margin-top: 6px;
-  color: #9a3412;
+  color: var(--admin-warning);
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  border-top: 1px solid #e1eae1;
+  border-top: 1px solid var(--admin-border);
 }
 
 .decision-modal .field {
@@ -532,12 +589,12 @@ td small {
   align-items: center;
   margin: 16px 18px 0;
   padding: 12px 14px;
-  border: 1px solid #cfe3d1;
-  background: #f3faf4;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
 }
 
 .amount-summary strong {
-  color: #216b34;
+  color: var(--admin-text);
   font-size: 18px;
 }
 
@@ -552,13 +609,14 @@ td small {
 }
 
 .amount-summary.fixed-amount small {
-  color: #536257;
+  color: var(--admin-faint);
   line-height: 1.45;
 }
 
 .primary-btn,
 .secondary-btn,
-.danger-btn {
+.danger-btn,
+.cash-btn {
   min-height: 38px;
   padding: 0 15px;
   border-radius: 7px;
@@ -567,25 +625,31 @@ td small {
 }
 
 .primary-btn {
-  border: 1px solid #2f9e44;
-  background: #2f9e44;
-  color: #fff;
+  border: 1px solid var(--admin-primary);
+  background: var(--admin-primary);
+  color: var(--admin-bg);
 }
 
 .secondary-btn {
-  border: 1px solid #d5e3d6;
-  background: #fff;
-  color: #344238;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text);
 }
 
 .danger-btn {
-  border: 1px solid #dc2626;
-  background: #dc2626;
+  border: 1px solid var(--admin-danger);
+  background: var(--admin-danger);
   color: #fff;
 }
 
+.cash-btn {
+  border: 1px solid var(--admin-primary);
+  background: transparent;
+  color: var(--admin-primary);
+}
+
 .danger-text {
-  color: #991b1b;
+  color: var(--admin-danger);
 }
 
 @media (max-width: 720px) {
@@ -636,7 +700,7 @@ td small {
 
   .refund-table tr {
     padding: 12px 14px;
-    border-bottom: 1px solid #dce8dc;
+    border-bottom: 1px solid var(--admin-border);
   }
 
   .refund-table td {
@@ -651,7 +715,7 @@ td small {
 
   .refund-table td::before {
     content: attr(data-label);
-    color: #536257;
+    color: var(--admin-faint);
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;

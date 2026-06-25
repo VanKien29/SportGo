@@ -78,7 +78,7 @@
                     <tbody>
                         <tr v-for="tier in filteredTiers" :key="tier.id">
                             <td>
-                                <strong>{{ tier.name }}</strong>
+                                {{ tier.name }}
                                 <small>{{
                                     tier.note || "Không có ghi chú"
                                 }}</small>
@@ -994,8 +994,8 @@ p {
 .notice-card,
 .info-card,
 .modal {
-    background: #fff;
-    border: 1px solid #e2e8f0;
+    background: var(--admin-surface, #fff);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
 }
 .panel {
@@ -1014,7 +1014,7 @@ p {
 }
 .info-card {
     padding: 12px;
-    color: #334155;
+    color: var(--admin-text);
     font-weight: 800;
 }
 .filter-panel {
@@ -1024,7 +1024,7 @@ input,
 select,
 textarea {
     width: 100%;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     padding: 10px 12px;
     font: inherit;
@@ -1042,7 +1042,7 @@ textarea {
 }
 .panel-title span,
 small {
-    color: #64748b;
+    color: var(--admin-muted);
 }
 .table-wrap {
     overflow-x: auto;
@@ -1055,13 +1055,13 @@ table {
 th,
 td {
     padding: 12px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border);
     text-align: left;
     vertical-align: top;
 }
 th {
-    background: #f8fafc;
-    color: #475569;
+    background: var(--admin-surface-muted);
+    color: var(--admin-faint);
     font-size: 12px;
     text-transform: uppercase;
 }
@@ -1077,8 +1077,7 @@ td small {
     width: 14px;
     height: 14px;
     border-radius: 999px;
-    background: #10b981;
-    box-shadow: 0 0 0 3px #d1fae5;
+    background: var(--admin-primary); box-shadow: 0 0 0 3px var(--admin-primary-ring);
 }
 .status-dot.inactive {
     background: #ef4444;
@@ -1095,8 +1094,8 @@ td small {
     place-items: center;
     border: 1px solid #dbe3ea;
     border-radius: 8px;
-    background: #f8fafc;
-    color: #334155;
+    background: var(--admin-surface-muted);
+    color: var(--admin-text);
     cursor: pointer;
 }
 .icon-btn {
@@ -1127,12 +1126,11 @@ td small {
     cursor: pointer;
 }
 .btn.primary {
-    background: #16a34a;
-    color: #fff;
+    background: var(--admin-primary); color: var(--admin-bg);
 }
 .btn.secondary {
-    background: #e2e8f0;
-    color: #334155;
+    background: var(--admin-border);
+    color: var(--admin-text);
 }
 .icon-text {
     align-items: center;
@@ -1148,7 +1146,7 @@ label {
     flex-direction: column;
     gap: 6px;
     font-weight: 800;
-    color: #334155;
+    color: var(--admin-text);
 }
 .preview-result,
 .detail-grid {
@@ -1159,14 +1157,14 @@ label {
 }
 .preview-result div,
 .detail-grid div {
-    background: #f8fafc;
+    background: var(--admin-surface-muted);
     border-radius: 8px;
     padding: 12px;
 }
 .preview-result span,
 .detail-grid span {
     display: block;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 12px;
 }
 .alert {
@@ -1186,7 +1184,7 @@ label {
 }
 .toast.success {
     background: #ecfdf5;
-    color: #047857;
+    color: var(--admin-primary);
 }
 .toast {
     border-radius: 8px;
@@ -1196,7 +1194,7 @@ label {
 .empty {
     padding: 36px;
     text-align: center;
-    color: #64748b;
+    color: var(--admin-muted);
 }
 .modal-backdrop {
     position: fixed;
@@ -1217,7 +1215,7 @@ label {
 }
 .modal-head p {
     margin-top: 5px;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 13px;
 }
 .discount-form {
@@ -1225,7 +1223,7 @@ label {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 12px;
     padding: 18px 22px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border);
 }
 .discount-form-actions {
     display: flex;
@@ -1241,7 +1239,7 @@ label {
     justify-content: space-between;
     gap: 14px;
     padding: 12px 0;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border);
 }
 .discount-profile-row:last-child {
     border-bottom: 0;
@@ -1253,7 +1251,7 @@ label {
 .modal-head {
     justify-content: space-between;
     padding: 18px 22px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border);
 }
 .modal-head button {
     border: 0;
@@ -1284,8 +1282,8 @@ label {
 .modal-actions {
     justify-content: flex-end;
     padding: 16px 22px;
-    border-top: 1px solid #e2e8f0;
-    background: #f8fafc;
+    border-top: 1px solid var(--admin-border);
+    background: var(--admin-surface-muted);
 }
 @media (max-width: 900px) {
     .info-grid,

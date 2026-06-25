@@ -1,6 +1,6 @@
 .sg-shell-admin {
   display: grid;
-  grid-template-columns: 272px minmax(0, 1fr);
+  grid-template-columns: 312px minmax(0, 1fr);
   min-height: 100vh;
   background:
     var(--admin-bg-gradient),
@@ -17,10 +17,10 @@
   height: 100vh;
   min-height: 100vh;
   flex-direction: column;
-  overflow-y: auto;
-  border-right: 1px solid var(--admin-border);
-  background: color-mix(in srgb, var(--admin-sidebar) 96%, var(--admin-primary-soft));
-  box-shadow: var(--admin-sidebar-shadow);
+  overflow: visible;
+  border-right: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sg-shell-admin .sidebar::-webkit-scrollbar {
@@ -51,7 +51,7 @@
   color: #fff;
   font-size: 14px;
   font-weight: 800;
-  box-shadow: 0 12px 26px rgba(47, 158, 68, 0.22);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.15);
 }
 
 .admin-brand-copy {
@@ -147,7 +147,7 @@
 }
 
 .sg-shell-admin .view-user-btn:hover {
-  border-color: rgba(47, 158, 68, 0.34);
+  border-color: var(--admin-border);
   background: var(--admin-primary-soft);
   transform: translateY(-1px);
 }
@@ -244,7 +244,8 @@
   font-weight: 600;
 }
 
-.admin-crumbs strong {
+.admin-crumbs strong,
+.admin-crumbs .current-crumb {
   overflow: hidden;
   color: var(--admin-text);
   text-overflow: ellipsis;
@@ -305,7 +306,7 @@
 .topbar-icon:hover,
 .hamburger:hover,
 .profile-trigger:hover {
-  border-color: rgba(47, 158, 68, 0.32);
+  border-color: var(--admin-border);
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
   transform: translateY(-1px);
@@ -408,7 +409,7 @@
   .sg-shell-admin .sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    width: min(300px, calc(100vw - 52px));
+    width: min(312px, 100vw);
     transform: translateX(-102%);
     transition: transform 220ms ease;
   }

@@ -1,15 +1,164 @@
 <template>
     <section class="schedule-lock-page">
         <!-- Floating Lock Button -->
-        <div v-if="selectedSlots.length" class="floating-add-container" style="z-index: 100;">
-            <button class="btn-float-add" type="button" :disabled="saving || !canSubmit" @click="createLock" title="Khóa lịch">
+        <div
+            v-if="selectedSlots.length"
+            class="floating-add-container"
+            style="z-index: 100"
+        >
+            <button
+                class="btn-float-add"
+                type="button"
+                :disabled="saving || previewing || !canSubmit"
+                @click="createLock"
+                title="Khóa lịch"
+            >
                 <AppIcon name="lock" size="20" />
-                <span class="btn-float-text">Khóa {{ selectedSlots.length }} ô</span>
+                <span class="btn-float-text"
+                    >Khóa {{ selectedSlots.length }} ô</span
+                >
             </button>
         </div>
 
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="notice" class="alert success">{{ notice }}</div>
+
+        <div
+            v-if="lockConflictPreview"
+            class="modal-backdrop"
+            @click.self="closeConflictPreview"
+        >
+            <section class="conflict-modal">
+                <header>
+                    <div>
+                        <p class="eyebrow">KHÓA SÂN ĐỘT XUẤT</p>
+                        <h3>
+                            {{ lockConflictPreview.affected_count }} booking bị
+                            ảnh hưởng
+                        </h3>
+                    </div>
+                    <button
+                        type="button"
+                        class="icon-close"
+                        @click="closeConflictPreview"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </header>
+
+                <p class="conflict-help">
+                    Ưu tiên đổi sang sân cùng loại còn trống. Nếu không đổi
+                    được, chọn hoàn ví hoặc ghi nhận đã hoàn tiền mặt tại sân.
+                </p>
+
+                <div class="conflict-list">
+                    <article
+                        v-for="item in lockConflictPreview.items"
+                        :key="item.booking_item_id"
+                        class="conflict-row"
+                    >
+                        <div class="conflict-main">
+                            <strong>{{
+                                item.booking_code || "Booking"
+                            }}</strong>
+                            <span
+                                >{{ item.customer?.name || "Khách hàng" }} ·
+                                {{ item.customer?.phone || "-" }}</span
+                            >
+                            <small>
+                                {{ item.court?.name || "Sân" }} ·
+                                {{ time(item.start_time) }} -
+                                {{ time(item.end_time) }} ·
+                                {{
+                                    item.payment_status === "paid"
+                                        ? "Đã thanh toán"
+                                        : "Chưa thanh toán"
+                                }}
+                            </small>
+                        </div>
+
+                        <div class="conflict-actions">
+                            <label
+                                v-if="item.alternatives?.length"
+                                class="radio-line"
+                            >
+                                <input
+                                    v-model="
+                                        lockResolutions[item.booking_item_id]
+                                            .action
+                                    "
+                                    type="radio"
+                                    value="switch"
+                                />
+                                Đổi sân
+                            </label>
+                            <select
+                                v-if="item.alternatives?.length"
+                                v-model="
+                                    lockResolutions[item.booking_item_id]
+                                        .venue_court_id
+                                "
+                                :disabled="
+                                    lockResolutions[item.booking_item_id]
+                                        .action !== 'switch'
+                                "
+                            >
+                                <option
+                                    v-for="court in item.alternatives"
+                                    :key="court.id"
+                                    :value="court.id"
+                                >
+                                    {{ court.name }}
+                                </option>
+                            </select>
+                            <label class="radio-line danger">
+                                <input
+                                    v-model="
+                                        lockResolutions[item.booking_item_id]
+                                            .action
+                                    "
+                                    type="radio"
+                                    value="cancel"
+                                />
+                                Hủy/hoàn ví
+                            </label>
+                            <label class="radio-line cash">
+                                <input
+                                    v-model="
+                                        lockResolutions[item.booking_item_id]
+                                            .action
+                                    "
+                                    type="radio"
+                                    value="cash_refund"
+                                />
+                                Đã hoàn tiền mặt
+                            </label>
+                        </div>
+                    </article>
+                </div>
+
+                <footer>
+                    <button
+                        type="button"
+                        class="secondary-btn"
+                        @click="closeConflictPreview"
+                    >
+                        Đóng
+                    </button>
+                    <button
+                        type="button"
+                        class="primary-btn"
+                        :disabled="saving"
+                        @click="createLockWithResolutions"
+                    >
+                        {{ saving ? "Đang xử lý..." : "Khóa và xử lý booking" }}
+                    </button>
+                </footer>
+            </section>
+        </div>
 
         <div class="content-grid">
             <aside class="side-panel">
@@ -118,14 +267,21 @@
                             </div>
                         </div>
 
-                        <section v-if="lockPreviewRows.length" class="lock-preview-panel">
+                        <section
+                            v-if="lockPreviewRows.length"
+                            class="lock-preview-panel"
+                        >
                             <div class="preview-headline">
                                 <div>
                                     <strong>Preview áp dụng</strong>
-                                    <span>{{ lockPreviewStats.total }} lượt khóa</span>
+                                    <span
+                                        >{{ lockPreviewStats.total }} lượt
+                                        khóa</span
+                                    >
                                 </div>
                                 <em v-if="lockPreviewStats.knownBusy">
-                                    {{ lockPreviewStats.knownBusy }} lượt đang bận ở ngày đang xem
+                                    {{ lockPreviewStats.knownBusy }} lượt đang
+                                    bận ở ngày đang xem
                                 </em>
                             </div>
 
@@ -137,18 +293,22 @@
                                 >
                                     <div>
                                         <strong>{{ row.dateLabel }}</strong>
-                                        <small>{{ row.courtName }} · {{ row.timeText }}</small>
+                                        <small
+                                            >{{ row.courtName }} ·
+                                            {{ row.timeText }}</small
+                                        >
                                     </div>
                                     <span>{{ row.statusLabel }}</span>
                                 </article>
                             </div>
 
-                            <small v-if="lockPreviewRows.length > 12" class="preview-more">
-                                Còn {{ lockPreviewRows.length - 12 }} lượt khóa khác.
+                            <small
+                                v-if="lockPreviewRows.length > 12"
+                                class="preview-more"
+                            >
+                                Còn {{ lockPreviewRows.length - 12 }} lượt khóa
+                                khác.
                             </small>
-                            <p class="preview-note">
-                                Nếu khung giờ đang có booking, hệ thống sẽ hủy phần booking bị dính và tạo yêu cầu hoàn tiền nếu khách đã thanh toán.
-                            </p>
                         </section>
 
                         <label>
@@ -165,9 +325,15 @@
                         <button
                             class="primary-btn"
                             type="submit"
-                            :disabled="saving || !canSubmit"
+                            :disabled="saving || previewing || !canSubmit"
                         >
-                            {{ saving ? "Đang khóa..." : lockButtonLabel }}
+                            {{
+                                saving
+                                    ? "Đang khóa..."
+                                    : previewing
+                                      ? "Đang kiểm tra..."
+                                      : lockButtonLabel
+                            }}
                         </button>
                     </form>
                 </article>
@@ -184,7 +350,12 @@
                             class="text-danger-btn"
                             type="button"
                             :disabled="Boolean(deletingId)"
-                            @click="removeLocks(locks, 'Mở tất cả khoảng đã khóa trong ngày này?')"
+                            @click="
+                                removeLocks(
+                                    locks,
+                                    'Mở tất cả khoảng đã khóa trong ngày này?',
+                                )
+                            "
                         >
                             Mở tất cả
                         </button>
@@ -361,6 +532,10 @@ export default {
                 { key: "evening", label: "Tối", start: "18:00", end: "22:00" },
             ],
             activeTimePeriod: "morning",
+            previewing: false,
+            pendingLockPayload: null,
+            lockConflictPreview: null,
+            lockResolutions: {},
         };
     },
     computed: {
@@ -431,7 +606,8 @@ export default {
         },
         lockGroups() {
             const grouped = this.locks.reduce((result, lock) => {
-                const courtId = lock.venue_court_id || lock.venue_court?.id || "unknown";
+                const courtId =
+                    lock.venue_court_id || lock.venue_court?.id || "unknown";
                 if (!result[courtId]) {
                     result[courtId] = {
                         courtId,
@@ -455,12 +631,20 @@ export default {
         dateRangeDates() {
             const start = new Date(`${this.form.start_date}T00:00:00`);
             const end = new Date(`${this.form.end_date}T00:00:00`);
-            if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+            if (
+                Number.isNaN(start.getTime()) ||
+                Number.isNaN(end.getTime()) ||
+                end < start
+            ) {
                 return [];
             }
 
             const dates = [];
-            for (let date = new Date(start); date <= end && dates.length <= 45; date.setDate(date.getDate() + 1)) {
+            for (
+                let date = new Date(start);
+                date <= end && dates.length <= 45;
+                date.setDate(date.getDate() + 1)
+            ) {
                 dates.push(this.isoDate(date));
             }
 
@@ -471,15 +655,20 @@ export default {
                 ? this.buildWholeDayRanges().map((range) => ({
                       ...range,
                       court_name:
-                          this.scheduleCourts.find((court) => court.id === range.venue_court_id)?.name ||
-                          "Sân",
+                          this.scheduleCourts.find(
+                              (court) => court.id === range.venue_court_id,
+                          )?.name || "Sân",
                   }))
                 : this.buildSelectedRanges().map((range) => ({
                       ...range,
                       court_name:
-                          this.selectedSlots.find((slot) => slot.venue_court_id === range.venue_court_id)
-                              ?.court_name ||
-                          this.scheduleCourts.find((court) => court.id === range.venue_court_id)?.name ||
+                          this.selectedSlots.find(
+                              (slot) =>
+                                  slot.venue_court_id === range.venue_court_id,
+                          )?.court_name ||
+                          this.scheduleCourts.find(
+                              (court) => court.id === range.venue_court_id,
+                          )?.name ||
                           "Sân",
                   }));
         },
@@ -492,7 +681,10 @@ export default {
                         end_time: range.end_time,
                     };
                     const isBusy = isStartDate
-                        ? this.isRangeBusy(range.venue_court_id, representativeSlot)
+                        ? this.isRangeBusy(
+                              range.venue_court_id,
+                              representativeSlot,
+                          )
                         : false;
 
                     return {
@@ -502,7 +694,11 @@ export default {
                         courtName: range.court_name,
                         timeText: `${this.time(range.start_time)} - ${this.time(range.end_time)}`,
                         isBusy,
-                        statusLabel: isBusy ? "Đang có lịch" : isStartDate ? "Trống" : "Sẽ kiểm tra khi khóa",
+                        statusLabel: isBusy
+                            ? "Đang có lịch"
+                            : isStartDate
+                              ? "Trống"
+                              : "Sẽ kiểm tra khi khóa",
                     };
                 }),
             );
@@ -510,7 +706,8 @@ export default {
         lockPreviewStats() {
             return {
                 total: this.lockPreviewRows.length,
-                knownBusy: this.lockPreviewRows.filter((row) => row.isBusy).length,
+                knownBusy: this.lockPreviewRows.filter((row) => row.isBusy)
+                    .length,
             };
         },
         activePeriod() {
@@ -617,21 +814,78 @@ export default {
         async createLock() {
             if (!this.canSubmit) return;
 
+            this.error = "";
+            this.notice = "";
+            try {
+                const payload = this.buildLockPayload();
+                this.previewing = true;
+                const preview = await ownerScheduleLockService.preview(payload);
+                const data = preview.data || {};
+
+                if ((data.affected_count || 0) > 0) {
+                    this.pendingLockPayload = payload;
+                    this.lockConflictPreview = data;
+                    this.lockResolutions = this.defaultLockResolutions(
+                        data.items || [],
+                    );
+                    return;
+                }
+
+                await this.finalizeLock(payload);
+            } catch (error) {
+                this.error = error.message || "Không thể khóa khung giờ.";
+            } finally {
+                this.previewing = false;
+            }
+        },
+        buildLockPayload() {
+            return {
+                start_date: this.form.start_date,
+                end_date: this.form.end_date,
+                reason: this.form.reason,
+                slots:
+                    this.form.lock_mode === "whole_day"
+                        ? this.buildWholeDayRanges()
+                        : this.buildSelectedRanges(),
+            };
+        },
+        defaultLockResolutions(items = []) {
+            return items.reduce((result, item) => {
+                const firstAlternative = item.alternatives?.[0]?.id || "";
+                result[item.booking_item_id] = {
+                    booking_item_id: item.booking_item_id,
+                    action: firstAlternative ? "switch" : "cancel",
+                    venue_court_id: firstAlternative,
+                };
+                return result;
+            }, {});
+        },
+        async createLockWithResolutions() {
+            if (!this.pendingLockPayload) return;
+
+            const resolutions = Object.values(this.lockResolutions).map(
+                (item) => ({
+                    booking_item_id: item.booking_item_id,
+                    action: item.action,
+                    venue_court_id:
+                        item.action === "switch" ? item.venue_court_id : null,
+                }),
+            );
+
+            await this.finalizeLock({
+                ...this.pendingLockPayload,
+                resolutions,
+            });
+        },
+        async finalizeLock(payload) {
             this.saving = true;
             this.error = "";
             this.notice = "";
             try {
-                const response = await ownerScheduleLockService.create({
-                    start_date: this.form.start_date,
-                    end_date: this.form.end_date,
-                    reason: this.form.reason,
-                    slots:
-                        this.form.lock_mode === "whole_day"
-                            ? this.buildWholeDayRanges()
-                            : this.buildSelectedRanges(),
-                });
+                const response = await ownerScheduleLockService.create(payload);
                 this.notice = response.message;
                 this.form.reason = "";
+                this.closeConflictPreview();
                 this.clearSelection();
                 await Promise.all([this.loadSchedule(), this.loadLocks()]);
             } catch (error) {
@@ -639,6 +893,11 @@ export default {
             } finally {
                 this.saving = false;
             }
+        },
+        closeConflictPreview() {
+            this.pendingLockPayload = null;
+            this.lockConflictPreview = null;
+            this.lockResolutions = {};
         },
         async removeLock(lock) {
             await this.removeLocks(
@@ -844,7 +1103,7 @@ export default {
 }
 .card-head h3 {
     margin: 0;
-    color: #0f172a;
+    color: var(--admin-text);
 }
 .header-actions {
     display: flex;
@@ -857,7 +1116,7 @@ export default {
 }
 .eyebrow {
     margin: 0 0 6px;
-    color: #059669;
+    color: var(--admin-muted);
     font-size: 11px;
     font-weight: 900;
     letter-spacing: 0.1em;
@@ -876,9 +1135,9 @@ export default {
 .form-card,
 .schedule-card,
 .locks-card {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border);
     border-radius: 14px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
     box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
 }
 .form-card,
@@ -894,7 +1153,7 @@ export default {
 .compact-head span {
     display: inline-flex;
     margin-top: 4px;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 12px;
     font-weight: 750;
 }
@@ -908,24 +1167,24 @@ export default {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     padding: 4px;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border);
     border-radius: 10px;
-    background: #f7fbf5;
+    background: var(--admin-surface-muted);
 }
 .mode-switch button {
     min-height: 42px;
     border: 0;
     border-radius: 8px;
     background: transparent;
-    color: #475b4d;
+    color: var(--admin-faint);
     font: inherit;
     font-weight: 900;
     cursor: pointer;
 }
 .mode-switch button.active {
-    background: #16a34a;
-    color: #fff;
-    box-shadow: 0 6px 14px rgba(22, 163, 74, 0.18);
+    background: var(--admin-primary, #000000);
+    color: var(--admin-bg);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 .date-grid {
     display: grid;
@@ -935,7 +1194,7 @@ export default {
 .form-card label {
     display: grid;
     gap: 7px;
-    color: #334155;
+    color: var(--admin-text);
     font-size: 13px;
     font-weight: 850;
 }
@@ -943,11 +1202,11 @@ export default {
 .form-card select,
 .form-card textarea {
     width: 100%;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--admin-border);
     border-radius: 9px;
     padding: 10px 11px;
-    background: #fff;
-    color: #0f172a;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text);
     font: inherit;
 }
 .form-card textarea {
@@ -962,8 +1221,8 @@ export default {
 .form-note {
     padding: 11px;
     border-radius: 9px;
-    background: #f8fafc;
-    color: #64748b;
+    background: var(--admin-surface-muted);
+    color: var(--admin-muted);
     font-size: 12px;
     line-height: 1.5;
 }
@@ -971,29 +1230,29 @@ export default {
     display: grid;
     gap: 12px;
     padding: 12px;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border);
     border-radius: 10px;
-    background: linear-gradient(180deg, #fbfefb, #f4fbf5);
+    background: var(--admin-surface-muted);
 }
 .picker-head {
     display: grid;
     grid-template-columns: 1fr auto auto;
     align-items: center;
     gap: 10px;
-    color: #14532d;
+    color: var(--admin-text);
 }
 .picker-head span {
     padding: 4px 8px;
     border-radius: 999px;
-    background: #dcfce7;
-    color: #047857;
+    background: var(--admin-primary-soft, #f3f4f6);
+    color: var(--admin-primary-dark, #000000);
     font-size: 12px;
     font-weight: 900;
 }
 .picker-head button {
     border: 0;
     background: transparent;
-    color: #15803d;
+    color: var(--admin-primary, #000000);
     font: inherit;
     font-size: 12px;
     font-weight: 900;
@@ -1011,9 +1270,9 @@ export default {
     gap: 10px;
     min-height: 68px;
     padding: 11px 34px 11px 12px;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border);
     border-radius: 10px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
     cursor: pointer;
     transition:
         border-color 0.16s ease,
@@ -1028,24 +1287,24 @@ export default {
     right: 12px;
     width: 16px;
     height: 16px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--admin-border);
     border-radius: 999px;
-    background: #fff;
-    box-shadow: inset 0 0 0 3px #fff;
+    background: var(--admin-surface, #fff);
+    box-shadow: inset 0 0 0 3px var(--admin-bg);
 }
 .court-chip-grid label:hover {
-    border-color: #86efac;
-    background: #f0fdf4;
+    border-color: var(--admin-border);
+    background: var(--admin-hover);
     transform: translateY(-1px);
 }
 .court-chip-grid label.active {
-    border-color: #16a34a;
-    background: #ecfdf5;
-    box-shadow: 0 8px 18px rgba(22, 163, 74, 0.1);
+    border-color: var(--admin-primary);
+    background: var(--admin-primary-soft);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
 }
 .court-chip-grid label.active::after {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: var(--admin-primary);
+    background: var(--admin-primary);
 }
 .court-chip-grid input {
     position: absolute;
@@ -1059,11 +1318,11 @@ export default {
     gap: 2px;
 }
 .court-chip-grid strong {
-    color: #1f2f25;
+    color: var(--admin-text);
     font-size: 13px;
 }
 .court-chip-grid small {
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 12px;
     font-weight: 700;
 }
@@ -1078,14 +1337,14 @@ export default {
     cursor: pointer;
 }
 .primary-btn {
-    background: #059669;
+    background: var(--admin-primary, #000000);
     color: #fff;
-    box-shadow: 0 8px 18px rgba(5, 150, 105, 0.18);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
 }
 .secondary-btn {
-    border: 1px solid #d9e8d9;
-    background: #fff;
-    color: #334238;
+    border: 1px solid var(--admin-border, #e5e7eb);
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #000000);
 }
 .danger-btn {
     border: 1px solid #fecaca;
@@ -1116,14 +1375,14 @@ export default {
 }
 .schedule-headline {
     padding: 16px 18px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border);
 }
 .legend {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 12px;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 11px;
     font-weight: 800;
 }
@@ -1136,10 +1395,10 @@ export default {
     width: 11px;
     height: 11px;
     border-radius: 3px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--admin-border);
 }
 .legend .available {
-    background: #fff;
+    background: var(--admin-surface, #fff);
 }
 .legend .booking {
     background: #cbd5e1;
@@ -1153,7 +1412,7 @@ export default {
 .state {
     padding: 36px;
     text-align: center;
-    color: #64748b;
+    color: var(--admin-muted);
 }
 .compact-state {
     padding: 18px 6px 4px;
@@ -1163,7 +1422,7 @@ export default {
 .schedule-wrap {
     max-width: 100%;
     overflow-x: auto;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--admin-border);
 }
 .schedule-grid {
     display: grid;
@@ -1174,14 +1433,14 @@ export default {
 .court-cell,
 .slot-cell {
     min-height: 48px;
-    border-right: 1px solid #e2e8f0;
-    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid var(--admin-border);
+    border-bottom: 1px solid var(--admin-border);
 }
 .grid-head {
     display: grid;
     place-items: center;
-    background: #f2f7ef;
-    color: #334238;
+    background: var(--admin-surface-muted);
+    color: var(--admin-faint);
     font-size: 11px;
     font-weight: 900;
 }
@@ -1202,14 +1461,14 @@ export default {
     align-content: center;
     gap: 3px;
     padding: 8px 10px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
 }
 .court-cell strong {
-    color: #0f172a;
+    color: var(--admin-text);
     font-size: 12px;
 }
 .court-cell span {
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 11px;
 }
 .slot-cell {
@@ -1217,7 +1476,7 @@ export default {
     padding: 0;
     border-top: 0;
     border-left: 0;
-    background: #fff;
+    background: var(--admin-surface, #fff);
     cursor: pointer;
 }
 .slot-cell.available:hover {
@@ -1238,7 +1497,7 @@ export default {
 }
 .locks-card .card-head {
     padding-bottom: 12px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border);
 }
 .count-badge {
     min-width: 28px;
@@ -1258,9 +1517,9 @@ export default {
     display: grid;
     gap: 10px;
     padding: 12px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border);
     border-radius: 12px;
-    background: #f8fafc;
+    background: var(--admin-surface-muted);
 }
 .lock-group-head {
     display: flex;
@@ -1273,11 +1532,11 @@ export default {
     gap: 2px;
 }
 .lock-group-head strong {
-    color: #0f172a;
+    color: var(--admin-text);
     font-size: 14px;
 }
 .lock-group-head span {
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 12px;
     font-weight: 750;
 }
@@ -1303,7 +1562,7 @@ export default {
     border: 1px solid #fecaca;
     border-radius: 999px;
     padding: 7px 9px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
     color: #991b1b;
     font: inherit;
     cursor: pointer;
@@ -1389,15 +1648,15 @@ export default {
     display: grid;
     gap: 5px;
     padding: 12px;
-    border: 1px solid #6ee7b7;
+    border: 1px solid var(--admin-blue);
     border-radius: 9px;
-    background: #ecfdf5;
-    color: #047857;
+    background: var(--admin-blue-soft);
+    color: var(--admin-blue);
 }
 .selection-box.empty {
-    border-color: #cbd5e1;
-    background: #f8fafc;
-    color: #64748b;
+    border-color: var(--admin-border);
+    background: var(--admin-surface-muted);
+    color: var(--admin-faint);
 }
 .selection-box span {
     font-size: 12px;
@@ -1418,9 +1677,9 @@ export default {
     display: grid;
     gap: 10px;
     padding: 12px;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border);
     border-radius: 10px;
-    background: #fbfefc;
+    background: var(--admin-surface-muted);
 }
 .preview-headline {
     display: flex;
@@ -1433,19 +1692,19 @@ export default {
     gap: 2px;
 }
 .preview-headline strong {
-    color: #16231a;
+    color: var(--admin-text);
     font-size: 13px;
     font-weight: 900;
 }
 .preview-headline span,
 .preview-headline em {
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 12px;
     font-style: normal;
     font-weight: 750;
 }
 .preview-headline em {
-    color: #b45309;
+    color: var(--admin-warning);
 }
 .lock-preview-list {
     display: grid;
@@ -1459,13 +1718,13 @@ export default {
     justify-content: space-between;
     gap: 10px;
     padding: 9px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
 }
 .lock-preview-list article.busy {
-    border-color: #fed7aa;
-    background: #fff7ed;
+    border-color: var(--admin-warning);
+    background: var(--admin-warning-soft);
 }
 .lock-preview-list article > div {
     display: grid;
@@ -1473,12 +1732,12 @@ export default {
     min-width: 0;
 }
 .lock-preview-list strong {
-    color: #1f2937;
+    color: var(--admin-text);
     font-size: 13px;
     font-weight: 900;
 }
 .lock-preview-list small {
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 12px;
     line-height: 1.35;
 }
@@ -1486,28 +1745,28 @@ export default {
     flex: 0 0 auto;
     border-radius: 999px;
     padding: 4px 8px;
-    background: #eef2ff;
-    color: #475569;
+    background: var(--admin-hover);
+    color: var(--admin-text);
     font-size: 11px;
     font-weight: 900;
 }
 .lock-preview-list article.busy > span {
-    background: #ffedd5;
-    color: #c2410c;
+    background: var(--admin-warning);
+    color: var(--admin-bg);
 }
 .preview-note,
 .preview-more {
     margin: 0;
-    color: #607267;
+    color: var(--admin-faint);
     font-size: 12px;
     line-height: 1.45;
 }
 .slot-cell.selected {
-    background: #10b981;
-    box-shadow: inset 0 0 0 2px #047857;
+    background: var(--admin-primary, #000000);
+    box-shadow: inset 0 0 0 2px var(--admin-primary-light, #1f2937);
 }
 .slot-cell.selected:hover {
-    background: #059669;
+    background: var(--admin-primary-dark, #000000);
 }
 .quick-ranges {
     display: flex;
@@ -1516,8 +1775,8 @@ export default {
     flex-wrap: wrap;
     gap: 8px;
     padding: 14px 20px;
-    border-bottom: 1px solid #e2e8f0;
-    background: #fff;
+    border-bottom: 1px solid var(--admin-border);
+    background: var(--admin-surface, #fff);
 }
 .quick-ranges button {
     appearance: none;
@@ -1528,11 +1787,11 @@ export default {
     gap: 4px;
     min-height: 38px;
     margin: 0;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     padding: 8px 12px;
-    background: #fff;
-    color: #344238;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-faint);
     font-family: inherit;
     font-weight: 850;
     line-height: 1;
@@ -1563,35 +1822,152 @@ export default {
     transform: translateY(1px);
 }
 .quick-ranges button:hover:not(:disabled):not(.active) {
-    border-color: #86efac;
-    background: #f0fdf4;
-    color: #2f5a3a;
+    border-color: var(--admin-border);
+    background: var(--admin-hover);
+    color: var(--admin-text);
     transform: translateY(-1px);
-    box-shadow: 0 4px 9px rgba(22, 163, 74, 0.08);
+    box-shadow: 0 4px 9px rgba(0, 0, 0, 0.04);
 }
 .quick-ranges button:hover:not(:disabled):not(.active) small {
     opacity: 0.84;
 }
 .quick-ranges button.active {
-    border-color: #2f9e44;
-    background: #2f9e44;
-    color: #fff;
-    box-shadow: 0 5px 12px rgba(22, 163, 74, 0.18);
+    border-color: var(--admin-primary);
+    background: var(--admin-primary);
+    color: var(--admin-bg);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08);
 }
 .quick-ranges button.active strong,
 .quick-ranges button.active small {
-    color: #fff !important;
+    color: var(--admin-bg) !important;
 }
 .quick-ranges button.active small {
     opacity: 0.88;
 }
 .quick-ranges button:focus-visible {
-    outline: 3px solid rgba(47, 158, 68, 0.22);
+    outline: 3px solid var(--admin-primary-ring);
     outline-offset: 2px;
 }
 .quick-ranges button:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+}
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.55);
+}
+.conflict-modal {
+    width: min(900px, 100%);
+    max-height: min(760px, calc(100vh - 48px));
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 14px;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface, #fff);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+.conflict-modal header,
+.conflict-modal footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 0;
+}
+.conflict-modal footer {
+    padding: 0 20px 18px;
+}
+.conflict-modal h3 {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 22px;
+}
+.icon-close {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+.conflict-help {
+    margin: 0 20px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #f0fdf4;
+    color: var(--admin-faint);
+    line-height: 1.45;
+}
+.conflict-list {
+    display: grid;
+    gap: 10px;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 20px;
+}
+.conflict-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    gap: 14px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-muted);
+}
+.conflict-main {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+.conflict-main strong {
+    color: var(--admin-text);
+    font-size: 15px;
+}
+.conflict-main span,
+.conflict-main small {
+    color: var(--admin-faint);
+    line-height: 1.35;
+}
+.conflict-actions {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+.conflict-actions select {
+    min-width: 0;
+    height: 38px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    padding: 0 10px;
+    background: var(--admin-surface, #fff);
+    color: #1f2937;
+    font-weight: 750;
+}
+.radio-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--admin-text);
+    font-weight: 850;
+    white-space: nowrap;
+}
+.radio-line.danger {
+    color: #b91c1c;
+}
+.radio-line.cash {
+    color: #b45309;
 }
 @media (max-width: 720px) {
     .quick-ranges {
@@ -1607,6 +1983,14 @@ export default {
     }
     .quick-ranges button small {
         font-size: 11px;
+    }
+    .conflict-row,
+    .conflict-actions {
+        grid-template-columns: 1fr;
+    }
+    .conflict-modal header,
+    .conflict-modal footer {
+        align-items: stretch;
     }
 }
 </style>
