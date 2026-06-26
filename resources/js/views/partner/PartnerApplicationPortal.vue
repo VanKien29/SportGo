@@ -1,234 +1,380 @@
 <template>
-  <div class="min-h-screen w-full bg-gray-50 flex flex-col">
+  <div class="partner-portal-page">
     <PublicNavbar />
 
-    <main class="mx-auto w-full max-w-5xl px-4 pb-16 mt-20 pt-8 sm:px-6 lg:px-8 flex-1">
-
+    <main class="portal-main">
       <!-- ───── LIST VIEW ───── -->
       <template v-if="!formOpen">
-
-        <!-- Page header -->
-        <div class="mb-6">
-          <p class="text-xs font-semibold uppercase tracking-widest text-emerald-600">SportGo Partner</p>
-          <h1 class="mt-1 text-2xl font-semibold text-gray-900">Đăng ký đối tác chủ sân</h1>
-          <p class="mt-1 text-sm text-gray-500">Gửi hồ sơ, theo dõi tiến trình xét duyệt và ký số văn bản ngay trên nền tảng.</p>
-        </div>
-
-        <!-- Stat cards -->
-        <div class="mb-6 grid grid-cols-3 gap-3">
-          <div class="rounded-xl bg-white border border-gray-100 px-4 py-3 shadow-sm">
-            <p class="text-xs text-gray-400">Tổng hồ sơ</p>
-            <p class="mt-1 text-xl font-semibold text-gray-900">{{ applications.length }}</p>
-            <p class="mt-0.5 text-xs text-emerald-600">Đã gửi</p>
+        <div class="flex-between mb-4">
+          <div>
+            <p class="portal-label">SportGo Partner</p>
+            <h1 class="portal-title">Đăng ký đối tác chủ sân</h1>
+            <p class="portal-subtitle" style="margin-bottom: 0;">Gửi hồ sơ, theo dõi tiến trình xét duyệt và ký số văn bản ngay trên nền tảng.</p>
           </div>
-          <div class="rounded-xl bg-white border border-gray-100 px-4 py-3 shadow-sm">
-            <p class="text-xs text-gray-400">Đang xét duyệt</p>
-            <p class="mt-1 text-xl font-semibold text-gray-900">{{ reviewingCount }}</p>
-            <p class="mt-0.5 text-xs text-amber-500">Chờ phản hồi</p>
-          </div>
-          <div class="rounded-xl bg-white border border-gray-100 px-4 py-3 shadow-sm">
-            <p class="text-xs text-gray-400">Hồ sơ nháp</p>
-            <p class="mt-1 text-xl font-semibold text-gray-900">{{ draft ? 1 : 0 }}</p>
-            <p class="mt-0.5 text-xs text-gray-400">Chưa gửi</p>
-          </div>
-        </div>
-
-        <!-- Draft bar -->
-        <div v-if="draft" class="mb-4 flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <div class="flex items-center gap-3 min-w-0">
-            <span class="h-2 w-2 shrink-0 rounded-full bg-amber-400"></span>
-            <div class="min-w-0">
-              <p class="text-sm font-medium text-gray-900 truncate">
-                {{ draft.venue_name || 'Chưa đặt tên cụm sân' }}
-                <span class="font-normal text-gray-500"> — đang lưu nháp</span>
-              </p>
-              <p class="text-xs text-gray-400 mt-0.5">Lưu lúc {{ formatDate(draft.saved_at) }}</p>
-            </div>
-          </div>
-          <div class="flex shrink-0 items-center gap-2">
-            <button type="button" class="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition" @click="continueDraft">
-              Tiếp tục điền
-            </button>
-            <button type="button" class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition" @click="clearDraft">
-              Xóa nháp
-            </button>
-          </div>
-        </div>
-
-        <!-- Toolbar -->
-        <div class="mb-4 flex items-center justify-between">
-          <p class="text-sm text-gray-400">{{ applications.length }} hồ sơ</p>
-          <div class="flex items-center gap-2">
-            <button type="button" class="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition" @click="loadApplications">
-              <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Làm mới
-            </button>
-            <button v-if="canRegister" type="button" class="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition" @click="startNewApplication">
-              <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Đăng ký hồ sơ mới
-            </button>
-          </div>
-        </div>
-
-        <!-- Loading -->
-        <div v-if="loading" class="flex items-center justify-center py-20">
-          <svg class="h-6 w-6 animate-spin text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span class="ml-2 text-sm text-gray-400">Đang tải hồ sơ...</span>
-        </div>
-
-        <!-- Empty state -->
-        <div v-else-if="applications.length === 0 && !draft" class="rounded-xl border border-dashed border-gray-200 bg-white py-16 text-center">
-          <svg class="mx-auto h-10 w-10 text-gray-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 class="mt-4 text-sm font-semibold text-gray-900">Chưa có hồ sơ nào</h3>
-          <p class="mt-1 text-sm text-gray-400">Bắt đầu bằng cách tạo hồ sơ đăng ký đầu tiên của bạn.</p>
-          <button v-if="canRegister" type="button" class="mt-5 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition" @click="startNewApplication">
-            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Tạo hồ sơ đăng ký
+          <button v-if="canRegister" type="button" class="btn btn-primary" @click="startNewApplication">
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+            Đăng ký hồ sơ mới
           </button>
         </div>
 
-        <!-- Application list -->
-        <div v-else class="space-y-3">
-          <article
-            v-for="application in applications"
-            :key="application.id"
-            class="rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition hover:border-gray-200 hover:shadow-md"
-          >
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <!-- Left: info -->
-              <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-2">
-                  <h3 class="text-base font-semibold text-gray-900">{{ application.venue_name }}</h3>
-                  <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" :class="statusClass(application.status)">
-                    <span class="h-1.5 w-1.5 rounded-full" :class="statusDotClass(application.status)"></span>
-                    {{ statusLabel(application.status) }}
-                  </span>
-                </div>
-                <div class="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
-                  <svg class="h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span class="truncate">{{ application.venue_address }}</span>
-                  <span class="text-gray-200">·</span>
-                  <svg class="h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>Gửi {{ formatDate(application.submitted_at) }}</span>
-                </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <p class="stat-label">Tổng hồ sơ</p>
+            <p class="stat-value">{{ applications.length }}</p>
+            <p class="stat-label" style="color: var(--primary-color);">Đã gửi</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Đang xét duyệt</p>
+            <p class="stat-value">{{ reviewingCount }}</p>
+            <p class="stat-label" style="color: #b45309;">Chờ phản hồi</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Hồ sơ nháp</p>
+            <p class="stat-value">{{ draft ? 1 : 0 }}</p>
+            <p class="stat-label">Chưa gửi</p>
+          </div>
+        </div>
 
-                <!-- Rejection reason -->
-                <div v-if="application.status === 'rejected'" class="mt-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 text-xs text-red-700">
-                  <p class="font-semibold mb-1">Lý do từ chối</p>
-                  <p class="text-red-600">{{ application.status_reason || 'SportGo chưa cung cấp lý do chi tiết.' }}</p>
-                </div>
+        <div v-if="draft" class="draft-banner">
+          <div>
+            <p class="title">{{ draft.venue_name || 'Chưa đặt tên cụm sân' }} <span style="font-weight: 400; color: #b45309;">— đang lưu nháp</span></p>
+            <p style="font-size: 13px; color: #b45309; margin-top: 4px;">Lưu lúc {{ formatDate(draft.saved_at) }}</p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary" style="background: transparent; border-color: #f59e0b; color: #b45309;" @click="clearDraft">Xóa nháp</button>
+            <button type="button" class="btn btn-primary" style="background: #f59e0b; color: white; border-color: #f59e0b;" @click="continueDraft">Tiếp tục điền</button>
+          </div>
+        </div>
 
-                <!-- Need supplement -->
-                <div v-if="application.status === 'need_supplement'" class="mt-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
-                  <p class="font-semibold mb-1">Cần bổ sung hồ sơ</p>
-                  <p class="text-amber-600">{{ application.status_reason || 'Vui lòng liên hệ SportGo để biết thêm chi tiết.' }}</p>
-                </div>
+        <div class="flex-between mb-4">
+          <p style="font-size: 14px; color: var(--text-muted);">{{ applications.length }} hồ sơ</p>
+          <button type="button" class="btn btn-outline" @click="loadApplications">Làm mới</button>
+        </div>
 
-                <!-- Contract pending owner signature -->
-                <div v-if="application.status === 'contract_pending_owner_signature'" class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-700">
-                  <p class="font-semibold mb-1">🎉 Hồ sơ đã được duyệt!</p>
-                  <p class="text-emerald-600">Hợp đồng hợp tác đã sẵn sàng. Vui lòng xem và ký hợp đồng để hoàn tất quá trình đăng ký.</p>
-                </div>
+        <div v-if="loading" style="text-align: center; padding: 60px;">
+          <p class="portal-subtitle">Đang tải hồ sơ...</p>
+        </div>
+
+        <div v-else-if="applications.length === 0 && !draft" class="portal-card" style="text-align: center; padding: 60px 20px;">
+          <svg style="margin: 0 auto; height: 48px; color: #cbd5e1;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <h3 style="margin-top: 16px; font-weight: 600; font-size: 16px;">Chưa có hồ sơ nào</h3>
+          <p style="margin-top: 8px; color: var(--text-muted); font-size: 14px;">Bắt đầu bằng cách tạo hồ sơ đăng ký đầu tiên của bạn.</p>
+        </div>
+
+        <div v-else>
+          <article v-for="application in applications" :key="application.id" class="app-list-item">
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <h3 style="font-size: 16px; font-weight: 600;">{{ application.venue_name }}</h3>
+                <span class="badge" :class="statusClass(application.status)">
+                  {{ statusLabel(application.status) }}
+                </span>
               </div>
+              <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                {{ application.venue_address }} • Gửi {{ formatDate(application.submitted_at) }}
+              </p>
 
-              <!-- Right: actions -->
-              <div class="flex shrink-0 flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  class="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition"
-                  @click="openApplicationDetail(application)"
-                >
-                  Chi tiết
-                </button>
-
-                <button
-                  v-if="applicationWord(application)"
-                  type="button"
-                  class="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition"
-                  @click="openApplicationDocument(applicationWord(application), application)"
-                >
-                  <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                  Xem &amp; Ký Mẫu 01
-                </button>
-
-                <button
-                  v-if="contractWord(application)"
-                  type="button"
-                  class="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition"
-                  @click="openApplicationDocument(contractWord(application), application)"
-                >
-                  <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Xem &amp; Ký Hợp đồng
-                </button>
-
-                <button
-                  v-if="canSubmitSignedApplication(application)"
-                  type="button"
-                  class="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition"
-                  @click="submitSignedApplication(application)"
-                >
-                  Gửi hồ sơ
-                </button>
-
-                <button
-                  v-if="canCancel(application)"
-                  type="button"
-                  class="rounded-lg border border-red-300 bg-white px-3.5 py-2 text-xs font-medium text-red-600 shadow-sm hover:bg-red-50 transition"
-                  @click="cancelApplication(application)"
-                >
-                  Hủy hồ sơ
-                </button>
+              <div v-if="application.status === 'rejected'" style="background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: inline-block;">
+                <strong style="color: #991b1b;">Lý do từ chối:</strong> <span style="color: #b91c1c;">{{ application.status_reason || 'SportGo chưa cung cấp lý do chi tiết.' }}</span>
               </div>
+              <div v-if="application.status === 'need_supplement'" style="background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: inline-block;">
+                <strong style="color: #92400e;">Cần bổ sung hồ sơ:</strong> <span style="color: #b45309;">{{ application.status_reason || 'Vui lòng liên hệ SportGo để biết thêm chi tiết.' }}</span>
+              </div>
+              <div v-if="application.status === 'contract_pending_owner_signature'" style="background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: inline-block;">
+                <strong style="color: #065f46;">🎉 Hồ sơ đã được duyệt!</strong> <span style="color: #047857;">Hợp đồng hợp tác đã sẵn sàng. Vui lòng xem và ký hợp đồng để hoàn tất quá trình đăng ký.</span>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; width: 300px;">
+              <button type="button" class="btn btn-secondary" @click="openApplicationDetail(application)">Chi tiết</button>
+              <button v-if="applicationWord(application)" type="button" class="btn btn-secondary" style="color: #2563eb; border-color: #bfdbfe; background: #eff6ff;" @click="openApplicationDocument(applicationWord(application), application)">
+                Xem &amp; Ký Mẫu 01
+              </button>
+              <button v-if="contractWord(application)" type="button" class="btn btn-primary" @click="openApplicationDocument(contractWord(application), application)">
+                Xem &amp; Ký Hợp đồng
+              </button>
+              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary" style="background: #0f172a; border-color: #0f172a;" @click="submitSignedApplication(application)">
+                Gửi hồ sơ
+              </button>
+              <button v-if="canCancel(application)" type="button" class="btn btn-outline" style="color: #ef4444; border-color: #fecaca;" @click="cancelApplication(application)">
+                Hủy hồ sơ
+              </button>
             </div>
           </article>
         </div>
       </template>
 
-      <!-- ───── DETAIL MODAL ───── -->
-      <Teleport to="body">
-        <section
-          v-if="selectedApplication"
-          class="fixed inset-0 z-[600] grid place-items-center bg-gray-900/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          @click.self="selectedApplication = null"
-        >
-          <div class="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-auto rounded-xl bg-white p-6 shadow-xl">
-            <header class="flex items-start justify-between gap-4 border-b border-gray-100 pb-4">
+      <!-- ───── FORM VIEW WIZARD ───── -->
+      <template v-else>
+        <div class="mb-4">
+          <BackButton @click="formOpen = false" title="Quay lại danh sách" />
+        </div>
+
+        <div class="wizard-container">
+          <!-- Wizard Header -->
+          <div class="wizard-header">
+            <div class="stepper">
+              <div class="step-item" :class="{ active: currentStep === 1, completed: currentStep > 1 }" @click="setStep(1)" style="cursor: pointer;">
+                <div class="step-circle">1</div>
+                <div class="step-title">Thông tin cá nhân</div>
+              </div>
+              <div class="step-item" :class="{ active: currentStep === 2, completed: currentStep > 2 }" @click="setStep(2)" style="cursor: pointer;">
+                <div class="step-circle">2</div>
+                <div class="step-title">Thông tin kinh doanh</div>
+              </div>
+              <div class="step-item" :class="{ active: currentStep === 3, completed: currentStep > 3 }" @click="setStep(3)" style="cursor: pointer;">
+                <div class="step-circle">3</div>
+                <div class="step-title">Cụm sân & Dịch vụ</div>
+              </div>
+              <div class="step-item" :class="{ active: currentStep === 4, completed: currentStep > 4 }" @click="setStep(4)" style="cursor: pointer; flex: 0;">
+                <div class="step-circle">4</div>
+                <div class="step-title">Tài liệu & Hoàn tất</div>
+              </div>
+            </div>
+          </div>
+
+          <form novalidate @submit.prevent="submit" style="display: flex; flex-direction: column; flex: 1;">
+            
+            <div class="wizard-body">
+              <div v-if="formBanner" class="notice error mb-4" style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px; border-radius: 8px;">
+                {{ formBanner }}
+              </div>
+
+              <!-- STEP 1: Cá nhân -->
+              <div v-show="currentStep === 1" class="step-content">
+                <FormSection title="Thông tin người đăng ký / đại diện">
+                  <div class="form-grid">
+                    <FormField label="Họ tên người đăng ký" required :error="fieldErrors.applicant_full_name">
+                      <input v-model.trim="form.applicant_full_name" :class="inputClass(fieldErrors.applicant_full_name)" />
+                    </FormField>
+                    <FormField label="Số điện thoại" required :error="fieldErrors.applicant_phone">
+                      <input v-model.trim="form.applicant_phone" :class="inputClass(fieldErrors.applicant_phone)" inputmode="tel" @input="normalizePhone('applicant_phone')" />
+                    </FormField>
+                    <FormField label="Email" required :error="fieldErrors.applicant_email">
+                      <input v-model.trim="form.applicant_email" :class="inputClass(fieldErrors.applicant_email)" type="email" />
+                    </FormField>
+                    <FormField label="Ngày sinh" required :error="fieldErrors.applicant_birth_date">
+                      <input v-model="form.applicant_birth_date" :class="inputClass(fieldErrors.applicant_birth_date)" type="date" />
+                    </FormField>
+                    <FormField label="Loại chủ thể" required :error="fieldErrors.applicant_type">
+                      <BaseCombobox v-model="form.applicant_type" :options="applicantTypeOptions" placeholder="Chọn loại chủ thể" :invalid="Boolean(fieldErrors.applicant_type)" />
+                    </FormField>
+                    <FormField label="Người đại diện pháp luật" required :error="fieldErrors.representative_name">
+                      <input v-model.trim="form.representative_name" :class="inputClass(fieldErrors.representative_name)" />
+                    </FormField>
+                    <FormField label="Loại giấy tờ đại diện" required :error="fieldErrors.representative_identity_type">
+                      <BaseCombobox v-model="form.representative_identity_type" :options="identityTypeOptions" placeholder="Chọn loại giấy tờ" :invalid="Boolean(fieldErrors.representative_identity_type)" @update:model-value="normalizeIdentityNumber" />
+                    </FormField>
+                    <FormField label="Số CCCD/CMND/Hộ chiếu" required :error="fieldErrors.representative_identity_number">
+                      <input v-model.trim="form.representative_identity_number" :class="inputClass(fieldErrors.representative_identity_number)" @input="normalizeIdentityNumber" />
+                    </FormField>
+                    <FormField label="Ngày cấp" :error="fieldErrors.representative_identity_issued_date">
+                      <input v-model="form.representative_identity_issued_date" :class="inputClass(fieldErrors.representative_identity_issued_date)" type="date" />
+                    </FormField>
+                    <FormField label="Nơi cấp" :error="fieldErrors.representative_identity_issued_place">
+                      <input v-model.trim="form.representative_identity_issued_place" :class="inputClass(fieldErrors.representative_identity_issued_place)" />
+                    </FormField>
+                  </div>
+                </FormSection>
+              </div>
+
+              <!-- STEP 2: Kinh doanh -->
+              <div v-show="currentStep === 2" class="step-content">
+                <FormSection title="Thông tin kinh doanh">
+                  <div class="form-grid">
+                    <FormField label="Tên đơn vị / Cá nhân kinh doanh" required :error="fieldErrors.business_name">
+                      <input v-model.trim="form.business_name" :class="inputClass(fieldErrors.business_name)" />
+                    </FormField>
+                    <FormField label="Mã số thuế" :error="fieldErrors.tax_code">
+                      <input v-model.trim="form.tax_code" :class="inputClass(fieldErrors.tax_code)" @input="normalizeTaxCode" />
+                    </FormField>
+                    <FormField label="Số giấy đăng ký kinh doanh/pháp lý" required :error="fieldErrors.business_license_number">
+                      <input v-model.trim="form.business_license_number" :class="inputClass(fieldErrors.business_license_number)" />
+                    </FormField>
+                    <FormField label="Mã doanh nghiệp/hộ kinh doanh (nếu có)" :error="fieldErrors.business_code">
+                      <input v-model.trim="form.business_code" :class="inputClass(fieldErrors.business_code)" />
+                    </FormField>
+                    <FormField class="full-width" label="Địa chỉ liên hệ" required :error="fieldErrors.applicant_address">
+                      <textarea v-model.trim="form.applicant_address" :class="textareaClass(fieldErrors.applicant_address)" rows="2"></textarea>
+                    </FormField>
+                    <FormField class="full-width" label="Địa chỉ pháp lý (trên giấy tờ)" required :error="fieldErrors.business_address">
+                      <textarea v-model.trim="form.business_address" :class="textareaClass(fieldErrors.business_address)" rows="2"></textarea>
+                    </FormField>
+                  </div>
+                </FormSection>
+              </div>
+
+              <!-- STEP 3: Cụm sân -->
+              <div v-show="currentStep === 3" class="step-content">
+                <FormSection title="Địa chỉ và thông tin Cụm sân">
+                  <div class="form-grid">
+                    <FormField label="Tỉnh/Thành phố" required :error="fieldErrors.venue_province_code">
+                      <BaseCombobox v-model="form.venue_province_code" :options="provinceOptions" placeholder="Tìm Tỉnh/Thành phố" :invalid="Boolean(fieldErrors.venue_province_code)" @select="onProvinceSelect" />
+                    </FormField>
+                    <FormField label="Phường/Xã" required :error="fieldErrors.venue_ward_code">
+                      <BaseCombobox v-model="form.venue_ward_code" :options="wardOptions" placeholder="Tìm Phường/Xã" :disabled="!form.venue_province_code" :invalid="Boolean(fieldErrors.venue_ward_code)" @select="syncVenueAddress" />
+                    </FormField>
+                    <FormField class="full-width" label="Số nhà, tên đường" required :error="fieldErrors.street_address">
+                      <input v-model.trim="form.street_address" :class="inputClass(fieldErrors.street_address)" placeholder="Ví dụ: 123 Nguyễn Hữu Cảnh" @input="syncVenueAddress" />
+                    </FormField>
+                    <FormField class="full-width" label="Link Google Maps (Bắt buộc để lấy tọa độ)" required :error="mapError || fieldErrors.venue_map_url">
+                      <input v-model.trim="form.venue_map_url" :class="inputClass(mapError || fieldErrors.venue_map_url)" placeholder="Dán link Google Maps có tọa độ" @input="onMapUrlInput" />
+                      <div v-if="mapSuggestion" style="margin-top: 8px; background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px;">
+                        <p style="font-size: 13px; color: #92400e; margin-bottom: 8px;">{{ mapSuggestion.message }}</p>
+                        <button type="button" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;" @click="applyMapSuggestion">Cập nhật theo Google Maps</button>
+                      </div>
+                      <p v-else-if="mapStatus" style="margin-top: 4px; font-size: 13px; color: #059669;">{{ mapStatus }}</p>
+                    </FormField>
+                    <input type="hidden" :value="form.venue_latitude" name="venue_latitude" />
+                    <input type="hidden" :value="form.venue_longitude" name="venue_longitude" />
+                    
+                    <FormField label="Tên cụm sân" required :error="fieldErrors.venue_name">
+                      <input v-model.trim="form.venue_name" :class="inputClass(fieldErrors.venue_name)" />
+                    </FormField>
+                    <FormField label="Số điện thoại tại sân" required :error="fieldErrors.venue_phone">
+                      <input v-model.trim="form.venue_phone" :class="inputClass(fieldErrors.venue_phone)" inputmode="tel" @input="normalizePhone('venue_phone')" />
+                    </FormField>
+                    <FormField label="Giờ mở cửa dự kiến" :error="fieldErrors.expected_opening_hours">
+                      <input v-model.trim="form.expected_opening_hours" :class="inputClass(fieldErrors.expected_opening_hours)" placeholder="05:00 - 23:00" />
+                    </FormField>
+                    <FormField label="Email tại sân" :error="fieldErrors.venue_email">
+                      <input v-model.trim="form.venue_email" :class="inputClass(fieldErrors.venue_email)" type="email" />
+                    </FormField>
+                  </div>
+                </FormSection>
+
+                <FormSection title="Cấu hình sân con" style="margin-top: 24px;">
+                  <div class="form-grid">
+                    <FormField label="Số lượng sân con" required :error="fieldErrors.court_count_total">
+                      <input v-model.number="form.court_count_total" :class="inputClass(fieldErrors.court_count_total)" type="number" min="1" max="100" @input="syncCourtRows" />
+                    </FormField>
+                    <FormField label="Giá cơ bản/giờ (VNĐ)" required :error="fieldErrors.base_price_per_hour">
+                      <input v-model.number="form.base_price_per_hour" :class="inputClass(fieldErrors.base_price_per_hour)" type="number" min="1000" step="1000" />
+                    </FormField>
+                  </div>
+
+                  <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+                    <div
+                      v-for="(court, index) in form.courts"
+                      :key="court.local_id"
+                      style="display: grid; gap: 12px; background: #f8fafc; border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; grid-template-columns: 1fr 1fr auto; align-items: end;"
+                    >
+                      <FormField :label="'Tên sân ' + (index + 1)" required :error="fieldErrors['courts.' + index + '.name']">
+                        <input v-model.trim="court.name" :class="inputClass(fieldErrors['courts.' + index + '.name'])" />
+                      </FormField>
+                      <FormField label="Loại sân" required :error="fieldErrors['courts.' + index + '.court_type_id']">
+                        <BaseCombobox v-model="court.court_type_id" :options="courtTypeOptions" placeholder="Chọn loại sân" :invalid="Boolean(fieldErrors['courts.' + index + '.court_type_id'])" />
+                      </FormField>
+                      <button
+                        type="button"
+                        class="btn btn-outline"
+                        style="color: #ef4444; border-color: #fecaca; background: white;"
+                        :disabled="form.courts.length <= 1"
+                        @click="removeCourt(index)"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div v-if="amenities.length" style="margin-top: 20px;">
+                    <p class="form-label" style="margin-bottom: 8px;">Tiện ích có sẵn</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                      <label
+                        v-for="amenity in amenities"
+                        :key="amenity.id || amenity.name"
+                        style="display: inline-flex; cursor: pointer; align-items: center; gap: 8px; border: 1px solid var(--border-color); background: white; padding: 6px 12px; border-radius: 20px; font-size: 13px; transition: all 0.2s;"
+                        :style="form.amenities.includes(amenity.name) ? 'border-color: var(--primary-color); background: #ecfdf5;' : ''"
+                      >
+                        <input v-model="form.amenities" type="checkbox" :value="amenity.name" style="accent-color: var(--primary-color);" />
+                        {{ amenity.name }}
+                      </label>
+                    </div>
+                  </div>
+                </FormSection>
+              </div>
+
+              <!-- STEP 4: Tài liệu & Ngân hàng -->
+              <div v-show="currentStep === 4" class="step-content">
+                <FormSection title="Thông tin ngân hàng">
+                  <div class="form-grid">
+                    <FormField label="Ngân hàng" required :error="fieldErrors.bank_code">
+                      <BaseCombobox v-model="form.bank_code" :options="bankOptions" placeholder="Tìm ngân hàng" :invalid="Boolean(fieldErrors.bank_code)" @select="selectBank" />
+                    </FormField>
+                    <FormField label="Số tài khoản" required :error="fieldErrors.account_number">
+                      <input v-model.trim="form.account_number" :class="inputClass(fieldErrors.account_number)" inputmode="numeric" @input="onAccountNumberInput" />
+                    </FormField>
+                    <FormField label="Tên chủ tài khoản" required :error="fieldErrors.account_holder_name">
+                      <input
+                        v-model.trim="form.account_holder_name"
+                        :class="inputClass(fieldErrors.account_holder_name)"
+                        placeholder="Viết IN HOA không dấu"
+                        @input="onManualBankHolderInput()"
+                      />
+                    </FormField>
+                    <FormField label="Chi nhánh" :error="fieldErrors.bank_branch">
+                      <input v-model.trim="form.bank_branch" :class="inputClass(fieldErrors.bank_branch)" />
+                    </FormField>
+                  </div>
+                </FormSection>
+
+                <FormSection title="Tài liệu đính kèm" style="margin-top: 24px;">
+                  <div class="form-grid">
+                    <UploadBox title="CCCD/CMND người đại diện" required :files="files.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
+                    <UploadBox title="Giấy ĐKKD/Pháp lý" required :files="files.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
+                    <UploadBox title="Hình ảnh cơ sở/sân" required :files="files.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
+                    <UploadBox title="Hợp đồng thuê mặt bằng" required :files="files.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
+                  </div>
+                </FormSection>
+
+                <div class="portal-card" style="background: #f8fafc; margin-top: 24px;">
+                  <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                    <input v-model="confirmed" type="checkbox" style="margin-top: 4px; width: 18px; height: 18px; accent-color: var(--primary-color);" />
+                    <span style="font-size: 14px; color: var(--text-main); line-height: 1.5;">
+                      Tôi xác nhận thông tin trong hồ sơ là chính xác và đồng ý để SportGo kiểm tra tài liệu trước khi duyệt đối tác.
+                    </span>
+                  </label>
+                  <p v-if="fieldErrors.confirmed" style="margin-top: 8px; margin-left: 30px; font-size: 13px; color: #ef4444;">{{ fieldErrors.confirmed }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Wizard Footer -->
+            <div class="wizard-footer">
               <div>
-                <p class="text-xs font-semibold uppercase tracking-widest text-emerald-600">Hồ sơ đối tác</p>
-                <h2 class="mt-1 text-lg font-semibold text-gray-900">{{ selectedApplication.venue_name }}</h2>
-                <span class="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" :class="statusClass(selectedApplication.status)">
-                  <span class="h-1.5 w-1.5 rounded-full" :class="statusDotClass(selectedApplication.status)"></span>
+                <button v-if="currentStep > 1" type="button" class="btn btn-secondary" @click="prevStep">Quay lại</button>
+              </div>
+              <div style="display: flex; gap: 12px;">
+                <button type="button" class="btn btn-outline" @click="saveDraft">Lưu nháp</button>
+                <button v-if="currentStep < totalSteps" type="button" class="btn btn-primary" @click="nextStep">Tiếp tục</button>
+                <button v-if="currentStep === totalSteps" type="submit" class="btn btn-primary" :disabled="submitDisabled">
+                  <span v-if="submitting" style="margin-right: 8px; display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></span>
+                  {{ submitting ? 'Đang xử lý...' : 'Hoàn tất & Gửi hồ sơ' }}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </template>
+
+      <!-- DETAIL MODAL -->
+      <Teleport to="body">
+        <div v-if="selectedApplication" style="position: fixed; inset: 0; z-index: 600; display: grid; place-items: center; background: rgba(15, 23, 42, 0.5); padding: 16px;" @click.self="selectedApplication = null">
+          <div style="max-height: calc(100vh - 2rem); width: 100%; max-width: 800px; overflow: auto; background: white; border-radius: 20px; padding: 24px; box-shadow: var(--shadow-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 20px;">
+              <div>
+                <p class="portal-label">Hồ sơ đối tác</p>
+                <h2 class="portal-title" style="font-size: 20px;">{{ selectedApplication.venue_name }}</h2>
+                <span class="badge" :class="statusClass(selectedApplication.status)" style="margin-top: 8px;">
                   {{ statusLabel(selectedApplication.status) }}
                 </span>
               </div>
-              <button type="button" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition" @click="selectedApplication = null">
-                Đóng
-              </button>
-            </header>
-
-            <div class="mt-5 grid gap-4 md:grid-cols-2">
+              <button type="button" class="btn btn-outline" @click="selectedApplication = null">Đóng</button>
+            </div>
+            
+            <div class="form-grid">
               <InfoBlock title="Người đăng ký" :items="[
                 ['Họ tên', selectedApplication.applicant_full_name],
                 ['Điện thoại', selectedApplication.applicant_phone],
@@ -241,253 +387,31 @@
                 ['Chủ tài khoản', selectedApplication.account_holder_name],
                 ['Trạng thái', selectedApplication.bank_verification_status === 'verified' ? 'Đã xác minh' : 'Chưa xác minh'],
               ]" />
-              <InfoBlock class="md:col-span-2" title="Cụm sân" :items="[
+              <InfoBlock class="full-width" title="Cụm sân" :items="[
                 ['Địa chỉ', selectedApplication.venue_address],
                 ['Tọa độ', coordinateText(selectedApplication)],
                 ['Số sân con', selectedApplication.court_count_total],
                 ['Giá cơ bản', money(selectedApplication.base_price_per_hour)],
               ]" />
-              <div class="md:col-span-2 rounded-lg border border-gray-100 bg-gray-50 p-4">
-                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Tài liệu đính kèm</h3>
-                <div v-if="selectedApplication.documents?.length" class="flex flex-wrap gap-2">
-                  <button v-for="doc in selectedApplication.documents" :key="doc.id" @click="viewFile(doc.file_path)" type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition">
-                    <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+              <div class="portal-card full-width" style="background: #f8fafc;">
+                <h3 style="font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;">Tài liệu đính kèm</h3>
+                <div v-if="selectedApplication.documents?.length" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  <button v-for="doc in selectedApplication.documents" :key="doc.id" @click="viewFile(doc.file_path)" type="button" class="btn btn-secondary">
                     {{ doc.title || doc.document_type || 'Tài liệu' }}
                   </button>
                 </div>
-                <p v-else class="text-sm text-gray-500">Chưa có tài liệu đính kèm.</p>
+                <p v-else style="font-size: 14px; color: var(--text-muted);">Chưa có tài liệu đính kèm.</p>
               </div>
             </div>
-          </div>
-        </section>
-      </Teleport>
-
-      <!-- ───── FORM VIEW ───── -->
-      <template v-if="formOpen">
-        <div class="mb-6 flex items-center gap-3">
-          <BackButton @click="formOpen = false" title="Quay lại danh sách" />
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-widest text-emerald-600">SportGo Partner</p>
-            <h2 class="text-lg font-semibold text-gray-900">Điền đơn đăng ký đối tác</h2>
           </div>
         </div>
-
-        <form class="space-y-5" novalidate @submit.prevent="submit">
-          <!-- Error banner -->
-          <div v-if="formBanner" class="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {{ formBanner }}
-          </div>
-
-          <!-- Section: Thông tin cá nhân -->
-          <FormSection title="Thông tin cá nhân">
-            <div class="grid gap-4 md:grid-cols-2">
-              <FormField label="Họ tên người đăng ký" required :error="fieldErrors.applicant_full_name">
-                <input v-model.trim="form.applicant_full_name" :class="inputClass(fieldErrors.applicant_full_name)" />
-              </FormField>
-              <FormField label="Số điện thoại" required :error="fieldErrors.applicant_phone">
-                <input v-model.trim="form.applicant_phone" :class="inputClass(fieldErrors.applicant_phone)" inputmode="tel" @input="normalizePhone('applicant_phone')" />
-              </FormField>
-              <FormField label="Email" required :error="fieldErrors.applicant_email">
-                <input v-model.trim="form.applicant_email" :class="inputClass(fieldErrors.applicant_email)" type="email" />
-              </FormField>
-              <FormField label="Ngày sinh" required :error="fieldErrors.applicant_birth_date">
-                <input v-model="form.applicant_birth_date" :class="inputClass(fieldErrors.applicant_birth_date)" type="date" />
-              </FormField>
-              <FormField label="Loại chủ thể" required :error="fieldErrors.applicant_type">
-                <BaseCombobox v-model="form.applicant_type" :options="applicantTypeOptions" placeholder="Chọn loại chủ thể" :invalid="Boolean(fieldErrors.applicant_type)" />
-              </FormField>
-              <FormField label="Người đại diện" required :error="fieldErrors.representative_name">
-                <input v-model.trim="form.representative_name" :class="inputClass(fieldErrors.representative_name)" />
-              </FormField>
-              <FormField label="Loại giấy tờ" required :error="fieldErrors.representative_identity_type">
-                <BaseCombobox v-model="form.representative_identity_type" :options="identityTypeOptions" placeholder="Chọn loại giấy tờ" :invalid="Boolean(fieldErrors.representative_identity_type)" @update:model-value="normalizeIdentityNumber" />
-              </FormField>
-              <FormField label="Số CCCD/CMND/Hộ chiếu" required :error="fieldErrors.representative_identity_number">
-                <input v-model.trim="form.representative_identity_number" :class="inputClass(fieldErrors.representative_identity_number)" @input="normalizeIdentityNumber" />
-              </FormField>
-              <FormField label="Ngày cấp" :error="fieldErrors.representative_identity_issued_date">
-                <input v-model="form.representative_identity_issued_date" :class="inputClass(fieldErrors.representative_identity_issued_date)" type="date" />
-              </FormField>
-              <FormField label="Nơi cấp" :error="fieldErrors.representative_identity_issued_place">
-                <input v-model.trim="form.representative_identity_issued_place" :class="inputClass(fieldErrors.representative_identity_issued_place)" />
-              </FormField>
-              <FormField label="Tên đơn vị/cá nhân kinh doanh" required :error="fieldErrors.business_name">
-                <input v-model.trim="form.business_name" :class="inputClass(fieldErrors.business_name)" />
-              </FormField>
-              <FormField label="Mã số thuế" :error="fieldErrors.tax_code">
-                <input v-model.trim="form.tax_code" :class="inputClass(fieldErrors.tax_code)" @input="normalizeTaxCode" />
-              </FormField>
-              <FormField label="Số giấy đăng ký kinh doanh/pháp lý" required :error="fieldErrors.business_license_number">
-                <input v-model.trim="form.business_license_number" :class="inputClass(fieldErrors.business_license_number)" />
-              </FormField>
-              <FormField label="Mã doanh nghiệp/hộ kinh doanh" :error="fieldErrors.business_code">
-                <input v-model.trim="form.business_code" :class="inputClass(fieldErrors.business_code)" />
-              </FormField>
-              <FormField class="md:col-span-2" label="Địa chỉ liên hệ" required :error="fieldErrors.applicant_address">
-                <textarea v-model.trim="form.applicant_address" :class="textareaClass(fieldErrors.applicant_address)" rows="3"></textarea>
-              </FormField>
-              <FormField class="md:col-span-2" label="Địa chỉ pháp lý" required :error="fieldErrors.business_address">
-                <textarea v-model.trim="form.business_address" :class="textareaClass(fieldErrors.business_address)" rows="3"></textarea>
-              </FormField>
-            </div>
-          </FormSection>
-
-          <!-- Section: Thông tin ngân hàng -->
-          <FormSection title="Thông tin ngân hàng">
-            <div class="grid gap-4 md:grid-cols-2">
-              <FormField label="Ngân hàng" required :error="fieldErrors.bank_code">
-                <BaseCombobox v-model="form.bank_code" :options="bankOptions" placeholder="Tìm ngân hàng" :invalid="Boolean(fieldErrors.bank_code)" @select="selectBank" />
-              </FormField>
-              <FormField label="Số tài khoản" required :error="fieldErrors.account_number">
-                <input v-model.trim="form.account_number" :class="inputClass(fieldErrors.account_number)" inputmode="numeric" @input="onAccountNumberInput" />
-              </FormField>
-              <FormField label="Tên chủ tài khoản" required :error="fieldErrors.account_holder_name">
-                <input
-                  v-model.trim="form.account_holder_name"
-                  :class="inputClass(fieldErrors.account_holder_name)"
-                  placeholder="Nhập tên chủ tài khoản (viết IN HOA không dấu)"
-                  @input="onManualBankHolderInput()"
-                />
-              </FormField>
-              <FormField label="Chi nhánh" :error="fieldErrors.bank_branch">
-                <input v-model.trim="form.bank_branch" :class="inputClass(fieldErrors.bank_branch)" />
-              </FormField>
-            </div>
-          </FormSection>
-
-          <!-- Section: Địa chỉ sân -->
-          <FormSection title="Địa chỉ sân">
-            <div class="grid gap-4 md:grid-cols-2">
-              <FormField label="Tỉnh/Thành phố" required :error="fieldErrors.venue_province_code">
-                <BaseCombobox v-model="form.venue_province_code" :options="provinceOptions" placeholder="Tìm Tỉnh/Thành phố" :invalid="Boolean(fieldErrors.venue_province_code)" @select="onProvinceSelect" />
-              </FormField>
-              <FormField label="Phường/Xã" required :error="fieldErrors.venue_ward_code">
-                <BaseCombobox v-model="form.venue_ward_code" :options="wardOptions" placeholder="Tìm Phường/Xã" :disabled="!form.venue_province_code" :invalid="Boolean(fieldErrors.venue_ward_code)" @select="syncVenueAddress" />
-              </FormField>
-              <FormField class="md:col-span-2" label="Số nhà, tên đường" required :error="fieldErrors.street_address">
-                <input v-model.trim="form.street_address" :class="inputClass(fieldErrors.street_address)" placeholder="Ví dụ: 123 Nguyễn Hữu Cảnh" @input="syncVenueAddress" />
-              </FormField>
-              <FormField class="md:col-span-2" label="Link Google Maps" required :error="mapError || fieldErrors.venue_map_url">
-                <input v-model.trim="form.venue_map_url" :class="inputClass(mapError || fieldErrors.venue_map_url)" placeholder="Dán link Google Maps có tọa độ" @input="onMapUrlInput" />
-                <div v-if="mapSuggestion" class="mt-2 rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-800">
-                  <p>{{ mapSuggestion.message }}</p>
-                  <button type="button" class="mt-2 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition" @click="applyMapSuggestion">
-                    Cập nhật theo Google Maps
-                  </button>
-                </div>
-                <p v-else-if="mapStatus" class="mt-1 text-xs text-emerald-600">{{ mapStatus }}</p>
-              </FormField>
-              <input type="hidden" :value="form.venue_latitude" name="venue_latitude" />
-              <input type="hidden" :value="form.venue_longitude" name="venue_longitude" />
-              <FormField label="Tên cụm sân" required :error="fieldErrors.venue_name">
-                <input v-model.trim="form.venue_name" :class="inputClass(fieldErrors.venue_name)" />
-              </FormField>
-              <FormField label="Số điện thoại tại sân" required :error="fieldErrors.venue_phone">
-                <input v-model.trim="form.venue_phone" :class="inputClass(fieldErrors.venue_phone)" inputmode="tel" @input="normalizePhone('venue_phone')" />
-              </FormField>
-              <FormField label="Email tại sân" :error="fieldErrors.venue_email">
-                <input v-model.trim="form.venue_email" :class="inputClass(fieldErrors.venue_email)" type="email" />
-              </FormField>
-              <FormField label="Giờ mở cửa dự kiến" :error="fieldErrors.expected_opening_hours">
-                <input v-model.trim="form.expected_opening_hours" :class="inputClass(fieldErrors.expected_opening_hours)" placeholder="05:00 - 23:00" />
-              </FormField>
-              <FormField class="md:col-span-2" label="Mô tả ngắn về cơ sở" :error="fieldErrors.venue_description">
-                <textarea v-model.trim="form.venue_description" :class="textareaClass(fieldErrors.venue_description)" rows="3"></textarea>
-              </FormField>
-              <FormField class="md:col-span-2" label="Bãi xe/khu phụ trợ" :error="fieldErrors.parking_info">
-                <textarea v-model.trim="form.parking_info" :class="textareaClass(fieldErrors.parking_info)" rows="3"></textarea>
-              </FormField>
-            </div>
-          </FormSection>
-
-          <!-- Section: Cấu hình sân -->
-          <FormSection title="Cấu hình sân">
-            <div class="grid gap-4 md:grid-cols-2">
-              <FormField label="Số lượng sân con" required :error="fieldErrors.court_count_total">
-                <input v-model.number="form.court_count_total" :class="inputClass(fieldErrors.court_count_total)" type="number" min="1" max="100" @input="syncCourtRows" />
-              </FormField>
-              <FormField label="Giá cơ bản/giờ (VNĐ)" required :error="fieldErrors.base_price_per_hour">
-                <input v-model.number="form.base_price_per_hour" :class="inputClass(fieldErrors.base_price_per_hour)" type="number" min="1000" step="1000" />
-              </FormField>
-            </div>
-
-            <div class="mt-4 space-y-3">
-              <div
-                v-for="(court, index) in form.courts"
-                :key="court.local_id"
-                class="grid gap-3 rounded-lg border border-gray-100 bg-gray-50 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
-              >
-                <FormField :label="`Tên sân ${index + 1}`" required :error="fieldErrors[`courts.${index}.name`]">
-                  <input v-model.trim="court.name" :class="inputClass(fieldErrors[`courts.${index}.name`])" />
-                </FormField>
-                <FormField label="Loại sân" required :error="fieldErrors[`courts.${index}.court_type_id`]">
-                  <BaseCombobox v-model="court.court_type_id" :options="courtTypeOptions" placeholder="Chọn loại sân" :invalid="Boolean(fieldErrors[`courts.${index}.court_type_id`])" />
-                </FormField>
-                <button
-                  type="button"
-                  class="self-end rounded-lg border border-red-300 bg-white px-3 py-2.5 text-xs font-medium text-red-600 shadow-sm hover:bg-red-50 transition disabled:cursor-not-allowed disabled:opacity-40"
-                  :disabled="form.courts.length <= 1"
-                  @click="removeCourt(index)"
-                >
-                  Xóa
-                </button>
-              </div>
-            </div>
-
-            <div v-if="amenities.length" class="mt-4 flex flex-wrap gap-2">
-              <label
-                v-for="amenity in amenities"
-                :key="amenity.id || amenity.name"
-                class="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-700 shadow-sm hover:bg-gray-50 transition"
-              >
-                <input v-model="form.amenities" class="h-3.5 w-3.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" type="checkbox" :value="amenity.name" />
-                {{ amenity.name }}
-              </label>
-            </div>
-          </FormSection>
-
-          <!-- Section: Tài liệu -->
-          <FormSection title="Tài liệu đính kèm">
-            <div class="grid gap-4 md:grid-cols-2">
-              <UploadBox title="CCCD/CMND người đại diện" required :files="files.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
-              <UploadBox title="Giấy đăng ký kinh doanh/pháp lý" required :files="files.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
-              <UploadBox title="Hình ảnh cơ sở/sân" required :files="files.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
-              <UploadBox title="Chứng từ ngân hàng" required :files="files.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
-              <UploadBox title="Hợp đồng/giấy tờ thuê mặt bằng" required :files="files.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
-              <UploadBox title="Tài liệu bổ sung" :files="files.additional" :error="fieldErrors.additional_documents" @change="setFiles('additional', $event)" @remove="removeFile('additional', $event)" />
-            </div>
-          </FormSection>
-
-          <!-- Confirm checkbox -->
-          <div class="rounded-lg border border-gray-100 bg-white p-4">
-            <label class="flex items-start gap-3">
-              <input v-model="confirmed" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" type="checkbox" />
-              <span class="text-sm text-gray-600">Tôi xác nhận thông tin trong hồ sơ là chính xác và đồng ý để SportGo kiểm tra tài liệu trước khi duyệt đối tác.</span>
-            </label>
-            <p v-if="fieldErrors.confirmed" class="mt-1 ml-7 text-xs text-red-500">{{ fieldErrors.confirmed }}</p>
-          </div>
-
-          <!-- Submit row -->
-          <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
-            <button type="button" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition" @click="saveDraft">
-              Lưu nháp
-            </button>
-            <button
-              type="submit"
-              class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition disabled:cursor-not-allowed disabled:opacity-60"
-              :disabled="submitDisabled"
-            >
-              <span v-if="submitting" class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-emerald-300 border-t-white"></span>
-              {{ submitting ? 'Đang xử lý...' : 'Gửi hồ sơ đăng ký' }}
-            </button>
-          </div>
-        </form>
-      </template>
+      </Teleport>
     </main>
 
+    <!-- Modals (kept identical functionality) -->
     <DocumentViewerModal :show="showDocumentViewer" :document="viewingDocument" @close="closeDocumentViewer">
       <template #actions v-if="needsSignature(viewingDocument)">
-        <button type="button" class="w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition" style="background-color: #059669; color: #ffffff; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);" @click="openSignaturePad" onmouseover="this.style.backgroundColor='#047857'" onmouseout="this.style.backgroundColor='#059669'">
+        <button type="button" class="btn btn-primary" style="width: 100%;" @click="openSignaturePad">
           {{ signingContract ? 'Ký hợp đồng' : 'Ký xác nhận văn bản' }}
         </button>
       </template>
@@ -498,6 +422,14 @@
     <FloatingActions />
   </div>
 </template>
+
+<style scoped>
+@import "../../../css/partner/partner.css";
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>
 
 <script setup>
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
@@ -511,6 +443,27 @@ import { getAuth } from '../../stores/auth.js';
 import { api, apiDownload, apiFormData } from '../../services/api.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
+
+const currentStep = ref(1);
+const totalSteps = 4;
+
+function nextStep() {
+  if (currentStep.value < totalSteps) currentStep.value++;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function prevStep() {
+  if (currentStep.value > 1) currentStep.value--;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function setStep(step) {
+  if (step >= 1 && step <= totalSteps) {
+    currentStep.value = step;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
 const DRAFT_KEY = 'sportgo_partner_application_draft_v3';
 const BANK_CACHE_KEY = 'sportgo_partner_banks_v2';
 const BANK_CACHE_TTL = 24 * 60 * 60 * 1000;
@@ -548,18 +501,18 @@ const BaseCombobox = defineComponent({
       <div class="relative">
         <input
           :value="query" :placeholder="placeholder" :disabled="disabled"
-          class="w-full rounded-lg border px-3 py-2.5 pr-10 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
-          :class="invalid ? 'border-red-400' : 'border-gray-200'"
+          class="form-select"
+          :class="invalid ? 'has-error' : ''"
           @focus="!disabled && (open = true)" @blur="onBlur" @input="onInput"
         />
         <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
         </svg>
       </div>
-      <div v-if="open && !disabled" class="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-100 bg-white py-1 shadow-lg">
+      <div v-if="open && !disabled" class="combo-list">
         <button v-for="o in filtered" :key="optionValue(o)" type="button"
-          class="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-emerald-50"
-          :class="optionValue(o) === String(modelValue) ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'"
+          class="combo-item"
+          :class="optionValue(o) === String(modelValue) ? 'active' : ''"
           @mousedown.prevent="choose(o)">
           <span class="truncate">{{ optionLabel(o) }}</span>
           <svg v-if="optionValue(o) === String(modelValue)" class="ml-3 h-3.5 w-3.5 shrink-0 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
@@ -576,9 +529,9 @@ const FormSection = defineComponent({
   name: 'FormSection',
   props: { title: { type: String, required: true } },
   setup(props, { slots }) {
-    return () => h('section', { class: 'rounded-xl border border-gray-100 bg-white p-5 shadow-sm' }, [
-      h('div', { class: 'mb-4 border-b border-gray-50 pb-3' }, [
-        h('h2', { class: 'text-sm font-semibold text-gray-900' }, props.title),
+    return () => h('section', { class: 'portal-card' }, [
+      h('div', { class: '' }, [
+        h('h2', { class: 'form-section-title' }, props.title),
       ]),
       slots.default?.(),
     ]);
@@ -593,13 +546,13 @@ const FormField = defineComponent({
     error: { type: String, default: '' },
   },
   setup(props, { slots, attrs }) {
-    return () => h('label', { class: ['block', attrs.class] }, [
-      h('span', { class: 'mb-1.5 block text-xs font-medium text-gray-600' }, [
+    return () => h('div', { class: ['form-group', attrs.class] }, [
+      h('label', { class: 'form-label' }, [
         props.label,
-        props.required ? h('span', { class: 'ml-1 text-red-500' }, '*') : null,
+        props.required ? h('span', { class: 'required' }, '* ') : null,
       ]),
       slots.default?.(),
-      props.error ? h('p', { class: 'mt-1 text-xs text-red-500' }, props.error) : null,
+      props.error ? h('p', { class: 'error-text' }, props.error) : null,
     ]);
   },
 });
@@ -611,7 +564,7 @@ const InfoBlock = defineComponent({
     items: { type: Array, default: () => [] },
   },
   setup(props, { attrs }) {
-    return () => h('section', { class: ['rounded-lg border border-gray-100 bg-gray-50 p-4', attrs.class] }, [
+    return () => h('section', { class: ['portal-card', attrs.class], style: "background: #f8fafc; border: 1px solid var(--border-color);" }, [
       h('h3', { class: 'text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3' }, props.title),
       h('dl', { class: 'grid gap-1.5 text-sm sm:grid-cols-[140px_minmax(0,1fr)]' }, props.items.flatMap(([label, value]) => [
         h('dt', { class: 'text-xs text-gray-400' }, label),
@@ -641,10 +594,10 @@ const UploadBox = defineComponent({
     return { emit, fileSize };
   },
   template: `
-    <div class="rounded-lg border border-dashed p-4 transition" :class="error ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 hover:border-gray-300'">
+    <div style="border: 1px dashed var(--border-color); border-radius: 12px; padding: 16px; background: #f8fafc;">
       <label class="block cursor-pointer">
         <span class="text-xs font-medium text-gray-600">{{ title }}<span v-if="required" class="ml-1 text-red-500">*</span></span>
-        <input class="mt-2 block w-full text-xs text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" @change="emit('change', $event)" />
+        <input style="margin-top: 8px; width: 100%; font-size: 13px;" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" @change="emit('change', $event)" />
       </label>
       <p v-if="error" class="mt-1 text-xs text-red-500">{{ error }}</p>
       <ul v-if="files.length" class="mt-3 space-y-1.5">
@@ -764,8 +717,7 @@ function writeCache(key, value, ttl) { localStorage.setItem(key, JSON.stringify(
 function inputClass(error, extra = '') {
   return ['w-full rounded-lg border px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:bg-gray-50', error ? 'border-red-400' : 'border-gray-200', extra].filter(Boolean).join(' ');
 }
-function textareaClass(error) { return `${inputClass(error)} resize-y`; }
-
+function textareaClass(error) { return ['form-textarea', error ? 'has-error' : '']; }
 // ─── Data loaders ─────────────────────────────────────────────────────────────
 async function loadApplications() {
   loading.value = true;
