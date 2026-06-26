@@ -72,6 +72,7 @@ class AdminComplaintController extends Controller
                         ->orWhereHas('venueCluster', fn ($venue) => $venue->where('name', 'like', $keyword));
                 });
             })
+            ->orderByDesc('is_vip_priority')
             ->latest()
             ->get();
 
@@ -214,6 +215,7 @@ class AdminComplaintController extends Controller
             'complaint_type' => $complaint->complaint_type,
             'content' => $complaint->content,
             'status' => $complaint->status,
+            'is_vip_priority' => (bool) $complaint->is_vip_priority,
             'customer' => $this->userPayload($complaint->customer),
             'assigned_to' => $this->userPayload($complaint->assignedTo),
             'resolved_by' => $this->userPayload($complaint->resolvedBy),

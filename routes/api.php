@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Admin\PartnerApplicationController as AdminPartnerA
 use App\Http\Controllers\Api\Admin\PartnerContractController as AdminPartnerContractController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\Admin\VoucherController as AdminVoucherController;
+use App\Http\Controllers\Api\Admin\MembershipPackageController as AdminMembershipPackageController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\GoogleAuthController;
@@ -87,6 +88,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::put('/vouchers/{id}', [AdminVoucherController::class, 'update']);
         Route::patch('/vouchers/{id}/deactivate', [AdminVoucherController::class, 'deactivate']);
         Route::patch('/vouchers/{id}/activate', [AdminVoucherController::class, 'activate']);
+        Route::get('/membership-packages', [AdminMembershipPackageController::class, 'index']);
+        Route::put('/membership-packages/{id}', [AdminMembershipPackageController::class, 'update']);
         Route::get('/payments', [AdminPaymentController::class, 'index']);
         Route::get('/payments/{id}', [AdminPaymentController::class, 'show']);
         Route::post('/payments/{id}/retry', [AdminPaymentController::class, 'retry']);
@@ -336,6 +339,8 @@ Route::middleware('auth:sanctum')
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
+        Route::get('/vip-membership', [\App\Http\Controllers\Api\Player\VipMembershipController::class, 'index']);
+        Route::post('/vip-membership/subscribe', [\App\Http\Controllers\Api\Player\VipMembershipController::class, 'subscribe']);
         Route::post('/partner-applications', [\App\Http\Controllers\Api\Player\PartnerApplicationController::class, 'store']);
     });
 

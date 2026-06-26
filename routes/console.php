@@ -12,3 +12,5 @@ Schedule::command('app:release-expired-slot-locks')->everyMinute();
 Schedule::command('app:apply-policy-access-restrictions')->everyMinute();
 Schedule::command('app:revoke-expired-owner-roles')->daily();
 Schedule::command('app:evaluate-court-membership-maintenance')->daily();
+Schedule::command('app:expire-vip-subscriptions')->daily();
+Schedule::command('app:issue-monthly-vip-vouchers')->monthlyOn(1, '00:10');

@@ -5,6 +5,7 @@ namespace App\Services\Auth;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Services\Memberships\SystemVipService;
 use App\Services\Memberships\VenueMembershipService;
 
 class RoleRedirectService
@@ -25,7 +26,10 @@ class RoleRedirectService
 
     private const OWNER_ROLES = ['venue_owner', 'venue_staff'];
 
-    public function __construct(private readonly VenueMembershipService $venueMemberships) {}
+    public function __construct(
+        private readonly VenueMembershipService $venueMemberships,
+        private readonly SystemVipService $systemVip,
+    ) {}
 
     public function roles(User $user): array
     {
@@ -97,6 +101,7 @@ class RoleRedirectService
             $memberships = $this->venueMemberships->membershipsForUser($user);
             $payload['membership_tier'] = $memberships[0] ?? null;
             $payload['venue_memberships'] = $memberships;
+            $payload['vip_subscription'] = $this->systemVip->currentSubscriptionPayload($user);
         }
 
         return $payload;
