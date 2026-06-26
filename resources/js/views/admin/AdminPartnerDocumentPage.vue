@@ -60,6 +60,11 @@
           <h3>Ký điện tử SportGo</h3>
           <p>Kiểm tra nội dung hợp đồng đã điền đủ thông tin, sau đó ký xác nhận để gửi người dùng ký tiếp.</p>
 
+          <label class="confirm-line">
+            <input v-model="confirmed" type="checkbox" />
+            <span>{{ confirmationText }}</span>
+          </label>
+
           <div class="canvas-wrap">
             <canvas
               ref="canvas"
@@ -73,11 +78,21 @@
             <span v-if="signatureEmpty">Ký vào đây</span>
           </div>
 
+          <div v-if="otpSent" class="otp-box">
+            <label for="admin-signature-otp">Mã OTP</label>
+            <input id="admin-signature-otp" v-model.trim="otp" inputmode="numeric" maxlength="6" placeholder="Nhập 6 số OTP" />
+            <small>OTP gắn với hash file {{ hashShort }} và hết hạn lúc {{ formatDate(otpExpiresAt) }}.</small>
+          </div>
+
           <div class="sign-actions">
             <button class="btn ghost" type="button" @click="clearSignature">Ký lại</button>
-            <button class="btn primary" type="button" :disabled="signatureEmpty || saving" @click="submitSignature">
+            <button v-if="!otpSent" class="btn primary" type="button" :disabled="signatureEmpty || !confirmed || saving" @click="requestSignatureOtp">
               <AppIcon name="pencil" size="16" />
               {{ saving ? 'Đang lưu...' : 'Ký' }}
+            </button>
+            <button v-else class="btn primary" type="button" :disabled="otp.length !== 6 || saving" @click="verifySignatureOtp">
+              <AppIcon name="check" size="16" />
+              {{ saving ? 'Đang xác thực...' : 'Xác thực OTP' }}
             </button>
           </div>
         </section>
@@ -110,6 +125,12 @@ const document = ref(null);
 const canvas = ref(null);
 const drawing = ref(false);
 const signatureEmpty = ref(true);
+const confirmed = ref(false);
+const otpSent = ref(false);
+const otp = ref('');
+const signingRequestId = ref('');
+const hashShort = ref('');
+const otpExpiresAt = ref(null);
 
 const isGeneratedDocument = computed(() => document.value?.source !== 'uploaded');
 const isPartnerContract = computed(() => document.value?.document_type === 'partner_contract');
@@ -124,6 +145,7 @@ const canSign = computed(() => (
   && document.value?.status === 'pending_sportgo_signature'
   && !signatureBySide('sportgo')
 ));
+const confirmationText = computed(() => 'Tôi xác nhận đã kiểm tra toàn bộ nội dung hợp đồng, ký với vai trò đại diện SportGo/Admin được ủy quyền và chịu trách nhiệm về phiên bản văn bản đang hiển thị.');
 const readonlyHint = computed(() => {
   if (!isGeneratedDocument.value) return 'Tài liệu phụ lục chỉ hỗ trợ xem và tải xuống.';
   if (document.value?.status === 'pending_owner_signature') return 'SportGo đã ký. Văn bản đang chờ người dùng ký xác nhận.';
@@ -215,6 +237,65 @@ function stopDraw() {
 
 function clearSignature() {
   prepareCanvas();
+  resetOtpState();
+}
+
+function resetOtpState() {
+  confirmed.value = false;
+  otpSent.value = false;
+  otp.value = '';
+  signingRequestId.value = '';
+  hashShort.value = '';
+  otpExpiresAt.value = null;
+}
+
+async function requestSignatureOtp() {
+  if (!canvas.value || !document.value) return;
+
+  saving.value = true;
+  error.value = '';
+  message.value = '';
+
+  try {
+    const response = await adminPartnerApplicationService.requestSignDocumentOtp(application.value.id, {
+      contract_id: document.value.partner_contract_id,
+      signature_image: canvas.value.toDataURL('image/png'),
+      confirmed: confirmed.value,
+      confirmation_text: confirmationText.value,
+    });
+    signingRequestId.value = response.data?.signing_request_id || '';
+    hashShort.value = response.data?.hash_short || '';
+    otpExpiresAt.value = response.data?.expires_at || null;
+    otpSent.value = true;
+    otp.value = '';
+    message.value = response.message || 'Mã OTP đã được gửi.';
+  } catch (err) {
+    error.value = err.message || 'Không gửi được OTP ký văn bản.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function verifySignatureOtp() {
+  if (!signingRequestId.value || otp.value.length !== 6) return;
+
+  saving.value = true;
+  error.value = '';
+  message.value = '';
+
+  try {
+    const response = await adminPartnerApplicationService.verifySignDocumentOtp(application.value.id, {
+      signing_request_id: signingRequestId.value,
+      otp: otp.value,
+    });
+    message.value = response.message || 'SportGo đã ký hợp đồng.';
+    resetOtpState();
+    await loadData();
+  } catch (err) {
+    error.value = err.message || 'Không xác thực được OTP ký văn bản.';
+  } finally {
+    saving.value = false;
+  }
 }
 
 async function submitSignature() {
@@ -413,6 +494,55 @@ dd {
   border-color: #86efac;
   background: #f0fdf4;
   color: #166534;
+}
+
+.confirm-line {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin: 12px 0;
+  color: var(--admin-text, #334155);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.confirm-line input {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  accent-color: #0f172a;
+}
+
+.otp-box {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.otp-box label {
+  color: var(--admin-text, #0f172a);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.otp-box input {
+  min-height: 40px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 16px;
+  letter-spacing: .16em;
+}
+
+.otp-box input:focus {
+  outline: 2px solid rgba(15, 23, 42, .18);
+  border-color: #0f172a;
+}
+
+.otp-box small {
+  color: var(--admin-faint, #64748b);
+  line-height: 1.4;
 }
 
 .canvas-wrap {

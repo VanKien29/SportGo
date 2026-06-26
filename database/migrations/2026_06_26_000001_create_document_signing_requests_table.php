@@ -62,6 +62,7 @@ return new class extends Migration
 
         if (DB::getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE generated_documents MODIFY status VARCHAR(80) NOT NULL DEFAULT 'generated'");
+            DB::statement("ALTER TABLE verification_codes MODIFY type VARCHAR(150) NOT NULL COMMENT 'Muc dich ma OTP, ho tro type kem nonce cho ky van ban.'");
         }
     }
 

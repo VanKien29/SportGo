@@ -6,6 +6,7 @@ use App\Mail\Partner\PartnerApplicationApprovedMail;
 use App\Mail\Partner\PartnerApplicationReceivedMail;
 use App\Mail\Partner\PartnerApplicationRejectedMail;
 use App\Mail\Partner\PartnerContractSignedByOwnerMail;
+use App\Mail\Partner\PartnerDocumentOtpMail;
 use App\Models\CourtType;
 use App\Models\GeneratedDocument;
 use App\Models\OwnerBankAccount;
@@ -212,18 +213,30 @@ class AdminBannerPartnerApplicationTest extends TestCase
             'status' => 'pending_owner_signature',
         ]);
 
-        $this->actingAs($user, 'sanctum')
-            ->postJson("/api/user/partner-application/{$applicationId}/sign-document", [
+        $applicationDocument = GeneratedDocument::query()
+            ->where('partner_application_id', $applicationId)
+            ->where('document_type', 'partner_application_form')
+            ->firstOrFail();
+
+        $otpResponse = $this->actingAs($user, 'sanctum')
+            ->postJson("/api/user/partner-application/{$applicationId}/sign-document/request-otp", [
                 'signature_image' => $this->signatureImage(),
+                'confirmed' => true,
+                'confirmation_text' => 'Tôi xác nhận đã đọc, kiểm tra và chịu trách nhiệm về tính chính xác, hợp pháp của toàn bộ thông tin, tài liệu trong đơn đăng ký này.',
             ])
             ->assertOk()
             ->assertJsonPath('status', 'success');
 
+        $otp = $this->queuedDocumentOtp($otpResponse->json('data.signing_request_id'));
+
         $this->actingAs($user, 'sanctum')
-            ->postJson("/api/user/partner-application/{$applicationId}/submit")
+            ->postJson("/api/user/partner-application/{$applicationId}/sign-document/verify-otp", [
+                'signing_request_id' => $otpResponse->json('data.signing_request_id'),
+                'otp' => $otp,
+            ])
             ->assertOk()
             ->assertJsonPath('status', 'success')
-            ->assertJsonPath('data.status', 'submitted');
+            ->assertJsonPath('data.application.status', 'submitted');
 
         Mail::assertQueued(PartnerApplicationReceivedMail::class, function (PartnerApplicationReceivedMail $mail) use ($applicationId): bool {
             return $mail->application->id === $applicationId;
@@ -255,10 +268,7 @@ class AdminBannerPartnerApplicationTest extends TestCase
             'status' => 'completed',
         ]);
 
-        $applicationDocument = GeneratedDocument::query()
-            ->where('partner_application_id', $applicationId)
-            ->where('document_type', 'partner_application_form')
-            ->firstOrFail();
+        $applicationDocument->refresh();
 
         $this->assertDocxContains($applicationDocument, [
             'Nguyễn Kiên',
@@ -428,10 +438,21 @@ class AdminBannerPartnerApplicationTest extends TestCase
             '{{contract_number}}',
         ]);
 
-        $this->actingAs($this->admin, 'sanctum')
-            ->postJson("/api/admin/contracts/{$contract->id}/approve-signature", [
-                'contract_id' => $contract->id,
+        $adminOtpResponse = $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/admin/contracts/{$contract->id}/approve-signature/request-otp", [
                 'signature_image' => $this->signatureImage(),
+                'confirmed' => true,
+                'confirmation_text' => 'Tôi xác nhận đã kiểm tra toàn bộ nội dung hợp đồng và ký với vai trò đại diện SportGo.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $adminOtp = $this->queuedDocumentOtp($adminOtpResponse->json('data.signing_request_id'));
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/admin/contracts/{$contract->id}/approve-signature/verify-otp", [
+                'signing_request_id' => $adminOtpResponse->json('data.signing_request_id'),
+                'otp' => $adminOtp,
             ])
             ->assertOk()
             ->assertJsonPath('status', 'success');
@@ -454,10 +475,22 @@ class AdminBannerPartnerApplicationTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->actingAs($applicant, 'sanctum')
-            ->postJson('/api/user/partner-application/sign-contract', [
+        $ownerOtpResponse = $this->actingAs($applicant, 'sanctum')
+            ->postJson('/api/user/partner-application/sign-contract/request-otp', [
                 'contract_id' => $contract->id,
                 'signature_image' => $this->signatureImage(),
+                'confirmed' => true,
+                'confirmation_text' => 'Tôi xác nhận đã đọc, hiểu rõ toàn bộ nội dung hợp đồng, đồng ý giao kết hợp đồng này với SportGo và xác nhận thông tin trong hợp đồng là đúng.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $ownerOtp = $this->queuedDocumentOtp($ownerOtpResponse->json('data.signing_request_id'));
+
+        $this->actingAs($applicant, 'sanctum')
+            ->postJson('/api/user/partner-application/sign-contract/verify-otp', [
+                'signing_request_id' => $ownerOtpResponse->json('data.signing_request_id'),
+                'otp' => $ownerOtp,
             ])
             ->assertOk()
             ->assertJsonPath('status', 'success');
@@ -556,6 +589,25 @@ class AdminBannerPartnerApplicationTest extends TestCase
         return 'data:image/png;base64,' . base64_encode(base64_decode(
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII='
         ));
+    }
+
+    private function queuedDocumentOtp(string $signingRequestId): string
+    {
+        $otp = null;
+
+        Mail::assertQueued(PartnerDocumentOtpMail::class, function (PartnerDocumentOtpMail $mail) use ($signingRequestId, &$otp): bool {
+            if ($mail->signingRequest->id !== $signingRequestId) {
+                return false;
+            }
+
+            $otp = $mail->otp;
+
+            return true;
+        });
+
+        $this->assertNotNull($otp, 'Không lấy được OTP ký văn bản từ mail fake.');
+
+        return $otp;
     }
 
     private function assertDocxContains(GeneratedDocument $document, array $needles): void

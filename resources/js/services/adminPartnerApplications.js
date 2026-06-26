@@ -41,6 +41,20 @@ export const adminPartnerApplicationService = {
     });
   },
 
+  requestSignDocumentOtp(id, payload = {}) {
+    return api(`/api/admin/partner-profiles/${id}/sign-document/request-otp`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  verifySignDocumentOtp(id, payload = {}) {
+    return api(`/api/admin/partner-profiles/${id}/sign-document/verify-otp`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   terminate(id, payload) {
     return api(`/api/admin/partner-profiles/${id}/terminate`, {
       method: 'POST',

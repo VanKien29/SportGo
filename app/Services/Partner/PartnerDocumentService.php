@@ -351,7 +351,14 @@ class PartnerDocumentService
 
     private function appendDocumentDataAppendixToFile(string $docxPath, array $data, string $documentType): void
     {
-        if (! in_array($documentType, ['partner_application_form', 'partner_contract'], true) || ! class_exists(ZipArchive::class)) {
+        if (! in_array($documentType, [
+            'partner_application_form',
+            'partner_contract',
+            'termination_request',
+            'mutual_liquidation_minutes',
+            'unilateral_termination_notice',
+            'settlement_minutes',
+        ], true) || ! class_exists(ZipArchive::class)) {
             return;
         }
 
@@ -406,6 +413,10 @@ class PartnerDocumentService
         match ($documentType) {
             'partner_application_form' => $this->appendApplicationAppendix($zip, $data),
             'partner_contract' => $this->appendPartnerContractAppendix($zip, $data),
+            'termination_request',
+            'mutual_liquidation_minutes',
+            'unilateral_termination_notice',
+            'settlement_minutes' => $this->appendWorkflowDocumentAppendix($zip, $data, $documentType),
             default => null,
         };
     }
@@ -528,6 +539,129 @@ class PartnerDocumentService
         $insert = implode('', $paragraphs);
         $xml = str_replace('</w:body>', $insert . '</w:body>', $xml);
         $zip->addFromString($entry, $xml);
+    }
+
+    private function appendWorkflowDocumentAppendix(ZipArchive $zip, array $data, string $documentType): void
+    {
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false || ! str_contains($xml, '</w:body>')) {
+            return;
+        }
+
+        $titles = [
+            'termination_request' => 'PHỤ LỤC THÔNG TIN YÊU CẦU CHẤM DỨT ĐÃ ĐIỀN TRÊN HỆ THỐNG SPORTGO',
+            'mutual_liquidation_minutes' => 'PHỤ LỤC THÔNG TIN BIÊN BẢN THANH LÝ ĐÃ ĐIỀN TRÊN HỆ THỐNG SPORTGO',
+            'unilateral_termination_notice' => 'PHỤ LỤC THÔNG TIN CÔNG VĂN CHẤM DỨT ĐÃ ĐIỀN TRÊN HỆ THỐNG SPORTGO',
+            'settlement_minutes' => 'PHỤ LỤC THÔNG TIN BIÊN BẢN QUYẾT TOÁN ĐÃ ĐIỀN TRÊN HỆ THỐNG SPORTGO',
+        ];
+
+        $preferredKeys = match ($documentType) {
+            'termination_request' => [
+                'termination_code',
+                'contract_code',
+                'venue_name',
+                'owner_full_name',
+                'full_name',
+                'termination_reason',
+                'requested_at',
+                'requested_by',
+                'termination_type',
+                'requested_effective_date',
+                'owner_bank_account_snapshot',
+            ],
+            'mutual_liquidation_minutes' => [
+                'liquidation_minutes_code',
+                'contract_code',
+                'termination_request_code',
+                'venue_name',
+                'party_a_rep',
+                'party_b_name',
+                'termination_reason',
+                'agreed_termination_date',
+                'effective_date',
+                'settlement_table',
+                'owner_wallet_available_amount',
+                'unpaid_platform_fee_amount',
+                'final_payable_to_owner',
+                'final_receivable_from_owner',
+                'owner_access_revocation_date',
+            ],
+            'unilateral_termination_notice' => [
+                'document_number',
+                'notice_code',
+                'issue_date',
+                'issuer_side',
+                'receiver_name',
+                'venue_owner_name',
+                'contract_code',
+                'venue_name',
+                'legal_basis_text',
+                'termination_reason',
+                'effective_termination_date',
+                'transition_end_at',
+                'required_actions',
+                'settlement_deadline',
+                'issuer_representative_name',
+            ],
+            'settlement_minutes' => [
+                'settlement_code',
+                'settlement_date',
+                'contract_code',
+                'termination_request_code',
+                'owner_full_name',
+                'venue_name',
+                'total_paid',
+                'months_used',
+                'months_remaining',
+                'refund_amount',
+                'owner_wallet_available_amount',
+                'platform_fee_remaining_refund_amount',
+                'unpaid_platform_fee_amount',
+                'penalty_amount',
+                'adjustment_amount',
+                'final_payable_to_owner',
+                'final_receivable_from_owner',
+                'bank_account',
+                'bank_name',
+                'account_number',
+                'account_holder_name',
+                'settlement_items',
+                'withdrawal_code',
+                'withdrawal_status',
+            ],
+            default => array_keys($data),
+        };
+
+        $paragraphs = [
+            $this->docxParagraph(''),
+            $this->docxParagraph($titles[$documentType] ?? 'PHỤ LỤC THÔNG TIN VĂN BẢN ĐÃ ĐIỀN TRÊN HỆ THỐNG SPORTGO', true),
+            $this->docxParagraph('Phần này được hệ thống tự động điền từ dữ liệu nghiệp vụ đã được lưu trên SportGo để bảo đảm file Word lưu, tải và preview có dữ liệu thật.'),
+        ];
+
+        foreach ($preferredKeys as $key) {
+            $value = $data[$key] ?? null;
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $paragraphs[] = $this->docxParagraph($this->humanLabel($key) . ': ' . $this->plainValue($value));
+        }
+
+        $paragraphs[] = $this->docxParagraph('');
+        $paragraphs[] = $this->docxParagraph('Chữ ký đại diện SportGo:', true);
+        $paragraphs[] = $this->docxParagraph('{{signature_sportgo}}');
+        $paragraphs[] = $this->docxParagraph('Chữ ký/xác nhận đối tác/chủ sân:', true);
+        $paragraphs[] = $this->docxParagraph('{{signature_owner}}');
+
+        $insert = implode('', $paragraphs);
+        $xml = str_replace('</w:body>', $insert . '</w:body>', $xml);
+        $zip->addFromString($entry, $xml);
+    }
+
+    private function humanLabel(string $key): string
+    {
+        return Str::headline(str_replace('_', ' ', $key));
     }
 
     private function docxParagraph(string $text, bool $bold = false): string
