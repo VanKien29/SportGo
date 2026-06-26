@@ -25,6 +25,10 @@
           <label>Danh hiệu<input v-model.trim="pkg.badge_name" :disabled="pkg.type === 'free'" /></label>
           <label>% Hoàn tiền<input v-model.number="pkg.cashback_percent" type="number" min="0" max="100" step="0.01" :disabled="pkg.type === 'free'" required /></label>
           <label>Bài giao lưu/tháng<input v-model.number="pkg.match_post_limit_per_month" type="number" min="-1" required /></label>
+          <label>Voucher VIP/tháng<input v-model.number="pkg.voucher_count_per_month" type="number" min="0" max="50" :disabled="pkg.type === 'free'" required /></label>
+          <label>% giảm voucher<input v-model.number="pkg.voucher_discount_percent" type="number" min="0" max="100" step="0.01" :disabled="pkg.type === 'free'" required /></label>
+          <label>Đơn tối thiểu<input v-model.number="pkg.voucher_min_order_amount" type="number" min="0" step="1000" :disabled="pkg.type === 'free'" required /></label>
+          <label>Trần giảm voucher<input v-model.number="pkg.voucher_max_discount_amount" type="number" min="0" step="1000" :disabled="pkg.type === 'free'" /></label>
         </div>
 
         <label class="check">
@@ -245,10 +249,10 @@ export default {
         monthly_price: pkg.monthly_price,
         quarterly_price: pkg.quarterly_price || null,
         yearly_price: pkg.yearly_price || null,
-        voucher_count_per_month: 0,
-        voucher_discount_percent: 0,
-        voucher_min_order_amount: 0,
-        voucher_max_discount_amount: null,
+        voucher_count_per_month: Number(pkg.voucher_count_per_month || 0),
+        voucher_discount_percent: Number(pkg.voucher_discount_percent || 0),
+        voucher_min_order_amount: Number(pkg.voucher_min_order_amount || 0),
+        voucher_max_discount_amount: pkg.voucher_max_discount_amount || null,
         cashback_percent: Number(pkg.cashback_percent || 0),
         match_post_limit_per_month: Number(pkg.match_post_limit_per_month || 0),
         priority_complaint: Boolean(pkg.priority_complaint),
@@ -267,6 +271,8 @@ export default {
     validatePackage(pkg) {
       const postLimit = Number(pkg.match_post_limit_per_month);
       const cashback = Number(pkg.cashback_percent);
+      const voucherCount = Number(pkg.voucher_count_per_month);
+      const voucherDiscount = Number(pkg.voucher_discount_percent);
 
       if (!Number.isFinite(postLimit) || postLimit < -1) {
         this.error = 'Bài giao lưu/tháng chỉ được nhập -1 hoặc số từ 0 trở lên. -1 nghĩa là không giới hạn.';
@@ -275,6 +281,16 @@ export default {
 
       if (!Number.isFinite(cashback) || cashback < 0 || cashback > 100) {
         this.error = '% Hoàn tiền phải nằm trong khoảng 0 đến 100.';
+        return false;
+      }
+
+      if (!Number.isFinite(voucherCount) || voucherCount < 0 || voucherCount > 50) {
+        this.error = 'Voucher VIP/tháng phải nằm trong khoảng 0 đến 50.';
+        return false;
+      }
+
+      if (!Number.isFinite(voucherDiscount) || voucherDiscount < 0 || voucherDiscount > 100) {
+        this.error = '% giảm voucher phải nằm trong khoảng 0 đến 100.';
         return false;
       }
 

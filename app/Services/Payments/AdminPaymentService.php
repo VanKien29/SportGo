@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Models\Payment;
 use App\Models\PaymentLog;
 use App\Models\SlotLock;
+use App\Services\Memberships\SystemVipService;
 use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -12,7 +13,10 @@ use RuntimeException;
 
 class AdminPaymentService
 {
-    public function __construct(private readonly OwnerWalletService $ownerWalletService) {}
+    public function __construct(
+        private readonly OwnerWalletService $ownerWalletService,
+        private readonly SystemVipService $systemVipService,
+    ) {}
 
     public function retry(Payment $payment, array $context): Payment
     {
@@ -40,7 +44,9 @@ class AdminPaymentService
 
             $newPayment = Payment::query()->create([
                 'payment_code' => 'PM'.Str::upper(Str::random(10)),
+                'payment_context' => $payment->payment_context,
                 'booking_id' => $payment->booking_id,
+                'subscription_id' => $payment->subscription_id,
                 'system_bank_account_id' => $payment->system_bank_account_id,
                 'amount' => $payment->amount,
                 'wallet_amount' => $payment->wallet_amount,
@@ -89,7 +95,11 @@ class AdminPaymentService
 
             $statusBefore = $payment->status;
 
-            if ($status === 'paid' && ! in_array($payment->booking?->status, ['pending_payment', 'confirmed', 'checked_in', 'completed'], true)) {
+            if (
+                $status === 'paid'
+                && ($payment->payment_context ?? 'booking') !== 'vip_subscription'
+                && ! in_array($payment->booking?->status, ['pending_payment', 'confirmed', 'checked_in', 'completed'], true)
+            ) {
                 throw new RuntimeException('Booking không còn ở trạng thái cho phép xác nhận thanh toán. Hãy xử lý hoàn tiền hoặc đối soát riêng.');
             }
 
@@ -118,17 +128,21 @@ class AdminPaymentService
             $payment->save();
 
             if ($status === 'paid') {
-                if ($payment->booking?->status === 'pending_payment') {
-                    $payment->booking()->update(['status' => 'confirmed']);
-                }
+                if (($payment->payment_context ?? 'booking') === 'vip_subscription') {
+                    $this->systemVipService->activateSubscriptionFromPayment($payment);
+                } else {
+                    if ($payment->booking?->status === 'pending_payment') {
+                        $payment->booking()->update(['status' => 'confirmed']);
+                    }
 
-                SlotLock::query()->where('booking_id', $payment->booking_id)->delete();
-                $this->ownerWalletService->creditBookingPayment($payment, [
-                    'source' => $context['source'],
-                    'transaction_id' => $payment->gateway_txn_id,
-                    'reason' => $context['reason'],
-                    'admin_id' => $context['actor_id'],
-                ]);
+                    SlotLock::query()->where('booking_id', $payment->booking_id)->delete();
+                    $this->ownerWalletService->creditBookingPayment($payment, [
+                        'source' => $context['source'],
+                        'transaction_id' => $payment->gateway_txn_id,
+                        'reason' => $context['reason'],
+                        'admin_id' => $context['actor_id'],
+                    ]);
+                }
             }
 
             PaymentLog::query()->create([

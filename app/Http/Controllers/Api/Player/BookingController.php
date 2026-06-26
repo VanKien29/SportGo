@@ -135,6 +135,10 @@ class BookingController extends Controller
             'payment_option' => 'required|in:full_payment,deposit,no_prepay',
             'voucher_id' => 'nullable|uuid|exists:vouchers,id',
             'voucher_code' => 'nullable|string|max:50',
+            'venue_voucher_id' => 'nullable|uuid|exists:vouchers,id',
+            'venue_voucher_code' => 'nullable|string|max:50',
+            'vip_voucher_id' => 'nullable|uuid|exists:vouchers,id',
+            'vip_voucher_code' => 'nullable|string|max:50',
         ]);
         $this->ensureValidTimeRange($validated['start_time'], $validated['end_time']);
 

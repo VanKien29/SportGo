@@ -8,6 +8,7 @@ use App\Services\Memberships\SystemVipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use RuntimeException;
 
 class VipMembershipController extends Controller
 {
@@ -31,11 +32,23 @@ class VipMembershipController extends Controller
         ]);
 
         $package = MembershipPackage::query()->findOrFail($data['package_id']);
-        $subscription = $this->vip->subscribe($request->user(), $package, $data['billing_cycle']);
+
+        try {
+            $result = $this->vip->subscribe($request->user(), $package, $data['billing_cycle']);
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
 
         return response()->json([
-            'message' => 'Đã kích hoạt gói VIP hệ thống.',
-            'subscription' => $this->vip->subscriptionPayload($subscription),
+            'message' => 'Đã tạo thông tin thanh toán gói VIP. Vui lòng chuyển khoản để kích hoạt gói.',
+            'subscription' => $this->vip->subscriptionPayload($result['subscription']),
+            'payment' => $result['payment'],
+            'payment_account' => $result['payment_account'],
+            'system_bank_account' => $result['system_bank_account'],
+            'transfer_content' => $result['transfer_content'],
+            'qr_url' => $result['qr_url'],
         ], 201);
     }
 }

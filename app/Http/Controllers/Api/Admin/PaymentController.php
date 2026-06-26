@@ -47,6 +47,9 @@ class PaymentController extends Controller
                 'booking:id,booking_code,customer_id,venue_cluster_id,total_price,payment_option,status,walk_in_name,walk_in_phone',
                 'booking.customer:id,username,full_name,email,phone',
                 'booking.venueCluster:id,name,owner_id',
+                'subscription:id,user_id,package_id,billing_cycle,status,started_at,expires_at,paid_amount',
+                'subscription.user:id,username,full_name,email,phone',
+                'subscription.membershipPackage:id,name,type,badge_name',
             ])
             ->withCount('logs');
 
@@ -88,6 +91,8 @@ class PaymentController extends Controller
                 'booking.customer:id,username,full_name,email,phone',
                 'booking.venueCluster:id,name,owner_id',
                 'booking.venueCluster.owner:id,username,full_name,email,phone',
+                'subscription.user:id,username,full_name,email,phone',
+                'subscription.membershipPackage:id,name,type,badge_name',
                 'systemBankAccount',
                 'logs',
                 'ownerWalletLedgers',
@@ -198,13 +203,24 @@ class PaymentController extends Controller
         return [
             'id' => $payment->id,
             'payment_code' => $payment->payment_code,
+            'payment_context' => $payment->payment_context ?? 'booking',
             'booking_id' => $payment->booking_id,
+            'subscription_id' => $payment->subscription_id,
             'booking' => $payment->booking ? [
                 'id' => $payment->booking->id,
                 'booking_code' => $payment->booking->booking_code,
                 'status' => $payment->booking->status,
                 'total_price' => $payment->booking->total_price,
                 'payment_option' => $payment->booking->payment_option,
+            ] : null,
+            'subscription' => $payment->subscription ? [
+                'id' => $payment->subscription->id,
+                'billing_cycle' => $payment->subscription->billing_cycle,
+                'status' => $payment->subscription->status,
+                'started_at' => $payment->subscription->started_at,
+                'expires_at' => $payment->subscription->expires_at,
+                'paid_amount' => $payment->subscription->paid_amount,
+                'package' => $payment->subscription->membershipPackage,
             ] : null,
             'customer' => $this->customerPayload($payment),
             'venue_cluster' => $payment->booking?->venueCluster,
@@ -242,6 +258,18 @@ class PaymentController extends Controller
                 'full_name' => $customer->full_name,
                 'email' => $customer->email,
                 'phone' => $customer->phone,
+                'is_walk_in' => false,
+            ];
+        }
+
+        $subscriptionUser = $payment->subscription?->user;
+        if ($subscriptionUser) {
+            return [
+                'id' => $subscriptionUser->id,
+                'username' => $subscriptionUser->username,
+                'full_name' => $subscriptionUser->full_name,
+                'email' => $subscriptionUser->email,
+                'phone' => $subscriptionUser->phone,
                 'is_walk_in' => false,
             ];
         }

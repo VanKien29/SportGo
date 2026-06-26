@@ -175,7 +175,7 @@ class BookingService
             $membership = $this->venueMemberships->discountForBooking($customerId, $venueClusterId, $originalAmount);
             $membershipDiscountAmount = (float) $membership['discount_amount'];
             $amountAfterMembership = round(max($originalAmount - $membershipDiscountAmount, 0), 2);
-            $voucher = $this->resolveVoucherForBooking(
+            $vouchers = $this->resolveVouchersForBooking(
                 $data,
                 $customerId,
                 $venueClusterId,
@@ -183,7 +183,11 @@ class BookingService
                 'single',
                 $amountAfterMembership,
             );
-            $voucherDiscountAmount = (float) ($voucher['discount_amount'] ?? 0);
+            $venueVoucher = $vouchers['venue'];
+            $vipVoucher = $vouchers['vip'];
+            $venueVoucherDiscountAmount = (float) ($venueVoucher['discount_amount'] ?? 0);
+            $vipVoucherDiscountAmount = (float) ($vipVoucher['discount_amount'] ?? 0);
+            $voucherDiscountAmount = round($venueVoucherDiscountAmount + $vipVoucherDiscountAmount, 2);
             $discountAmount = round($membershipDiscountAmount + $voucherDiscountAmount, 2);
             $totalPrice = round(max($amountAfterMembership - $voucherDiscountAmount, 0), 2);
 
@@ -219,11 +223,15 @@ class BookingService
                 'discount_amount' => $discountAmount,
                 'membership_tier_discount_amount' => $membershipDiscountAmount,
                 'membership_tier' => $membership['tier'] ?? 'standard',
-                'system_discount_amount' => ($voucher['funded_by'] ?? null) === 'system' ? $voucherDiscountAmount : 0,
-                'venue_discount_amount' => ($voucher['funded_by'] ?? null) === 'venue' ? $voucherDiscountAmount : 0,
+                'system_discount_amount' => $vipVoucherDiscountAmount,
+                'venue_discount_amount' => $venueVoucherDiscountAmount,
                 'final_amount' => $totalPrice,
-                'voucher_id' => $voucher['id'] ?? null,
-                'voucher_code_snapshot' => $voucher['code'] ?? null,
+                'voucher_id' => $venueVoucher['id'] ?? $vipVoucher['id'] ?? null,
+                'voucher_code_snapshot' => $venueVoucher['code'] ?? $vipVoucher['code'] ?? null,
+                'venue_voucher_id' => $venueVoucher['id'] ?? null,
+                'venue_voucher_code_snapshot' => $venueVoucher['code'] ?? null,
+                'vip_voucher_id' => $vipVoucher['id'] ?? null,
+                'vip_voucher_code_snapshot' => $vipVoucher['code'] ?? null,
                 'payment_option' => $paymentOption,
                 'required_payment_amount' => $requiredPaymentAmount,
                 'source' => 'online',
@@ -232,7 +240,7 @@ class BookingService
                 'created_by' => $customerId,
             ]);
 
-            if ($voucher) {
+            foreach (array_filter([$venueVoucher, $vipVoucher]) as $voucher) {
                 $this->recordVoucherUsage($voucher, $booking, $customerId);
             }
 
@@ -988,7 +996,7 @@ class BookingService
         $membership = $this->venueMemberships->discountForBooking($customer->id, $court->venue_cluster_id, $originalAmount);
         $membershipDiscountAmount = (float) $membership['discount_amount'];
         $amountAfterMembership = round(max($originalAmount - $membershipDiscountAmount, 0), 2);
-        $voucher = $this->resolveVoucherForBooking(
+        $vouchers = $this->resolveVouchersForBooking(
             $data,
             $customer->id,
             $court->venue_cluster_id,
@@ -996,7 +1004,11 @@ class BookingService
             $bookingType,
             $amountAfterMembership,
         );
-        $voucherDiscountAmount = (float) ($voucher['discount_amount'] ?? 0);
+        $venueVoucher = $vouchers['venue'];
+        $vipVoucher = $vouchers['vip'];
+        $venueVoucherDiscountAmount = (float) ($venueVoucher['discount_amount'] ?? 0);
+        $vipVoucherDiscountAmount = (float) ($vipVoucher['discount_amount'] ?? 0);
+        $voucherDiscountAmount = round($venueVoucherDiscountAmount + $vipVoucherDiscountAmount, 2);
         $discountAmount = round($membershipDiscountAmount + $voucherDiscountAmount, 2);
         $totalPrice = round(max($amountAfterMembership - $voucherDiscountAmount, 0), 2);
         $requiredPaymentAmount = $this->requiredPaymentAmount($court->venue_cluster_id, $totalPrice, $data['payment_option']);
@@ -1022,11 +1034,15 @@ class BookingService
             'discount_amount' => $discountAmount,
             'membership_tier_discount_amount' => $membershipDiscountAmount,
             'membership_tier' => $membership['tier'] ?? 'standard',
-            'system_discount_amount' => ($voucher['funded_by'] ?? null) === 'system' ? $voucherDiscountAmount : 0,
-            'venue_discount_amount' => ($voucher['funded_by'] ?? null) === 'venue' ? $voucherDiscountAmount : 0,
+            'system_discount_amount' => $vipVoucherDiscountAmount,
+            'venue_discount_amount' => $venueVoucherDiscountAmount,
             'final_amount' => $totalPrice,
-            'voucher_id' => $voucher['id'] ?? null,
-            'voucher_code_snapshot' => $voucher['code'] ?? null,
+            'voucher_id' => $venueVoucher['id'] ?? $vipVoucher['id'] ?? null,
+            'voucher_code_snapshot' => $venueVoucher['code'] ?? $vipVoucher['code'] ?? null,
+            'venue_voucher_id' => $venueVoucher['id'] ?? null,
+            'venue_voucher_code_snapshot' => $venueVoucher['code'] ?? null,
+            'vip_voucher_id' => $vipVoucher['id'] ?? null,
+            'vip_voucher_code_snapshot' => $vipVoucher['code'] ?? null,
             'payment_option' => $data['payment_option'],
             'required_payment_amount' => $requiredPaymentAmount,
             'source' => 'counter',
@@ -1055,7 +1071,7 @@ class BookingService
 
         $this->ensurePendingPaymentLocks($booking->setRelation('items', $bookingItems), $actor->id);
 
-        if ($voucher) {
+        foreach (array_filter([$venueVoucher, $vipVoucher]) as $voucher) {
             $this->recordVoucherUsage($voucher, $booking, $customer->id);
         }
 
@@ -1354,7 +1370,41 @@ class BookingService
             ->orderByDesc('discount_value');
     }
 
-    private function resolveVoucherForBooking(array $data, string $usageUserId, string $venueClusterId, string $courtTypeId, string $bookingType, float $amount): ?array
+    private function resolveVouchersForBooking(array $data, string $usageUserId, string $venueClusterId, string $courtTypeId, string $bookingType, float $amount): array
+    {
+        $hasSplitVoucherInput = ($data['venue_voucher_id'] ?? null)
+            || ($data['venue_voucher_code'] ?? null)
+            || ($data['vip_voucher_id'] ?? null)
+            || ($data['vip_voucher_code'] ?? null);
+
+        if (! $hasSplitVoucherInput) {
+            $voucher = $this->resolveVoucherForBooking($data, $usageUserId, $venueClusterId, $courtTypeId, $bookingType, $amount);
+
+            return [
+                'venue' => ($voucher['owner_type'] ?? null) === 'venue' ? $voucher : null,
+                'vip' => $voucher && ($voucher['owner_type'] ?? null) !== 'venue' ? $voucher : null,
+            ];
+        }
+
+        $venueVoucher = $this->resolveVoucherForBooking([
+            'voucher_id' => $data['venue_voucher_id'] ?? null,
+            'voucher_code' => $data['venue_voucher_code'] ?? null,
+        ], $usageUserId, $venueClusterId, $courtTypeId, $bookingType, $amount, 'venue');
+
+        $amountAfterVenueVoucher = round(max($amount - (float) ($venueVoucher['discount_amount'] ?? 0), 0), 2);
+
+        $vipVoucher = $this->resolveVoucherForBooking([
+            'voucher_id' => $data['vip_voucher_id'] ?? null,
+            'voucher_code' => $data['vip_voucher_code'] ?? null,
+        ], $usageUserId, $venueClusterId, $courtTypeId, $bookingType, $amountAfterVenueVoucher, 'system');
+
+        return [
+            'venue' => $venueVoucher,
+            'vip' => $vipVoucher,
+        ];
+    }
+
+    private function resolveVoucherForBooking(array $data, string $usageUserId, string $venueClusterId, string $courtTypeId, string $bookingType, float $amount, ?string $expectedOwnerType = null): ?array
     {
         $voucherId = $data['voucher_id'] ?? null;
         $voucherCode = $data['voucher_code'] ?? null;
@@ -1375,6 +1425,14 @@ class BookingService
         if (! $voucher) {
             throw ValidationException::withMessages([
                 'voucher_code' => 'Voucher không tồn tại hoặc chưa được kích hoạt.',
+            ]);
+        }
+
+        if ($expectedOwnerType && $voucher->owner_type !== $expectedOwnerType) {
+            throw ValidationException::withMessages([
+                'voucher_code' => $expectedOwnerType === 'venue'
+                    ? 'Voucher sân phải là voucher do sân phát hành.'
+                    : 'Voucher VIP phải là voucher hệ thống hoặc voucher được phát từ gói VIP.',
             ]);
         }
 
