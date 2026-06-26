@@ -1,5 +1,5 @@
 <template>
-  <nav :class="['navbar', theme === 'dark' ? 'navbar-dark' : 'navbar-light']">
+  <nav :class="['navbar', isDark ? 'navbar-dark' : 'navbar-light']">
     <div class="navbar-inner">
       <!-- Brand + Nav links -->
       <div class="navbar-left">
@@ -14,6 +14,20 @@
 
       <!-- Right: Login or User Menu -->
       <div class="navbar-right">
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle-btn" @click="toggleTheme" aria-label="Đổi giao diện">
+          <svg v-if="isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+
         <router-link v-if="!user" to="/login" class="login-btn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
@@ -97,7 +111,13 @@ export default {
       user: getAuth(),
       showDropdown: false,
       hideTimer: null,
+      isDark: true,
     };
+  },
+  mounted() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    this.isDark = savedTheme === 'dark';
+    this.applyTheme();
   },
   computed: {
     userInitial() {
@@ -114,6 +134,21 @@ export default {
     },
   },
   methods: {
+    toggleTheme() {
+      this.isDark = !this.isDark;
+      localStorage.setItem('theme', this.isDark ? 'dark' : 'light');
+      this.applyTheme();
+    },
+    applyTheme() {
+      if (this.isDark) {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      }
+      window.dispatchEvent(new CustomEvent('theme-changed', { detail: { isDark: this.isDark } }));
+    },
     toggleDropdown() {
       this.showDropdown = !this.showDropdown;
     },
@@ -408,5 +443,36 @@ export default {
 .navbar.navbar-dark .dd-logout:hover {
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 12px;
+}
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.navbar-light .theme-toggle-btn {
+  border-color: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.5);
+}
+.navbar-light .theme-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--sg-dark);
+  border-color: rgba(0, 0, 0, 0.15);
 }
 </style>
