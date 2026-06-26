@@ -25,7 +25,7 @@ class AdminPostController extends Controller
 
         // Paginate comments riêng
         $comments = $postModel->comments()
-            ->with(['user:id,username,full_name,avatar_url', 'media'])
+            ->with(['user:id,username,full_name,avatar_url', 'media', 'replies.user:id,username,full_name,avatar_url', 'replies.media'])
             ->withCount('replies')
             ->whereNull('parent_id') // Chỉ lấy comment gốc, không lấy reply
             ->orderByDesc('created_at')
@@ -69,6 +69,14 @@ class AdminPostController extends Controller
                         'id' => $m->id,
                         'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
                     ]),
+                    'replies' => $comment->replies->map(fn ($reply) => [
+                        'id' => $reply->id,
+                        'content' => $reply->content,
+                        'status' => $reply->status,
+                        'user_name' => $reply->user?->full_name ?: $reply->user?->username,
+                        'user_avatar' => $reply->user?->avatar_url,
+                        'created_at' => $reply->created_at,
+                    ])->values()->all(),
                     'created_at' => $comment->created_at,
                 ];
             })
@@ -125,5 +133,37 @@ class AdminPostController extends Controller
         }
 
         return response()->json(['message' => 'Hành động không hợp lệ.'], 400);
+    }
+
+    /**
+     * GET /admin/posts/{post}/likes
+     * Lấy danh sách những người đã like bài viết
+     */
+    public function likes(Request $request, string $post): JsonResponse
+    {
+        $postModel = CommunityPost::findOrFail($post);
+
+        $likes = $postModel->likes()
+            ->with('user:id,username,full_name,avatar_url')
+            ->orderByDesc('created_at')
+            ->paginate(20);
+
+        return response()->json([
+            'data' => collect($likes->items())->map(function ($like) {
+                return [
+                    'id' => $like->id,
+                    'user_id' => $like->user_id,
+                    'user_name' => $like->user?->full_name ?: $like->user?->username,
+                    'user_avatar' => $like->user?->avatar_url,
+                    'created_at' => $like->created_at,
+                ];
+            }),
+            'meta' => [
+                'current_page' => $likes->currentPage(),
+                'last_page' => $likes->lastPage(),
+                'per_page' => $likes->perPage(),
+                'total' => $likes->total(),
+            ],
+        ]);
     }
 }

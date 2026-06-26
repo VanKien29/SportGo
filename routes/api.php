@@ -191,6 +191,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/violation-records/{targetType}/{targetId}', [\App\Http\Controllers\Api\Admin\AdminReportController::class, 'violationRecord']);
         Route::apiResource('violation-types', \App\Http\Controllers\Api\Admin\ViolationTypeController::class)->only(['index', 'store', 'update', 'destroy']);
 
+        Route::get('/complaints/auto-resolve-config', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'autoResolveConfig']);
+        Route::post('/complaint-resolve-policy', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'saveAutoResolveConfig']);
         Route::get('/complaints', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'index']);
         Route::get('/complaints/{id}', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'show']);
         Route::patch('/complaints/{id}/assign', [\App\Http\Controllers\Api\Admin\AdminComplaintController::class, 'assign']);
@@ -268,6 +270,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/comments/{comment}', [\App\Http\Controllers\Api\Admin\AdminCommentController::class, 'show']);
         Route::post('/comments/{comment}/action', [\App\Http\Controllers\Api\Admin\AdminCommentController::class, 'processAction']);
         Route::get('/posts/{post}', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'show']);
+        Route::get('/posts/{post}/likes', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'likes']);
         Route::post('/posts/{post}/action', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'processAction']);
     });
 

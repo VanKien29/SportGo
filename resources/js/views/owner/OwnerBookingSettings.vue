@@ -15,7 +15,6 @@
       </label>
     </header>
 
-
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="notice" class="alert success">{{ notice }}</div>
     <div v-if="loading" class="state-card">Đang tải cấu hình đặt sân...</div>

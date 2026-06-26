@@ -353,10 +353,14 @@
               </template>
             </div>
             <div class="fb-stats">
-              <span><AppIcon name="heart" size="18" /> {{ contentViewerData.post.like_count || 0 }}</span>
+              <span class="like-button" @click="showLikesForPost(contentViewerData.post.id)" title="Xem người thả tim" style="cursor: pointer;">
+                <AppIcon name="heart" size="18" /> {{ contentViewerData.post.like_count || 0 }}
+              </span>
               <div class="fb-stats-right">
                 <span>{{ contentViewerData.post.comment_count || contentViewerData.comments.length }} bình luận</span>
-                <span>0 chia sẻ</span>
+                <span style="cursor: pointer; display: flex; align-items: center; color: #64748b; margin-left: 10px;" @click="copyPostLink(contentViewerData.post.id)" title="Sao chép liên kết bài viết">
+                  <AppIcon name="share" size="16" />
+                </span>
               </div>
             </div>
             <div class="fb-actions">
@@ -478,12 +482,19 @@
         </div>
       </div>
     </div>
+    <!-- Modal Danh sách thả tim -->
+    <PostLikesModal 
+      :show="showLikesModal" 
+      :postId="activeLikesPostId" 
+      @close="showLikesModal = false" 
+    />
   </section>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import BackButton from '../../components/BackButton.vue';
+import PostLikesModal from '../../components/admin/PostLikesModal.vue';
 import { adminUserService } from '../../services/adminUserService.js';
 import { getAccountStatusLabel, getPostStatusLabel, getReportStatusLabel } from '../../utils/labelMaps.js';
 
@@ -499,7 +510,7 @@ const Metric = {
 
 export default {
   name: 'AdminUserDetail',
-  components: { AppIcon, InfoItem, Metric, BackButton },
+  components: { AppIcon, InfoItem, Metric, BackButton, PostLikesModal },
   data() {
     return {
       detail: null,
@@ -516,6 +527,9 @@ export default {
 
       contentViewerData: null,
       contentViewerLoading: false,
+
+      showLikesModal: false,
+      activeLikesPostId: null,
 
       comments: [],
       commentsMeta: { current_page: 1, last_page: 1, total: 0 },
@@ -549,6 +563,17 @@ export default {
     this.loadLockLogs(1, true);
   },
   methods: {
+    async copyPostLink(postId) {
+      try {
+        const link = window.location.origin + '/posts/' + postId;
+        await navigator.clipboard.writeText(link);
+        this.message = 'Đã sao chép liên kết bài viết.';
+        this.messageType = 'success';
+        setTimeout(() => { this.message = ''; }, 3000);
+      } catch (err) {
+        console.error('Failed to copy link:', err);
+      }
+    },
     switchTab(tab) {
       this.activeTab = tab;
       if (tab === 'comments' && this.comments.length === 0) this.loadComments(1);
@@ -651,26 +676,7 @@ export default {
           response = await adminUserService.postDetail(id);
           const postData = response.data?.data || response.data;
           
-          // Fake data seeder for replies if they don't exist
           let comments = postData.comments || response.comments || [];
-          if (comments.length > 0 && !comments[0].replies) {
-            comments[0].replies = [
-              {
-                id: 99991,
-                user_name: 'Khách hàng A',
-                content: 'Cho mình xin thêm thông tin với ạ.',
-                created_at: new Date(Date.now() - 3600000).toISOString(),
-                status: 'visible'
-              },
-              {
-                id: 99992,
-                user_name: 'Quản trị viên',
-                content: 'Bạn check inbox nhé!',
-                created_at: new Date(Date.now() - 1800000).toISOString(),
-                status: 'visible'
-              }
-            ];
-          }
 
           this.contentViewerData = {
             target_comment_id: null,
@@ -705,6 +711,11 @@ export default {
 
     closeContentViewer() {
       this.contentViewerData = null;
+    },
+
+    showLikesForPost(postId) {
+      this.activeLikesPostId = postId;
+      this.showLikesModal = true;
     },
 
     async quickContentAction(type, id, action) {
