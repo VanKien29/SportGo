@@ -28,7 +28,7 @@
           <label>Voucher VIP/tháng<input v-model.number="pkg.voucher_count_per_month" type="number" min="0" max="50" :disabled="pkg.type === 'free'" required /></label>
           <label>% giảm voucher<input v-model.number="pkg.voucher_discount_percent" type="number" min="0" max="100" step="0.01" :disabled="pkg.type === 'free'" required /></label>
           <label>Đơn tối thiểu<input v-model.number="pkg.voucher_min_order_amount" type="number" min="0" step="1000" :disabled="pkg.type === 'free'" required /></label>
-          <label>Trần giảm voucher<input v-model.number="pkg.voucher_max_discount_amount" type="number" min="0" step="1000" :disabled="pkg.type === 'free'" /></label>
+          <label>Trần giảm voucher hàng tháng<input v-model.number="pkg.voucher_max_discount_amount" type="number" min="0" step="1000" :disabled="pkg.type === 'free'" /></label>
         </div>
 
         <label class="check">
@@ -46,7 +46,7 @@
       <div class="section-head">
         <div>
           <span>Voucher VIP</span>
-          <h3>Voucher áp dụng theo gói</h3>
+          <h3>Voucher thủ công theo gói</h3>
         </div>
       </div>
 
@@ -75,7 +75,7 @@
               required
             />
           </label>
-          <label v-if="vipVoucherForm.discount_type === 'percent'">Tiền giảm tối đa<input v-model.number="vipVoucherForm.max_discount_amount" type="number" min="0" step="1000" /></label>
+          <label v-if="vipVoucherForm.discount_type === 'percent'">Trần giảm voucher thủ công<input v-model.number="vipVoucherForm.max_discount_amount" type="number" min="0" step="1000" /></label>
           <label>Đơn tối thiểu<input v-model.number="vipVoucherForm.min_order_amount" type="number" min="0" step="1000" /></label>
           <label>Giới hạn mỗi khách<input v-model.number="vipVoucherForm.per_user_limit" type="number" min="-1" required /></label>
           <label>Bắt đầu<input v-model="vipVoucherForm.valid_from" type="datetime-local" required /></label>
