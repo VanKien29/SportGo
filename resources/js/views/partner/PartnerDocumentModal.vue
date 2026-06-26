@@ -16,75 +16,77 @@
         </button>
       </header>
 
-      <div v-if="loading" class="state">Đang tải văn bản...</div>
-      <div v-else-if="error" class="state error">{{ error }}</div>
+      <div class="modal-body" style="flex: 1; overflow: hidden; padding: 24px; display: flex; flex-direction: column;">
+        <div v-if="loading" class="state">Đang tải văn bản...</div>
+        <div v-else-if="error" class="state error">{{ error }}</div>
 
-      <div v-else class="document-layout">
-        <DocumentPreviewPane :document="document" />
+        <div v-else class="document-layout" style="flex: 1; overflow: hidden;">
+          <DocumentPreviewPane :document="document" />
 
-        <aside class="side-panel">
-          <section v-if="isGeneratedDocument">
-            <h2>Trạng thái chữ ký</h2>
-            <div class="signature-list">
-              <div v-for="side in requiredSides" :key="side.key" class="signature-item" :class="{ signed: signatureBySide(side.key) }">
-                <span>{{ side.label }}</span>
-                <strong>{{ signatureBySide(side.key) ? formatDate(signatureBySide(side.key).signed_at) : 'Chưa ký' }}</strong>
+          <aside class="side-panel" style="height: 100%; overflow-y: auto; padding-right: 8px;">
+            <section v-if="isGeneratedDocument">
+              <h2>Trạng thái chữ ký</h2>
+              <div class="signature-list">
+                <div v-for="side in requiredSides" :key="side.key" class="signature-item" :class="{ signed: signatureBySide(side.key) }">
+                  <span>{{ side.label }}</span>
+                  <strong>{{ signatureBySide(side.key) ? formatDate(signatureBySide(side.key).signed_at) : 'Chưa ký' }}</strong>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          <section v-if="canSubmitApplication" class="action-box">
-            <h2>Gửi hồ sơ</h2>
-            <p>Đơn đăng ký đã có chữ ký điện tử. Bạn có thể gửi hồ sơ để SportGo xét duyệt.</p>
-            <button class="btn primary full" type="button" :disabled="saving" @click="submitApplication">
-              <AppIcon name="send" size="16" />
-              Gửi hồ sơ
-            </button>
-          </section>
-
-          <section v-if="canSign" class="sign-box">
-            <h2>Ký điện tử</h2>
-            <p>{{ signHint }}</p>
-            <label class="confirm-line">
-              <input v-model="confirmed" type="checkbox" />
-              <span>{{ confirmationText }}</span>
-            </label>
-            <div class="canvas-wrap">
-              <canvas
-                ref="canvas"
-                width="420"
-                height="180"
-                @pointerdown="startDraw"
-                @pointermove="draw"
-                @pointerup="stopDraw"
-                @pointerleave="stopDraw"
-              ></canvas>
-              <span v-if="signatureEmpty">Ký vào đây</span>
-            </div>
-            <div v-if="otpSent" class="otp-box">
-              <label for="signature-otp">Mã OTP</label>
-              <input id="signature-otp" v-model.trim="otp" inputmode="numeric" maxlength="6" placeholder="Nhập 6 số OTP" @input="otpError = ''" />
-              <small>OTP gắn với hash file {{ hashShort }} và hết hạn lúc {{ formatDate(otpExpiresAt) }}.</small>
-              <p v-if="otpError" class="inline-error">{{ otpError }}</p>
-            </div>
-            <div class="sign-actions">
-              <button class="btn ghost" type="button" @click="clearSignature">Ký lại</button>
-              <button v-if="!otpSent" class="btn primary" type="button" :disabled="signatureEmpty || !confirmed || saving" @click="requestSignatureOtp">
-                <AppIcon name="pencil" size="16" />
-                {{ saving ? 'Đang lưu...' : 'Ký' }}
+            <section v-if="canSubmitApplication" class="action-box">
+              <h2>Gửi hồ sơ</h2>
+              <p>Đơn đăng ký đã có chữ ký điện tử. Bạn có thể gửi hồ sơ để SportGo xét duyệt.</p>
+              <button class="btn primary full" type="button" :disabled="saving" @click="submitApplication">
+                <AppIcon name="send" size="16" />
+                Gửi hồ sơ
               </button>
-              <button v-else class="btn primary" type="button" :disabled="otp.length !== 6 || saving" @click="verifySignatureOtp">
-                <AppIcon name="check" size="16" />
-                {{ saving ? 'Đang xác thực...' : 'Xác thực OTP' }}
-              </button>
-            </div>
-          </section>
+            </section>
 
-          <section v-if="!canSign && !canSubmitApplication" class="action-box">
-            <h2>Thao tác</h2>
-            <p>{{ readonlyHint }}</p>
-          </section>
-        </aside>
+            <section v-if="canSign" class="sign-box">
+              <h2>Ký điện tử</h2>
+              <p>{{ signHint }}</p>
+              <label class="confirm-line">
+                <input v-model="confirmed" type="checkbox" />
+                <span>{{ confirmationText }}</span>
+              </label>
+              <div class="canvas-wrap">
+                <canvas
+                  ref="canvas"
+                  width="420"
+                  height="180"
+                  @pointerdown="startDraw"
+                  @pointermove="draw"
+                  @pointerup="stopDraw"
+                  @pointerleave="stopDraw"
+                ></canvas>
+                <span v-if="signatureEmpty">Ký vào đây</span>
+              </div>
+              <div v-if="otpSent" class="otp-box">
+                <label for="signature-otp">Mã OTP</label>
+                <input id="signature-otp" v-model.trim="otp" inputmode="numeric" maxlength="6" placeholder="Nhập 6 số OTP" @input="otpError = ''" />
+                <small>OTP gắn với hash file {{ hashShort }} và hết hạn lúc {{ formatDate(otpExpiresAt) }}.</small>
+                <p v-if="otpError" class="inline-error">{{ otpError }}</p>
+              </div>
+              <div class="sign-actions">
+                <button class="btn ghost" type="button" @click="clearSignature">Ký lại</button>
+                <button v-if="!otpSent" class="btn primary" type="button" :disabled="signatureEmpty || !confirmed || saving" @click="requestSignatureOtp">
+                  <AppIcon name="pencil" size="16" />
+                  {{ saving ? 'Đang lưu...' : 'Ký' }}
+                </button>
+                <button v-else class="btn primary" type="button" :disabled="otp.length !== 6 || saving" @click="verifySignatureOtp">
+                  <AppIcon name="check" size="16" />
+                  {{ saving ? 'Đang xác thực...' : 'Xác thực OTP' }}
+                </button>
+              </div>
+            </section>
+
+            <section v-if="!canSign && !canSubmitApplication" class="action-box">
+              <h2>Thao tác</h2>
+              <p>{{ readonlyHint }}</p>
+            </section>
+          </aside>
+        </div>
       </div>
     </div>
   </div>
@@ -147,8 +149,9 @@ async function loadData() {
   loading.value = true;
   error.value = '';
   try {
-    const response = await api.get(`/partner/applications/${props.applicationId}`);
-    application.value = response.data;
+    const response = await api('/api/user/partner-application');
+    const history = response.data?.history || [];
+    application.value = history.find((item) => String(item.id) === String(props.applicationId)) || null;
     if (!application.value) throw new Error('Không tìm thấy hồ sơ.');
 
     document.value = findDocument(application.value, props.documentId);
@@ -364,7 +367,7 @@ function formatDate(value) {
 
 .page-head h1 { margin: 2px 0 0; color: #0f172a; font-size: 24px; }
 .eyebrow { margin: 0; color: #059669; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
-.document-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; padding: 24px; overflow-y: auto; }
+.document-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: stretch; padding: 24px; overflow-y: auto; }
 .side-panel { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; }
 .side-panel section { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
 .side-panel h2 { margin: 0 0 10px; font-size: 15px; color: #0f172a; }

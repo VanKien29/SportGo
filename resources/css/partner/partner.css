@@ -292,6 +292,8 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    position: relative;
+    padding-bottom: 24px;
   }
   
   .form-group.full-width {
@@ -311,10 +313,11 @@
   
   .form-input, .form-textarea, .form-select {
     width: 100%;
+    min-height: 48px;
     padding: 12px 16px;
     border: 1px solid var(--border-color);
     border-radius: 10px;
-    font-size: 14px;
+    font-size: 15px;
     color: var(--text-main);
     background: white;
     transition: all 0.2s;
@@ -338,7 +341,10 @@
   .error-text {
     font-size: 12px;
     color: #ef4444;
-    margin-top: 4px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    margin: 0;
   }
   
   /* Wizard Footer */
@@ -411,6 +417,8 @@
   /* Combo Box / Autocomplete wrapper */
   .combo-wrapper {
     position: relative;
+    width: 100%;
+    display: block;
   }
   .combo-list {
     position: absolute;
@@ -430,6 +438,13 @@
     font-size: 14px;
     cursor: pointer;
     transition: background 0.2s;
+    display: flex;
+    width: 100%;
+    text-align: left;
+    align-items: center;
+    justify-content: space-between;
+    border: none;
+    background: transparent;
   }
   .combo-item:hover {
     background: var(--bg-color);

@@ -316,7 +316,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, defineComponent, h } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '../../components/AppIcon.vue';
 import AdminPartnerDocumentModal from './AdminPartnerDocumentModal.vue';

@@ -86,7 +86,7 @@ async function loadDocument() {
       await renderAsync(blob, docxContainer.value, null, {
         className: 'docx',
         inWrapper: true,
-        ignoreWidth: false,
+        ignoreWidth: true,
         ignoreHeight: true,
         ignoreFonts: false,
         breakPages: true,
@@ -119,7 +119,7 @@ onUnmounted(cleanup);
 
 <style scoped>
 .document-preview-pane {
-  min-height: 720px;
+  height: 100%;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #f3f4f6;
@@ -128,7 +128,9 @@ onUnmounted(cleanup);
 }
 
 .docx-surface {
-  width: min(100%, 860px);
+  width: fit-content;
+  min-width: 100%;
+  max-width: none;
   min-height: 680px;
   margin: 0 auto;
   background: #fff;

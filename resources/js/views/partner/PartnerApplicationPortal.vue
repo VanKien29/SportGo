@@ -305,11 +305,12 @@
                     <UploadBox title="CCCD/CMND người đại diện" required :files="files.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
                     <UploadBox title="Giấy ĐKKD/Pháp lý" required :files="files.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
                     <UploadBox title="Hình ảnh cơ sở/sân" required :files="files.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
+                    <UploadBox title="Chứng từ ngân hàng" required :files="files.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
                     <UploadBox title="Hợp đồng thuê mặt bằng" required :files="files.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
                   </div>
                 </FormSection>
 
-                <div class="portal-card" style="background: #f8fafc; margin-top: 24px;">
+                <div class="portal-card" style="background: #f8fafc; margin-top: 24px;" :class="fieldErrors.confirmed ? 'border-red-400' : ''">
                   <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
                     <input v-model="confirmed" type="checkbox" style="margin-top: 4px; width: 18px; height: 18px; accent-color: var(--primary-color);" />
                     <span style="font-size: 14px; color: var(--text-main); line-height: 1.5;">
@@ -457,8 +458,15 @@ const BaseCombobox = defineComponent({
   },
   emits: ['update:modelValue', 'select'],
   setup(props, { emit }) {
-    const open = ref(false);
     const query = ref('');
+    const open = ref(false);
+
+    const handleFocusOut = (e) => {
+      // If the new focus target is not inside this combo-wrapper, close it
+      if (!e.currentTarget.contains(e.relatedTarget)) {
+        open.value = false;
+      }
+    };
     const optionValue = (o) => String(o?.value ?? o?.code ?? o?.id ?? '');
     const optionLabel = (o) => String(o?.label ?? o?.name ?? o?.short_name ?? '');
     const selected = computed(() => props.options.find((o) => optionValue(o) === String(props.modelValue)) || null);
@@ -471,10 +479,10 @@ const BaseCombobox = defineComponent({
     const choose = (o) => { emit('update:modelValue', optionValue(o)); emit('select', o); query.value = optionLabel(o); open.value = false; };
     const onInput = (e) => { query.value = e.target.value; open.value = true; };
     const onBlur = () => { window.setTimeout(() => { open.value = false; query.value = selected.value ? optionLabel(selected.value) : ''; }, 130); };
-    return { open, query, filtered, selected, optionValue, optionLabel, choose, onInput, onBlur };
+    return { open, query, filtered, selected, optionValue, optionLabel, choose, onInput, onBlur, handleFocusOut };
   },
   template: `
-    <div class="relative">
+    <div class="combo-wrapper" tabindex="-1" @focusout="handleFocusOut">
       <div class="relative">
         <input
           :value="query" :placeholder="placeholder" :disabled="disabled"
@@ -571,7 +579,7 @@ const UploadBox = defineComponent({
     return { emit, fileSize };
   },
   template: `
-    <div style="border: 1px dashed var(--border-color); border-radius: 12px; padding: 16px; background: #f8fafc;">
+    <div style="border-radius: 12px; padding: 16px; background: #f8fafc;" :style="{ border: error ? '1px dashed #f87171' : '1px dashed var(--border-color)' }" :class="error ? 'border-red-400' : ''">
       <label class="block cursor-pointer">
         <span class="text-xs font-medium text-gray-600">{{ title }}<span v-if="required" class="ml-1 text-red-500">*</span></span>
         <input style="margin-top: 8px; width: 100%; font-size: 13px;" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" @change="emit('change', $event)" />
@@ -785,14 +793,18 @@ function onMapUrlInput() {
 
 async function resolveMapUrl() {
   mapError.value = ''; mapStatus.value = 'Đang xử lý link...';
+  let urlToResolve = (form.venue_map_url || '').trim();
+  if (urlToResolve && !/^https?:\/\//i.test(urlToResolve)) {
+    urlToResolve = 'https://' + urlToResolve;
+  }
   try {
-    const r = await api('/api/user/partner-application/resolve-map', { method: 'POST', body: JSON.stringify({ url: form.venue_map_url }) });
+    const r = await api('/api/user/partner-application/resolve-map', { method: 'POST', body: JSON.stringify({ url: urlToResolve }) });
     const resolved = r.data || {};
     if (resolved.latitude && resolved.longitude) { form.venue_latitude = resolved.latitude; form.venue_longitude = resolved.longitude; compareResolvedAddress(resolved); return; }
   } catch (e) { console.error('Lỗi phân giải map:', e); }
-  const coords = extractCoordinates(form.venue_map_url);
+  const coords = extractCoordinates(urlToResolve);
   if (!coords && !form.venue_latitude) { mapStatus.value = ''; mapError.value = 'Không lấy được tọa độ từ link Google Maps này. Vui lòng dùng link đầy đủ có tọa độ.'; return; }
-  if (coords) { form.venue_latitude = coords.latitude; form.venue_longitude = coords.longitude; mapStatus.value = 'Đã lấy tọa độ từ link Google Maps.'; }
+  if (coords) { form.venue_latitude = coords.latitude; form.venue_longitude = coords.longitude; mapStatus.value = 'Đã lấy tọa độ từ link. Vui lòng tự chọn Tỉnh/Thành phố và nhập địa chỉ bên trên.'; }
 }
 
 function extractCoordinates(url) {
@@ -806,14 +818,19 @@ function extractCoordinates(url) {
 function compareResolvedAddress(resolved) {
   const rp = resolved.province_code || '', rw = resolved.ward_code || '';
   const pc = rp && rp !== form.venue_province_code, wc = rw && rw !== form.venue_ward_code;
+  if (resolved.address && !form.street_address) form.street_address = resolved.address.split(',')[0] || '';
+  
   if (!form.venue_province_code && rp) {
     form.venue_province_code = rp;
     loadWards(rp).then(() => { if (rw) form.venue_ward_code = rw; });
     mapStatus.value = 'Đã tự động điền địa chỉ từ Google Maps.';
-    if (resolved.address && !form.street_address) form.street_address = resolved.address.split(',')[0] || '';
     return;
   }
-  if (!pc && !wc) { mapStatus.value = 'Vị trí Google Maps khớp với địa chỉ đã chọn.'; return; }
+  if (!pc && !wc) {
+    if (!form.venue_province_code) mapStatus.value = 'Đã lấy tọa độ và địa chỉ đường. Vui lòng tự chọn Tỉnh/Thành phố.';
+    else mapStatus.value = 'Vị trí Google Maps khớp với địa chỉ đã chọn.';
+    return;
+  }
   const cur = [wards.value.find((w) => String(w.code) === String(form.venue_ward_code))?.name, provinces.value.find((p) => String(p.code) === String(form.venue_province_code))?.name].filter(Boolean).join(', ') || 'chưa chọn';
   const res = [resolved.ward, resolved.province].filter(Boolean).join(', ') || resolved.address || 'vị trí Google Maps';
   mapSuggestion.value = { province_code: rp, ward_code: rw, message: `Vị trí trên Google Maps thuộc ${res} — khác với địa chỉ bạn đã chọn (${cur}).` };
@@ -865,8 +882,8 @@ function validateForm() {
   };
   Object.entries(required).forEach(([f, m]) => { if (!form[f]) fieldErrors[f] = m; });
   if (form.applicant_birth_date && new Date(form.applicant_birth_date) > new Date(new Date().setFullYear(new Date().getFullYear() - 18))) fieldErrors.applicant_birth_date = 'Người đăng ký phải đủ 18 tuổi.';
-  if (form.applicant_phone && !/^(0\d{9}|\+84\d{9})$/.test(form.applicant_phone)) fieldErrors.applicant_phone = 'Số điện thoại phải bắt đầu bằng 0 hoặc +84 và đúng định dạng Việt Nam.';
-  if (form.venue_phone && !/^(0\d{9}|\+84\d{9})$/.test(form.venue_phone)) fieldErrors.venue_phone = 'Số điện thoại sân phải bắt đầu bằng 0 hoặc +84 và đúng định dạng Việt Nam.';
+  if (form.applicant_phone && !/^(0\d{9}|\+84\d{9})$/.test(form.applicant_phone)) fieldErrors.applicant_phone = 'Số điện thoại phải có 10 số và bắt đầu bằng 0 hoặc +84.';
+  if (form.venue_phone && !/^(0\d{9}|\+84\d{9})$/.test(form.venue_phone)) fieldErrors.venue_phone = 'Số điện thoại sân phải có 10 số và bắt đầu bằng 0 hoặc +84.';
   if (form.applicant_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.applicant_email)) fieldErrors.applicant_email = 'Email không đúng định dạng.';
   if (form.venue_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.venue_email)) fieldErrors.venue_email = 'Email sân không đúng định dạng.';
   if (!isValidIdentity()) fieldErrors.representative_identity_number = 'Số giấy tờ không đúng định dạng đã chọn.';
@@ -888,7 +905,7 @@ function validateForm() {
 
 async function focusFirstError() {
   await nextTick();
-  const first = document.querySelector('.border-red-400, .border-red-300');
+  const first = document.querySelector('.border-red-400, .border-red-300, .has-error');
   if (first && typeof first.focus === 'function') first.focus({ preventScroll: false });
   first?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
 }
@@ -935,8 +952,12 @@ async function submit() {
     clearErrors();
     const errors = e.data?.errors || {};
     Object.entries(errors).forEach(([f, m]) => { fieldErrors[f] = Array.isArray(m) ? m[0] : m; });
-    if (Object.keys(errors).length) await focusFirstError();
-    else formBanner.value = e.message || 'Vui lòng kiểm tra lại thông tin hồ sơ.';
+    if (Object.keys(errors).length) {
+      await focusFirstError();
+    } else {
+      formBanner.value = e.message || 'Vui lòng kiểm tra lại thông tin hồ sơ.';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   } finally { submitting.value = false; }
 }
 
@@ -1063,3 +1084,10 @@ function money(value) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(n);
 }
 </script>
+<style>
+@import "../../../css/partner/partner.css";
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>

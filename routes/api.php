@@ -115,24 +115,24 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/finance/withdrawals/export', [AdminFinanceOperationController::class, 'exportWithdrawals']);
 
         Route::get('/partner-applications', [AdminPartnerApplicationController::class, 'index']);
+        Route::get('/partner-applications/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::get('/partner-applications/{id}', [AdminPartnerApplicationController::class, 'show']);
         Route::post('/partner-applications/{id}/approve', [AdminPartnerApplicationController::class, 'approve']);
         Route::post('/partner-applications/{id}/reject', [AdminPartnerApplicationController::class, 'reject']);
         Route::post('/partner-applications/{id}/sign-document/request-otp', [AdminPartnerApplicationController::class, 'requestSignDocumentOtp']);
         Route::post('/partner-applications/{id}/sign-document/verify-otp', [AdminPartnerApplicationController::class, 'verifySignDocumentOtp']);
         Route::post('/partner-applications/{id}/sign-document', [AdminPartnerApplicationController::class, 'signDocument']);
-        Route::get('/partner-applications/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::post('/partner-applications/{id}/terminate', [AdminPartnerApplicationController::class, 'terminate']);
         Route::post('/partner-applications/{id}/confirm-termination', [AdminPartnerApplicationController::class, 'confirmTermination']);
 
         Route::get('/partner-profiles', [AdminPartnerApplicationController::class, 'index']);
+        Route::get('/partner-profiles/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::get('/partner-profiles/{id}', [AdminPartnerApplicationController::class, 'show']);
         Route::post('/partner-profiles/{id}/approve', [AdminPartnerApplicationController::class, 'approve']);
         Route::post('/partner-profiles/{id}/reject', [AdminPartnerApplicationController::class, 'reject']);
         Route::post('/partner-profiles/{id}/sign-document/request-otp', [AdminPartnerApplicationController::class, 'requestSignDocumentOtp']);
         Route::post('/partner-profiles/{id}/sign-document/verify-otp', [AdminPartnerApplicationController::class, 'verifySignDocumentOtp']);
         Route::post('/partner-profiles/{id}/sign-document', [AdminPartnerApplicationController::class, 'signDocument']);
-        Route::get('/partner-profiles/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::post('/partner-profiles/{id}/terminate', [AdminPartnerApplicationController::class, 'terminate']);
         Route::post('/partner-profiles/{id}/confirm-termination', [AdminPartnerApplicationController::class, 'confirmTermination']);
 

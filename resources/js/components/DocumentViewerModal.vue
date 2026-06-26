@@ -172,7 +172,7 @@ async function loadDocument() {
         await renderAsync(blob, docxContainer.value, null, {
           className: 'docx',
           inWrapper: true,
-          ignoreWidth: false,
+          ignoreWidth: true,
           ignoreHeight: true,
           ignoreFonts: false,
           breakPages: true,
