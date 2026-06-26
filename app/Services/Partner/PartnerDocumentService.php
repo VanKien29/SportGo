@@ -22,12 +22,12 @@ use ZipArchive;
 class PartnerDocumentService
 {
     private const TEMPLATE_FALLBACKS = [
-        'partner_application_form' => 'Mau_01_Don_de_nghi_dang_ky_doi_tac_chu_san_SportGo.docx',
-        'partner_contract' => 'Mau_02_Hop_dong_hop_tac_doi_tac_SportGo.docx',
-        'termination_request' => 'Mau_03_Don_yeu_cau_cham_dut_hop_tac_SportGo.docx',
-        'mutual_liquidation_minutes' => 'Mau_04_Bien_ban_thanh_ly_hop_dong_hai_ben_SportGo.docx',
-        'unilateral_termination_notice' => 'Mau_05_Cong_van_cham_dut_hop_dong_don_phuong_SportGo.docx',
-        'settlement_minutes' => 'Mau_06_Bien_ban_quyet_toan_cham_dut_hop_tac_SportGo.docx',
+        'partner_application_form' => 'Mau_01_Don_de_nghi_dang_ky_doi_tac_chu_san_SportGo_DA_SUA.docx',
+        'partner_contract' => 'Mau_02_Hop_dong_hop_tac_doi_tac_SportGo_DA_SUA.docx',
+        'termination_request' => 'Mau_03_Don_yeu_cau_cham_dut_hop_tac_SportGo_DA_SUA.docx',
+        'mutual_liquidation_minutes' => 'Mau_04_Bien_ban_thanh_ly_hop_dong_hai_ben_SportGo_DA_SUA.docx',
+        'unilateral_termination_notice' => 'Mau_05_Cong_van_cham_dut_hop_dong_don_phuong_SportGo_DA_SUA.docx',
+        'settlement_minutes' => 'Mau_06_Bien_ban_quyet_toan_cham_dut_hop_tac_SportGo_DA_SUA.docx',
     ];
 
     private const DOCUMENT_PREFIXES = [
@@ -50,6 +50,9 @@ class PartnerDocumentService
         $documentCode = $this->uniqueDocumentCode($documentType);
         $filePath = 'generated-documents/' . now()->format('Y/m') . '/' . $documentCode . '.docx';
         $title = $context['title'] ?? $this->defaultTitle($documentType, $renderData);
+        $referenceType = $context['reference_type'] ?? $reference::class;
+        $referenceId = $context['reference_id'] ?? (string) $reference->getKey();
+        $documentVersion = $this->nextDocumentVersion($documentType, $referenceType, $referenceId);
 
         $sourcePath = $template ? Storage::disk($template->storage_disk)->path($template->file_path) : null;
         if (! $sourcePath || ! is_file($sourcePath)) {
@@ -69,8 +72,9 @@ class PartnerDocumentService
             'document_type' => $documentType,
             'template_id' => $template?->id,
             'template_version' => $template?->version ?? 1,
-            'reference_type' => $context['reference_type'] ?? $reference::class,
-            'reference_id' => $context['reference_id'] ?? (string) $reference->getKey(),
+            'document_version' => $documentVersion,
+            'reference_type' => $referenceType,
+            'reference_id' => $referenceId,
             'entity_type' => $context['entity_type'] ?? $reference::class,
             'entity_id' => $context['entity_id'] ?? (string) $reference->getKey(),
             'partner_application_id' => $context['partner_application_id'] ?? null,
@@ -110,7 +114,7 @@ class PartnerDocumentService
                 'signer_full_name' => $context['signer_full_name'] ?? $signer->full_name ?? $signer->username ?? $signer->email,
                 'signer_title' => $context['signer_title'] ?? ($signerSide === 'owner' ? 'Chủ sân' : 'Đại diện SportGo'),
                 'signer_organization' => $context['signer_organization'] ?? ($signerSide === 'owner' ? null : 'SportGo'),
-                'signature_method' => $signatureImage ? 'drawn' : 'typed_confirm',
+                'signature_method' => $context['signature_method'] ?? ($signatureImage ? 'drawn' : 'typed_confirm'),
                 'signed_at' => now(),
                 'ip_address' => $request->ip(),
                 'user_agent' => (string) $request->userAgent(),
@@ -303,7 +307,7 @@ class PartnerDocumentService
             @unlink($tempPath);
         }
 
-        $this->appendApplicationAppendixToFile($targetPath, $data, $documentType);
+        $this->appendDocumentDataAppendixToFile($targetPath, $data, $documentType);
     }
 
     private function fixSplitMacrosInDocx(string $docxPath): void
@@ -345,9 +349,9 @@ class PartnerDocumentService
         $zip->close();
     }
 
-    private function appendApplicationAppendixToFile(string $docxPath, array $data, string $documentType): void
+    private function appendDocumentDataAppendixToFile(string $docxPath, array $data, string $documentType): void
     {
-        if ($documentType !== 'partner_application_form' || ! class_exists(ZipArchive::class)) {
+        if (! in_array($documentType, ['partner_application_form', 'partner_contract'], true) || ! class_exists(ZipArchive::class)) {
             return;
         }
 
@@ -356,7 +360,7 @@ class PartnerDocumentService
             return;
         }
 
-        $this->appendApplicationAppendix($zip, $data);
+        $this->appendDocumentDataAppendix($zip, $data, $documentType);
         $zip->close();
     }
 
@@ -394,11 +398,16 @@ class PartnerDocumentService
             }
         }
 
-        if ($documentType === 'partner_application_form') {
-            $this->appendApplicationAppendix($zip, $data);
-        }
-
         $zip->close();
+    }
+
+    private function appendDocumentDataAppendix(ZipArchive $zip, array $data, string $documentType): void
+    {
+        match ($documentType) {
+            'partner_application_form' => $this->appendApplicationAppendix($zip, $data),
+            'partner_contract' => $this->appendPartnerContractAppendix($zip, $data),
+            default => null,
+        };
     }
 
     private function appendApplicationAppendix(ZipArchive $zip, array $data): void
@@ -449,6 +458,72 @@ class PartnerDocumentService
 
             $paragraphs[] = $this->docxParagraph($label . ': ' . $this->plainValue($value));
         }
+
+        $paragraphs[] = $this->docxParagraph('');
+        $paragraphs[] = $this->docxParagraph('Chữ ký người đăng ký/chủ sân:', true);
+        $paragraphs[] = $this->docxParagraph('{{signature_owner}}');
+
+        $insert = implode('', $paragraphs);
+        $xml = str_replace('</w:body>', $insert . '</w:body>', $xml);
+        $zip->addFromString($entry, $xml);
+    }
+
+    private function appendPartnerContractAppendix(ZipArchive $zip, array $data): void
+    {
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false || ! str_contains($xml, '</w:body>')) {
+            return;
+        }
+
+        $rows = [
+            ['Số hợp đồng', $data['contract_number'] ?? $data['contract_code'] ?? null],
+            ['Ngày lập hợp đồng', $data['signed_date'] ?? null],
+            ['Tên văn bản', $data['contract_title'] ?? null],
+            ['Bên A', $data['sportgo_company_name'] ?? null],
+            ['Mã số thuế/ĐKKD Bên A', $data['sportgo_tax_code'] ?? null],
+            ['Địa chỉ Bên A', $data['sportgo_address'] ?? null],
+            ['Đại diện Bên A', $data['sportgo_representative_name'] ?? null],
+            ['Chức vụ Bên A', $data['sportgo_representative_title'] ?? null],
+            ['Bên B', $data['party_b_name'] ?? $data['business_name'] ?? null],
+            ['CCCD/MST/ĐKKD Bên B', $data['party_b_id'] ?? $data['tax_code'] ?? $data['identity_number'] ?? null],
+            ['Địa chỉ Bên B', $data['party_b_address'] ?? $data['venue_address'] ?? null],
+            ['Người đại diện/chủ tài khoản', $data['owner_full_name'] ?? $data['owner_signer_full_name'] ?? null],
+            ['Điện thoại chủ sân', $data['owner_phone'] ?? null],
+            ['Email chủ sân', $data['owner_email'] ?? null],
+            ['Cụm sân hợp tác', $data['venue_cluster_list'] ?? $data['venue_name'] ?? null],
+            ['Địa chỉ cụm sân', $data['venue_address'] ?? null],
+            ['Loại sân', $data['court_types_summary'] ?? null],
+            ['Ngân hàng', $data['bank_name'] ?? null],
+            ['Số tài khoản', $data['account_number'] ?? null],
+            ['Thời hạn hợp đồng', $data['contract_duration'] ?? null],
+            ['Hiệu lực từ', $data['effective_from'] ?? $data['contract_start_date'] ?? null],
+            ['Hiệu lực đến', $data['effective_to'] ?? null],
+            ['Phí nền tảng', $data['platform_fee_amount'] ?? null],
+            ['Quy định thanh toán', $data['payment_due_rule'] ?? null],
+            ['Quy định khóa quá hạn', $data['overdue_lock_rule'] ?? null],
+            ['Chính sách hoàn phí', $data['refund_policy_summary'] ?? null],
+        ];
+
+        $paragraphs = [
+            $this->docxParagraph(''),
+            $this->docxParagraph('PHỤ LỤC THÔNG TIN HỢP ĐỒNG ĐÃ ĐIỀN TRÊN HỆ THỐNG SPORTGO', true),
+            $this->docxParagraph('Phần này được hệ thống tự động điền từ hồ sơ đối tác đã được duyệt để bảo đảm file Word lưu, tải và preview có dữ liệu thật.'),
+        ];
+
+        foreach ($rows as [$label, $value]) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $paragraphs[] = $this->docxParagraph($label . ': ' . $this->plainValue($value));
+        }
+
+        $paragraphs[] = $this->docxParagraph('');
+        $paragraphs[] = $this->docxParagraph('Chữ ký đại diện SportGo:', true);
+        $paragraphs[] = $this->docxParagraph('{{signature_sportgo}}');
+        $paragraphs[] = $this->docxParagraph('Chữ ký đối tác/chủ sân:', true);
+        $paragraphs[] = $this->docxParagraph('{{signature_owner}}');
 
         $insert = implode('', $paragraphs);
         $xml = str_replace('</w:body>', $insert . '</w:body>', $xml);
@@ -505,6 +580,17 @@ class PartnerDocumentService
         } while (GeneratedDocument::query()->where('document_code', $code)->exists());
 
         return $code;
+    }
+
+    private function nextDocumentVersion(string $documentType, string $referenceType, string $referenceId): int
+    {
+        $latest = GeneratedDocument::query()
+            ->where('document_type', $documentType)
+            ->where('reference_type', $referenceType)
+            ->where('reference_id', $referenceId)
+            ->max('document_version');
+
+        return ((int) $latest) + 1;
     }
 
     private function defaultTitle(string $documentType, array $renderData): string

@@ -46,6 +46,10 @@
           <section v-if="canSign" class="sign-box">
             <h2>Ký điện tử</h2>
             <p>{{ signHint }}</p>
+            <label class="confirm-line">
+              <input v-model="confirmed" type="checkbox" />
+              <span>{{ confirmationText }}</span>
+            </label>
             <div class="canvas-wrap">
               <canvas
                 ref="canvas"
@@ -58,11 +62,20 @@
               ></canvas>
               <span v-if="signatureEmpty">Ký vào đây</span>
             </div>
+            <div v-if="otpSent" class="otp-box">
+              <label for="signature-otp">Mã OTP</label>
+              <input id="signature-otp" v-model.trim="otp" inputmode="numeric" maxlength="6" placeholder="Nhập 6 số OTP" />
+              <small>OTP gắn với hash file {{ hashShort }} và hết hạn lúc {{ formatDate(otpExpiresAt) }}.</small>
+            </div>
             <div class="sign-actions">
               <button class="btn ghost" type="button" @click="clearSignature">Ký lại</button>
-              <button class="btn primary" type="button" :disabled="signatureEmpty || saving" @click="submitSignature">
+              <button v-if="!otpSent" class="btn primary" type="button" :disabled="signatureEmpty || !confirmed || saving" @click="requestSignatureOtp">
                 <AppIcon name="pencil" size="16" />
                 {{ saving ? 'Đang lưu...' : 'Ký' }}
+              </button>
+              <button v-else class="btn primary" type="button" :disabled="otp.length !== 6 || saving" @click="verifySignatureOtp">
+                <AppIcon name="check" size="16" />
+                {{ saving ? 'Đang xác thực...' : 'Xác thực OTP' }}
               </button>
             </div>
           </section>
@@ -95,6 +108,12 @@ const contract = ref(null);
 const canvas = ref(null);
 const drawing = ref(false);
 const signatureEmpty = ref(true);
+const confirmed = ref(false);
+const otpSent = ref(false);
+const otp = ref('');
+const signingRequestId = ref('');
+const hashShort = ref('');
+const otpExpiresAt = ref(null);
 
 const isApplicationForm = computed(() => document.value?.document_type === 'partner_application_form');
 const isContract = computed(() => document.value?.document_type === 'partner_contract');
@@ -106,6 +125,9 @@ const canSubmitApplication = computed(() => application.value?.status === 'draft
 const signHint = computed(() => isContract.value
   ? 'Vui lòng ký xác nhận sau khi đã đọc hợp đồng đã được SportGo ký.'
   : 'Vui lòng ký xác nhận trên đơn đăng ký trước khi gửi hồ sơ.');
+const confirmationText = computed(() => isContract.value
+  ? 'Tôi xác nhận đã đọc, hiểu rõ toàn bộ nội dung hợp đồng, đồng ý giao kết hợp đồng này với SportGo và xác nhận thông tin trong hợp đồng là đúng.'
+  : 'Tôi xác nhận đã đọc, kiểm tra và chịu trách nhiệm về tính chính xác, hợp pháp của toàn bộ thông tin, tài liệu trong đơn đăng ký này.');
 const readonlyHint = computed(() => document.value?.status === 'completed'
   ? 'Văn bản đã hoàn tất chữ ký bắt buộc.'
   : 'Hiện chưa có thao tác cần thực hiện trên văn bản này.');
@@ -187,6 +209,76 @@ function stopDraw() {
 
 function clearSignature() {
   prepareCanvas();
+  resetOtpState();
+}
+
+function resetOtpState() {
+  confirmed.value = false;
+  otpSent.value = false;
+  otp.value = '';
+  signingRequestId.value = '';
+  hashShort.value = '';
+  otpExpiresAt.value = null;
+}
+
+async function requestSignatureOtp() {
+  if (!canvas.value || !document.value) return;
+  saving.value = true;
+  error.value = '';
+  try {
+    const signature_image = canvas.value.toDataURL('image/png');
+    const payload = {
+      signature_image,
+      confirmed: confirmed.value,
+      confirmation_text: confirmationText.value,
+    };
+    let response;
+    if (isContract.value) {
+      response = await api('/api/user/partner-application/sign-contract/request-otp', {
+        method: 'POST',
+        body: JSON.stringify({ ...payload, contract_id: document.value.partner_contract_id || contract.value?.id }),
+      });
+    } else {
+      response = await api(`/api/user/partner-application/${application.value.id}/sign-document/request-otp`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    }
+    signingRequestId.value = response.data?.signing_request_id || '';
+    hashShort.value = response.data?.hash_short || '';
+    otpExpiresAt.value = response.data?.expires_at || null;
+    otpSent.value = true;
+    otp.value = '';
+  } catch (err) {
+    error.value = err.message || 'Không gửi được OTP ký văn bản.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function verifySignatureOtp() {
+  if (!signingRequestId.value || otp.value.length !== 6) return;
+  saving.value = true;
+  error.value = '';
+  try {
+    if (isContract.value) {
+      await api('/api/user/partner-application/sign-contract/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ signing_request_id: signingRequestId.value, otp: otp.value }),
+      });
+    } else {
+      await api(`/api/user/partner-application/${application.value.id}/sign-document/verify-otp`, {
+        method: 'POST',
+        body: JSON.stringify({ signing_request_id: signingRequestId.value, otp: otp.value }),
+      });
+    }
+    resetOtpState();
+    await loadData();
+  } catch (err) {
+    error.value = err.message || 'Không xác thực được OTP ký văn bản.';
+  } finally {
+    saving.value = false;
+  }
 }
 
 async function submitSignature() {
@@ -249,6 +341,13 @@ function formatDate(value) {
 .signature-list { display: flex; flex-direction: column; gap: 8px; }
 .signature-item { border: 1px solid #facc15; background: #fefce8; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: #854d0e; }
 .signature-item.signed { border-color: #86efac; background: #f0fdf4; color: #166534; }
+.confirm-line { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; margin: 12px 0; color: #334155; font-size: 13px; line-height: 1.45; }
+.confirm-line input { margin-top: 2px; width: 16px; height: 16px; accent-color: #0f172a; }
+.otp-box { display: grid; gap: 7px; margin-top: 12px; }
+.otp-box label { color: #0f172a; font-size: 13px; font-weight: 800; }
+.otp-box input { min-height: 40px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 12px; font-size: 16px; letter-spacing: .16em; }
+.otp-box input:focus { outline: 2px solid rgba(15, 23, 42, .18); border-color: #0f172a; }
+.otp-box small { color: #64748b; line-height: 1.4; }
 .canvas-wrap { position: relative; border: 1px dashed #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff; }
 canvas { display: block; width: 100%; height: 180px; touch-action: none; cursor: crosshair; }
 .canvas-wrap span { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; color: #cbd5e1; font-weight: 800; }

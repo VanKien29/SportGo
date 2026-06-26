@@ -118,6 +118,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/partner-applications/{id}', [AdminPartnerApplicationController::class, 'show']);
         Route::post('/partner-applications/{id}/approve', [AdminPartnerApplicationController::class, 'approve']);
         Route::post('/partner-applications/{id}/reject', [AdminPartnerApplicationController::class, 'reject']);
+        Route::post('/partner-applications/{id}/sign-document/request-otp', [AdminPartnerApplicationController::class, 'requestSignDocumentOtp']);
+        Route::post('/partner-applications/{id}/sign-document/verify-otp', [AdminPartnerApplicationController::class, 'verifySignDocumentOtp']);
         Route::post('/partner-applications/{id}/sign-document', [AdminPartnerApplicationController::class, 'signDocument']);
         Route::get('/partner-applications/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::post('/partner-applications/{id}/terminate', [AdminPartnerApplicationController::class, 'terminate']);
@@ -127,6 +129,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/partner-profiles/{id}', [AdminPartnerApplicationController::class, 'show']);
         Route::post('/partner-profiles/{id}/approve', [AdminPartnerApplicationController::class, 'approve']);
         Route::post('/partner-profiles/{id}/reject', [AdminPartnerApplicationController::class, 'reject']);
+        Route::post('/partner-profiles/{id}/sign-document/request-otp', [AdminPartnerApplicationController::class, 'requestSignDocumentOtp']);
+        Route::post('/partner-profiles/{id}/sign-document/verify-otp', [AdminPartnerApplicationController::class, 'verifySignDocumentOtp']);
         Route::post('/partner-profiles/{id}/sign-document', [AdminPartnerApplicationController::class, 'signDocument']);
         Route::get('/partner-profiles/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::post('/partner-profiles/{id}/terminate', [AdminPartnerApplicationController::class, 'terminate']);
@@ -134,6 +138,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
 
         // Partner Contracts
         Route::post('/contracts/{id}/send-email', [AdminPartnerContractController::class, 'sendEmail']);
+        Route::post('/contracts/{id}/approve-signature/request-otp', [AdminPartnerContractController::class, 'requestApproveSignatureOtp']);
+        Route::post('/contracts/{id}/approve-signature/verify-otp', [AdminPartnerContractController::class, 'verifyApproveSignatureOtp']);
         Route::post('/contracts/{id}/approve-signature', [AdminPartnerContractController::class, 'approveSignature']);
         Route::post('/contracts/{id}/terminate', [AdminPartnerContractController::class, 'terminate']);
         Route::post('/contracts/{id}/approve-termination', [AdminPartnerContractController::class, 'approveTermination']);
@@ -370,7 +376,11 @@ Route::middleware('auth:sanctum')
         Route::get('/user/partner-application/documents', [UserPartnerApplicationController::class, 'documents']);
         Route::get('/user/partner-application/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::get('/user/partner-application/pending-contract', [UserPartnerApplicationController::class, 'pendingContract']);
+        Route::post('/user/partner-application/sign-contract/request-otp', [UserPartnerApplicationController::class, 'requestContractSignatureOtp']);
+        Route::post('/user/partner-application/sign-contract/verify-otp', [UserPartnerApplicationController::class, 'verifyContractSignatureOtp']);
         Route::post('/user/partner-application/sign-contract', [UserPartnerApplicationController::class, 'signContract']);
+        Route::post('/user/partner-application/{id}/sign-document/request-otp', [UserPartnerApplicationController::class, 'requestDocumentSignatureOtp']);
+        Route::post('/user/partner-application/{id}/sign-document/verify-otp', [UserPartnerApplicationController::class, 'verifyDocumentSignatureOtp']);
         Route::post('/user/partner-application/{id}/sign-document', [UserPartnerApplicationController::class, 'signDocument']);
         Route::get('/files/documents/{id}/download', PartnerDocumentDownloadController::class);
 

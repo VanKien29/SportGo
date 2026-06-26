@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\CourtType;
+use App\Models\DocumentSigningRequest;
 use App\Models\GeneratedDocument;
 use App\Models\PartnerApplication;
 use App\Models\PartnerContract;
 use App\Services\Partner\PartnerApplicationService;
 use App\Services\Partner\PartnerBankService;
+use App\Services\Partner\PartnerDocumentService;
+use App\Services\Partner\PartnerDocumentSigningService;
 use App\Services\Partner\PartnerLocationService;
 use App\Services\Partner\PartnerMapResolver;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +28,8 @@ class PartnerApplicationController extends Controller
         private readonly PartnerBankService $banks,
         private readonly PartnerLocationService $locations,
         private readonly PartnerMapResolver $maps,
+        private readonly PartnerDocumentSigningService $signing,
+        private readonly PartnerDocumentService $documents,
     ) {
     }
 
@@ -188,6 +193,10 @@ class PartnerApplicationController extends Controller
 
     public function signContract(Request $request): JsonResponse
     {
+        throw ValidationException::withMessages([
+            'otp' => 'Vui lòng bấm Ký xác nhận để nhận OTP, sau đó nhập OTP để hoàn tất ký hợp đồng.',
+        ]);
+
         $data = $request->validate([
             'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
             'signature_image' => ['required', 'string'],
@@ -209,8 +218,89 @@ class PartnerApplicationController extends Controller
         ]);
     }
 
+    public function requestContractSignatureOtp(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
+            'signature_image' => ['required', 'string'],
+            'confirmed' => ['accepted'],
+            'confirmation_text' => ['required', 'string', 'max:1000'],
+        ], $this->messages(), $this->attributes());
+
+        $contract = PartnerContract::with(['application.user', 'generatedDocument'])
+            ->where('owner_id', $request->user()->id)
+            ->where('status', 'pending_owner_signature')
+            ->when($data['contract_id'] ?? null, fn ($q, $id) => $q->whereKey($id))
+            ->latest()
+            ->firstOrFail();
+
+        if (! $contract->generatedDocument) {
+            throw ValidationException::withMessages(['document' => 'Không tìm thấy hợp đồng để ký.']);
+        }
+
+        $signingRequest = $this->signing->requestOtp(
+            $contract->generatedDocument,
+            $request->user(),
+            'owner',
+            'Ký hợp đồng hợp tác đối tác SportGo',
+            $data['confirmation_text'],
+            $data['signature_image'],
+            $request
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Mã OTP ký hợp đồng đã được gửi đến email của bạn.',
+            'data' => [
+                'signing_request_id' => $signingRequest->id,
+                'expires_at' => $signingRequest->expires_at,
+                'hash_short' => substr($signingRequest->file_hash, 0, 16),
+            ],
+        ]);
+    }
+
+    public function verifyContractSignatureOtp(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'signing_request_id' => ['required', 'string', 'exists:document_signing_requests,id'],
+            'otp' => ['required', 'digits:6'],
+        ], $this->messages(), $this->attributes());
+
+        $signingRequest = DocumentSigningRequest::with('document')->findOrFail($data['signing_request_id']);
+        $verifiedRequest = $this->signing->verifyOtp($signingRequest, $request->user(), $data['otp']);
+
+        $contract = PartnerContract::with(['application.user', 'generatedDocument.signatures'])
+            ->where('owner_id', $request->user()->id)
+            ->where('generated_document_id', $verifiedRequest->generated_document_id)
+            ->where('status', 'pending_owner_signature')
+            ->firstOrFail();
+
+        $contract = $this->partners->signOwnerContract($contract, $request->user(), $request, $verifiedRequest->signature_image);
+        $signature = $contract->generatedDocument
+            ?->signatures()
+            ->where('signer_side', 'owner')
+            ->where('signer_user_id', $request->user()->id)
+            ->where('status', 'signed')
+            ->latest()
+            ->first();
+
+        if ($signature) {
+            $this->signing->markSigned($verifiedRequest, $signature);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Bạn đã ký hợp đồng thành công. Tài khoản đã được cấp quyền chủ sân.',
+            'data' => $contract,
+        ]);
+    }
+
     public function signDocument(Request $request, string $id): JsonResponse
     {
+        throw ValidationException::withMessages([
+            'otp' => 'Vui lòng bấm Ký xác nhận để nhận OTP, sau đó nhập OTP để hoàn tất ký đơn đăng ký.',
+        ]);
+
         $data = $request->validate([
             'signature_image' => ['required', 'string'],
         ], $this->messages(), $this->attributes());
@@ -236,6 +326,101 @@ class PartnerApplicationController extends Controller
             'status' => 'success',
             'message' => 'Ký đơn đề nghị đăng ký thành công.',
             'data' => [
+                'document' => $document->refresh(),
+                'signature' => $signature,
+            ],
+        ]);
+    }
+
+    public function requestDocumentSignatureOtp(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'signature_image' => ['required', 'string'],
+            'confirmed' => ['accepted'],
+            'confirmation_text' => ['required', 'string', 'max:1000'],
+        ], $this->messages(), $this->attributes());
+
+        $application = PartnerApplication::with('generatedDocuments')
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        if ($application->status !== 'draft') {
+            throw ValidationException::withMessages([
+                'status' => 'Chỉ có hồ sơ đang chờ ký đơn mới được gửi OTP ký đơn đăng ký.',
+            ]);
+        }
+
+        $document = $application->generatedDocuments()
+            ->where('document_type', 'partner_application_form')
+            ->latest()
+            ->firstOrFail();
+
+        if ($document->signatures()->where('signer_side', 'owner')->where('status', 'signed')->exists()) {
+            throw ValidationException::withMessages([
+                'signature' => 'Đơn đăng ký đã có chữ ký. Vui lòng gửi hồ sơ hoặc chờ SportGo xử lý.',
+            ]);
+        }
+
+        $signingRequest = $this->signing->requestOtp(
+            $document,
+            $request->user(),
+            'owner',
+            'Ký đơn đề nghị đăng ký trở thành đối tác/chủ sân SportGo',
+            $data['confirmation_text'],
+            $data['signature_image'],
+            $request
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Mã OTP ký đơn đăng ký đã được gửi đến email của bạn.',
+            'data' => [
+                'signing_request_id' => $signingRequest->id,
+                'expires_at' => $signingRequest->expires_at,
+                'hash_short' => substr($signingRequest->file_hash, 0, 16),
+            ],
+        ]);
+    }
+
+    public function verifyDocumentSignatureOtp(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'signing_request_id' => ['required', 'string', 'exists:document_signing_requests,id'],
+            'otp' => ['required', 'digits:6'],
+        ], $this->messages(), $this->attributes());
+
+        $application = PartnerApplication::with('generatedDocuments.signatures')
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $document = $application->generatedDocuments()
+            ->where('document_type', 'partner_application_form')
+            ->latest()
+            ->firstOrFail();
+
+        $signingRequest = DocumentSigningRequest::query()
+            ->where('generated_document_id', $document->id)
+            ->findOrFail($data['signing_request_id']);
+
+        $verifiedRequest = $this->signing->verifyOtp($signingRequest, $request->user(), $data['otp']);
+
+        $signature = $this->documents->signDocument(
+            $document,
+            $request->user(),
+            'owner',
+            $verifiedRequest->signature_image,
+            $request,
+            ['signature_method' => 'otp_confirm']
+        );
+        $this->signing->markSigned($verifiedRequest, $signature);
+
+        $application = $this->partners->submitSignedApplication($application->fresh('generatedDocuments.signatures'), $request->user(), $request);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã ký đơn đăng ký bằng OTP và gửi hồ sơ cho SportGo xét duyệt.',
+            'data' => [
+                'application' => $application,
                 'document' => $document->refresh(),
                 'signature' => $signature,
             ],

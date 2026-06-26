@@ -19,6 +19,7 @@ class GeneratedDocument extends Model
         'document_type',
         'template_id',
         'template_version',
+        'document_version',
         'reference_type',
         'reference_id',
         'entity_type',
@@ -48,6 +49,7 @@ class GeneratedDocument extends Model
     {
         return [
             'template_version' => 'integer',
+            'document_version' => 'integer',
             'render_data' => 'array',
             'generated_at' => 'datetime',
             'locked_at' => 'datetime',
@@ -63,6 +65,11 @@ class GeneratedDocument extends Model
     public function signatures()
     {
         return $this->hasMany(GeneratedDocumentSignature::class, 'generated_document_id');
+    }
+
+    public function signingRequests()
+    {
+        return $this->hasMany(DocumentSigningRequest::class, 'generated_document_id');
     }
 
     public function template()

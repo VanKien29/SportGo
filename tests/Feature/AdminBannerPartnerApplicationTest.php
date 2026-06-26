@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Mail\Partner\PartnerApplicationApprovedMail;
+use App\Mail\Partner\PartnerApplicationReceivedMail;
+use App\Mail\Partner\PartnerApplicationRejectedMail;
+use App\Mail\Partner\PartnerContractSignedByOwnerMail;
 use App\Models\CourtType;
 use App\Models\GeneratedDocument;
 use App\Models\OwnerBankAccount;
@@ -19,6 +23,7 @@ use App\Services\Partner\PartnerMailDispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -96,6 +101,7 @@ class AdminBannerPartnerApplicationTest extends TestCase
     {
         Storage::fake('public');
         Queue::fake();
+        Mail::fake();
         Http::fake([
             'api.vietqr.io/v2/banks' => Http::response([
                 'code' => '00',
@@ -219,6 +225,10 @@ class AdminBannerPartnerApplicationTest extends TestCase
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.status', 'submitted');
 
+        Mail::assertQueued(PartnerApplicationReceivedMail::class, function (PartnerApplicationReceivedMail $mail) use ($applicationId): bool {
+            return $mail->application->id === $applicationId;
+        });
+
         $this->assertDatabaseHas('partner_applications', [
             'id' => $applicationId,
             'user_id' => $user->id,
@@ -263,9 +273,56 @@ class AdminBannerPartnerApplicationTest extends TestCase
         ]);
     }
 
+    public function test_admin_rejects_partner_application_with_required_reason_and_email(): void
+    {
+        Mail::fake();
+
+        $applicant = $this->createUser('rejected_partner', 'reject.partner@sportgo.vn');
+        $application = PartnerApplication::query()->create([
+            'user_id' => $applicant->id,
+            'business_name' => 'Hộ kinh doanh cần bổ sung',
+            'tax_code' => '0101234567',
+            'venue_name' => 'SportGo Reject Test',
+            'venue_address' => '1 Test, Hà Nội',
+            'venue_map_url' => 'https://maps.google.com/?q=21.0278,105.8342',
+            'venue_latitude' => 21.0278000,
+            'venue_longitude' => 105.8342000,
+            'venue_email' => 'reject.partner@sportgo.vn',
+            'status' => 'submitted',
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/admin/partner-applications/{$application->id}/reject", [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['reason']);
+
+        $reason = 'Thiếu hợp đồng thuê mặt bằng hợp lệ.';
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/admin/partner-applications/{$application->id}/reject", [
+                'reason' => $reason,
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.status', 'rejected')
+            ->assertJsonPath('data.status_reason', $reason);
+
+        $this->assertDatabaseHas('partner_applications', [
+            'id' => $application->id,
+            'status' => 'rejected',
+            'status_reason' => $reason,
+        ]);
+
+        Mail::assertQueued(PartnerApplicationRejectedMail::class, function (PartnerApplicationRejectedMail $mail) use ($application): bool {
+            return $mail->application->id === $application->id;
+        });
+    }
+
     public function test_admin_can_approve_partner_application_and_create_venue_cluster(): void
     {
         Queue::fake();
+        Mail::fake();
 
         $applicant = $this->createUser('partner_applicant', 'kiennguyennguyen0@gmail.com');
         $courtType = CourtType::query()->create([
@@ -353,6 +410,7 @@ class AdminBannerPartnerApplicationTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame('pending_sportgo_signature', $contract->status);
+        Mail::assertNotQueued(PartnerApplicationApprovedMail::class);
 
         $contractDocument = GeneratedDocument::query()
             ->where('partner_contract_id', $contract->id)
@@ -378,6 +436,10 @@ class AdminBannerPartnerApplicationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'success');
 
+        Mail::assertQueued(PartnerApplicationApprovedMail::class, function (PartnerApplicationApprovedMail $mail) use ($application): bool {
+            return $mail->application->id === $application->id;
+        });
+
         $this->assertDatabaseMissing('user_roles', [
             'user_id' => $applicant->id,
             'role_id' => $ownerRoleId,
@@ -399,6 +461,10 @@ class AdminBannerPartnerApplicationTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('status', 'success');
+
+        Mail::assertQueued(PartnerContractSignedByOwnerMail::class, function (PartnerContractSignedByOwnerMail $mail) use ($contract): bool {
+            return $mail->contract->id === $contract->id;
+        });
 
         $this->assertDatabaseHas('user_roles', [
             'user_id' => $applicant->id,
