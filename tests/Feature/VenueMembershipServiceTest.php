@@ -44,6 +44,10 @@ class VenueMembershipServiceTest extends TestCase
         $discount = $service->discountForBooking($user->id, $cluster->id, 100000);
         $this->assertSame('silver', $discount['tier']);
         $this->assertEquals(4000.0, $discount['discount_amount']);
+
+        $payload = $service->membershipsForUser($user);
+        $this->assertCount(4, $payload[0]['tiers']);
+        $this->assertSame(['standard', 'silver', 'gold', 'diamond'], array_column($payload[0]['tiers'], 'tier'));
     }
 
     public function test_profile_recalculation_does_not_restore_a_maintenance_downgrade(): void

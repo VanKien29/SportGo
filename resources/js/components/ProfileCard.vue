@@ -214,6 +214,49 @@
           </tbody>
         </table>
       </div>
+
+      <button
+        class="membership-rank-toggle"
+        type="button"
+        @click="showAllTierRules = !showAllTierRules"
+      >
+        {{ showAllTierRules ? 'Ẩn thông tin các hạng' : 'Thông tin các hạng còn lại' }}
+      </button>
+
+      <div v-if="showAllTierRules" class="membership-modal-table-wrap">
+        <table class="membership-modal-table membership-rules-table">
+          <thead>
+            <tr>
+              <th>Hạng</th>
+              <th>Ưu đãi</th>
+              <th>Điều kiện lên hạng</th>
+              <th>Duy trì</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="tier in membershipTierRules" :key="tier.key">
+              <td>
+                <span class="membership-mini-pill" :class="tierClass(tier.key)">
+                  {{ tier.label }}
+                </span>
+              </td>
+              <td>Giảm {{ tier.discount_percent || 0 }}%</td>
+              <td>
+                {{ tier.min_completed_bookings || tier.min_bookings || 0 }} booking<br>
+                {{ formatMoney(tier.min_spend_amount || tier.min_spent_amount || 0) }}
+              </td>
+              <td>
+                <template v-if="tier.maintain_period_months">
+                  Mỗi {{ tier.maintain_period_months }} tháng<br>
+                  {{ tier.maintain_min_bookings || 0 }} booking<br>
+                  {{ formatMoney(tier.maintain_min_spend_amount || tier.maintain_min_spent || 0) }}
+                </template>
+                <template v-else>Không yêu cầu</template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   </div>
 </template>
@@ -228,6 +271,7 @@ export default {
   data() {
     return {
       showMembershipModal: false,
+      showAllTierRules: false,
     };
   },
   computed: {
@@ -253,6 +297,16 @@ export default {
     },
     membershipModalRows() {
       return this.membershipVenues.length ? this.membershipVenues : [this.membershipTier].filter(Boolean);
+    },
+    membershipTierRules() {
+      const tiers = this.membershipTier?.tiers || this.membershipModalRows[0]?.tiers || [];
+      return tiers
+        .map((tier) => ({
+          ...tier,
+          key: tier.key || tier.tier_key || tier.tier,
+          label: tier.label || tier.tier_label,
+        }))
+        .sort((a, b) => Number(a.tier_order || 0) - Number(b.tier_order || 0));
     },
     membershipProgress() {
       return Math.min(100, Math.max(0, Number(this.membershipTier?.progress_percent || 0)));
@@ -839,6 +893,23 @@ export default {
   margin-top: 3px;
   color: #64748b;
   font-weight: 800;
+}
+.membership-rank-toggle {
+  justify-self: end;
+  min-height: 38px;
+  padding: 9px 13px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 13px;
+  font-weight: 850;
+}
+.membership-rank-toggle:hover {
+  background: #dcfce7;
+}
+.membership-rules-table td {
+  line-height: 1.45;
 }
 
 .pcard-footer {

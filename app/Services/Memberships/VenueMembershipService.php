@@ -321,6 +321,7 @@ class VenueMembershipService
             'period_bookings' => (int) $membership->period_bookings,
             'period_spent' => (float) $membership->period_spent,
             'next_tier' => $nextTier ? $this->tierPayload($nextTier) : null,
+            'tiers' => $settings->map(fn (array $item): array => $this->tierPayload($item))->values()->all(),
             'remaining_bookings' => $nextTier ? max(0, (int) $nextTier['min_bookings'] - (int) $membership->total_bookings) : 0,
             'remaining_spend_amount' => $nextTier ? max(0, (float) $nextTier['min_spent_amount'] - (float) $membership->total_spent) : 0,
             'progress_percent' => $progressPercent,
