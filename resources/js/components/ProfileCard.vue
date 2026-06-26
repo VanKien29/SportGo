@@ -31,6 +31,16 @@
           <span class="role-dot"></span>
           {{ roleLabel }}
         </div>
+        <div
+          v-if="showVipBadge"
+          class="vip-badge"
+          :class="vipBadgeClass"
+          :title="vipTooltip"
+        >
+          <span class="vip-mark">VIP</span>
+          <strong>{{ vipBadgeLabel }}</strong>
+          <small>{{ vipExpiresText }}</small>
+        </div>
       </div>
     </div>
 
@@ -241,16 +251,16 @@
                   {{ tier.label }}
                 </span>
               </td>
-              <td>Giảm {{ tier.discount_percent || 0 }}%</td>
+              <td>Giảm {{ tier.discount_percent || 0 }}% mỗi lần đặt sân</td>
               <td>
                 {{ tier.min_completed_bookings || tier.min_bookings || 0 }} booking<br>
                 {{ formatMoney(tier.min_spend_amount || tier.min_spent_amount || 0) }}
               </td>
               <td>
                 <template v-if="tier.maintain_period_months">
-                  Mỗi {{ tier.maintain_period_months }} tháng<br>
-                  {{ tier.maintain_min_bookings || 0 }} booking<br>
-                  {{ formatMoney(tier.maintain_min_spend_amount || tier.maintain_min_spent || 0) }}
+                  Mỗi {{ tier.maintain_period_months }} tháng cần duy trì<br>
+                  - {{ tier.maintain_min_bookings || 0 }} booking<br>
+                  - {{ formatMoney(tier.maintain_min_spend_amount || tier.maintain_min_spent || 0) }}
                 </template>
                 <template v-else>Không yêu cầu</template>
               </td>
@@ -282,6 +292,37 @@ export default {
     },
     membershipTier() {
       return this.normalizeMembership(this.user?.membership_tier);
+    },
+    vipSubscription() {
+      return this.user?.vip_subscription || null;
+    },
+    vipPackage() {
+      return this.vipSubscription?.package || null;
+    },
+    showVipBadge() {
+      return this.user?.role === 'user' && Boolean(this.vipSubscription && this.vipPackage);
+    },
+    vipBadgeLabel() {
+      return this.vipSubscription?.badge?.label
+        || this.vipPackage?.badge_name
+        || this.vipPackage?.label
+        || this.vipPackage?.name
+        || 'SportGo VIP';
+    },
+    vipBadgeClass() {
+      return `vip-badge-${this.vipPackage?.type || this.vipSubscription?.badge?.type || 'saving'}`;
+    },
+    vipExpiresText() {
+      if (!this.vipSubscription?.expires_at) return 'Đang hiệu lực';
+      return `Đến ${this.formatDate(this.vipSubscription.expires_at)}`;
+    },
+    vipTooltip() {
+      const cashback = Number(this.vipPackage?.cashback_percent || 0);
+      const vouchers = Number(this.vipPackage?.voucher_count_per_month || 0);
+      const parts = [];
+      if (vouchers > 0) parts.push(`${vouchers} voucher/tháng`);
+      if (cashback > 0) parts.push(`${cashback}% cashback`);
+      return parts.length ? parts.join(' · ') : 'Gói VIP hệ thống đang hiệu lực';
     },
     membershipBadgeClass() {
       return this.tierClass(this.membershipTier?.key);
@@ -356,6 +397,9 @@ export default {
     },
     formatMoney(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
+    },
+    formatDate(value) {
+      return value ? new Date(value).toLocaleDateString('vi-VN') : '';
     },
     tierClass(key) {
       return `tier-${key || 'standard'}`;
@@ -550,6 +594,47 @@ export default {
   color: #86efac;
 }
 .role-badge.user .role-dot { background: #4ade80; }
+
+.vip-badge {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 5px 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 12px;
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(15,23,42,.18);
+}
+.vip-mark {
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.18);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+.vip-badge strong {
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+.vip-badge small {
+  grid-column: 1 / -1;
+  color: rgba(255,255,255,.76);
+  font-size: 11px;
+  font-weight: 750;
+}
+.vip-badge-saving {
+  background: rgba(14,165,233,.18);
+  border-color: rgba(125,211,252,.42);
+}
+.vip-badge-pro {
+  background: rgba(245,158,11,.2);
+  border-color: rgba(251,191,36,.5);
+}
 
 /* ── Body ── */
 .pcard-body {

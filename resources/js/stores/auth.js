@@ -30,6 +30,7 @@ function normalizeAuth(payload, existingToken = null) {
     status: user.status,
     membership_tier: user.membership_tier || payload.membership_tier || null,
     venue_memberships: user.venue_memberships || payload.venue_memberships || [],
+    vip_subscription: user.vip_subscription || payload.vip_subscription || null,
   };
 }
 
