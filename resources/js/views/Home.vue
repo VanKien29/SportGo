@@ -1,6 +1,7 @@
 <template>
   <div class="home">
     <PublicNavbar />
+    <VipPromptToast v-if="showVipPrompt" :duration="9000" />
 
     <!-- Hero Section -->
     <section class="hero">
@@ -100,13 +101,19 @@
 <script>
 import HomeBannerCarousel from '../components/HomeBannerCarousel.vue';
 import PublicNavbar from '../components/PublicNavbar.vue';
+import VipPromptToast from '../components/VipPromptToast.vue';
 import { getAuth } from '../stores/auth.js';
 
 export default {
   name: 'HomeView',
-  components: { HomeBannerCarousel, PublicNavbar },
+  components: { HomeBannerCarousel, PublicNavbar, VipPromptToast },
   data() {
     return { user: getAuth() };
+  },
+  computed: {
+    showVipPrompt() {
+      return !this.user || this.user.role === 'user';
+    },
   },
 };
 </script>

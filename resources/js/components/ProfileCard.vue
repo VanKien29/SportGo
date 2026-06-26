@@ -148,7 +148,7 @@
           Quay lại
         </button>
         <router-link v-if="user?.role === 'user'" class="btn-vip" to="/vip-membership">
-          Gói VIP
+          {{ vipActionLabel }}
         </router-link>
       </div>
       <div class="status-indicator">
@@ -326,6 +326,9 @@ export default {
       const parts = [];
       if (cashback > 0) parts.push(`${cashback}% cashback`);
       return parts.length ? parts.join(' · ') : 'Gói VIP hệ thống đang hiệu lực';
+    },
+    vipActionLabel() {
+      return this.showVipBadge ? 'Quản lý VIP' : 'Mua gói VIP';
     },
     membershipBadgeClass() {
       return this.tierClass(this.membershipTier?.key);
