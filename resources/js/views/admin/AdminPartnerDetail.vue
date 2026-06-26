@@ -76,11 +76,16 @@
         <!-- 3. Tài liệu & Phụ lục (Documents) -->
         <div class="card section-card">
           <h3>Tài liệu đính kèm</h3>
-          <div v-if="app.documents?.length" class="docs-list">
-            <button v-for="doc in app.documents" :key="doc.id" @click="viewFile(doc.file_path)" type="button" class="btn ghost doc-item">
-              <AppIcon name="paperclip" size="18" />
-              <span>{{ doc.type }}</span>
-            </button>
+          <div v-if="app.uploaded_documents?.length" class="docs-list">
+            <div v-for="doc in app.uploaded_documents" :key="doc.id" class="doc-item-row">
+              <button @click="viewUploadedFile(doc)" type="button" class="btn ghost doc-item">
+                <AppIcon name="paperclip" size="18" />
+                <span>{{ doc.type || doc.title || 'Tài liệu' }}</span>
+              </button>
+              <button @click="viewUploadedFile(doc)" type="button" class="btn primary small">
+                <AppIcon name="eye" size="14" /> Xem
+              </button>
+            </div>
           </div>
           <p v-else class="muted">Chưa có tài liệu đính kèm.</p>
         </div>
@@ -102,7 +107,10 @@
                 <div v-if="contract.sportgo_signed_at">SportGo ký: {{ formatDate(contract.sportgo_signed_at) }}</div>
               </div>
               <div class="contract-actions">
-                <button v-if="contract.generated_file_path" @click="viewFile(contract.generated_file_path)" class="btn ghost small">
+                <button v-if="contract.generated_document" @click="viewContractDocument(contract.generated_document)" class="btn ghost small">
+                  <AppIcon name="eye" size="16" /> Xem Hợp đồng
+                </button>
+                <button v-else-if="contract.generated_file_path" @click="viewUploadedFile(contract)" class="btn ghost small">
                   <AppIcon name="eye" size="16" /> Xem Hợp đồng
                 </button>
                 <div class="flex-actions" v-if="contract.status === 'signed_active'">
@@ -232,23 +240,32 @@
         </form>
       </div>
     </div>
+
+    <DocumentViewerModal
+      :show="showDocViewer"
+      :document="viewingDoc"
+      @close="showDocViewer = false; viewingDoc = null;"
+    />
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import DocumentViewerModal from '../../components/DocumentViewerModal.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
 import { api } from '../../services/api.js';
 
 export default {
   name: 'AdminPartnerDetail',
-  components: { AppIcon },
+  components: { AppIcon, DocumentViewerModal },
   data() {
     return {
       app: null,
       loading: true,
       error: '',
       savingAction: false,
+      showDocViewer: false,
+      viewingDoc: null,
       terminationModal: {
         open: false,
         contractId: null,
@@ -305,67 +322,21 @@ export default {
       };
       return map[status] || status;
     },
-    async viewFile(path) {
-      if (!path) return;
-      if (path.startsWith('http')) {
-        window.open(path, '_blank');
-        return;
-      }
-      try {
-        const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
-        const headers = { Accept: 'application/json' };
-        if (token) headers.Authorization = `Bearer ${token}`;
-        const response = await fetch(`/api/auth/files/download?path=${encodeURIComponent(path)}`, { headers });
-        if (!response.ok) {
-          let serverMessage = '';
-          try {
-            const errorBody = await response.json();
-            serverMessage = errorBody?.message || '';
-          } catch {
-            serverMessage = '';
-          }
-          throw new Error(serverMessage || 'Không thể tải file');
-        }
-        const contentType = (response.headers.get('content-type') || '').toLowerCase();
-        if (response.redirected || contentType.includes('text/html')) {
-          const htmlBody = await response.text();
-          const compactHtml = htmlBody.replace(/\s+/g, ' ').slice(0, 120);
-          throw new Error(`File trả về không hợp lệ (${compactHtml || 'HTML response'})`);
-        }
-        const blob = await response.blob();
-        const disposition = response.headers.get('content-disposition') || '';
-        const filenameFromHeader = disposition.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i)?.[1];
-        const fallbackName = decodeURIComponent(String(path).split('/').pop() || 'downloaded-file');
-        const filename = decodeURIComponent((filenameFromHeader || fallbackName).replace(/"/g, ''));
-
-        const canPreviewInBrowser =
-          contentType.includes('pdf') ||
-          contentType.startsWith('image/');
-
-        const url = URL.createObjectURL(blob);
-        if (canPreviewInBrowser) {
-          const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
-          if (!openedWindow) {
-            const tempLink = document.createElement('a');
-            tempLink.href = url;
-            tempLink.target = '_blank';
-            tempLink.rel = 'noopener noreferrer';
-            document.body.appendChild(tempLink);
-            tempLink.click();
-            document.body.removeChild(tempLink);
-          }
-        } else {
-          const downloadLink = document.createElement('a');
-          downloadLink.href = url;
-          downloadLink.download = filename;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-        }
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-      } catch (err) {
-        alert(err.message || 'Lỗi tải file');
-      }
+    viewContractDocument(doc) {
+      this.viewingDoc = {
+        ...doc,
+        download_url: `/api/files/documents/${doc.id}/download`,
+      };
+      this.showDocViewer = true;
+    },
+    async viewUploadedFile(document) {
+      if (!document || !document.id) return;
+      this.viewingDoc = {
+        ...document,
+        title: document.title || document.type || 'Tài liệu đính kèm',
+        download_url: `/api/admin/partner-profiles/documents/${document.id}/download`,
+      };
+      this.showDocViewer = true;
     },
     openTerminationModal(contract) {
       this.terminationModal = {
@@ -507,6 +478,12 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+.doc-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
 }
 .doc-item {
   display: inline-flex;

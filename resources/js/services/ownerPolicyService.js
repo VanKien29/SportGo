@@ -14,8 +14,12 @@ function payloadWithCluster(payload = {}) {
 }
 
 export const ownerPolicyService = {
-  list() {
-    return api(withCluster('/api/owner/venue-policies'));
+  list(clusterId = null) {
+    const path = clusterId
+      ? `/api/owner/venue-policies?venue_cluster_id=${encodeURIComponent(clusterId)}`
+      : withCluster('/api/owner/venue-policies');
+
+    return api(path);
   },
   saveRule(payload) {
     return api('/api/owner/venue-policies/rules', {
@@ -33,6 +37,12 @@ export const ownerPolicyService = {
     return api(`/api/owner/venue-policies/notices/${id}`, {
       method: 'PUT',
       body: JSON.stringify(payloadWithCluster(payload)),
+    });
+  },
+  resetRule(id, venueClusterId = null) {
+    return api(`/api/owner/venue-policies/rules/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify(payloadWithCluster({ venue_cluster_id: venueClusterId })),
     });
   },
 };

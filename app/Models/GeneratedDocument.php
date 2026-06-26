@@ -19,12 +19,26 @@ class GeneratedDocument extends Model
         'document_type',
         'template_id',
         'template_version',
+        'document_version',
         'reference_type',
         'reference_id',
+        'entity_type',
+        'entity_id',
+        'partner_application_id',
+        'partner_contract_id',
+        'partner_termination_request_id',
+        'partner_settlement_id',
+        'owner_id',
+        'venue_cluster_id',
+        'title',
         'status',
         'render_data',
+        'generated_file_media_id',
+        'signed_file_media_id',
+        'final_file_media_id',
         'generated_file_path',
         'final_file_path',
+        'file_hash',
         'generated_by',
         'generated_at',
         'locked_at',
@@ -35,6 +49,7 @@ class GeneratedDocument extends Model
     {
         return [
             'template_version' => 'integer',
+            'document_version' => 'integer',
             'render_data' => 'array',
             'generated_at' => 'datetime',
             'locked_at' => 'datetime',
@@ -50,6 +65,11 @@ class GeneratedDocument extends Model
     public function signatures()
     {
         return $this->hasMany(GeneratedDocumentSignature::class, 'generated_document_id');
+    }
+
+    public function signingRequests()
+    {
+        return $this->hasMany(DocumentSigningRequest::class, 'generated_document_id');
     }
 
     public function template()

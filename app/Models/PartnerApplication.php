@@ -19,6 +19,7 @@ class PartnerApplication extends Model
         'applicant_full_name',
         'applicant_phone',
         'applicant_email',
+        'applicant_birth_date',
         'applicant_address',
         'applicant_type',
         'representative_name',
@@ -52,6 +53,14 @@ class PartnerApplication extends Model
         'parking_info',
         'amenities',
         'court_count_total',
+        'base_price_per_hour',
+        'bank_name',
+        'bank_code',
+        'account_number',
+        'account_holder_name',
+        'bank_branch',
+        'bank_verification_status',
+        'bank_verified_at',
         'status',
         'reviewed_by',
         'status_reason',
@@ -67,10 +76,13 @@ class PartnerApplication extends Model
         return [
             'venue_latitude' => 'decimal:7',
             'venue_longitude' => 'decimal:7',
+            'applicant_birth_date' => 'date',
             'representative_identity_issued_date' => 'date',
             'amenities' => 'array',
             'court_count_total' => 'integer',
+            'base_price_per_hour' => 'integer',
             'submitted_at' => 'datetime',
+            'bank_verified_at' => 'datetime',
             'reviewed_at' => 'datetime',
             'terminated_at' => 'datetime',
         ];
@@ -104,6 +116,11 @@ class PartnerApplication extends Model
     public function documents()
     {
         return $this->hasMany(PartnerApplicationDocument::class, 'partner_application_id');
+    }
+
+    public function generatedDocuments()
+    {
+        return $this->hasMany(GeneratedDocument::class, 'partner_application_id');
     }
 
     public function statusHistories()

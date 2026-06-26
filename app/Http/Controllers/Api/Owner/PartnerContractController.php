@@ -4,89 +4,55 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\PartnerContract;
-use App\Models\VenueCluster;
-use App\Services\Partner\ContractSignatureService;
-use App\Services\Partner\PartnerTerminationService;
+use App\Services\Partner\PartnerApplicationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PartnerContractController extends Controller
 {
-    protected $signatureService;
-    protected $terminationService;
-
-    public function __construct(
-        ContractSignatureService $signatureService,
-        PartnerTerminationService $terminationService
-    ) {
-        $this->signatureService = $signatureService;
-        $this->terminationService = $terminationService;
+    public function __construct(private readonly PartnerApplicationService $partners)
+    {
     }
 
-    public function sign(Request $request, $id)
+    public function sign(Request $request, string $id): JsonResponse
     {
-        $contract = PartnerContract::with('application')->findOrFail($id);
-        
-        $ownerId = $request->user()->id;
-        $clusterId = $contract->venue_cluster_id ?? $contract->application?->approved_venue_cluster_id;
-        
-        $ownsCluster = $clusterId
-            ? VenueCluster::query()
-                ->whereKey($clusterId)
-                ->where('owner_id', $ownerId)
-                ->exists()
-            : false;
-
-        if (! $ownsCluster) {
-            // Check if it's a pending contract without a cluster yet, fallback to user_id
-            $ownsApplication = $contract->application && $contract->application->user_id === $ownerId;
-            if (! $ownsApplication) {
-                return response()->json(['message' => 'Unauthorized - Must be the owner of the venue cluster'], 403);
-            }
-        }
-
-        $this->signatureService->processOwnerSignature(
-            $contract, 
-            $request->user(), 
-            $request->ip(), 
-            $request->userAgent()
-        );
-
-        return response()->json(['message' => 'Contract signed successfully']);
-    }
-
-    public function requestTermination(Request $request, $id)
-    {
-        $request->validate([
-            'reason' => 'required|string',
-            'type' => 'required|in:unilateral_by_owner,mutual',
+        $data = $request->validate([
+            'signature_image' => ['required', 'string'],
         ]);
 
-        $contract = PartnerContract::with('application')->findOrFail($id);
-        
-        $ownerId = $request->user()->id;
-        $clusterId = $contract->venue_cluster_id ?? $contract->application?->approved_venue_cluster_id;
-        
-        $ownsCluster = $clusterId
-            ? VenueCluster::query()
-                ->whereKey($clusterId)
-                ->where('owner_id', $ownerId)
-                ->exists()
-            : false;
-
-        if (! $ownsCluster) {
-            $ownsApplication = $contract->application && $contract->application->user_id === $ownerId;
-            if (! $ownsApplication) {
-                return response()->json(['message' => 'Unauthorized - Must be the owner of the venue cluster'], 403);
-            }
-        }
-
-        $termRequest = $this->terminationService->requestTermination(
-            $contract->partner_application_id, 
-            $request->user(), 
-            $request->type, 
-            $request->reason
+        $contract = $this->partners->signOwnerContract(
+            PartnerContract::with(['application.user', 'generatedDocument'])->findOrFail($id),
+            $request->user(),
+            $request,
+            $data['signature_image']
         );
 
-        return response()->json(['message' => 'Termination requested successfully', 'data' => $termRequest]);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Bạn đã ký hợp đồng thành công.',
+            'data' => $contract,
+        ]);
+    }
+
+    public function requestTermination(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+            'signature_image' => ['nullable', 'string'],
+        ]);
+
+        $termination = $this->partners->requestTermination(
+            PartnerContract::with(['application.user'])->findOrFail($id),
+            $request->user(),
+            $request,
+            $data['reason'],
+            $data['signature_image'] ?? null
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã gửi yêu cầu chấm dứt hợp tác.',
+            'data' => $termination,
+        ]);
     }
 }

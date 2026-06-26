@@ -21,12 +21,15 @@ class DocumentTemplate extends Model
         'version',
         'file_name',
         'file_path',
+        'output_format',
         'mime_type',
         'storage_disk',
         'template_variables',
+        'required_fields',
         'render_engine',
         'status',
         'is_active',
+        'created_by',
         'uploaded_by',
         'activated_at',
         'replaced_template_id',
@@ -38,6 +41,7 @@ class DocumentTemplate extends Model
         return [
             'version' => 'integer',
             'template_variables' => 'array',
+            'required_fields' => 'array',
             'is_active' => 'boolean',
             'activated_at' => 'datetime',
         ];

@@ -433,14 +433,26 @@ class VenuePolicyController extends Controller
             ->where('rule_type', '!=', 'customer_notice')
             ->where('status', '!=', 'inactive')
             ->first();
+        $effectiveVenueRule = $venueRule?->status === 'active' ? $venueRule : null;
         $systemTiers = $this->refundPolicies->cancelRefundTiersFromRule($rule);
         $venueTiers = $venueRule ? $this->refundPolicies->cancelRefundTiersFromVenueRule($venueRule, $systemTiers) : null;
+        $effectiveTiers = $effectiveVenueRule
+            ? $this->refundPolicies->cancelRefundTiersFromVenueRule($effectiveVenueRule, $systemTiers)
+            : $systemTiers;
 
         return [
             'base_rule_id' => $rule->id,
             'venue_rule_id' => $venueRule?->id,
+            'venue_rule_status' => $venueRule?->status,
+            'venue_rule_status_label' => $venueRule ? PolicyUiText::statusLabel($venueRule->status) : null,
             'status' => $venueRule ? 'custom' : 'system_default',
             'status_label' => $venueRule ? 'Đã cấu hình riêng' : 'Đang dùng mặc định hệ thống',
+            'configuration_type' => 'cancel_refund_tiers',
+            'can_create_venue_policy' => true,
+            'action_label' => $venueRule ? 'Sửa chính sách sân' : 'Tạo chính sách sân',
+            'effective_source' => $effectiveVenueRule ? 'venue' : 'system',
+            'effective_source_label' => $effectiveVenueRule ? 'Đang áp dụng chính sách sân' : 'Đang kế thừa khung hệ thống',
+            'effective_summary' => $this->refundPolicies->cancelRefundSummary($effectiveTiers),
             ...$this->refundPolicies->cancelRefundPayload($systemTiers, $venueTiers),
         ];
     }

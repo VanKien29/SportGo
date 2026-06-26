@@ -15,7 +15,10 @@ class PartnerContract extends Model
 
     protected $keyType = 'string';
 
-    protected $appends = ['generated_file_path'];
+    protected $appends = [
+        'contract_number',
+        'generated_file_path',
+    ];
 
     protected $fillable = [
         'contract_code',
@@ -49,14 +52,19 @@ class PartnerContract extends Model
         ];
     }
 
-    public function getGeneratedFilePathAttribute()
-    {
-        return $this->generatedDocument ? $this->generatedDocument->generated_file_path : null;
-    }
-
     public function application()
     {
         return $this->belongsTo(PartnerApplication::class, 'partner_application_id');
+    }
+
+    public function getContractNumberAttribute(): ?string
+    {
+        return $this->contract_code;
+    }
+
+    public function getGeneratedFilePathAttribute(): ?string
+    {
+        return $this->generatedDocument?->generated_file_path;
     }
 
     public function profile()

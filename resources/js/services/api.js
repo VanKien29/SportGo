@@ -6,7 +6,7 @@ const ROLE_GROUP_KEY = 'auth_role_group';
 const REDIRECT_KEY = 'auth_redirect_to';
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
 
-function readToken() {
+export function readToken() {
   const token = localStorage.getItem(TOKEN_KEY);
   if (token) return token;
 

@@ -10,6 +10,10 @@ class PartnerTerminationRequest extends Model
 {
     use HasFactory, HasUuids;
 
+    public $incrementing = false;
+
+    protected $keyType = 'string';
+
     protected $fillable = [
         'termination_code',
         'partner_contract_id',
@@ -33,8 +37,18 @@ class PartnerTerminationRequest extends Model
     protected function casts(): array
     {
         return [
+            'requested_at' => 'datetime',
+            'requested_effective_date' => 'date',
             'approved_at' => 'datetime',
+            'effective_termination_date' => 'datetime',
+            'transition_end_at' => 'datetime',
+            'owner_access_revoked_at' => 'datetime',
         ];
+    }
+
+    public function getTypeAttribute(): ?string
+    {
+        return $this->termination_type;
     }
 
     public function application()

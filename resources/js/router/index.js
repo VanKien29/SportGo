@@ -34,7 +34,8 @@ import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
-import PartnerRegistration from "../views/clients/PartnerRegistration.vue";
+import PartnerRegistration from "../views/partner/PartnerRegistration.vue";
+import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
 
@@ -58,6 +59,24 @@ const routes = [
         path: "/profile",
         name: "profile",
         component: Profile,
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/partner-application",
+        name: "partner-application",
+        component: () => import("../views/partner/PartnerApplicationPortal.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/partner-application/:id",
+        name: "partner-application-detail",
+        component: () => import("../views/partner/PartnerApplicationDetail.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/partner-application/:id/documents/:documentId",
+        name: "partner-application-document",
+        component: PartnerApplicationDocumentPage,
         meta: { requiresAuth: true },
     },
     {
@@ -134,9 +153,22 @@ const routes = [
                 component: () => import("../views/admin/AdminPartnerApplications.vue"),
             },
             {
+                path: "partner-applications/:id",
+                name: "admin-partner-application-detail",
+                component: () => import("../views/admin/AdminPartnerApplicationDetail.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
+                path: "partner-applications/:id/documents/:documentId",
+                name: "admin-partner-application-document",
+                component: () => import("../views/admin/AdminPartnerDocumentPage.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
                 path: "partners/:id",
                 name: "admin-partner-detail",
-                component: () => import("../views/admin/AdminPartnerDetail.vue"),
+                component: () => import("../views/admin/AdminPartnerApplicationDetail.vue"),
+                meta: { hideFloatingBack: true },
             },
             {
                 path: "banners",
