@@ -126,6 +126,7 @@
                                         class="schedule-cell"
                                         :class="{
                                             busy: isSlotBusy(court.id, slot),
+                                            past: isSlotPast(slot),
                                             selected: isSlotSelected(
                                                 court.id,
                                                 index,
@@ -377,7 +378,7 @@ export default {
             clusters: [],
             selectedClusterId: "",
             selectedCourtId: "",
-            bookingDate: new Date().toISOString().split("T")[0],
+            bookingDate: new Date().toLocaleDateString("en-CA"),
             startTime: "08:00:00",
             endTime: "09:00:00",
             paymentOption: "no_prepay",
@@ -442,7 +443,7 @@ export default {
     },
     computed: {
         minDate() {
-            return new Date().toISOString().split("T")[0];
+            return new Date().toLocaleDateString("en-CA");
         },
         currentCluster() {
             return this.clusters.find((c) => c.id === this.selectedClusterId);
@@ -659,6 +660,8 @@ export default {
             );
         },
         isSlotBusy(courtId, slot) {
+            if (this.isSlotPast(slot)) return true;
+
             const status = this.slotStatus(courtId, slot);
             if (status) return !status.is_available;
 
@@ -726,6 +729,8 @@ export default {
             );
         },
         slotTitle(court, slot, index) {
+            if (this.isSlotPast(slot))
+                return `${court.name}: ${slot.label} đã qua giờ đặt`;
             if (this.isSlotBusy(court.id, slot))
                 return `${court.name}: ${slot.label} đã bận`;
             if (this.isSlotSelected(court.id, index))
@@ -742,6 +747,14 @@ export default {
                 .split(":")
                 .map(Number);
             return hour * 60 + minute;
+        },
+        isSlotPast(slot) {
+            if (!slot || this.bookingDate !== this.minDate) return false;
+
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+            return this.timeToMinutes(slot.start_time) <= currentMinutes;
         },
         async checkAvailability() {
             if (
@@ -1150,6 +1163,18 @@ export default {
 
 .schedule-cell.busy {
     background: #e5e7eb;
+    cursor: not-allowed;
+}
+
+.schedule-cell.past {
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            #f1f5f9,
+            #f1f5f9 6px,
+            #e2e8f0 6px,
+            #e2e8f0 12px
+        );
     cursor: not-allowed;
 }
 
