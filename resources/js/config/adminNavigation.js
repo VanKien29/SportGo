@@ -3,7 +3,7 @@ export const adminNavigationSections = [
     label: 'Tổng quan',
     items: [
       {
-        label: 'Bảng điều khiển',
+        label: 'Bảng điều hành',
         icon: 'dashboard',
         to: '/admin/dashboard',
         activeNames: ['admin-dashboard'],
@@ -144,7 +144,7 @@ export const adminNavigationSections = [
 ];
 
 export const adminRouteTitles = {
-  'admin-dashboard': 'Bảng điều khiển',
+  'admin-dashboard': 'Bảng điều hành',
   'admin-profile': 'Thông tin cá nhân',
   'admin-staffs': 'Quản lý nhân sự',
   'admin-users': 'Quản lý tài khoản',
