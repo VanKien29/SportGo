@@ -158,6 +158,7 @@
         <button type="button" title="Đóng" @click="showMembershipModal = false">×</button>
       </header>
 
+      <div class="membership-modal-body">
       <div class="membership-modal-stats">
         <div>
           <span>Booking hoàn tất</span>
@@ -256,6 +257,7 @@
             </tr>
           </tbody>
         </table>
+      </div>
       </div>
     </section>
   </div>
@@ -788,9 +790,10 @@ export default {
 }
 .membership-modal {
   width: min(760px, 100%);
-  max-height: min(82vh, 720px);
+  max-height: min(90vh, 760px);
   overflow: hidden;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
   padding: 20px;
   border: 1px solid #e2e8f0;
@@ -834,6 +837,13 @@ export default {
   color: #334155;
   font-size: 24px;
   line-height: 1;
+}
+.membership-modal-body {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 4px 10px 0;
 }
 .membership-modal-stats {
   display: grid;
