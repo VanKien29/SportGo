@@ -19,12 +19,11 @@
 
         <div class="grid">
           <label>Tên gói<input v-model.trim="pkg.name" required /></label>
-          <label>Thứ tự<input v-model.number="pkg.sort_order" type="number" min="0" max="255" required /></label>
-          <label>Giá tháng<input v-model.number="pkg.monthly_price" type="number" min="0" step="1000" :disabled="pkg.type === 'free'" /></label>
-          <label>Giá quý<input v-model.number="pkg.quarterly_price" type="number" min="0" step="1000" :disabled="pkg.type === 'free'" /></label>
-          <label>Giá năm<input v-model.number="pkg.yearly_price" type="number" min="0" step="1000" :disabled="pkg.type === 'free'" /></label>
-          <label>Badge<input v-model.trim="pkg.badge_name" :disabled="pkg.type === 'free'" /></label>
-          <label>% cashback<input v-model.number="pkg.cashback_percent" type="number" min="0" max="100" step="0.01" :disabled="pkg.type === 'free'" required /></label>
+          <label>Giá 1 tháng<input v-model.number="pkg.monthly_price" type="number" min="0" step="1000" :disabled="pkg.type === 'free'" /></label>
+          <label>Giá 1 quý<input v-model.number="pkg.quarterly_price" type="number" min="0" step="1000" :disabled="pkg.type === 'free'" /></label>
+          <label>Giá 1 năm<input v-model.number="pkg.yearly_price" type="number" min="0" step="1000" :disabled="pkg.type === 'free'" /></label>
+          <label>Danh hiệu<input v-model.trim="pkg.badge_name" :disabled="pkg.type === 'free'" /></label>
+          <label>% Hoàn tiền<input v-model.number="pkg.cashback_percent" type="number" min="0" max="100" step="0.01" :disabled="pkg.type === 'free'" required /></label>
           <label>Bài giao lưu/tháng<input v-model.number="pkg.match_post_limit_per_month" type="number" min="-1" required /></label>
         </div>
 
@@ -62,8 +61,17 @@
               <option value="fixed">Số tiền</option>
             </select>
           </label>
-          <label>Giá trị giảm<input v-model.number="vipVoucherForm.discount_value" type="number" min="0.01" step="0.01" required /></label>
-          <label>Tiền giảm tối đa<input v-model.number="vipVoucherForm.max_discount_amount" type="number" min="0" step="1000" /></label>
+          <label>{{ voucherDiscountValueLabel }}
+            <input
+              v-model.number="vipVoucherForm.discount_value"
+              type="number"
+              min="0.01"
+              :max="vipVoucherForm.discount_type === 'percent' ? 100 : null"
+              :step="vipVoucherForm.discount_type === 'percent' ? 0.01 : 1000"
+              required
+            />
+          </label>
+          <label v-if="vipVoucherForm.discount_type === 'percent'">Tiền giảm tối đa<input v-model.number="vipVoucherForm.max_discount_amount" type="number" min="0" step="1000" /></label>
           <label>Đơn tối thiểu<input v-model.number="vipVoucherForm.min_order_amount" type="number" min="0" step="1000" /></label>
           <label>Tổng số lượng<input v-model.number="vipVoucherForm.total_quantity" type="number" min="1" /></label>
           <label>Giới hạn mỗi khách<input v-model.number="vipVoucherForm.per_user_limit" type="number" min="1" /></label>
@@ -178,6 +186,11 @@ export default {
       return this.vouchers.filter((voucher) => (voucher.scopes || [])
         .some((scope) => scope.scope_type === 'vip_package'));
     },
+    voucherDiscountValueLabel() {
+      return this.vipVoucherForm.discount_type === 'percent'
+        ? 'Phần trăm giảm (%)'
+        : 'Số tiền giảm (VND)';
+    },
   },
   methods: {
     emptyVipVoucherForm() {
@@ -206,7 +219,9 @@ export default {
       this.error = '';
       try {
         const response = await vipMembershipService.adminPackages();
-        this.packages = (response.data || []).map((pkg) => ({ ...pkg }));
+        this.packages = (response.data || [])
+          .map((pkg) => ({ ...pkg }))
+          .sort((a, b) => this.packageSortOrder(a) - this.packageSortOrder(b));
         if (!this.availableVipPackages.some((pkg) => pkg.type === this.vipVoucherForm.package_type)) {
           this.vipVoucherForm.package_type = this.availableVipPackages[0]?.type || 'saving';
         }
@@ -242,10 +257,35 @@ export default {
         priority_complaint: Boolean(pkg.priority_complaint),
         badge_name: pkg.badge_name || null,
         is_active: Boolean(pkg.is_active),
-        sort_order: Number(pkg.sort_order || 0),
+        sort_order: this.packageSortOrder(pkg),
       };
     },
+    packageSortOrder(pkg) {
+      return {
+        free: 1,
+        saving: 2,
+        pro: 3,
+      }[pkg.type] || Number(pkg.sort_order || 99);
+    },
+    validatePackage(pkg) {
+      const postLimit = Number(pkg.match_post_limit_per_month);
+      const cashback = Number(pkg.cashback_percent);
+
+      if (!Number.isFinite(postLimit) || postLimit < -1) {
+        this.error = 'Bài giao lưu/tháng chỉ được nhập -1 hoặc số từ 0 trở lên. -1 nghĩa là không giới hạn.';
+        return false;
+      }
+
+      if (!Number.isFinite(cashback) || cashback < 0 || cashback > 100) {
+        this.error = '% Hoàn tiền phải nằm trong khoảng 0 đến 100.';
+        return false;
+      }
+
+      return true;
+    },
     async save(pkg) {
+      if (!this.validatePackage(pkg)) return;
+
       this.savingId = pkg.id;
       this.error = '';
       try {
@@ -265,7 +305,9 @@ export default {
         description: this.vipVoucherForm.description || null,
         discount_type: this.vipVoucherForm.discount_type,
         discount_value: Number(this.vipVoucherForm.discount_value || 0),
-        max_discount_amount: this.vipVoucherForm.max_discount_amount || null,
+        max_discount_amount: this.vipVoucherForm.discount_type === 'percent'
+          ? this.vipVoucherForm.max_discount_amount || null
+          : null,
         min_order_amount: Number(this.vipVoucherForm.min_order_amount || 0),
         total_quantity: this.vipVoucherForm.total_quantity || null,
         per_user_limit: this.vipVoucherForm.per_user_limit || null,
@@ -278,7 +320,26 @@ export default {
         }],
       };
     },
+    validateVipVoucher() {
+      const discountValue = Number(this.vipVoucherForm.discount_value);
+
+      if (!Number.isFinite(discountValue) || discountValue <= 0) {
+        this.error = this.vipVoucherForm.discount_type === 'percent'
+          ? 'Phần trăm giảm phải lớn hơn 0.'
+          : 'Số tiền giảm phải lớn hơn 0.';
+        return false;
+      }
+
+      if (this.vipVoucherForm.discount_type === 'percent' && discountValue > 100) {
+        this.error = 'Phần trăm giảm không được lớn hơn 100%.';
+        return false;
+      }
+
+      return true;
+    },
     async saveVipVoucher() {
+      if (!this.validateVipVoucher()) return;
+
       this.voucherSaving = true;
       this.error = '';
       try {
