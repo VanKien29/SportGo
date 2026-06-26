@@ -2,8 +2,6 @@ import { createRouter, createWebHistory } from "vue-router";
 import {
     consumeGoogleCallback,
     getAuth,
-    restoreAdminAuth,
-    restoreAuth,
 } from "../stores/auth.js";
 
 import Home from "../views/Home.vue";
@@ -328,12 +326,6 @@ router.beforeEach(async (to, from, next) => {
     }
 
     let auth = getAuth();
-    if (auth?.token) {
-        const isAdminRoute =
-            to.matched.some((route) => route.meta.role === "admin") ||
-            to.meta.guestAdmin;
-        auth = isAdminRoute ? await restoreAdminAuth() : await restoreAuth();
-    }
 
     if (to.meta.guestAdmin) {
         if (auth?.role_group === "admin")

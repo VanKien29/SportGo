@@ -23,12 +23,13 @@ class PlatformFeeController extends Controller
         ]);
 
         $cluster = $this->ownedCluster($request, $data['venue_cluster_id']);
+        $defaultPaymentAccount = $this->defaultPaymentAccount();
         $ledgers = VenuePlatformFeeLedger::query()
             ->with(['tier', 'systemBankAccount'])
             ->where('venue_cluster_id', $cluster->id)
             ->orderByDesc('period_start')
             ->get()
-            ->map(fn (VenuePlatformFeeLedger $ledger): array => $this->ledgerPayload($ledger));
+            ->map(fn (VenuePlatformFeeLedger $ledger): array => $this->ledgerPayload($ledger, $defaultPaymentAccount));
 
         $outstanding = $ledgers
             ->whereIn('effective_status', ['pending', 'overdue'])
@@ -46,7 +47,7 @@ class PlatformFeeController extends Controller
                 'id' => $cluster->id,
                 'name' => $cluster->name,
             ],
-            'payment_account' => $this->paymentAccountPayload(),
+            'payment_account' => $this->paymentAccountPayload($defaultPaymentAccount),
         ]);
     }
 
@@ -57,10 +58,11 @@ class PlatformFeeController extends Controller
             ->findOrFail($id);
 
         $this->ownedCluster($request, $ledger->venue_cluster_id);
+        $defaultPaymentAccount = $this->defaultPaymentAccount();
 
         return response()->json([
-            'data' => $this->ledgerPayload($ledger),
-            'payment_account' => $this->paymentAccountPayload(),
+            'data' => $this->ledgerPayload($ledger, $ledger->systemBankAccount ?: $defaultPaymentAccount),
+            'payment_account' => $this->paymentAccountPayload($defaultPaymentAccount),
         ]);
     }
 
@@ -77,7 +79,7 @@ class PlatformFeeController extends Controller
 
         return response()->json([
             'message' => 'Đã tạo mã thanh toán phí nền tảng.',
-            'data' => $this->ledgerPayload($result['ledger']->load(['tier', 'systemBankAccount'])),
+            'data' => $this->ledgerPayload($result['ledger']->load(['tier', 'systemBankAccount']), $result['payment_account']),
             'payment_account' => $this->paymentAccountPayload($result['payment_account']),
             'transfer_content' => $result['transfer_content'],
             'amount' => $result['amount'],
@@ -96,12 +98,13 @@ class PlatformFeeController extends Controller
         return $cluster;
     }
 
-    private function ledgerPayload(VenuePlatformFeeLedger $ledger): array
+    private function ledgerPayload(VenuePlatformFeeLedger $ledger, ?SystemBankAccount $defaultPaymentAccount = null): array
     {
         $effectiveStatus = $this->effectiveStatus($ledger);
         $dueDate = $ledger->due_date ?? $ledger->period_end;
         $daysUntilDue = $dueDate ? today()->diffInDays($dueDate, false) : null;
         $amountRemaining = max(0, (float) $ledger->amount_due - (float) $ledger->amount_paid);
+        $paymentAccount = $ledger->systemBankAccount ?: $defaultPaymentAccount;
 
         return [
             'id' => $ledger->id,
@@ -124,7 +127,7 @@ class PlatformFeeController extends Controller
                 'method' => 'sepay',
                 'code' => $ledger->payment_code,
                 'auto_confirm' => true,
-                'bank_account' => $this->paymentAccountPayload($ledger->systemBankAccount),
+                'bank_account' => $this->paymentAccountPayload($paymentAccount),
             ],
             'days_until_due' => $daysUntilDue,
             'warning_level' => match (true) {
@@ -152,11 +155,6 @@ class PlatformFeeController extends Controller
 
     private function paymentAccountPayload(?SystemBankAccount $account = null): ?array
     {
-        $account ??= SystemBankAccount::query()
-            ->where('status', 'active')
-            ->orderByDesc('is_default')
-            ->first();
-
         if (! $account) {
             return null;
         }
@@ -167,5 +165,13 @@ class PlatformFeeController extends Controller
             'account_number' => $account->account_number,
             'account_holder_name' => $account->account_holder_name,
         ];
+    }
+
+    private function defaultPaymentAccount(): ?SystemBankAccount
+    {
+        return SystemBankAccount::query()
+            ->where('status', 'active')
+            ->orderByDesc('is_default')
+            ->first();
     }
 }

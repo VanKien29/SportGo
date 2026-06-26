@@ -1,17 +1,25 @@
 <template>
   <div class="page venue-posts-page">
-    <header class="page-header">
-      <div>
+    <header class="page-header sg-page-header">
+      <div class="sg-page-heading">
+        <nav class="sg-breadcrumbs" aria-label="Breadcrumb">
+          <router-link to="/admin/dashboard">Dashboard</router-link>
+          <span>/</span>
+          <span>Kiểm duyệt bài viết</span>
+        </nav>
         <h2>Kiểm duyệt bài viết</h2>
         <p>Kiểm tra, phê duyệt, từ chối hoặc quản lý các bài viết đăng tải từ chủ sân.</p>
       </div>
 
-      <button class="icon-btn" type="button" title="Làm mới" aria-label="Làm mới" @click="loadPosts(1)">
-        <AppIcon name="refresh" size="16" />
-      </button>
+      <div class="sg-page-actions">
+        <button class="icon-btn sg-primary-action" type="button" title="Làm mới" aria-label="Làm mới" @click="loadPosts(1)">
+          <AppIcon name="refresh" size="16" />
+          <span>Làm mới</span>
+        </button>
+      </div>
     </header>
 
-    <div class="toolbar card">
+    <div class="toolbar card sg-filter-panel">
       <div class="filters">
         <label class="field compact">
           <span>Tiêu đề bài viết</span>
@@ -58,12 +66,12 @@
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 
-    <div v-if="loading" class="state-box card">
+    <div v-if="loading" class="state-box card sg-state-box">
       <div class="spinner"></div>
       <p>Đang tải danh sách bài viết...</p>
     </div>
 
-    <div v-else-if="posts.length === 0" class="state-box card">
+    <div v-else-if="posts.length === 0" class="state-box card sg-state-box">
       <p>Không có bài viết phù hợp.</p>
     </div>
 
@@ -770,6 +778,12 @@ dd {
   color: #334155;
 }
 
+.icon-btn.sg-primary-action {
+  width: auto;
+  height: 40px;
+  padding: 0 14px;
+}
+
 .icon-btn.approve {
   color: #15803d;
 }
@@ -795,7 +809,16 @@ dd {
   color: #991b1b;
 }
 
-.state-box,
+.state-box {
+  display: flex;
+  min-height: 168px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: rgba(15, 23, 42, 0.55);
+}
+
 .modal-state {
   display: flex;
   min-height: 240px;

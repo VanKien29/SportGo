@@ -90,6 +90,46 @@
         </div>
       </div>
 
+      <!-- Bài viết đã xuất bản -->
+      <div class="section-box">
+        <div class="section-header-row">
+          <div class="section-title-wrapper">
+            <h3 class="section-title">BÀI VIẾT ĐÃ XUẤT BẢN</h3>
+          </div>
+          <router-link to="/owner/venue-posts?status=published" class="section-action-btn">
+            Quản lý bài viết
+          </router-link>
+        </div>
+
+        <div v-if="isLoading" class="loading-wrapper">
+          <div class="spinner"></div>
+          <span>Đang tải bài viết...</span>
+        </div>
+        <div v-else-if="!stats.published_posts || stats.published_posts.length === 0" class="empty-wrapper">
+          <span>Chưa có bài viết nào đã được duyệt và xuất bản.</span>
+        </div>
+        <div v-else class="published-post-grid">
+          <article v-for="post in stats.published_posts" :key="post.id" class="published-post-card">
+            <div class="published-post-main">
+              <div class="published-post-meta">
+                <span class="post-type-pill">{{ postTypeLabel(post.post_type) }}</span>
+                <span>{{ formatDate(post.reviewed_at || post.created_at) }}</span>
+              </div>
+              <h4>{{ post.title }}</h4>
+              <p>{{ post.short_description || 'Bài viết đã được admin duyệt và đang hiển thị công khai.' }}</p>
+              <div class="published-post-stats">
+                <span>{{ post.venue_cluster_name || 'Cụm sân' }}</span>
+                <span>{{ Number(post.view_count || 0).toLocaleString() }} lượt xem</span>
+                <span>{{ Number(post.like_count || 0).toLocaleString() }} thích</span>
+              </div>
+            </div>
+            <a class="post-open-link" :href="postPublicUrl(post)" target="_blank" rel="noopener">
+              Xem
+            </a>
+          </article>
+        </div>
+      </div>
+
       <!-- Chi tiết (Details Layout) -->
       <div class="details-simple-grid">
         <!-- Doanh thu theo sân con (Court Revenues) -->
@@ -195,6 +235,7 @@ export default {
         },
         golden_hours: [],
         court_revenues: [],
+        published_posts: [],
       },
       isLoading: true,
       error: null,
@@ -243,6 +284,26 @@ export default {
     },
     formatCurrency(amount) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
+    },
+    formatDate(value) {
+      if (!value) return 'Vừa xuất bản';
+      return new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(new Date(value));
+    },
+    postTypeLabel(type) {
+      return {
+        promotion: 'Khuyến mãi',
+        tournament: 'Giải đấu',
+        news: 'Tin tức',
+        notice: 'Thông báo',
+        recruitment: 'Tuyển dụng',
+      }[type] || 'Bài viết';
+    },
+    postPublicUrl(post) {
+      return `/venues/${post.venue_cluster_id}?tab=posts`;
     },
   },
 };

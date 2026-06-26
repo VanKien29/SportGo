@@ -90,6 +90,77 @@
   line-height: 1.55;
 }
 
+.sg-shell-admin .content-area .sg-page-header {
+  align-items: flex-start;
+}
+
+.sg-shell-admin .content-area .sg-page-heading {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sg-shell-admin .content-area .sg-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--admin-faint);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.sg-shell-admin .content-area .sg-breadcrumbs a {
+  color: var(--admin-muted);
+  text-decoration: none;
+}
+
+.sg-shell-admin .content-area .sg-breadcrumbs a:hover {
+  color: var(--admin-primary);
+}
+
+.sg-shell-admin .content-area .sg-breadcrumbs span:last-child {
+  color: var(--admin-text);
+}
+
+.sg-shell-admin .content-area .sg-page-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.sg-shell-admin .content-area .sg-primary-action {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.sg-shell-admin .content-area .sg-filter-panel {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sg-shell-admin .content-area .sg-state-box {
+  min-height: 168px;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 28px 18px;
+  text-align: center;
+  color: var(--admin-faint);
+}
+
 .sg-shell-admin .content-area :is(.summary-grid, .stat-grid, .stats-grid, .metrics-grid) {
   display: grid;
   gap: 14px;
@@ -592,6 +663,11 @@
     flex-direction: column;
   }
 
+  .sg-shell-admin .content-area .sg-page-actions,
+  .sg-shell-admin .content-area .sg-primary-action {
+    width: 100%;
+  }
+
   .sg-shell-admin .content-area :is(.filters, .filter-bar) {
     display: grid;
     grid-template-columns: 1fr;
@@ -771,4 +847,3 @@
   border-color: rgba(255, 255, 255, 0.15);
   border-top-color: var(--admin-primary);
 }
-

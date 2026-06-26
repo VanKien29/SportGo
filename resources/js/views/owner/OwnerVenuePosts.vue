@@ -1,18 +1,23 @@
 <template>
   <div class="posts-page">
-    <div class="page-header">
-      <div class="header-left">
+    <div class="page-header sg-page-header">
+      <div class="header-left sg-page-heading">
+        <nav class="sg-breadcrumbs" aria-label="Breadcrumb">
+          <router-link to="/owner/dashboard">Dashboard</router-link>
+          <span>/</span>
+          <span>Quản lý bài viết</span>
+        </nav>
         <h2>Quản lý bài viết</h2>
         <p class="muted">Đăng tin tức, hướng dẫn sử dụng, quảng bá sân bãi và giải đấu.</p>
       </div>
-      <button class="btn btn-create primary" type="button" @click="openForm()">
+      <button class="btn btn-create primary sg-primary-action" type="button" @click="openForm()">
         <i class="fas fa-plus mr-2"></i>
         <span>Tạo bài viết mới</span>
       </button>
     </div>
 
     <!-- Filters & Search -->
-    <div class="filter-toolbar card premium-card flex gap-4" style="display: flex; gap: 16px; flex-wrap: wrap;">
+    <div class="filter-toolbar card premium-card flex gap-4 sg-filter-panel" style="display: flex; gap: 16px; flex-wrap: wrap;">
       <div class="filters" style="display: flex; gap: 16px; flex: 1; flex-wrap: wrap; align-items: flex-end;">
         <label class="field compact" style="flex: 1; min-width: 200px;">
           <span style="white-space: nowrap;">Tìm kiếm</span>
@@ -64,13 +69,13 @@
     </div>
 
     <!-- Loading Screen -->
-    <div v-if="loading" class="state-box card premium-card">
+    <div v-if="loading" class="state-box card premium-card sg-state-box">
       <div class="spinner"></div>
       <p>Đang tải danh sách bài viết...</p>
     </div>
 
     <!-- Empty Screen -->
-    <div v-else-if="posts.length === 0" class="state-box card premium-card empty-state">
+    <div v-else-if="posts.length === 0" class="state-box card premium-card empty-state sg-state-box">
       <div class="empty-icon" style="font-size: 48px; display:flex; justify-content:center; align-items:center;">📰</div>
       <p>Chưa có bài viết nào khớp với bộ lọc hoặc bạn chưa tạo bài viết.</p>
       <button @click="openForm()" class="btn btn-create primary" style="margin-top: 16px;">Tạo bài viết đầu tiên</button>
@@ -367,13 +372,15 @@ const form = reactive({
 const errors = ref({});
 
 onMounted(async () => {
-  await fetchVenueClusters();
-  fetchPosts();
+  await Promise.all([
+    fetchVenueClusters(),
+    fetchPosts(),
+  ]);
 });
 
 const fetchVenueClusters = async () => {
   try {
-    const res = await api('/api/owner/venue-clusters');
+    const res = await api('/api/owner/venue-clusters?compact=1');
     venueClusters.value = res.data;
   } catch (error) {
     console.error('Error fetching venue clusters', error);
@@ -676,25 +683,26 @@ const formatDate = (dateString) => {
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 8px;
 }
 
 .page-header h2 {
-  font-size: 28px;
+  font-size: 18px;
   font-weight: 800;
   color: #0f172a;
-  margin: 0 0 8px 0;
-  letter-spacing: -0.5px;
+  margin: 0 0 5px 0;
+  letter-spacing: 0;
 }
 
 .muted {
   color: #64748b;
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1.55;
 }
 
 /* Premium Cards */
@@ -887,7 +895,7 @@ const formatDate = (dateString) => {
 /* Empty State / Loading */
 .state-box {
   display: flex;
-  min-height: 280px;
+  min-height: 168px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
