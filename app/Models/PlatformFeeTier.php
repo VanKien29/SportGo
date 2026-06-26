@@ -30,4 +30,9 @@ class PlatformFeeTier extends Model
             'effective_from' => 'datetime',
         ];
     }
+
+    public function ledgers()
+    {
+        return $this->hasMany(VenuePlatformFeeLedger::class, 'tier_id');
+    }
 }

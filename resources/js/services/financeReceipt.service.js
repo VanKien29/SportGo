@@ -1,21 +1,16 @@
-import { createId, platformFeeStore } from '../stores/platformFee.store.js';
-
 export function generatePlatformFeeReceipt(ledger) {
-  const venue = platformFeeStore.state.venues.find((item) => item.id === ledger.venue_cluster_id);
-  const receipt = {
-    id: createId('receipt'),
-    code: `RC-${new Date().getFullYear()}-${String(platformFeeStore.state.receipts.length + 1).padStart(4, '0')}`,
+  return ledger.internal_receipt || {
+    id: ledger.internal_receipt_id || null,
+    code: ledger.receipt_code || null,
     ledger_id: ledger.id,
     venue_cluster_id: ledger.venue_cluster_id,
-    owner_id: venue?.owner?.id || null,
+    owner_id: ledger.venue?.owner_id || null,
     amount: ledger.amount_paid,
-    issued_at: new Date().toISOString(),
-    content: `Phiếu thu phí duy trì nền tảng cho ${venue?.name || ledger.venue_cluster_id}`,
+    issued_at: ledger.paid_at || new Date().toISOString(),
+    content: `Phiếu thu phí duy trì nền tảng cho ${ledger.venue?.name || ledger.venue_cluster_id}`,
+    persisted: Boolean(ledger.internal_receipt_id || ledger.receipt_code || ledger.internal_receipt),
+    message: 'Phiếu thu phí nền tảng được tạo ở BE khi xác nhận thanh toán, service FE không còn ghi local.',
   };
-
-  platformFeeStore.state.receipts.unshift(receipt);
-  platformFeeStore.save();
-  return receipt;
 }
 
 export const financeReceiptService = { generatePlatformFeeReceipt };

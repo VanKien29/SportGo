@@ -42,7 +42,7 @@
 </template>
 
 <script>
-import { platformFeeStore } from "../../stores/platformFee.store.js";
+import { api } from "../../services/api.js";
 import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
 
 export default {
@@ -50,15 +50,39 @@ export default {
     components: { PlatformFeeSubnav },
     data() {
         return {
-            settings: { ...platformFeeStore.state.settings },
+            settings: {
+                default_due_days: 7,
+                auto_mark_overdue: true,
+                lock_reason: "Quá hạn phí duy trì hệ thống",
+            },
             toast: "",
+            error: "",
         };
     },
+    mounted() {
+        this.loadSettings();
+    },
     methods: {
-        saveSettings() {
-            platformFeeStore.state.settings = { ...this.settings };
-            platformFeeStore.save();
-            this.show("Đã lưu cài đặt phí duy trì.");
+        async loadSettings() {
+            try {
+                this.settings = await api("/api/admin/platform-fee-settings");
+            } catch (error) {
+                this.error = error.message || "Không thể tải cài đặt phí duy trì.";
+                this.show(this.error);
+            }
+        },
+        async saveSettings() {
+            try {
+                const response = await api("/api/admin/platform-fee-settings", {
+                    method: "PUT",
+                    body: JSON.stringify(this.settings),
+                });
+                this.settings = response.data || this.settings;
+                this.show(response.message || "Đã lưu cài đặt phí duy trì.");
+            } catch (error) {
+                this.error = error.message || "Không thể lưu cài đặt phí duy trì.";
+                this.show(this.error);
+            }
         },
         reset() {
             this.settings = {

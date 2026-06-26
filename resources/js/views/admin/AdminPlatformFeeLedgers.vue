@@ -446,7 +446,6 @@
 </template>
 
 <script>
-import { platformFeeStore } from "../../stores/platformFee.store.js";
 import AppIcon from "../../components/AppIcon.vue";
 import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
 import {
@@ -460,6 +459,7 @@ import {
     markLedgerOverdue,
     unlockVenueAfterPayment,
 } from "../../services/platformFeeLedger.service.js";
+import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
 import { processPlatformFeeReminders } from "../../services/platformFeeReminder.service.js";
 
 function initialFilters(routeQuery = {}) {
@@ -488,9 +488,18 @@ export default {
     data() {
         return {
             ledgers: [],
-            venues: platformFeeStore.state.venues,
+            venues: [],
             filters: initialFilters(this.$route.query),
-            metrics: getPlatformFeeDashboardMetrics(),
+            metrics: {
+                pending: 0,
+                overdue: 0,
+                pending_amount: 0,
+                overdue_amount: 0,
+                paid_this_month: 0,
+                locked_venues: 0,
+                email_sent_today: 0,
+                email_failed: 0,
+            },
             periods: [1, 3, 6, 9, 12],
             loading: false,
             showCreate: false,
@@ -536,6 +545,7 @@ export default {
         },
     },
     mounted() {
+        this.loadVenueOptions();
         this.loadLedgers();
         window.addEventListener("scroll", this.handleScroll);
     },
@@ -543,11 +553,58 @@ export default {
         window.removeEventListener("scroll", this.handleScroll);
     },
     methods: {
+        async loadVenueOptions() {
+            try {
+                const response = await adminVenueClusterService.list();
+                const clusters = Array.isArray(response)
+                    ? response
+                    : response.data || [];
+                this.syncVenueOptions(
+                    clusters.map((cluster) => ({
+                        venue: {
+                            id: cluster.id,
+                            name: cluster.name,
+                            status: cluster.status,
+                            owner_id: cluster.owner_id,
+                            court_count: cluster.court_count,
+                            owner: cluster.owner || null,
+                        },
+                        owner: cluster.owner || null,
+                    })),
+                );
+            } catch (error) {
+                this.showMessage(
+                    "Không tải được danh sách cụm sân từ DB.",
+                    "error",
+                );
+            }
+        },
         async loadLedgers() {
             this.loading = true;
-            this.ledgers = await getLedgers(this.filters);
-            this.metrics = getPlatformFeeDashboardMetrics();
-            this.loading = false;
+            try {
+                this.ledgers = await getLedgers(this.filters);
+                this.syncVenueOptions(this.ledgers);
+                this.metrics = await getPlatformFeeDashboardMetrics();
+            } finally {
+                this.loading = false;
+            }
+        },
+        syncVenueOptions(ledgers) {
+            const map = new Map(this.venues.map((venue) => [venue.id, venue]));
+            ledgers.forEach((ledger) => {
+                if (ledger.venue?.id) {
+                    map.set(ledger.venue.id, {
+                        ...ledger.venue,
+                        court_count:
+                            ledger.venue.court_count ||
+                            ledger.court_count ||
+                            ledger.venue.venue_courts_count ||
+                            0,
+                        owner: ledger.owner || ledger.venue.owner || null,
+                    });
+                }
+            });
+            this.venues = Array.from(map.values());
         },
         openCreate() {
             this.form = {
@@ -564,12 +621,19 @@ export default {
         closeCreate() {
             this.showCreate = false;
         },
-        refreshPreview() {
+        async refreshPreview() {
             if (!this.form.venue_cluster_id) return;
-            const result = calculateLedgerPreview(this.form);
-            this.previewResult = result.isValid ? result : null;
-            this.previewError = result.isValid ? "" : result.error;
-            this.previewWarnings = result.warnings || [];
+            try {
+                const result = await calculateLedgerPreview(this.form);
+                this.previewResult = result.isValid ? result : null;
+                this.previewError = result.isValid ? "" : result.error;
+                this.previewWarnings = result.warnings || [];
+            } catch (error) {
+                const result = error.data?.preview || null;
+                this.previewResult = null;
+                this.previewError = result?.error || error.message;
+                this.previewWarnings = result?.warnings || [];
+            }
         },
         async createNewLedger() {
             try {
@@ -651,13 +715,13 @@ export default {
             }
         },
         async runReminderCheck() {
-            const logs = await processPlatformFeeReminders(new Date());
-            this.showMessage(
-                logs.length
-                    ? `Đã xử lý ${logs.length} email nhắc phí.`
-                    : "Không có email nhắc phí cần gửi hôm nay.",
-            );
-            await this.loadLedgers();
+            try {
+                const results = await processPlatformFeeReminders();
+                this.showMessage(`Đã xử lý ${results.length} email nhắc phí.`);
+                await this.loadLedgers();
+            } catch (error) {
+                this.showMessage(error.message, "error");
+            }
         },
         emailSummary(ledger) {
             const logs = ledger.email_logs || [];
