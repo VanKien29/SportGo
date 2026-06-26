@@ -323,9 +323,7 @@ export default {
     },
     vipTooltip() {
       const cashback = Number(this.vipPackage?.cashback_percent || 0);
-      const vouchers = Number(this.vipPackage?.voucher_count_per_month || 0);
       const parts = [];
-      if (vouchers > 0) parts.push(`${vouchers} voucher/tháng`);
       if (cashback > 0) parts.push(`${cashback}% cashback`);
       return parts.length ? parts.join(' · ') : 'Gói VIP hệ thống đang hiệu lực';
     },

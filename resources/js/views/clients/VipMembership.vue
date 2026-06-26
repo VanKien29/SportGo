@@ -35,8 +35,6 @@
         </header>
 
         <ul>
-          <li>{{ pkg.voucher_count_per_month }} voucher/tháng, giảm {{ pkg.voucher_discount_percent }}%</li>
-          <li>Đơn tối thiểu {{ money(pkg.voucher_min_order_amount) }}</li>
           <li>Cashback {{ pkg.cashback_percent }}% sau booking hoàn tất</li>
           <li>{{ postLimitText(pkg.match_post_limit_per_month) }}</li>
           <li>{{ pkg.priority_complaint ? 'Ưu tiên xử lý khiếu nại' : 'Xử lý khiếu nại tiêu chuẩn' }}</li>

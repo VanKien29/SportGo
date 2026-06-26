@@ -40,12 +40,15 @@ class MembershipPackageController extends Controller
             'sort_order' => ['required', 'integer', 'min:0', 'max:255'],
         ]);
 
+        $data['voucher_count_per_month'] = 0;
+        $data['voucher_discount_percent'] = 0;
+        $data['voucher_min_order_amount'] = 0;
+        $data['voucher_max_discount_amount'] = null;
+
         if ($package->type === 'free') {
             $data['monthly_price'] = 0;
             $data['quarterly_price'] = null;
             $data['yearly_price'] = null;
-            $data['voucher_count_per_month'] = 0;
-            $data['voucher_discount_percent'] = 0;
             $data['cashback_percent'] = 0;
             $data['priority_complaint'] = false;
             $data['badge_name'] = null;
