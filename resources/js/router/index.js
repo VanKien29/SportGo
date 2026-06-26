@@ -75,6 +75,12 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: "/vip-membership",
+        name: "vip-membership",
+        component: () => import("../views/clients/VipMembership.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
         path: "/admin/login",
         name: "admin-login",
         component: AdminLogin,
@@ -103,6 +109,11 @@ const routes = [
             { path: "staffs/:id", name: "admin-staff-detail", component: AdminStaffDetail },
             { path: "vouchers", name: "admin-vouchers", component: AdminVouchers },
             { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail, meta: { hideFloatingBack: true } },
+            {
+                path: "membership-packages",
+                name: "admin-membership-packages",
+                component: () => import("../views/admin/AdminMembershipPackages.vue"),
+            },
             {
                 path: "payments",
                 name: "admin-payments",

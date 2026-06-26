@@ -139,13 +139,18 @@
 
     <!-- ── Footer actions ── -->
     <div class="pcard-footer">
-      <button class="btn-back" @click="$emit('go-back')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="19" y1="12" x2="5" y2="12"/>
-          <polyline points="12 19 5 12 12 5"/>
-        </svg>
-        Quay lại
-      </button>
+      <div class="footer-actions">
+        <button class="btn-back" @click="$emit('go-back')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"/>
+            <polyline points="12 19 5 12 12 5"/>
+          </svg>
+          Quay lại
+        </button>
+        <router-link v-if="user?.role === 'user'" class="btn-vip" to="/vip-membership">
+          Gói VIP
+        </router-link>
+      </div>
       <div class="status-indicator">
         <span class="status-dot"></span>
         Đang hoạt động
@@ -1013,6 +1018,12 @@ export default {
   justify-content: space-between;
   padding: 20px 32px 28px;
 }
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .btn-back {
   display: inline-flex;
   align-items: center;
@@ -1033,6 +1044,21 @@ export default {
   color: #15803d;
 }
 .btn-back svg { color: currentColor; }
+.btn-vip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.btn-vip:hover {
+  background: #dcfce7;
+}
 
 .status-indicator {
   display: flex;
