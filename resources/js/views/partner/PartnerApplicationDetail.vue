@@ -123,13 +123,6 @@
           </div>
         </section>
 
-        <PartnerDocumentModal
-          v-if="selectedDocumentId"
-          :application-id="application.id"
-          :document-id="selectedDocumentId"
-          @close="selectedDocumentId = null"
-          @signed="loadData"
-        />
       </template>
     </main>
   </div>
@@ -140,7 +133,6 @@ import { computed, defineComponent, h, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PublicNavbar from '../../components/PublicNavbar.vue';
 import AppIcon from '../../components/AppIcon.vue';
-import PartnerDocumentModal from './PartnerDocumentModal.vue';
 import { api } from '../../services/api.js';
 
 const route = useRoute();
@@ -148,7 +140,6 @@ const router = useRouter();
 const loading = ref(true);
 const error = ref('');
 const application = ref(null);
-const selectedDocumentId = ref(null);
 
 const generatedDocuments = computed(() => {
   const docs = [...(application.value?.generated_documents || application.value?.generatedDocuments || [])];
@@ -177,7 +168,7 @@ async function loadApplication() {
 }
 
 function openDocument(doc) {
-  selectedDocumentId.value = doc.id;
+  router.push({ name: 'partner-application-document', params: { id: application.value.id, documentId: doc.id } });
 }
 
 function openUploadedDocument(document) {

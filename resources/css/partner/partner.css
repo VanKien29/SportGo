@@ -392,6 +392,45 @@
     border-color: #cbd5e1;
     box-shadow: var(--shadow-md);
   }
+
+  .app-list-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    min-width: 320px;
+    max-width: 460px;
+  }
+
+  .app-list-actions .btn {
+    min-height: 38px;
+    padding: 9px 13px;
+    white-space: nowrap;
+  }
+
+  .app-list-actions .action-detail {
+    background: #0f172a;
+    border-color: #0f172a;
+    color: #fff;
+  }
+
+  .app-list-actions .action-document {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+  }
+
+  .app-list-actions .action-submit {
+    background: #0f172a;
+    border-color: #0f172a;
+  }
+
+  .app-list-actions .action-cancel {
+    background: #fff;
+    border-color: #fecaca;
+    color: #dc2626;
+  }
   
   .badge {
     display: inline-flex;
@@ -405,6 +444,20 @@
   .badge-amber { background: #fef3c7; color: #b45309; }
   .badge-emerald { background: #d1fae5; color: #047857; }
   .badge-red { background: #fee2e2; color: #b91c1c; }
+
+  @media (max-width: 900px) {
+    .app-list-item {
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .app-list-actions {
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      justify-content: flex-start;
+    }
+  }
   
   /* Utility */
   .flex-between { display: flex; justify-content: space-between; align-items: center; }

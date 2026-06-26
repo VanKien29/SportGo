@@ -1,6 +1,6 @@
 <template>
-  <div class="document-modal-overlay" @click.self="emit('close')">
-    <div class="document-modal-content">
+  <div class="document-page-shell">
+    <div class="document-page-content">
       <header class="page-head">
         <button class="btn ghost" type="button" @click="emit('close')">
           <AppIcon name="arrowLeft" size="16" />
@@ -16,14 +16,14 @@
         </button>
       </header>
 
-      <div class="modal-body" style="flex: 1; overflow: hidden; padding: 24px; display: flex; flex-direction: column;">
+      <div class="document-body">
         <div v-if="loading" class="state">Đang tải văn bản...</div>
         <div v-else-if="error" class="state error">{{ error }}</div>
 
-        <div v-else class="document-layout" style="flex: 1; overflow: hidden;">
+        <div v-else class="document-layout">
           <DocumentPreviewPane :document="document" />
 
-          <aside class="side-panel" style="height: 100%; overflow-y: auto; padding-right: 8px;">
+          <aside class="side-panel">
             <section v-if="isGeneratedDocument">
               <h2>Trạng thái chữ ký</h2>
               <div class="signature-list">
@@ -65,7 +65,7 @@
               <div v-if="otpSent" class="otp-box">
                 <label for="signature-otp">Mã OTP</label>
                 <input id="signature-otp" v-model.trim="otp" inputmode="numeric" maxlength="6" placeholder="Nhập 6 số OTP" @input="otpError = ''" />
-                <small>OTP gắn với hash file {{ hashShort }} và hết hạn lúc {{ formatDate(otpExpiresAt) }}.</small>
+                <small>OTP có hiệu lực đến {{ formatDate(otpExpiresAt) }}.</small>
                 <p v-if="otpError" class="inline-error">{{ otpError }}</p>
               </div>
               <div class="sign-actions">
@@ -93,7 +93,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { api, apiDownload } from '../../services/api.js';
 import AppIcon from '../../components/AppIcon.vue';
 import DocumentPreviewPane from '../../components/DocumentPreviewPane.vue';
@@ -101,6 +101,7 @@ import DocumentPreviewPane from '../../components/DocumentPreviewPane.vue';
 const props = defineProps({
   applicationId: { type: [String, Number], required: true },
   documentId: { type: [String, Number], required: true },
+  documentKind: { type: String, default: '' },
 });
 
 const emit = defineEmits(['close', 'signed']);
@@ -145,6 +146,14 @@ const readonlyHint = computed(() => {
 
 onMounted(loadData);
 
+watch(
+  () => [props.applicationId, props.documentId, props.documentKind],
+  () => {
+    resetOtpState();
+    loadData();
+  }
+);
+
 async function loadData() {
   loading.value = true;
   error.value = '';
@@ -156,7 +165,9 @@ async function loadData() {
 
     document.value = findDocument(application.value, props.documentId);
     if (!document.value) throw new Error('Không tìm thấy văn bản.');
-    document.value.download_url = document.value.download_url || `/api/files/documents/${document.value.id}/download`;
+    if (document.value.source !== 'uploaded') {
+      document.value.download_url = document.value.download_url || `/api/files/documents/${document.value.id}/download`;
+    }
     await nextTick();
     prepareCanvas();
   } catch (err) {
@@ -168,6 +179,11 @@ async function loadData() {
 
 function findDocument(app, documentId) {
   const uploaded = [...(app.documents || []), ...(app.uploaded_documents || [])];
+  if (props.documentKind === 'uploaded') {
+    const uploadedDocument = uploaded.find((item) => String(item.id) === String(documentId));
+    return uploadedDocument ? { ...uploadedDocument, source: 'uploaded', status: uploadedDocument.status || 'uploaded' } : null;
+  }
+
   const docs = [...(app.generated_documents || app.generatedDocuments || [])];
   for (const item of app.contracts || []) {
     const doc = item.generated_document || item.generatedDocument;
@@ -331,27 +347,30 @@ function formatDate(value) {
 </script>
 
 <style scoped>
-.document-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  padding: 32px;
+.document-page-shell {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 104px 20px 40px;
 }
 
-.document-modal-content {
+.document-page-content {
   background: #fff;
-  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   width: 100%;
-  max-width: 1300px;
+  max-width: 1440px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  overflow: visible;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.document-body {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
 }
 
 .page-head {
@@ -367,8 +386,8 @@ function formatDate(value) {
 
 .page-head h1 { margin: 2px 0 0; color: #0f172a; font-size: 24px; }
 .eyebrow { margin: 0; color: #059669; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
-.document-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: stretch; padding: 24px; overflow-y: auto; }
-.side-panel { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; }
+.document-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.side-panel { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 88px; max-height: calc(100vh - 112px); overflow-y: auto; padding-right: 4px; }
 .side-panel section { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
 .side-panel h2 { margin: 0 0 10px; font-size: 15px; color: #0f172a; }
 .side-panel p { margin: 0 0 12px; color: #64748b; font-size: 13px; line-height: 1.5; }
@@ -395,6 +414,6 @@ canvas { display: block; width: 100%; height: 180px; touch-action: none; cursor:
 .state.error { color: #991b1b; }
 @media (max-width: 980px) {
   .page-head, .document-layout { grid-template-columns: 1fr; }
-  .side-panel { position: static; }
+  .side-panel { position: static; max-height: none; overflow: visible; }
 }
 </style>

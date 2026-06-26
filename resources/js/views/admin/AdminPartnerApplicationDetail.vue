@@ -304,13 +304,6 @@
         </div>
       </section>
 
-      <AdminPartnerDocumentModal
-        v-if="selectedDocumentId"
-        :application-id="application.id"
-        :document-id="selectedDocumentId"
-        @close="selectedDocumentId = null"
-        @signed="loadApplication"
-      />
     </template>
   </div>
 </template>
@@ -319,7 +312,6 @@
 import { computed, onMounted, reactive, ref, defineComponent, h } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '../../components/AppIcon.vue';
-import AdminPartnerDocumentModal from './AdminPartnerDocumentModal.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
 
 const route = useRoute();
@@ -333,7 +325,6 @@ const actionError = ref('');
 const application = ref(null);
 const courtTypes = ref([]);
 const activeTab = ref('overview');
-const selectedDocumentId = ref(null);
 const actionMode = ref(route.query.action || '');
 const fieldErrors = reactive({});
 
@@ -391,13 +382,11 @@ async function loadCourtTypes() {
 }
 
 function openDocument(doc, type = 'generated') {
-  if (type === 'uploaded') {
-    if (doc.download_url) {
-      window.open(doc.download_url, '_blank');
-    }
-  } else {
-    selectedDocumentId.value = doc.id;
-  }
+  router.push({
+    name: 'admin-partner-application-document',
+    params: { id: application.value.id, documentId: doc.id },
+    query: type === 'uploaded' ? { type: 'uploaded' } : {},
+  });
 }
 
 function clearAction() {

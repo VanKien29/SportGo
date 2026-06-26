@@ -87,18 +87,18 @@
               </div>
             </div>
 
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; width: 300px;">
-              <button type="button" class="btn btn-secondary" @click="openApplicationDetail(application)">Chi tiết</button>
-              <button v-if="applicationWord(application)" type="button" class="btn btn-secondary" style="color: #2563eb; border-color: #bfdbfe; background: #eff6ff;" @click="openApplicationDocument(applicationWord(application), application)">
+            <div class="app-list-actions">
+              <button type="button" class="btn btn-secondary action-detail" @click="openApplicationDetail(application)">Chi tiết</button>
+              <button v-if="applicationWord(application)" type="button" class="btn btn-secondary action-document" @click="openApplicationDocument(applicationWord(application), application)">
                 Xem &amp; Ký Mẫu 01
               </button>
               <button v-if="contractWord(application)" type="button" class="btn btn-primary" @click="openApplicationDocument(contractWord(application), application)">
                 Xem &amp; Ký Hợp đồng
               </button>
-              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary" style="background: #0f172a; border-color: #0f172a;" @click="submitSignedApplication(application)">
+              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary action-submit" @click="submitSignedApplication(application)">
                 Gửi hồ sơ
               </button>
-              <button v-if="canCancel(application)" type="button" class="btn btn-outline" style="color: #ef4444; border-color: #fecaca;" @click="cancelApplication(application)">
+              <button v-if="canCancel(application)" type="button" class="btn btn-outline action-cancel" @click="cancelApplication(application)">
                 Hủy hồ sơ
               </button>
             </div>

@@ -148,6 +148,12 @@ const routes = [
                 meta: { hideFloatingBack: true },
             },
             {
+                path: "partner-applications/:id/documents/:documentId",
+                name: "admin-partner-application-document",
+                component: () => import("../views/admin/AdminPartnerDocumentPage.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
                 path: "partners/:id",
                 name: "admin-partner-detail",
                 component: () => import("../views/admin/AdminPartnerApplicationDetail.vue"),
