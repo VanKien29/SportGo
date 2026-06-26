@@ -23,15 +23,18 @@
     --color-accent: oklch(0.229 0 0);
     --destructive-foreground: oklch(0.985 0 0);
 }
+
 .auth-layout input,
-.dark input {
+.dark input,
+.modal-overlay input {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     caret-color: #fff;
 }
 
 .auth-layout input::selection,
-.dark input::selection {
+.dark input::selection,
+.modal-overlay input::selection {
     color: #fff;
     background: rgba(255, 255, 255, .3);
 }
@@ -43,7 +46,11 @@
 .dark input:-webkit-autofill,
 .dark input:-webkit-autofill:hover,
 .dark input:-webkit-autofill:focus,
-.dark input:-webkit-autofill:active {
+.dark input:-webkit-autofill:active,
+.modal-overlay input:-webkit-autofill,
+.modal-overlay input:-webkit-autofill:hover,
+.modal-overlay input:-webkit-autofill:focus,
+.modal-overlay input:-webkit-autofill:active {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     caret-color: #fff !important;
@@ -53,10 +60,29 @@
 }
 
 .auth-layout input:autofill,
-.dark input:autofill {
+.dark input:autofill,
+.modal-overlay input:autofill {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     box-shadow: 0 0 0 1000px #09090b inset !important;
     -webkit-box-shadow: 0 0 0 1000px #09090b inset !important;
 }
 
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'],
+input[type='month'],
+input[type='week'] {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    color-scheme: light;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='time']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator,
+input[type='month']::-webkit-calendar-picker-indicator,
+input[type='week']::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    filter: none;
+}

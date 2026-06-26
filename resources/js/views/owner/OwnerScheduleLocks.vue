@@ -78,6 +78,21 @@
                                         : "Chưa thanh toán"
                                 }}
                             </small>
+                            <small
+                                v-if="item.is_playing"
+                                class="incident-summary"
+                            >
+                                Đang chơi · đã dùng
+                                {{ item.incident?.played_minutes || 0 }} phút ·
+                                còn {{ item.incident?.remaining_minutes || 0 }}
+                                phút · dự kiến hoàn
+                                {{
+                                    currency(
+                                        item.incident
+                                            ?.estimated_refund_amount,
+                                    )
+                                }}
+                            </small>
                         </div>
 
                         <div class="conflict-actions">
@@ -125,7 +140,10 @@
                                 />
                                 Hủy/hoàn ví
                             </label>
-                            <label class="radio-line cash">
+                            <label
+                                v-if="item.payment_status === 'paid'"
+                                class="radio-line cash"
+                            >
                                 <input
                                     v-model="
                                         lockResolutions[item.booking_item_id]
@@ -189,6 +207,32 @@
                                 Theo ngày
                             </button>
                         </div>
+
+                        <div class="lock-type-switch">
+                            <button
+                                type="button"
+                                :class="{ active: form.lock_type === 'manual' }"
+                                @click="form.lock_type = 'manual'"
+                            >
+                                Khóa thường
+                            </button>
+                            <button
+                                type="button"
+                                :class="{
+                                    active: form.lock_type === 'emergency',
+                                }"
+                                @click="form.lock_type = 'emergency'"
+                            >
+                                Khóa đột xuất
+                            </button>
+                        </div>
+                        <p
+                            v-if="form.lock_type === 'emergency'"
+                            class="emergency-hint"
+                        >
+                            Có thể chọn ô đang có booking để đổi sân hoặc xử lý
+                            phần thời gian còn lại.
+                        </p>
 
                         <div class="date-grid">
                             <label>
@@ -480,7 +524,7 @@
                                 :class="slotClass(court.id, slot)"
                                 :title="slotTitle(court.id, slot)"
                                 type="button"
-                                :disabled="isBusy(court.id, slot)"
+                                :disabled="!canSelectSlot(court.id, slot)"
                                 :aria-pressed="isSelected(court.id, slot)"
                                 @click="pickSlot(court, slot)"
                             />
@@ -517,6 +561,7 @@ export default {
                 start_date: today,
                 end_date: today,
                 lock_mode: "slots",
+                lock_type: "manual",
                 reason: "",
             },
             selectedSlots: [],
@@ -842,6 +887,7 @@ export default {
             return {
                 start_date: this.form.start_date,
                 end_date: this.form.end_date,
+                lock_type: this.form.lock_type,
                 reason: this.form.reason,
                 slots:
                     this.form.lock_mode === "whole_day"
@@ -942,6 +988,15 @@ export default {
         isBusy(courtId, slot) {
             return !this.statusFor(courtId, slot)?.is_available;
         },
+        canSelectSlot(courtId, slot) {
+            const status = this.statusFor(courtId, slot);
+            if (!status || status.is_available) return true;
+
+            return (
+                this.form.lock_type === "emergency" &&
+                status.busy_source === "booking"
+            );
+        },
         isRangeBusy(courtId, range) {
             const start = this.minutes(range.start_time);
             const end = this.minutes(range.end_time);
@@ -962,7 +1017,8 @@ export default {
             if (this.isSelected(courtId, slot)) return "selected";
             if (!status || status.is_available) return "available";
             if (status.busy_source === "booking") return "booking";
-            if (status.busy_status === "manual") return "manual";
+            if (["manual", "emergency"].includes(status.busy_status))
+                return "manual";
             return "holding";
         },
         slotTitle(courtId, slot) {
@@ -971,8 +1027,12 @@ export default {
                 return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} · Đã chọn`;
             if (!status || status.is_available)
                 return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} · Trống`;
-            if (status.busy_source === "booking") return "Đã có booking";
-            if (status.busy_status === "manual")
+            if (status.busy_source === "booking") {
+                return this.form.lock_type === "emergency"
+                    ? "Đã có booking · có thể chọn để xử lý đột xuất"
+                    : "Đã có booking";
+            }
+            if (["manual", "emergency"].includes(status.busy_status))
                 return `Đã khóa: ${status.lock_reason || "Không có lý do"}`;
             return "Đang được giữ chỗ";
         },
@@ -1085,6 +1145,13 @@ export default {
                 new Date(`${value}T00:00:00`),
             );
         },
+        currency(value) {
+            return new Intl.NumberFormat("vi-VN", {
+                style: "currency",
+                currency: "VND",
+                maximumFractionDigits: 0,
+            }).format(Number(value || 0));
+        },
     },
 };
 </script>
@@ -1170,6 +1237,42 @@ export default {
     border: 1px solid var(--admin-border);
     border-radius: 10px;
     background: var(--admin-surface-muted);
+}
+.lock-type-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 4px;
+    border: 1px solid #d7e5d7;
+    border-radius: 8px;
+    background: #f7fbf5;
+}
+.lock-type-switch button {
+    min-height: 38px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #52635a;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+.lock-type-switch button.active {
+    background: #16a34a;
+    color: #fff;
+}
+.emergency-hint {
+    margin: -4px 0 0;
+    padding: 9px 10px;
+    border-left: 3px solid #f59e0b;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.incident-summary {
+    color: #b45309 !important;
+    font-weight: 800;
 }
 .mode-switch button {
     min-height: 42px;

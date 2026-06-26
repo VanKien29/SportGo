@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\Auth\AdminForgotPasswordController;
 use App\Http\Controllers\Api\Admin\BannerController as AdminBannerController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FinanceOperationController as AdminFinanceOperationController;
+use App\Http\Controllers\Api\Admin\SystemWalletController as AdminSystemWalletController;
 use App\Http\Controllers\Api\Admin\PartnerApplicationController as AdminPartnerApplicationController;
 use App\Http\Controllers\Api\Admin\PartnerContractController as AdminPartnerContractController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
@@ -106,10 +107,16 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/finance/refunds/export', [AdminFinanceOperationController::class, 'exportRefunds']);
         Route::get('/finance/withdrawals', [AdminFinanceOperationController::class, 'withdrawals']);
         Route::get('/finance/user-withdrawals', [AdminFinanceOperationController::class, 'userWithdrawals']);
+        Route::patch('/finance/user-withdrawals/{id}/pay', [AdminFinanceOperationController::class, 'payUserWithdrawal']);
+        Route::post('/finance/user-withdrawals/{id}/payout-qr', [AdminFinanceOperationController::class, 'userWithdrawalPayoutQr']);
+        Route::post('/finance/user-withdrawals/{id}/payout-check', [AdminFinanceOperationController::class, 'checkUserWithdrawalPayout']);
         Route::patch('/finance/withdrawals/{id}/status', [AdminFinanceOperationController::class, 'updateWithdrawal']);
         Route::post('/finance/withdrawals/{id}/payout-qr', [AdminFinanceOperationController::class, 'withdrawalPayoutQr']);
         Route::post('/finance/withdrawals/{id}/payout-check', [AdminFinanceOperationController::class, 'checkWithdrawalPayout']);
         Route::post('/finance/withdrawals/export', [AdminFinanceOperationController::class, 'exportWithdrawals']);
+        Route::get('/finance/system-wallet', [AdminSystemWalletController::class, 'show']);
+        Route::post('/finance/system-wallet/sync', [AdminSystemWalletController::class, 'sync']);
+        Route::put('/finance/system-wallet/settings', [AdminSystemWalletController::class, 'updateSettings']);
 
         Route::get('/partner-applications', [AdminPartnerApplicationController::class, 'index']);
         Route::get('/partner-applications/{id}', [AdminPartnerApplicationController::class, 'show']);

@@ -39,7 +39,7 @@ class ScheduleLockController extends Controller
         $locks = SlotLock::query()
             ->with('venueCourt.courtType:id,name')
             ->where('venue_cluster_id', $data['venue_cluster_id'])
-            ->where('lock_type', 'manual')
+            ->whereIn('lock_type', ['manual', 'emergency'])
             ->whereNull('booking_id')
             ->when(
                 ! empty($data['booking_date']),
@@ -136,7 +136,7 @@ class ScheduleLockController extends Controller
                         'end_time' => $slot['end_time'],
                         'locked_by' => $request->user()->id,
                         'booking_id' => null,
-                        'lock_type' => 'manual',
+                        'lock_type' => $data['lock_type'] ?? 'manual',
                         'reason' => $data['reason'],
                         'expires_at' => Carbon::parse($date)->endOfDay(),
                     ])->load('venueCourt.courtType');
@@ -168,7 +168,7 @@ class ScheduleLockController extends Controller
 
         $this->ensureClusterAccess($request, $lock->venue_cluster_id);
 
-        if ($lock->lock_type !== 'manual' || $lock->booking_id !== null) {
+        if (! in_array($lock->lock_type, ['manual', 'emergency'], true) || $lock->booking_id !== null) {
             throw ValidationException::withMessages([
                 'schedule_lock' => 'Chỉ được hủy khóa lịch thủ công do sân tạo.',
             ]);
@@ -279,6 +279,7 @@ class ScheduleLockController extends Controller
             'start_time' => ['nullable', 'required_with:venue_court_id', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['nullable', 'required_with:venue_court_id', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'reason' => [$requireReason ? 'required' : 'nullable', 'string', 'min:3', 'max:500'],
+            'lock_type' => ['nullable', 'in:manual,emergency'],
             'resolutions' => ['nullable', 'array'],
             'resolutions.*.booking_item_id' => ['required_with:resolutions', 'uuid', 'exists:booking_items,id'],
             'resolutions.*.action' => ['required_with:resolutions', 'in:switch,cancel,cash_refund'],
@@ -409,6 +410,11 @@ class ScheduleLockController extends Controller
             }
 
             if (($resolution['action'] ?? null) === 'cash_refund') {
+                if (! $item->booking?->payments?->where('status', 'paid')->count()) {
+                    throw ValidationException::withMessages([
+                        'resolutions' => 'Chỉ được ghi nhận hoàn tiền mặt cho booking đã thanh toán.',
+                    ]);
+                }
                 $cashCancellations->push($item);
                 continue;
             }
@@ -423,8 +429,9 @@ class ScheduleLockController extends Controller
     private function cancelAffectedItems(Request $request, SlotLock $lock, Collection $items, bool $completeAsCashRefund): void
     {
         $items
-            ->groupBy('booking_id')
-            ->each(function (Collection $bookingItems, string $bookingId) use ($request, $lock, $completeAsCashRefund): void {
+            ->groupBy(fn (BookingItem $item): string => $item->booking_id.'|'.($this->isPlayingItem($item, $lock) ? 'playing' : 'scheduled'))
+            ->each(function (Collection $bookingItems, string $groupKey) use ($request, $lock, $completeAsCashRefund): void {
+                [$bookingId, $timing] = explode('|', $groupKey, 2);
                 $booking = Booking::query()
                     ->with(['items', 'payments', 'customer'])
                     ->find($bookingId);
@@ -434,6 +441,22 @@ class ScheduleLockController extends Controller
                 }
 
                 $refundRatio = $this->refundRatioForAffectedItems($booking, $bookingItems, $lock);
+                $isPlaying = $timing === 'playing';
+
+                if ($isPlaying) {
+                    $bookingItems->each(function (BookingItem $item) use ($lock, $completeAsCashRefund): void {
+                        $metrics = $this->interruptionMetrics($item, $lock);
+                        $item->forceFill([
+                            'interrupted_at' => $metrics['interrupted_at'],
+                            'played_minutes' => $metrics['played_minutes'],
+                            'remaining_minutes' => $metrics['remaining_minutes'],
+                            'incident_refund_ratio' => $metrics['remaining_ratio'],
+                            'incident_resolution' => $completeAsCashRefund ? 'cash_refund' : 'wallet_refund',
+                            'incident_original_court_id' => $item->venue_court_id,
+                        ])->save();
+                    });
+                }
+
                 $this->ownerBookingCancellationService->cancelItemsForMaintenance(
                     $booking,
                     $bookingItems->pluck('id')->all(),
@@ -441,8 +464,9 @@ class ScheduleLockController extends Controller
                     $lock->reason ?: 'Sân được khóa để bảo trì.',
                     $lock->id,
                     $refundRatio,
-                    $this->hasPlayingItem($bookingItems, $lock) ? 'maintenance_item_cancelled_mid_play' : 'maintenance_item_cancelled',
+                    $isPlaying ? 'maintenance_item_cancelled_mid_play' : 'maintenance_item_cancelled',
                     $completeAsCashRefund,
+                    $isPlaying ? 'interrupted_by_emergency' : null,
                 );
 
                 $this->notifyBookingCustomer(
@@ -458,6 +482,7 @@ class ScheduleLockController extends Controller
                         'booking_item_ids' => $bookingItems->pluck('id')->values()->all(),
                         'refund_ratio' => $refundRatio,
                         'refund_destination' => $completeAsCashRefund ? 'cash' : 'user_wallet',
+                        'interrupted_while_playing' => $isPlaying,
                     ],
                 );
             });
@@ -483,27 +508,83 @@ class ScheduleLockController extends Controller
             ->whereKeyNot($oldCourt?->id)
             ->findOrFail($newCourtId);
 
+        $isPlaying = $this->isPlayingItem($item, $lock);
+        $metrics = $this->interruptionMetrics($item, $lock);
+        $availabilityStart = $isPlaying ? $metrics['resume_time'] : $item->start_time;
+
         if (! $this->bookingService->checkAvailability(
             $newCourt->id,
             $booking->booking_date->toDateString(),
-            $item->start_time,
+            $availabilityStart,
             $item->end_time,
             $booking->id,
         )) {
             throw ValidationException::withMessages([
-                'resolutions' => "{$newCourt->name} không còn trống trong khung giờ {$this->time($item->start_time)} - {$this->time($item->end_time)}.",
+                'resolutions' => "{$newCourt->name} không còn trống trong khung giờ {$this->time($availabilityStart)} - {$this->time($item->end_time)}.",
             ]);
         }
 
         $reason = "Đổi sân do khóa/bảo trì: {$lock->reason}";
 
-        $item->forceFill([
-            'venue_court_id' => $newCourt->id,
-            'status' => 'moved',
-            'court_changed_by' => $request->user()->id,
-            'court_changed_at' => now(),
-            'court_changed_reason' => $reason,
-        ])->save();
+        if ($isPlaying && $metrics['remaining_minutes'] > 0) {
+            $originalEnd = $item->end_time;
+            $originalSubtotal = (float) $item->subtotal;
+            $remainingSubtotal = round($originalSubtotal * $metrics['remaining_ratio'], 2);
+            $playedSubtotal = round($originalSubtotal - $remainingSubtotal, 2);
+            $nextSortOrder = ((int) BookingItem::query()->where('booking_id', $booking->id)->max('sort_order')) + 1;
+
+            $item->forceFill([
+                'end_time' => $metrics['resume_time'],
+                'duration_minutes' => $metrics['played_minutes'],
+                'subtotal' => $playedSubtotal,
+                'status' => 'interrupted_by_emergency',
+                'status_reason' => $reason,
+                'maintenance_lock_id' => $lock->id,
+                'interrupted_at' => $metrics['interrupted_at'],
+                'played_minutes' => $metrics['played_minutes'],
+                'remaining_minutes' => $metrics['remaining_minutes'],
+                'incident_refund_ratio' => 0,
+                'incident_resolution' => 'switched_court',
+                'incident_original_court_id' => $oldCourt?->id,
+            ])->save();
+
+            $movedItem = BookingItem::query()->create([
+                'booking_id' => $booking->id,
+                'venue_court_id' => $newCourt->id,
+                'requested_venue_court_id' => $oldCourt?->id,
+                'start_time' => $metrics['resume_time'],
+                'end_time' => $originalEnd,
+                'duration_minutes' => $metrics['remaining_minutes'],
+                'unit_price' => $item->unit_price,
+                'subtotal' => $remainingSubtotal,
+                'status' => 'moved',
+                'status_reason' => $reason,
+                'court_changed_by' => $request->user()->id,
+                'court_changed_at' => now(),
+                'court_changed_reason' => $reason,
+                'interrupted_at' => $metrics['interrupted_at'],
+                'played_minutes' => 0,
+                'remaining_minutes' => $metrics['remaining_minutes'],
+                'incident_refund_ratio' => 0,
+                'incident_resolution' => 'resumed_on_alternative_court',
+                'incident_original_court_id' => $oldCourt?->id,
+                'sort_order' => $nextSortOrder,
+            ]);
+
+            SlotLock::query()
+                ->where('booking_item_id', $item->id)
+                ->update(['end_time' => $metrics['resume_time']]);
+
+            $item = $movedItem;
+        } else {
+            $item->forceFill([
+                'venue_court_id' => $newCourt->id,
+                'status' => 'moved',
+                'court_changed_by' => $request->user()->id,
+                'court_changed_at' => now(),
+                'court_changed_reason' => $reason,
+            ])->save();
+        }
 
         SlotLock::query()
             ->where('booking_item_id', $item->id)
@@ -546,24 +627,7 @@ class ScheduleLockController extends Controller
 
     private function remainingRatioForItem(BookingItem $item, SlotLock $lock): float
     {
-        $date = $lock->booking_date->toDateString();
-        $now = Carbon::now();
-        $start = Carbon::parse("{$date} {$item->start_time}");
-        $end = Carbon::parse("{$date} {$item->end_time}");
-
-        if ($now->lt($start)) {
-            return 1.0;
-        }
-
-        if ($now->gte($end)) {
-            return 0.0;
-        }
-
-        $durationMinutes = max($start->diffInMinutes($end), 1);
-        $remainingMinutes = max($now->diffInMinutes($end), 0);
-        $roundedRemaining = (int) ceil($remainingMinutes / 30) * 30;
-
-        return min(1, max(0, $roundedRemaining / $durationMinutes));
+        return $this->interruptionMetrics($item, $lock)['remaining_ratio'];
     }
 
     private function hasPlayingItem(Collection $items, SlotLock $lock): bool
@@ -577,6 +641,49 @@ class ScheduleLockController extends Controller
 
             return $now->betweenIncluded($start, $end);
         });
+    }
+
+    private function isPlayingItem(BookingItem $item, SlotLock $lock): bool
+    {
+        $date = $lock->booking_date->toDateString();
+        $now = Carbon::now();
+        $start = Carbon::parse("{$date} {$item->start_time}");
+        $end = Carbon::parse("{$date} {$item->end_time}");
+
+        return $now->betweenIncluded($start, $end);
+    }
+
+    private function interruptionMetrics(BookingItem $item, SlotLock $lock): array
+    {
+        return $this->interruptionMetricsForDate($item, $lock->booking_date->toDateString());
+    }
+
+    private function interruptionMetricsForDate(BookingItem $item, string $date): array
+    {
+        $now = Carbon::now();
+        $start = Carbon::parse("{$date} {$item->start_time}");
+        $end = Carbon::parse("{$date} {$item->end_time}");
+        $durationMinutes = max($start->diffInMinutes($end), 1);
+
+        if ($now->lt($start)) {
+            $remainingMinutes = $durationMinutes;
+        } elseif ($now->gte($end)) {
+            $remainingMinutes = 0;
+        } else {
+            $rawRemaining = max($now->diffInMinutes($end), 0);
+            $remainingMinutes = min($durationMinutes, (int) ceil($rawRemaining / 30) * 30);
+        }
+
+        $playedMinutes = max($durationMinutes - $remainingMinutes, 0);
+        $resumeAt = $start->copy()->addMinutes($playedMinutes);
+
+        return [
+            'interrupted_at' => $now,
+            'played_minutes' => $playedMinutes,
+            'remaining_minutes' => $remainingMinutes,
+            'remaining_ratio' => min(1, max(0, round($remainingMinutes / $durationMinutes, 6))),
+            'resume_time' => $resumeAt->format('H:i:s'),
+        ];
     }
 
     private function affectedBookingItemPayload(BookingItem $item): array
@@ -606,6 +713,8 @@ class ScheduleLockController extends Controller
             'start_time' => $item->start_time,
             'end_time' => $item->end_time,
             'subtotal' => (float) $item->subtotal,
+            'is_playing' => $this->isPlayingForDate($item, $booking?->booking_date?->toDateString()),
+            'incident' => $this->incidentPreviewPayload($item, $booking),
             'alternatives' => $this->availableAlternativeCourtsForItem($item)
                 ->map(fn (VenueCourt $court): array => [
                     'id' => $court->id,
@@ -630,6 +739,11 @@ class ScheduleLockController extends Controller
             return collect();
         }
 
+        $metrics = $this->interruptionMetricsForDate($item, $booking->booking_date->toDateString());
+        $availabilityStart = $this->isPlayingForDate($item, $booking->booking_date->toDateString())
+            ? $metrics['resume_time']
+            : $item->start_time;
+
         return VenueCourt::query()
             ->with('courtType')
             ->where('venue_cluster_id', $booking->venue_cluster_id)
@@ -642,11 +756,46 @@ class ScheduleLockController extends Controller
             ->filter(fn (VenueCourt $candidate): bool => $this->bookingService->checkAvailability(
                 $candidate->id,
                 $booking->booking_date->toDateString(),
-                $item->start_time,
+                $availabilityStart,
                 $item->end_time,
                 $booking->id,
             ))
             ->values();
+    }
+
+    private function isPlayingForDate(BookingItem $item, ?string $date): bool
+    {
+        if (! $date) {
+            return false;
+        }
+
+        $now = Carbon::now();
+        $start = Carbon::parse("{$date} {$item->start_time}");
+        $end = Carbon::parse("{$date} {$item->end_time}");
+
+        return $now->betweenIncluded($start, $end);
+    }
+
+    private function incidentPreviewPayload(BookingItem $item, ?Booking $booking): array
+    {
+        if (! $booking?->booking_date) {
+            return [
+                'played_minutes' => 0,
+                'remaining_minutes' => (int) $item->duration_minutes,
+                'remaining_ratio' => 1,
+                'resume_time' => $item->start_time,
+            ];
+        }
+
+        $metrics = $this->interruptionMetricsForDate($item, $booking->booking_date->toDateString());
+
+        return [
+            'played_minutes' => $metrics['played_minutes'],
+            'remaining_minutes' => $metrics['remaining_minutes'],
+            'remaining_ratio' => $metrics['remaining_ratio'],
+            'resume_time' => $metrics['resume_time'],
+            'estimated_refund_amount' => round((float) $item->subtotal * $metrics['remaining_ratio'], 2),
+        ];
     }
 
     private function notifyBookingCustomer(Booking $booking, string $title, string $body, array $data = []): void
@@ -677,7 +826,7 @@ class ScheduleLockController extends Controller
 
     private function activeSlotLockConstraint($query): void
     {
-        $query->where('lock_type', 'manual')
+        $query->whereIn('lock_type', ['manual', 'emergency'])
             ->orWhere(function ($autoQuery): void {
                 $autoQuery->where('lock_type', 'auto')
                     ->where('expires_at', '>', Carbon::now());

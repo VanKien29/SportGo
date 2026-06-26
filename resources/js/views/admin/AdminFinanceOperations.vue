@@ -633,7 +633,11 @@
                                         v-if="canOpenPayout(withdrawal)"
                                         class="pay-command"
                                         type="button"
-                                        title="Tạo QR chuyển khoản"
+                                        :title="
+                                            withdrawalScope === 'user'
+                                                ? 'Chi trả rút tiền người dùng'
+                                                : 'Tạo QR chuyển khoản'
+                                        "
                                         @click="openPayout(withdrawal)"
                                     >
                                         <AppIcon
@@ -783,13 +787,19 @@
                         "-"
                     }}</strong>
                     <span>Cụm sân</span
-                    ><strong>{{ refundDetail.venue_cluster?.name || "-" }}</strong>
+                    ><strong>{{
+                        refundDetail.venue_cluster?.name || "-"
+                    }}</strong>
                     <span>Payment</span
-                    ><strong>{{ refundDetail.payment?.payment_code || "-" }}</strong>
+                    ><strong>{{
+                        refundDetail.payment?.payment_code || "-"
+                    }}</strong>
                     <span>Số tiền hoàn</span
                     ><strong>{{ formatCurrency(refundDetail.amount) }}</strong>
                     <span>Hình thức hoàn</span
-                    ><strong>{{ refundDetail.refund_destination?.label || "-" }}</strong>
+                    ><strong>{{
+                        refundDetail.refund_destination?.label || "-"
+                    }}</strong>
                     <span>Trạng thái</span
                     ><strong>{{ refundStatusLabel(refundDetail) }}</strong>
                     <span>Phản hồi chủ sân</span
@@ -801,13 +811,18 @@
                         <strong>Lý do yêu cầu</strong>
                         <p>{{ refundDetail.reason || "-" }}</p>
                     </section>
-                    <section v-if="refundDetail.owner_confirmation?.note || refundDetail.status_reason">
+                    <section
+                        v-if="
+                            refundDetail.owner_confirmation?.note ||
+                            refundDetail.status_reason
+                        "
+                    >
                         <strong>{{
                             refundDetail.status === "owner_rejected"
                                 ? "Lý do từ chối"
                                 : refundDetail.status === "cancelled"
                                   ? "Lý do hủy"
-                                : "Ghi chú xử lý"
+                                  : "Ghi chú xử lý"
                         }}</strong>
                         <p>
                             {{
@@ -854,13 +869,22 @@
         </div>
 
         <div v-if="payoutOpen" class="modal-backdrop" @click.self="closePayout">
-            <section class="payout-modal">
+            <section
+                class="payout-modal"
+                :class="{ 'user-payment-modal': isUserWithdrawalPayout() }"
+            >
                 <header>
                     <div>
                         <span class="eyebrow">{{
                             tab === "refunds" ? "Hoàn tiền" : "Rút tiền"
                         }}</span>
-                        <h3>Thanh toán QR</h3>
+                        <h3>
+                            {{
+                                isUserWithdrawalPayout()
+                                    ? "Chi trả rút tiền"
+                                    : "Thanh toán QR"
+                            }}
+                        </h3>
                     </div>
                     <button
                         class="icon-only"
@@ -878,6 +902,169 @@
                 <div v-else-if="payoutError && !payout" class="alert error">
                     {{ payoutError }}
                 </div>
+                <template v-else-if="isUserWithdrawalPayout() && payout">
+                    <div class="user-payout-body">
+                        <dl class="collect-summary">
+                            <div>
+                                <dt>Người nhận</dt>
+                                <dd>{{ personName(payoutItem?.owner) }}</dd>
+                            </div>
+                            <div>
+                                <dt>Đang giữ trong ví</dt>
+                                <dd>
+                                    {{
+                                        formatCurrency(
+                                            payoutItem?.wallet
+                                                ?.pending_withdrawal_balance,
+                                        )
+                                    }}
+                                </dd>
+                            </div>
+                            <div class="highlight">
+                                <dt>Số tiền chi trả</dt>
+                                <dd>{{ formatCurrency(payout.amount) }}</dd>
+                            </div>
+                        </dl>
+
+                        <div class="method-row">
+                            <button
+                                type="button"
+                                :class="{ active: payoutMethod === 'cash' }"
+                                :disabled="
+                                    payingUserWithdrawal ||
+                                    !payoutItem?.can_pay_cash
+                                "
+                                @click="selectPayoutMethod('cash')"
+                            >
+                                <AppIcon name="banknote" size="16" />
+                                <span>Tiền mặt</span>
+                            </button>
+                            <button
+                                type="button"
+                                :class="{
+                                    active: payoutMethod === 'bank_transfer',
+                                }"
+                                :disabled="
+                                    payingUserWithdrawal ||
+                                    !payoutItem?.can_pay_bank_transfer
+                                "
+                                @click="selectPayoutMethod('bank_transfer')"
+                            >
+                                <AppIcon name="creditCard" size="16" />
+                                <span>Chuyển khoản</span>
+                            </button>
+                        </div>
+
+                        <div
+                            v-if="payoutMethod === 'bank_transfer'"
+                            class="bank-transfer-review"
+                        >
+                            <div
+                                v-if="payoutLoading"
+                                class="empty compact-empty"
+                            >
+                                Đang tạo QR chuyển khoản...
+                            </div>
+                            <template v-else-if="payout.qr_url">
+                                <div class="user-transfer-layout">
+                                    <img
+                                        class="user-payout-qr"
+                                        :src="payout.qr_url"
+                                        alt="QR chuyển khoản rút tiền"
+                                    />
+                                    <div class="user-transfer-info">
+                                        <dl class="receipt-facts compact">
+                                            <span>Ngân hàng</span
+                                            ><strong>{{
+                                                payout.recipient.bank_name
+                                            }}</strong>
+                                            <span>Số tài khoản</span
+                                            ><strong>{{
+                                                payout.recipient.account_number
+                                            }}</strong>
+                                            <span>Chủ tài khoản</span
+                                            ><strong>{{
+                                                payout.recipient.account_holder
+                                            }}</strong>
+                                            <span>Số tiền</span
+                                            ><strong>{{
+                                                formatCurrency(payout.amount)
+                                            }}</strong>
+                                            <span>Nội dung</span>
+                                            <button
+                                                class="copy-value"
+                                                type="button"
+                                                @click="
+                                                    copyText(
+                                                        payout.transfer_code,
+                                                    )
+                                                "
+                                            >
+                                                {{ payout.transfer_code }}
+                                            </button>
+                                        </dl>
+                                        <div class="payout-waiting">
+                                            <span
+                                                class="spinner"
+                                                aria-hidden="true"
+                                            ></span>
+                                            <span
+                                                >Đang chờ SePay xác nhận giao
+                                                dịch tiền ra...</span
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <label
+                            v-if="payoutMethod === 'cash'"
+                            class="payout-note-field"
+                        >
+                            <span>Ghi chú</span>
+                            <textarea
+                                v-model.trim="payoutNote"
+                                rows="3"
+                                :disabled="payingUserWithdrawal"
+                                placeholder="Ghi chú đối soát nếu có"
+                            ></textarea>
+                        </label>
+
+                        <p v-if="payoutMethod === 'cash'" class="review-note">
+                            Khi xác nhận, hệ thống trừ số tiền đang giữ trong ví
+                            người dùng, ghi lịch sử ví và phát hành phiếu chi.
+                        </p>
+                        <p v-if="payoutError" class="inline-error">
+                            {{ payoutError }}
+                        </p>
+                        <footer class="user-payout-footer">
+                            <button
+                                class="secondary-btn"
+                                type="button"
+                                :disabled="payingUserWithdrawal"
+                                @click="closePayout"
+                            >
+                                Đóng
+                            </button>
+                            <button
+                                v-if="payoutMethod === 'cash'"
+                                class="primary-btn"
+                                type="button"
+                                :disabled="payingUserWithdrawal"
+                                @click="
+                                    submitUserWithdrawalPayment(payoutMethod)
+                                "
+                            >
+                                {{
+                                    payingUserWithdrawal
+                                        ? "Đang xử lý..."
+                                        : "Xác nhận đã trả tiền mặt"
+                                }}
+                            </button>
+                        </footer>
+                    </div>
+                </template>
                 <template v-else-if="payout">
                     <div class="payout-content">
                         <img :src="payout.qr_url" alt="QR chuyển khoản" />
@@ -973,6 +1160,9 @@ export default {
             payoutError: "",
             payoutPollTimer: null,
             payoutPolling: false,
+            payoutMethod: "bank_transfer",
+            payoutNote: "",
+            payingUserWithdrawal: false,
             copyMessage: "",
             expandedPolicies: {},
             requestSeq: 0,
@@ -1129,11 +1319,34 @@ export default {
         },
         async openPayout(item) {
             this.payoutOpen = true;
-            this.payoutLoading = true;
+            this.payoutLoading = false;
             this.payout = null;
             this.payoutItem = item;
             this.payoutError = "";
             this.copyMessage = "";
+            this.payoutMethod = item.can_pay_bank_transfer
+                ? "bank_transfer"
+                : "cash";
+            this.payoutNote = "";
+
+            if (this.isUserWithdrawalPayout()) {
+                this.payout = {
+                    amount: item.amount,
+                    recipient: {
+                        bank_name: item.bank_account?.bank_name || "-",
+                        account_number:
+                            item.bank_account?.account_number || "-",
+                        account_holder:
+                            item.bank_account?.account_holder_name || "-",
+                    },
+                };
+                if (this.payoutMethod === "bank_transfer") {
+                    await this.loadUserWithdrawalQr();
+                }
+                return;
+            }
+
+            this.payoutLoading = true;
             try {
                 const response =
                     this.tab === "refunds"
@@ -1159,6 +1372,9 @@ export default {
             this.payoutItem = null;
             this.payoutError = "";
             this.copyMessage = "";
+            this.payoutMethod = "bank_transfer";
+            this.payoutNote = "";
+            this.payingUserWithdrawal = false;
         },
         startPayoutPolling() {
             this.stopPayoutPolling();
@@ -1178,6 +1394,40 @@ export default {
             if (!this.payoutItem || this.payoutPolling) return;
             this.payoutPolling = true;
             try {
+                if (this.isUserWithdrawalPayout()) {
+                    let completed = false;
+                    let message = "";
+
+                    if (this.payout?.sepay_check_available) {
+                        const response =
+                            await adminFinanceOperationsService.checkUserWithdrawalPayout(
+                                this.payoutItem.id,
+                            );
+                        completed = Boolean(response.completed);
+                        message = response.message || "";
+                    } else {
+                        const response =
+                            await adminFinanceOperationsService.userWithdrawals(
+                                this.operationFilterParams(
+                                    this.meta.current_page,
+                                ),
+                            );
+                        const updated = (response.data || []).find(
+                            (item) => item.id === this.payoutItem.id,
+                        );
+                        completed = updated?.status === "paid";
+                    }
+
+                    if (completed) {
+                        this.success =
+                            message ||
+                            "SePay đã xác nhận chi trả rút tiền người dùng.";
+                        this.closePayout();
+                        await this.loadData(this.meta.current_page);
+                    }
+                    return;
+                }
+
                 const service =
                     this.tab === "refunds"
                         ? adminFinanceOperationsService.refunds
@@ -1218,6 +1468,67 @@ export default {
                     error.message || "Không cập nhật được trạng thái mới nhất.";
             } finally {
                 this.payoutPolling = false;
+            }
+        },
+        async selectPayoutMethod(method) {
+            this.payoutMethod = method;
+            this.payoutError = "";
+            if (
+                method === "bank_transfer" &&
+                this.isUserWithdrawalPayout() &&
+                !this.payout?.qr_url
+            ) {
+                await this.loadUserWithdrawalQr();
+            }
+        },
+        async loadUserWithdrawalQr() {
+            if (!this.payoutItem || !this.isUserWithdrawalPayout()) return;
+
+            this.payoutLoading = true;
+            this.payoutError = "";
+            try {
+                const response =
+                    await adminFinanceOperationsService.userWithdrawalPayoutQr(
+                        this.payoutItem.id,
+                    );
+                this.payout = response.data;
+                this.startPayoutPolling();
+            } catch (error) {
+                this.payoutError =
+                    error.message || "Không tạo được QR chuyển khoản.";
+            } finally {
+                this.payoutLoading = false;
+            }
+        },
+        async submitUserWithdrawalPayment(method) {
+            if (!this.payoutItem || !this.isUserWithdrawalPayout()) return;
+
+            if (method !== "cash") {
+                return;
+            }
+
+            this.payingUserWithdrawal = true;
+            this.payoutError = "";
+            try {
+                const response =
+                    await adminFinanceOperationsService.payUserWithdrawal(
+                        this.payoutItem.id,
+                        {
+                            payment_method: method,
+                            transfer_reference: null,
+                            note: this.payoutNote.trim() || null,
+                        },
+                    );
+                this.success =
+                    response.message ||
+                    "Đã ghi nhận chi trả rút tiền người dùng.";
+                this.closePayout();
+                await this.loadData(this.meta.current_page);
+            } catch (error) {
+                this.payoutError =
+                    error.message || "Không thể ghi nhận chi trả.";
+            } finally {
+                this.payingUserWithdrawal = false;
             }
         },
         openAction(item) {
@@ -1319,8 +1630,19 @@ export default {
         },
         canOpenPayout(item) {
             if (this.tab === "refunds") return false;
-            if (this.withdrawalScope === "user") return false;
+            if (this.withdrawalScope === "user") {
+                return Boolean(
+                    item.can_pay_cash ||
+                    item.can_pay_bank_transfer ||
+                    item.can_pay_by_qr,
+                );
+            }
             return Boolean(item.can_pay_by_qr) || this.isExportable(item);
+        },
+        isUserWithdrawalPayout() {
+            return (
+                this.tab === "withdrawals" && this.withdrawalScope === "user"
+            );
         },
         isOwnerFaultRefund(refund) {
             return Boolean(refund?.policy_evaluation?.is_owner_fault_refund);
@@ -2034,6 +2356,11 @@ th {
 .payout-modal {
     width: min(760px, calc(100vw - 32px));
 }
+.payout-modal.user-payment-modal {
+    width: min(820px, calc(100vw - 32px));
+    max-height: calc(100vh - 40px);
+    overflow: auto;
+}
 .action-modal {
     display: flex;
     flex-direction: column;
@@ -2129,9 +2456,151 @@ th {
     flex-direction: column;
     gap: 14px;
 }
+.user-payout-body {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+}
+.collect-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+}
+.collect-summary > div {
+    display: grid;
+    gap: 5px;
+    padding: 12px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+.collect-summary > div.highlight {
+    border-color: #86efac;
+    background: #ecfdf5;
+}
+.collect-summary dt {
+    color: #607267;
+    font-size: 11px;
+    font-weight: 800;
+}
+.collect-summary dd {
+    margin: 0;
+    color: #16231a;
+    font-size: 14px;
+    font-weight: 900;
+}
+.collect-summary .highlight dd {
+    color: #047857;
+    font-size: 18px;
+}
+.method-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+.method-row button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+    color: #475b4d;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+.method-row button.active {
+    border-color: #16a34a;
+    background: #ecfdf5;
+    color: #15803d;
+    box-shadow: inset 0 0 0 1px #16a34a;
+}
+.method-row button:disabled {
+    opacity: 0.5;
+}
+.bank-transfer-review {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #f7fbf5;
+}
+.user-transfer-layout {
+    display: grid;
+    grid-template-columns: minmax(240px, 300px) minmax(280px, 1fr);
+    gap: 22px;
+    align-items: center;
+}
+.user-payout-qr {
+    width: 100%;
+    max-width: 300px;
+    justify-self: center;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+.user-transfer-info {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+.user-transfer-info .receipt-facts.compact {
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 11px 16px;
+}
+.user-transfer-info .receipt-facts strong,
+.user-transfer-info .copy-value {
+    overflow-wrap: anywhere;
+}
+.compact-empty {
+    padding: 18px;
+}
+.bank-transfer-review label,
+.payout-note-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 800;
+}
+.bank-transfer-review input,
+.payout-note-field textarea {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #fff;
+    color: #0f172a;
+    padding: 9px 10px;
+    font: inherit;
+    font-weight: 500;
+}
+.review-note {
+    margin: 0;
+    padding: 11px 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #52635a;
+    font-size: 13px;
+    line-height: 1.45;
+}
+.user-payout-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 2px;
+}
 .payout-actions {
     gap: 8px;
     flex-wrap: wrap;
+}
+.payout-actions.wrap {
+    display: flex;
 }
 .payout-waiting {
     display: flex;
@@ -2188,6 +2657,15 @@ pre {
     }
     .payout-content img {
         width: 100%;
+    }
+    .collect-summary {
+        grid-template-columns: 1fr;
+    }
+    .user-transfer-layout {
+        grid-template-columns: 1fr;
+    }
+    .user-payout-qr {
+        max-width: 280px;
     }
 }
 @media (max-width: 600px) {

@@ -10,6 +10,7 @@ use App\Models\SystemBankAccount;
 use App\Models\User;
 use App\Services\BookingService;
 use App\Services\Wallets\OwnerWalletService;
+use App\Services\Wallets\SystemWalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -18,6 +19,7 @@ class SepayPaymentService
 {
     public function __construct(
         private readonly OwnerWalletService $ownerWalletService,
+        private readonly SystemWalletService $systemWalletService,
         private readonly BookingService $bookingService,
     ) {}
 
@@ -200,6 +202,7 @@ class SepayPaymentService
 
             if ($payment->status === 'paid') {
                 $this->ownerWalletService->creditBookingPayment($payment, $normalized);
+                $this->recordSystemWalletPayment($payment, $normalized);
                 $this->logIpn($payment, $payload, $statusBefore, 'sepay_ipn_duplicate', $gatewayTxnId, 'duplicate_callback', 'SePay gửi lại webhook cho payment đã thanh toán.');
 
                 return [
@@ -259,6 +262,7 @@ class SepayPaymentService
                     ->delete();
 
                 $this->ownerWalletService->creditBookingPayment($payment, $normalized);
+                $this->recordSystemWalletPayment($payment->fresh(['booking', 'systemBankAccount']), $normalized);
             } else {
                 $payment->status = 'failed';
                 $payment->save();
@@ -451,6 +455,62 @@ class SepayPaymentService
                     'error_message' => 'Payment pending được thay thế bởi QR SePay tại quầy.',
                 ]);
             });
+    }
+
+    private function recordSystemWalletPayment(Payment $payment, array $metadata): void
+    {
+        $payment->loadMissing(['booking', 'systemBankAccount']);
+
+        $account = $payment->systemBankAccount ?: $this->resolveSystemBankAccount();
+        $transactionRef = $metadata['transaction_id'] ?: $payment->gateway_txn_id ?: 'PAYMENT-'.$payment->id;
+
+        $this->systemWalletService->recordIncoming(
+            $account,
+            $transactionRef,
+            (float) $payment->amount,
+            'booking_payment',
+            'payment',
+            $payment->id,
+            'SePay thu hộ booking '.$payment->booking?->booking_code.'.',
+            array_merge($metadata, [
+                'payment_id' => $payment->id,
+                'payment_code' => $payment->payment_code,
+                'booking_id' => $payment->booking_id,
+                'booking_code' => $payment->booking?->booking_code,
+            ]),
+            $metadata['transaction_date'] ?? now(),
+        );
+
+        $systemVoucherAmount = $this->systemVoucherAmountForPayment($payment);
+
+        $this->systemWalletService->reserveVoucher($systemVoucherAmount, $payment->id, $account, [
+            'payment_id' => $payment->id,
+            'payment_code' => $payment->payment_code,
+            'booking_id' => $payment->booking_id,
+            'booking_code' => $payment->booking?->booking_code,
+            'customer_paid_amount' => (float) $payment->amount,
+            'system_discount_amount' => (float) ($payment->booking?->system_discount_amount ?? 0),
+        ]);
+    }
+
+    private function systemVoucherAmountForPayment(Payment $payment): float
+    {
+        $booking = $payment->booking;
+        $systemDiscount = (float) ($booking?->system_discount_amount ?? 0);
+
+        if ($systemDiscount <= 0) {
+            return 0;
+        }
+
+        $customerPayable = (float) ($booking?->final_amount ?? $booking?->total_price ?? $payment->amount);
+
+        if ($customerPayable <= 0) {
+            return round($systemDiscount, 2);
+        }
+
+        $ratio = min(max((float) $payment->amount / $customerPayable, 0), 1);
+
+        return round($systemDiscount * $ratio, 2);
     }
 
     private function normalizeIpnPayload(array $payload): array

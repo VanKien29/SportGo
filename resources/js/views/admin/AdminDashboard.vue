@@ -25,6 +25,8 @@
       </article>
     </section>
 
+    <AdminSystemWallet embedded />
+
     <section class="dashboard-grid">
       <article class="dashboard-panel quick-panel">
         <div class="panel-head">
@@ -68,10 +70,11 @@ import { getAuth } from '../../stores/auth.js';
 import { api } from '../../services/api.js';
 import { getPlatformFeeDashboardMetrics } from '../../services/platformFeeLedger.service.js';
 import AppIcon from '../../components/AppIcon.vue';
+import AdminSystemWallet from './AdminSystemWallet.vue';
 
 export default {
   name: 'AdminDashboard',
-  components: { AppIcon },
+  components: { AppIcon, AdminSystemWallet },
   data() {
     return {
       user: getAuth(),
@@ -80,6 +83,7 @@ export default {
         venues: 0,
         bookings: 0,
         revenue: 0,
+        finance: null,
       },
       feeMetrics: getPlatformFeeDashboardMetrics(),
       isLoading: true,
@@ -174,15 +178,20 @@ export default {
     },
   },
   async mounted() {
-    try {
-      this.stats = await api('/api/admin/dashboard');
-    } catch (error) {
-      this.error = error.message || 'Không thể tải dữ liệu thống kê.';
-    } finally {
-      this.isLoading = false;
-    }
+    await this.loadDashboard();
   },
   methods: {
+    async loadDashboard() {
+      this.isLoading = true;
+      this.error = null;
+      try {
+        this.stats = await api('/api/admin/dashboard');
+      } catch (error) {
+        this.error = error.message || 'Không thể tải dữ liệu thống kê.';
+      } finally {
+        this.isLoading = false;
+      }
+    },
     formatCurrency(amount) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
     },

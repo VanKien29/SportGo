@@ -4017,6 +4017,9 @@ export default {
         },
         occurrenceStatusLabel(occurrence) {
             if (occurrence.status === "cancelled") {
+                if (occurrence.has_interrupted_by_emergency) {
+                    return "Dừng do sự cố sân";
+                }
                 return occurrence.has_cancelled_by_maintenance
                     ? "Hủy do khóa sân"
                     : "Đã hủy";
@@ -4030,6 +4033,9 @@ export default {
             }
 
             if (Number(occurrence.cancelled_item_count || 0) > 0) {
+                if (occurrence.has_interrupted_by_emergency) {
+                    return "Dừng do sự cố sân";
+                }
                 return occurrence.has_cancelled_by_maintenance
                     ? "Hủy do khóa sân"
                     : "Đã hủy";
@@ -4057,11 +4063,13 @@ export default {
             return items
                 .map((item) => {
                     const time = `${this.formatTime(item.start_time)} - ${this.formatTime(item.end_time)}`;
-                    const status = String(item.status || "active").startsWith(
-                        "cancelled_",
-                    )
-                        ? " · hủy"
-                        : "";
+                    const itemStatus = String(item.status || "active");
+                    const status =
+                        itemStatus === "interrupted_by_emergency"
+                            ? " · dừng do sự cố"
+                            : itemStatus.startsWith("cancelled_")
+                              ? " · hủy"
+                              : "";
 
                     return `${item.court_name || "Sân"} ${time}${status}`;
                 })
