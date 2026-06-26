@@ -8,6 +8,7 @@ use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\BookingService;
+use App\Services\Memberships\VenueMembershipService;
 use App\Services\Policies\RefundCancellationPolicyService;
 use Carbon\Carbon;
 use Exception;
@@ -20,8 +21,11 @@ class BookingController extends Controller
 
     protected RefundCancellationPolicyService $refundCancellationPolicyService;
 
-    public function __construct(BookingService $bookingService, RefundCancellationPolicyService $refundCancellationPolicyService)
-    {
+    public function __construct(
+        BookingService $bookingService,
+        RefundCancellationPolicyService $refundCancellationPolicyService,
+        private readonly VenueMembershipService $venueMemberships,
+    ) {
         $this->bookingService = $bookingService;
         $this->refundCancellationPolicyService = $refundCancellationPolicyService;
     }
@@ -76,11 +80,25 @@ class BookingController extends Controller
             $startTime,
             $endTime,
         );
+        $membership = $this->venueMemberships->discountForBooking(
+            $request->user()->id,
+            $court->venue_cluster_id,
+            $totalPrice,
+        );
+        $membershipDiscount = (float) ($membership['discount_amount'] ?? 0);
+        $finalPrice = round(max($totalPrice - $membershipDiscount, 0), 2);
 
         return response()->json([
             'available' => $available,
             'hourly_rate' => round($totalPrice / $durationHours, 2),
             'total_price' => $totalPrice,
+            'final_amount' => $finalPrice,
+            'membership_discount' => $membership,
+            'price_preview' => [
+                'original_amount' => $totalPrice,
+                'membership_discount_amount' => $membershipDiscount,
+                'final_amount' => $finalPrice,
+            ],
         ]);
     }
 

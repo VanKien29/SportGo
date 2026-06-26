@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Booking;
 use App\Models\BookingConfig;
+use App\Models\CourtMembershipTier;
 use App\Models\CourtType;
 use App\Models\Role;
 use App\Models\SlotLock;
@@ -49,7 +50,7 @@ class BookingTest extends TestCase
             'status' => 'active',
         ]);
 
-        UserRole::create([
+        UserRole::query()->firstOrCreate([
             'user_id' => $this->player->id,
             'role_id' => $role->id,
             'scope_type' => 'system',
@@ -124,6 +125,55 @@ class BookingTest extends TestCase
             ->assertJson([
                 'available' => true,
             ]);
+    }
+
+    public function test_check_availability_returns_membership_discount_preview(): void
+    {
+        CourtMembershipTier::query()->create([
+            'venue_cluster_id' => $this->cluster->id,
+            'tier' => 'silver',
+            'discount_percent' => 10,
+            'min_bookings' => 1,
+            'min_spent_amount' => 1000,
+        ]);
+
+        Booking::query()->create([
+            'booking_code' => 'BKMEMBERPREVIEW',
+            'customer_id' => $this->player->id,
+            'venue_court_id' => $this->court->id,
+            'requested_venue_court_id' => $this->court->id,
+            'venue_cluster_id' => $this->cluster->id,
+            'booking_date' => now()->subDay()->toDateString(),
+            'start_time' => '08:00:00',
+            'end_time' => '09:00:00',
+            'duration_minutes' => 60,
+            'total_price' => 100000.00,
+            'original_amount' => 100000.00,
+            'final_amount' => 100000.00,
+            'payment_option' => 'full_payment',
+            'required_payment_amount' => 100000.00,
+            'source' => 'online',
+            'booking_type' => 'single',
+            'status' => 'completed',
+            'created_by' => $this->player->id,
+        ]);
+
+        app(\App\Services\Memberships\VenueMembershipService::class)
+            ->syncUserVenue($this->player->id, $this->cluster->id, 'booking_completed');
+
+        $response = $this->actingAs($this->player, 'sanctum')
+            ->getJson("/api/bookings/check-availability?" . http_build_query([
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->bookingDate,
+                'start_time' => '08:00:00',
+                'end_time' => '09:00:00',
+            ]));
+
+        $response->assertOk()
+            ->assertJsonPath('membership_discount.tier', 'silver')
+            ->assertJsonPath('membership_discount.discount_percent', 10)
+            ->assertJsonPath('price_preview.membership_discount_amount', 1000)
+            ->assertJsonPath('price_preview.final_amount', 9000);
     }
 
     /**

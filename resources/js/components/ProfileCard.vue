@@ -21,6 +21,7 @@
             :class="membershipBadgeClass"
             type="button"
             :title="membershipTooltip"
+            @click="showMembershipModal = true"
           >
             <span>{{ membershipTier.label }}</span>
             <span class="membership-chevron">&rsaquo;</span>
@@ -141,6 +142,80 @@
       </div>
     </div>
   </div>
+
+  <div
+    v-if="showMembershipModal"
+    class="membership-modal-backdrop"
+    @click.self="showMembershipModal = false"
+  >
+    <section class="membership-modal" role="dialog" aria-modal="true">
+      <header class="membership-modal-head">
+        <div>
+          <p>Hạng thành viên</p>
+          <h2>{{ membershipTier.label }}</h2>
+          <span v-if="membershipTier.venue_name">{{ membershipTier.venue_name }}</span>
+        </div>
+        <button type="button" title="Đóng" @click="showMembershipModal = false">×</button>
+      </header>
+
+      <div class="membership-modal-stats">
+        <div>
+          <span>Booking hoàn tất</span>
+          <strong>{{ membershipTier.completed_bookings || 0 }}</strong>
+        </div>
+        <div>
+          <span>Tổng chi tiêu</span>
+          <strong>{{ formatMoney(membershipTier.total_spend_amount || membershipTier.total_spent || 0) }}</strong>
+        </div>
+        <div>
+          <span>Ưu đãi hiện tại</span>
+          <strong>Giảm {{ membershipTier.discount_percent || 0 }}%</strong>
+        </div>
+      </div>
+
+      <div class="membership-modal-table-wrap">
+        <table class="membership-modal-table">
+          <thead>
+            <tr>
+              <th>Cụm sân</th>
+              <th>Hạng hiện tại</th>
+              <th>Đã đạt</th>
+              <th>Hạng kế tiếp</th>
+              <th>Cần thêm</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in membershipModalRows" :key="item.venue_cluster_id">
+              <td>{{ item.venue_name || 'Cụm sân' }}</td>
+              <td>
+                <span class="membership-mini-pill" :class="tierClass(item.key)">
+                  {{ item.label }}
+                </span>
+              </td>
+              <td>
+                {{ item.completed_bookings || 0 }} booking<br>
+                {{ formatMoney(item.total_spend_amount || item.total_spent || 0) }}
+              </td>
+              <td>
+                <template v-if="item.next_tier">
+                  {{ item.next_tier.label }}
+                  <small>{{ item.next_tier.discount_percent || 0 }}% giảm</small>
+                </template>
+                <template v-else>Cao nhất</template>
+              </td>
+              <td>
+                <template v-if="item.next_tier">
+                  {{ item.remaining_bookings || 0 }} booking<br>
+                  {{ formatMoney(item.remaining_spend_amount || 0) }}
+                </template>
+                <template v-else>Đã đủ điều kiện cao nhất</template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 </template>
 
 <script>
@@ -150,6 +225,11 @@ export default {
     user: { type: Object, default: null },
   },
   emits: ['go-back'],
+  data() {
+    return {
+      showMembershipModal: false,
+    };
+  },
   computed: {
     userInitial() {
       return this.user?.fullName?.charAt(0)?.toUpperCase() || '?';
@@ -170,6 +250,9 @@ export default {
       return (this.user?.venue_memberships || [])
         .map((item) => this.normalizeMembership(item))
         .filter(Boolean);
+    },
+    membershipModalRows() {
+      return this.membershipVenues.length ? this.membershipVenues : [this.membershipTier].filter(Boolean);
     },
     membershipProgress() {
       return Math.min(100, Math.max(0, Number(this.membershipTier?.progress_percent || 0)));
@@ -640,6 +723,124 @@ export default {
 }
 
 /* ── Footer ── */
+.membership-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(15,23,42,.56);
+}
+.membership-modal {
+  width: min(760px, 100%);
+  max-height: min(82vh, 720px);
+  overflow: hidden;
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15,23,42,.28);
+}
+.membership-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.membership-modal-head p {
+  margin: 0 0 3px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.membership-modal-head h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 900;
+}
+.membership-modal-head span {
+  display: block;
+  margin-top: 4px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 750;
+}
+.membership-modal-head button {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 24px;
+  line-height: 1;
+}
+.membership-modal-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.membership-modal-stats div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.membership-modal-stats span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+.membership-modal-stats strong {
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 900;
+}
+.membership-modal-table-wrap {
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+.membership-modal-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+}
+.membership-modal-table th,
+.membership-modal-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+  color: #0f172a;
+  font-size: 13px;
+}
+.membership-modal-table th {
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.membership-modal-table tr:last-child td {
+  border-bottom: 0;
+}
+.membership-modal-table small {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  font-weight: 800;
+}
+
 .pcard-footer {
   display: flex;
   align-items: center;
@@ -698,5 +899,7 @@ export default {
   .membership-card-head { display: grid; }
   .membership-bookings { justify-items: start; }
   .avatar { width: 68px; height: 68px; font-size: 26px; }
+  .membership-modal { padding: 16px; }
+  .membership-modal-stats { grid-template-columns: 1fr; }
 }
 </style>

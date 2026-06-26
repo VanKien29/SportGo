@@ -286,6 +286,29 @@
                                         giờ</span
                                     >
                                 </div>
+                                <div
+                                    class="summary-row"
+                                    v-if="membershipDiscountAmount > 0"
+                                >
+                                    <span class="label">Giá gốc:</span>
+                                    <span class="val">{{
+                                        formatCurrency(originalPrice)
+                                    }}</span>
+                                </div>
+                                <div
+                                    class="summary-row discount-row"
+                                    v-if="membershipDiscountAmount > 0"
+                                >
+                                    <span class="label">
+                                        Giảm hạng {{ membershipTierLabel }}
+                                        <small>({{ membershipDiscountPercent }}%)</small>
+                                    </span>
+                                    <span class="val"
+                                        >-{{
+                                            formatCurrency(membershipDiscountAmount)
+                                        }}</span
+                                    >
+                                </div>
                                 <div class="summary-row total-row">
                                     <span class="label">Tổng tiền:</span>
                                     <span class="val price">{{
@@ -366,6 +389,7 @@ export default {
             submitting: false,
             submitError: null,
             fetchedHourlyRate: 0,
+            pricePreview: null,
 
             selectedScheduleCourtTypeId: "",
             scheduleLoading: false,
@@ -495,7 +519,7 @@ export default {
         hourlyRate() {
             return this.fetchedHourlyRate > 0 ? this.fetchedHourlyRate : 10000;
         },
-        totalPrice() {
+        basePrice() {
             if (this.selectedSlotDetails.length > 0) {
                 return this.selectedSlotDetails.reduce(
                     (sum, slot) => sum + Number(slot.price || 0),
@@ -504,6 +528,31 @@ export default {
             }
 
             return (this.durationMinutes / 60) * this.hourlyRate;
+        },
+        originalPrice() {
+            return Number(this.pricePreview?.original_amount ?? this.basePrice);
+        },
+        membershipDiscount() {
+            return this.pricePreview?.membership_discount || null;
+        },
+        membershipDiscountAmount() {
+            return Number(
+                this.pricePreview?.membership_discount_amount ??
+                    this.membershipDiscount?.discount_amount ??
+                    0,
+            );
+        },
+        membershipTierLabel() {
+            return this.membershipDiscount?.tier_label || "thành viên";
+        },
+        membershipDiscountPercent() {
+            return Number(this.membershipDiscount?.discount_percent || 0);
+        },
+        totalPrice() {
+            return Number(
+                this.pricePreview?.final_amount ??
+                    Math.max(this.basePrice - this.membershipDiscountAmount, 0),
+            );
         },
         requiredPaymentAmount() {
             if (this.paymentOption === "full_payment") {
@@ -710,6 +759,7 @@ export default {
             if (diff <= 0) {
                 this.isAvailable = false;
                 this.availabilityChecked = true;
+                this.pricePreview = null;
                 return;
             }
 
@@ -725,6 +775,12 @@ export default {
                 });
                 this.isAvailable = res.available;
                 this.fetchedHourlyRate = res.hourly_rate || 0;
+                this.pricePreview = res.available
+                    ? {
+                          ...(res.price_preview || {}),
+                          membership_discount: res.membership_discount || null,
+                      }
+                    : null;
 
                 // Auto select allowed payment option if current becomes invalid
                 if (this.isAvailable) {
@@ -754,6 +810,7 @@ export default {
             } catch (err) {
                 console.error(err);
                 this.isAvailable = false;
+                this.pricePreview = null;
             } finally {
                 this.checkingAvailability = false;
                 this.availabilityChecked = true;
@@ -1213,6 +1270,18 @@ export default {
     font-size: 20px;
     font-weight: 800;
     color: var(--sg-dark);
+}
+
+.discount-row .label,
+.discount-row .val {
+    color: #047857;
+    font-weight: 800;
+}
+
+.discount-row small {
+    color: #059669;
+    font-size: 11px;
+    font-weight: 800;
 }
 
 .deposit-row {
