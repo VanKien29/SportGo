@@ -73,12 +73,11 @@
           </label>
           <label v-if="vipVoucherForm.discount_type === 'percent'">Tiền giảm tối đa<input v-model.number="vipVoucherForm.max_discount_amount" type="number" min="0" step="1000" /></label>
           <label>Đơn tối thiểu<input v-model.number="vipVoucherForm.min_order_amount" type="number" min="0" step="1000" /></label>
-          <label>Giới hạn mỗi khách<input v-model.number="vipVoucherForm.per_user_limit" type="number" min="1" required /></label>
+          <label>Giới hạn mỗi khách<input v-model.number="vipVoucherForm.per_user_limit" type="number" min="-1" required /></label>
           <label>Bắt đầu<input v-model="vipVoucherForm.valid_from" type="datetime-local" required /></label>
           <label>Kết thúc<input v-model="vipVoucherForm.valid_to" type="datetime-local" required /></label>
           <label>Trạng thái
             <select v-model="vipVoucherForm.status">
-              <option value="draft">Bản nháp</option>
               <option value="active">Đang áp dụng</option>
               <option value="inactive">Đã tắt</option>
             </select>
@@ -308,7 +307,9 @@ export default {
           : null,
         min_order_amount: Number(this.vipVoucherForm.min_order_amount || 0),
         total_quantity: null,
-        per_user_limit: Number(this.vipVoucherForm.per_user_limit || 1),
+        per_user_limit: Number(this.vipVoucherForm.per_user_limit) === -1
+          ? null
+          : Number(this.vipVoucherForm.per_user_limit || 1),
         valid_from: this.vipVoucherForm.valid_from,
         valid_to: this.vipVoucherForm.valid_to,
         status: this.vipVoucherForm.status,
@@ -330,6 +331,12 @@ export default {
 
       if (this.vipVoucherForm.discount_type === 'percent' && discountValue > 100) {
         this.error = 'Phần trăm giảm không được lớn hơn 100%.';
+        return false;
+      }
+
+      const perUserLimit = Number(this.vipVoucherForm.per_user_limit);
+      if (!Number.isFinite(perUserLimit) || perUserLimit === 0 || perUserLimit < -1) {
+        this.error = 'Giới hạn mỗi khách chỉ được nhập -1 hoặc số từ 1 trở lên. -1 nghĩa là không giới hạn.';
         return false;
       }
 

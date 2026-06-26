@@ -208,7 +208,7 @@ class VoucherController extends Controller
             'max_discount_amount' => ['nullable', 'numeric', 'min:0'],
             'min_order_amount' => ['nullable', 'numeric', 'min:0'],
             'total_quantity' => ['nullable', 'integer', 'min:1'],
-            'per_user_limit' => ['nullable', 'integer', 'min:1'],
+            'per_user_limit' => ['nullable', 'integer', 'min:-1'],
             'valid_from' => ['required', 'date'],
             'valid_to' => ['required', 'date', 'after:valid_from'],
             'status' => ['required', Rule::in(['draft', 'active', 'inactive', 'expired'])],
@@ -221,6 +221,16 @@ class VoucherController extends Controller
             throw ValidationException::withMessages([
                 'discount_value' => 'Voucher phần trăm phải nằm trong khoảng 1 đến 100.',
             ]);
+        }
+
+        if (($data['per_user_limit'] ?? null) === 0) {
+            throw ValidationException::withMessages([
+                'per_user_limit' => 'Giới hạn mỗi khách phải là -1 hoặc từ 1 trở lên.',
+            ]);
+        }
+
+        if (($data['per_user_limit'] ?? null) === -1) {
+            $data['per_user_limit'] = null;
         }
 
         if (($data['total_quantity'] ?? null) !== null && ($data['per_user_limit'] ?? null) !== null && $data['per_user_limit'] > $data['total_quantity']) {
