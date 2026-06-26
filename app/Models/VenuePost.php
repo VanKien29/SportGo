@@ -78,4 +78,12 @@ class VenuePost extends Model
     {
         return $this->hasMany(VenuePostComment::class, 'venue_post_id')->where('status', 'published')->latest();
     }
+
+    public function topLevelComments()
+    {
+        return $this->hasMany(VenuePostComment::class, 'venue_post_id')
+            ->where('status', 'published')
+            ->whereNull('parent_id')
+            ->latest();
+    }
 }

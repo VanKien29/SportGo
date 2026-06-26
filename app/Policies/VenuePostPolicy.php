@@ -55,6 +55,11 @@ class VenuePostPolicy
             return true;
         }
 
+        // Owner không được sửa bài đang chờ duyệt
+        if ($venuePost->status === 'pending_review') {
+            return false;
+        }
+
         return $user->id === $venuePost->author_id;
     }
 

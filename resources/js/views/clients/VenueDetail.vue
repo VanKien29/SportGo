@@ -734,7 +734,6 @@
                             </div>
                         </section>
 
-<<<<<<< HEAD
                         <!-- Venue Posts Tab -->
                         <section v-else-if="activeTab === 'posts'" class="space-y-6">
                             <!-- Search & Filter Controls -->
@@ -1009,9 +1008,9 @@
                         </div>
 
                         <!-- Comments List -->
-                        <div class="space-y-4 max-h-60 overflow-y-auto pr-2">
-                            <div v-for="c in selectedPost.comments" :key="c.id" class="flex gap-3 text-sm pb-3 border-b border-gray-50">
-                                <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs">
+                        <div class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                            <div v-for="c in selectedPost.comments" :key="c.id" class="flex gap-3 text-sm pb-3 border-b border-gray-150">
+                                <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
                                     {{ (c.user?.full_name || 'U').charAt(0).toUpperCase() }}
                                 </div>
                                 <div class="flex-1 space-y-1">
@@ -1020,6 +1019,53 @@
                                         <span class="text-[10px] text-gray-400">{{ formatDate(c.created_at) }}</span>
                                     </div>
                                     <p class="text-gray-700 leading-relaxed font-medium text-xs">{{ c.content }}</p>
+                                    
+                                    <!-- Reply actions -->
+                                    <div class="flex items-center gap-2 pt-0.5">
+                                        <button 
+                                            type="button"
+                                            @click="toggleReplyForm(c.id)" 
+                                            class="text-[10px] text-sportgo-accent hover:text-sportgo-dark font-bold transition-colors cursor-pointer"
+                                        >
+                                            Trả lời
+                                        </button>
+                                    </div>
+
+                                    <!-- Reply Input Form -->
+                                    <div v-if="replyingCommentId === c.id" class="mt-2 flex gap-2 items-start pl-3 border-l-2 border-emerald-500 py-1">
+                                        <input 
+                                            v-model="replyText" 
+                                            type="text" 
+                                            placeholder="Nhập câu trả lời..." 
+                                            class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-sportgo-accent focus:border-sportgo-accent bg-gray-50 text-gray-900 font-medium"
+                                            @keyup.enter="submitPostReply(selectedPost, c)"
+                                            maxlength="1000"
+                                        />
+                                        <button 
+                                            type="button"
+                                            @click="submitPostReply(selectedPost, c)"
+                                            :disabled="submittingReply || !replyText.trim()"
+                                            class="px-3 py-1.5 bg-sportgo-accent hover:bg-sportgo-dark text-white rounded-lg text-xs font-bold disabled:opacity-50 transition-colors cursor-pointer"
+                                        >
+                                            Gửi
+                                        </button>
+                                    </div>
+
+                                    <!-- Replies List -->
+                                    <div v-if="c.replies && c.replies.length > 0" class="mt-2 pl-3 border-l border-gray-200 space-y-3">
+                                        <div v-for="reply in c.replies" :key="reply.id" class="flex gap-2.5 text-xs py-1">
+                                            <div class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-[10px] shrink-0">
+                                                {{ (reply.user?.full_name || 'U').charAt(0).toUpperCase() }}
+                                            </div>
+                                            <div class="flex-1 space-y-0.5">
+                                                <div class="flex justify-between items-center">
+                                                    <span class="font-bold text-gray-800 text-[11px]">{{ reply.user?.full_name || reply.user?.username || 'Thành viên' }}</span>
+                                                    <span class="text-[9px] text-gray-400">{{ formatDate(reply.created_at) }}</span>
+                                                </div>
+                                                <p class="text-gray-600 font-medium text-xs">{{ reply.content }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div v-if="!selectedPost.comments || selectedPost.comments.length === 0" class="text-center py-6 text-gray-400 text-xs font-semibold">
@@ -1073,6 +1119,9 @@ export default {
             commentText: "",
             submittingComment: false,
             isLikedByMe: false,
+            replyingCommentId: null,
+            replyText: "",
+            submittingReply: false,
             tabs: [
                 { key: "overview", label: "Tổng quan" },
                 { key: "booking", label: "Lịch & Đặt sân" },
@@ -1165,6 +1214,9 @@ export default {
         }
     },
     async mounted() {
+        if (this.$route.query.tab && this.tabs.some(t => t.key === this.$route.query.tab)) {
+            this.activeTab = this.$route.query.tab;
+        }
         await this.loadVenue();
     },
     methods: {
@@ -1453,9 +1505,12 @@ export default {
             try {
                 const res = await axios.get(`/api/venue-posts/${post.id || post.slug}`);
                 this.selectedPost = res.data.data;
+                this.selectedPost.comments = res.data.data.top_level_comments || res.data.data.topLevelComments || [];
                 const auth = getAuth();
                 this.isLikedByMe = false;
                 this.commentText = "";
+                this.replyingCommentId = null;
+                this.replyText = "";
             } catch (err) {
                 console.error("Lỗi khi tải chi tiết bài viết", err);
             }
@@ -1523,6 +1578,56 @@ export default {
                 console.error("Lỗi khi gửi bình luận", err);
             } finally {
                 this.submittingComment = false;
+            }
+        },
+        toggleReplyForm(commentId) {
+            if (this.replyingCommentId === commentId) {
+                this.replyingCommentId = null;
+                this.replyText = "";
+            } else {
+                this.replyingCommentId = commentId;
+                this.replyText = "";
+            }
+        },
+        async submitPostReply(post, parentComment) {
+            const auth = getAuth();
+            if (!auth) {
+                this.$router.push("/login");
+                return;
+            }
+            if (!this.replyText.trim()) return;
+
+            this.submittingReply = true;
+            try {
+                const res = await axios.post(`/api/venue-posts/${post.id}/comments`, {
+                    content: this.replyText,
+                    parent_id: parentComment.id
+                });
+                
+                if (!parentComment.replies) parentComment.replies = [];
+                parentComment.replies.push({
+                    id: res.data.data.id,
+                    content: this.replyText,
+                    created_at: new Date().toISOString(),
+                    user: {
+                        full_name: auth.fullName || "Tôi",
+                        username: auth.username || "me"
+                    }
+                });
+                
+                post.comment_count++;
+                
+                const listPost = this.posts.find(p => p.id === post.id);
+                if (listPost) {
+                    listPost.comment_count = post.comment_count;
+                }
+
+                this.replyText = "";
+                this.replyingCommentId = null;
+            } catch (err) {
+                console.error("Lỗi khi gửi câu trả lời", err);
+            } finally {
+                this.submittingReply = false;
             }
         }
     },

@@ -55,6 +55,7 @@ class VenuePostsTableSeeder extends Seeder
                     'content' => $content,
                 ],
                 [
+                    'short_description' => substr($content, 0, 50),
                     'status' => $status,
                     'reviewed_by' => $reviewedBy,
                     'reviewed_at' => $reviewedAt,

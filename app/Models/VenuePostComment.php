@@ -34,7 +34,7 @@ class VenuePostComment extends Model
 
     public function replies()
     {
-        return $this->hasMany(VenuePostComment::class, 'parent_id')->latest();
+        return $this->hasMany(VenuePostComment::class, 'parent_id')->where('status', 'published')->oldest();
     }
 
     public function parent()

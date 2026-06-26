@@ -4,9 +4,6 @@
     :active-route-name="activeRouteName"
     :user="user"
     :role-label="roleLabel"
-    show-view-user-btn
-    view-user-route="/"
-    view-user-label="Xem trang người dùng"
     @navigate="$emit('navigate')"
   />
 </template>

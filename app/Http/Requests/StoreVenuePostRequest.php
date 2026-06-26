@@ -18,7 +18,13 @@ class StoreVenuePostRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
+            'venue_cluster_id' => [
+                'required', 
+                'uuid', 
+                \Illuminate\Validation\Rule::exists('venue_clusters', 'id')->where(function ($query) {
+                    $query->where('owner_id', $this->user()->id);
+                })
+            ],
             'title' => [
                 'required',
                 'string',

@@ -4,9 +4,6 @@
     :active-route-name="activeRouteName"
     :user="user"
     role-label="Chủ sân"
-    show-view-user-btn
-    view-user-route="/"
-    view-user-label="Xem trang khách"
     @navigate="$emit('navigate')"
   >
     <template #extra>

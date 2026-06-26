@@ -1,0 +1,351 @@
+<script setup>
+import { ref, reactive, onMounted, computed } from 'vue';
+import axios from 'axios';
+import { useToast } from 'vue-toastification';
+import RichTextEditor from '../../components/RichTextEditor.vue';
+
+const toast = useToast();
+
+const posts = ref([]);
+const venueClusters = ref([]);
+const loading = ref(false);
+const submitting = ref(false);
+const isEditing = ref(false);
+const editingPostId = ref(null);
+const editingPostStatus = ref('');
+const fileInputRef = ref(null);
+
+const thumbnailPreview = ref('');
+const deletingPost = ref(null);
+
+const pagination = reactive({
+  current_page: 1,
+  last_page: 1,
+  per_page: 15,
+  total: 0
+});
+
+const filters = reactive({
+  keyword: '',
+  post_type: '',
+  status: ''
+});
+
+const sorting = reactive({
+  by: 'created_at',
+  order: 'desc'
+});
+
+const form = reactive({
+  venue_cluster_id: '',
+  title: '',
+  short_description: '',
+  content: '',
+  post_type: '',
+  is_draft: false,
+  thumbnail: null,
+  tags: [],
+  meta_title: '',
+  meta_description: ''
+});
+
+const errors = ref({});
+
+onMounted(async () => {
+  await fetchVenueClusters();
+  fetchPosts();
+});
+
+const fetchVenueClusters = async () => {
+  try {
+    const res = await axios.get('/api/owner/venue-clusters');
+    venueClusters.value = res.data.data;
+  } catch (error) {
+    console.error('Error fetching venue clusters', error);
+  }
+};
+
+const fetchPosts = async (page = 1) => {
+  loading.value = true;
+  try {
+    const params = {
+      keyword: filters.keyword,
+      post_type: filters.post_type,
+      status: filters.status,
+      sort_by: sorting.by,
+      sort_order: sorting.order,
+      page
+    };
+    
+    const res = await axios.get('/api/owner/venue-posts', { params });
+    posts.value = res.data.data;
+    pagination.current_page = res.data.current_page;
+    pagination.last_page = res.data.last_page;
+    pagination.per_page = res.data.per_page;
+    pagination.total = res.data.total;
+  } catch (error) {
+    toast.error('Lỗi khi tải danh sách bài viết');
+  } finally {
+    loading.value = false;
+  }
+};
+
+const changePage = (page) => {
+  fetchPosts(page);
+};
+
+const resetFilters = () => {
+  filters.keyword = '';
+  filters.post_type = '';
+  filters.status = '';
+  fetchPosts(1);
+};
+
+const setStatusFilter = (status) => {
+  filters.status = status;
+  fetchPosts(1);
+};
+
+const toggleSort = (field) => {
+  if (sorting.by === field) {
+    sorting.order = sorting.order === 'desc' ? 'asc' : 'desc';
+  } else {
+    sorting.by = field;
+    sorting.order = 'desc';
+  }
+  fetchPosts(1);
+};
+
+const handleFileUpload = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  if (!allowedTypes.includes(file.type)) {
+    errors.value.thumbnail = ['Chỉ chấp nhận ảnh dạng JPG, JPEG, PNG, WEBP.'];
+    toast.error('Chỉ chấp nhận ảnh đại diện dạng JPG, JPEG, PNG, WEBP.');
+    if (fileInputRef.value) fileInputRef.value.value = '';
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    errors.value.thumbnail = ['Kích thước ảnh không được vượt quá 5MB.'];
+    toast.error('Kích thước ảnh không được vượt quá 5MB.');
+    if (fileInputRef.value) fileInputRef.value.value = '';
+    return;
+  }
+
+  form.thumbnail = file;
+  thumbnailPreview.value = URL.createObjectURL(file);
+  errors.value.thumbnail = null;
+};
+
+const clearThumbnail = () => {
+  form.thumbnail = null;
+  thumbnailPreview.value = '';
+  if (fileInputRef.value) {
+    fileInputRef.value.value = '';
+  }
+};
+
+const openForm = (post = null) => {
+  errors.value = {};
+  clearThumbnail();
+
+  if (post) {
+    isEditing.value = true;
+    editingPostId.value = post.id;
+    editingPostStatus.value = post.status;
+    
+    form.venue_cluster_id = post.venue_cluster_id;
+    form.title = post.title;
+    form.short_description = post.short_description || '';
+    form.content = post.content;
+    form.post_type = post.post_type;
+    form.is_draft = post.status === 'draft';
+    form.thumbnail = null;
+    form.tags = post.hashtags ? post.hashtags.map(h => h.name) : [];
+    form.meta_title = post.meta_title || '';
+    form.meta_description = post.meta_description || '';
+    
+    // Existing image preview
+    thumbnailPreview.value = getThumbnail(post);
+  } else {
+    isEditing.value = false;
+    editingPostId.value = null;
+    editingPostStatus.value = '';
+    
+    form.venue_cluster_id = venueClusters.value.length > 0 ? venueClusters.value[0].id : '';
+    form.title = '';
+    form.short_description = '';
+    form.content = '';
+    form.post_type = '';
+    form.is_draft = false;
+    form.thumbnail = null;
+    form.tags = [];
+    form.meta_title = '';
+    form.meta_description = '';
+  }
+  document.getElementById('post_form_modal').showModal();
+};
+
+const closeForm = () => {
+  const modal = document.getElementById('post_form_modal');
+  if (modal) modal.close();
+};
+
+const submitForm = async () => {
+  submitting.value = true;
+  errors.value = {};
+
+  const valErrors = {};
+  if (!form.title || form.title.trim().length < 5 || form.title.trim().length > 200) {
+    valErrors.title = ['Tiêu đề phải từ 5 đến 200 ký tự.'];
+  }
+  if (!form.short_description || form.short_description.trim().length < 10 || form.short_description.trim().length > 500) {
+    valErrors.short_description = ['Mô tả ngắn phải từ 10 đến 500 ký tự.'];
+  }
+  
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = form.content;
+  const rawText = (tempDiv.innerText || '').trim();
+  if (!form.content || rawText.length < 20) {
+    valErrors.content = ['Nội dung thực tế phải từ 20 ký tự trở lên.'];
+  }
+  
+  if (!form.venue_cluster_id && venueClusters.value.length > 0) {
+    form.venue_cluster_id = venueClusters.value[0].id;
+  }
+  
+  if (!form.post_type) {
+    valErrors.post_type = ['Vui lòng chọn danh mục bài viết.'];
+  }
+  if (!isEditing.value && !form.thumbnail) {
+    valErrors.thumbnail = ['Ảnh đại diện bài viết là bắt buộc khi tạo mới.'];
+  }
+
+  if (Object.keys(valErrors).length > 0) {
+    errors.value = valErrors;
+    submitting.value = false;
+    toast.error('Vui lòng kiểm tra lại thông tin nhập.');
+    focusFirstError();
+    return;
+  }
+  
+  const formData = new FormData();
+  if (form.venue_cluster_id) {
+    formData.append('venue_cluster_id', form.venue_cluster_id);
+  }
+  formData.append('title', form.title.trim());
+  formData.append('short_description', form.short_description.trim());
+  formData.append('content', form.content);
+  formData.append('post_type', form.post_type);
+  formData.append('is_draft', form.is_draft ? 1 : 0);
+  formData.append('meta_title', form.meta_title.trim());
+  formData.append('meta_description', form.meta_description.trim());
+  
+  if (form.thumbnail) {
+    formData.append('thumbnail', form.thumbnail);
+  }
+  
+  try {
+    if (isEditing.value) {
+      formData.append('_method', 'PUT');
+      await axios.post(`/api/owner/venue-posts/${editingPostId.value}`, formData);
+      toast.success('Cập nhật bài viết thành công');
+    } else {
+      await axios.post('/api/owner/venue-posts', formData);
+      toast.success('Đăng bài viết mới thành công');
+    }
+    closeForm();
+    fetchPosts(pagination.current_page);
+  } catch (error) {
+    if (error.response && error.response.status === 422) {
+      errors.value = error.response.data.errors;
+      toast.error(error.response.data.message || 'Dữ liệu nhập không hợp lệ, vui lòng kiểm tra lại.');
+      focusFirstError();
+    } else {
+      toast.error('Có lỗi xảy ra trong quá trình xử lý, vui lòng thử lại.');
+    }
+  } finally {
+    submitting.value = false;
+  }
+};
+
+const focusFirstError = () => {
+  setTimeout(() => {
+    const firstErrKey = Object.keys(errors.value)[0];
+    if (firstErrKey) {
+      const element = document.querySelector(`[name="${firstErrKey}"]`);
+      if (element) {
+        element.focus();
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, 100);
+};
+
+const confirmDelete = (post) => {
+  deletingPost.value = post;
+  document.getElementById('delete_confirm_modal').showModal();
+};
+
+const closeDeleteModal = () => {
+  document.getElementById('delete_confirm_modal').close();
+  deletingPost.value = null;
+};
+
+const executeDelete = async () => {
+  if (!deletingPost.value) return;
+  try {
+    await axios.delete(`/api/owner/venue-posts/${deletingPost.value.id}`);
+    toast.success('Đã xóa bài viết thành công.');
+    closeDeleteModal();
+    fetchPosts(pagination.current_page);
+  } catch (error) {
+    if (error.response && error.response.status === 422) {
+      toast.error(error.response.data.message || 'Lỗi khi xóa bài viết.');
+    } else {
+      toast.error('Lỗi khi thực hiện xóa bài viết, vui lòng thử lại.');
+    }
+    closeDeleteModal();
+  }
+};
+
+const getThumbnail = (post) => {
+  if (!post.media?.length) return '';
+  const thumb = post.media.find((m) => m.collection === 'thumbnail') || post.media[0];
+  return thumb?.file_path ? `/storage/${thumb.file_path}` : '';
+};
+
+const statusLabel = (status) => {
+  const map = {
+    'draft': 'Bản nháp',
+    'pending_review': 'Chờ duyệt',
+    'published': 'Đã xuất bản',
+    'rejected': 'Bị từ chối',
+    'hidden': 'Đã ẩn'
+  };
+  return map[status] || status;
+};
+
+const formatCategory = (type) => {
+  const map = {
+    'promotion': 'Khuyến mãi',
+    'tournament': 'Giải đấu',
+    'news': 'Tin tức',
+    'notice': 'Thông báo',
+    'recruitment': 'Tuyển dụng'
+  };
+  return map[type] || type;
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '—';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  return date.toLocaleDateString('vi-VN', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+  });
+};
+</script>

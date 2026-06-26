@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('short_description', 500)->nullable(false)->after('content');
             $table->string('meta_title', 255)->nullable()->after('short_description');
             $table->string('meta_description', 500)->nullable()->after('meta_title');
+            $table->softDeletes();
         });
     }
 

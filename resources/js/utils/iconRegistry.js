@@ -42,6 +42,11 @@ export const ICON_REGISTRY = {
     ['line', { x1: 10, y1: 8, x2: 14, y2: 8 }],
     ['line', { x1: 18, y1: 16, x2: 22, y2: 16 }],
   ],
+  externalLink: [
+    ['path', { d: 'M15 3h6v6' }],
+    ['path', { d: 'M10 14 21 3' }],
+    ['path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' }],
+  ],
   fileText: [
     ['path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z' }],
     ['path', { d: 'M14 2v6h6' }],

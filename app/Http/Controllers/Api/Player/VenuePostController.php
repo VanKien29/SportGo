@@ -12,9 +12,20 @@ class VenuePostController extends Controller
 {
     public function index(Request $request)
     {
+        if (!$request->venue_cluster_id) {
+            // Do not show posts on home page (when venue_cluster_id is missing)
+            return response()->json([
+                'data' => [],
+                'current_page' => 1,
+                'last_page' => 1,
+                'per_page' => $request->integer('per_page', 15),
+                'total' => 0
+            ]);
+        }
+
         $posts = VenuePost::with(['media', 'author:id,full_name,username', 'venueCluster:id,name'])
             ->where('status', 'published')
-            ->when($request->venue_cluster_id, fn ($q) => $q->where('venue_cluster_id', $request->venue_cluster_id))
+            ->where('venue_cluster_id', $request->venue_cluster_id)
             ->when($request->post_type, fn ($q) => $q->where('post_type', $request->post_type))
             ->when($request->keyword, fn ($q) => $q->where('title', 'like', "%{$request->keyword}%"))
             ->latest()
@@ -25,7 +36,15 @@ class VenuePostController extends Controller
 
     public function show(string $slug)
     {
-        $post = VenuePost::with(['media', 'author:id,full_name,username', 'venueCluster:id,name', 'hashtags', 'comments.user:id,full_name,username'])
+        $post = VenuePost::with([
+            'media', 
+            'author:id,full_name,username', 
+            'venueCluster:id,name', 
+            'hashtags', 
+            'topLevelComments' => function ($query) {
+                $query->with(['user:id,full_name,username', 'replies.user:id,full_name,username']);
+            }
+        ])
             ->where('slug', $slug)
             ->orWhere('id', $slug)
             ->firstOrFail();

@@ -1,7 +1,7 @@
 <template>
-  <div class="rich-text-editor border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition-all duration-200">
-    <!-- Toolbar -->
-    <div class="editor-toolbar flex flex-wrap gap-1 items-center bg-slate-50 border-b border-slate-200 p-2 select-none">
+  <div class="rich-text-editor border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm transition-all duration-200" :class="{ 'opacity-75 cursor-not-allowed': disabled }">
+    <!-- Toolbar (hidden when disabled) -->
+    <div v-if="!disabled" class="editor-toolbar flex flex-wrap gap-1 items-center bg-slate-50 border-b border-slate-200 p-2 select-none">
       <!-- Headings -->
       <button type="button" @click="exec('formatBlock', 'H1')" class="tool-btn" title="Heading 1" :class="{ active: currentBlock === 'h1' }">
         <span class="font-bold text-xs">H1</span>
@@ -16,29 +16,29 @@
 
       <!-- Text formatting -->
       <button type="button" @click="exec('bold')" class="tool-btn" title="In đậm (Bold)" :class="{ active: isBold }">
-        <i class="fas fa-bold"></i>
+        <strong style="font-family: serif; font-size: 14px;">B</strong>
       </button>
       <button type="button" @click="exec('italic')" class="tool-btn" title="In nghiêng (Italic)" :class="{ active: isItalic }">
-        <i class="fas fa-italic"></i>
+        <em style="font-family: serif; font-size: 14px;">I</em>
       </button>
       <div class="divider-v"></div>
 
       <!-- Lists -->
       <button type="button" @click="exec('insertUnorderedList')" class="tool-btn" title="Danh sách không thứ tự (Bullet List)">
-        <i class="fas fa-list-ul"></i>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
       </button>
       <button type="button" @click="exec('insertOrderedList')" class="tool-btn" title="Danh sách có thứ tự (Numbered List)">
-        <i class="fas fa-list-ol"></i>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
       </button>
       <div class="divider-v"></div>
 
       <!-- Actions -->
       <button type="button" @click="insertLink" class="tool-btn" title="Chèn liên kết (Insert Link)">
-        <i class="fas fa-link"></i>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
       </button>
       <button type="button" @click="triggerImageUpload" class="tool-btn" title="Chèn ảnh (Upload Image)" :disabled="uploading">
-        <i v-if="uploading" class="fas fa-spinner fa-spin"></i>
-        <i v-else class="fas fa-image"></i>
+        <svg v-if="uploading" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
       </button>
       <input type="file" ref="imageInput" @change="handleImageUpload" accept="image/*" class="hidden" />
     </div>
@@ -46,18 +46,19 @@
     <!-- Editable Area -->
     <div
       ref="editorRef"
-      contenteditable="true"
-      @input="onInput"
-      @keyup="updateState"
-      @click="updateState"
+      :contenteditable="disabled ? 'false' : 'true'"
+      @input="!disabled && onInput()"
+      @keyup="!disabled && updateState()"
+      @click="!disabled && updateState()"
       class="editor-content p-4 min-h-[220px] max-h-[500px] overflow-y-auto outline-none prose max-w-none text-slate-800 text-sm leading-relaxed"
+      :class="{ 'bg-slate-50 select-none pointer-events-none': disabled }"
       :placeholder="placeholder"
     ></div>
 
     <!-- Status bar / Info -->
     <div class="editor-footer flex justify-between items-center text-xs text-slate-500 bg-slate-50 border-t border-slate-100 px-3 py-1.5 select-none">
       <span v-if="uploading" class="text-emerald-600 flex items-center gap-1">
-        <i class="fas fa-spinner fa-spin"></i> Đang tải ảnh lên...
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg> Đang tải ảnh lên...
       </span>
       <span v-else>Định dạng: HTML</span>
       
@@ -81,6 +82,10 @@ const props = defineProps({
   placeholder: {
     type: String,
     default: 'Nhập nội dung bài viết...'
+  },
+  disabled: {
+    type: Boolean,
+    default: false
   }
 });
 

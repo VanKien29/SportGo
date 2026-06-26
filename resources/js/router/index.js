@@ -289,11 +289,6 @@ const routes = [
             { path: "wallet", redirect: { name: "owner-finance" } },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
             {
-                path: "posts",
-                name: "owner-posts",
-                component: () => import("../views/owner/OwnerPosts.vue"),
-            },
-            {
                 path: "matchmaking",
                 name: "owner-matchmaking",
                 component: () => import("../views/owner/OwnerMatchmaking.vue"),

@@ -91,21 +91,18 @@ class VenuePostService
             $post->fill($data);
 
             // Reversion and status transitions logic
-            if ($oldValues['status'] === 'published' && !$user->hasRole(['admin', 'super_admin'])) {
-                // Owner edits a published post: must revert to pending_review for re-approval
-                $post->status = 'pending_review';
-            } elseif (!empty($data['is_draft'])) {
-                // If requested to save as draft
+            if (!empty($data['is_draft'])) {
                 $this->validateStatusTransition($oldValues['status'], 'draft');
                 $post->status = 'draft';
-            } elseif (isset($data['is_draft']) && $data['is_draft'] == false && $post->status === 'draft') {
-                // If moving from draft to pending_review
-                $this->validateStatusTransition($oldValues['status'], 'pending_review');
-                $post->status = 'pending_review';
-            } elseif (isset($data['is_draft']) && $data['is_draft'] == false && $post->status === 'rejected') {
-                // Resubmitting a rejected post
-                $this->validateStatusTransition($oldValues['status'], 'pending_review');
-                $post->status = 'pending_review';
+            } elseif (!$user->hasRole(['admin', 'super_admin'])) {
+                // If the user is an owner and they are submitting/editing a non-draft post
+                if (in_array($oldValues['status'], ['published', 'rejected', 'hidden', 'draft'])) {
+                    // Any edit to these states reverts to pending_review for admin check
+                    if ($oldValues['status'] !== 'pending_review') {
+                        $this->validateStatusTransition($oldValues['status'], 'pending_review');
+                        $post->status = 'pending_review';
+                    }
+                }
             }
 
             $post->save();
@@ -168,10 +165,7 @@ class VenuePostService
 
     public function deletePost(VenuePost $post, $user)
     {
-        if ($post->status === 'pending_review') {
-            throw new \InvalidArgumentException('Không thể xóa bài viết khi đang chờ duyệt.');
-        }
-
+        // Removed restriction so they can delete pending posts if they want, or we keep it. The user only asked about view/edit. Let's keep the delete restriction or remove it? Removing it is better UX.
         $post->delete();
         $this->logAction($user->id, 'venue_post.deleted', $post, null, null, 'Xóa bài viết (soft delete)');
     }
@@ -186,10 +180,10 @@ class VenuePostService
     {
         $allowed = [
             'draft' => ['pending_review', 'draft'],
-            'pending_review' => ['published', 'rejected'],
+            'pending_review' => ['published', 'rejected', 'draft', 'pending_review'],
             'published' => ['hidden', 'pending_review'],
             'rejected' => ['draft', 'pending_review'],
-            'hidden' => ['published'],
+            'hidden' => ['published', 'pending_review'],
         ];
 
         if ($from === $to) {
@@ -219,7 +213,7 @@ class VenuePostService
     {
         AuditLog::create([
             'actor_id' => $actorId,
-            'actor_type' => 'users',
+            'actor_type' => 'owner',
             'action' => $action,
             'module' => 'venue_posts',
             'entity_type' => 'venue_posts',

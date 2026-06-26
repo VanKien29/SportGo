@@ -1,0 +1,765 @@
+<template>
+  <div class="min-h-screen bg-slate-50/50 p-4 md:p-8 font-sans">
+    <div class="max-w-7xl mx-auto space-y-6">
+      
+      <!-- Premium Header -->
+      <header class="relative bg-white rounded-[2rem] p-8 shadow-sm border border-slate-200/60 overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 z-10">
+        <!-- Glassmorphism decorative blobs -->
+        <div class="absolute top-0 right-0 -translate-y-12 translate-x-1/3 w-64 h-64 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 translate-y-1/3 -translate-x-1/3 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl pointer-events-none"></div>
+        
+        <div class="relative z-10">
+          <h2 class="text-3xl font-black text-slate-800 tracking-tight">Quản lý bài viết</h2>
+          <p class="text-slate-500 mt-2 font-medium">Đăng tin tức, hướng dẫn sử dụng, quảng bá sân bãi và giải đấu.</p>
+        </div>
+        
+        <button @click="openForm()" class="relative z-10 flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3.5 rounded-2xl font-bold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0">
+          <i class="fas fa-plus"></i>
+          <span>Tạo bài viết</span>
+        </button>
+      </header>
+
+      <!-- Advanced Filters & Search (Glass Card) -->
+      <section class="bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 shadow-sm border border-slate-200/60 flex flex-col md:flex-row gap-4 items-end">
+        <div class="w-full md:w-1/3 flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Tìm kiếm</label>
+          <div class="relative">
+            <input 
+              v-model="filters.keyword" 
+              @keyup.enter="fetchPosts(1)"
+              type="text" 
+              placeholder="Nhập tiêu đề tìm kiếm..." 
+              class="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-800"
+            />
+            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+          </div>
+        </div>
+
+        <div class="w-full md:w-1/4 flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Danh mục</label>
+          <div class="relative">
+            <select v-model="filters.post_type" @change="fetchPosts(1)" class="w-full pl-4 pr-10 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm appearance-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-bold text-slate-700">
+              <option value="">Tất cả danh mục</option>
+              <option value="promotion">Khuyến mãi</option>
+              <option value="tournament">Giải đấu</option>
+              <option value="news">Tin tức</option>
+              <option value="notice">Thông báo</option>
+              <option value="recruitment">Tuyển dụng</option>
+            </select>
+            <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+          </div>
+        </div>
+
+        <div class="flex gap-3 w-full md:w-auto">
+          <button @click="resetFilters" class="flex-1 md:flex-none px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-sm transition-colors">
+            Xóa lọc
+          </button>
+          <button @click="fetchPosts(1)" class="flex-1 md:flex-none px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-slate-800/20 hover:-translate-y-0.5">
+            Tìm kiếm
+          </button>
+        </div>
+      </section>
+
+      <!-- Status Tabs & Sorting -->
+      <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+        <!-- Modern Pills for Status -->
+        <nav class="flex flex-wrap gap-1.5 p-1.5 bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200">
+          <button @click="setStatusFilter('')" :class="filters.status === '' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all">Tất cả</button>
+          <button @click="setStatusFilter('published')" :class="filters.status === 'published' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all">Đã duyệt</button>
+          <button @click="setStatusFilter('pending_review')" :class="filters.status === 'pending_review' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all">Chờ duyệt</button>
+          <button @click="setStatusFilter('draft')" :class="filters.status === 'draft' ? 'bg-slate-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all">Bản nháp</button>
+          <button @click="setStatusFilter('rejected')" :class="filters.status === 'rejected' ? 'bg-red-500 text-white shadow-md shadow-red-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all">Từ chối</button>
+          <button @click="setStatusFilter('hidden')" :class="filters.status === 'hidden' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'" class="px-4 py-2 rounded-xl text-sm font-bold transition-all">Đã ẩn</button>
+        </nav>
+
+        <!-- Sorting -->
+        <div class="flex gap-2 bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200 p-1.5 shrink-0">
+          <button @click="toggleSort('created_at')" :class="sorting.by === 'created_at' ? 'bg-white shadow-sm text-emerald-600 border border-emerald-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all">
+            Mới nhất
+            <i v-if="sorting.by === 'created_at'" :class="sorting.order === 'desc' ? 'fas fa-arrow-down' : 'fas fa-arrow-up'" class="text-xs"></i>
+          </button>
+          <button @click="toggleSort('view_count')" :class="sorting.by === 'view_count' ? 'bg-white shadow-sm text-emerald-600 border border-emerald-100' : 'text-slate-500 hover:bg-slate-50 border border-transparent'" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all">
+            Lượt xem
+            <i v-if="sorting.by === 'view_count'" :class="sorting.order === 'desc' ? 'fas fa-arrow-down' : 'fas fa-arrow-up'" class="text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="text-sm font-bold text-slate-500 pl-2">
+        Danh sách bài viết <span v-if="!loading" class="text-slate-800 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-sm ml-1">{{ pagination.total || posts.length }}</span>
+      </div>
+
+      <!-- Main Content Grid -->
+      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div v-for="n in 8" :key="'skeleton-'+n" class="bg-white rounded-[1.5rem] p-3 border border-slate-100 shadow-sm animate-pulse">
+          <div class="w-full h-48 bg-slate-200 rounded-xl mb-4"></div>
+          <div class="space-y-3 px-2 mb-2">
+            <div class="h-5 bg-slate-200 rounded-md w-3/4"></div>
+            <div class="h-4 bg-slate-100 rounded-md w-full"></div>
+            <div class="h-4 bg-slate-100 rounded-md w-5/6"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="posts.length === 0" class="bg-white rounded-[2rem] border border-slate-200 border-dashed py-20 px-4 text-center shadow-sm">
+        <div class="w-24 h-24 mx-auto mb-6 bg-slate-50 rounded-full flex items-center justify-center text-4xl shadow-inner border border-slate-100">
+          📰
+        </div>
+        <h3 class="text-xl font-black text-slate-800 mb-2">Chưa có bài viết nào</h3>
+        <p class="text-slate-500 font-medium mb-8 max-w-sm mx-auto">Không tìm thấy bài viết nào khớp với bộ lọc hoặc bạn chưa tạo bài viết.</p>
+        <button @click="openForm()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5">
+          Tạo bài viết đầu tiên
+        </button>
+      </div>
+
+      <!-- Cards Grid -->
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <article v-for="post in posts" :key="post.id" class="group bg-white rounded-[1.5rem] border border-slate-200/80 shadow-sm hover:shadow-xl hover:shadow-emerald-500/5 hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden">
+          
+          <!-- Card Image Container -->
+          <div class="relative h-48 overflow-hidden bg-slate-100 p-2">
+            <div class="w-full h-full relative rounded-xl overflow-hidden">
+              <img v-if="getThumbnail(post)" :src="getThumbnail(post)" :alt="post.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <div v-else class="w-full h-full flex items-center justify-center bg-slate-200 text-slate-400">
+                <i class="fas fa-image text-3xl"></i>
+              </div>
+              <!-- Gradient Overlay -->
+              <div class="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent"></div>
+            </div>
+            
+            <!-- Badges -->
+            <div class="absolute top-4 left-4 flex gap-2">
+              <span class="bg-white/95 backdrop-blur-sm text-slate-800 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shadow-sm">
+                {{ formatCategory(post.post_type) }}
+              </span>
+            </div>
+            <div class="absolute top-4 right-4">
+              <span :class="{
+                'bg-emerald-500 text-white': post.status === 'published',
+                'bg-amber-500 text-white': post.status === 'pending_review',
+                'bg-slate-600 text-white': post.status === 'draft',
+                'bg-red-500 text-white': post.status === 'rejected',
+                'bg-slate-400 text-white': post.status === 'hidden'
+              }" class="text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shadow-sm">
+                {{ statusLabel(post.status) }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Card Body -->
+          <div class="p-5 flex-1 flex flex-col">
+            <h3 class="text-base font-black text-slate-800 mb-2 line-clamp-2 leading-snug group-hover:text-emerald-600 transition-colors" :title="post.title">
+              {{ post.title }}
+            </h3>
+            <p class="text-sm text-slate-500 line-clamp-2 mb-4 flex-1 leading-relaxed">
+              {{ post.short_description || 'Không có mô tả ngắn...' }}
+            </p>
+            
+            <!-- Post Meta -->
+            <div class="flex items-center justify-between text-xs text-slate-400 font-bold mb-4">
+              <div class="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md">
+                <i class="far fa-clock"></i>
+                {{ formatDate(post.created_at) }}
+              </div>
+              <div class="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md">
+                <i class="far fa-eye text-emerald-500"></i>
+                {{ post.view_count || 0 }}
+              </div>
+            </div>
+            
+            <!-- Divider -->
+            <div class="w-full h-px bg-slate-100 mb-4"></div>
+            
+            <!-- Footer Actions -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-xs font-bold text-slate-600 truncate max-w-[140px]">
+                <div class="w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+                  <i class="fas fa-user text-[10px]"></i>
+                </div>
+                <span class="truncate">{{ post.author?.full_name || post.author?.username || 'Bạn' }}</span>
+              </div>
+              
+              <div class="flex gap-2">
+                <button @click="openForm(post)" :disabled="post.status === 'pending_review'" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" title="Chỉnh sửa">
+                  <i class="fas fa-pencil-alt text-xs"></i>
+                </button>
+                <button @click="confirmDelete(post)" :disabled="post.status === 'pending_review'" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 text-slate-600 hover:bg-red-50 hover:text-red-600 border border-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" title="Xóa bài viết">
+                  <i class="fas fa-trash-alt text-xs"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="pagination.last_page > 1" class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mt-8">
+        <span class="text-sm font-bold text-slate-500">Trang {{ pagination.current_page }} / {{ pagination.last_page }}</span>
+        <div class="flex gap-2">
+          <button @click="changePage(pagination.current_page - 1)" :disabled="pagination.current_page === 1" class="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors font-bold">
+            <i class="fas fa-chevron-left text-xs"></i>
+          </button>
+          <div class="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500 text-white font-black shadow-md shadow-emerald-500/20">
+            {{ pagination.current_page }}
+          </div>
+          <button @click="changePage(pagination.current_page + 1)" :disabled="pagination.current_page === pagination.last_page" class="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors font-bold">
+            <i class="fas fa-chevron-right text-xs"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Modal (Native Dialog Styled with Tailwind) -->
+    <dialog id="post_form_modal" class="hidden backdrop:bg-slate-900/50 backdrop:backdrop-blur-sm bg-transparent w-full h-full max-w-full max-h-full m-0 p-4 md:p-8 flex items-center justify-center open:flex">
+      <div class="bg-white w-full max-w-5xl rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] min-h-[500px] overflow-hidden border border-slate-200/60 w-full animate-modal-in m-auto" @click.stop>
+        <!-- Header -->
+        <header class="flex justify-between items-center px-6 md:px-8 py-5 border-b border-slate-100 bg-white shrink-0">
+          <h2 class="text-xl font-black text-slate-800 flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-sm shadow-inner"><i class="fas fa-edit"></i></span>
+            {{ isEditing ? 'Chỉnh sửa bài viết' : 'Tạo bài viết mới' }}
+          </h2>
+          <button type="button" @click="closeForm" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors border border-slate-200">
+            <i class="fas fa-times"></i>
+          </button>
+        </header>
+        
+        <form @submit.prevent="submitForm" class="flex flex-col flex-1 overflow-hidden">
+          <div class="flex flex-col lg:flex-row flex-1 overflow-y-auto custom-scrollbar">
+            <!-- Left Main Form -->
+            <div class="flex-1 p-6 md:p-8 space-y-6 lg:border-r border-slate-100">
+              <div class="space-y-1.5">
+                <label class="text-sm font-bold text-slate-700">Tiêu đề bài viết <span class="text-red-500">*</span></label>
+                <input v-model="form.title" name="title" type="text" placeholder="Tiêu đề ấn tượng (5-200 ký tự)" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400" />
+                <p class="text-xs font-bold text-red-500 mt-1" v-if="errors.title">{{ errors.title[0] }}</p>
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="text-sm font-bold text-slate-700">Mô tả ngắn <span class="text-red-500">*</span></label>
+                <textarea v-model="form.short_description" name="short_description" rows="2" placeholder="Tóm tắt nội dung hấp dẫn người đọc..." required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-800 placeholder:font-normal resize-none"></textarea>
+                <p class="text-xs font-bold text-red-500 mt-1" v-if="errors.short_description">{{ errors.short_description[0] }}</p>
+              </div>
+
+              <div class="space-y-1.5 flex-1 flex flex-col">
+                <label class="text-sm font-bold text-slate-700">Nội dung chi tiết <span class="text-red-500">*</span></label>
+                <div class="rounded-xl overflow-hidden border border-slate-200 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all flex-1 min-h-[350px] flex flex-col bg-white">
+                  <RichTextEditor v-model="form.content" placeholder="Viết nội dung phong phú..." class="flex-1 min-h-[350px]" />
+                </div>
+                <p class="text-xs font-bold text-red-500 mt-1" v-if="errors.content">{{ errors.content[0] }}</p>
+              </div>
+            </div>
+            
+            <!-- Right Sidebar Settings -->
+            <div class="w-full lg:w-[380px] p-6 md:p-8 bg-slate-50/50 space-y-6 shrink-0">
+              
+              <!-- Thumbnail Upload -->
+              <div class="space-y-2">
+                <label class="text-sm font-bold text-slate-700">Ảnh đại diện (Thumbnail)</label>
+                <div class="w-full aspect-[16/10] rounded-2xl border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-white overflow-hidden relative cursor-pointer group transition-colors" @click="!thumbnailPreview && $refs.fileInputRef.click()">
+                  <div v-if="thumbnailPreview" class="absolute inset-0">
+                    <img :src="thumbnailPreview" class="w-full h-full object-cover" />
+                    <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button type="button" @click.stop="clearThumbnail" class="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 group-hover:text-emerald-500 transition-colors p-4 text-center">
+                    <i class="fas fa-cloud-upload-alt text-4xl mb-3 opacity-80"></i>
+                    <span class="text-sm font-bold text-slate-600 group-hover:text-emerald-600">Tải ảnh lên</span>
+                    <span class="text-[11px] mt-1 font-medium">JPG, PNG, WEBP (Max 5MB)</span>
+                  </div>
+                  <input type="file" ref="fileInputRef" class="hidden" @change="handleFileUpload" accept="image/*" />
+                </div>
+                <p class="text-xs font-bold text-red-500 mt-1" v-if="errors.thumbnail">{{ errors.thumbnail[0] }}</p>
+              </div>
+
+              <!-- Settings Group -->
+              <div class="bg-white rounded-2xl border border-slate-200 p-5 space-y-5 shadow-sm">
+                <div class="space-y-2">
+                  <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider">Cơ sở / Cụm sân <span class="text-red-500">*</span></label>
+                  <select v-model="form.venue_cluster_id" required :disabled="venueClusters.length <= 1" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:opacity-70 disabled:cursor-not-allowed appearance-none">
+                    <option value="" disabled>-- Chọn cụm sân --</option>
+                    <option v-for="cluster in venueClusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
+                  </select>
+                  <p class="text-[11px] font-bold text-emerald-600 mt-1" v-if="venueClusters.length === 1">Đã tự động chọn cơ sở duy nhất.</p>
+                </div>
+
+                <div class="space-y-2">
+                  <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider">Danh mục <span class="text-red-500">*</span></label>
+                  <select v-model="form.post_type" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none">
+                    <option value="" disabled>-- Chọn danh mục --</option>
+                    <option value="promotion">Khuyến mãi</option>
+                    <option value="tournament">Giải đấu</option>
+                    <option value="news">Tin tức</option>
+                    <option value="notice">Thông báo</option>
+                    <option value="recruitment">Tuyển dụng</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- SEO Group -->
+              <details class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden group">
+                <summary class="px-5 py-4 font-bold text-sm text-slate-700 cursor-pointer flex items-center justify-between bg-slate-50/50 hover:bg-slate-50 select-none list-none transition-colors">
+                  Cấu hình SEO (Tùy chọn)
+                  <i class="fas fa-chevron-down text-slate-400 group-open:rotate-180 transition-transform"></i>
+                </summary>
+                <div class="p-5 border-t border-slate-100 space-y-4 bg-white">
+                  <div class="space-y-1.5">
+                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider">Meta Title</label>
+                    <input v-model="form.meta_title" type="text" placeholder="Tiêu đề SEO hiển thị trên Google" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-emerald-500/20 font-medium text-slate-800" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider">Meta Desc</label>
+                    <textarea v-model="form.meta_description" rows="3" placeholder="Mô tả SEO ngắn gọn..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-emerald-500/20 resize-none font-medium text-slate-800"></textarea>
+                  </div>
+                </div>
+              </details>
+
+              <!-- Draft & Notice -->
+              <div class="pt-2 space-y-4">
+                <label class="flex items-center gap-3 cursor-pointer p-4 rounded-2xl hover:bg-white transition-colors border border-transparent hover:border-slate-200 shadow-sm hover:shadow">
+                  <div class="relative flex items-center justify-center">
+                    <input type="checkbox" v-model="form.is_draft" class="peer appearance-none w-6 h-6 rounded border-2 border-slate-300 checked:bg-emerald-500 checked:border-emerald-500 transition-colors" />
+                    <i class="fas fa-check text-white text-xs absolute opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"></i>
+                  </div>
+                  <span class="text-sm font-bold text-slate-700">Lưu dưới dạng bản nháp</span>
+                </label>
+
+                <div v-if="isEditing && editingPostStatus === 'published' && !form.is_draft" class="p-4 bg-amber-50 rounded-2xl border border-amber-200 flex gap-3 shadow-sm">
+                  <i class="fas fa-exclamation-circle text-amber-500 mt-0.5 text-lg"></i>
+                  <p class="text-[13px] font-medium text-amber-800 leading-relaxed">
+                    Bài viết đang <strong class="font-black">Đã xuất bản</strong>. Khi lưu chỉnh sửa, sẽ tự động chuyển về trạng thái <strong class="font-black">Chờ duyệt</strong>.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Form Footer -->
+          <footer class="flex justify-end gap-3 px-6 md:px-8 py-5 border-t border-slate-100 bg-white shrink-0">
+            <button type="button" @click="closeForm" class="px-8 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 bg-slate-50 border border-slate-200 transition-colors">
+              Hủy bỏ
+            </button>
+            <button type="submit" :disabled="submitting" class="px-8 py-3 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all hover:-translate-y-0.5 text-[15px]">
+              <i v-if="submitting" class="fas fa-spinner fa-spin"></i>
+              {{ submitting ? 'Đang xử lý...' : (isEditing ? 'Lưu thay đổi' : 'Đăng bài viết') }}
+            </button>
+          </footer>
+        </form>
+      </div>
+    </dialog>
+
+    <!-- Delete Confirm Modal -->
+    <dialog id="delete_confirm_modal" class="hidden backdrop:bg-slate-900/60 backdrop:backdrop-blur-sm bg-transparent w-full h-full max-w-full max-h-full m-0 flex items-center justify-center open:flex p-4">
+      <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-8 text-center border border-slate-200 animate-modal-in m-auto" @click.stop>
+        <div class="w-20 h-20 rounded-full bg-red-50 text-red-500 flex items-center justify-center text-3xl mx-auto mb-6 border-[6px] border-white shadow-sm">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <h3 class="text-2xl font-black text-slate-800 mb-2">Xác nhận xóa</h3>
+        <p class="text-[15px] text-slate-500 mb-8 font-medium leading-relaxed">Bạn có chắc muốn xóa bài viết <br/><strong class="text-slate-800 font-black">"{{ deletingPost?.title }}"</strong>?<br/><span class="text-red-500 mt-2 font-bold inline-block bg-red-50 px-3 py-1 rounded-lg">Hành động này không thể hoàn tác.</span></p>
+        <div class="flex gap-3 justify-center">
+          <button @click="closeDeleteModal" class="px-6 py-3.5 rounded-xl font-bold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors flex-1">Hủy</button>
+          <button @click="executeDelete" class="px-6 py-3.5 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all flex-1 hover:-translate-y-0.5">Xóa ngay</button>
+        </div>
+      </div>
+    </dialog>
+
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted, computed } from 'vue';
+import axios from 'axios';
+import { useToast } from 'vue-toastification';
+import RichTextEditor from '../../components/RichTextEditor.vue';
+
+const toast = useToast();
+
+const posts = ref([]);
+const venueClusters = ref([]);
+const loading = ref(false);
+const submitting = ref(false);
+const isEditing = ref(false);
+const editingPostId = ref(null);
+const editingPostStatus = ref('');
+const fileInputRef = ref(null);
+
+const thumbnailPreview = ref('');
+const deletingPost = ref(null);
+
+const pagination = reactive({
+  current_page: 1,
+  last_page: 1,
+  per_page: 15,
+  total: 0
+});
+
+const filters = reactive({
+  keyword: '',
+  post_type: '',
+  status: ''
+});
+
+const sorting = reactive({
+  by: 'created_at',
+  order: 'desc'
+});
+
+const form = reactive({
+  venue_cluster_id: '',
+  title: '',
+  short_description: '',
+  content: '',
+  post_type: '',
+  is_draft: false,
+  thumbnail: null,
+  tags: [],
+  meta_title: '',
+  meta_description: ''
+});
+
+const errors = ref({});
+
+onMounted(async () => {
+  await fetchVenueClusters();
+  fetchPosts();
+});
+
+const fetchVenueClusters = async () => {
+  try {
+    const res = await axios.get('/api/owner/venue-clusters');
+    venueClusters.value = res.data.data;
+  } catch (error) {
+    console.error('Error fetching venue clusters', error);
+  }
+};
+
+const fetchPosts = async (page = 1) => {
+  loading.value = true;
+  try {
+    const params = {
+      keyword: filters.keyword,
+      post_type: filters.post_type,
+      status: filters.status,
+      sort_by: sorting.by,
+      sort_order: sorting.order,
+      page
+    };
+    
+    const res = await axios.get('/api/owner/venue-posts', { params });
+    posts.value = res.data.data;
+    pagination.current_page = res.data.current_page;
+    pagination.last_page = res.data.last_page;
+    pagination.per_page = res.data.per_page;
+    pagination.total = res.data.total;
+  } catch (error) {
+    toast.error('Lỗi khi tải danh sách bài viết');
+  } finally {
+    loading.value = false;
+  }
+};
+
+const changePage = (page) => {
+  fetchPosts(page);
+};
+
+const resetFilters = () => {
+  filters.keyword = '';
+  filters.post_type = '';
+  filters.status = '';
+  fetchPosts(1);
+};
+
+const setStatusFilter = (status) => {
+  filters.status = status;
+  fetchPosts(1);
+};
+
+const toggleSort = (field) => {
+  if (sorting.by === field) {
+    sorting.order = sorting.order === 'desc' ? 'asc' : 'desc';
+  } else {
+    sorting.by = field;
+    sorting.order = 'desc';
+  }
+  fetchPosts(1);
+};
+
+const handleFileUpload = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  if (!allowedTypes.includes(file.type)) {
+    errors.value.thumbnail = ['Chỉ chấp nhận ảnh dạng JPG, JPEG, PNG, WEBP.'];
+    toast.error('Chỉ chấp nhận ảnh đại diện dạng JPG, JPEG, PNG, WEBP.');
+    if (fileInputRef.value) fileInputRef.value.value = '';
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    errors.value.thumbnail = ['Kích thước ảnh không được vượt quá 5MB.'];
+    toast.error('Kích thước ảnh không được vượt quá 5MB.');
+    if (fileInputRef.value) fileInputRef.value.value = '';
+    return;
+  }
+
+  form.thumbnail = file;
+  thumbnailPreview.value = URL.createObjectURL(file);
+  errors.value.thumbnail = null;
+};
+
+const clearThumbnail = () => {
+  form.thumbnail = null;
+  thumbnailPreview.value = '';
+  if (fileInputRef.value) {
+    fileInputRef.value.value = '';
+  }
+};
+
+const openForm = (post = null) => {
+  errors.value = {};
+  clearThumbnail();
+
+  if (post) {
+    isEditing.value = true;
+    editingPostId.value = post.id;
+    editingPostStatus.value = post.status;
+    
+    form.venue_cluster_id = post.venue_cluster_id;
+    form.title = post.title;
+    form.short_description = post.short_description || '';
+    form.content = post.content;
+    form.post_type = post.post_type;
+    form.is_draft = post.status === 'draft';
+    form.thumbnail = null;
+    form.tags = post.hashtags ? post.hashtags.map(h => h.name) : [];
+    form.meta_title = post.meta_title || '';
+    form.meta_description = post.meta_description || '';
+    
+    // Existing image preview
+    thumbnailPreview.value = getThumbnail(post);
+  } else {
+    isEditing.value = false;
+    editingPostId.value = null;
+    editingPostStatus.value = '';
+    
+    form.venue_cluster_id = venueClusters.value.length > 0 ? venueClusters.value[0].id : '';
+    form.title = '';
+    form.short_description = '';
+    form.content = '';
+    form.post_type = '';
+    form.is_draft = false;
+    form.thumbnail = null;
+    form.tags = [];
+    form.meta_title = '';
+    form.meta_description = '';
+  }
+  document.getElementById('post_form_modal').showModal();
+};
+
+const closeForm = () => {
+  const modal = document.getElementById('post_form_modal');
+  if (modal) modal.close();
+};
+
+const submitForm = async () => {
+  submitting.value = true;
+  errors.value = {};
+
+  const valErrors = {};
+  if (!form.title || form.title.trim().length < 5 || form.title.trim().length > 200) {
+    valErrors.title = ['Tiêu đề phải từ 5 đến 200 ký tự.'];
+  }
+  if (!form.short_description || form.short_description.trim().length < 10 || form.short_description.trim().length > 500) {
+    valErrors.short_description = ['Mô tả ngắn phải từ 10 đến 500 ký tự.'];
+  }
+  
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = form.content;
+  const rawText = (tempDiv.innerText || '').trim();
+  if (!form.content || rawText.length < 20) {
+    valErrors.content = ['Nội dung thực tế phải từ 20 ký tự trở lên.'];
+  }
+  
+  if (!form.venue_cluster_id && venueClusters.value.length > 0) {
+    form.venue_cluster_id = venueClusters.value[0].id;
+  }
+  
+  if (!form.post_type) {
+    valErrors.post_type = ['Vui lòng chọn danh mục bài viết.'];
+  }
+  if (!isEditing.value && !form.thumbnail) {
+    valErrors.thumbnail = ['Ảnh đại diện bài viết là bắt buộc khi tạo mới.'];
+  }
+
+  if (Object.keys(valErrors).length > 0) {
+    errors.value = valErrors;
+    submitting.value = false;
+    toast.error('Vui lòng kiểm tra lại thông tin nhập.');
+    focusFirstError();
+    return;
+  }
+  
+  const formData = new FormData();
+  if (form.venue_cluster_id) {
+    formData.append('venue_cluster_id', form.venue_cluster_id);
+  }
+  formData.append('title', form.title.trim());
+  formData.append('short_description', form.short_description.trim());
+  formData.append('content', form.content);
+  formData.append('post_type', form.post_type);
+  formData.append('is_draft', form.is_draft ? 1 : 0);
+  formData.append('meta_title', form.meta_title.trim());
+  formData.append('meta_description', form.meta_description.trim());
+  
+  if (form.thumbnail) {
+    formData.append('thumbnail', form.thumbnail);
+  }
+  
+  try {
+    if (isEditing.value) {
+      formData.append('_method', 'PUT');
+      await axios.post(`/api/owner/venue-posts/${editingPostId.value}`, formData);
+      toast.success('Cập nhật bài viết thành công');
+    } else {
+      await axios.post('/api/owner/venue-posts', formData);
+      toast.success('Đăng bài viết mới thành công');
+    }
+    closeForm();
+    fetchPosts(pagination.current_page);
+  } catch (error) {
+    if (error.response && error.response.status === 422) {
+      errors.value = error.response.data.errors;
+      toast.error(error.response.data.message || 'Dữ liệu nhập không hợp lệ, vui lòng kiểm tra lại.');
+      focusFirstError();
+    } else {
+      toast.error('Có lỗi xảy ra trong quá trình xử lý, vui lòng thử lại.');
+    }
+  } finally {
+    submitting.value = false;
+  }
+};
+
+const focusFirstError = () => {
+  setTimeout(() => {
+    const firstErrKey = Object.keys(errors.value)[0];
+    if (firstErrKey) {
+      const element = document.querySelector(`[name="${firstErrKey}"]`);
+      if (element) {
+        element.focus();
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, 100);
+};
+
+const confirmDelete = (post) => {
+  deletingPost.value = post;
+  document.getElementById('delete_confirm_modal').showModal();
+};
+
+const closeDeleteModal = () => {
+  document.getElementById('delete_confirm_modal').close();
+  deletingPost.value = null;
+};
+
+const executeDelete = async () => {
+  if (!deletingPost.value) return;
+  try {
+    await axios.delete(`/api/owner/venue-posts/${deletingPost.value.id}`);
+    toast.success('Đã xóa bài viết thành công.');
+    closeDeleteModal();
+    fetchPosts(pagination.current_page);
+  } catch (error) {
+    if (error.response && error.response.status === 422) {
+      toast.error(error.response.data.message || 'Lỗi khi xóa bài viết.');
+    } else {
+      toast.error('Lỗi khi thực hiện xóa bài viết, vui lòng thử lại.');
+    }
+    closeDeleteModal();
+  }
+};
+
+const getThumbnail = (post) => {
+  if (!post.media?.length) return '';
+  const thumb = post.media.find((m) => m.collection === 'thumbnail') || post.media[0];
+  return thumb?.file_path ? `/storage/${thumb.file_path}` : '';
+};
+
+const statusLabel = (status) => {
+  const map = {
+    'draft': 'Bản nháp',
+    'pending_review': 'Chờ duyệt',
+    'published': 'Đã xuất bản',
+    'rejected': 'Bị từ chối',
+    'hidden': 'Đã ẩn'
+  };
+  return map[status] || status;
+};
+
+const formatCategory = (type) => {
+  const map = {
+    'promotion': 'Khuyến mãi',
+    'tournament': 'Giải đấu',
+    'news': 'Tin tức',
+    'notice': 'Thông báo',
+    'recruitment': 'Tuyển dụng'
+  };
+  return map[type] || type;
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '—';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  return date.toLocaleDateString('vi-VN', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+  });
+};
+</script>
+
+<style scoped>
+/* Native dialog reset for Tailwind overlay design */
+dialog {
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: 100vw;
+  max-height: 100vh;
+  margin: auto;
+}
+dialog::backdrop {
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+}
+dialog[open] .animate-modal-in {
+  animation: modalIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Custom Scrollbar for editor panel */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Base resets */
+* {
+  box-sizing: border-box;
+}
+</style>

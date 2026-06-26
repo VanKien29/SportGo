@@ -160,12 +160,8 @@ export const adminRouteTitles = {
   'admin-vouchers': 'Voucher hệ thống',
   'admin-partner-applications': 'Quản lý Đơn đăng ký & Đối tác',
   'admin-banners': 'Quản lý banner',
-<<<<<<< HEAD
   'admin-moderation': 'Kiểm duyệt nội dung',
   'admin-venue-posts': 'Kiểm duyệt bài viết',
-=======
-  'admin-moderation': 'Kiểm duyệt & Báo cáo',
->>>>>>> origin/theme-rework
   'admin-roles': 'Quản lý nhóm quyền',
   'admin-role-detail': 'Chi tiết nhóm quyền',
   'admin-policies': 'Quản lý chính sách',

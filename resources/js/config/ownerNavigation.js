@@ -103,12 +103,6 @@ export const ownerNavigationSections = [
         activeNames: ['owner-venue-posts'],
       },
       {
-        label: 'Bài đăng & Thông báo',
-        icon: 'messageWarning',
-        to: '/owner/posts',
-        activeNames: ['owner-posts'],
-      },
-      {
         label: 'Tiếp thị liên kết',
         icon: 'share',
         to: '/owner/affiliate',
@@ -148,7 +142,6 @@ export const ownerRouteTitles = {
   'owner-vouchers': 'Voucher của sân',
   'owner-policies': 'Chính sách sân',
   'owner-venue-posts': 'Quản lý bài viết',
-  'owner-posts': 'Bài đăng & Thông báo',
   'owner-matchmaking': 'Giao lưu tại sân',
   'owner-affiliate': 'Tiếp thị liên kết',
 };
