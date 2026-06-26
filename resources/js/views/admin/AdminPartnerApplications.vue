@@ -7,6 +7,8 @@
       </div>
 
 
+    </header>
+
     <div class="tabs-container">
       <div class="tabs">
         <button 
