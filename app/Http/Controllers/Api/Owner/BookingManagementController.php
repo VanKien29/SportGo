@@ -4,13 +4,11 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
-use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
 use App\Services\BookingService;
 use App\Services\Payments\SepayPaymentService;
-use App\Services\Policies\RefundCancellationPolicyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -24,7 +22,7 @@ class BookingManagementController extends Controller
     public function __construct(
         private readonly BookingService $bookingService,
         private readonly SepayPaymentService $sepayPaymentService,
-        private readonly RefundCancellationPolicyService $refundCancellationPolicyService,
+        private readonly OwnerBookingCancellationService $ownerBookingCancellationService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -403,13 +401,8 @@ class BookingManagementController extends Controller
         ]);
 
         $refunds = [];
-        if (in_array($status, ['cancelled', 'rejected'], true)) {
-            SlotLock::query()->where('booking_id', $booking->id)->delete();
-            $refunds = $this->refundCancellationPolicyService->createRefundsForProviderCancellation(
-                $booking->fresh(),
-                $request->user(),
-                $validated['status_reason'] ?? null,
-            );
+        if ($status === 'completed') {
+            $this->bookingService->syncMembershipForCompletedBooking($booking);
         }
 
         return response()->json([

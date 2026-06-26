@@ -329,6 +329,83 @@
                         rows="3"
                     ></textarea>
                 </label>
+                <div class="scope-editor">
+                    <label>
+                        Phạm vi
+                        <select
+                            v-model="form.scopes[0].scope_type"
+                            @change="resetScopeId"
+                        >
+                            <option value="all">Toàn hệ thống</option>
+                            <option value="venue_cluster">Cụm sân</option>
+                            <option value="court_type">Loại sân</option>
+                            <option value="booking_type">Hình thức booking</option>
+                            <option value="membership_tier">Hạng thành viên sân</option>
+                            <option value="vip_package">Gói VIP hệ thống</option>
+                        </select>
+                    </label>
+                    <label v-if="form.scopes[0].scope_type === 'venue_cluster'">
+                        Cụm sân áp dụng
+                        <select v-model="form.scopes[0].scope_id" required>
+                            <option
+                                v-for="item in scopeOptions.venue_clusters"
+                                :key="item.id"
+                                :value="item.id"
+                            >
+                                {{ item.name }}
+                            </option>
+                        </select>
+                    </label>
+                    <label v-else-if="form.scopes[0].scope_type === 'court_type'">
+                        Loại sân áp dụng
+                        <select v-model="form.scopes[0].scope_id" required>
+                            <option
+                                v-for="item in scopeOptions.court_types"
+                                :key="item.id"
+                                :value="String(item.id)"
+                            >
+                                {{ item.name }}
+                            </option>
+                        </select>
+                    </label>
+                    <label v-else-if="form.scopes[0].scope_type === 'membership_tier'">
+                        Hạng sân áp dụng
+                        <select v-model="form.scopes[0].scope_id" required>
+                            <option
+                                v-for="item in scopeOptions.membership_tiers"
+                                :key="item.id"
+                                :value="item.id"
+                            >
+                                {{ item.name }}
+                            </option>
+                        </select>
+                    </label>
+                    <label v-else-if="form.scopes[0].scope_type === 'vip_package'">
+                        Gói VIP áp dụng
+                        <select v-model="form.scopes[0].scope_id" required>
+                            <option
+                                v-for="item in scopeOptions.vip_packages"
+                                :key="item.id"
+                                :value="item.id"
+                            >
+                                {{ item.name }}
+                            </option>
+                        </select>
+                    </label>
+                    <label v-else-if="form.scopes[0].scope_type === 'booking_type'">
+                        Loại booking
+                        <select v-model="form.scopes[0].scope_id" required>
+                            <option
+                                v-for="item in scopeOptions.booking_types"
+                                :key="item.id"
+                                :value="item.id"
+                            >
+                                {{ item.name }}
+                            </option>
+                        </select>
+                    </label>
+                    <p class="scope-hint">{{ scopeHint }}</p>
+                </div>
                 <footer>
                     <button
                         class="btn secondary"
@@ -380,6 +457,7 @@ export default {
             error: "",
             success: "",
             form: this.emptyForm(),
+            scopeOptions: this.emptyScopeOptions(),
             showHistoryPanel: false,
             showScrollTop: false,
             budgetLoading: false,
@@ -431,6 +509,17 @@ export default {
 
             return "Chi phí voucher hệ thống đang trong ngưỡng cảnh báo.";
         },
+        scopeHint() {
+            const type = this.form.scopes?.[0]?.scope_type || "all";
+            return {
+                all: "Voucher áp dụng cho toàn bộ booking hợp lệ.",
+                venue_cluster: "Chỉ áp dụng cho booking thuộc cụm sân đã chọn.",
+                court_type: "Chỉ áp dụng cho loại sân đã chọn.",
+                booking_type: "Chỉ áp dụng theo hình thức đặt sân.",
+                membership_tier: "Chỉ áp dụng cho khách đạt hạng thành viên sân.",
+                vip_package: "Chỉ áp dụng cho khách đang có gói VIP hệ thống.",
+            }[type];
+        },
     },
     methods: {
         emptyForm() {
@@ -451,11 +540,35 @@ export default {
                 scopes: [{ scope_type: "all", scope_id: null }],
             };
         },
+        emptyScopeOptions() {
+            return {
+                venue_clusters: [],
+                court_types: [],
+                membership_tiers: [
+                    { id: "standard", name: "Thường" },
+                    { id: "silver", name: "Bạc" },
+                    { id: "gold", name: "Vàng" },
+                    { id: "diamond", name: "Kim cương" },
+                ],
+                vip_packages: [
+                    { id: "saving", name: "Tiết kiệm" },
+                    { id: "pro", name: "Pro" },
+                ],
+                booking_types: [
+                    { id: "single", name: "Đơn lẻ" },
+                    { id: "recurring", name: "Lịch cố định" },
+                ],
+            };
+        },
         async load() {
             this.loading = true;
             try {
                 const response = await adminVoucherService.list(this.filters);
                 this.vouchers = response.data || [];
+                this.scopeOptions = {
+                    ...this.emptyScopeOptions(),
+                    ...(response.meta?.scope_options || {}),
+                };
             } catch (error) {
                 this.error = error.message || "Không thể tải voucher hệ thống.";
             } finally {
@@ -523,6 +636,7 @@ export default {
                       ...voucher,
                       valid_from: this.inputDate(voucher.valid_from),
                       valid_to: this.inputDate(voucher.valid_to),
+                      scopes: this.normalizeScopes(voucher.scopes),
                   }
                 : this.emptyForm();
             this.showModal = true;
@@ -533,9 +647,13 @@ export default {
         async save() {
             this.saving = true;
             try {
+                const payload = {
+                    ...this.form,
+                    scopes: this.normalizeScopes(this.form.scopes),
+                };
                 const response = this.form.id
-                    ? await adminVoucherService.update(this.form.id, this.form)
-                    : await adminVoucherService.create(this.form);
+                    ? await adminVoucherService.update(this.form.id, payload)
+                    : await adminVoucherService.create(payload);
                 this.success = response.message;
                 this.closeForm();
                 await this.load();
@@ -558,6 +676,23 @@ export default {
             return voucher.discount_type === "percent"
                 ? `${Number(voucher.discount_value)}%`
                 : this.money(voucher.discount_value);
+        },
+        normalizeScopes(scopes) {
+            const first = Array.isArray(scopes) && scopes.length
+                ? scopes[0]
+                : { scope_type: "all", scope_id: null };
+            const scopeType = first.scope_type || "all";
+
+            return [
+                {
+                    scope_type: scopeType,
+                    scope_id: scopeType === "all" ? null : first.scope_id || null,
+                },
+            ];
+        },
+        resetScopeId() {
+            const scope = this.form.scopes[0];
+            scope.scope_id = scope.scope_type === "all" ? null : "";
         },
         money(value) {
             return new Intl.NumberFormat("vi-VN", {
@@ -745,6 +880,22 @@ textarea {
     padding: 10px;
     font: inherit;
 }
+.scope-editor {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    border: 1px solid #dbe3ef;
+    border-radius: 10px;
+    background: #f8fafc;
+    padding: 14px;
+}
+.scope-hint {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
+}
 footer {
     display: flex;
     justify-content: flex-end;
@@ -752,6 +903,7 @@ footer {
 }
 @media (max-width: 720px) {
     .grid,
+    .scope-editor,
     .filters {
         grid-template-columns: 1fr;
         flex-direction: column;

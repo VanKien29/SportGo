@@ -87,6 +87,12 @@ export const adminNavigationSections = [
         to: '/admin/vouchers',
         activeNames: ['admin-vouchers', 'admin-voucher-detail'],
       },
+      {
+        label: 'Gói VIP hệ thống',
+        icon: 'star',
+        to: '/admin/membership-packages',
+        activeNames: ['admin-membership-packages'],
+      },
     ],
   },
   {
@@ -152,6 +158,7 @@ export const adminRouteTitles = {
   'admin-payments': 'Theo dõi thanh toán booking',
   'admin-finance-operations': 'Hoàn tiền và rút tiền',
   'admin-vouchers': 'Voucher hệ thống',
+  'admin-membership-packages': 'Gói VIP hệ thống',
   'admin-partner-applications': 'Quản lý Đơn đăng ký & Đối tác',
   'admin-banners': 'Quản lý banner',
   'admin-moderation': 'Kiểm duyệt & Báo cáo',

@@ -126,6 +126,7 @@
                                         class="schedule-cell"
                                         :class="{
                                             busy: isSlotBusy(court.id, slot),
+                                            past: isSlotPast(slot),
                                             selected: isSlotSelected(
                                                 court.id,
                                                 index,
@@ -286,6 +287,80 @@
                                         giờ</span
                                     >
                                 </div>
+                                <div
+                                    class="summary-row"
+                                    v-if="membershipDiscountAmount > 0"
+                                >
+                                    <span class="label">Giá gốc:</span>
+                                    <span class="val">{{
+                                        formatCurrency(originalPrice)
+                                    }}</span>
+                                </div>
+                                <div
+                                    class="summary-row discount-row"
+                                    v-if="membershipDiscountAmount > 0"
+                                >
+                                    <span class="label">
+                                        Giảm hạng {{ membershipTierLabel }}
+                                        <small>({{ membershipDiscountPercent }}%)</small>
+                                    </span>
+                                    <span class="val"
+                                        >-{{
+                                            formatCurrency(membershipDiscountAmount)
+                                        }}</span
+                                    >
+                                </div>
+                                <div
+                                    class="summary-row discount-row"
+                                    v-if="venueVoucherDiscountAmount > 0"
+                                >
+                                    <span class="label">
+                                        Voucher sân
+                                        <small>({{ selectedVenueVoucher?.code }})</small>
+                                    </span>
+                                    <span class="val"
+                                        >-{{
+                                            formatCurrency(venueVoucherDiscountAmount)
+                                        }}</span
+                                    >
+                                </div>
+                                <div
+                                    class="summary-row discount-row"
+                                    v-if="vipVoucherDiscountAmount > 0"
+                                >
+                                    <span class="label">
+                                        Voucher VIP
+                                        <small>({{ selectedVipVoucher?.code }})</small>
+                                    </span>
+                                    <span class="val"
+                                        >-{{
+                                            formatCurrency(vipVoucherDiscountAmount)
+                                        }}</span
+                                    >
+                                </div>
+                                <button
+                                    type="button"
+                                    class="btn-voucher-summary"
+                                    :disabled="!isAvailable || voucherLoading"
+                                    @click="openVoucherModal"
+                                >
+                                    <span>
+                                        {{
+                                            selectedVoucherCount > 0
+                                                ? `Đổi voucher (${selectedVoucherCount})`
+                                                : "Chọn voucher"
+                                        }}
+                                    </span>
+                                    <strong v-if="voucherTotalDiscountAmount > 0">
+                                        -{{ formatCurrency(voucherTotalDiscountAmount) }}
+                                    </strong>
+                                    <small v-else-if="voucherLoading">
+                                        Đang tải...
+                                    </small>
+                                    <small v-else>
+                                        {{ totalEligibleVoucherCount }} mã phù hợp
+                                    </small>
+                                </button>
                                 <div class="summary-row total-row">
                                     <span class="label">Tổng tiền:</span>
                                     <span class="val price">{{
@@ -338,6 +413,174 @@
                 <p>Đang tải danh sách sân chơi...</p>
             </div>
         </main>
+
+        <div
+            v-if="voucherModalOpen"
+            class="voucher-modal-backdrop"
+            @click.self="voucherModalOpen = false"
+        >
+            <div class="voucher-modal">
+                <div class="voucher-modal-header">
+                    <div>
+                        <h2>Chọn voucher</h2>
+                        <p>{{ totalEligibleVoucherCount }} mã phù hợp</p>
+                    </div>
+                    <button
+                        type="button"
+                        class="voucher-modal-close"
+                        @click="voucherModalOpen = false"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <div v-if="voucherLoading" class="voucher-state">
+                    Đang tải voucher phù hợp...
+                </div>
+                <div v-else-if="voucherError" class="voucher-state error">
+                    {{ voucherError }}
+                </div>
+                <div v-else class="voucher-table-wrap">
+                    <section class="voucher-table-section">
+                        <div class="voucher-table-title">
+                            <strong>Voucher sân</strong>
+                            <button
+                                type="button"
+                                :disabled="!selectedVenueVoucherId"
+                                @click="selectedVenueVoucherId = ''"
+                            >
+                                Không dùng
+                            </button>
+                        </div>
+                        <table class="voucher-table">
+                            <thead>
+                                <tr>
+                                    <th>Mã</th>
+                                    <th>Tên voucher</th>
+                                    <th>Giảm</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="voucher in sortedVenueVouchers"
+                                    :key="voucher.id"
+                                    :class="{
+                                        active:
+                                            selectedVenueVoucherId ===
+                                            voucher.id,
+                                    }"
+                                >
+                                    <td>
+                                        <strong>{{ voucher.code }}</strong>
+                                    </td>
+                                    <td>
+                                        <span>{{ voucher.name || voucher.code }}</span>
+                                        <small>{{ voucher.discount_label }}</small>
+                                    </td>
+                                    <td class="voucher-table-discount">
+                                        -{{ formatCurrency(discountForVoucher(voucher, amountAfterMembership)) }}
+                                    </td>
+                                    <td>
+                                        <button
+                                            type="button"
+                                            class="voucher-select-btn"
+                                            @click="selectedVenueVoucherId = voucher.id"
+                                        >
+                                            {{
+                                                selectedVenueVoucherId ===
+                                                voucher.id
+                                                    ? "Đã chọn"
+                                                    : "Chọn"
+                                            }}
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr v-if="sortedVenueVouchers.length === 0">
+                                    <td colspan="4" class="voucher-table-empty">
+                                        Chưa có voucher sân phù hợp.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </section>
+
+                    <section class="voucher-table-section">
+                        <div class="voucher-table-title">
+                            <strong>Voucher VIP</strong>
+                            <button
+                                type="button"
+                                :disabled="!selectedVipVoucherId"
+                                @click="selectedVipVoucherId = ''"
+                            >
+                                Không dùng
+                            </button>
+                        </div>
+                        <table class="voucher-table">
+                            <thead>
+                                <tr>
+                                    <th>Mã</th>
+                                    <th>Tên voucher</th>
+                                    <th>Giảm</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="voucher in sortedVipVouchers"
+                                    :key="voucher.id"
+                                    :class="{
+                                        active:
+                                            selectedVipVoucherId ===
+                                            voucher.id,
+                                    }"
+                                >
+                                    <td>
+                                        <strong>{{ voucher.code }}</strong>
+                                    </td>
+                                    <td>
+                                        <span>{{ voucher.name || voucher.code }}</span>
+                                        <small>{{ voucher.discount_label }}</small>
+                                    </td>
+                                    <td class="voucher-table-discount">
+                                        -{{ formatCurrency(discountForVoucher(voucher, amountAfterVenueVoucher)) }}
+                                    </td>
+                                    <td>
+                                        <button
+                                            type="button"
+                                            class="voucher-select-btn"
+                                            @click="selectedVipVoucherId = voucher.id"
+                                        >
+                                            {{
+                                                selectedVipVoucherId ===
+                                                voucher.id
+                                                    ? "Đã chọn"
+                                                    : "Chọn"
+                                            }}
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr v-if="sortedVipVouchers.length === 0">
+                                    <td colspan="4" class="voucher-table-empty">
+                                        Chưa có voucher VIP phù hợp.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+
+                <div class="voucher-modal-footer">
+                    <span v-if="voucherTotalDiscountAmount > 0">
+                        Đang giảm {{ formatCurrency(voucherTotalDiscountAmount) }}
+                    </span>
+                    <span v-else>Chưa áp dụng voucher</span>
+                    <button type="button" @click="voucherModalOpen = false">
+                        Xong
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -354,7 +597,7 @@ export default {
             clusters: [],
             selectedClusterId: "",
             selectedCourtId: "",
-            bookingDate: new Date().toISOString().split("T")[0],
+            bookingDate: new Date().toLocaleDateString("en-CA"),
             startTime: "08:00:00",
             endTime: "09:00:00",
             paymentOption: "no_prepay",
@@ -366,6 +609,14 @@ export default {
             submitting: false,
             submitError: null,
             fetchedHourlyRate: 0,
+            pricePreview: null,
+            voucherLoading: false,
+            voucherError: "",
+            eligibleVenueVouchers: [],
+            eligibleVipVouchers: [],
+            selectedVenueVoucherId: "",
+            selectedVipVoucherId: "",
+            voucherModalOpen: false,
 
             selectedScheduleCourtTypeId: "",
             scheduleLoading: false,
@@ -418,7 +669,7 @@ export default {
     },
     computed: {
         minDate() {
-            return new Date().toISOString().split("T")[0];
+            return new Date().toLocaleDateString("en-CA");
         },
         currentCluster() {
             return this.clusters.find((c) => c.id === this.selectedClusterId);
@@ -495,7 +746,7 @@ export default {
         hourlyRate() {
             return this.fetchedHourlyRate > 0 ? this.fetchedHourlyRate : 10000;
         },
-        totalPrice() {
+        basePrice() {
             if (this.selectedSlotDetails.length > 0) {
                 return this.selectedSlotDetails.reduce(
                     (sum, slot) => sum + Number(slot.price || 0),
@@ -504,6 +755,101 @@ export default {
             }
 
             return (this.durationMinutes / 60) * this.hourlyRate;
+        },
+        originalPrice() {
+            return Number(this.pricePreview?.original_amount ?? this.basePrice);
+        },
+        membershipDiscount() {
+            return this.pricePreview?.membership_discount || null;
+        },
+        membershipDiscountAmount() {
+            return Number(
+                this.pricePreview?.membership_discount_amount ??
+                    this.membershipDiscount?.discount_amount ??
+                    0,
+            );
+        },
+        membershipTierLabel() {
+            return this.membershipDiscount?.tier_label || "thành viên";
+        },
+        membershipDiscountPercent() {
+            return Number(this.membershipDiscount?.discount_percent || 0);
+        },
+        amountAfterMembership() {
+            return Number(
+                this.pricePreview?.final_amount ??
+                    Math.max(this.basePrice - this.membershipDiscountAmount, 0),
+            );
+        },
+        selectedVenueVoucher() {
+            return (
+                this.eligibleVenueVouchers.find(
+                    (voucher) => voucher.id === this.selectedVenueVoucherId,
+                ) || null
+            );
+        },
+        selectedVipVoucher() {
+            return (
+                this.eligibleVipVouchers.find(
+                    (voucher) => voucher.id === this.selectedVipVoucherId,
+                ) || null
+            );
+        },
+        sortedVenueVouchers() {
+            return [...this.eligibleVenueVouchers].sort(
+                (a, b) =>
+                    this.discountForVoucher(b, this.amountAfterMembership) -
+                    this.discountForVoucher(a, this.amountAfterMembership),
+            );
+        },
+        sortedVipVouchers() {
+            return [...this.eligibleVipVouchers].sort(
+                (a, b) =>
+                    this.discountForVoucher(b, this.amountAfterVenueVoucher) -
+                    this.discountForVoucher(a, this.amountAfterVenueVoucher),
+            );
+        },
+        totalEligibleVoucherCount() {
+            return (
+                this.eligibleVenueVouchers.length +
+                this.eligibleVipVouchers.length
+            );
+        },
+        selectedVoucherCount() {
+            return (
+                (this.selectedVenueVoucherId ? 1 : 0) +
+                (this.selectedVipVoucherId ? 1 : 0)
+            );
+        },
+        venueVoucherDiscountAmount() {
+            return this.discountForVoucher(
+                this.selectedVenueVoucher,
+                this.amountAfterMembership,
+            );
+        },
+        amountAfterVenueVoucher() {
+            return Math.max(
+                this.amountAfterMembership - this.venueVoucherDiscountAmount,
+                0,
+            );
+        },
+        vipVoucherDiscountAmount() {
+            return this.discountForVoucher(
+                this.selectedVipVoucher,
+                this.amountAfterVenueVoucher,
+            );
+        },
+        voucherTotalDiscountAmount() {
+            return (
+                this.venueVoucherDiscountAmount +
+                this.vipVoucherDiscountAmount
+            );
+        },
+        totalPrice() {
+            return Math.max(
+                this.amountAfterVenueVoucher - this.vipVoucherDiscountAmount,
+                0,
+            );
         },
         requiredPaymentAmount() {
             if (this.paymentOption === "full_payment") {
@@ -629,6 +975,8 @@ export default {
             );
         },
         isSlotBusy(courtId, slot) {
+            if (this.isSlotPast(slot)) return true;
+
             const status = this.slotStatus(courtId, slot);
             if (status) return !status.is_available;
 
@@ -696,6 +1044,8 @@ export default {
             );
         },
         slotTitle(court, slot, index) {
+            if (this.isSlotPast(slot))
+                return `${court.name}: ${slot.label} đã qua giờ đặt`;
             if (this.isSlotBusy(court.id, slot))
                 return `${court.name}: ${slot.label} đã bận`;
             if (this.isSlotSelected(court.id, index))
@@ -713,6 +1063,14 @@ export default {
                 .map(Number);
             return hour * 60 + minute;
         },
+        isSlotPast(slot) {
+            if (!slot || this.bookingDate !== this.minDate) return false;
+
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+            return this.timeToMinutes(slot.start_time) <= currentMinutes;
+        },
         async checkAvailability() {
             if (
                 !this.selectedCourtId ||
@@ -729,11 +1087,14 @@ export default {
             if (diff <= 0) {
                 this.isAvailable = false;
                 this.availabilityChecked = true;
+                this.pricePreview = null;
+                this.clearVoucherSelection();
                 return;
             }
 
             this.checkingAvailability = true;
             this.submitError = null;
+            this.clearVoucherSelection();
 
             try {
                 const res = await bookingService.checkAvailability({
@@ -744,6 +1105,12 @@ export default {
                 });
                 this.isAvailable = res.available;
                 this.fetchedHourlyRate = res.hourly_rate || 0;
+                this.pricePreview = res.available
+                    ? {
+                          ...(res.price_preview || {}),
+                          membership_discount: res.membership_discount || null,
+                      }
+                    : null;
 
                 // Auto select allowed payment option if current becomes invalid
                 if (this.isAvailable) {
@@ -769,10 +1136,14 @@ export default {
                             ? "deposit"
                             : "no_prepay";
                     }
+
+                    await this.loadEligibleVouchers();
                 }
             } catch (err) {
                 console.error(err);
                 this.isAvailable = false;
+                this.pricePreview = null;
+                this.clearVoucherSelection();
             } finally {
                 this.checkingAvailability = false;
                 this.availabilityChecked = true;
@@ -791,6 +1162,8 @@ export default {
                     start_time: this.startTime,
                     end_time: this.endTime,
                     payment_option: this.paymentOption,
+                    venue_voucher_id: this.selectedVenueVoucherId || null,
+                    vip_voucher_id: this.selectedVipVoucherId || null,
                 });
 
                 // Chuyển hướng sang trang chi tiết đặt chỗ
@@ -804,6 +1177,90 @@ export default {
             } finally {
                 this.submitting = false;
             }
+        },
+        async loadEligibleVouchers() {
+            if (
+                !this.selectedCourtId ||
+                !this.bookingDate ||
+                !this.startTime ||
+                !this.endTime ||
+                !this.isAvailable
+            ) {
+                this.clearVoucherSelection();
+                return;
+            }
+
+            this.voucherLoading = true;
+            this.voucherError = "";
+
+            try {
+                const res = await bookingService.eligibleVouchers({
+                    venue_court_id: this.selectedCourtId,
+                    booking_date: this.bookingDate,
+                    start_time: this.startTime,
+                    end_time: this.endTime,
+                });
+
+                this.eligibleVenueVouchers = res.venue_vouchers || [];
+                this.eligibleVipVouchers = res.vip_vouchers || [];
+
+                if (!this.selectedVenueVoucher) {
+                    this.selectedVenueVoucherId = "";
+                }
+                if (!this.selectedVipVoucher) {
+                    this.selectedVipVoucherId = "";
+                }
+            } catch (err) {
+                this.voucherError =
+                    err.message || "Không thể tải danh sách voucher phù hợp.";
+                this.eligibleVenueVouchers = [];
+                this.eligibleVipVouchers = [];
+                this.selectedVenueVoucherId = "";
+                this.selectedVipVoucherId = "";
+            } finally {
+                this.voucherLoading = false;
+            }
+        },
+        async openVoucherModal() {
+            if (!this.isAvailable) return;
+
+            this.voucherModalOpen = true;
+            if (
+                !this.voucherLoading &&
+                this.totalEligibleVoucherCount === 0 &&
+                !this.voucherError
+            ) {
+                await this.loadEligibleVouchers();
+            }
+        },
+        clearVoucherSelection() {
+            this.voucherError = "";
+            this.eligibleVenueVouchers = [];
+            this.eligibleVipVouchers = [];
+            this.selectedVenueVoucherId = "";
+            this.selectedVipVoucherId = "";
+            this.voucherModalOpen = false;
+        },
+        discountForVoucher(voucher, amount) {
+            const baseAmount = Number(amount || 0);
+            if (!voucher || baseAmount <= 0) return 0;
+            if (Number(voucher.min_order_amount || 0) > baseAmount) return 0;
+
+            let discount = 0;
+            if (voucher.discount_type === "percent") {
+                discount =
+                    baseAmount * (Number(voucher.discount_value || 0) / 100);
+                if (voucher.max_discount_amount !== null) {
+                    discount = Math.min(
+                        discount,
+                        Number(voucher.max_discount_amount || 0),
+                    );
+                }
+            } else {
+                discount = Number(voucher.discount_value || 0);
+            }
+
+            return Math.max(Math.min(discount, baseAmount), 0);
         },
         formatDate(dateStr) {
             if (!dateStr) return "";
@@ -1121,6 +1578,18 @@ export default {
     cursor: not-allowed;
 }
 
+.schedule-cell.past {
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            #f1f5f9,
+            #f1f5f9 6px,
+            #e2e8f0 6px,
+            #e2e8f0 12px
+        );
+    cursor: not-allowed;
+}
+
 .schedule-cell.selected {
     background: #ffffff;
     box-shadow: inset 0 0 0 2px #ffffff;
@@ -1143,6 +1612,99 @@ export default {
 
 .status-badge.danger {
     background: rgba(239, 68, 68, 0.1);
+    color: var(--sg-danger);
+}
+
+.voucher-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.voucher-column {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.voucher-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--sg-dark);
+}
+
+.voucher-heading span {
+    color: var(--sg-text-muted);
+    font-weight: 700;
+}
+
+.voucher-card {
+    width: 100%;
+    min-height: 78px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    align-items: center;
+    padding: 12px;
+    border-radius: var(--sg-radius-sm);
+    border: 1px solid var(--sg-border);
+    background: #fff;
+    text-align: left;
+    transition: var(--sg-transition);
+}
+
+.voucher-card:hover {
+    background: var(--sg-surface);
+    border-color: var(--sg-green-light);
+}
+
+.voucher-card.active {
+    background: var(--sg-green-pale);
+    border-color: var(--sg-green);
+}
+
+.voucher-name {
+    min-width: 0;
+    color: var(--sg-dark);
+    font-size: 13px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.voucher-meta {
+    min-width: 0;
+    color: var(--sg-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.voucher-discount {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    color: #047857;
+    font-size: 13px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.voucher-empty,
+.voucher-state {
+    margin: 0;
+    padding: 14px;
+    border-radius: var(--sg-radius-sm);
+    background: var(--sg-surface);
+    color: var(--sg-text-muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.voucher-state.error {
+    background: #fef2f2;
     color: var(--sg-danger);
 }
 
@@ -1241,6 +1803,18 @@ export default {
     color: #ffffff;
 }
 
+.discount-row .label,
+.discount-row .val {
+    color: #047857;
+    font-weight: 800;
+}
+
+.discount-row small {
+    color: #059669;
+    font-size: 11px;
+    font-weight: 800;
+}
+
 .deposit-row {
     margin-top: 8px;
     font-size: 14px;
@@ -1250,6 +1824,51 @@ export default {
     font-size: 16px;
     font-weight: 800;
     color: #ffffff;
+}
+
+.btn-voucher-summary {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    margin: 4px 0 12px;
+    border-radius: var(--sg-radius-sm);
+    border: 1px solid var(--sg-green-light);
+    background: var(--sg-green-pale);
+    color: var(--sg-dark);
+    text-align: left;
+    transition: var(--sg-transition);
+}
+
+.btn-voucher-summary:hover:not(:disabled) {
+    border-color: var(--sg-green);
+    box-shadow: 0 4px 14px rgba(34, 197, 94, 0.12);
+}
+
+.btn-voucher-summary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-voucher-summary span,
+.btn-voucher-summary strong {
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.btn-voucher-summary strong {
+    color: #047857;
+    white-space: nowrap;
+}
+
+.btn-voucher-summary small {
+    color: var(--sg-text-muted);
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
 }
 
 .btn-submit {
@@ -1298,6 +1917,188 @@ export default {
     margin-top: 14px;
 }
 
+.voucher-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.voucher-modal {
+    width: min(860px, 100%);
+    max-height: min(760px, calc(100vh - 36px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: var(--sg-radius);
+    background: #fff;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+}
+
+.voucher-modal-header,
+.voucher-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--sg-border);
+}
+
+.voucher-modal-header h2 {
+    margin: 0;
+    color: var(--sg-dark);
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.voucher-modal-header p,
+.voucher-modal-footer span {
+    margin: 4px 0 0;
+    color: var(--sg-text-muted);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.voucher-modal-close {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    color: var(--sg-text-muted);
+    font-size: 28px;
+    line-height: 1;
+}
+
+.voucher-modal-footer {
+    border-top: 1px solid var(--sg-border);
+    border-bottom: 0;
+}
+
+.voucher-modal-footer button {
+    min-width: 86px;
+    height: 38px;
+    border-radius: var(--sg-radius-sm);
+    background: var(--sg-green);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.voucher-table-wrap {
+    overflow: auto;
+    padding: 14px 18px 18px;
+}
+
+.voucher-table-section + .voucher-table-section {
+    margin-top: 18px;
+}
+
+.voucher-table-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.voucher-table-title strong {
+    color: var(--sg-dark);
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.voucher-table-title button {
+    color: var(--sg-green-dark);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.voucher-table-title button:disabled {
+    color: var(--sg-text-muted);
+    cursor: not-allowed;
+}
+
+.voucher-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--sg-border);
+    border-radius: var(--sg-radius-sm);
+    overflow: hidden;
+}
+
+.voucher-table th,
+.voucher-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--sg-border);
+    color: var(--sg-text);
+    font-size: 12px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.voucher-table th {
+    background: var(--sg-surface);
+    color: var(--sg-text-muted);
+    font-weight: 900;
+}
+
+.voucher-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.voucher-table tr.active td {
+    background: var(--sg-green-pale);
+}
+
+.voucher-table td span,
+.voucher-table td small {
+    display: block;
+}
+
+.voucher-table td span {
+    color: var(--sg-dark);
+    font-weight: 800;
+}
+
+.voucher-table td small {
+    margin-top: 3px;
+    color: var(--sg-text-muted);
+    font-weight: 700;
+}
+
+.voucher-table-discount {
+    color: #047857 !important;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.voucher-select-btn {
+    min-width: 76px;
+    height: 32px;
+    border-radius: var(--sg-radius-sm);
+    border: 1px solid var(--sg-green-light);
+    color: var(--sg-green-dark);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.voucher-table tr.active .voucher-select-btn {
+    background: var(--sg-green);
+    color: #fff;
+    border-color: var(--sg-green);
+}
+
+.voucher-table-empty {
+    color: var(--sg-text-muted) !important;
+    font-weight: 800;
+    text-align: center !important;
+}
+
 /* Loading state */
 .loading-state {
     display: flex;
@@ -1343,6 +2144,19 @@ export default {
     }
     .schedule-controls {
         grid-template-columns: 1fr;
+    }
+    .voucher-picker-grid {
+        grid-template-columns: 1fr;
+    }
+    .voucher-modal-backdrop {
+        align-items: flex-end;
+        padding: 10px;
+    }
+    .voucher-modal {
+        max-height: calc(100vh - 20px);
+    }
+    .voucher-table {
+        min-width: 620px;
     }
 }
 </style>

@@ -18,6 +18,12 @@ export const bookingService = {
     return api(`/api/bookings/schedule?${query}`);
   },
 
+  // Lấy voucher đủ điều kiện cho slot đang chọn
+  eligibleVouchers(params) {
+    const query = new URLSearchParams(params).toString();
+    return api(`/api/bookings/eligible-vouchers?${query}`);
+  },
+
   // Tạo đơn đặt sân mới
   createBooking(data) {
     return api('/api/bookings', {

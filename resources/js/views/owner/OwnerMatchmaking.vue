@@ -493,6 +493,7 @@ export default {
   background: var(--admin-danger-soft);
   color: var(--admin-danger-text);
   border: 1px solid var(--admin-danger);
+}
 .page-header h2 {
   font-size: 24px;
   font-weight: 850;

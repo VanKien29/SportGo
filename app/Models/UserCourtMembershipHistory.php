@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class UserCourtMembership extends Model
+class UserCourtMembershipHistory extends Model
 {
     use HasFactory, HasUuids;
 
@@ -15,17 +15,18 @@ class UserCourtMembership extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'membership_id',
         'user_id',
         'venue_cluster_id',
-        'tier',
+        'from_tier',
+        'to_tier',
+        'change_type',
+        'reason',
         'total_bookings',
         'total_spent',
         'period_bookings',
         'period_spent',
-        'period_start',
-        'last_upgraded_at',
-        'last_downgraded_at',
-        'downgrade_notified_at',
+        'changed_at',
     ];
 
     protected function casts(): array
@@ -35,25 +36,12 @@ class UserCourtMembership extends Model
             'total_spent' => 'decimal:2',
             'period_bookings' => 'integer',
             'period_spent' => 'decimal:2',
-            'period_start' => 'date',
-            'last_upgraded_at' => 'datetime',
-            'last_downgraded_at' => 'datetime',
-            'downgrade_notified_at' => 'datetime',
+            'changed_at' => 'datetime',
         ];
     }
 
-    public function user()
+    public function membership()
     {
-        return $this->belongsTo(User::class, 'user_id');
-    }
-
-    public function venueCluster()
-    {
-        return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
-    }
-
-    public function histories()
-    {
-        return $this->hasMany(UserCourtMembershipHistory::class, 'membership_id');
+        return $this->belongsTo(UserCourtMembership::class, 'membership_id');
     }
 }

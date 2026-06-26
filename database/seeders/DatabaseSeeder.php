@@ -192,6 +192,11 @@ class DatabaseSeeder extends Seeder
             'vouchers',
             'voucher_scopes',
         ]);
+        $this->callIfTablesExist(VipPackageVouchersSeeder::class, [
+            'users',
+            'vouchers',
+            'voucher_scopes',
+        ]);
         $this->callIfTablesExist(CommunityPostsTableSeeder::class, ['users', 'community_posts']);
         $this->callIfTablesExist(CommunityPostCommentsTableSeeder::class, [
             'users',

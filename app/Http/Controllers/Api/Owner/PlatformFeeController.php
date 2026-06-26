@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
+use App\Models\PlatformFeeTier;
 use App\Models\SystemBankAccount;
 use App\Models\VenueCluster;
 use App\Models\VenuePlatformFeeLedger;
@@ -10,6 +11,7 @@ use App\Services\Payments\PlatformFeePaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use RuntimeException;
 
 class PlatformFeeController extends Controller
@@ -64,6 +66,70 @@ class PlatformFeeController extends Controller
         ]);
     }
 
+    public function overview(Request $request): JsonResponse
+    {
+        $clusters = VenueCluster::query()
+            ->where('owner_id', $request->user()->id)
+            ->withCount('venueCourts')
+            ->orderBy('name')
+            ->get();
+
+        $ledgersByCluster = VenuePlatformFeeLedger::query()
+            ->with(['tier', 'systemBankAccount'])
+            ->whereIn('venue_cluster_id', $clusters->pluck('id'))
+            ->orderBy('due_date')
+            ->get()
+            ->groupBy('venue_cluster_id');
+
+        $tiers = PlatformFeeTier::query()
+            ->where('is_active', true)
+            ->where(function ($query): void {
+                $query->whereNull('effective_from')
+                    ->orWhere('effective_from', '<=', now());
+            })
+            ->orderByDesc('min_courts')
+            ->get();
+
+        $data = $clusters->map(function (VenueCluster $cluster) use ($ledgersByCluster, $tiers): array {
+            $ledgers = $ledgersByCluster->get($cluster->id, collect());
+            $unpaid = $ledgers
+                ->map(fn (VenuePlatformFeeLedger $ledger): array => $this->ledgerPayload($ledger))
+                ->filter(fn (array $ledger): bool => in_array($ledger['effective_status'], ['pending', 'overdue'], true)
+                    && $ledger['amount_remaining'] > 0)
+                ->values();
+
+            $tier = $tiers->first(fn (PlatformFeeTier $item): bool => $item->min_courts <= $cluster->venue_courts_count
+                && ($item->max_courts === null || $item->max_courts >= $cluster->venue_courts_count));
+            $monthlyAmount = $tier
+                ? round($cluster->venue_courts_count * (float) $tier->price_per_court_month, 2)
+                : 0;
+
+            return [
+                'id' => $cluster->id,
+                'name' => $cluster->name,
+                'status' => $cluster->status,
+                'court_count' => $cluster->venue_courts_count,
+                'tier_name' => $tier?->name,
+                'monthly_amount' => $monthlyAmount,
+                'estimated_amounts' => collect([1, 3, 6, 9])
+                    ->mapWithKeys(fn (int $months): array => [(string) $months => $monthlyAmount * $months]),
+                'outstanding_count' => $unpaid->count(),
+                'overdue_count' => $unpaid->where('effective_status', 'overdue')->count(),
+                'outstanding_amount' => round($unpaid->sum('amount_remaining'), 2),
+                'oldest_outstanding' => $unpaid->first(),
+                'can_prepay' => $cluster->venue_courts_count > 0 && $unpaid->isEmpty() && $tier !== null,
+                'prepay_block_reason' => match (true) {
+                    $cluster->venue_courts_count < 1 => 'Cụm sân chưa có sân con để tính phí.',
+                    $unpaid->isNotEmpty() => 'Cần thanh toán các kỳ còn thiếu trước khi trả trước.',
+                    $tier === null => 'Chưa có bậc phí phù hợp.',
+                    default => null,
+                },
+            ];
+        });
+
+        return response()->json(['data' => $data]);
+    }
+
     public function createPayment(Request $request, string $id): JsonResponse
     {
         $ledger = VenuePlatformFeeLedger::query()->findOrFail($id);
@@ -75,14 +141,32 @@ class PlatformFeeController extends Controller
             return response()->json(['message' => $exception->getMessage()], 422);
         }
 
-        return response()->json([
-            'message' => 'Đã tạo mã thanh toán phí nền tảng.',
-            'data' => $this->ledgerPayload($result['ledger']->load(['tier', 'systemBankAccount'])),
-            'payment_account' => $this->paymentAccountPayload($result['payment_account']),
-            'transfer_content' => $result['transfer_content'],
-            'amount' => $result['amount'],
-            'qr_url' => $result['qr_url'],
+        return $this->paymentResponse($result);
+    }
+
+    public function createAdvancePayment(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'venue_cluster_id' => ['required', 'uuid'],
+            'months' => ['required', 'integer', Rule::in([1, 3, 6, 9])],
         ]);
+
+        $cluster = $this->ownedCluster($request, $data['venue_cluster_id']);
+
+        try {
+            $result = $this->platformFeePayments->createAdvancePayment(
+                $cluster,
+                (int) $data['months'],
+                $request->user()->id,
+            );
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return $this->paymentResponse(
+            $result,
+            "Đã tạo mã thanh toán trước {$data['months']} tháng.",
+        );
     }
 
     private function ownedCluster(Request $request, string $clusterId): VenueCluster
@@ -148,6 +232,18 @@ class PlatformFeeController extends Controller
         $dueDate = $ledger->due_date ?? $ledger->period_end;
 
         return $dueDate && Carbon::parse($dueDate)->isBefore(today()) ? 'overdue' : 'pending';
+    }
+
+    private function paymentResponse(array $result, string $message = 'Đã tạo mã thanh toán phí nền tảng.'): JsonResponse
+    {
+        return response()->json([
+            'message' => $message,
+            'data' => $this->ledgerPayload($result['ledger']->load(['tier', 'systemBankAccount'])),
+            'payment_account' => $this->paymentAccountPayload($result['payment_account']),
+            'transfer_content' => $result['transfer_content'],
+            'amount' => $result['amount'],
+            'qr_url' => $result['qr_url'],
+        ]);
     }
 
     private function paymentAccountPayload(?SystemBankAccount $account = null): ?array

@@ -2,6 +2,7 @@
   <div class="home-container">
     <!-- Navbar with dark theme -->
     <PublicNavbar theme="dark" />
+    <VipPromptToast v-if="showVipPrompt" :duration="9000" />
     
     <!-- Ambient glowing backgrounds in white/gray -->
     <div class="glow glow-top"></div>
@@ -195,16 +196,19 @@
         </button>
       </div>
     </main>
+    <HomeBannerCarousel position="home" />
   </div>
 </template>
 
 <script>
+import HomeBannerCarousel from '../components/HomeBannerCarousel.vue';
 import PublicNavbar from '../components/PublicNavbar.vue';
+import VipPromptToast from '../components/VipPromptToast.vue';
 import { getAuth } from '../stores/auth.js';
 
 export default {
   name: 'HomeView',
-  components: { PublicNavbar },
+  components: { HomeBannerCarousel, PublicNavbar, VipPromptToast },
   data() {
     return {
       user: getAuth(),
@@ -219,7 +223,12 @@ export default {
     prevTab() {
       this.currentTab = (this.currentTab - 1 + this.totalTabs) % this.totalTabs;
     }
-  }
+  },
+  computed: {
+    showVipPrompt() {
+      return !this.user || this.user.role === 'user';
+    },
+  },
 };
 </script>
 
