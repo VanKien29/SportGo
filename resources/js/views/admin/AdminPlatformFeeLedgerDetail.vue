@@ -129,7 +129,6 @@ import {
   unlockVenueAfterPayment,
 } from '../../services/platformFeeLedger.service.js';
 import {
-  getEmailLogsByLedgerId,
   getReminderTypeForDate,
   sendPlatformFeeReminderEmail,
 } from '../../services/platformFeeReminder.service.js';
@@ -153,7 +152,7 @@ export default {
   methods: {
     async loadDetail() {
       this.ledger = await getLedgerById(this.$route.params.id);
-      this.emailLogs = await getEmailLogsByLedgerId(this.$route.params.id);
+      this.emailLogs = this.ledger?.email_logs || [];
     },
     async payFull() {
       await this.run(() => confirmLedgerPayment(this.ledger.id, { amount: this.ledger.remaining_amount }), 'Đã xác nhận thanh toán đủ.');
@@ -172,12 +171,11 @@ export default {
       await this.run(() => unlockVenueAfterPayment(this.ledger.id), 'Đã mở khóa cụm sân.');
     },
     async sendCurrentReminder() {
-      const type = getReminderTypeForDate(this.ledger, new Date());
-      if (!type) {
-        this.showMessage('Hôm nay không đúng mốc gửi email cho kỳ phí này.', 'error');
-        return;
-      }
-      await this.run(() => sendPlatformFeeReminderEmail(this.ledger, type), 'Đã xử lý email nhắc phí.');
+      const type = getReminderTypeForDate(this.ledger) || 'manual';
+      await this.run(
+        () => sendPlatformFeeReminderEmail(this.ledger, type, { force: true }),
+        'Đã gửi email nhắc phí.',
+      );
     },
     async run(action, success) {
       try {
@@ -196,6 +194,7 @@ export default {
         due_soon_7_days: 'Nhắc trước hạn 7 ngày',
         due_today: 'Nhắc đúng ngày đến hạn',
         overdue_3_days: 'Cảnh báo quá hạn 3 ngày',
+        manual: 'Nhắc thủ công',
       }[type] || type;
     },
     money(value) {

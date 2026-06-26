@@ -2,9 +2,7 @@
   <section class="admin-staff-detail">
     <div class="header-section">
       <div class="breadcrumb-nav">
-        <router-link :to="{ name: 'admin-staffs' }" class="back-link">
-          ← Quay lại danh sách nhân sự
-        </router-link>
+        <BackButton :to="{ name: 'admin-staffs' }" />
       </div>
       <div class="title-row mt-3">
         <div>
@@ -176,7 +174,12 @@
             <h3>Khóa tài khoản</h3>
             <p class="muted">Chặn quyền đăng nhập và thu hồi token hiện tại.</p>
           </div>
-          <button type="button" class="icon-btn" @click="closeLockModal">×</button>
+          <button type="button" class="icon-btn" @click="closeLockModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
         <div class="field">
@@ -248,9 +251,11 @@
 import { adminUserService } from '../../services/adminUserService.js';
 import { adminRoleService } from '../../services/adminRoles.js';
 import { getAuth } from '../../stores/auth.js';
+import BackButton from '../../components/BackButton.vue';
 
 export default {
   name: 'AdminStaffDetail',
+  components: { BackButton },
   data() {
     return {
       userId: this.$route.params.id,

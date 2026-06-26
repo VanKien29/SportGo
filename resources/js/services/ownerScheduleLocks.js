@@ -22,6 +22,13 @@ export const ownerScheduleLockService = {
     });
   },
 
+  preview(payload) {
+    return api('/api/owner/schedule-locks/preview', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   remove(id) {
     return api(`/api/owner/schedule-locks/${id}`, {
       method: 'DELETE',

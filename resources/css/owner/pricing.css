@@ -1,1 +1,643 @@
-.pricing-page{display:grid;gap:12px;max-width:1280px;color:#0f172a}.page-head,.section-head,.table-toolbar,.modal-head,.modal-actions{display:flex;align-items:center;justify-content:space-between;gap:18px}.page-head{min-height:68px;padding:14px 18px;border:1px solid #dbe5dc;border-radius:12px;background:#fff}.page-head h2,.section-head h3,.table-toolbar h3,.price-modal h3{margin:0}.page-head h2{font-size:20px}.eyebrow{margin:0 0 6px!important;color:#059669!important;font-size:11px;font-weight:900;letter-spacing:.1em}.cluster-select{min-width:280px;display:grid;gap:5px;color:#64748b;font-size:11px;font-weight:800}.cluster-select select,.filters select,.price-modal input,.price-modal select,.money-input input{width:100%;height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:0 10px;background:#fff;color:#0f172a;font:inherit}.alert{padding:12px 14px;border-radius:9px;font-weight:800}.alert-error{background:#fee2e2;color:#991b1b}.alert-success{background:#dcfce7;color:#166534}.base-price-card,.pricing-card{overflow:hidden;border:1px solid #dfe7e1;border-radius:12px;background:#fff;box-shadow:0 4px 16px rgba(15,23,42,.035)}.section-head{padding:14px 18px;border-bottom:1px solid #e5ebe6}.section-head.compact h3{font-size:14px}.btn{height:38px;border:0;border-radius:8px;padding:0 14px;font:inherit;font-size:12px;font-weight:850;cursor:pointer}.btn.primary{background:#16a34a;color:#fff}.btn.secondary{background:#f1f5f9;color:#334155}.btn:disabled{opacity:.5;cursor:not-allowed}.base-price-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.base-price-row{display:grid;grid-template-columns:minmax(130px,1fr) minmax(170px,220px) 64px;align-items:start;gap:10px;padding:11px 18px;border-bottom:1px solid #edf1ee}.base-price-row:nth-child(odd){border-right:1px solid #edf1ee}.base-price-row:nth-last-child(-n+2){border-bottom:0}.base-price-row>strong,.base-price-row>.btn{margin-top:2px}.base-price-row strong{font-size:13px}.money-input{position:relative;display:grid;gap:4px}.money-input input{height:36px;padding-right:58px;font-weight:800}.money-input input.invalid{border-color:#ef4444;background:#fff7f7}.money-input span{position:absolute;right:10px;top:18px;transform:translateY(-50%);color:#94a3b8;font-size:10px;font-weight:800}.money-input small{color:#b91c1c;font-size:10px;font-weight:750}.price-tabs{display:flex;padding:0 18px;border-bottom:1px solid #e5ebe6;background:#fbfdfb}.price-tabs button{position:relative;display:flex;align-items:center;justify-content:center;gap:7px;min-height:48px;padding:0 22px;border:0;background:transparent;color:#64748b;font:inherit;font-size:13px;font-weight:800;cursor:pointer}.price-tabs button::after{position:absolute;right:14px;bottom:-1px;left:14px;height:2px;border-radius:2px;background:transparent;content:""}.price-tabs button small{display:grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#eef2ef;color:#64748b;font-size:10px}.price-tabs button.active{color:#15803d}.price-tabs button.active::after{background:#22c55e}.price-tabs button.active small{background:#dcfce7;color:#15803d}.table-toolbar{padding:14px 18px}.table-toolbar h3{font-size:15px}.filters{display:grid;grid-template-columns:repeat(3,minmax(150px,200px));gap:10px;padding:11px 18px;border-top:1px solid #edf1ee;border-bottom:1px solid #e5ebe6;background:#f8faf8}.filters.weekly{grid-template-columns:repeat(4,minmax(140px,190px))}.filters label,.price-modal label{display:grid;gap:5px;color:#64748b;font-size:11px;font-weight:800}.filters select{height:36px}.table-wrap{overflow:auto}table{width:100%;min-width:980px;border-collapse:collapse}th,td{padding:13px 16px;border-bottom:1px solid #edf1ee;text-align:left;vertical-align:middle}th{background:#fbfdfb;color:#64748b;font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}td{color:#334155;font-size:13px}td strong,td small{display:block}td small{max-width:240px;margin-top:4px;color:#94a3b8}.time-pill{display:inline-flex;border-radius:6px;padding:5px 8px;background:#f1f5f9;color:#334155;font-size:11px;font-weight:850}.price{color:#15803d;font-weight:900}.switch{width:36px;height:20px;display:inline-flex;align-items:center;padding:2px;border:0;border-radius:999px;background:#cbd5e1;cursor:pointer}.switch span{width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .18s}.switch.on{background:#16a34a}.switch.on span{transform:translateX(16px)}.empty-state{display:flex;align-items:center;justify-content:center;gap:10px;min-height:96px;padding:24px;text-align:center;color:#94a3b8;font-size:13px}.compact-state{min-height:64px}.load-error{color:#991b1b}.modal-backdrop{position:fixed;inset:0;z-index:600;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.58)}.price-modal{width:min(620px,calc(100vw - 32px));display:grid;gap:15px;padding:22px;border-radius:14px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.25)}.modal-head button{border:0;background:transparent;color:#64748b;font-weight:800;cursor:pointer}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}.day-grid label{display:grid;place-items:center;min-height:38px;border:1px solid #cbd5e1;border-radius:8px;color:#475569;font-size:12px;font-weight:900;cursor:pointer}.day-grid input{position:absolute;opacity:0;pointer-events:none}.day-grid label.selected{border-color:#22c55e;background:#f0fdf4;color:#15803d}.active-row{display:flex!important;align-items:center;gap:9px!important}.active-row input{width:16px;height:16px}.modal-actions{justify-content:flex-end}@media(max-width:1050px){.base-price-grid{grid-template-columns:1fr}.base-price-row:nth-child(odd){border-right:0}.base-price-row:nth-last-child(-n+2){border-bottom:1px solid #edf1ee}.base-price-row:last-child{border-bottom:0}.filters,.filters.weekly{grid-template-columns:repeat(2,minmax(150px,1fr))}}@media(max-width:720px){.page-head,.table-toolbar,.modal-head{align-items:stretch;flex-direction:column}.cluster-select{min-width:0}.base-price-row,.form-grid{grid-template-columns:1fr}.price-tabs{display:grid;grid-template-columns:1fr;padding:0}.price-tabs button::after{right:25%;left:25%}.filters,.filters.weekly,.day-grid{grid-template-columns:1fr}.base-price-row .btn{width:100%}.modal-actions .btn{flex:1}}
+/* ===================================================
+   Pricing Page - Uses CSS variables for dark/light mode
+   =================================================== */
+
+.pricing-page {
+  display: grid;
+  gap: 16px;
+  max-width: 1280px;
+  color: var(--admin-text);
+}
+
+/* ---- Shared layout helpers ---- */
+.section-head,
+.table-toolbar,
+.modal-head,
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.section-head h3,
+.table-toolbar h3,
+.price-modal h3 {
+  margin: 0;
+}
+
+/* ---- Eyebrow label ---- */
+.eyebrow {
+  margin: 0 0 6px !important;
+  color: var(--admin-faint) !important;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ---- Cluster selector (inside base-price-card filters) ---- */
+.cluster-select {
+  min-width: 220px;
+  display: grid;
+  gap: 5px;
+  color: var(--admin-faint);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.cluster-select select,
+.filters select,
+.price-modal input,
+.price-modal select,
+.money-input input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
+  font-size: 13px;
+  transition: border-color 0.2s;
+}
+
+.cluster-select select:focus,
+.filters select:focus,
+.price-modal input:focus,
+.price-modal select:focus,
+.money-input input:focus {
+  outline: none;
+  border-color: var(--admin-blue);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+}
+
+/* ---- Alert banners ---- */
+.alert {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.alert-error {
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger-text);
+  border: 1px solid var(--admin-danger);
+}
+
+.alert-success {
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border);
+}
+
+/* ---- Cards ---- */
+.base-price-card,
+.pricing-card {
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-card);
+}
+
+.section-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.section-head.compact h3 {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--admin-text);
+}
+
+/* ---- Buttons (scoped to pricing-page) ---- */
+.pricing-page .btn {
+  height: 38px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.pricing-page .btn.primary {
+  background: var(--admin-primary);
+  color: var(--admin-bg);
+}
+
+.pricing-page .btn.primary:hover:not(:disabled) {
+  background: var(--admin-primary-light);
+}
+
+.pricing-page .btn.secondary {
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
+  border: 1px solid var(--admin-border);
+}
+
+.pricing-page .btn.secondary:hover:not(:disabled) {
+  background: var(--admin-hover);
+}
+
+.pricing-page .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Base price grid ---- */
+.base-price-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.base-price-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(170px, 220px) 64px;
+  align-items: start;
+  gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.base-price-row:nth-child(odd) {
+  border-right: 1px solid var(--admin-border);
+}
+
+.base-price-row:nth-last-child(-n+2) {
+  border-bottom: 0;
+}
+
+.base-price-row > strong,
+.base-price-row > .btn {
+  margin-top: 2px;
+}
+
+.base-price-row strong {
+  font-size: 13px;
+  color: var(--admin-text);
+}
+
+/* ---- Money input ---- */
+.money-input {
+  position: relative;
+  display: grid;
+  gap: 4px;
+}
+
+.money-input input {
+  height: 36px;
+  padding-right: 58px;
+  font-weight: 800;
+}
+
+.money-input input.invalid {
+  border-color: var(--admin-danger);
+  background: var(--admin-danger-soft);
+}
+
+.money-input span {
+  position: absolute;
+  right: 10px;
+  top: 18px;
+  transform: translateY(-50%);
+  color: var(--admin-faint);
+  font-size: 10px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.money-input small {
+  color: var(--admin-danger);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ---- Filter: cluster select (inside base-price-card) ---- */
+.base-price-card .filters {
+  padding: 12px 18px;
+  border-top: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+/* ---- Price tabs ---- */
+.price-tabs {
+  display: flex;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+}
+
+.price-tabs button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 0;
+  background: transparent;
+  color: var(--admin-faint);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.price-tabs button::after {
+  position: absolute;
+  right: 14px;
+  bottom: -1px;
+  left: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: transparent;
+  content: "";
+  transition: background 0.2s;
+}
+
+.price-tabs button small {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
+  font-size: 10px;
+  font-weight: 700;
+  transition: background 0.2s, color 0.2s;
+}
+
+.price-tabs button.active {
+  color: var(--admin-text);
+  font-weight: 900;
+}
+
+.price-tabs button.active::after {
+  background: var(--admin-text);
+}
+
+.price-tabs button.active small {
+  background: var(--admin-primary);
+  color: var(--admin-bg);
+}
+
+/* ---- Table toolbar ---- */
+.table-toolbar {
+  padding: 14px 18px;
+}
+
+.table-toolbar h3 {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--admin-text);
+}
+
+/* ---- Filters bar ---- */
+.pricing-card .filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 200px));
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--admin-border);
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
+}
+
+.pricing-card .filters.weekly {
+  grid-template-columns: repeat(4, minmax(140px, 190px));
+}
+
+.filters label,
+.price-modal label {
+  display: grid;
+  gap: 5px;
+  color: var(--admin-faint);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.filters select {
+  height: 36px;
+}
+
+/* ---- Table ---- */
+.table-wrap {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--admin-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+td {
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+tbody tr:hover {
+  background: var(--admin-hover);
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+td strong,
+td small {
+  display: block;
+}
+
+td small {
+  max-width: 240px;
+  margin-top: 4px;
+  color: var(--admin-faint);
+}
+
+/* ---- Time pill ---- */
+.time-pill {
+  display: inline-flex;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: var(--admin-primary-soft);
+  color: var(--admin-text);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+/* ---- Price cell ---- */
+.price {
+  color: var(--admin-text);
+  font-weight: 900;
+}
+
+/* ---- Toggle switch ---- */
+.switch {
+  width: 36px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--admin-border);
+  cursor: pointer;
+  transition: background 0.22s;
+}
+
+.switch span {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--admin-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.switch.on {
+  background: var(--admin-primary);
+}
+
+.switch.on span {
+  transform: translateX(16px);
+}
+
+/* ---- Empty / loading states ---- */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 96px;
+  padding: 24px;
+  text-align: center;
+  color: var(--admin-faint);
+  font-size: 13px;
+  flex-direction: column;
+}
+
+.compact-state {
+  min-height: 64px;
+}
+
+.load-error {
+  color: var(--admin-danger);
+}
+
+/* ---- Modal ---- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+.price-modal {
+  width: min(620px, calc(100vw - 32px));
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 14px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow-lg);
+}
+
+.modal-head {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.modal-head button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.modal-head button:hover {
+  background: var(--admin-hover);
+  color: var(--admin-text);
+}
+
+/* ---- Form grid ---- */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* ---- Day selector grid ---- */
+.day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.day-grid label {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  color: var(--admin-faint);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+
+.day-grid label:hover {
+  border-color: var(--admin-text);
+  color: var(--admin-text);
+}
+
+.day-grid input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.day-grid label.selected {
+  border-color: var(--admin-primary);
+  background: var(--admin-primary-soft);
+  color: var(--admin-text);
+  font-weight: 900;
+}
+
+/* ---- Active row (checkbox row) ---- */
+.active-row {
+  display: flex !important;
+  align-items: center;
+  gap: 9px !important;
+}
+
+.active-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--admin-primary);
+}
+
+/* ---- Modal actions ---- */
+.modal-actions {
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--admin-border);
+}
+
+/* ====== RESPONSIVE ====== */
+@media (max-width: 1050px) {
+  .base-price-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .base-price-row:nth-child(odd) {
+    border-right: 0;
+  }
+
+  .base-price-row:nth-last-child(-n+2) {
+    border-bottom: 1px solid var(--admin-border);
+  }
+
+  .base-price-row:last-child {
+    border-bottom: 0;
+  }
+
+  .pricing-card .filters,
+  .pricing-card .filters.weekly {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .table-toolbar,
+  .modal-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cluster-select {
+    min-width: 0;
+  }
+
+  .base-price-row,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .price-tabs {
+    display: grid;
+    grid-template-columns: 1fr;
+    padding: 0;
+  }
+
+  .price-tabs button::after {
+    right: 25%;
+    left: 25%;
+  }
+
+  .pricing-card .filters,
+  .pricing-card .filters.weekly,
+  .day-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .base-price-row .btn {
+    width: 100%;
+  }
+
+  .modal-actions .btn {
+    flex: 1;
+  }
+}

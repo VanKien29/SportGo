@@ -313,9 +313,20 @@ export default {
       return style;
     },
     labelContainerStyle() {
-      return {
+      const style = {
         transform: `translate(-50%, -50%) rotate(${-this.rotation}deg)`
       };
+      if (this.width && this.height) {
+        const avg = (this.width + this.height) / 2;
+        // Dùng căn bậc hai để giảm bớt tốc độ phóng to chữ, giúp nhãn hài hòa hơn
+        const scale = Math.sqrt(avg / 95);
+        const clampedScale = Math.max(0.6, Math.min(scale, 3.0));
+        style.fontSize = `${11 * clampedScale}px`;
+        style.padding = `${5 * clampedScale}px ${8 * clampedScale}px`;
+        style.borderRadius = `${5 * clampedScale}px`;
+        style.borderWidth = `${1.2 * clampedScale}px`;
+      }
+      return style;
     },
     statusClass() {
       return `status-${this.status}`;
@@ -445,19 +456,20 @@ export default {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
   max-width: 90%;
   white-space: nowrap;
+  font-size: 11px;
 }
 
 .court-name-text {
-  font-size: 11px;
+  font-size: 1em;
   font-weight: 900;
   letter-spacing: -0.01em;
   text-transform: uppercase;
 }
 
 .court-type-text {
-  font-size: 8px;
+  font-size: 0.73em;
   font-weight: 700;
   opacity: 0.8;
-  margin-top: 1px;
+  margin-top: 0.1em;
 }
 </style>

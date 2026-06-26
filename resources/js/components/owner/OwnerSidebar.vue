@@ -11,16 +11,27 @@
     <div class="owner-cluster-card">
       <span>Cụm sân đang quản lý</span>
       <strong v-if="clusters.length <= 1">{{ selectedCluster?.name || 'Chưa có cụm sân' }}</strong>
-      <select
-        v-else
-        :value="selectedClusterId"
-        :disabled="clusterLoading"
-        @change="$emit('cluster-change', $event.target.value)"
-      >
-        <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">
-          {{ cluster.name }}
-        </option>
-      </select>
+      <div v-else class="custom-select-wrapper">
+        <div
+          class="custom-select-trigger"
+          :class="{ active: isOpen }"
+          @click.stop="toggleDropdown"
+        >
+          <span class="selected-text">{{ selectedClusterName }}</span>
+          <span class="arrow" :class="{ open: isOpen }">▼</span>
+        </div>
+        <div v-if="isOpen" class="custom-options-container">
+          <div
+            v-for="cluster in clusters"
+            :key="cluster.id"
+            class="custom-option"
+            :class="{ selected: String(selectedClusterId) === String(cluster.id) }"
+            @click="selectCluster(cluster.id)"
+          >
+            {{ cluster.name }}
+          </div>
+        </div>
+      </div>
       <p v-if="selectedCluster?.status === 'locked'">
         Cụm sân đang bị khóa. Một số thao tác có thể bị chặn.
       </p>
@@ -76,6 +87,17 @@ export default {
     clusterLoading: { type: Boolean, default: false },
   },
   emits: ['cluster-change', 'navigate'],
+  data() {
+    return {
+      isOpen: false,
+    };
+  },
+  mounted() {
+    document.addEventListener('click', this.handleOutsideClick);
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.handleOutsideClick);
+  },
   computed: {
     user() {
       return getAuth() || {};
@@ -89,10 +111,27 @@ export default {
     roleLabel() {
       return 'Chủ sân';
     },
+    selectedClusterName() {
+      const cluster = this.clusters.find(c => String(c.id) === String(this.selectedClusterId));
+      return cluster ? cluster.name : 'Chọn cụm sân';
+    },
   },
   methods: {
     isActive(item) {
       return item.activeNames?.includes(this.activeRouteName);
+    },
+    toggleDropdown() {
+      if (this.clusterLoading) return;
+      this.isOpen = !this.isOpen;
+    },
+    selectCluster(clusterId) {
+      this.$emit('cluster-change', clusterId);
+      this.isOpen = false;
+    },
+    handleOutsideClick(e) {
+      if (this.isOpen && !this.$el.querySelector('.custom-select-wrapper')?.contains(e.target)) {
+        this.isOpen = false;
+      }
     },
   },
 };
@@ -124,17 +163,81 @@ export default {
   font-weight: 800;
 }
 
-.owner-cluster-card select {
+.custom-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
   min-height: 38px;
   width: 100%;
   border: 1px solid #b9cbbb;
   border-radius: var(--admin-radius);
   background: #fff;
   color: var(--admin-text);
-  font: inherit;
   font-size: 13px;
   font-weight: 700;
-  padding: 8px 10px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.custom-select-trigger:hover {
+  border-color: var(--admin-primary, #10b981);
+}
+
+.custom-select-trigger.active {
+  border-color: var(--admin-primary, #10b981);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.custom-select-trigger .arrow {
+  font-size: 8px;
+  color: var(--admin-faint);
+  transition: transform 0.2s;
+}
+
+.custom-select-trigger .arrow.open {
+  transform: rotate(180deg);
+}
+
+.custom-options-container {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.custom-option {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-text);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  text-align: left;
+}
+
+.custom-option:hover {
+  background: var(--admin-surface, #f1f5f9);
+}
+
+.custom-option.selected {
+  background: var(--admin-primary-faint, rgba(16, 185, 129, 0.08));
+  color: var(--admin-primary, #10b981);
+  font-weight: 700;
 }
 
 .owner-cluster-card p {

@@ -9,7 +9,7 @@ export const ownerNavigationSections = [
         activeNames: ['owner-dashboard'],
       },
       {
-        label: 'Hồ sơ & Hợp đồng',
+        label: 'Hồ sơ đối tác',
         icon: 'fileText',
         to: '/owner/partner-profile',
         activeNames: ['owner-partner-profile'],
@@ -102,6 +102,12 @@ export const ownerNavigationSections = [
         to: '/owner/posts',
         activeNames: ['owner-posts'],
       },
+      {
+        label: 'Tiếp thị liên kết',
+        icon: 'share',
+        to: '/owner/affiliate',
+        activeNames: ['owner-affiliate'],
+      },
     ],
   },
   {
@@ -120,7 +126,7 @@ export const ownerNavigationSections = [
 
 export const ownerRouteTitles = {
   'owner-dashboard': 'Bảng điều hành',
-  'owner-partner-profile': 'Hồ sơ & Hợp đồng',
+  'owner-partner-profile': 'Hồ sơ đối tác',
   'owner-profile': 'Thông tin cá nhân',
   'owner-venue-clusters': 'Quản lý cụm sân',
   'owner-venue-courts': 'Quản lý sân con',
@@ -137,6 +143,7 @@ export const ownerRouteTitles = {
   'owner-policies': 'Chính sách sân',
   'owner-posts': 'Bài đăng & Thông báo',
   'owner-matchmaking': 'Giao lưu tại sân',
+  'owner-affiliate': 'Tiếp thị liên kết',
 };
 
 export const ownerRouteSectionLabels = {

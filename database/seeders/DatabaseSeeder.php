@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
         $this->callIfTablesExist(RolePermissionsTableSeeder::class, ['roles', 'permissions', 'role_permissions']);
         $this->callIfTablesExist(UsersTableSeeder::class, ['users']);
         $this->callIfTablesExist(UserRolesTableSeeder::class, ['users', 'roles', 'user_roles']);
+        $this->callIfTablesExist(AdministrativeUnitsSeeder::class, ['administrative_units']);
 
         $this->callIfTablesExist(CourtTypesTableSeeder::class, ['court_types']);
         $this->callIfTablesExist(VenueClustersTableSeeder::class, ['users', 'venue_clusters']);
@@ -36,6 +37,7 @@ class DatabaseSeeder extends Seeder
         $this->callIfTablesExist(HolidayPricesTableSeeder::class, ['court_types', 'venue_clusters', 'holiday_prices']);
         $this->callIfTablesExist(PlatformFeeTiersTableSeeder::class, ['platform_fee_tiers']);
         $this->callIfTablesExist(SystemBankAccountSeeder::class, ['system_bank_accounts']);
+        $this->callIfTablesExist(MembershipPackagesSeeder::class, ['membership_packages']);
 
         $this->callIfTablesExist(SystemPoliciesTableSeeder::class, ['users', 'system_policies']);
         $this->callIfTablesExist(ViolationTypesSeeder::class, ['violation_types']);
@@ -155,6 +157,12 @@ class DatabaseSeeder extends Seeder
         $this->callIfTablesExist(PaymentLogsTableSeeder::class, ['payments', 'payment_logs']);
         $this->callIfTablesExist(RefundsTableSeeder::class, ['payments', 'refunds']);
         $this->callIfTablesExist(RefundStatusHistoriesTableSeeder::class, ['refunds', 'refund_status_histories']);
+        $this->callIfTablesExist(SlotLocksTableSeeder::class, [
+            'slot_locks',
+            'bookings',
+            'booking_items',
+            'venue_courts',
+        ]);
         $this->callIfTablesExist(OwnerWithdrawalRequestsTableSeeder::class, [
             'owner_wallets',
             'owner_bank_accounts',
@@ -184,6 +192,11 @@ class DatabaseSeeder extends Seeder
             'vouchers',
             'voucher_scopes',
         ]);
+        $this->callIfTablesExist(VipPackageVouchersSeeder::class, [
+            'users',
+            'vouchers',
+            'voucher_scopes',
+        ]);
         $this->callIfTablesExist(CommunityPostsTableSeeder::class, ['users', 'community_posts']);
         $this->callIfTablesExist(CommunityPostCommentsTableSeeder::class, [
             'users',
@@ -197,6 +210,17 @@ class DatabaseSeeder extends Seeder
         $this->callIfTablesExist(MediaTableSeeder::class, ['media']);
         $this->callIfTablesExist(AuditLogsTableSeeder::class, ['audit_logs']);
         $this->callIfTablesExist(NotificationsTableSeeder::class, ['users', 'notifications']);
+
+        $this->callIfTablesExist(BookingFinanceTestDataSeeder::class, [
+            'users',
+            'venue_clusters',
+            'venue_courts',
+            'bookings',
+            'booking_items',
+            'payments',
+            'refunds',
+            'slot_locks',
+        ]);
     }
 
     private function callIfTablesExist(string $seeder, array $tables): void

@@ -1564,12 +1564,12 @@ export default {
   white-space: nowrap; transition: background 0.15s, color 0.15s;
 }
 .tab-btn:hover { background: #fff; color: #0f172a; }
-.tab-btn.active { background: #fff; color: #16a34a; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.tab-btn.active { background: #fff; color: var(--admin-primary); font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 .tab-count {
   background: #e2e8f0; color: #475569;
   border-radius: 999px; padding: 1px 6px; font-size: 11px;
 }
-.tab-btn.active .tab-count { background: #dcfce7; color: #15803d; }
+.tab-btn.active .tab-count { background: var(--admin-primary-soft); color: var(--admin-primary); }
 
 /* ── Tab body ── */
 .tab-body {
@@ -1927,8 +1927,8 @@ export default {
 .config-edit-grid select:focus,
 .config-edit-grid textarea:focus {
   outline: none;
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
 }
 .config-edit-grid .wide-field { grid-column: span 2; }
 .check-row,

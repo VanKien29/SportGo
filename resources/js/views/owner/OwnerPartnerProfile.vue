@@ -1,255 +1,174 @@
 <template>
   <div class="owner-profile-page">
-    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <header class="page-header">
       <div>
-        <h2>Hồ sơ đối tác & Hợp đồng</h2>
-        <p class="muted">Thông tin đăng ký trở thành đối tác và các hợp đồng của bạn.</p>
+        <h2>Hồ sơ đối tác của tôi</h2>
+        <p class="muted">Theo dõi hồ sơ đăng ký, hợp đồng, yêu cầu chấm dứt và quyết toán.</p>
       </div>
-      <button class="btn primary" @click="openNewClusterModal()">
-        <AppIcon name="plus" size="16" /> Đăng ký Cụm sân mới
-      </button>
-    </div>
+      <button class="icon-btn" type="button" title="Làm mới" @click="fetchData"><AppIcon name="refresh" size="16" /></button>
+    </header>
 
     <div v-if="loading" class="state-box card">
       <div class="spinner"></div>
-      <p>Đang tải thông tin...</p>
+      <p>Đang tải hồ sơ...</p>
     </div>
 
-    <div v-else-if="error" class="state-box card">
-      <div class="notice error">{{ error }}</div>
+    <div v-else-if="error" class="notice error">{{ error }}</div>
+
+    <div v-else-if="applications.length === 0" class="state-box card">
+      <p>Bạn chưa có hồ sơ đăng ký đối tác nào.</p>
     </div>
 
-    <div v-else-if="applications.length > 0" class="applications-container">
-
-      <div v-for="(app, index) in applications" :key="app.id" class="application-details" style="margin-bottom: 40px;">
-        <div style="margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-          <h2 style="margin: 0;">Cụm sân: {{ app.venue_name }}</h2>
-          <button
-            v-if="canRequestExpansion(app)"
-            class="btn ghost"
-            type="button"
-            @click="openNewClusterModal(app)"
-          >
-            <AppIcon name="plus" size="16" /> Yêu cầu mở rộng
-          </button>
-        </div>
-        
-        <!-- Trạng thái chung -->
-        <div class="card status-card">
-          <div class="status-header">
-            <h3>Trạng thái hồ sơ</h3>
-            <span class="status-badge" :class="`status-${app.status}`">
-              {{ statusLabel(app.status) }}
-            </span>
-          </div>
-          <div class="muted" style="display: flex; gap: 16px; flex-wrap: wrap;">
-            <span>Ngày gửi: {{ formatDate(app.submitted_at || app.created_at) }}</span>
-            <span v-if="app.reviewed_at">Ngày duyệt: {{ formatDate(app.reviewed_at) }}</span>
-          </div>
-          <p v-if="app.status === 'rejected'" class="error-text">
-            <strong>Lý do từ chối:</strong> {{ app.status_reason }}
-          </p>
-          <p v-else-if="app.status === 'pending' || app.status === 'reviewing'" class="muted">
-            Hồ sơ đang được ban quản trị xem xét. Vui lòng chờ phản hồi.
-          </p>
-        </div>
-
-      <!-- Hợp đồng -->
-      <div class="card section-card" v-if="app.contracts && app.contracts.length > 0">
-        <h3>Hợp đồng của cụm sân này</h3>
-        <div class="contracts-list">
-          <div v-for="contract in app.contracts" :key="contract.id" class="contract-item">
-            <div class="contract-info">
-              <AppIcon name="fileText" size="24" class="contract-icon" />
-              <div>
-                <strong>{{ contract.contract_number }}</strong>
-                <span class="status-badge" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
-                <div v-if="contract.owner_signed_at || contract.sportgo_signed_at" class="muted small" style="margin-top: 4px; font-size: 0.85em; color: #64748b;">
-                  <div v-if="contract.owner_signed_at">Ngày đối tác ký: {{ formatDate(contract.owner_signed_at) }}</div>
-                  <div v-if="contract.sportgo_signed_at">Ngày SportGo ký: {{ formatDate(contract.sportgo_signed_at) }}</div>
-                </div>
-              </div>
-            </div>
-            <div class="contract-actions">
-              <button v-if="contract.generated_file_path" @click="viewFile(contract.generated_file_path)" type="button" class="btn ghost">
-                <AppIcon name="eye" size="16" /> Xem Hợp đồng
-              </button>
-                <button 
-                  v-if="contract.status === 'pending_owner_signature'" 
-                  class="btn primary" 
-                  @click="signContract(contract.id)"
-                  :disabled="signing"
-                >
-                  <AppIcon name="edit2" size="16" /> {{ signing ? 'Đang xử lý...' : 'Ký Hợp đồng' }}
-                </button>
-                <button 
-                  v-if="contract.status === 'signed_active' && !hasPendingTermination(contract)" 
-                  class="btn danger" 
-                  @click="requestTermination(contract.id)"
-                  :disabled="terminating"
-                >
-                  <AppIcon name="xCircle" size="16" /> {{ terminating ? 'Đang gửi...' : 'Yêu cầu kết thúc' }}
-                </button>
-                <span v-if="hasPendingTermination(contract)" class="status-badge status-reviewing">
-                  Đang chờ duyệt kết thúc
-                </span>
-            </div>
-          </div>
-        </div>
+    <template v-else>
+      <div v-if="applications.length > 1" class="card selector">
+        <label class="field">
+          <span>Cụm sân</span>
+          <select v-model="activeApplicationId">
+            <option v-for="application in applications" :key="application.id" :value="application.id">
+              {{ application.venue_name }} - {{ statusLabel(application.status) }}
+            </option>
+          </select>
+        </label>
       </div>
 
-      <!-- Termination Modal -->
-      <div v-if="terminationModal.open" class="modal-backdrop" @click.self="closeTerminationModal">
-        <div class="modal-content" style="max-width: 500px;">
-          <div class="modal-header">
-            <h3>Yêu cầu thanh lý hợp đồng</h3>
-            <button class="close-btn" @click="closeTerminationModal">
-              <AppIcon name="x" size="20" />
+      <div class="card summary">
+        <div>
+          <h3>{{ activeApplication.venue_name }}</h3>
+          <p class="muted">{{ activeApplication.business_name }}</p>
+        </div>
+        <span class="status" :class="`status-${activeApplication.status}`">{{ statusLabel(activeApplication.status) }}</span>
+      </div>
+
+      <div class="tabs">
+        <button v-for="tab in tabs" :key="tab.value" class="tab-btn" :class="{ active: activeTab === tab.value }" type="button" @click="activeTab = tab.value">
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <section v-if="activeTab === 'application'" class="card section-card">
+        <h3>Hồ sơ đăng ký</h3>
+        <div class="info-grid">
+          <div class="info-item"><span class="label">Tên cụm sân</span><span>{{ activeApplication.venue_name }}</span></div>
+          <div class="info-item"><span class="label">Ngày nộp</span><span>{{ formatDate(activeApplication.submitted_at) }}</span></div>
+          <div class="info-item full"><span class="label">Địa chỉ</span><span>{{ activeApplication.venue_address }}</span></div>
+          <div v-if="activeApplication.status === 'rejected'" class="rejection full">
+            <strong>Lý do từ chối:</strong> {{ activeApplication.status_reason || 'Chưa có lý do.' }}
+          </div>
+        </div>
+        <div class="timeline">
+          <div v-for="item in activeApplication.status_histories || []" :key="`${item.new_status}-${item.created_at}`" class="timeline-item">
+            <span class="dot"></span>
+            <div>
+              <strong>{{ statusLabel(item.new_status) }}</strong>
+              <p>{{ formatDate(item.created_at) }} · {{ item.reason || '-' }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="activeTab === 'documents'" class="card section-card">
+        <h3>Hợp đồng & văn bản</h3>
+        <div class="doc-list">
+          <div v-for="document in activeDocuments" :key="document.id" class="doc-row">
+            <div>
+              <strong>{{ document.title || documentTypeLabel(document.document_type) }}</strong>
+              <p class="muted">{{ document.document_code }} · {{ documentStatusLabel(document.status) }}</p>
+              <p class="muted">{{ signatureSummary(document.signatures) }}</p>
+            </div>
+            <button class="btn ghost small" type="button" @click="downloadDocument(document.id)">
+              <AppIcon name="download" size="15" /> Tải xuống
             </button>
           </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label>Lý do thanh lý</label>
-              <textarea 
-                v-model="terminationModal.reason" 
-                class="input" 
-                rows="4" 
-                placeholder="Nhập lý do thanh lý hợp đồng..."
-              ></textarea>
-            </div>
-            <div class="modal-footer">
-              <button class="btn ghost" @click="closeTerminationModal">Hủy</button>
-              <button class="btn danger" @click="submitTermination" :disabled="terminating">
-                {{ terminating ? 'Đang gửi...' : 'Gửi yêu cầu' }}
-              </button>
-            </div>
-          </div>
+          <p v-if="activeDocuments.length === 0" class="muted">Chưa có văn bản nào.</p>
         </div>
-      </div>
+        <button v-if="pendingOwnerContract" class="btn primary" type="button" @click="openSignContract">
+          <AppIcon name="edit2" size="16" /> Ký điện tử hợp đồng
+        </button>
+      </section>
 
-      <!-- New Cluster Modal -->
-      <div v-if="newClusterModal.open" class="modal-backdrop" @click.self="closeNewClusterModal">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Đăng ký Cụm sân mới</h3>
-            <button class="close-btn" @click="closeNewClusterModal">
-              <AppIcon name="x" size="20" />
-            </button>
-          </div>
-          <form class="modal-body" @submit.prevent="submitNewCluster">
-            <p class="muted" style="margin-bottom: 16px;">Thông tin pháp lý và kinh doanh sẽ được tự động lấy từ hồ sơ hiện tại của bạn.</p>
-            <div class="form-group">
-              <label>Tên cụm sân</label>
-              <input v-model="newClusterForm.venue_name" class="input" required />
-            </div>
-            <div class="form-group">
-              <label>Địa chỉ chi tiết</label>
-              <input v-model="newClusterForm.venue_address" class="input" required />
-            </div>
-            <div class="form-grid">
-              <div class="form-group">
-                <label>Tỉnh/Thành phố</label>
-                <input v-model="newClusterForm.venue_province" class="input" required />
-              </div>
-              <div class="form-group">
-                <label>Quận/Huyện</label>
-                <input v-model="newClusterForm.venue_district" class="input" required />
-              </div>
-              <div class="form-group">
-                <label>Phường/Xã</label>
-                <input v-model="newClusterForm.venue_ward" class="input" required />
-              </div>
-              <div class="form-group">
-                <label>Số lượng sân dự kiến</label>
-                <input type="number" v-model="newClusterForm.court_count_total" class="input" required min="1" />
-              </div>
-              <div class="form-group">
-                <label>Tọa độ Latitude</label>
-                <input type="number" step="any" v-model="newClusterForm.venue_latitude" class="input" required />
-              </div>
-              <div class="form-group">
-                <label>Tọa độ Longitude</label>
-                <input type="number" step="any" v-model="newClusterForm.venue_longitude" class="input" required />
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Link Google Maps</label>
-              <input type="url" v-model="newClusterForm.venue_map_url" class="input" />
-            </div>
-            <div class="form-group">
-              <label>Số điện thoại liên hệ cụm sân</label>
-              <input v-model="newClusterForm.venue_phone" class="input" />
-            </div>
-            <div class="form-group">
-              <label>Mô tả dịch vụ</label>
-              <textarea v-model="newClusterForm.venue_description" class="input" rows="3"></textarea>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn ghost" @click="closeNewClusterModal">Hủy</button>
-              <button type="submit" class="btn primary" :disabled="submittingCluster">
-                {{ submittingCluster ? 'Đang gửi...' : 'Gửi yêu cầu mở rộng' }}
-              </button>
-            </div>
-          </form>
+      <section v-if="activeTab === 'termination'" class="card section-card">
+        <h3>Yêu cầu chấm dứt</h3>
+        <button v-if="activeContract && !pendingTermination" class="btn danger" type="button" @click="openTermination">
+          Gửi yêu cầu chấm dứt hợp tác
+        </button>
+        <div v-if="pendingTermination" class="notice warning">
+          Yêu cầu chấm dứt đang được xử lý: {{ pendingTermination.reason }}
         </div>
-      </div>
+        <div class="doc-list">
+          <div v-for="request in activeApplication.termination_requests || []" :key="request.id" class="doc-row">
+            <div>
+              <strong>{{ request.termination_code }}</strong>
+              <p class="muted">{{ terminationStatusLabel(request.status) }} · {{ request.reason }}</p>
+              <p class="muted">Thu hồi quyền: {{ formatDate(request.transition_end_at) }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <!-- Thông tin kinh doanh -->
-      <div class="card section-card">
-        <h3>Thông tin đơn vị</h3>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="label">Tên đơn vị kinh doanh</span>
-            <span class="value">{{ app.business_name }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Mã số thuế</span>
-            <span class="value">{{ app.tax_code || 'Không có' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Tên cụm sân</span>
-            <span class="value">{{ app.venue_name }}</span>
-          </div>
-          <div class="info-item full">
-            <span class="label">Địa chỉ</span>
-            <span class="value">{{ app.venue_address }}</span>
+      <section v-if="activeTab === 'settlement'" class="card section-card">
+        <h3>Quyết toán</h3>
+        <div v-for="request in settledRequests" :key="request.id" class="settlement-box">
+          <div class="info-grid">
+            <div class="info-item"><span class="label">Mã yêu cầu</span><span>{{ request.termination_code }}</span></div>
+            <div class="info-item"><span class="label">Ngày thu hồi quyền</span><span>{{ formatDate(request.transition_end_at) }}</span></div>
+            <div class="info-item"><span class="label">Hoàn phí nền tảng</span><span>{{ money(request.settlement?.platform_fee_remaining_refund_amount) }}</span></div>
+            <div class="info-item"><span class="label">Trạng thái</span><span>{{ terminationStatusLabel(request.status) }}</span></div>
           </div>
         </div>
-      </div>
+        <p v-if="settledRequests.length === 0" class="muted">Chưa có quyết toán.</p>
+      </section>
+    </template>
 
-      <!-- Tài khoản ngân hàng -->
-      <div class="card section-card" v-if="app.bank_accounts && app.bank_accounts.length > 0">
-        <h3>Tài khoản nhận tiền</h3>
-        <div class="info-grid">
-          <div v-for="account in app.bank_accounts" :key="account.id" class="info-item full account-box">
-            <div class="account-details">
-              <strong>{{ account.bank_name }}</strong>
-              <span class="muted">{{ account.account_number }} - {{ account.account_holder_name }}</span>
-            </div>
-            <span v-if="account.is_default" class="badge">Mặc định</span>
+    <div v-if="signModal.open" class="modal-backdrop" @click.self="closeSignContract">
+      <form class="modal" @submit.prevent="submitSignContract">
+        <div class="modal-header">
+          <h3>Ký hợp đồng hợp tác</h3>
+          <button class="icon-btn" type="button" @click="closeSignContract"><AppIcon name="x" size="18" /></button>
+        </div>
+        <div class="modal-body">
+          <div class="contract-preview">
+            {{ pendingOwnerContract?.contract_title || 'Hợp đồng hợp tác đối tác SportGo' }}
           </div>
+          <canvas ref="signatureCanvas" class="signature-pad" width="620" height="190" @pointerdown="startDraw" @pointermove="draw" @pointerup="stopDraw" @pointerleave="stopDraw"></canvas>
+          <button class="btn ghost small" type="button" @click="clearSignature">Xóa chữ ký</button>
+          <label class="check-line">
+            <input v-model="signModal.accepted" type="checkbox" />
+            <span>Tôi đã đọc và đồng ý với toàn bộ nội dung hợp đồng</span>
+          </label>
         </div>
-      </div>
+        <div class="modal-footer">
+          <button class="btn ghost" type="button" @click="closeSignContract">Hủy</button>
+          <button class="btn primary" type="submit" :disabled="saving || !signModal.accepted">Xác nhận ký</button>
+        </div>
+      </form>
+    </div>
 
-      <!-- Tài liệu đính kèm -->
-      <div class="card section-card" v-if="app.documents && app.documents.length > 0">
-        <h3>Tài liệu đính kèm</h3>
-        <div class="docs-list">
-          <button v-for="doc in app.documents" :key="doc.id" @click="viewFile(doc.file_path)" type="button" class="doc-item">
-            <AppIcon name="paperclip" size="18" />
-            <span>{{ documentTypeLabel(doc.type) }}</span>
-          </button>
+    <div v-if="terminationModal.open" class="modal-backdrop" @click.self="closeTermination">
+      <form class="modal small" @submit.prevent="submitTermination">
+        <div class="modal-header">
+          <h3>Gửi yêu cầu chấm dứt</h3>
+          <button class="icon-btn" type="button" @click="closeTermination"><AppIcon name="x" size="18" /></button>
         </div>
-      </div>
-      
-      </div>
+        <div class="modal-body">
+          <label class="field">
+            <span>Lý do chấm dứt</span>
+            <textarea v-model.trim="terminationForm.reason" rows="5" required></textarea>
+          </label>
+          <canvas ref="terminationCanvas" class="signature-pad" width="620" height="190" @pointerdown="startDraw" @pointermove="draw" @pointerup="stopDraw" @pointerleave="stopDraw"></canvas>
+          <button class="btn ghost small" type="button" @click="clearSignature">Xóa chữ ký</button>
+        </div>
+        <div class="modal-footer">
+          <button class="btn ghost" type="button" @click="closeTermination">Hủy</button>
+          <button class="btn danger" type="submit" :disabled="saving">Gửi yêu cầu</button>
+        </div>
+      </form>
     </div>
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
-import { api } from '../../services/api.js';
+import { api, apiDownload } from '../../services/api.js';
 
 export default {
   name: 'OwnerPartnerProfile',
@@ -257,249 +176,218 @@ export default {
   data() {
     return {
       applications: [],
+      documents: [],
+      activeApplicationId: '',
+      activeTab: 'application',
       loading: true,
+      saving: false,
+      drawing: false,
       error: '',
-      signing: false,
-      terminating: false,
-      terminationModal: { open: false, contractId: null, reason: '' },
-      newClusterModal: { open: false },
-      submittingCluster: false,
-      newClusterForm: {
-        venue_name: '',
-        venue_address: '',
-        venue_province: '',
-        venue_district: '',
-        venue_ward: '',
-        court_count_total: 1,
-        venue_latitude: '',
-        venue_longitude: '',
-        venue_map_url: '',
-        venue_phone: '',
-        venue_description: '',
-      }
+      tabs: [
+        { value: 'application', label: 'Hồ sơ đăng ký' },
+        { value: 'documents', label: 'Hợp đồng & văn bản' },
+        { value: 'termination', label: 'Yêu cầu chấm dứt' },
+        { value: 'settlement', label: 'Quyết toán' },
+      ],
+      signModal: { open: false, accepted: false },
+      terminationModal: { open: false },
+      terminationForm: { reason: '' },
     };
   },
+  computed: {
+    activeApplication() {
+      return this.applications.find((item) => item.id === this.activeApplicationId) || this.applications[0] || {};
+    },
+    activeDocuments() {
+      return this.documents.filter((document) => document.partner_application_id === this.activeApplication.id);
+    },
+    pendingOwnerContract() {
+      return this.activeApplication.contracts?.find((contract) => contract.status === 'pending_owner_signature') || null;
+    },
+    activeContract() {
+      return this.activeApplication.contracts?.find((contract) => contract.status === 'signed_active') || null;
+    },
+    pendingTermination() {
+      return this.activeApplication.termination_requests?.find((request) => ['submitted', 'reviewing', 'transition_period'].includes(request.status)) || null;
+    },
+    settledRequests() {
+      return (this.activeApplication.termination_requests || []).filter((request) => request.settlement);
+    },
+  },
   mounted() {
-    this.fetchApplications();
+    this.fetchData();
   },
   methods: {
-    async fetchApplications() {
+    async fetchData() {
       this.loading = true;
+      this.error = '';
       try {
-        const response = await api('/api/owner/partner-applications');
-        this.applications = response.data || [];
-        if (this.applications.length === 0) {
-          this.error = 'Bạn chưa có hồ sơ đăng ký đối tác nào.';
-        }
+        const [applicationsResponse, documentsResponse] = await Promise.all([
+          api('/api/owner/partner-applications'),
+          api('/api/owner/my-partner-profile/documents'),
+        ]);
+        this.applications = applicationsResponse.data || [];
+        this.documents = documentsResponse.data || [];
+        this.activeApplicationId = this.activeApplicationId || this.applications[0]?.id || '';
       } catch (err) {
-        this.error = err.message || 'Không thể tải thông tin hồ sơ.';
+        this.error = err.message || 'Không thể tải hồ sơ đối tác.';
       } finally {
         this.loading = false;
       }
     },
-    canRequestExpansion(app) {
-      return ['approved', 'completed'].includes(app?.status) || Boolean(app?.approved_venue_cluster_id);
+    openSignContract() {
+      this.signModal = { open: true, accepted: false };
+      this.$nextTick(() => this.prepareCanvas(this.$refs.signatureCanvas));
     },
-    openNewClusterModal(baseApplication = null) {
-      this.newClusterForm = {
-        venue_name: '',
-        venue_address: baseApplication?.venue_address || '',
-        venue_province: baseApplication?.venue_province || '',
-        venue_district: baseApplication?.venue_district || '',
-        venue_ward: baseApplication?.venue_ward || '',
-        court_count_total: 1,
-        venue_latitude: baseApplication?.venue_latitude || '',
-        venue_longitude: baseApplication?.venue_longitude || '',
-        venue_map_url: baseApplication?.venue_map_url || '',
-        venue_phone: baseApplication?.venue_phone || '',
-        venue_description: baseApplication?.venue_description || '',
-      };
-      this.newClusterModal.open = true;
+    closeSignContract() {
+      this.signModal.open = false;
     },
-    closeNewClusterModal() {
-      this.newClusterModal.open = false;
-    },
-    async submitNewCluster() {
-      if (!confirm('Bạn có chắc chắn muốn gửi yêu cầu đăng ký cụm sân mới?')) return;
-      
-      this.submittingCluster = true;
+    async submitSignContract() {
+      this.saving = true;
       try {
-        await api('/api/owner/partner-applications/new-cluster', {
+        await api('/api/user/partner-application/sign-contract', {
           method: 'POST',
-          body: JSON.stringify(this.newClusterForm),
+          body: JSON.stringify({
+            contract_id: this.pendingOwnerContract.id,
+            signature_image: this.signatureData(this.$refs.signatureCanvas),
+          }),
         });
-        alert('Gửi yêu cầu thành công! Vui lòng chờ admin xét duyệt.');
-        this.closeNewClusterModal();
-        this.fetchApplications();
+        this.closeSignContract();
+        await this.fetchData();
       } catch (err) {
-        alert(err.message || 'Có lỗi xảy ra khi gửi yêu cầu.');
+        this.error = err.message || 'Không ký được hợp đồng.';
       } finally {
-        this.submittingCluster = false;
+        this.saving = false;
       }
     },
-    async signContract(contractId) {
-      if (!confirm('Bạn có chắc chắn muốn ký xác nhận hợp đồng này? Thao tác này tương đương với việc chấp thuận các điều khoản trong hợp đồng.')) {
-        return;
-      }
-      
-      this.signing = true;
-      try {
-        await api(`/api/owner/contracts/${contractId}/sign`, { method: 'POST' });
-        alert('Đã ký hợp đồng thành công!');
-        this.fetchApplications(); // Tải lại để cập nhật trạng thái
-      } catch (err) {
-        alert(err.message || 'Có lỗi xảy ra khi ký hợp đồng.');
-      } finally {
-        this.signing = false;
-      }
+    openTermination() {
+      this.terminationForm.reason = '';
+      this.terminationModal.open = true;
+      this.$nextTick(() => this.prepareCanvas(this.$refs.terminationCanvas));
     },
-    requestTermination(contractId) {
-      this.terminationModal = {
-        open: true,
-        contractId: contractId,
-        reason: ''
-      };
-    },
-    closeTerminationModal() {
+    closeTermination() {
       this.terminationModal.open = false;
     },
     async submitTermination() {
-      if (!this.terminationModal.reason) {
-        alert('Vui lòng nhập lý do thanh lý hợp đồng.');
-        return;
-      }
-      const type = confirm('Đây là thỏa thuận chấm dứt từ cả hai bên? (Chọn OK nếu đã thỏa thuận, chọn Cancel nếu đơn phương chấm dứt)') ? 'mutual' : 'unilateral_by_owner';
-
-      this.terminating = true;
+      this.saving = true;
       try {
-        await api(`/api/owner/contracts/${this.terminationModal.contractId}/request-termination`, {
+        await api(`/api/owner/contracts/${this.activeContract.id}/request-termination`, {
           method: 'POST',
-          body: JSON.stringify({ reason: this.terminationModal.reason, type }),
+          body: JSON.stringify({
+            reason: this.terminationForm.reason,
+            signature_image: this.signatureData(this.$refs.terminationCanvas),
+          }),
         });
-        alert('Đã gửi yêu cầu thanh lý thành công.');
-        this.closeTerminationModal();
-        this.fetchApplications();
+        this.closeTermination();
+        await this.fetchData();
       } catch (err) {
-        alert(err.message || 'Có lỗi xảy ra khi gửi yêu cầu thanh lý.');
+        this.error = err.message || 'Không gửi được yêu cầu chấm dứt.';
       } finally {
-        this.terminating = false;
+        this.saving = false;
       }
     },
-      hasPendingTermination(contract) {
-        if (!contract.terminations) return false;
-        return contract.terminations.some(t => t.status === 'submitted');
-      },
-    async viewFile(path) {
-      if (!path) return;
-      if (path.startsWith('http')) {
-        window.open(path, '_blank');
-        return;
-      }
+    async downloadDocument(id) {
       try {
-        const token = localStorage.getItem('auth_token') || JSON.parse(localStorage.getItem('sportgo_auth') || 'null')?.token;
-        const headers = { Accept: 'application/json' };
-        if (token) headers.Authorization = `Bearer ${token}`;
-        const response = await fetch(`/api/auth/files/download?path=${encodeURIComponent(path)}`, { headers });
-        if (!response.ok) {
-          let serverMessage = '';
-          try {
-            const errorBody = await response.json();
-            serverMessage = errorBody?.message || '';
-          } catch {
-            serverMessage = '';
-          }
-          throw new Error(serverMessage || 'Không thể tải file');
-        }
-        const contentType = (response.headers.get('content-type') || '').toLowerCase();
-        if (response.redirected || contentType.includes('text/html')) {
-          const htmlBody = await response.text();
-          const compactHtml = htmlBody.replace(/\s+/g, ' ').slice(0, 120);
-          throw new Error(`File trả về không hợp lệ (${compactHtml || 'HTML response'})`);
-        }
-        const blob = await response.blob();
-        const disposition = response.headers.get('content-disposition') || '';
-        const filenameFromHeader = disposition.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i)?.[1];
-        const fallbackName = decodeURIComponent(String(path).split('/').pop() || 'downloaded-file');
-        const filename = decodeURIComponent((filenameFromHeader || fallbackName).replace(/"/g, ''));
-
-        const canPreviewInBrowser =
-          contentType.includes('pdf') ||
-          contentType.startsWith('image/');
-
-        const url = URL.createObjectURL(blob);
-        if (canPreviewInBrowser) {
-          const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
-
-          // Fallback for browsers blocking async popup open.
-          if (!openedWindow) {
-            const tempLink = document.createElement('a');
-            tempLink.href = url;
-            tempLink.target = '_blank';
-            tempLink.rel = 'noopener noreferrer';
-            document.body.appendChild(tempLink);
-            tempLink.click();
-            document.body.removeChild(tempLink);
-          }
-        } else {
-          const downloadLink = document.createElement('a');
-          downloadLink.href = url;
-          downloadLink.download = filename;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-        }
-
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        await apiDownload(`/api/files/documents/${id}/download`);
       } catch (err) {
-        alert(err.message || 'Lỗi tải file');
+        this.error = err.message || 'Không tải được văn bản.';
       }
+    },
+    prepareCanvas(canvas) {
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+    },
+    pointerPosition(event) {
+      const canvas = event.currentTarget;
+      const rect = canvas.getBoundingClientRect();
+      return {
+        canvas,
+        x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+        y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+      };
+    },
+    startDraw(event) {
+      this.drawing = true;
+      const point = this.pointerPosition(event);
+      const ctx = point.canvas.getContext('2d');
+      ctx.beginPath();
+      ctx.moveTo(point.x, point.y);
+    },
+    draw(event) {
+      if (!this.drawing) return;
+      const point = this.pointerPosition(event);
+      const ctx = point.canvas.getContext('2d');
+      ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+    },
+    stopDraw() {
+      this.drawing = false;
+    },
+    clearSignature() {
+      this.prepareCanvas(this.signModal.open ? this.$refs.signatureCanvas : this.$refs.terminationCanvas);
+    },
+    signatureData(canvas) {
+      return canvas?.toDataURL('image/png') || null;
+    },
+    signatureSummary(signatures = []) {
+      if (!signatures.length) return 'Chưa có chữ ký';
+      return signatures.map((signature) => `${signature.signer_side}: ${this.formatDate(signature.signed_at)}`).join(' · ');
     },
     statusLabel(status) {
-      const map = {
+      return {
         pending: 'Chờ duyệt',
+        submitted: 'Chờ duyệt',
         reviewing: 'Đang xem xét',
-        approved: 'Hoàn tất',
-        approved_pending_contract: 'Chờ tạo hợp đồng',
-        contract_pending_owner_signature: 'Chờ đối tác ký hợp đồng',
-        contract_pending_sportgo_signature: 'Chờ SportGo ký hợp đồng',
-        completed: 'Hoàn tất',
+        need_supplement: 'Cần bổ sung',
+        approved_pending_contract: 'Đã duyệt, chờ hợp đồng',
+        contract_pending_owner_signature: 'Chờ ký hợp đồng',
+        contract_pending_sportgo_signature: 'Chờ SportGo ký',
+        completed: 'Đang hoạt động',
         rejected: 'Từ chối',
         cancelled: 'Đã hủy',
-      };
-      return map[status] || status;
-    },
-    contractStatusLabel(status) {
-        const map = {
-          generated: 'Nháp',
-          pending_owner_signature: 'Chờ đối tác ký',
-          pending_sportgo_signature: 'Chờ SportGo ký',
-          signed_active: 'Đang hiệu lực',
-          terminated: 'Đã thanh lý',
-        };
-      return map[status] || status;
+      }[status] || status || '-';
     },
     documentTypeLabel(type) {
-      const map = {
-        identity_card: 'CCCD/CMND',
-        business_license: 'Giấy phép kinh doanh',
-        venue_images: 'Hình ảnh sân',
-        other: 'Khác'
-      };
-      return map[type] || type;
+      return {
+        partner_application_form: 'Đơn đăng ký đối tác',
+        partner_contract: 'Hợp đồng hợp tác',
+        termination_request: 'Đơn yêu cầu chấm dứt',
+        mutual_liquidation_minutes: 'Biên bản thanh lý',
+        unilateral_termination_notice: 'Công văn chấm dứt',
+        settlement_minutes: 'Biên bản quyết toán',
+      }[type] || type;
+    },
+    documentStatusLabel(status) {
+      return {
+        generated: 'Đã sinh',
+        pending_owner_signature: 'Chờ chủ sân ký',
+        pending_sportgo_signature: 'Chờ SportGo ký',
+        completed: 'Hoàn thành',
+      }[status] || status;
+    },
+    terminationStatusLabel(status) {
+      return {
+        submitted: 'Chờ xác nhận',
+        reviewing: 'Đang xem xét',
+        transition_period: 'Giai đoạn chuyển tiếp',
+        completed: 'Đã thu hồi quyền',
+      }[status] || status;
+    },
+    money(value) {
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value || 0));
     },
     formatDate(value) {
       if (!value) return '-';
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return value;
-      return date.toLocaleString('vi-VN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
-  }
+      return date.toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    },
+  },
 };
 </script>
 
@@ -507,203 +395,232 @@ export default {
 .owner-profile-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  max-width: 1000px;
+  gap: 16px;
+  max-width: 1100px;
   margin: 0 auto;
   padding-bottom: 40px;
 }
 
-.card {
-  background: #fff;
-  border: 1px solid var(--sg-border);
-  border-radius: 12px;
-  padding: 24px;
+.card,
+.modal {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
 }
 
-.application-details {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.status-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background: #f8fafc;
-}
-
-.status-header {
+.summary,
+.page-header,
+.doc-row,
+.modal-header,
+.modal-footer,
+.tabs {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
-.status-header h3 {
+.summary,
+.selector,
+.section-card {
+  padding: 18px;
+}
+
+.summary h3,
+.section-card h3,
+.page-header h2 {
   margin: 0;
-  font-size: 18px;
 }
 
-.status-badge {
-  padding: 4px 12px;
-  border-radius: 20px;
+.muted {
+  color: var(--admin-muted);
   font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
 }
 
-.status-approved { background: #dcfce7; color: #166534; }
-.status-pending, .status-reviewing { background: #fef08a; color: #854d0e; }
-.status-rejected, .status-cancelled { background: #fee2e2; color: #991b1b; }
-.status-waiting_signature, .status-contract_pending_owner_signature, .status-contract_pending_sportgo_signature { background: #e0e7ff; color: #3730a3; }
-.status-completed, .status-signed { background: #dcfce7; color: #166534; }
+.state-box {
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+}
 
-.section-card h3 {
-  margin-top: 0;
-  margin-bottom: 16px;
-  font-size: 16px;
-  border-bottom: 1px solid var(--sg-border);
-  padding-bottom: 12px;
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #0f172a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.tabs {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 
 .info-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  font-weight: 800;
 }
 
-.info-item.full {
+.info-item.full,
+.rejection.full {
   grid-column: 1 / -1;
 }
 
-.info-item .label {
+.label {
+  color: var(--admin-muted);
   font-size: 12px;
-  color: #64748b;
   text-transform: uppercase;
-  font-weight: 700;
 }
 
-.info-item .value {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--sg-text);
-}
-
-.account-box {
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
+.rejection,
+.notice.error {
   padding: 12px;
-  border: 1px solid var(--sg-border);
   border-radius: 8px;
-  background: #f8fafc;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
-.account-details {
+.notice.warning {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 800;
+}
+
+.timeline {
+  margin-top: 18px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.badge {
-  background: #cbd5e1;
-  color: #334155;
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-weight: 700;
-}
-
-.docs-list {
-  display: flex;
-  flex-wrap: wrap;
   gap: 12px;
 }
 
-.doc-item {
+.timeline-item {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 10px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #0f172a;
+}
+
+.doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.doc-row,
+.settlement-box {
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+}
+
+.status {
+  display: inline-flex;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  background: var(--admin-border);
+  color: var(--admin-text);
+}
+
+.status-submitted,
+.status-reviewing,
+.status-contract_pending_owner_signature,
+.status-contract_pending_sportgo_signature {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.btn,
+.icon-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: #f1f5f9;
   border-radius: 8px;
-  color: var(--sg-text);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 14px;
-  transition: background 0.2s;
-}
-
-.doc-item:hover {
-  background: #e2e8f0;
-}
-
-.contracts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.contract-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  border: 1px solid var(--sg-border);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.contract-info {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.contract-icon {
-  color: #3b82f6;
-  background: #eff6ff;
-  padding: 8px;
-  border-radius: 8px;
-}
-
-.contract-info > div {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
-}
-
-.contract-actions {
-  display: flex;
-  gap: 12px;
+  border: 1px solid transparent;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.2s;
-  text-decoration: none;
+  min-height: 40px;
+  padding: 0 14px;
 }
 
-.btn.ghost {
-  background: #fff;
-  border-color: var(--sg-border);
-  color: var(--sg-text);
+.btn.small {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
 }
 
 .btn.primary {
@@ -711,113 +628,107 @@ export default {
   color: #fff;
 }
 
-.btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.btn.danger {
+  background: #dc2626;
+  color: #fff;
 }
 
-.notice {
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-weight: 600;
+.btn.ghost,
+.icon-btn {
+  background: var(--admin-surface);
+  border-color: var(--sg-border);
+  color: var(--admin-text);
 }
 
-.notice.error {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
+.icon-btn {
+  width: 34px;
+  height: 34px;
 }
 
-.error-text {
-  color: #dc2626;
-}
-
-.muted {
-  color: #64748b;
-}
-
-/* Modal styles */
 .modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(15, 23, 42, 0.5);
+  inset: 0;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.5);
 }
 
-.modal-content {
-  background: #fff;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-}
-
-.modal-header {
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--sg-border);
+.modal {
+  width: min(760px, 100%);
+  max-height: 92vh;
+  overflow: hidden;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
 }
 
-.modal-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+.modal.small {
+  width: min(560px, 100%);
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  color: #64748b;
-  cursor: pointer;
-  padding: 4px;
-}
-
-.modal-body {
-  padding: 24px;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--sg-border);
-  border-radius: 6px;
-  font-family: inherit;
-  font-size: 14px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+.modal-header,
+.modal-footer {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .modal-footer {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--sg-border);
-  display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  border-top: 1px solid var(--admin-border);
+  border-bottom: 0;
+}
+
+.modal-body {
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.contract-preview {
+  max-height: 160px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface-muted);
+  margin-bottom: 12px;
+  font-weight: 800;
+}
+
+.signature-pad {
+  width: 100%;
+  max-width: 620px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  touch-action: none;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 800px) {
+  .summary,
+  .doc-row,
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .info-item.full,
+  .rejection.full {
+    grid-column: auto;
+  }
 }
 </style>

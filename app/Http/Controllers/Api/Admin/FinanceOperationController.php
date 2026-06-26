@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\Refund;
+use App\Models\UserWithdrawalRequest;
 use App\Models\UserPayoutAccount;
 use App\Models\VenueCluster;
 use App\Services\Admin\AdminAuditService;
@@ -12,6 +13,7 @@ use App\Services\Finance\AdminRefundService;
 use App\Services\Finance\AdminWithdrawalService;
 use App\Services\Finance\MBBankBulkTransferExportService;
 use App\Services\Finance\SepayPayoutService;
+use App\Services\Finance\UserWithdrawalPaymentService;
 use App\Services\Policies\RefundPolicyEvaluator;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +32,7 @@ class FinanceOperationController extends Controller
         private readonly MBBankBulkTransferExportService $mbBulkExport,
         private readonly SepayPayoutService $sepayPayouts,
         private readonly RefundPolicyEvaluator $refundPolicies,
+        private readonly UserWithdrawalPaymentService $userWithdrawalPayments,
     ) {}
 
     public function refunds(Request $request): JsonResponse
@@ -46,11 +49,12 @@ class FinanceOperationController extends Controller
                 'admin_processing',
                 'processing',
                 'completed',
+                'completed_cash',
                 'failed',
                 'rejected',
                 'cancelled',
             ])],
-            'refund_destination' => ['nullable', Rule::in(['bank_account', 'user_wallet', 'original_payment'])],
+            'refund_destination' => ['nullable', Rule::in(['bank_account', 'user_wallet', 'original_payment', 'cash'])],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'payment_kind' => ['nullable', Rule::in(['full', 'deposit', 'partial'])],
             'venue_cluster_id' => ['nullable', 'uuid'],
@@ -72,6 +76,7 @@ class FinanceOperationController extends Controller
                 'payoutAccount:id,user_id,bank_name,bank_account_number,bank_account_holder,bank_branch,status',
                 'ownerConfirmedBy:id,username,full_name',
                 'adminConfirmedBy:id,username,full_name',
+                'cashRefundedBy:id,username,full_name',
                 'receipt',
             ])
             ->when($data['status'] ?? null, fn($query, string $status) => $query->where('status', $status));
@@ -82,7 +87,7 @@ class FinanceOperationController extends Controller
             'total' => (clone $query)->count(),
             'pending_confirmation' => (clone $query)->whereIn('status', ['pending_confirmation', 'pending_owner_confirmation'])->count(),
             'processing' => (clone $query)->whereIn('status', $this->refundPayableStatuses())->count(),
-            'completed' => (clone $query)->where('status', 'completed')->count(),
+            'completed' => (clone $query)->whereIn('status', ['completed', 'completed_cash'])->count(),
             'requested_amount' => (float) (clone $query)->sum('amount'),
         ];
 
@@ -98,42 +103,10 @@ class FinanceOperationController extends Controller
     public function updateRefund(Request $request, string $id): JsonResponse
     {
         $this->authorizePermission($request, 'refund.approve');
-        $refund = Refund::query()->findOrFail($id);
-        $data = $request->validate([
-            'status' => ['required', Rule::in(['completed'])],
-            'reason' => ['nullable', 'string', 'max:2000'],
-            'source' => ['nullable', Rule::in(['admin', 'gateway', 'mock'])],
-            'gateway_refund_txn_id' => [
-                'nullable',
-                'string',
-                'max:100',
-                Rule::unique('refunds', 'gateway_refund_txn_id')->ignore($refund->id),
-            ],
-        ]);
-        $oldValues = $refund->toArray();
-
-        $source = $data['source'] ?? 'admin';
-
-        try {
-            $updated = $this->refunds->updateStatus($refund, $data['status'], [
-                'actor_id' => $request->user()->id,
-                'reason' => $data['reason'] ?? 'Admin xử lý yêu cầu hoàn tiền.',
-                'source' => $source,
-                'gateway_refund_txn_id' => $data['gateway_refund_txn_id'] ?? null,
-            ]);
-        } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        $this->audit->log($request, 'refund', 'refund.status_updated', 'refunds', $updated->id, $oldValues, $updated->toArray(), [
-            'reason' => $data['reason'] ?? null,
-            'severity' => $data['status'] === 'completed' ? 'critical' : 'warning',
-        ]);
 
         return response()->json([
-            'message' => 'Đã cập nhật yêu cầu hoàn tiền.',
-            'data' => $this->refundPayload($this->loadRefund($updated->id)),
-        ]);
+            'message' => 'Hoàn tiền do chủ sân xác nhận sẽ tự cộng vào ví khách. Admin chỉ xem lịch sử hoàn tiền.',
+        ], 422);
     }
 
     public function refundPayoutQr(Request $request, string $id): JsonResponse
@@ -205,6 +178,132 @@ class FinanceOperationController extends Controller
             'meta' => $this->paginationPayload($withdrawals),
             'summary' => $summary,
         ]);
+    }
+
+    public function userWithdrawals(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'withdrawal.manage');
+
+        $data = $request->validate([
+            'keyword' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected', 'paid', 'cancelled'])],
+            'amount_min' => ['nullable', 'numeric', 'min:0'],
+            'amount_max' => ['nullable', 'numeric', 'min:0', 'gte:amount_min'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'per_page' => ['nullable', 'integer', 'min:10', 'max:100'],
+        ]);
+
+        $query = UserWithdrawalRequest::query()
+            ->with([
+                'user:id,username,full_name,email,phone',
+                'wallet',
+                'payoutAccount',
+                'approvedBy:id,username,full_name',
+                'paidBy:id,username,full_name',
+                'receipt',
+            ])
+            ->when($data['status'] ?? null, fn ($query, string $status) => $query->where('status', $status));
+
+        $this->applyUserWithdrawalFilters($query, $data);
+
+        $summary = [
+            'total' => (clone $query)->count(),
+            'pending' => (clone $query)->whereIn('status', ['pending', 'approved'])->count(),
+            'approved' => (clone $query)->where('status', 'approved')->count(),
+            'completed' => (clone $query)->where('status', 'paid')->count(),
+            'requested_amount' => (float) (clone $query)->sum('amount'),
+        ];
+
+        $withdrawals = $query->latest('requested_at')->paginate((int) ($data['per_page'] ?? 20));
+
+        return response()->json([
+            'data' => $withdrawals->getCollection()
+                ->map(fn (UserWithdrawalRequest $withdrawal): array => $this->userWithdrawalPayload($withdrawal))
+                ->values(),
+            'meta' => $this->paginationPayload($withdrawals),
+            'summary' => $summary,
+        ]);
+    }
+
+    public function payUserWithdrawal(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'withdrawal.manage');
+
+        $data = $request->validate([
+            'payment_method' => ['required', Rule::in(['cash', 'bank_transfer'])],
+            'transfer_reference' => ['nullable', 'string', 'max:100', 'required_if:payment_method,bank_transfer'],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $withdrawal = UserWithdrawalRequest::query()->findOrFail($id);
+        $oldValues = $withdrawal->toArray();
+
+        try {
+            $updated = $this->userWithdrawalPayments->pay(
+                $withdrawal,
+                $request->user(),
+                $data['payment_method'],
+                $data['transfer_reference'] ?? null,
+                $data['note'] ?? null,
+            );
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        $this->audit->log($request, 'withdrawal', 'user_withdrawal.paid', 'user_withdrawal_requests', $updated->id, $oldValues, $updated->toArray(), [
+            'payment_method' => $data['payment_method'],
+            'transfer_reference' => $data['transfer_reference'] ?? null,
+            'severity' => 'critical',
+        ]);
+
+        return response()->json([
+            'message' => 'Đã ghi nhận chi trả rút tiền người dùng.',
+            'data' => $this->userWithdrawalPayload($updated),
+        ]);
+    }
+
+    public function userWithdrawalPayoutQr(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'withdrawal.manage');
+
+        try {
+            $payout = $this->sepayPayouts->userWithdrawalQr($this->loadUserWithdrawal($id));
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'message' => 'Đã tạo QR chi trả rút tiền người dùng.',
+            'data' => $payout,
+        ]);
+    }
+
+    public function checkUserWithdrawalPayout(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'withdrawal.manage');
+
+        try {
+            $result = $this->sepayPayouts->checkUserWithdrawal(
+                $this->loadUserWithdrawal($id),
+                $request->user(),
+            );
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        $payload = [
+            'message' => $result['message'] ?? ($result['completed'] ? 'Đã đối soát rút tiền người dùng thành công.' : 'Chưa tìm thấy giao dịch phù hợp.'),
+            'completed' => (bool) ($result['completed'] ?? false),
+            'transaction' => $result['transaction'] ?? null,
+            'payout' => $result['payout'] ?? null,
+        ];
+
+        if ($payload['completed']) {
+            $payload['data'] = $this->userWithdrawalPayload($this->loadUserWithdrawal($id));
+        }
+
+        return response()->json($payload);
     }
 
     public function updateWithdrawal(Request $request, string $id): JsonResponse
@@ -414,6 +513,31 @@ class FinanceOperationController extends Controller
             ->when($data['date_to'] ?? null, fn($query, string $date) => $query->whereDate('requested_at', '<=', $date));
     }
 
+    private function applyUserWithdrawalFilters($query, array $data): void
+    {
+        $query
+            ->when($data['keyword'] ?? null, function ($query, string $keyword): void {
+                $keyword = '%' . $keyword . '%';
+                $query->where(function ($inner) use ($keyword): void {
+                    $inner->where('id', 'like', $keyword)
+                        ->orWhere('rejected_reason', 'like', $keyword)
+                        ->orWhereHas('user', fn ($user) => $user
+                            ->where('username', 'like', $keyword)
+                            ->orWhere('full_name', 'like', $keyword)
+                            ->orWhere('email', 'like', $keyword)
+                            ->orWhere('phone', 'like', $keyword))
+                        ->orWhereHas('payoutAccount', fn ($account) => $account
+                            ->where('bank_name', 'like', $keyword)
+                            ->orWhere('bank_account_number', 'like', $keyword)
+                            ->orWhere('bank_account_holder', 'like', $keyword));
+                });
+            })
+            ->when($data['amount_min'] ?? null, fn ($query, $amount) => $query->where('amount', '>=', $amount))
+            ->when($data['amount_max'] ?? null, fn ($query, $amount) => $query->where('amount', '<=', $amount))
+            ->when($data['date_from'] ?? null, fn ($query, string $date) => $query->whereDate('requested_at', '>=', $date))
+            ->when($data['date_to'] ?? null, fn ($query, string $date) => $query->whereDate('requested_at', '<=', $date));
+    }
+
     private function loadRefund(string $id): Refund
     {
         return Refund::query()->with([
@@ -424,6 +548,7 @@ class FinanceOperationController extends Controller
             'payoutAccount',
             'ownerConfirmedBy:id,username,full_name',
             'adminConfirmedBy:id,username,full_name',
+            'cashRefundedBy:id,username,full_name',
             'receipt',
         ])->findOrFail($id);
     }
@@ -440,9 +565,24 @@ class FinanceOperationController extends Controller
         ])->findOrFail($id);
     }
 
+    private function loadUserWithdrawal(string $id): UserWithdrawalRequest
+    {
+        return UserWithdrawalRequest::query()->with([
+            'user:id,username,full_name,email,phone',
+            'wallet',
+            'payoutAccount',
+            'approvedBy:id,username,full_name',
+            'paidBy:id,username,full_name',
+            'receipt',
+        ])->findOrFail($id);
+    }
+
     private function refundPayload(Refund $refund): array
     {
-        $destination = ['type' => 'user_wallet', 'label' => 'Ví SportGo'];
+        $destination = match ($refund->refund_destination) {
+            'cash' => ['type' => 'cash', 'label' => 'Tiền mặt tại sân'],
+            default => ['type' => 'user_wallet', 'label' => 'Ví SportGo'],
+        };
         $customer = $this->refundCustomerPayload($refund);
         $policyEvaluation = $this->formatPolicyEvaluation($this->refundPolicies->evaluate($refund));
         $hasWalletRecipient = (bool) (
@@ -467,7 +607,7 @@ class FinanceOperationController extends Controller
                 'confirmed' => (bool) $refund->owner_confirmed_at,
                 'decision' => match ($refund->status) {
                     'owner_rejected' => 'rejected',
-                    'owner_confirmed', 'admin_processing', 'processing', 'completed', 'failed' => 'approved',
+                    'owner_confirmed', 'admin_processing', 'processing', 'completed', 'completed_cash', 'failed' => 'approved',
                     default => 'pending',
                 },
                 'confirmed_at' => $refund->owner_confirmed_at,
@@ -481,9 +621,14 @@ class FinanceOperationController extends Controller
             'receipt' => $this->receiptPayload($refund->receipt),
             'policy_evaluation' => $policyEvaluation,
             'can_pay_by_qr' => false,
-            'can_complete_wallet_refund' => $walletBlockedReason === null
-                && in_array($refund->status, $this->refundPayableStatuses(), true),
+            'can_complete_wallet_refund' => false,
+            'can_complete_cash_refund' => false,
             'wallet_refund_blocked_reason' => $walletBlockedReason,
+            'cash_refund' => [
+                'refunded_by' => $refund->cashRefundedBy,
+                'refunded_at' => $refund->cash_refunded_at,
+                'note' => $refund->cash_refund_note,
+            ],
             'allowed_statuses' => [],
         ];
     }
@@ -620,9 +765,55 @@ class FinanceOperationController extends Controller
         ];
     }
 
+    private function userWithdrawalPayload(UserWithdrawalRequest $withdrawal): array
+    {
+        $canPay = in_array($withdrawal->status, ['pending', 'approved'], true);
+        $canPayBankTransfer = $canPay
+            && $withdrawal->payoutAccount?->status === 'active'
+            && filled($withdrawal->payoutAccount?->bank_account_number);
+
+        return [
+            'id' => $withdrawal->id,
+            'request_code' => 'UWD-'.strtoupper(substr(hash('sha256', $withdrawal->id), 0, 10)),
+            'requester_type' => 'user',
+            'owner' => $withdrawal->user,
+            'venue_clusters' => ['Ví người dùng'],
+            'wallet' => [
+                'available_balance' => $withdrawal->wallet?->balance,
+                'pending_withdrawal_balance' => $withdrawal->wallet?->locked_balance,
+                'total_earned' => null,
+                'total_withdrawn' => null,
+            ],
+            'bank_account' => $withdrawal->payoutAccount ? [
+                'id' => $withdrawal->payoutAccount->id,
+                'bank_name' => $withdrawal->payoutAccount->bank_name,
+                'bank_code' => null,
+                'account_number' => $withdrawal->payoutAccount->bank_account_number,
+                'account_holder_name' => $withdrawal->payoutAccount->bank_account_holder,
+                'status' => $withdrawal->payoutAccount->status,
+            ] : null,
+            'amount' => $withdrawal->amount,
+            'status' => $withdrawal->status,
+            'owner_note' => '-',
+            'review_note' => null,
+            'status_reason' => $withdrawal->rejected_reason,
+            'requested_at' => $withdrawal->requested_at,
+            'completed_at' => $withdrawal->paid_at,
+            'payment_method' => $withdrawal->payment_method,
+            'transfer_reference' => $withdrawal->transfer_reference,
+            'paid_note' => $withdrawal->paid_note,
+            'payout_transfer_code' => $withdrawal->payout_transfer_code,
+            'receipt' => $this->receiptPayload($withdrawal->receipt),
+            'can_pay_by_qr' => false,
+            'can_pay_cash' => $canPay,
+            'can_pay_bank_transfer' => $canPayBankTransfer,
+            'allowed_statuses' => [],
+        ];
+    }
+
     private function refundPayableStatuses(): array
     {
-        return ['pending_confirmation', 'owner_confirmed', 'admin_processing', 'processing'];
+        return [];
     }
 
     private function withdrawalPayableStatuses(): array
@@ -672,8 +863,8 @@ class FinanceOperationController extends Controller
                 'rule_type' => $raw['rule']['type'] ?? null,
                 'policy_title' => $raw['policy']['title'] ?? null,
                 'source_label' => match ($raw['source'] ?? null) {
-                    'venue_policy_rule' => 'Chính sách cụm sân',
-                    'system_policy_rule' => 'Chính sách hệ thống',
+                    'venue_policy_rule' => 'Chính sách riêng của cụm sân',
+                    'system_policy_rule' => 'Chính sách mặc định hệ thống',
                     'booking_config' => 'Cấu hình đặt sân',
                     'owner_fault_100' => 'Hoàn 100% do lỗi phía sân',
                     default => null,

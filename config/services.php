@@ -41,11 +41,26 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'google_maps' => [
+        'api_key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
     'sepay' => [
         'webhook_api_key' => env('SEPAY_WEBHOOK_API_KEY'),
         'api_token' => env('SEPAY_API_TOKEN'),
         'api_base_url' => env('SEPAY_API_BASE_URL', 'https://userapi.sepay.vn/v2'),
         'qr_base_url' => env('SEPAY_QR_BASE_URL', 'https://qr.sepay.vn/img'),
+    ],
+
+    'vietqr' => [
+        'banks_url' => env('VIETQR_BANKS_URL', 'https://api.vietqr.io/v2/banks'),
+        'lookup_url' => env('VIETQR_LOOKUP_URL', 'https://api.vietqr.io/v2/lookup'),
+        'client_id' => env('VIETQR_CLIENT_ID'),
+        'api_key' => env('VIETQR_API_KEY'),
+    ],
+
+    'provinces_vn' => [
+        'base_url' => env('PROVINCES_VN_API_URL', 'https://provinces.open-api.vn'),
     ],
 
 ];

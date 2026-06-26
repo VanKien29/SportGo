@@ -60,6 +60,21 @@ class PartnerSettlement extends Model
         return $this->belongsTo(PartnerTerminationRequest::class, 'partner_termination_request_id');
     }
 
+    public function contract()
+    {
+        return $this->belongsTo(PartnerContract::class, 'partner_contract_id');
+    }
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function venueCluster()
+    {
+        return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
+    }
+
     public function withdrawalRequests()
     {
         return $this->hasMany(OwnerWithdrawalRequest::class, 'partner_settlement_id');

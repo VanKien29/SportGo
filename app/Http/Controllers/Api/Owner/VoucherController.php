@@ -49,6 +49,7 @@ class VoucherController extends Controller
                 'per_page' => $paginator->perPage(),
                 'total' => $paginator->total(),
                 'venue_cluster' => $cluster,
+                'scope_options' => $this->scopeOptions($cluster->id),
             ],
         ]);
     }
@@ -208,7 +209,7 @@ class VoucherController extends Controller
             'valid_to' => ['required', 'date', 'after:valid_from'],
             'status' => ['required', Rule::in(['draft', 'active', 'inactive', 'expired'])],
             'scopes' => ['array'],
-            'scopes.*.scope_type' => ['required_with:scopes', Rule::in(['venue_cluster', 'court_type', 'booking_type'])],
+            'scopes.*.scope_type' => ['required_with:scopes', Rule::in(['venue_cluster', 'court_type', 'booking_type', 'membership_tier'])],
             'scopes.*.scope_id' => ['nullable', 'string', 'max:100'],
         ]);
 
@@ -248,6 +249,18 @@ class VoucherController extends Controller
                         'scopes' => 'Loại sân của voucher không thuộc cụm sân này.',
                     ]);
                 }
+            }
+
+            if ($scopeType === 'membership_tier' && ! in_array($scopeId, ['standard', 'silver', 'gold', 'diamond'], true)) {
+                throw ValidationException::withMessages([
+                    'scopes' => 'Hạng thành viên của voucher không hợp lệ.',
+                ]);
+            }
+
+            if ($scopeType !== 'venue_cluster' && blank($scopeId)) {
+                throw ValidationException::withMessages([
+                    'scopes' => 'Phạm vi voucher phải có giá trị áp dụng.',
+                ]);
             }
 
             DB::table('voucher_scopes')->insert([
@@ -361,10 +374,37 @@ class VoucherController extends Controller
             ->map(fn ($items, $type): string => match ($type) {
                 'court_type' => $items->count() . ' loại sân',
                 'booking_type' => $items->count() . ' loại booking',
+                'membership_tier' => $items->count() . ' hạng thành viên',
                 default => $items->count() . ' phạm vi',
             })
             ->values()
             ->implode(', ');
+    }
+
+    private function scopeOptions(string $clusterId): array
+    {
+        $courtTypes = DB::table('venue_courts')
+            ->join('court_types', 'court_types.id', '=', 'venue_courts.court_type_id')
+            ->where('venue_courts.venue_cluster_id', $clusterId)
+            ->where('venue_courts.status', 'active')
+            ->select('court_types.id', 'court_types.name')
+            ->distinct()
+            ->orderBy('court_types.name')
+            ->get();
+
+        return [
+            'court_types' => $courtTypes,
+            'membership_tiers' => [
+                ['id' => 'standard', 'name' => 'Thường'],
+                ['id' => 'silver', 'name' => 'Bạc'],
+                ['id' => 'gold', 'name' => 'Vàng'],
+                ['id' => 'diamond', 'name' => 'Kim cương'],
+            ],
+            'booking_types' => [
+                ['id' => 'single', 'name' => 'Đơn lẻ'],
+                ['id' => 'recurring', 'name' => 'Lịch cố định'],
+            ],
+        ];
     }
 
     private function voucherUsages(string $voucherId): array

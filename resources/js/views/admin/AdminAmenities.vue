@@ -29,12 +29,15 @@
                         </button>
                     </div>
                     <div class="filter-search">
-                        <input
-                            type="text"
-                            v-model="searchQuery"
-                            placeholder="Tìm kiếm theo tên hoặc mô tả..."
-                            class="search-input"
-                        />
+                        <div class="search-box">
+                            <AppIcon name="search" size="16" />
+                            <input
+                                type="text"
+                                v-model="searchQuery"
+                                placeholder="Tìm kiếm theo tên hoặc mô tả..."
+                                class="search-input"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -56,49 +59,63 @@
                 </button>
             </div>
 
-            <!-- Table View -->
-            <div v-else class="avc-table-wrap card animate-fade-in">
-                <div class="table-scroll">
-                    <table class="avc-table">
-                        <thead>
-                            <tr>
-                                <th class="col-name">Tên tiện ích</th>
-                                <th class="col-owner hide-on-tablet">Người gửi</th>
-                                <th class="col-status text-center">Trạng thái</th>
-                                <th class="col-actions text-center">Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <tr v-for="item in filteredAmenities" :key="item.id" class="avc-row" @click="openViewModal(item)">
-                            <td class="col-name">
-                                <div class="cluster-info-meta">
-                                    <div class="cluster-name">{{ item.name }}</div>
-                                    <div class="cluster-slug">{{ item.description }}</div>
-                                </div>
-                            </td>
-                            <td class="col-owner hide-on-tablet" data-label="Người gửi">
-                                <div class="owner-meta-info">
-                                    <div class="owner-name">{{ item.created_by ? item.created_by.full_name : 'Hệ thống' }}</div>
-                                    <div class="owner-email">{{ item.created_by?.email || "" }}</div>
-                                </div>
-                            </td>
-                            <td class="col-status text-center" data-label="Trạng thái">
-                                <span class="status-badge" :class="statusClass(item.status)">
-                                    {{ statusText(item.status) }}
-                                </span>
-                            </td>
-                            <td class="col-actions text-center" data-label="Thao tác" @click.stop>
-                                <TableActionGroup>
-                                    <ActionIconButton icon="eye" label="Xem chi tiết" @click="openViewModal(item)" />
-                                    <ActionIconButton icon="pencil" label="Sửa tiện ích" @click="openEditModal(item)" />
-                                    <ActionIconButton icon="trash" label="Xóa tiện ích" variant="danger" @click="confirmDelete(item)" />
-                                </TableActionGroup>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <!-- Compact Rows View -->
+            <div v-else class="amenities-list-wrapper animate-fade-in">
+                <div class="amenities-list">
+                    <div
+                        v-for="item in filteredAmenities"
+                        :key="item.id"
+                        class="amenity-row-item"
+                        :class="{ 'status-inactive': item.status === 'inactive' || item.status === 'rejected' }"
+                        @click="openViewModal(item)"
+                    >
+                        <!-- Accent hover line -->
+                        <div class="accent-line"></div>
+
+                        <!-- Left: Name & Description -->
+                        <div class="row-left">
+                            <div class="amenity-info">
+                                <span class="amenity-name">{{ item.name }}</span>
+                                <span class="amenity-desc" v-if="item.description">{{ item.description }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Middle: Sender (Created by) & Status Badge -->
+                        <div class="row-middle">
+                            <div class="sender-info hide-on-tablet">
+                                <span class="sender-name">{{ item.created_by ? item.created_by.full_name : 'Hệ thống' }}</span>
+                                <span class="sender-email" v-if="item.created_by?.email">{{ item.created_by.email }}</span>
+                            </div>
+                            <span class="row-status-badge" :class="item.status">
+                                {{ statusText(item.status) }}
+                            </span>
+                        </div>
+
+                        <!-- Right: Actions -->
+                        <div class="row-right" @click.stop>
+                            <ActionIconButton
+                                icon="eye"
+                                label="Xem chi tiết"
+                                size="sm"
+                                @click="openViewModal(item)"
+                            />
+                            <ActionIconButton
+                                icon="pencil"
+                                label="Sửa tiện ích"
+                                size="sm"
+                                @click="openEditModal(item)"
+                            />
+                            <ActionIconButton
+                                icon="trash"
+                                label="Xóa tiện ích"
+                                variant="danger"
+                                size="sm"
+                                @click="confirmDelete(item)"
+                            />
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
         </template>
 
         <!-- View Detail Modal -->
@@ -107,7 +124,10 @@
                 <div class="modal-header">
                     <h3>Chi tiết tiện ích</h3>
                     <button class="btn-close" @click="closeViewModal">
-                        &times;
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
                     </button>
                 </div>
                 <div class="modal-body detail-modal-body">
@@ -154,7 +174,10 @@
                         {{ editingId ? "Cập nhật tiện ích" : "Thêm tiện ích mới" }}
                     </h3>
                     <button class="btn-close" @click="closeModal">
-                        &times;
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
                     </button>
                 </div>
                 <form @submit.prevent="handleSubmit">
@@ -581,117 +604,161 @@ export default {
     background: #f8fafc;
 }
 
-/* Table */
-.avc-table-wrap {
-    padding: 0;
-    overflow: hidden;
-}
-.table-scroll {
-    width: 100%;
-    overflow-x: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 transparent;
-}
-.table-scroll::-webkit-scrollbar {
-    height: 6px;
-}
-.table-scroll::-webkit-scrollbar-track {
-    background: transparent;
-}
-.table-scroll::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
-}
-.avc-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 800px;
-}
-.avc-table th,
-.avc-table td {
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--admin-border-soft);
-    font-size: 14px;
-    text-align: left;
-}
-.avc-table th {
-    background: var(--admin-surface-muted);
-    font-weight: 700;
-    color: var(--admin-muted);
-    font-size: 13px;
-    text-transform: uppercase;
-}
-.avc-row {
-    cursor: pointer;
-    transition: background 0.12s;
-}
-.avc-row:hover {
-    background: var(--admin-hover);
-}
-
-.cluster-info-meta {
+/* SaaS Compact Rows View */
+.amenities-list-wrapper {
     display: flex;
     flex-direction: column;
+    width: 100%;
 }
-.cluster-name {
-    font-weight: 700;
+
+.amenities-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.amenity-row-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 52px;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.04);
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.amenity-row-item:hover {
+    background: rgba(15, 23, 42, 0.015);
+    border-color: rgba(15, 23, 42, 0.08);
+    transform: translateX(2px);
+}
+
+.accent-line {
+    position: absolute;
+    left: 0;
+    top: 15%;
+    bottom: 15%;
+    width: 2.5px;
+    background: #000000;
+    border-radius: 0 2px 2px 0;
+    opacity: 0;
+    transform: scaleY(0.7);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.amenity-row-item:hover .accent-line {
+    opacity: 1;
+    transform: scaleY(1);
+}
+
+.row-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.amenity-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.amenity-name {
+    font-size: 14px;
+    font-weight: 600;
     color: var(--admin-text);
+    transition: opacity 0.2s ease;
 }
-.cluster-slug {
+
+.amenity-desc {
     font-size: 12px;
     color: var(--admin-faint);
-    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 450px;
 }
-.owner-meta-info {
-    text-align: left;
+
+.amenity-row-item.status-inactive .amenity-name {
+    opacity: 0.5;
 }
-.owner-name {
+
+.row-middle {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 24px;
+    flex: 1;
+    padding-right: 16px;
+}
+
+.sender-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    text-align: right;
+}
+
+.sender-name {
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--admin-text);
 }
-.owner-email {
-    font-size: 12px;
+
+.sender-email {
+    font-size: 11px;
     color: var(--admin-faint);
 }
 
-/* Custom column widths */
-.col-name { min-width: 260px; }
-.col-owner { min-width: 180px; }
-.col-status { min-width: 120px; }
-.col-actions { min-width: 110px; }
-
-.status-badge {
+.row-status-badge {
     display: inline-flex;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 12px;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
     font-weight: 700;
+    text-transform: capitalize;
 }
 
-.status-active {
+.row-status-badge.active {
     background: var(--admin-primary-soft) !important;
     color: var(--admin-primary-dark) !important;
 }
 
-.status-pending {
+.row-status-badge.pending_review {
     background: var(--admin-warning-soft) !important;
     color: var(--admin-warning) !important;
 }
 
-.status-rejected {
+.row-status-badge.rejected {
     background: var(--admin-danger-soft) !important;
     color: var(--admin-danger) !important;
 }
 
-.status-inactive {
+.row-status-badge.inactive {
     background: var(--admin-surface-muted) !important;
     color: var(--admin-muted) !important;
 }
 
-.status-reason-text {
-    font-size: 11px;
-    color: #ef4444;
-    margin-top: 4px;
+.row-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transform: translateX(6px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.amenity-row-item:hover .row-right {
+    opacity: 1;
+    transform: translateX(0);
 }
 
 .actions-wrapper {
@@ -921,7 +988,7 @@ export default {
     font-weight: 500;
 }
 
-/* Responsive */
+/* Responsive Styles for SaaS Rows */
 @media (max-width: 768px) {
     .page-header {
         flex-direction: column;
@@ -962,119 +1029,32 @@ export default {
         display: none;
     }
 
-    .avc-table-wrap {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
+    .amenity-row-item {
+        height: auto;
+        padding: 12px 14px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
     }
     
-    .table-scroll {
-        overflow-x: hidden !important;
-        width: 100% !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
+    .accent-line {
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        height: auto;
     }
-    
-    .avc-table {
-        min-width: 0 !important;
-        display: block !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
+
+    .row-middle {
+        padding: 0;
+        justify-content: space-between;
     }
-    
-    .avc-table thead {
-        display: none !important; /* Hide headers on mobile */
-    }
-    
-    .avc-table tbody {
-        display: block !important;
-        width: 100% !important;
-    }
-    
-    .avc-row {
-        display: block !important;
-        width: auto !important;
-        box-sizing: border-box !important;
-        background: #fff;
-        border: 1px solid var(--sg-border);
-        border-radius: 12px;
-        margin-bottom: 16px;
-        padding: 16px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-        cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    .avc-row:hover {
-        background: #fff;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-    
-    .avc-table td {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        padding: 10px 0 !important;
-        border-bottom: 1px dashed #f1f5f9 !important;
-        font-size: 13px !important;
-        width: 100% !important;
-        min-width: 0 !important;
-        text-align: right !important;
-        box-sizing: border-box !important;
-    }
-    
-    .avc-table td:last-child {
-        border-bottom: none !important;
-        padding-bottom: 0 !important;
-        margin-bottom: 0 !important;
-    }
-    
-    .avc-table td::before {
-        content: attr(data-label);
-        font-weight: 700;
-        color: rgba(15, 23, 42, 0.5);
-        text-align: left;
-        margin-right: 12px;
-        flex-shrink: 0;
-    }
-    
-    /* Highlight Venue name at the top of the card */
-    .avc-table td.col-name {
-        display: block !important;
-        text-align: left !important;
-        padding-top: 0 !important;
-        padding-bottom: 12px !important;
-        margin-bottom: 8px !important;
-        border-bottom: 2px solid #f1f5f9 !important;
-        width: auto !important;
-        box-sizing: border-box !important;
-    }
-    
-    .avc-table td.col-name::before {
-        display: none !important;
-    }
-    
-    .cluster-name {
-        font-size: 16px;
-    }
-    
-    .owner-meta-info {
-        text-align: right;
-    }
-    
-    .owner-name {
-        font-size: 13px;
-    }
-    
-    .owner-email {
-        font-size: 11px;
-        word-break: break-all;
+
+    .row-right {
+        opacity: 1;
+        transform: none;
+        justify-content: flex-end;
+        border-top: 1px dashed rgba(15, 23, 42, 0.05);
+        padding-top: 8px;
     }
 }
 

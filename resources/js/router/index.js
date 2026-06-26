@@ -34,10 +34,15 @@ import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
-import PartnerRegistration from "../views/clients/PartnerRegistration.vue";
+import PartnerRegistration from "../views/partner/PartnerRegistration.vue";
+import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
+import VenueList from "../views/clients/VenueList.vue";
+import VenueDetail from "../views/clients/VenueDetail.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
+    { path: "/venues", name: "venues", component: VenueList },
+    { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
     {
@@ -57,6 +62,24 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: "/partner-application",
+        name: "partner-application",
+        component: () => import("../views/partner/PartnerApplicationPortal.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/partner-application/:id",
+        name: "partner-application-detail",
+        component: () => import("../views/partner/PartnerApplicationDetail.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/partner-application/:id/documents/:documentId",
+        name: "partner-application-document",
+        component: PartnerApplicationDocumentPage,
+        meta: { requiresAuth: true },
+    },
+    {
         path: "/booking",
         name: "booking-create",
         component: BookingForm,
@@ -72,6 +95,12 @@ const routes = [
         path: "/become-partner",
         name: "partner-registration",
         component: PartnerRegistration,
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/vip-membership",
+        name: "vip-membership",
+        component: () => import("../views/clients/VipMembership.vue"),
         meta: { requiresAuth: true },
     },
     {
@@ -104,6 +133,11 @@ const routes = [
             { path: "vouchers", name: "admin-vouchers", component: AdminVouchers },
             { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail, meta: { hideFloatingBack: true } },
             {
+                path: "membership-packages",
+                name: "admin-membership-packages",
+                component: () => import("../views/admin/AdminMembershipPackages.vue"),
+            },
+            {
                 path: "payments",
                 name: "admin-payments",
                 component: () => import("../views/admin/AdminPayments.vue"),
@@ -119,9 +153,22 @@ const routes = [
                 component: () => import("../views/admin/AdminPartnerApplications.vue"),
             },
             {
+                path: "partner-applications/:id",
+                name: "admin-partner-application-detail",
+                component: () => import("../views/admin/AdminPartnerApplicationDetail.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
+                path: "partner-applications/:id/documents/:documentId",
+                name: "admin-partner-application-document",
+                component: () => import("../views/admin/AdminPartnerDocumentPage.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
                 path: "partners/:id",
                 name: "admin-partner-detail",
-                component: () => import("../views/admin/AdminPartnerDetail.vue"),
+                component: () => import("../views/admin/AdminPartnerApplicationDetail.vue"),
+                meta: { hideFloatingBack: true },
             },
             {
                 path: "banners",
@@ -231,6 +278,12 @@ const routes = [
                 name: "owner-venue-clusters",
                 component: () =>
                     import("../views/owner/OwnerVenueClusters.vue"),
+            },
+            {
+                path: "affiliate",
+                name: "owner-affiliate",
+                component: () =>
+                    import("../views/owner/OwnerAffiliate.vue"),
             },
             {
                 path: "venue-courts",

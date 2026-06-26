@@ -21,4 +21,11 @@ export const courtTypeService = {
       method: 'DELETE',
     });
   },
+  requestNew(data) {
+    return api('/api/owner/court-types/request', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
+

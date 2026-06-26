@@ -9,6 +9,7 @@ use App\Models\OwnerWalletLedger;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\Payment;
 use App\Models\Permission;
+use App\Models\PolicyRule;
 use App\Models\Refund;
 use App\Models\Role;
 use App\Models\RolePermission;
@@ -16,8 +17,14 @@ use App\Models\SystemPolicy;
 use App\Models\User;
 use App\Models\UserPayoutAccount;
 use App\Models\UserRole;
+use App\Models\UserWallet;
+use App\Models\UserWithdrawalRequest;
 use App\Models\VenueCluster;
+use App\Models\VenuePolicyRule;
+use App\Services\Policies\RefundCancellationPolicyService;
+use App\Services\Policies\RefundPolicyEvaluator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -379,6 +386,42 @@ class AdminFinanceOperationTest extends TestCase
             ->assertJsonPath('data.policy_evaluation.compliant', true);
     }
 
+    public function test_refund_evaluation_uses_owner_policy_before_system_default(): void
+    {
+        $service = app(RefundCancellationPolicyService::class);
+        $this->createCancelRefundPolicyWithOptionalVenueOverride($service, true);
+        $this->moveBookingToCancelledAtHoursBeforeStart(10);
+
+        $refund = $this->createPolicyRefund(90000);
+
+        $result = app(RefundPolicyEvaluator::class)->evaluate($refund);
+
+        $this->assertSame('venue_policy_rule', $result['source']);
+        $this->assertSame(90.0, $result['refund_percent']);
+        $this->assertSame(90000.0, $result['suggested_amount']);
+        $this->assertTrue($result['compliant']);
+        $this->assertStringContainsString('Chính sách riêng của cụm sân', $result['summary']);
+        $this->assertNotNull($result['rule']['venue_rule_id'] ?? null);
+    }
+
+    public function test_refund_evaluation_falls_back_to_system_policy_when_owner_policy_missing(): void
+    {
+        $service = app(RefundCancellationPolicyService::class);
+        $this->createCancelRefundPolicyWithOptionalVenueOverride($service, false);
+        $this->moveBookingToCancelledAtHoursBeforeStart(10);
+
+        $refund = $this->createPolicyRefund(50000);
+
+        $result = app(RefundPolicyEvaluator::class)->evaluate($refund);
+
+        $this->assertSame('system_policy_rule', $result['source']);
+        $this->assertSame(50.0, $result['refund_percent']);
+        $this->assertSame(50000.0, $result['suggested_amount']);
+        $this->assertTrue($result['compliant']);
+        $this->assertStringContainsString('Chính sách mặc định hệ thống', $result['summary']);
+        $this->assertArrayNotHasKey('venue_rule_id', $result['rule']);
+    }
+
     public function test_refunds_are_not_exported_because_they_credit_user_wallet(): void
     {
         $payout = UserPayoutAccount::query()->create([
@@ -640,6 +683,222 @@ class AdminFinanceOperationTest extends TestCase
         $this->assertDatabaseHas('owner_wallets', ['id' => $wallet->id, 'available_balance' => 100000]);
     }
 
+    public function test_admin_can_pay_user_withdrawal_from_locked_balance_by_cash(): void
+    {
+        $wallet = UserWallet::query()->create([
+            'user_id' => $this->customer->id,
+            'balance' => 70000,
+            'locked_balance' => 30000,
+            'status' => 'active',
+        ]);
+        $account = UserPayoutAccount::query()->create([
+            'user_id' => $this->customer->id,
+            'bank_name' => 'Techcombank',
+            'bank_account_number' => '29206999999999',
+            'bank_account_holder' => 'NGUYEN VAN KIEN',
+            'is_default' => true,
+            'status' => 'active',
+        ]);
+        $withdrawal = UserWithdrawalRequest::query()->create([
+            'user_wallet_id' => $wallet->id,
+            'user_id' => $this->customer->id,
+            'payout_account_id' => $account->id,
+            'amount' => 30000,
+            'status' => 'pending',
+            'requested_at' => now(),
+        ]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->patchJson("/api/admin/finance/user-withdrawals/{$withdrawal->id}/pay", [
+                'payment_method' => 'cash',
+                'note' => 'Đã trả tiền mặt tại quầy.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'paid')
+            ->assertJsonPath('data.payment_method', 'cash');
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->patchJson("/api/admin/finance/user-withdrawals/{$withdrawal->id}/pay", [
+                'payment_method' => 'cash',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'paid');
+
+        $wallet->refresh();
+        $this->assertSame(70000.0, (float) $wallet->balance);
+        $this->assertSame(0.0, (float) $wallet->locked_balance);
+        $this->assertSame(1, DB::table('user_wallet_ledgers')
+            ->where('reference_type', 'user_withdrawal')
+            ->where('reference_id', $withdrawal->id)
+            ->where('type', 'withdrawal')
+            ->where('status', 'completed')
+            ->count());
+        $this->assertDatabaseHas('user_wallet_ledgers', [
+            'user_wallet_id' => $wallet->id,
+            'reference_type' => 'user_withdrawal',
+            'reference_id' => $withdrawal->id,
+            'type' => 'withdrawal',
+            'direction' => 'debit',
+            'amount' => 30000,
+            'status' => 'completed',
+        ]);
+        $this->assertDatabaseHas('internal_receipts', [
+            'receiptable_type' => UserWithdrawalRequest::class,
+            'receiptable_id' => $withdrawal->id,
+            'receipt_type' => 'withdrawal',
+            'amount' => 30000,
+        ]);
+    }
+
+    public function test_admin_can_pay_legacy_user_withdrawal_from_available_balance_by_bank_transfer(): void
+    {
+        $wallet = UserWallet::query()->create([
+            'user_id' => $this->customer->id,
+            'balance' => 50000,
+            'locked_balance' => 0,
+            'status' => 'active',
+        ]);
+        $account = UserPayoutAccount::query()->create([
+            'user_id' => $this->customer->id,
+            'bank_name' => 'Techcombank',
+            'bank_account_number' => '29206999999999',
+            'bank_account_holder' => 'NGUYEN VAN KIEN',
+            'is_default' => true,
+            'status' => 'active',
+        ]);
+        $withdrawal = UserWithdrawalRequest::query()->create([
+            'user_wallet_id' => $wallet->id,
+            'user_id' => $this->customer->id,
+            'payout_account_id' => $account->id,
+            'amount' => 20000,
+            'status' => 'approved',
+            'requested_at' => now(),
+            'approved_at' => now(),
+            'approved_by' => $this->finance->id,
+        ]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->patchJson("/api/admin/finance/user-withdrawals/{$withdrawal->id}/pay", [
+                'payment_method' => 'bank_transfer',
+                'transfer_reference' => 'FT-USER-WD-001',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'paid')
+            ->assertJsonPath('data.transfer_reference', 'FT-USER-WD-001');
+
+        $wallet->refresh();
+        $this->assertSame(30000.0, (float) $wallet->balance);
+        $this->assertSame(0.0, (float) $wallet->locked_balance);
+    }
+
+    public function test_user_withdrawal_qr_is_completed_from_sepay_outbound_transaction(): void
+    {
+        config()->set('services.sepay.api_token', 'test-sepay-token');
+        config()->set('services.sepay.api_base_url', 'https://userapi.sepay.vn/v2');
+
+        $wallet = UserWallet::query()->create([
+            'user_id' => $this->customer->id,
+            'balance' => 50000,
+            'locked_balance' => 20000,
+            'status' => 'active',
+        ]);
+        $account = UserPayoutAccount::query()->create([
+            'user_id' => $this->customer->id,
+            'bank_name' => 'Techcombank',
+            'bank_account_number' => '29206999999999',
+            'bank_account_holder' => 'NGUYEN VAN KIEN',
+            'is_default' => true,
+            'status' => 'active',
+        ]);
+        $withdrawal = UserWithdrawalRequest::query()->create([
+            'user_wallet_id' => $wallet->id,
+            'user_id' => $this->customer->id,
+            'payout_account_id' => $account->id,
+            'amount' => 20000,
+            'status' => 'pending',
+            'requested_at' => now(),
+        ]);
+
+        $qr = $this->actingAs($this->finance, 'sanctum')
+            ->postJson("/api/admin/finance/user-withdrawals/{$withdrawal->id}/payout-qr")
+            ->assertOk()
+            ->assertJsonPath('data.recipient.account_number', '29206999999999')
+            ->assertJsonPath('data.amount', 20000);
+
+        $transferCode = $qr->json('data.transfer_code');
+        $this->assertStringStartsWith('UW', $transferCode);
+        $this->assertStringContainsString('qr.sepay.vn/img', $qr->json('data.qr_url'));
+
+        Http::fake([
+            'https://userapi.sepay.vn/v2/transactions*' => Http::response([
+                'status' => 'success',
+                'data' => [[
+                    'id' => 'SEPAY-UW-OUT-01',
+                    'transaction_date' => now()->format('Y-m-d H:i:s'),
+                    'account_number' => '29206999999999',
+                    'transfer_type' => 'out',
+                    'amount_out' => 20000,
+                    'transaction_content' => $transferCode.' RUT VI SPORTGO',
+                    'reference_number' => 'FT-UW-OUT-01',
+                    'code' => $transferCode,
+                ]],
+            ]),
+        ]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->postJson("/api/admin/finance/user-withdrawals/{$withdrawal->id}/payout-check")
+            ->assertOk()
+            ->assertJsonPath('completed', true)
+            ->assertJsonPath('data.status', 'paid');
+
+        $wallet->refresh();
+        $this->assertSame(50000.0, (float) $wallet->balance);
+        $this->assertSame(0.0, (float) $wallet->locked_balance);
+        $this->assertDatabaseHas('user_withdrawal_requests', [
+            'id' => $withdrawal->id,
+            'status' => 'paid',
+            'payment_method' => 'bank_transfer',
+            'transfer_reference' => 'SEPAY-UW-OUT-01',
+        ]);
+    }
+
+    public function test_admin_cannot_pay_user_withdrawal_when_wallet_balance_is_insufficient(): void
+    {
+        $wallet = UserWallet::query()->create([
+            'user_id' => $this->customer->id,
+            'balance' => 10000,
+            'locked_balance' => 0,
+            'status' => 'active',
+        ]);
+        $account = UserPayoutAccount::query()->create([
+            'user_id' => $this->customer->id,
+            'bank_name' => 'Techcombank',
+            'bank_account_number' => '29206999999999',
+            'bank_account_holder' => 'NGUYEN VAN KIEN',
+            'is_default' => true,
+            'status' => 'active',
+        ]);
+        $withdrawal = UserWithdrawalRequest::query()->create([
+            'user_wallet_id' => $wallet->id,
+            'user_id' => $this->customer->id,
+            'payout_account_id' => $account->id,
+            'amount' => 20000,
+            'status' => 'pending',
+            'requested_at' => now(),
+        ]);
+
+        $this->actingAs($this->finance, 'sanctum')
+            ->patchJson("/api/admin/finance/user-withdrawals/{$withdrawal->id}/pay", [
+                'payment_method' => 'cash',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Ví người dùng không đủ số dư để chi trả yêu cầu rút tiền.');
+
+        $wallet->refresh();
+        $this->assertSame(10000.0, (float) $wallet->balance);
+        $this->assertSame('pending', $withdrawal->fresh()->status);
+    }
+
     private function createOwnerBankAccount(): OwnerBankAccount
     {
         return OwnerBankAccount::query()->create([
@@ -701,6 +960,111 @@ class AdminFinanceOperationTest extends TestCase
             'result_json' => ['refund_percent' => 50],
             'priority' => 200,
             'is_active' => true,
+        ]);
+    }
+
+    private function createCancelRefundPolicyWithOptionalVenueOverride(RefundCancellationPolicyService $service, bool $withVenueOverride): PolicyRule
+    {
+        $systemTiers = $service->defaultCancelRefundTiers();
+        foreach ($systemTiers as &$tier) {
+            if ($tier['key'] === 'from_6_to_24') {
+                $tier['refund_percent'] = 50;
+            }
+        }
+        unset($tier);
+
+        $policy = SystemPolicy::query()->create([
+            'key' => 'booking_cancellation_cross_source_test',
+            'version' => 1,
+            'title' => 'Chính sách hủy/hoàn mặc định',
+            'content' => 'Test policy',
+            'type' => 'booking',
+            'policy_type' => 'booking_cancellation',
+            'status' => 'active',
+            'is_active' => true,
+            'is_overridable' => true,
+            'priority' => 100,
+            'effective_from' => now()->subDay(),
+            'published_at' => now()->subDay(),
+        ]);
+
+        $policy->actionBindings()->create([
+            'module' => 'booking',
+            'action_code' => 'booking.cancel_by_customer',
+            'description' => 'Khách hủy booking',
+            'is_active' => true,
+        ]);
+
+        $rule = $policy->rules()->create([
+            'action_code' => 'booking.cancel_by_customer',
+            'rule_code' => 'cancel_before_hours_cross_source_test',
+            'rule_name' => 'Bảng mốc hủy & hoàn mặc định',
+            'rule_type' => RefundCancellationPolicyService::CANCELLATION_RULE_TYPE,
+            'decision_key' => 'cancel_allowed',
+            'conflict_group' => 'booking_cancel_window',
+            'condition_json' => ['uses_cancel_refund_tier_table' => true],
+            'result_json' => $service->cancelRefundResultJson($systemTiers, ['refund_basis' => 'paid_amount']),
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+
+        if ($withVenueOverride) {
+            $venueTiers = $systemTiers;
+            foreach ($venueTiers as &$tier) {
+                if ($tier['key'] === 'from_6_to_24') {
+                    $tier['refund_percent'] = 90;
+                }
+            }
+            unset($tier);
+
+            VenuePolicyRule::query()->create([
+                'venue_cluster_id' => $this->cluster->id,
+                'base_policy_rule_id' => $rule->id,
+                'action_code' => 'booking.cancel_by_customer',
+                'rule_code' => 'cancel_before_hours_cross_source_override',
+                'rule_name' => 'Bảng mốc hủy & hoàn riêng của cụm sân',
+                'rule_type' => RefundCancellationPolicyService::CANCELLATION_RULE_TYPE,
+                'condition_json' => ['uses_cancel_refund_tier_table' => true],
+                'result_json' => $service->cancelRefundResultJson($venueTiers, ['refund_basis' => 'paid_amount']),
+                'status' => 'active',
+                'approved_by' => $this->finance->id,
+                'approved_at' => now()->subHour(),
+                'created_by' => $this->owner->id,
+                'updated_by' => $this->owner->id,
+                'submitted_by' => $this->owner->id,
+                'submitted_at' => now()->subHours(2),
+                'reviewed_by' => $this->finance->id,
+                'reviewed_at' => now()->subHour(),
+                'effective_from' => now()->subHour(),
+            ]);
+        }
+
+        return $rule;
+    }
+
+    private function moveBookingToCancelledAtHoursBeforeStart(int $hoursBeforeStart): void
+    {
+        $startAt = now()->addHours($hoursBeforeStart)->startOfHour();
+
+        $this->booking->update([
+            'booking_date' => $startAt->toDateString(),
+            'start_time' => $startAt->format('H:i:s'),
+            'end_time' => $startAt->copy()->addHour()->format('H:i:s'),
+            'cancelled_at' => now(),
+            'status' => 'cancelled',
+        ]);
+    }
+
+    private function createPolicyRefund(float $amount): Refund
+    {
+        return Refund::query()->create([
+            'payment_id' => $this->payment->id,
+            'booking_id' => $this->booking->id,
+            'customer_id' => $this->customer->id,
+            'amount' => $amount,
+            'reason' => 'Khách hủy trước giờ chơi 10 tiếng.',
+            'refund_destination' => 'user_wallet',
+            'status' => 'pending_owner_confirmation',
         ]);
     }
 

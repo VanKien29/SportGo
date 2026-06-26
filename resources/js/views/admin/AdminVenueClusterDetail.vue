@@ -701,7 +701,12 @@
       <form class="modal-box card" @submit.prevent="handleLock">
         <div class="modal-header">
           <h3>Khóa cụm sân</h3>
-          <button type="button" class="btn-close" @click="closeLockModal">×</button>
+          <button type="button" class="btn-close" @click="closeLockModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <div v-if="lockError" class="alert-error">{{ lockError }}</div>
@@ -738,7 +743,12 @@
       <form class="modal-box card" @submit.prevent="handleReject">
         <div class="modal-header">
           <h3>Từ chối yêu cầu</h3>
-          <button type="button" class="btn-close" @click="closeRejectModal">×</button>
+          <button type="button" class="btn-close" @click="closeRejectModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <p class="muted">Yêu cầu: <strong>{{ rejectTarget.name }}</strong></p>
@@ -768,7 +778,12 @@
       <form class="modal-box card" @submit.prevent="handleRejectLocation">
         <div class="modal-header">
           <h3>Từ chối yêu cầu thay đổi vị trí</h3>
-          <button type="button" class="btn-close" @click="closeRejectLocationModal">×</button>
+          <button type="button" class="btn-close" @click="closeRejectLocationModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <p class="muted">Địa chỉ mới: <strong>{{ rejectLocationTarget.new_address }}, {{ rejectLocationTarget.new_province }}</strong></p>
@@ -798,7 +813,12 @@
       <form class="modal-box card" @submit.prevent="handleRejectUnlock">
         <div class="modal-header">
           <h3>Từ chối yêu cầu mở khóa</h3>
-          <button type="button" class="btn-close" @click="closeRejectUnlockModal">×</button>
+          <button type="button" class="btn-close" @click="closeRejectUnlockModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <div class="modal-body">
           <p class="muted">Giải trình của chủ sân: <strong>{{ rejectUnlockTarget.reason }}</strong></p>

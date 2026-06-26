@@ -4,7 +4,10 @@ namespace App\Services\Finance;
 
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\Refund;
+use App\Models\User;
 use App\Models\UserPayoutAccount;
+use App\Models\UserWithdrawalRequest;
+use App\Services\Wallets\SystemWalletService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -14,6 +17,8 @@ class SepayPayoutService
     public function __construct(
         private readonly AdminRefundService $refunds,
         private readonly AdminWithdrawalService $withdrawals,
+        private readonly UserWithdrawalPaymentService $userWithdrawals,
+        private readonly SystemWalletService $systemWallets,
     ) {}
 
     public function refundQr(Refund $refund): array
@@ -88,6 +93,43 @@ class SepayPayoutService
         ];
     }
 
+    public function userWithdrawalQr(UserWithdrawalRequest $withdrawal): array
+    {
+        $withdrawal->loadMissing('payoutAccount');
+
+        if (! in_array($withdrawal->status, ['pending', 'approved'], true)) {
+            throw new RuntimeException('Chỉ tạo QR cho yêu cầu rút tiền người dùng đang chờ chi trả.');
+        }
+
+        $account = $withdrawal->payoutAccount;
+        if (! $account || $account->status !== 'active' || blank($account->bank_account_number)) {
+            throw new RuntimeException('Yêu cầu rút tiền chưa có tài khoản người dùng hợp lệ.');
+        }
+
+        $code = $this->ensureUserWithdrawalTransferCode($withdrawal);
+        $bankCode = $this->bankCodeForQr((string) $account->bank_name);
+
+        return [
+            'type' => 'user_withdrawal',
+            'id' => $withdrawal->id,
+            'transfer_code' => $code,
+            'amount' => (int) round((float) $withdrawal->amount),
+            'qr_url' => $this->qrUrl(
+                (string) $account->bank_account_number,
+                $bankCode,
+                (int) round((float) $withdrawal->amount),
+                $code,
+            ),
+            'recipient' => [
+                'bank_name' => $account->bank_name,
+                'bank_code' => $bankCode,
+                'account_number' => $account->bank_account_number,
+                'account_holder' => $account->bank_account_holder,
+            ],
+            'sepay_check_available' => $this->apiTokenConfigured(),
+        ];
+    }
+
     public function checkRefund(Refund $refund, ?string $actorId): array
     {
         if ($refund->status === 'completed') {
@@ -146,6 +188,34 @@ class SepayPayoutService
         return $this->completeWithdrawalFromTransaction($withdrawal, $transaction, $actorId);
     }
 
+    public function checkUserWithdrawal(UserWithdrawalRequest $withdrawal, ?User $actor): array
+    {
+        if ($withdrawal->status === 'paid') {
+            return [
+                'completed' => true,
+                'message' => 'Yêu cầu rút tiền người dùng đã được chi trả trước đó.',
+                'data' => $withdrawal->fresh(),
+            ];
+        }
+
+        if (in_array($withdrawal->status, ['rejected', 'cancelled'], true)) {
+            throw new RuntimeException('Yêu cầu rút tiền đã kết thúc, không thể kiểm tra SePay.');
+        }
+
+        $qr = $this->userWithdrawalQr($withdrawal);
+        $transaction = $this->findOutboundTransaction($qr['transfer_code'], $qr['amount']);
+
+        if (! $transaction) {
+            return [
+                'completed' => false,
+                'message' => 'Chưa tìm thấy giao dịch tiền ra khớp yêu cầu rút tiền người dùng.',
+                'payout' => $qr,
+            ];
+        }
+
+        return $this->completeUserWithdrawalFromTransaction($withdrawal, $transaction, $actor);
+    }
+
     public function handleIpn(array $payload): array
     {
         $transaction = $this->normalizeTransaction($payload);
@@ -195,6 +265,20 @@ class SepayPayoutService
             }
         }
 
+        if (Str::startsWith($code, 'UW')) {
+            $withdrawal = UserWithdrawalRequest::query()->where('payout_transfer_code', $code)->first();
+
+            if (! $withdrawal) {
+                return $this->notFoundResult('user_withdrawal_not_found', 'Không tìm thấy yêu cầu rút tiền người dùng tương ứng.');
+            }
+
+            try {
+                return $this->completeUserWithdrawalFromTransaction($withdrawal, $transaction, null) + ['success' => true];
+            } catch (RuntimeException $e) {
+                return $this->notFoundResult('user_withdrawal_payout_mismatch', $e->getMessage());
+            }
+        }
+
         return $this->notFoundResult('payout_not_found', 'Không tìm thấy nghiệp vụ hoàn/rút tương ứng.');
     }
 
@@ -225,6 +309,24 @@ class SepayPayoutService
         do {
             $code = 'WD'.Str::upper(Str::random(10));
         } while (OwnerWithdrawalRequest::query()->where('payout_transfer_code', $code)->exists());
+
+        $withdrawal->forceFill([
+            'payout_transfer_code' => $code,
+            'payout_qr_created_at' => now(),
+        ])->save();
+
+        return $code;
+    }
+
+    public function ensureUserWithdrawalTransferCode(UserWithdrawalRequest $withdrawal): string
+    {
+        if ($withdrawal->payout_transfer_code) {
+            return $withdrawal->payout_transfer_code;
+        }
+
+        do {
+            $code = 'UW'.Str::upper(Str::random(10));
+        } while (UserWithdrawalRequest::query()->where('payout_transfer_code', $code)->exists());
 
         $withdrawal->forceFill([
             'payout_transfer_code' => $code,
@@ -315,6 +417,35 @@ class SepayPayoutService
             'source' => 'sepay_outbound',
             'transfer_reference' => $transaction['transaction_id'],
         ]);
+
+        return [
+            'completed' => true,
+            'transaction' => $transaction,
+            'data' => $updated,
+        ];
+    }
+
+    private function completeUserWithdrawalFromTransaction(
+        UserWithdrawalRequest $withdrawal,
+        array $transaction,
+        ?User $actor,
+    ): array {
+        $withdrawal = UserWithdrawalRequest::query()->whereKey($withdrawal->id)->firstOrFail();
+
+        if ($withdrawal->status === 'paid') {
+            return ['completed' => true, 'transaction' => $transaction, 'data' => $withdrawal->fresh()];
+        }
+
+        $this->assertOutboundTransactionMatches($withdrawal->payout_transfer_code, (float) $withdrawal->amount, $transaction);
+        $this->assertTransactionReferenceUnused($transaction['transaction_id'], 'user_withdrawal', $withdrawal->id);
+
+        $updated = $this->userWithdrawals->pay(
+            $withdrawal,
+            $actor,
+            'bank_transfer',
+            $transaction['transaction_id'],
+            'SePay xác nhận giao dịch tiền ra khớp yêu cầu rút tiền người dùng.',
+        );
 
         return [
             'completed' => true,
@@ -444,6 +575,22 @@ class SepayPayoutService
         if ($transaction['transaction_id'] === '') {
             throw new RuntimeException('Giao dịch SePay thiếu mã tham chiếu.');
         }
+
+        $this->assertSystemBankAccountMatches($transaction);
+    }
+
+    private function assertSystemBankAccountMatches(array $transaction): void
+    {
+        $account = $this->systemWallets->defaultAccount();
+        $transactionAccount = $this->digits($transaction['account_number'] ?? '');
+
+        if ($transactionAccount === '') {
+            throw new RuntimeException('Giao dịch SePay thiếu số tài khoản nguồn để đối chiếu ví hệ thống.');
+        }
+
+        if ($transactionAccount !== $this->digits($account->account_number)) {
+            throw new RuntimeException('Giao dịch tiền ra không thuộc tài khoản ATM hệ thống đã cấu hình.');
+        }
     }
 
     private function transactionMatches(string $transferCode, int $amount, array $transaction): bool
@@ -451,6 +598,11 @@ class SepayPayoutService
         return in_array($transaction['transfer_type'], ['out', 'debit'], true)
             && $transaction['amount'] === $amount
             && ($transaction['code'] === $transferCode || Str::contains(Str::upper($transaction['content']), $transferCode));
+    }
+
+    private function digits(string $value): string
+    {
+        return preg_replace('/\D+/', '', $value) ?? '';
     }
 
     private function assertTransactionReferenceUnused(string $transactionId, string $type, string $id): void
@@ -469,14 +621,19 @@ class SepayPayoutService
             ->when($type === 'withdrawal', fn ($query) => $query->whereKeyNot($id))
             ->exists();
 
-        if ($usedByRefund || $usedByWithdrawal) {
+        $usedByUserWithdrawal = UserWithdrawalRequest::query()
+            ->where('transfer_reference', $transactionId)
+            ->when($type === 'user_withdrawal', fn ($query) => $query->whereKeyNot($id))
+            ->exists();
+
+        if ($usedByRefund || $usedByWithdrawal || $usedByUserWithdrawal) {
             throw new RuntimeException('Mã giao dịch SePay đã được dùng cho yêu cầu hoàn/rút khác.');
         }
     }
 
     private function extractPayoutCode(string $content): ?string
     {
-        if (preg_match('/\b(RF|WD)[A-Z0-9]{10}\b/i', $content, $matches)) {
+        if (preg_match('/\b(RF|WD|UW)[A-Z0-9]{10}\b/i', $content, $matches)) {
             return Str::upper($matches[0]);
         }
 

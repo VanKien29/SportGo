@@ -43,6 +43,14 @@
 
 
 
+        <div class="auto-approve-wrapper">
+          <label class="switch">
+            <input type="checkbox" v-model="autoApproveEnabled" @change="toggleAutoApprove" />
+            <span class="slider"></span>
+          </label>
+          <span class="switch-label">Duyệt tự động (5s)</span>
+        </div>
+
         <button class="btn ghost btn-refresh" type="button" @click="refresh">
           <AppIcon name="refresh" size="16" />
           <span>Làm mới</span>
@@ -217,10 +225,16 @@
             </div>
 
             <div v-if="activeTab !== 'system_posts'" class="fb-stats">
-              <span><AppIcon name="heart" size="18" /> {{ activeItem.like_count || 0 }}</span>
+              <span class="like-button" @click="showLikesForPost(activeItem.id)" title="Xem người thả tim" style="cursor: pointer;">
+                <AppIcon name="heart" size="18" /> {{ activeItem.like_count || 0 }}
+              </span>
               <div class="fb-stats-right">
-                <span>{{ activeItem.comment_count || postComments.length }} bình luận</span>
-                <span>0 chia sẻ</span>
+                <span style="cursor: pointer;" @click="showComments = !showComments" title="Nhấn để hiện/ẩn bình luận">
+                  {{ activeItem.comment_count || postComments.length }} bình luận
+                </span>
+                <span style="cursor: pointer; display: flex; align-items: center; color: #64748b; margin-left: 10px;" @click="copyPostLink(activeItem.id)" title="Sao chép liên kết bài viết">
+                  <AppIcon name="share" size="16" />
+                </span>
               </div>
             </div>
 
@@ -240,16 +254,6 @@
               <div style="display: flex; gap: 8px; justify-content: flex-end;">
                 <button class="btn secondary" type="button" @click="closeDetail">Đóng</button>
                 <button
-                  v-if="activeItem.status !== 'hidden' && activeItem.status !== 'rejected'"
-                  class="btn danger"
-                  type="button"
-                  :disabled="savingAction || !actionForm.reason"
-                  @click="submitAction('delete')"
-                >
-                  <AppIcon name="trash" size="16" />
-                  <span>Gỡ bài</span>
-                </button>
-                <button
                   v-if="['pending', 'pending_review', 'draft'].includes(activeItem.status)"
                   class="btn warning"
                   type="button"
@@ -260,7 +264,7 @@
                   <span>Từ chối</span>
                 </button>
                 <button
-                  v-if="activeItem.status !== 'hidden' && activeItem.status !== 'rejected'"
+                  v-if="activeItem.status !== 'hidden' && activeItem.status !== 'rejected' && activeTab !== 'venue_posts'"
                   class="btn warning"
                   type="button"
                   :disabled="savingAction || !actionForm.reason"
@@ -284,7 +288,7 @@
           </div>
 
           <!-- Danh sách bình luận -->
-          <div v-if="activeTab !== 'system_posts'" class="fb-comments">
+          <div v-if="activeTab !== 'system_posts' && showComments" class="fb-comments">
             <div v-if="loadingComments" style="text-align: center; color: #64748b; padding: 20px 0;">
               Đang tải bình luận...
             </div>
@@ -419,17 +423,25 @@
     <div v-if="lightbox.open" class="lightbox-backdrop" @click="lightbox.open = false">
       <img :src="lightbox.img" alt="zoom" class="lightbox-img" />
     </div>
+
+    <!-- Modal Danh sách thả tim -->
+    <PostLikesModal 
+      :show="showLikesModal" 
+      :postId="activeLikesPostId" 
+      @close="showLikesModal = false" 
+    />
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import PostLikesModal from '../../components/admin/PostLikesModal.vue';
 import { adminModerationService } from '../../services/adminModeration.js';
 import { adminUserService } from '../../services/adminUserService.js';
 
 export default {
   name: 'AdminContentModeration',
-  components: { AppIcon },
+  components: { AppIcon, PostLikesModal },
   data() {
     return {
       activeTab: 'community_posts',
@@ -462,6 +474,7 @@ export default {
       detailModal: { open: false },
       actionModal: { open: false },
       activeItem: null,
+      showComments: false,
       actionForm: {
         reason: '',
       },
@@ -470,6 +483,8 @@ export default {
         open: false,
         img: '',
       },
+      showLikesModal: false,
+      activeLikesPostId: null,
       mousedownWasOnBackdrop: false,
       autoApproveEnabled: false,
       autoApproveInterval: null,
@@ -525,6 +540,17 @@ export default {
     this.stopAutoApprove();
   },
   methods: {
+    async copyPostLink(postId) {
+      try {
+        const link = window.location.origin + '/posts/' + postId;
+        await navigator.clipboard.writeText(link);
+        this.message = 'Đã sao chép liên kết bài viết.';
+        this.messageType = 'success';
+        setTimeout(() => { this.message = ''; }, 3000);
+      } catch (err) {
+        console.error('Failed to copy link:', err);
+      }
+    },
     handleBackdropMousedown(event) {
       this.mousedownWasOnBackdrop = event.target === event.currentTarget;
     },
@@ -593,6 +619,7 @@ export default {
       this.actionForm.reason = '';
       this.detailModal.open = true;
       this.modalTab = 'post';
+      this.showComments = false;
       this.postComments = [];
       this.activeCommentFilter = 'all';
       this.loadingComments = true;
@@ -611,6 +638,10 @@ export default {
             };
             this.postComments = res.data.comments || [];
           }
+        } else if (this.activeTab === 'venue_posts') {
+          // Venue posts đã có media từ API list, đảm bảo giữ nguyên media data
+          this.activeItem = { ...item };
+          this.postComments = [];
         } else {
           this.postComments = [];
         }
@@ -623,6 +654,11 @@ export default {
     },
     closeDetail() {
       this.detailModal.open = false;
+    },
+    showLikesForPost(postId) {
+      if (!postId) return;
+      this.activeLikesPostId = postId;
+      this.showLikesModal = true;
     },
     async fetchAutoApproveConfig() {
       try {

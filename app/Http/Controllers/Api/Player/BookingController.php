@@ -8,6 +8,7 @@ use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\BookingService;
+use App\Services\Memberships\VenueMembershipService;
 use App\Services\Policies\RefundCancellationPolicyService;
 use Carbon\Carbon;
 use Exception;
@@ -20,8 +21,11 @@ class BookingController extends Controller
 
     protected RefundCancellationPolicyService $refundCancellationPolicyService;
 
-    public function __construct(BookingService $bookingService, RefundCancellationPolicyService $refundCancellationPolicyService)
-    {
+    public function __construct(
+        BookingService $bookingService,
+        RefundCancellationPolicyService $refundCancellationPolicyService,
+        private readonly VenueMembershipService $venueMemberships,
+    ) {
         $this->bookingService = $bookingService;
         $this->refundCancellationPolicyService = $refundCancellationPolicyService;
     }
@@ -76,11 +80,25 @@ class BookingController extends Controller
             $startTime,
             $endTime,
         );
+        $membership = $this->venueMemberships->discountForBooking(
+            $request->user()->id,
+            $court->venue_cluster_id,
+            $totalPrice,
+        );
+        $membershipDiscount = (float) ($membership['discount_amount'] ?? 0);
+        $finalPrice = round(max($totalPrice - $membershipDiscount, 0), 2);
 
         return response()->json([
             'available' => $available,
             'hourly_rate' => round($totalPrice / $durationHours, 2),
             'total_price' => $totalPrice,
+            'final_amount' => $finalPrice,
+            'membership_discount' => $membership,
+            'price_preview' => [
+                'original_amount' => $totalPrice,
+                'membership_discount_amount' => $membershipDiscount,
+                'final_amount' => $finalPrice,
+            ],
         ]);
     }
 
@@ -105,6 +123,45 @@ class BookingController extends Controller
     }
 
     /**
+     * API lấy voucher đủ điều kiện cho slot đang chọn.
+     */
+    public function eligibleVouchers(Request $request)
+    {
+        $validated = $request->validate([
+            'venue_court_id' => 'required|exists:venue_courts,id',
+            'booking_date' => 'required|date_format:Y-m-d',
+            'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+        ]);
+        $this->ensureValidTimeRange($validated['start_time'], $validated['end_time']);
+
+        $court = VenueCourt::findOrFail($validated['venue_court_id']);
+        $amount = $this->bookingService->calculateTotalPrice(
+            $court,
+            $validated['booking_date'],
+            $validated['start_time'],
+            $validated['end_time'],
+            'single',
+        );
+
+        $vouchers = $this->bookingService->eligibleVouchersForCounterBooking([
+            ...$validated,
+            'amount' => $amount,
+            'booking_type' => 'single',
+            'customer_id' => $request->user()->id,
+        ], $request->user());
+
+        return response()->json([
+            'venue_vouchers' => $vouchers
+                ->where('owner_type', 'venue')
+                ->values(),
+            'vip_vouchers' => $vouchers
+                ->where('owner_type', 'system')
+                ->values(),
+        ]);
+    }
+
+    /**
      * API đặt sân mới (Yêu cầu đăng nhập).
      */
     public function store(Request $request)
@@ -115,6 +172,12 @@ class BookingController extends Controller
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => 'required|in:full_payment,deposit,no_prepay',
+            'voucher_id' => 'nullable|uuid|exists:vouchers,id',
+            'voucher_code' => 'nullable|string|max:50',
+            'venue_voucher_id' => 'nullable|uuid|exists:vouchers,id',
+            'venue_voucher_code' => 'nullable|string|max:50',
+            'vip_voucher_id' => 'nullable|uuid|exists:vouchers,id',
+            'vip_voucher_code' => 'nullable|string|max:50',
         ]);
         $this->ensureValidTimeRange($validated['start_time'], $validated['end_time']);
 

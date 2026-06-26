@@ -34,6 +34,23 @@
             </button>
         </div>
 
+        <div v-if="tab === 'withdrawals'" class="scope-tabs" role="tablist">
+            <button
+                type="button"
+                :class="{ active: withdrawalScope === 'owner' }"
+                @click="switchWithdrawalScope('owner')"
+            >
+                Chủ sân
+            </button>
+            <button
+                type="button"
+                :class="{ active: withdrawalScope === 'user' }"
+                @click="switchWithdrawalScope('user')"
+            >
+                Người dùng
+            </button>
+        </div>
+
         <form class="toolbar" @submit.prevent="loadData(1)">
             <label class="search-field">
                 <AppIcon name="search" size="17" />
@@ -119,7 +136,7 @@
                 <AppIcon name="x" size="16" />
             </button>
             <button
-                v-if="tab === 'withdrawals'"
+                v-if="tab === 'withdrawals' && withdrawalScope === 'owner'"
                 class="export-btn"
                 type="button"
                 :disabled="selectedExportableIds.length === 0 || exporting"
@@ -170,8 +187,8 @@
                         </td>
                     </tr>
                     <template v-if="!loading">
-                    <tr v-for="refund in items" :key="refund.id">
-                        <!-- <td>
+                        <tr v-for="refund in items" :key="refund.id">
+                            <!-- <td>
                             <input
                                 v-if="isExportable(refund)"
                                 v-model="selectedIds"
@@ -179,303 +196,301 @@
                                 :value="refund.id"
                             />
                         </td> -->
-                        <td>
-                            <strong>{{
-                                refund.booking?.booking_code || "-"
-                            }}</strong
-                            ><span class="sub-line"
-                                >{{ refund.payment?.payment_code || "-" }} ·
-                                {{ refund.venue_cluster?.name || "-" }}</span
-                            >
-                        </td>
-                        <td>
-                            <strong>{{ personName(refund.customer) }}</strong
-                            ><span class="sub-line">{{
-                                refund.customer?.email ||
-                                refund.customer?.phone ||
-                                "-"
-                            }}</span>
-                            <span
-                                v-if="refund.customer?.is_walk_in"
-                                class="walk-in-note"
-                            >
-                                Khách tại quầy
-                            </span>
-                        </td>
-                        <td>
-                            <template
-                                v-if="
-                                    refund.refund_destination?.type ===
-                                    'bank_account'
-                                "
-                            >
-                                <template v-if="hasRefundBankAccount(refund)">
-                                    <strong>
-                                        {{
-                                            refund.refund_destination?.label ||
-                                            "-"
-                                        }}
-                                        ·
-                                        {{
-                                            refund.refund_destination
-                                                ?.account_number
-                                        }}
-                                    </strong>
-                                    <span class="sub-line">{{
-                                        refund.refund_destination
-                                            ?.account_holder || "-"
-                                    }}</span>
-                                    <span
-                                        v-if="refund.payout_transfer_code"
-                                        class="transfer-subline"
+                            <td>
+                                <strong>{{
+                                    refund.booking?.booking_code || "-"
+                                }}</strong
+                                ><span class="sub-line"
+                                    >{{ refund.payment?.payment_code || "-" }} ·
+                                    {{
+                                        refund.venue_cluster?.name || "-"
+                                    }}</span
+                                >
+                            </td>
+                            <td>
+                                <strong>{{
+                                    personName(refund.customer)
+                                }}</strong
+                                ><span class="sub-line">{{
+                                    refund.customer?.email ||
+                                    refund.customer?.phone ||
+                                    "-"
+                                }}</span>
+                                <span
+                                    v-if="refund.customer?.is_walk_in"
+                                    class="walk-in-note"
+                                >
+                                    Khách tại quầy
+                                </span>
+                            </td>
+                            <td>
+                                <template
+                                    v-if="
+                                        refund.refund_destination?.type ===
+                                        'bank_account'
+                                    "
+                                >
+                                    <template
+                                        v-if="hasRefundBankAccount(refund)"
                                     >
-                                        Nội dung:
-                                        {{ refund.payout_transfer_code }}
-                                    </span>
+                                        <strong>
+                                            {{
+                                                refund.refund_destination
+                                                    ?.label || "-"
+                                            }}
+                                            ·
+                                            {{
+                                                refund.refund_destination
+                                                    ?.account_number
+                                            }}
+                                        </strong>
+                                        <span class="sub-line">{{
+                                            refund.refund_destination
+                                                ?.account_holder || "-"
+                                        }}</span>
+                                        <span
+                                            v-if="refund.payout_transfer_code"
+                                            class="transfer-subline"
+                                        >
+                                            Nội dung:
+                                            {{ refund.payout_transfer_code }}
+                                        </span>
+                                    </template>
+                                    <template v-else>
+                                        <strong>{{
+                                            refund.refund_destination?.label ||
+                                            "Tài khoản ngân hàng"
+                                        }}</strong>
+                                        <span class="inline-warning">
+                                            Thiếu tài khoản nhận tiền
+                                        </span>
+                                    </template>
                                 </template>
                                 <template v-else>
                                     <strong>{{
-                                        refund.refund_destination?.label ||
-                                        "Tài khoản ngân hàng"
+                                        refund.refund_destination?.label || "-"
                                     }}</strong>
-                                    <span class="inline-warning">
-                                        Thiếu tài khoản nhận tiền
-                                    </span>
-                                </template>
-                            </template>
-                            <template v-else>
-                                <strong>{{
-                                    refund.refund_destination?.label || "-"
-                                }}</strong>
-                                <!-- <span class="sub-line">{{
+                                    <!-- <span class="sub-line">{{
                                     refund.refund_destination?.type ===
                                     "user_wallet"
                                         ? "Cộng trực tiếp vào ví khách hàng"
                                         : refund.refund_destination
                                               ?.account_holder || "-"
                                 }}</span> -->
-                                <span
-                                    v-if="refund.wallet_refund_blocked_reason"
-                                    class="inline-warning"
-                                >
-                                    {{ refund.wallet_refund_blocked_reason }}
-                                </span>
-                                <span
-                                    v-if="isRefundWaitingTransfer(refund)"
-                                    class="inline-warning"
-                                >
-                                    Thiếu tài khoản nhận tiền
-                                </span>
-                            </template>
-                        </td>
-                        <td>
-                            <span
-                                class="status-pill"
-                                :class="ownerDecisionClass(refund)"
-                            >
-                                {{ ownerDecisionLabel(refund) }}
-                            </span>
-                            <span class="sub-line">{{
-                                formatDate(
-                                    refund.owner_confirmation?.confirmed_at,
-                                )
-                            }}</span>
-                        </td>
-                        <td>
-                            <strong>{{ formatCurrency(refund.amount) }}</strong>
-                            <span class="sub-line">{{
-                                refund.reason || "-"
-                            }}</span>
-                            <div
-                                v-if="
-                                    refund.policy_evaluation &&
-                                    !isOwnerFaultRefund(refund)
-                                "
-                                class="policy-badge"
-                                :class="
-                                    policyBadgeClass(refund.policy_evaluation)
-                                "
-                            >
-                                <span class="policy-icon">
-                                    <AppIcon
-                                        :name="
-                                            policyIcon(refund.policy_evaluation)
+                                    <span
+                                        v-if="
+                                            refund.wallet_refund_blocked_reason
                                         "
-                                        size="13"
-                                    />
-                                </span>
-                                <span class="policy-text">
-                                    <template
-                                        v-if="refund.policy_evaluation.detail"
+                                        class="inline-warning"
                                     >
                                         {{
-                                            refund.policy_evaluation.detail
-                                                .refund_percent != null
-                                                ? refund.policy_evaluation
-                                                      .detail.refund_percent +
-                                                  "%"
-                                                : ""
+                                            refund.wallet_refund_blocked_reason
                                         }}
-                                        <template
-                                            v-if="
-                                                refund.policy_evaluation.detail
-                                                    .suggested_amount != null
-                                            "
-                                        >
-                                            · tối đa
-                                            {{
-                                                formatCurrency(
-                                                    refund.policy_evaluation
-                                                        .detail
-                                                        .suggested_amount,
-                                                )
-                                            }}
-                                        </template>
-                                    </template>
-                                    <template v-else>
-                                        {{
-                                            refund.policy_evaluation.summary ||
-                                            "Chưa đánh giá"
-                                        }}
-                                    </template>
+                                    </span>
+                                    <span
+                                        v-if="isRefundWaitingTransfer(refund)"
+                                        class="inline-warning"
+                                    >
+                                        Thiếu tài khoản nhận tiền
+                                    </span>
+                                </template>
+                            </td>
+                            <td>
+                                <span
+                                    class="status-pill"
+                                    :class="ownerDecisionClass(refund)"
+                                >
+                                    {{ ownerDecisionLabel(refund) }}
                                 </span>
-                                <button
+                                <span class="sub-line">{{
+                                    formatDate(
+                                        refund.owner_confirmation?.confirmed_at,
+                                    )
+                                }}</span>
+                            </td>
+                            <td>
+                                <strong>{{
+                                    formatCurrency(refund.amount)
+                                }}</strong>
+                                <span class="sub-line">{{
+                                    refund.reason || "-"
+                                }}</span>
+                                <div
                                     v-if="
-                                        refund.policy_evaluation.detail ||
-                                        refund.policy_evaluation.violations
-                                            ?.length
+                                        refund.policy_evaluation &&
+                                        !isOwnerFaultRefund(refund)
                                     "
-                                    class="policy-expand"
-                                    type="button"
-                                    :title="
-                                        policyExpandTooltip(
+                                    class="policy-badge"
+                                    :class="
+                                        policyBadgeClass(
                                             refund.policy_evaluation,
                                         )
                                     "
-                                    @click="togglePolicyDetail(refund.id)"
                                 >
-                                    <AppIcon
-                                        :name="
-                                            expandedPolicies[refund.id]
-                                                ? 'chevronUp'
-                                                : 'chevronDown'
+                                    <span class="policy-icon">
+                                        <AppIcon
+                                            :name="
+                                                policyIcon(
+                                                    refund.policy_evaluation,
+                                                )
+                                            "
+                                            size="13"
+                                        />
+                                    </span>
+                                    <span class="policy-text">
+                                        <template
+                                            v-if="
+                                                refund.policy_evaluation.detail
+                                            "
+                                        >
+                                            {{
+                                                refund.policy_evaluation.detail
+                                                    .refund_percent != null
+                                                    ? refund.policy_evaluation
+                                                          .detail
+                                                          .refund_percent + "%"
+                                                    : ""
+                                            }}
+                                            <template
+                                                v-if="
+                                                    refund.policy_evaluation
+                                                        .detail
+                                                        .suggested_amount !=
+                                                    null
+                                                "
+                                            >
+                                                · tối đa
+                                                {{
+                                                    formatCurrency(
+                                                        refund.policy_evaluation
+                                                            .detail
+                                                            .suggested_amount,
+                                                    )
+                                                }}
+                                            </template>
+                                        </template>
+                                        <template v-else>
+                                            {{
+                                                refund.policy_evaluation
+                                                    .summary || "Chưa đánh giá"
+                                            }}
+                                        </template>
+                                    </span>
+                                    <button
+                                        v-if="
+                                            refund.policy_evaluation.detail ||
+                                            refund.policy_evaluation.violations
+                                                ?.length
                                         "
-                                        size="12"
-                                    />
-                                </button>
-                            </div>
-                            <div
-                                v-else-if="isOwnerFaultRefund(refund)"
-                                class="policy-badge neutral"
-                            >
-                                <span class="policy-icon">
-                                    <AppIcon name="check" size="13" />
-                                </span>
-                                <span class="policy-text">
-                                    Hoàn 100% do chủ sân khóa/bảo trì sân
-                                </span>
-                            </div>
-                            <div
-                                v-if="
-                                    expandedPolicies[refund.id] &&
-                                    refund.policy_evaluation &&
-                                    !isOwnerFaultRefund(refund)
-                                "
-                                class="policy-detail"
-                            >
+                                        class="policy-expand"
+                                        type="button"
+                                        :title="
+                                            policyExpandTooltip(
+                                                refund.policy_evaluation,
+                                            )
+                                        "
+                                        @click="togglePolicyDetail(refund.id)"
+                                    >
+                                        <AppIcon
+                                            :name="
+                                                expandedPolicies[refund.id]
+                                                    ? 'chevronUp'
+                                                    : 'chevronDown'
+                                            "
+                                            size="12"
+                                        />
+                                    </button>
+                                </div>
                                 <div
-                                    v-if="refund.policy_evaluation.detail"
-                                    class="policy-detail-grid"
+                                    v-else-if="isOwnerFaultRefund(refund)"
+                                    class="policy-badge neutral"
                                 >
-                                    <span>Nguồn</span
-                                    ><strong>{{
-                                        refund.policy_evaluation.detail
-                                            .source_label || "-"
-                                    }}</strong>
-                                    <span>Rule</span
-                                    ><strong>{{
-                                        refund.policy_evaluation.detail
-                                            .rule_name || "-"
-                                    }}</strong>
-                                    <span>Đã thanh toán</span
-                                    ><strong>{{
-                                        formatCurrency(
+                                    <span class="policy-icon">
+                                        <AppIcon name="check" size="13" />
+                                    </span>
+                                    <span class="policy-text">
+                                        Hoàn 100% do chủ sân khóa/bảo trì sân
+                                    </span>
+                                </div>
+                                <div
+                                    v-if="
+                                        expandedPolicies[refund.id] &&
+                                        refund.policy_evaluation &&
+                                        !isOwnerFaultRefund(refund)
+                                    "
+                                    class="policy-detail"
+                                >
+                                    <div
+                                        v-if="refund.policy_evaluation.detail"
+                                        class="policy-detail-grid"
+                                    >
+                                        <span>Nguồn</span
+                                        ><strong>{{
                                             refund.policy_evaluation.detail
-                                                .paid_amount,
-                                        )
-                                    }}</strong>
-                                    <span>Giờ trước sân</span
-                                    ><strong>{{
-                                        refund.policy_evaluation.detail
-                                            .hours_before_start != null
-                                            ? refund.policy_evaluation.detail
-                                                  .hours_before_start + "h"
-                                            : "-"
-                                    }}</strong>
+                                                .source_label || "-"
+                                        }}</strong>
+                                        <span>Rule</span
+                                        ><strong>{{
+                                            refund.policy_evaluation.detail
+                                                .rule_name || "-"
+                                        }}</strong>
+                                        <span>Đã thanh toán</span
+                                        ><strong>{{
+                                            formatCurrency(
+                                                refund.policy_evaluation.detail
+                                                    .paid_amount,
+                                            )
+                                        }}</strong>
+                                        <span>Giờ trước sân</span
+                                        ><strong>{{
+                                            refund.policy_evaluation.detail
+                                                .hours_before_start != null
+                                                ? refund.policy_evaluation
+                                                      .detail
+                                                      .hours_before_start + "h"
+                                                : "-"
+                                        }}</strong>
+                                    </div>
+                                    <div
+                                        v-for="(v, vi) in refund
+                                            .policy_evaluation.violations || []"
+                                        :key="vi"
+                                        class="policy-violation"
+                                    >
+                                        <AppIcon name="alert" size="13" />
+                                        {{ v.message }}
+                                    </div>
                                 </div>
-                                <div
-                                    v-for="(v, vi) in refund.policy_evaluation
-                                        .violations || []"
-                                    :key="vi"
-                                    class="policy-violation"
+                            </td>
+                            <td>
+                                <span
+                                    class="status-pill"
+                                    :class="refundStatusClass(refund)"
+                                    >{{ refundStatusLabel(refund) }}</span
                                 >
-                                    <AppIcon name="alert" size="13" />
-                                    {{ v.message }}
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="status-pill" :class="refundStatusClass(refund)">{{
-                                refundStatusLabel(refund)
-                            }}</span>
-                            <span class="sub-line">{{
-                                refundStatusNote(refund)
-                            }}</span>
-                        </td>
-                        <td>
-                            <button
-                                v-if="refund.receipt"
-                                class="code-link"
-                                type="button"
-                                @click="openReceipt(refund.receipt)"
-                            >
-                                {{ refund.receipt.receipt_code }}</button
-                            ><span v-else>-</span>
-                        </td>
-                        <td>
-                            <div class="row-actions">
+                            </td>
+                            <td>
                                 <button
-                                    v-if="canOpenPayout(refund)"
-                                    class="pay-command"
+                                    v-if="refund.receipt"
+                                    class="code-link"
                                     type="button"
-                                    title="Tạo QR chuyển khoản"
-                                    @click="openPayout(refund)"
+                                    @click="openReceipt(refund.receipt)"
                                 >
-                                    <AppIcon name="banknote" size="16" />Thanh
-                                    toán
-                                </button>
+                                    {{ refund.receipt.receipt_code }}</button
+                                ><span v-else>-</span>
+                            </td>
+                            <td class="row-actions">
                                 <button
-                                    v-if="canCompleteWalletRefund(refund)"
-                                    class="pay-command"
-                                    type="button"
-                                    title="Hoàn tiền vào ví khách hàng"
-                                    :disabled="saving"
-                                    @click="completeWalletRefund(refund)"
-                                >
-                                    <AppIcon name="banknote" size="16" />Hoàn ví
-                                </button>
-                                <button
-                                    v-if="refund.allowed_statuses?.length"
                                     class="icon-only"
                                     type="button"
-                                    title="Từ chối yêu cầu"
-                                    @click="openAction(refund)"
+                                    title="Xem chi tiết"
+                                    aria-label="Xem chi tiết"
+                                    @click="openRefundDetail(refund)"
                                 >
-                                    <AppIcon name="settings" size="17" />
+                                    <AppIcon name="eye" size="16" />
                                 </button>
-                            </div>
-                        </td>
-                    </tr>
+                            </td>
+                        </tr>
                     </template>
                 </tbody>
             </table>
@@ -490,10 +505,29 @@
                                 @change="toggleAllExportable"
                             />
                         </th>
-                        <th>Yêu cầu / Chủ sân</th>
-                        <th>Cụm sân</th>
-                        <th>Số dư online còn lại</th>
-                        <th>Tài khoản owner</th>
+                        <th>
+                            Yêu cầu /
+                            {{
+                                withdrawalScope === "owner"
+                                    ? "Chủ sân"
+                                    : "Người dùng"
+                            }}
+                        </th>
+                        <th>
+                            {{
+                                withdrawalScope === "owner"
+                                    ? "Cụm sân"
+                                    : "Phạm vi"
+                            }}
+                        </th>
+                        <th>
+                            {{
+                                withdrawalScope === "owner"
+                                    ? "Số dư online còn lại"
+                                    : "Số dư ví user"
+                            }}
+                        </th>
+                        <th>Tài khoản nhận tiền</th>
                         <th>Số tiền yêu cầu</th>
                         <th>Trạng thái</th>
                         <th>Phiếu</th>
@@ -512,102 +546,119 @@
                         </td>
                     </tr>
                     <template v-if="!loading">
-                    <tr v-for="withdrawal in items" :key="withdrawal.id">
-                        <td>
-                            <input
-                                v-if="isExportable(withdrawal)"
-                                v-model="selectedIds"
-                                type="checkbox"
-                                :value="withdrawal.id"
-                            />
-                        </td>
-                        <td>
-                            <strong>{{ withdrawal.request_code }}</strong
-                            ><span class="sub-line">{{
-                                personName(withdrawal.owner)
-                            }}</span>
-                        </td>
-                        <td>
-                            {{ withdrawal.venue_clusters?.join(", ") || "-" }}
-                        </td>
-                        <td>
-                            <strong>{{
-                                formatCurrency(
-                                    withdrawal.wallet?.available_balance,
-                                )
-                            }}</strong
-                            ><span class="sub-line"
-                                >Đang giữ:
+                        <tr v-for="withdrawal in items" :key="withdrawal.id">
+                            <td>
+                                <input
+                                    v-if="isExportable(withdrawal)"
+                                    v-model="selectedIds"
+                                    type="checkbox"
+                                    :value="withdrawal.id"
+                                />
+                            </td>
+                            <td>
+                                <strong>{{ withdrawal.request_code }}</strong
+                                ><span class="sub-line">{{
+                                    personName(withdrawal.owner)
+                                }}</span>
+                            </td>
+                            <td>
                                 {{
+                                    withdrawal.venue_clusters?.join(", ") || "-"
+                                }}
+                            </td>
+                            <td>
+                                <strong>{{
                                     formatCurrency(
-                                        withdrawal.wallet
-                                            ?.pending_withdrawal_balance,
+                                        withdrawal.wallet?.available_balance,
                                     )
-                                }}</span
-                            >
-                        </td>
-                        <td>
-                            <strong
-                                >{{ withdrawal.bank_account?.bank_name }} ·
-                                {{
-                                    withdrawal.bank_account?.account_number
                                 }}</strong
-                            ><span class="sub-line">{{
-                                withdrawal.bank_account?.account_holder_name
-                            }}</span>
-                        </td>
-                        <td>
-                            <strong>{{
-                                formatCurrency(withdrawal.amount)
-                            }}</strong
-                            ><span class="sub-line">{{
-                                withdrawal.owner_note || "-"
-                            }}</span>
-                        </td>
-                        <td>
-                            <span
-                                class="status-pill"
-                                :class="withdrawal.status"
-                                >{{ statusLabel(withdrawal.status, "withdrawals") }}</span
-                            ><span class="sub-line">{{
-                                withdrawal.status_reason ||
-                                formatDate(withdrawal.requested_at)
-                            }}</span>
-                        </td>
-                        <td>
-                            <button
-                                v-if="withdrawal.receipt"
-                                class="code-link"
-                                type="button"
-                                @click="openReceipt(withdrawal.receipt)"
-                            >
-                                {{ withdrawal.receipt.receipt_code }}</button
-                            ><span v-else>-</span>
-                        </td>
-                        <td>
-                            <div class="row-actions">
-                                <button
-                                    v-if="canOpenPayout(withdrawal)"
-                                    class="pay-command"
-                                    type="button"
-                                    title="Tạo QR chuyển khoản"
-                                    @click="openPayout(withdrawal)"
+                                ><span class="sub-line"
+                                    >Đang giữ:
+                                    {{
+                                        formatCurrency(
+                                            withdrawal.wallet
+                                                ?.pending_withdrawal_balance,
+                                        )
+                                    }}</span
                                 >
-                                    <AppIcon name="banknote" size="16" />Thanh
-                                    toán
-                                </button>
+                            </td>
+                            <td>
+                                <strong
+                                    >{{ withdrawal.bank_account?.bank_name }} ·
+                                    {{
+                                        withdrawal.bank_account?.account_number
+                                    }}</strong
+                                ><span class="sub-line">{{
+                                    withdrawal.bank_account?.account_holder_name
+                                }}</span>
+                            </td>
+                            <td>
+                                <strong>{{
+                                    formatCurrency(withdrawal.amount)
+                                }}</strong
+                                ><span class="sub-line">{{
+                                    withdrawal.owner_note || "-"
+                                }}</span>
+                            </td>
+                            <td>
+                                <span
+                                    class="status-pill"
+                                    :class="withdrawal.status"
+                                    >{{
+                                        statusLabel(
+                                            withdrawal.status,
+                                            "withdrawals",
+                                        )
+                                    }}</span
+                                ><span class="sub-line">{{
+                                    withdrawal.status_reason ||
+                                    formatDate(withdrawal.requested_at)
+                                }}</span>
+                            </td>
+                            <td>
                                 <button
-                                    v-if="withdrawal.allowed_statuses.length"
-                                    class="icon-only"
+                                    v-if="withdrawal.receipt"
+                                    class="code-link"
                                     type="button"
-                                    title="Từ chối yêu cầu"
-                                    @click="openAction(withdrawal)"
+                                    @click="openReceipt(withdrawal.receipt)"
                                 >
-                                    <AppIcon name="settings" size="17" />
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                                    {{
+                                        withdrawal.receipt.receipt_code
+                                    }}</button
+                                ><span v-else>-</span>
+                            </td>
+                            <td>
+                                <div class="row-actions">
+                                    <button
+                                        v-if="canOpenPayout(withdrawal)"
+                                        class="pay-command"
+                                        type="button"
+                                        :title="
+                                            withdrawalScope === 'user'
+                                                ? 'Chi trả rút tiền người dùng'
+                                                : 'Tạo QR chuyển khoản'
+                                        "
+                                        @click="openPayout(withdrawal)"
+                                    >
+                                        <AppIcon
+                                            name="banknote"
+                                            size="16"
+                                        />Thanh toán
+                                    </button>
+                                    <button
+                                        v-if="
+                                            withdrawal.allowed_statuses.length
+                                        "
+                                        class="icon-only"
+                                        type="button"
+                                        title="Từ chối yêu cầu"
+                                        @click="openAction(withdrawal)"
+                                    >
+                                        <AppIcon name="settings" size="17" />
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     </template>
                 </tbody>
             </table>
@@ -706,6 +757,89 @@
             </form>
         </div>
 
+        <div
+            v-if="refundDetail"
+            class="modal-backdrop"
+            @click.self="refundDetail = null"
+        >
+            <section class="receipt-modal refund-detail-modal">
+                <header>
+                    <div>
+                        <span class="eyebrow">Chi tiết hoàn tiền</span>
+                        <h3>{{ refundDetail.booking?.booking_code || "-" }}</h3>
+                    </div>
+                    <button
+                        class="icon-only"
+                        type="button"
+                        @click="refundDetail = null"
+                    >
+                        <AppIcon name="x" size="18" />
+                    </button>
+                </header>
+
+                <div class="receipt-facts">
+                    <span>Khách hàng</span
+                    ><strong>{{ personName(refundDetail.customer) }}</strong>
+                    <span>Liên hệ</span
+                    ><strong>{{
+                        refundDetail.customer?.phone ||
+                        refundDetail.customer?.email ||
+                        "-"
+                    }}</strong>
+                    <span>Cụm sân</span
+                    ><strong>{{
+                        refundDetail.venue_cluster?.name || "-"
+                    }}</strong>
+                    <span>Payment</span
+                    ><strong>{{
+                        refundDetail.payment?.payment_code || "-"
+                    }}</strong>
+                    <span>Số tiền hoàn</span
+                    ><strong>{{ formatCurrency(refundDetail.amount) }}</strong>
+                    <span>Hình thức hoàn</span
+                    ><strong>{{
+                        refundDetail.refund_destination?.label || "-"
+                    }}</strong>
+                    <span>Trạng thái</span
+                    ><strong>{{ refundStatusLabel(refundDetail) }}</strong>
+                    <span>Phản hồi chủ sân</span
+                    ><strong>{{ ownerDecisionLabel(refundDetail) }}</strong>
+                </div>
+
+                <div class="detail-note-grid">
+                    <section>
+                        <strong>Lý do yêu cầu</strong>
+                        <p>{{ refundDetail.reason || "-" }}</p>
+                    </section>
+                    <section
+                        v-if="
+                            refundDetail.owner_confirmation?.note ||
+                            refundDetail.status_reason
+                        "
+                    >
+                        <strong>{{
+                            refundDetail.status === "owner_rejected"
+                                ? "Lý do từ chối"
+                                : refundDetail.status === "cancelled"
+                                  ? "Lý do hủy"
+                                  : "Ghi chú xử lý"
+                        }}</strong>
+                        <p>
+                            {{
+                                refundDetail.status_reason ||
+                                refundDetail.owner_confirmation?.note ||
+                                "-"
+                            }}
+                        </p>
+                    </section>
+                    <section>
+                        <strong>Ghi chú trạng thái</strong>
+                        <p>{{ refundStatusNote(refundDetail) }}</p>
+                    </section>
+                </div>
+            </section>
+        </div>
+
         <div v-if="receipt" class="modal-backdrop" @click.self="receipt = null">
             <section class="receipt-modal">
                 <header>
@@ -735,13 +869,22 @@
         </div>
 
         <div v-if="payoutOpen" class="modal-backdrop" @click.self="closePayout">
-            <section class="payout-modal">
+            <section
+                class="payout-modal"
+                :class="{ 'user-payment-modal': isUserWithdrawalPayout() }"
+            >
                 <header>
                     <div>
                         <span class="eyebrow">{{
                             tab === "refunds" ? "Hoàn tiền" : "Rút tiền"
                         }}</span>
-                        <h3>Thanh toán QR</h3>
+                        <h3>
+                            {{
+                                isUserWithdrawalPayout()
+                                    ? "Chi trả rút tiền"
+                                    : "Thanh toán QR"
+                            }}
+                        </h3>
                     </div>
                     <button
                         class="icon-only"
@@ -759,6 +902,169 @@
                 <div v-else-if="payoutError && !payout" class="alert error">
                     {{ payoutError }}
                 </div>
+                <template v-else-if="isUserWithdrawalPayout() && payout">
+                    <div class="user-payout-body">
+                        <dl class="collect-summary">
+                            <div>
+                                <dt>Người nhận</dt>
+                                <dd>{{ personName(payoutItem?.owner) }}</dd>
+                            </div>
+                            <div>
+                                <dt>Đang giữ trong ví</dt>
+                                <dd>
+                                    {{
+                                        formatCurrency(
+                                            payoutItem?.wallet
+                                                ?.pending_withdrawal_balance,
+                                        )
+                                    }}
+                                </dd>
+                            </div>
+                            <div class="highlight">
+                                <dt>Số tiền chi trả</dt>
+                                <dd>{{ formatCurrency(payout.amount) }}</dd>
+                            </div>
+                        </dl>
+
+                        <div class="method-row">
+                            <button
+                                type="button"
+                                :class="{ active: payoutMethod === 'cash' }"
+                                :disabled="
+                                    payingUserWithdrawal ||
+                                    !payoutItem?.can_pay_cash
+                                "
+                                @click="selectPayoutMethod('cash')"
+                            >
+                                <AppIcon name="banknote" size="16" />
+                                <span>Tiền mặt</span>
+                            </button>
+                            <button
+                                type="button"
+                                :class="{
+                                    active: payoutMethod === 'bank_transfer',
+                                }"
+                                :disabled="
+                                    payingUserWithdrawal ||
+                                    !payoutItem?.can_pay_bank_transfer
+                                "
+                                @click="selectPayoutMethod('bank_transfer')"
+                            >
+                                <AppIcon name="creditCard" size="16" />
+                                <span>Chuyển khoản</span>
+                            </button>
+                        </div>
+
+                        <div
+                            v-if="payoutMethod === 'bank_transfer'"
+                            class="bank-transfer-review"
+                        >
+                            <div
+                                v-if="payoutLoading"
+                                class="empty compact-empty"
+                            >
+                                Đang tạo QR chuyển khoản...
+                            </div>
+                            <template v-else-if="payout.qr_url">
+                                <div class="user-transfer-layout">
+                                    <img
+                                        class="user-payout-qr"
+                                        :src="payout.qr_url"
+                                        alt="QR chuyển khoản rút tiền"
+                                    />
+                                    <div class="user-transfer-info">
+                                        <dl class="receipt-facts compact">
+                                            <span>Ngân hàng</span
+                                            ><strong>{{
+                                                payout.recipient.bank_name
+                                            }}</strong>
+                                            <span>Số tài khoản</span
+                                            ><strong>{{
+                                                payout.recipient.account_number
+                                            }}</strong>
+                                            <span>Chủ tài khoản</span
+                                            ><strong>{{
+                                                payout.recipient.account_holder
+                                            }}</strong>
+                                            <span>Số tiền</span
+                                            ><strong>{{
+                                                formatCurrency(payout.amount)
+                                            }}</strong>
+                                            <span>Nội dung</span>
+                                            <button
+                                                class="copy-value"
+                                                type="button"
+                                                @click="
+                                                    copyText(
+                                                        payout.transfer_code,
+                                                    )
+                                                "
+                                            >
+                                                {{ payout.transfer_code }}
+                                            </button>
+                                        </dl>
+                                        <div class="payout-waiting">
+                                            <span
+                                                class="spinner"
+                                                aria-hidden="true"
+                                            ></span>
+                                            <span
+                                                >Đang chờ SePay xác nhận giao
+                                                dịch tiền ra...</span
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <label
+                            v-if="payoutMethod === 'cash'"
+                            class="payout-note-field"
+                        >
+                            <span>Ghi chú</span>
+                            <textarea
+                                v-model.trim="payoutNote"
+                                rows="3"
+                                :disabled="payingUserWithdrawal"
+                                placeholder="Ghi chú đối soát nếu có"
+                            ></textarea>
+                        </label>
+
+                        <p v-if="payoutMethod === 'cash'" class="review-note">
+                            Khi xác nhận, hệ thống trừ số tiền đang giữ trong ví
+                            người dùng, ghi lịch sử ví và phát hành phiếu chi.
+                        </p>
+                        <p v-if="payoutError" class="inline-error">
+                            {{ payoutError }}
+                        </p>
+                        <footer class="user-payout-footer">
+                            <button
+                                class="secondary-btn"
+                                type="button"
+                                :disabled="payingUserWithdrawal"
+                                @click="closePayout"
+                            >
+                                Đóng
+                            </button>
+                            <button
+                                v-if="payoutMethod === 'cash'"
+                                class="primary-btn"
+                                type="button"
+                                :disabled="payingUserWithdrawal"
+                                @click="
+                                    submitUserWithdrawalPayment(payoutMethod)
+                                "
+                            >
+                                {{
+                                    payingUserWithdrawal
+                                        ? "Đang xử lý..."
+                                        : "Xác nhận đã trả tiền mặt"
+                                }}
+                            </button>
+                        </footer>
+                    </div>
+                </template>
                 <template v-else-if="payout">
                     <div class="payout-content">
                         <img :src="payout.qr_url" alt="QR chuyển khoản" />
@@ -823,6 +1129,7 @@ export default {
     data() {
         return {
             tab: "refunds",
+            withdrawalScope: "owner",
             items: [],
             summary: { total: 0, completed: 0, requested_amount: 0 },
             meta: { current_page: 1, last_page: 1 },
@@ -844,6 +1151,7 @@ export default {
             actionError: "",
             actionItem: null,
             actionForm: { status: "", reason: "", reference: "" },
+            refundDetail: null,
             receipt: null,
             payoutOpen: false,
             payoutLoading: false,
@@ -852,6 +1160,9 @@ export default {
             payoutError: "",
             payoutPollTimer: null,
             payoutPolling: false,
+            payoutMethod: "bank_transfer",
+            payoutNote: "",
+            payingUserWithdrawal: false,
             copyMessage: "",
             expandedPolicies: {},
             requestSeq: 0,
@@ -859,16 +1170,20 @@ export default {
     },
     computed: {
         statusOptions() {
-            return this.tab === "refunds"
-                ? [
-                      "pending_confirmation",
-                      "pending_owner_confirmation",
-                      "owner_confirmed",
-                      "owner_rejected",
-                      "completed",
-                      "failed",
-                      "rejected",
-                  ]
+            if (this.tab === "refunds") {
+                return [
+                    "pending_owner_confirmation",
+                    "owner_rejected",
+                    "completed",
+                    "completed_cash",
+                    "failed",
+                    "rejected",
+                    "cancelled",
+                ];
+            }
+
+            return this.withdrawalScope === "user"
+                ? ["pending", "approved", "rejected", "paid", "cancelled"]
                 : ["pending", "rejected", "completed", "cancelled"];
         },
         pendingSummary() {
@@ -881,7 +1196,9 @@ export default {
         searchPlaceholder() {
             return this.tab === "refunds"
                 ? "Booking, payment, khách, cụm sân..."
-                : "Mã yêu cầu, chủ sân, tài khoản...";
+                : this.withdrawalScope === "user"
+                  ? "Mã yêu cầu, người dùng, tài khoản..."
+                  : "Mã yêu cầu, chủ sân, tài khoản...";
         },
         selectedExportableIds() {
             const exportable = new Set(
@@ -921,30 +1238,47 @@ export default {
                 const service =
                     this.tab === "refunds"
                         ? adminFinanceOperationsService.refunds
-                        : adminFinanceOperationsService.withdrawals;
+                        : this.withdrawalScope === "user"
+                          ? adminFinanceOperationsService.userWithdrawals
+                          : adminFinanceOperationsService.withdrawals;
                 const response = await service(
                     this.operationFilterParams(page),
                 );
-                if (requestId !== this.requestSeq || requestedTab !== this.tab) {
+                if (
+                    requestId !== this.requestSeq ||
+                    requestedTab !== this.tab
+                ) {
                     return;
                 }
                 this.items = response.data || [];
                 this.summary = response.summary || this.summary;
                 this.meta = response.meta || this.meta;
             } catch (error) {
-                if (requestId !== this.requestSeq || requestedTab !== this.tab) {
+                if (
+                    requestId !== this.requestSeq ||
+                    requestedTab !== this.tab
+                ) {
                     return;
                 }
                 this.error =
                     error.message || "Không tải được dữ liệu tài chính.";
             } finally {
-                if (requestId === this.requestSeq && requestedTab === this.tab) {
+                if (
+                    requestId === this.requestSeq &&
+                    requestedTab === this.tab
+                ) {
                     this.loading = false;
                 }
             }
         },
         switchTab(tab) {
             this.tab = tab;
+            this.filters = this.blankFilters();
+            this.success = "";
+            this.loadData(1);
+        },
+        switchWithdrawalScope(scope) {
+            this.withdrawalScope = scope;
             this.filters = this.blankFilters();
             this.success = "";
             this.loadData(1);
@@ -985,11 +1319,34 @@ export default {
         },
         async openPayout(item) {
             this.payoutOpen = true;
-            this.payoutLoading = true;
+            this.payoutLoading = false;
             this.payout = null;
             this.payoutItem = item;
             this.payoutError = "";
             this.copyMessage = "";
+            this.payoutMethod = item.can_pay_bank_transfer
+                ? "bank_transfer"
+                : "cash";
+            this.payoutNote = "";
+
+            if (this.isUserWithdrawalPayout()) {
+                this.payout = {
+                    amount: item.amount,
+                    recipient: {
+                        bank_name: item.bank_account?.bank_name || "-",
+                        account_number:
+                            item.bank_account?.account_number || "-",
+                        account_holder:
+                            item.bank_account?.account_holder_name || "-",
+                    },
+                };
+                if (this.payoutMethod === "bank_transfer") {
+                    await this.loadUserWithdrawalQr();
+                }
+                return;
+            }
+
+            this.payoutLoading = true;
             try {
                 const response =
                     this.tab === "refunds"
@@ -1015,6 +1372,9 @@ export default {
             this.payoutItem = null;
             this.payoutError = "";
             this.copyMessage = "";
+            this.payoutMethod = "bank_transfer";
+            this.payoutNote = "";
+            this.payingUserWithdrawal = false;
         },
         startPayoutPolling() {
             this.stopPayoutPolling();
@@ -1034,10 +1394,46 @@ export default {
             if (!this.payoutItem || this.payoutPolling) return;
             this.payoutPolling = true;
             try {
+                if (this.isUserWithdrawalPayout()) {
+                    let completed = false;
+                    let message = "";
+
+                    if (this.payout?.sepay_check_available) {
+                        const response =
+                            await adminFinanceOperationsService.checkUserWithdrawalPayout(
+                                this.payoutItem.id,
+                            );
+                        completed = Boolean(response.completed);
+                        message = response.message || "";
+                    } else {
+                        const response =
+                            await adminFinanceOperationsService.userWithdrawals(
+                                this.operationFilterParams(
+                                    this.meta.current_page,
+                                ),
+                            );
+                        const updated = (response.data || []).find(
+                            (item) => item.id === this.payoutItem.id,
+                        );
+                        completed = updated?.status === "paid";
+                    }
+
+                    if (completed) {
+                        this.success =
+                            message ||
+                            "SePay đã xác nhận chi trả rút tiền người dùng.";
+                        this.closePayout();
+                        await this.loadData(this.meta.current_page);
+                    }
+                    return;
+                }
+
                 const service =
                     this.tab === "refunds"
                         ? adminFinanceOperationsService.refunds
-                        : adminFinanceOperationsService.withdrawals;
+                        : this.withdrawalScope === "user"
+                          ? adminFinanceOperationsService.userWithdrawals
+                          : adminFinanceOperationsService.withdrawals;
                 const response = await service(
                     this.operationFilterParams(this.meta.current_page),
                 );
@@ -1074,6 +1470,67 @@ export default {
                 this.payoutPolling = false;
             }
         },
+        async selectPayoutMethod(method) {
+            this.payoutMethod = method;
+            this.payoutError = "";
+            if (
+                method === "bank_transfer" &&
+                this.isUserWithdrawalPayout() &&
+                !this.payout?.qr_url
+            ) {
+                await this.loadUserWithdrawalQr();
+            }
+        },
+        async loadUserWithdrawalQr() {
+            if (!this.payoutItem || !this.isUserWithdrawalPayout()) return;
+
+            this.payoutLoading = true;
+            this.payoutError = "";
+            try {
+                const response =
+                    await adminFinanceOperationsService.userWithdrawalPayoutQr(
+                        this.payoutItem.id,
+                    );
+                this.payout = response.data;
+                this.startPayoutPolling();
+            } catch (error) {
+                this.payoutError =
+                    error.message || "Không tạo được QR chuyển khoản.";
+            } finally {
+                this.payoutLoading = false;
+            }
+        },
+        async submitUserWithdrawalPayment(method) {
+            if (!this.payoutItem || !this.isUserWithdrawalPayout()) return;
+
+            if (method !== "cash") {
+                return;
+            }
+
+            this.payingUserWithdrawal = true;
+            this.payoutError = "";
+            try {
+                const response =
+                    await adminFinanceOperationsService.payUserWithdrawal(
+                        this.payoutItem.id,
+                        {
+                            payment_method: method,
+                            transfer_reference: null,
+                            note: this.payoutNote.trim() || null,
+                        },
+                    );
+                this.success =
+                    response.message ||
+                    "Đã ghi nhận chi trả rút tiền người dùng.";
+                this.closePayout();
+                await this.loadData(this.meta.current_page);
+            } catch (error) {
+                this.payoutError =
+                    error.message || "Không thể ghi nhận chi trả.";
+            } finally {
+                this.payingUserWithdrawal = false;
+            }
+        },
         openAction(item) {
             this.actionItem = item;
             this.actionError = "";
@@ -1088,6 +1545,12 @@ export default {
             this.actionError = "";
         },
         async submitAction() {
+            if (this.tab === "refunds") {
+                this.actionError =
+                    "Admin chỉ xem lịch sử hoàn tiền, không thao tác refund.";
+                return;
+            }
+
             this.saving = true;
             this.actionError = "";
             try {
@@ -1096,21 +1559,11 @@ export default {
                     reason: this.actionForm.reason || null,
                     source: "admin",
                 };
-                if (this.tab === "refunds") {
-                    payload.gateway_refund_txn_id =
-                        this.actionForm.reference || null;
-                    await adminFinanceOperationsService.updateRefund(
-                        this.actionItem.id,
-                        payload,
-                    );
-                } else {
-                    payload.transfer_reference =
-                        this.actionForm.reference || null;
-                    await adminFinanceOperationsService.updateWithdrawal(
-                        this.actionItem.id,
-                        payload,
-                    );
-                }
+                payload.transfer_reference = this.actionForm.reference || null;
+                await adminFinanceOperationsService.updateWithdrawal(
+                    this.actionItem.id,
+                    payload,
+                );
                 this.success = "Đã cập nhật trạng thái thành công.";
                 this.closeAction();
                 await this.loadData(this.meta.current_page);
@@ -1122,6 +1575,9 @@ export default {
         },
         openReceipt(receipt) {
             this.receipt = receipt;
+        },
+        openRefundDetail(refund) {
+            this.refundDetail = refund;
         },
         policyBadgeClass(pe) {
             if (!pe.evaluated) return "muted";
@@ -1162,6 +1618,9 @@ export default {
             if (this.tab === "refunds") {
                 return false;
             }
+            if (this.withdrawalScope === "user") {
+                return false;
+            }
 
             return (
                 ["pending", "reviewing", "approved"].includes(item.status) &&
@@ -1171,37 +1630,34 @@ export default {
         },
         canOpenPayout(item) {
             if (this.tab === "refunds") return false;
+            if (this.withdrawalScope === "user") {
+                return Boolean(
+                    item.can_pay_cash ||
+                    item.can_pay_bank_transfer ||
+                    item.can_pay_by_qr,
+                );
+            }
             return Boolean(item.can_pay_by_qr) || this.isExportable(item);
         },
-        canCompleteWalletRefund(refund) {
-            return Boolean(refund.can_complete_wallet_refund);
+        isUserWithdrawalPayout() {
+            return (
+                this.tab === "withdrawals" && this.withdrawalScope === "user"
+            );
         },
         isOwnerFaultRefund(refund) {
             return Boolean(refund?.policy_evaluation?.is_owner_fault_refund);
-        },
-        async completeWalletRefund(refund) {
-            this.saving = true;
-            this.error = "";
-            this.success = "";
-            try {
-                await adminFinanceOperationsService.updateRefund(refund.id, {
-                    status: "completed",
-                    source: "admin",
-                    reason: "Admin hoàn tiền vào ví SportGo của khách.",
-                });
-                this.success = "Đã hoàn tiền vào ví SportGo của khách.";
-                await this.loadData(this.meta.current_page);
-            } catch (error) {
-                this.error = error.message || "Không thể hoàn tiền vào ví.";
-            } finally {
-                this.saving = false;
-            }
         },
         hasRefundBankAccount(refund) {
             return Boolean(refund.refund_destination?.account_number);
         },
         isRefundWaitingTransfer(refund) {
-            if (refund.refund_destination?.type === "user_wallet") return false;
+            if (
+                ["user_wallet", "cash"].includes(
+                    refund.refund_destination?.type,
+                )
+            ) {
+                return false;
+            }
             return [
                 "pending_confirmation",
                 "owner_confirmed",
@@ -1339,13 +1795,14 @@ export default {
             if (scope === "refunds") {
                 return (
                     {
-                        pending_confirmation: "Chờ hoàn ví",
+                        pending_confirmation: "Trạng thái cũ",
                         pending_owner_confirmation: "Chờ chủ sân",
-                        owner_confirmed: "Chờ hoàn ví",
+                        owner_confirmed: "Đã xác nhận",
                         owner_rejected: "Chủ sân từ chối",
-                        admin_processing: "Chờ hoàn ví",
-                        processing: "Đang hoàn ví",
+                        admin_processing: "Trạng thái cũ",
+                        processing: "Đang xử lý",
                         completed: "Đã hoàn ví",
+                        completed_cash: "Đã hoàn tiền mặt",
                         failed: "Hoàn thất bại",
                         rejected: "Từ chối",
                         cancelled: "Đã hủy",
@@ -1362,6 +1819,8 @@ export default {
                     admin_processing: "Chờ xác nhận",
                     processing: "Chờ xác nhận",
                     completed: "Hoàn tất",
+                    paid: "Đã chi trả",
+                    completed_cash: "Hoàn tiền mặt",
                     failed: "Thất bại",
                     rejected: "Từ chối",
                     pending: "Chờ xác nhận",
@@ -1387,13 +1846,22 @@ export default {
         },
         refundStatusNote(refund) {
             if (this.isRefundPolicyBlocked(refund)) {
-                return refund.wallet_refund_blocked_reason || "Chính sách hiện tại không cho hoàn tiền.";
+                return (
+                    refund.wallet_refund_blocked_reason ||
+                    "Chính sách hiện tại không cho hoàn tiền."
+                );
             }
 
             if (refund.status === "completed") {
                 return refund.processed_at
                     ? `Hoàn vào ví lúc ${this.formatDate(refund.processed_at)}`
                     : "Đã hoàn vào ví SportGo của khách.";
+            }
+
+            if (refund.status === "completed_cash") {
+                return refund.cash_refund?.refunded_at
+                    ? `Đã hoàn tiền mặt lúc ${this.formatDate(refund.cash_refund.refunded_at)}`
+                    : "Đã ghi nhận hoàn tiền mặt tại sân.";
             }
 
             if (refund.wallet_refund_blocked_reason) {
@@ -1407,11 +1875,11 @@ export default {
                     "admin_processing",
                 ].includes(refund.status)
             ) {
-                return "Admin có thể hoàn trực tiếp vào ví SportGo của khách.";
+                return "Dữ liệu thuộc luồng cũ, admin chỉ theo dõi lịch sử.";
             }
 
             if (refund.status === "processing") {
-                return "Đang ghi nhận giao dịch hoàn vào ví.";
+                return "Đang xử lý theo dữ liệu cũ.";
             }
 
             return (
@@ -1507,6 +1975,29 @@ export default {
 .tabs button.active {
     border-color: #16a34a;
     color: #166534;
+}
+.scope-tabs {
+    display: inline-flex;
+    width: fit-content;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid #dbe7dd;
+    border-radius: 8px;
+    background: #f8fcf9;
+}
+.scope-tabs button {
+    min-height: 34px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #52635a;
+    font-weight: 800;
+    cursor: pointer;
+}
+.scope-tabs button.active {
+    background: #16a34a;
+    color: #fff;
 }
 .sub-line {
     display: block;
@@ -1629,6 +2120,11 @@ export default {
     padding: 8px 10px;
     font-size: 12px;
 }
+.pay-command.cash {
+    border-color: #f59e0b;
+    background: #fffbeb;
+    color: #b45309;
+}
 .icon-only {
     width: 34px;
     height: 34px;
@@ -1706,7 +2202,9 @@ th {
     background: #dbeafe;
     color: #1e40af;
 }
-.status-pill.completed {
+.status-pill.completed,
+.status-pill.completed_cash,
+.status-pill.paid {
     background: #dcfce7;
     color: #166534;
 }
@@ -1821,6 +2319,17 @@ th {
     gap: 8px;
     justify-content: flex-end;
 }
+.history-only {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+}
 .pagination {
     justify-content: flex-end;
     gap: 12px;
@@ -1846,6 +2355,11 @@ th {
 }
 .payout-modal {
     width: min(760px, calc(100vw - 32px));
+}
+.payout-modal.user-payment-modal {
+    width: min(820px, calc(100vw - 32px));
+    max-height: calc(100vh - 40px);
+    overflow: auto;
 }
 .action-modal {
     display: flex;
@@ -1894,6 +2408,31 @@ th {
     margin: 0;
     grid-template-columns: 108px 1fr;
 }
+.refund-detail-modal {
+    width: min(700px, calc(100vw - 32px));
+}
+.detail-note-grid {
+    display: grid;
+    gap: 10px;
+}
+.detail-note-grid section {
+    padding: 12px 14px;
+    border: 1px solid #dbe7dd;
+    border-radius: 8px;
+    background: #f8fcf9;
+}
+.detail-note-grid strong {
+    display: block;
+    margin-bottom: 6px;
+    color: #334155;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+.detail-note-grid p {
+    margin: 0;
+    color: #0f172a;
+    line-height: 1.5;
+}
 .transfer-code {
     color: #15803d !important;
     letter-spacing: 0.04em;
@@ -1917,9 +2456,151 @@ th {
     flex-direction: column;
     gap: 14px;
 }
+.user-payout-body {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+}
+.collect-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+}
+.collect-summary > div {
+    display: grid;
+    gap: 5px;
+    padding: 12px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+.collect-summary > div.highlight {
+    border-color: #86efac;
+    background: #ecfdf5;
+}
+.collect-summary dt {
+    color: #607267;
+    font-size: 11px;
+    font-weight: 800;
+}
+.collect-summary dd {
+    margin: 0;
+    color: #16231a;
+    font-size: 14px;
+    font-weight: 900;
+}
+.collect-summary .highlight dd {
+    color: #047857;
+    font-size: 18px;
+}
+.method-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+.method-row button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+    color: #475b4d;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+.method-row button.active {
+    border-color: #16a34a;
+    background: #ecfdf5;
+    color: #15803d;
+    box-shadow: inset 0 0 0 1px #16a34a;
+}
+.method-row button:disabled {
+    opacity: 0.5;
+}
+.bank-transfer-review {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #f7fbf5;
+}
+.user-transfer-layout {
+    display: grid;
+    grid-template-columns: minmax(240px, 300px) minmax(280px, 1fr);
+    gap: 22px;
+    align-items: center;
+}
+.user-payout-qr {
+    width: 100%;
+    max-width: 300px;
+    justify-self: center;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+.user-transfer-info {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+.user-transfer-info .receipt-facts.compact {
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 11px 16px;
+}
+.user-transfer-info .receipt-facts strong,
+.user-transfer-info .copy-value {
+    overflow-wrap: anywhere;
+}
+.compact-empty {
+    padding: 18px;
+}
+.bank-transfer-review label,
+.payout-note-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 800;
+}
+.bank-transfer-review input,
+.payout-note-field textarea {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #fff;
+    color: #0f172a;
+    padding: 9px 10px;
+    font: inherit;
+    font-weight: 500;
+}
+.review-note {
+    margin: 0;
+    padding: 11px 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #52635a;
+    font-size: 13px;
+    line-height: 1.45;
+}
+.user-payout-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 2px;
+}
 .payout-actions {
     gap: 8px;
     flex-wrap: wrap;
+}
+.payout-actions.wrap {
+    display: flex;
 }
 .payout-waiting {
     display: flex;
@@ -1976,6 +2657,15 @@ pre {
     }
     .payout-content img {
         width: 100%;
+    }
+    .collect-summary {
+        grid-template-columns: 1fr;
+    }
+    .user-transfer-layout {
+        grid-template-columns: 1fr;
+    }
+    .user-payout-qr {
+        max-width: 280px;
     }
 }
 @media (max-width: 600px) {

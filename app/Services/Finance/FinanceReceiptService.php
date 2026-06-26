@@ -5,6 +5,7 @@ namespace App\Services\Finance;
 use App\Models\InternalReceipt;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\Refund;
+use App\Models\UserWithdrawalRequest;
 
 class FinanceReceiptService
 {
@@ -59,6 +60,37 @@ class FinanceReceiptService
                     'bank_code' => $withdrawal->bankAccount?->bank_code,
                     'account_number' => $withdrawal->bankAccount?->account_number,
                     'account_holder_name' => $withdrawal->bankAccount?->account_holder_name,
+                ],
+            ],
+        );
+    }
+
+    public function createUserWithdrawalReceipt(UserWithdrawalRequest $withdrawal, ?string $issuedBy): InternalReceipt
+    {
+        $withdrawal->loadMissing(['payoutAccount', 'user']);
+        $requestCode = 'UWD-'.strtoupper(substr(hash('sha256', $withdrawal->id), 0, 10));
+
+        return InternalReceipt::query()->updateOrCreate(
+            ['receipt_code' => 'RCPT-UWD-'.strtoupper(substr(hash('sha256', $withdrawal->id), 0, 18))],
+            [
+                'receipt_type' => 'withdrawal',
+                'receiptable_type' => UserWithdrawalRequest::class,
+                'receiptable_id' => $withdrawal->id,
+                'issued_to_user_id' => $withdrawal->user_id,
+                'issued_by' => $issuedBy,
+                'title' => 'Phiếu chi rút tiền ví người dùng '.$requestCode,
+                'amount' => $withdrawal->amount,
+                'currency' => 'VND',
+                'status' => 'issued',
+                'issued_at' => $withdrawal->paid_at ?: now(),
+                'metadata' => [
+                    'request_code' => $requestCode,
+                    'payment_method' => $withdrawal->payment_method,
+                    'transfer_reference' => $withdrawal->transfer_reference,
+                    'paid_note' => $withdrawal->paid_note,
+                    'bank_name' => $withdrawal->payoutAccount?->bank_name,
+                    'account_number' => $withdrawal->payoutAccount?->bank_account_number,
+                    'account_holder_name' => $withdrawal->payoutAccount?->bank_account_holder,
                 ],
             ],
         );

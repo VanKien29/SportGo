@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
-use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
@@ -324,6 +323,7 @@ class BookingManagementController extends Controller
         $validated = $request->validate([
             'action' => ['required', Rule::in(['confirm', 'reject', 'cancel', 'check_in', 'complete'])],
             'status_reason' => ['required_if:action,reject,cancel', 'nullable', 'string', 'max:1000'],
+            'cancellation_reason_type' => ['nullable', Rule::in(['owner_maintenance', 'owner_emergency', 'venue_locked', 'admin_action'])],
         ]);
 
         $allowedActions = match ($booking->status) {
@@ -392,11 +392,23 @@ class BookingManagementController extends Controller
         $booking->update([
             'status' => $status,
             'status_reason' => $validated['status_reason'] ?? null,
+            'cancelled_by' => in_array($status, ['cancelled', 'rejected'], true) ? $request->user()->id : $booking->cancelled_by,
+            'cancellation_initiator' => in_array($status, ['cancelled', 'rejected'], true) ? 'owner' : $booking->cancellation_initiator,
+            'cancellation_reason_type' => in_array($status, ['cancelled', 'rejected'], true)
+                ? ($validated['cancellation_reason_type'] ?? 'owner_maintenance')
+                : $booking->cancellation_reason_type,
+            'cancelled_at' => in_array($status, ['cancelled', 'rejected'], true) ? now() : $booking->cancelled_at,
         ]);
+
+        $refunds = [];
+        if ($status === 'completed') {
+            $this->bookingService->syncMembershipForCompletedBooking($booking);
+        }
 
         return response()->json([
             'message' => 'Đã cập nhật trạng thái booking.',
             'data' => $booking->fresh(['venueCourt.courtType', 'customer', 'payments']),
+            'refunds' => $refunds,
         ]);
     }
 
@@ -742,10 +754,16 @@ class BookingManagementController extends Controller
                         'status' => $item->status ?: 'active',
                         'status_reason' => $item->status_reason,
                         'subtotal' => (float) $item->subtotal,
+                        'interrupted_at' => $item->interrupted_at,
+                        'played_minutes' => $item->played_minutes,
+                        'remaining_minutes' => $item->remaining_minutes,
+                        'incident_resolution' => $item->incident_resolution,
                     ])
                     ->values();
-                $cancelledItems = $itemPayload->filter(fn (array $item): bool => str_starts_with((string) $item['status'], 'cancelled_'));
-                $activeItems = $itemPayload->reject(fn (array $item): bool => str_starts_with((string) $item['status'], 'cancelled_'));
+                $cancelledItems = $itemPayload->filter(fn (array $item): bool => str_starts_with((string) $item['status'], 'cancelled_')
+                    || $item['status'] === 'interrupted_by_emergency');
+                $activeItems = $itemPayload->reject(fn (array $item): bool => str_starts_with((string) $item['status'], 'cancelled_')
+                    || $item['status'] === 'interrupted_by_emergency');
 
                 return [
                     'booking_id' => $booking->id,
@@ -761,6 +779,7 @@ class BookingManagementController extends Controller
                     'active_item_count' => $activeItems->count(),
                     'cancelled_item_count' => $cancelledItems->count(),
                     'has_cancelled_by_maintenance' => $cancelledItems->contains(fn (array $item): bool => $item['status'] === 'cancelled_by_maintenance'),
+                    'has_interrupted_by_emergency' => $cancelledItems->contains(fn (array $item): bool => $item['status'] === 'interrupted_by_emergency'),
                 ];
             })
             ->values();

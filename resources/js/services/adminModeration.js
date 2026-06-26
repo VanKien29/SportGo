@@ -110,5 +110,14 @@ export const adminComplaintService = {
       body: JSON.stringify(data),
     });
   },
+  getAutoResolveConfig() {
+    return api('/api/admin/complaints/auto-resolve-config');
+  },
+  saveAutoResolveConfig(payload) {
+    return api('/api/admin/complaint-resolve-policy', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };
 

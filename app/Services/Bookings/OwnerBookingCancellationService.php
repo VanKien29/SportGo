@@ -9,12 +9,17 @@ use App\Models\Refund;
 use App\Models\RefundStatusHistory;
 use App\Models\SlotLock;
 use App\Models\User;
+use App\Services\Finance\AdminRefundService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class OwnerBookingCancellationService
 {
+    public function __construct(
+        private readonly AdminRefundService $refunds,
+    ) {}
+
     public function cancelBooking(Booking $booking, User $actor, string $reason, string $targetStatus = 'cancelled'): array
     {
         return DB::transaction(function () use ($booking, $actor, $reason, $targetStatus): array {
@@ -65,9 +70,19 @@ class OwnerBookingCancellationService
         });
     }
 
-    public function cancelItemsForMaintenance(Booking $booking, array $bookingItemIds, User $actor, string $reason, ?string $maintenanceLockId = null): array
+    public function cancelItemsForMaintenance(
+        Booking $booking,
+        array $bookingItemIds,
+        User $actor,
+        string $reason,
+        ?string $maintenanceLockId = null,
+        ?float $refundRatioOverride = null,
+        string $source = 'maintenance_item_cancelled',
+        bool $completeAsCashRefund = false,
+        ?string $itemStatusOverride = null,
+    ): array
     {
-        return DB::transaction(function () use ($booking, $bookingItemIds, $actor, $reason, $maintenanceLockId): array {
+        return DB::transaction(function () use ($booking, $bookingItemIds, $actor, $reason, $maintenanceLockId, $refundRatioOverride, $source, $completeAsCashRefund, $itemStatusOverride): array {
             $booking = Booking::query()
                 ->with(['items', 'payments'])
                 ->whereKey($booking->id)
@@ -88,7 +103,7 @@ class OwnerBookingCancellationService
             BookingItem::query()
                 ->whereIn('id', $items->pluck('id')->all())
                 ->update([
-                    'status' => 'cancelled_by_maintenance',
+                    'status' => $itemStatusOverride ?: 'cancelled_by_maintenance',
                     'status_reason' => $reason,
                     'cancelled_by' => $actor->id,
                     'cancelled_at' => now(),
@@ -115,14 +130,17 @@ class OwnerBookingCancellationService
 
             $itemSubtotal = (float) $items->sum(fn (BookingItem $item): float => (float) $item->subtotal);
             $bookingSubtotal = max((float) $booking->items->sum(fn (BookingItem $item): float => (float) $item->subtotal), 0.01);
-            $refundRatio = min(1, max(0, $itemSubtotal / $bookingSubtotal));
+            $refundRatio = $refundRatioOverride === null
+                ? min(1, max(0, $itemSubtotal / $bookingSubtotal))
+                : min(1, max(0, $refundRatioOverride));
 
             $refunds = $this->createFullRefundRequests(
                 $booking,
                 $actor,
                 "Hoàn tiền do bảo trì/khóa sân: {$reason}",
-                'maintenance_item_cancelled',
+                $source,
                 $refundRatio,
+                $completeAsCashRefund,
             );
 
             return [
@@ -132,7 +150,7 @@ class OwnerBookingCancellationService
         });
     }
 
-    private function createFullRefundRequests(Booking $booking, User $actor, string $reason, string $source, float $ratio = 1.0): array
+    private function createFullRefundRequests(Booking $booking, User $actor, string $reason, string $source, float $ratio = 1.0, bool $completeAsCashRefund = false): array
     {
         if (! Schema::hasTable('refunds')) {
             return [];
@@ -151,7 +169,7 @@ class OwnerBookingCancellationService
             ->orderBy('paid_at')
             ->lockForUpdate()
             ->get()
-            ->each(function (Payment $payment) use ($booking, $actor, $reason, $source, $ratio, &$created): void {
+            ->each(function (Payment $payment) use ($booking, $actor, $reason, $source, $ratio, $completeAsCashRefund, &$created): void {
                 $targetAmount = round((float) $payment->amount * $ratio, 2);
                 $existingAmount = (float) Refund::query()
                     ->where('payment_id', $payment->id)
@@ -169,16 +187,29 @@ class OwnerBookingCancellationService
                     'customer_id' => $booking->customer_id,
                     'amount' => $amount,
                     'reason' => $reason,
-                    'refund_destination' => 'user_wallet',
+                    'refund_destination' => $completeAsCashRefund ? 'cash' : 'user_wallet',
                     'user_wallet_id' => $payment->user_wallet_id,
                     'status' => 'owner_confirmed',
-                    'status_reason' => 'Chủ sân hủy hoặc khóa lịch, hoàn 100% phần bị ảnh hưởng vào ví SportGo của khách.',
+                    'status_reason' => $completeAsCashRefund
+                        ? 'Chủ sân đã hoàn tiền mặt trực tiếp tại sân.'
+                        : 'Chủ sân hủy hoặc khóa lịch, hoàn phần bị ảnh hưởng vào ví SportGo của khách.',
                     'owner_confirmed_by' => $actor->id,
                     'owner_confirmed_at' => now(),
                     'owner_confirm_note' => $reason,
                 ]);
 
                 $this->writeRefundHistory($refund, $actor, $reason, $source, $ratio);
+
+                if ($completeAsCashRefund) {
+                    $refund = $this->refunds->updateStatus($refund, 'completed_cash', [
+                        'actor_id' => $actor->id,
+                        'reason' => $reason,
+                        'source' => $source,
+                        'gateway_refund_txn_id' => 'CASH-'.$refund->id,
+                    ]);
+                    $this->writeRefundHistory($refund, $actor, $reason, 'cash_refund_completed_at_venue', $ratio);
+                }
+
                 $created[] = $refund->fresh()->toArray();
             });
 

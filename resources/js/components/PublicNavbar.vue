@@ -1,19 +1,10 @@
 <template>
-  <nav class="navbar">
+  <nav :class="['navbar', isDark ? 'navbar-dark' : 'navbar-light']">
     <div class="navbar-inner">
       <!-- Brand + Nav links -->
       <div class="navbar-left">
         <router-link to="/" class="brand">
-          <div class="brand-icon">
-            <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-              <circle cx="16" cy="16" r="15" stroke="#22c55e" stroke-width="2"/>
-              <path d="M16 4 C20 8 22 12 22 16 C22 20 20 24 16 28" stroke="#22c55e" stroke-width="1.5" fill="none"/>
-              <path d="M16 4 C12 8 10 12 10 16 C10 20 12 24 16 28" stroke="#22c55e" stroke-width="1.5" fill="none"/>
-              <line x1="4" y1="12" x2="28" y2="12" stroke="#22c55e" stroke-width="1.5"/>
-              <line x1="4" y1="20" x2="28" y2="20" stroke="#22c55e" stroke-width="1.5"/>
-            </svg>
-          </div>
-          <span class="brand-text">Sport<span class="brand-accent">Go</span></span>
+          <span class="brand-text">Sport Go</span>
         </router-link>
         <div class="nav-links">
           <router-link to="/" class="nav-link" exact-active-class="active-link">Trang chủ</router-link>
@@ -23,6 +14,20 @@
 
       <!-- Right: Login or User Menu -->
       <div class="navbar-right">
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle-btn" @click="toggleTheme" aria-label="Đổi giao diện">
+          <svg v-if="isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+
         <router-link v-if="!user" to="/login" class="login-btn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
@@ -55,6 +60,28 @@
                   <circle cx="12" cy="7" r="4"/>
                 </svg>
                 Thông tin cá nhân
+              </router-link>
+
+              <router-link v-if="user.role === 'user'" to="/partner-application" class="dd-item dd-partner" @click="showDropdown = false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 21h18"/>
+                  <path d="M5 21V7l8-4v18"/>
+                  <path d="M19 21V11l-6-4"/>
+                  <path d="M9 9h1"/>
+                  <path d="M9 13h1"/>
+                  <path d="M9 17h1"/>
+                </svg>
+                Đăng ký đối tác
+              </router-link>
+
+              <router-link v-if="user.role === 'owner'" to="/owner/partner-profile" class="dd-item dd-partner" @click="showDropdown = false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <path d="M14 2v6h6"/>
+                  <path d="M16 13H8"/>
+                  <path d="M16 17H8"/>
+                </svg>
+                Hồ sơ đối tác
               </router-link>
 
               <!-- Owner: Quay lại quản lý sân -->
@@ -98,12 +125,21 @@ import { getAuth, logout } from '../stores/auth.js';
 
 export default {
   name: 'PublicNavbar',
+  props: {
+    theme: { type: String, default: 'light' },
+  },
   data() {
     return {
       user: getAuth(),
       showDropdown: false,
       hideTimer: null,
+      isDark: true,
     };
+  },
+  mounted() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    this.isDark = savedTheme === 'dark';
+    this.applyTheme();
   },
   computed: {
     userInitial() {
@@ -120,6 +156,21 @@ export default {
     },
   },
   methods: {
+    toggleTheme() {
+      this.isDark = !this.isDark;
+      localStorage.setItem('theme', this.isDark ? 'dark' : 'light');
+      this.applyTheme();
+    },
+    applyTheme() {
+      if (this.isDark) {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      }
+      window.dispatchEvent(new CustomEvent('theme-changed', { detail: { isDark: this.isDark } }));
+    },
     toggleDropdown() {
       this.showDropdown = !this.showDropdown;
     },
@@ -314,9 +365,17 @@ export default {
   color: #2563eb;
   font-weight: 500;
 }
+.dd-partner {
+  color: #15803d;
+  font-weight: 600;
+}
 .dd-manage:hover {
   background: #eff6ff;
   color: #1d4ed8;
+}
+.dd-partner:hover {
+  background: #f0fdf4;
+  color: #166534;
 }
 .dd-logout {
   color: var(--sg-danger);
@@ -339,5 +398,111 @@ export default {
   .navbar-inner { padding: 0 16px; }
   .nav-links { display: none; }
   .brand-text { font-size: 18px; }
+}
+
+/* Dark Theme Support (strictly black & white/gray) */
+.navbar.navbar-dark {
+  background: rgba(9, 9, 11, 0.8) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.navbar.navbar-dark .brand-text {
+  color: #ffffff;
+}
+.navbar.navbar-dark .brand-accent {
+  color: #ffffff;
+}
+.navbar.navbar-dark .brand-icon svg circle,
+.navbar.navbar-dark .brand-icon svg path,
+.navbar.navbar-dark .brand-icon svg line {
+  stroke: #ffffff !important;
+}
+.navbar.navbar-dark .nav-link {
+  color: rgba(255, 255, 255, 0.6);
+}
+.navbar.navbar-dark .nav-link:hover,
+.navbar.navbar-dark .active-link {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+.navbar.navbar-dark .login-btn {
+  background: #ffffff;
+  color: #09090b;
+}
+.navbar.navbar-dark .login-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
+}
+.navbar.navbar-dark .user-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.navbar.navbar-dark .dropdown {
+  background: #09090b;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 16px -6px rgba(0, 0, 0, 0.3);
+}
+.navbar.navbar-dark .dd-name {
+  color: #ffffff;
+}
+.navbar.navbar-dark .dd-role {
+  color: rgba(255, 255, 255, 0.5);
+}
+.navbar.navbar-dark .dd-divider {
+  background: rgba(255, 255, 255, 0.08);
+}
+.navbar.navbar-dark .dd-item {
+  color: rgba(255, 255, 255, 0.8);
+}
+.navbar.navbar-dark .dd-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+.navbar.navbar-dark .dd-manage {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.navbar.navbar-dark .dd-manage:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+.navbar.navbar-dark .dd-logout {
+  color: #fca5a5;
+}
+.navbar.navbar-dark .dd-logout:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 12px;
+}
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.navbar-light .theme-toggle-btn {
+  border-color: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.5);
+}
+.navbar-light .theme-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--sg-dark);
+  border-color: rgba(0, 0, 0, 0.15);
 }
 </style>

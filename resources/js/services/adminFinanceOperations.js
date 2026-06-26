@@ -43,6 +43,29 @@ export const adminFinanceOperationsService = {
     return api(`/api/admin/finance/withdrawals${query(params)}`);
   },
 
+  userWithdrawals(params = {}) {
+    return api(`/api/admin/finance/user-withdrawals${query(params)}`);
+  },
+
+  payUserWithdrawal(id, payload) {
+    return api(`/api/admin/finance/user-withdrawals/${id}/pay`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  userWithdrawalPayoutQr(id) {
+    return api(`/api/admin/finance/user-withdrawals/${id}/payout-qr`, {
+      method: 'POST',
+    });
+  },
+
+  checkUserWithdrawalPayout(id) {
+    return api(`/api/admin/finance/user-withdrawals/${id}/payout-check`, {
+      method: 'POST',
+    });
+  },
+
   updateWithdrawal(id, payload) {
     return api(`/api/admin/finance/withdrawals/${id}/status`, {
       method: 'PATCH',

@@ -24,6 +24,14 @@ class PartnerApplicationDocument extends Model
         'sort_order',
     ];
 
+    protected $hidden = [
+        'file_path',
+    ];
+
+    protected $appends = [
+        'download_url',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -45,5 +53,10 @@ class PartnerApplicationDocument extends Model
     public function reviewedBy()
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function getDownloadUrlAttribute(): string
+    {
+        return url('/api/user/partner-application/documents/' . $this->id . '/download');
     }
 }

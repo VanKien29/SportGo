@@ -76,7 +76,6 @@
 </template>
 
 <script>
-import { platformFeeStore } from '../../stores/platformFee.store.js';
 import {
   calculateLedgerPreview,
   createLedger,
@@ -84,6 +83,7 @@ import {
   lockVenueForOverdueLedger,
   unlockVenueAfterPayment,
 } from '../../services/platformFeeLedger.service.js';
+import { adminVenueClusterService } from '../../services/adminVenueClusterService.js';
 import AppIcon from '../../components/AppIcon.vue';
 
 export default {
@@ -93,6 +93,7 @@ export default {
     return {
       venue: null,
       ledgers: [],
+      previews: {},
       periods: [1, 3, 6, 9, 12],
       toast: '',
       toastType: 'success',
@@ -115,15 +116,37 @@ export default {
   },
   methods: {
     async loadData() {
-      this.venue = platformFeeStore.state.venues.find((venue) => venue.id === this.$route.params.id);
-      this.ledgers = await getLedgersByVenue(this.$route.params.id);
+      const [venueResponse, ledgers] = await Promise.all([
+        adminVenueClusterService.show(this.$route.params.id),
+        getLedgersByVenue(this.$route.params.id),
+      ]);
+      this.venue = venueResponse.data?.cluster || venueResponse.data || venueResponse;
+      this.ledgers = ledgers;
+      await this.loadPreviews();
+    },
+    async loadPreviews() {
+      const entries = await Promise.all(
+        this.periods.map(async (month) => {
+          try {
+            const preview = await calculateLedgerPreview({
+              venue_cluster_id: this.$route.params.id,
+              period_months: month,
+              period_start: new Date().toISOString().slice(0, 10),
+            });
+            return [month, preview];
+          } catch (error) {
+            return [month, { isValid: false, error: error.message }];
+          }
+        }),
+      );
+      this.previews = Object.fromEntries(entries);
     },
     previewFor(month) {
-      return calculateLedgerPreview({
-        venue_cluster_id: this.$route.params.id,
-        period_months: month,
-        period_start: new Date().toISOString().slice(0, 10),
-      });
+      return this.previews[month] || {
+        isValid: false,
+        error: 'Đang tải...',
+        fee: { amount_due: 0 },
+      };
     },
     async createFor(month) {
       try {

@@ -1,8 +1,6 @@
 <template>
   <section class="admin-page">
-    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-roles' })">
-      ← Quay lại danh sách nhóm quyền
-    </button>
+    <BackButton to="/admin/roles" />
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -93,63 +91,90 @@
           Không tìm thấy quyền phù hợp.
         </div>
 
-        <article v-for="group in filteredPermissionGroups" :key="group.group_name" class="permission-group">
-          <header class="group-head">
-            <div>
-              <h4>{{ group.module_label || getModuleMeta(group.group_name).label }}</h4>
-              <p>{{ group.module_description || getModuleMeta(group.group_name).description }}</p>
-            </div>
-            <label class="select-all">
-              <input
-                type="checkbox"
-                :disabled="!role.can_edit_permissions"
-                :checked="isGroupChecked(group)"
-                :indeterminate.prop="isGroupIndeterminate(group)"
-                @change="toggleGroup(group, $event.target.checked)"
-              />
-              Chọn cả nhóm
-            </label>
-          </header>
+        <div v-else class="permission-table-wrap">
+          <table class="permission-table">
+            <thead>
+              <tr>
+                <th>Nhóm quyền / Quyền</th>
+                <th>Mức nhạy cảm</th>
+                <th>Trạng thái</th>
+                <th>Cấp / thu hồi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="group in filteredPermissionGroups" :key="group.group_name">
+                <tr class="permission-group-row">
+                  <td colspan="2">
+                    <strong>{{ group.module_label || getModuleMeta(group.group_name).label }}</strong>
+                    <span>{{ group.module_description || getModuleMeta(group.group_name).description }}</span>
+                  </td>
+                  <td>
+                    <span class="count-pill">{{ groupGrantedCount(group) }}/{{ group.permissions.length }} quyền</span>
+                  </td>
+                  <td>
+                    <div class="bulk-actions">
+                      <button
+                        class="mini-btn success"
+                        type="button"
+                        :disabled="!role.can_edit_permissions || !canToggleGroup(group, true)"
+                        @click="toggleGroupImmediate(group, true)"
+                      >
+                        Bật nhóm
+                      </button>
+                      <button
+                        class="mini-btn danger"
+                        type="button"
+                        :disabled="!role.can_edit_permissions || !canToggleGroup(group, false)"
+                        @click="toggleGroupImmediate(group, false)"
+                      >
+                        Tắt nhóm
+                      </button>
+                    </div>
+                  </td>
+                </tr>
 
-          <div class="permission-list">
-            <label
-              v-for="permission in group.permissions"
-              :key="permission.id"
-              class="permission-item"
-              :class="{ checked: selectedPermissionIds.includes(permission.id) }"
-            >
-              <input
-                v-model="selectedPermissionIds"
-                type="checkbox"
-                :value="permission.id"
-                :disabled="!role.can_edit_permissions"
-              />
-              <div>
-                <div class="permission-title-row">
-                  <strong>{{ permission.label || getPermissionMeta(permission).label }}</strong>
-                  <span
-                    v-if="permission.risk_label || getPermissionMeta(permission).riskLabel"
-                    class="risk-badge"
-                    :class="getPermissionMeta(permission).riskClass"
-                  >
-                    {{ permission.risk_label || getPermissionMeta(permission).riskLabel }}
-                  </span>
-                </div>
-                <p>{{ permission.description || getPermissionMeta(permission).description }}</p>
-                <small>Mã quyền: <code>{{ permission.code }}</code></small>
-              </div>
-            </label>
-          </div>
-        </article>
-
-        <div v-if="hasPermissionChanges" class="save-bar">
-          <span>Có thay đổi quyền chưa lưu cho nhóm {{ role.display_name }}.</span>
-          <div>
-            <button class="btn secondary" type="button" @click="resetPermissions">Hủy thay đổi</button>
-            <button class="btn primary" type="button" @click="confirmSavePermsShow = true">
-              Lưu quyền được cấp
-            </button>
-          </div>
+                <tr
+                  v-for="permission in group.permissions"
+                  :key="permission.id"
+                  class="permission-row"
+                  :class="{ granted: hasPermission(permission.id) }"
+                >
+                  <td class="permission-name-cell">
+                    <strong>{{ permission.label || getPermissionMeta(permission).label }}</strong>
+                    <span>{{ permission.description || getPermissionMeta(permission).description }}</span>
+                    <small>Mã quyền: <code>{{ permission.code }}</code></small>
+                  </td>
+                  <td>
+                    <span
+                      v-if="permissionRiskLabel(permission)"
+                      class="risk-badge"
+                      :class="permissionRiskClass(permission)"
+                    >
+                      {{ permissionRiskLabel(permission) }}
+                    </span>
+                    <span v-else class="muted-text">Cơ bản</span>
+                  </td>
+                  <td>
+                    <span class="status-pill" :class="hasPermission(permission.id) ? 'enabled' : 'disabled'">
+                      {{ hasPermission(permission.id) ? 'Đang cấp' : 'Chưa cấp' }}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      class="switch-toggle"
+                      type="button"
+                      :class="{ on: hasPermission(permission.id) }"
+                      :disabled="!role.can_edit_permissions || isPermissionBusy(permission.id)"
+                      @click="togglePermissionImmediate(permission)"
+                    >
+                      <span class="switch-knob"></span>
+                      <span>{{ hasPermission(permission.id) ? 'Bật' : 'Tắt' }}</span>
+                    </button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -231,6 +256,7 @@
 
 <script>
 import ConfirmModal from '../../components/ConfirmModal.vue';
+import BackButton from '../../components/BackButton.vue';
 import { adminRoleService } from '../../services/adminRoles.js';
 import {
   buildAuditDiff,
@@ -241,7 +267,7 @@ import {
 
 export default {
   name: 'AdminRoleDetail',
-  components: { ConfirmModal },
+  components: { ConfirmModal, BackButton },
   data() {
     return {
       role: null,
@@ -257,6 +283,7 @@ export default {
       error: '',
       success: '',
       confirmSavePermsShow: false,
+      permissionBusyKeys: [],
       tabs: [
         { key: 'info', label: 'Thông tin nhóm quyền' },
         { key: 'permissions', label: 'Quyền được cấp' },
@@ -335,6 +362,104 @@ export default {
     },
     resetPermissions() {
       this.selectedPermissionIds = [...this.originalPermissionIds];
+    },
+    hasPermission(permissionId) {
+      return this.selectedPermissionIds.some((id) => Number(id) === Number(permissionId));
+    },
+    permissionRiskLabel(permission) {
+      return permission.risk_label || getPermissionMeta(permission).riskLabel || '';
+    },
+    permissionRiskClass(permission) {
+      const fallback = permission.risk_level ? `risk-${permission.risk_level}` : '';
+      return getPermissionMeta(permission).riskClass || fallback;
+    },
+    groupGrantedCount(group) {
+      return group.permissions.filter((permission) => this.hasPermission(permission.id)).length;
+    },
+    canToggleGroup(group, shouldGrant) {
+      return group.permissions.some((permission) => this.hasPermission(permission.id) !== shouldGrant)
+        && group.permissions.every((permission) => !this.isPermissionBusy(permission.id));
+    },
+    isPermissionBusy(permissionId) {
+      return this.permissionBusyKeys.includes(String(permissionId));
+    },
+    setPermissionBusy(permissionId, busy) {
+      const key = String(permissionId);
+      if (busy && !this.permissionBusyKeys.includes(key)) {
+        this.permissionBusyKeys = [...this.permissionBusyKeys, key];
+        return;
+      }
+
+      if (!busy) {
+        this.permissionBusyKeys = this.permissionBusyKeys.filter((item) => item !== key);
+      }
+    },
+    async togglePermissionImmediate(permission) {
+      await this.applyPermissionToggle(permission, !this.hasPermission(permission.id));
+    },
+    async toggleGroupImmediate(group, shouldGrant) {
+      if (!this.role.can_edit_permissions) return;
+
+      const targets = group.permissions.filter((permission) => this.hasPermission(permission.id) !== shouldGrant);
+      if (targets.length === 0) return;
+
+      this.error = '';
+      this.success = '';
+
+      for (const permission of targets) {
+        const ok = await this.applyPermissionToggle(permission, shouldGrant, true);
+        if (!ok) return;
+      }
+
+      this.success = shouldGrant
+        ? `Đã bật ${targets.length} quyền trong nhóm ${group.module_label || group.group_name}.`
+        : `Đã tắt ${targets.length} quyền trong nhóm ${group.module_label || group.group_name}.`;
+      setTimeout(() => { this.success = ''; }, 3000);
+    },
+    async applyPermissionToggle(permission, shouldGrant, silent = false) {
+      if (!this.role.can_edit_permissions || this.hasPermission(permission.id) === shouldGrant) return true;
+
+      this.setPermissionBusy(permission.id, true);
+      if (!silent) {
+        this.error = '';
+        this.success = '';
+      }
+
+      try {
+        const response = await adminRoleService.togglePermission(
+          this.role.id,
+          permission.id,
+          shouldGrant ? 'grant' : 'revoke',
+        );
+
+        if (response.data?.permission_ids) {
+          this.selectedPermissionIds = this.sortedIds(response.data.permission_ids);
+        } else if (shouldGrant) {
+          this.selectedPermissionIds = this.sortedIds([...this.selectedPermissionIds, permission.id]);
+        } else {
+          this.selectedPermissionIds = this.selectedPermissionIds.filter((id) => Number(id) !== Number(permission.id));
+        }
+
+        if (response.data?.role) {
+          this.role = { ...this.role, ...response.data.role };
+        }
+
+        this.originalPermissionIds = [...this.selectedPermissionIds];
+
+        if (!silent) {
+          this.success = shouldGrant
+            ? `Đã cấp quyền "${permission.label || permission.name}" cho nhóm.`
+            : `Đã thu hồi quyền "${permission.label || permission.name}" khỏi nhóm.`;
+          setTimeout(() => { this.success = ''; }, 3000);
+        }
+
+        return true;
+      } catch (error) {
+        this.error = error.message || 'Không cập nhật được quyền.';
+        return false;
+      } finally {
+        this.setPermissionBusy(permission.id, false);
+      }
     },
     toggleGroup(group, checked) {
       if (!this.role.can_edit_permissions) return;
@@ -585,6 +710,172 @@ small {
 .actions-right {
   display: flex;
   justify-content: flex-end;
+}
+
+.permission-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dbe5ef;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.permission-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+.permission-table th,
+.permission-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.permission-table th {
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.permission-group-row td {
+  background: #f1f5f9;
+}
+
+.permission-group-row strong,
+.permission-name-cell strong {
+  display: block;
+  color: #0f172a;
+}
+
+.permission-group-row span,
+.permission-name-cell span {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.permission-name-cell {
+  min-width: 420px;
+}
+
+.permission-name-cell small {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 7px;
+}
+
+.permission-row.granted {
+  background: #f7fef9;
+}
+
+.bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.mini-btn {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mini-btn.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.mini-btn.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.mini-btn:disabled,
+.switch-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.count-pill,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.count-pill {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.status-pill.enabled {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-pill.disabled {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.switch-toggle {
+  position: relative;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  width: 96px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 5px 10px 5px 5px;
+  background: #f8fafc;
+  color: #64748b;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.switch-toggle.on {
+  justify-content: flex-end;
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.switch-knob {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #94a3b8;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+}
+
+.switch-toggle.on .switch-knob {
+  order: 2;
+  background: #16a34a;
+}
+
+.muted-text {
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .permission-group {

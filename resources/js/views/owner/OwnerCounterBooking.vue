@@ -8,7 +8,7 @@
                 <button
                     type="button"
                     :class="{ active: activeTab === 'counter' }"
-                    @click="activeTab = 'counter'"
+                    @click="setActiveTab('counter')"
                 >
                     <AppIcon name="plus" size="16" />
                     <span>Booking tại quầy</span>
@@ -16,45 +16,23 @@
                 <button
                     type="button"
                     :class="{ active: activeTab === 'recurring' }"
-                    @click="activeTab = 'recurring'"
+                    @click="setActiveTab('recurring')"
                 >
                     <AppIcon name="calendar" size="16" />
                     <span>Đặt lịch cố định</span>
+                </button>
+                <button
+                    type="button"
+                    :class="{ active: activeTab === 'recurringList' }"
+                    @click="setActiveTab('recurringList')"
+                >
+                    <AppIcon name="fileText" size="16" />
+                    <span>Danh sách cố định</span>
                 </button>
             </div>
             <button class="secondary-btn" type="button" @click="loadSchedule">
                 <AppIcon name="refresh" size="16" />
                 <span>Tải lại lịch</span>
-            </button>
-        </section>
-
-        <div v-if="error" class="alert error">{{ error }}</div>
-        <div v-if="notice" class="alert success">{{ notice }}</div>
-
-        <div class="tabs">
-            <button
-                type="button"
-                :class="{ active: activeTab === 'counter' }"
-                @click="setActiveTab('counter')"
-            >
-                <AppIcon name="plus" size="16" />
-                <span>Booking tại quầy</span>
-            </button>
-            <button
-                type="button"
-                :class="{ active: activeTab === 'recurring' }"
-                @click="setActiveTab('recurring')"
-            >
-                <AppIcon name="calendar" size="16" />
-                <span>Đặt lịch cố định</span>
-            </button>
-            <button
-                type="button"
-                :class="{ active: activeTab === 'recurringList' }"
-                @click="setActiveTab('recurringList')"
-            >
-                <AppIcon name="fileText" size="16" />
-                <span>Danh sách cố định</span>
             </button>
         </div>
 
@@ -4039,6 +4017,9 @@ export default {
         },
         occurrenceStatusLabel(occurrence) {
             if (occurrence.status === "cancelled") {
+                if (occurrence.has_interrupted_by_emergency) {
+                    return "Dừng do sự cố sân";
+                }
                 return occurrence.has_cancelled_by_maintenance
                     ? "Hủy do khóa sân"
                     : "Đã hủy";
@@ -4052,6 +4033,9 @@ export default {
             }
 
             if (Number(occurrence.cancelled_item_count || 0) > 0) {
+                if (occurrence.has_interrupted_by_emergency) {
+                    return "Dừng do sự cố sân";
+                }
                 return occurrence.has_cancelled_by_maintenance
                     ? "Hủy do khóa sân"
                     : "Đã hủy";
@@ -4079,11 +4063,13 @@ export default {
             return items
                 .map((item) => {
                     const time = `${this.formatTime(item.start_time)} - ${this.formatTime(item.end_time)}`;
-                    const status = String(item.status || "active").startsWith(
-                        "cancelled_",
-                    )
-                        ? " · hủy"
-                        : "";
+                    const itemStatus = String(item.status || "active");
+                    const status =
+                        itemStatus === "interrupted_by_emergency"
+                            ? " · dừng do sự cố"
+                            : itemStatus.startsWith("cancelled_")
+                              ? " · hủy"
+                              : "";
 
                     return `${item.court_name || "Sân"} ${time}${status}`;
                 })
@@ -4999,8 +4985,8 @@ export default {
 }
 
 .duration-pill.active {
-    border-color: rgba(47, 158, 68, 0.45);
-    background: #e8f7ec;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary-soft, #f3f4f6);
 }
 
 label {
@@ -5057,8 +5043,8 @@ input.invalid {
 }
 
 .legend i.selected {
-    border-color: #2f9e44;
-    background: #2f9e44;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
 }
 
 .day-grid label {
@@ -5071,8 +5057,8 @@ input.invalid {
 }
 
 .day-grid label.selected {
-    border-color: #2f9e44;
-    background: #2f9e44;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
@@ -5150,6 +5136,32 @@ input.invalid {
     font-weight: 850;
 }
 
+.tabs-and-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.tabs-and-actions .tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.tabs-and-actions .tabs button {
+    margin-right: 0;
+    white-space: nowrap;
+}
+
+.tabs-and-actions .secondary-btn {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+
 .tabs button {
     margin-right: 8px;
 }
@@ -5209,8 +5221,8 @@ input.invalid {
 }
 
 .period-tabs button.active {
-    border-color: #2f9e44;
-    background: #2f9e44;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
@@ -5285,13 +5297,13 @@ input.invalid {
 }
 
 .time-slot:hover:not(:disabled) {
-    background: #e8f7ec;
-    box-shadow: inset 0 0 0 1px rgba(47, 158, 68, 0.4);
+    background: var(--admin-hover, #f3f4f6);
+    box-shadow: inset 0 0 0 1px var(--admin-primary, #000000);
 }
 
 .time-slot.selected {
-    background: #2f9e44;
-    box-shadow: inset 0 0 0 1px #2f9e44;
+    background: var(--admin-primary, #000000);
+    box-shadow: inset 0 0 0 1px var(--admin-primary, #000000);
 }
 
 .time-slot.busy {
@@ -5507,14 +5519,14 @@ input.invalid {
 }
 
 .modal-actions .secondary-btn {
-    border: 1px solid #d6e2d8;
+    border: 1px solid var(--admin-border, #e5e7eb);
     background: #fff;
-    color: #344238;
+    color: var(--admin-text, #000000);
 }
 
 .modal-actions .primary-btn {
-    border: 1px solid #16a34a;
-    background: #16a34a;
+    border: 1px solid var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
@@ -5545,8 +5557,8 @@ input.invalid {
 }
 
 .confirm-reason-field textarea:focus {
-    border-color: #22c55e;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
+    border-color: var(--admin-primary, #000000);
+    box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(0, 0, 0, 0.1));
     outline: none;
 }
 
@@ -5606,26 +5618,26 @@ input.invalid {
 }
 
 .status-actions .action-success {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
 .status-actions .action-primary {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
 .status-actions .action-cash {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
 .status-actions .action-transfer {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
@@ -5793,18 +5805,18 @@ input.invalid {
 }
 
 .payment-card.active {
-    border-color: #2f9e44;
-    background: #e8f7ec;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary-soft, #f3f4f6);
 }
 
 .payment-card input {
     width: 16px;
     height: 16px;
-    accent-color: #2f9e44;
+    accent-color: var(--admin-primary, #000000);
 }
 
 .payment-card strong {
-    color: #216b34;
+    color: var(--admin-text, #000000);
 }
 
 .payment-card small {
@@ -5980,8 +5992,8 @@ input.invalid {
 }
 
 .segmented-field button.active {
-    border-color: #2f9e44;
-    background: #2f9e44;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
 }
 
@@ -6057,10 +6069,10 @@ input.invalid {
 }
 
 .day-grid label.selected {
-    border-color: #2f9e44;
-    background: #2f9e44;
+    border-color: var(--admin-primary, #000000);
+    background: var(--admin-primary, #000000);
     color: #fff;
-    box-shadow: 0 6px 14px rgba(47, 158, 68, 0.18);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 
 .day-grid input {
