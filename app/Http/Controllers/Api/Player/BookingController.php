@@ -123,6 +123,45 @@ class BookingController extends Controller
     }
 
     /**
+     * API lấy voucher đủ điều kiện cho slot đang chọn.
+     */
+    public function eligibleVouchers(Request $request)
+    {
+        $validated = $request->validate([
+            'venue_court_id' => 'required|exists:venue_courts,id',
+            'booking_date' => 'required|date_format:Y-m-d',
+            'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+        ]);
+        $this->ensureValidTimeRange($validated['start_time'], $validated['end_time']);
+
+        $court = VenueCourt::findOrFail($validated['venue_court_id']);
+        $amount = $this->bookingService->calculateTotalPrice(
+            $court,
+            $validated['booking_date'],
+            $validated['start_time'],
+            $validated['end_time'],
+            'single',
+        );
+
+        $vouchers = $this->bookingService->eligibleVouchersForCounterBooking([
+            ...$validated,
+            'amount' => $amount,
+            'booking_type' => 'single',
+            'customer_id' => $request->user()->id,
+        ], $request->user());
+
+        return response()->json([
+            'venue_vouchers' => $vouchers
+                ->where('owner_type', 'venue')
+                ->values(),
+            'vip_vouchers' => $vouchers
+                ->where('owner_type', 'system')
+                ->values(),
+        ]);
+    }
+
+    /**
      * API đặt sân mới (Yêu cầu đăng nhập).
      */
     public function store(Request $request)

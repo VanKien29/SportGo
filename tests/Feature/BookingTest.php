@@ -209,6 +209,29 @@ class BookingTest extends TestCase
     }
 
     /**
+     * Test API lấy voucher đủ điều kiện cho màn player booking.
+     */
+    public function test_player_can_fetch_eligible_venue_and_vip_vouchers(): void
+    {
+        $venueVoucherId = $this->createVoucher('VENUE1K', 'venue', 1000);
+        $vipVoucherId = $this->createVoucher('VIP2K', 'system', 2000);
+
+        $response = $this->actingAs($this->player, 'sanctum')
+            ->getJson('/api/bookings/eligible-vouchers?' . http_build_query([
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->bookingDate,
+                'start_time' => '12:00:00',
+                'end_time' => '13:00:00',
+            ]));
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'venue_vouchers')
+            ->assertJsonCount(1, 'vip_vouchers')
+            ->assertJsonPath('venue_vouchers.0.id', $venueVoucherId)
+            ->assertJsonPath('vip_vouchers.0.id', $vipVoucherId);
+    }
+
+    /**
      * Test API kiểm tra trống sân khi bị trùng với đơn đặt hiện hữu.
      */
     public function test_check_availability_when_overlapping_booking_exists(): void

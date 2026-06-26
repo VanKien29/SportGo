@@ -143,6 +143,116 @@
                         </div>
                     </div>
 
+                    <div class="card" v-if="selectedCourtId && isAvailable">
+                        <div class="card-header">
+                            <span class="card-icon">2</span>
+                            <h2>Chọn voucher</h2>
+                        </div>
+                        <div class="card-body">
+                            <div v-if="voucherLoading" class="voucher-state">
+                                Đang tải voucher phù hợp...
+                            </div>
+                            <div v-else-if="voucherError" class="voucher-state error">
+                                {{ voucherError }}
+                            </div>
+                            <div v-else class="voucher-picker-grid">
+                                <section class="voucher-column">
+                                    <div class="voucher-heading">
+                                        <strong>Voucher sân</strong>
+                                        <span>{{
+                                            eligibleVenueVouchers.length
+                                        }} mã</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="voucher-card"
+                                        :class="{ active: !selectedVenueVoucherId }"
+                                        @click="selectedVenueVoucherId = ''"
+                                    >
+                                        <span class="voucher-name">Không dùng</span>
+                                        <span class="voucher-meta">Bỏ áp dụng voucher sân</span>
+                                    </button>
+                                    <button
+                                        v-for="voucher in eligibleVenueVouchers"
+                                        :key="voucher.id"
+                                        type="button"
+                                        class="voucher-card"
+                                        :class="{
+                                            active:
+                                                selectedVenueVoucherId ===
+                                                voucher.id,
+                                        }"
+                                        @click="selectedVenueVoucherId = voucher.id"
+                                    >
+                                        <span class="voucher-name">{{
+                                            voucher.name || voucher.code
+                                        }}</span>
+                                        <span class="voucher-meta">
+                                            {{ voucher.code }} · Giảm
+                                            {{ voucher.discount_label }}
+                                        </span>
+                                        <span class="voucher-discount">
+                                            -{{ formatCurrency(discountForVoucher(voucher, amountAfterMembership)) }}
+                                        </span>
+                                    </button>
+                                    <p
+                                        v-if="eligibleVenueVouchers.length === 0"
+                                        class="voucher-empty"
+                                    >
+                                        Chưa có voucher sân phù hợp.
+                                    </p>
+                                </section>
+
+                                <section class="voucher-column">
+                                    <div class="voucher-heading">
+                                        <strong>Voucher VIP</strong>
+                                        <span>{{
+                                            eligibleVipVouchers.length
+                                        }} mã</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="voucher-card"
+                                        :class="{ active: !selectedVipVoucherId }"
+                                        @click="selectedVipVoucherId = ''"
+                                    >
+                                        <span class="voucher-name">Không dùng</span>
+                                        <span class="voucher-meta">Bỏ áp dụng voucher VIP</span>
+                                    </button>
+                                    <button
+                                        v-for="voucher in eligibleVipVouchers"
+                                        :key="voucher.id"
+                                        type="button"
+                                        class="voucher-card"
+                                        :class="{
+                                            active:
+                                                selectedVipVoucherId ===
+                                                voucher.id,
+                                        }"
+                                        @click="selectedVipVoucherId = voucher.id"
+                                    >
+                                        <span class="voucher-name">{{
+                                            voucher.name || voucher.code
+                                        }}</span>
+                                        <span class="voucher-meta">
+                                            {{ voucher.code }} · Giảm
+                                            {{ voucher.discount_label }}
+                                        </span>
+                                        <span class="voucher-discount">
+                                            -{{ formatCurrency(discountForVoucher(voucher, amountAfterVenueVoucher)) }}
+                                        </span>
+                                    </button>
+                                    <p
+                                        v-if="eligibleVipVouchers.length === 0"
+                                        class="voucher-empty"
+                                    >
+                                        Chưa có voucher VIP phù hợp.
+                                    </p>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Card 3: Chọn phương thức thanh toán -->
                     <div class="card" v-if="selectedCourtId && isAvailable">
                         <div class="card-header">
@@ -310,6 +420,34 @@
                                         }}</span
                                     >
                                 </div>
+                                <div
+                                    class="summary-row discount-row"
+                                    v-if="venueVoucherDiscountAmount > 0"
+                                >
+                                    <span class="label">
+                                        Voucher sân
+                                        <small>({{ selectedVenueVoucher?.code }})</small>
+                                    </span>
+                                    <span class="val"
+                                        >-{{
+                                            formatCurrency(venueVoucherDiscountAmount)
+                                        }}</span
+                                    >
+                                </div>
+                                <div
+                                    class="summary-row discount-row"
+                                    v-if="vipVoucherDiscountAmount > 0"
+                                >
+                                    <span class="label">
+                                        Voucher VIP
+                                        <small>({{ selectedVipVoucher?.code }})</small>
+                                    </span>
+                                    <span class="val"
+                                        >-{{
+                                            formatCurrency(vipVoucherDiscountAmount)
+                                        }}</span
+                                    >
+                                </div>
                                 <div class="summary-row total-row">
                                     <span class="label">Tổng tiền:</span>
                                     <span class="val price">{{
@@ -391,6 +529,12 @@ export default {
             submitError: null,
             fetchedHourlyRate: 0,
             pricePreview: null,
+            voucherLoading: false,
+            voucherError: "",
+            eligibleVenueVouchers: [],
+            eligibleVipVouchers: [],
+            selectedVenueVoucherId: "",
+            selectedVipVoucherId: "",
 
             selectedScheduleCourtTypeId: "",
             scheduleLoading: false,
@@ -549,10 +693,48 @@ export default {
         membershipDiscountPercent() {
             return Number(this.membershipDiscount?.discount_percent || 0);
         },
-        totalPrice() {
+        amountAfterMembership() {
             return Number(
                 this.pricePreview?.final_amount ??
                     Math.max(this.basePrice - this.membershipDiscountAmount, 0),
+            );
+        },
+        selectedVenueVoucher() {
+            return (
+                this.eligibleVenueVouchers.find(
+                    (voucher) => voucher.id === this.selectedVenueVoucherId,
+                ) || null
+            );
+        },
+        selectedVipVoucher() {
+            return (
+                this.eligibleVipVouchers.find(
+                    (voucher) => voucher.id === this.selectedVipVoucherId,
+                ) || null
+            );
+        },
+        venueVoucherDiscountAmount() {
+            return this.discountForVoucher(
+                this.selectedVenueVoucher,
+                this.amountAfterMembership,
+            );
+        },
+        amountAfterVenueVoucher() {
+            return Math.max(
+                this.amountAfterMembership - this.venueVoucherDiscountAmount,
+                0,
+            );
+        },
+        vipVoucherDiscountAmount() {
+            return this.discountForVoucher(
+                this.selectedVipVoucher,
+                this.amountAfterVenueVoucher,
+            );
+        },
+        totalPrice() {
+            return Math.max(
+                this.amountAfterVenueVoucher - this.vipVoucherDiscountAmount,
+                0,
             );
         },
         requiredPaymentAmount() {
@@ -773,11 +955,13 @@ export default {
                 this.isAvailable = false;
                 this.availabilityChecked = true;
                 this.pricePreview = null;
+                this.clearVoucherSelection();
                 return;
             }
 
             this.checkingAvailability = true;
             this.submitError = null;
+            this.clearVoucherSelection();
 
             try {
                 const res = await bookingService.checkAvailability({
@@ -819,11 +1003,14 @@ export default {
                             ? "deposit"
                             : "no_prepay";
                     }
+
+                    await this.loadEligibleVouchers();
                 }
             } catch (err) {
                 console.error(err);
                 this.isAvailable = false;
                 this.pricePreview = null;
+                this.clearVoucherSelection();
             } finally {
                 this.checkingAvailability = false;
                 this.availabilityChecked = true;
@@ -842,6 +1029,8 @@ export default {
                     start_time: this.startTime,
                     end_time: this.endTime,
                     payment_option: this.paymentOption,
+                    venue_voucher_id: this.selectedVenueVoucherId || null,
+                    vip_voucher_id: this.selectedVipVoucherId || null,
                 });
 
                 // Chuyển hướng sang trang chi tiết đặt chỗ
@@ -855,6 +1044,77 @@ export default {
             } finally {
                 this.submitting = false;
             }
+        },
+        async loadEligibleVouchers() {
+            if (
+                !this.selectedCourtId ||
+                !this.bookingDate ||
+                !this.startTime ||
+                !this.endTime ||
+                !this.isAvailable
+            ) {
+                this.clearVoucherSelection();
+                return;
+            }
+
+            this.voucherLoading = true;
+            this.voucherError = "";
+
+            try {
+                const res = await bookingService.eligibleVouchers({
+                    venue_court_id: this.selectedCourtId,
+                    booking_date: this.bookingDate,
+                    start_time: this.startTime,
+                    end_time: this.endTime,
+                });
+
+                this.eligibleVenueVouchers = res.venue_vouchers || [];
+                this.eligibleVipVouchers = res.vip_vouchers || [];
+
+                if (!this.selectedVenueVoucher) {
+                    this.selectedVenueVoucherId = "";
+                }
+                if (!this.selectedVipVoucher) {
+                    this.selectedVipVoucherId = "";
+                }
+            } catch (err) {
+                this.voucherError =
+                    err.message || "Không thể tải danh sách voucher phù hợp.";
+                this.eligibleVenueVouchers = [];
+                this.eligibleVipVouchers = [];
+                this.selectedVenueVoucherId = "";
+                this.selectedVipVoucherId = "";
+            } finally {
+                this.voucherLoading = false;
+            }
+        },
+        clearVoucherSelection() {
+            this.voucherError = "";
+            this.eligibleVenueVouchers = [];
+            this.eligibleVipVouchers = [];
+            this.selectedVenueVoucherId = "";
+            this.selectedVipVoucherId = "";
+        },
+        discountForVoucher(voucher, amount) {
+            const baseAmount = Number(amount || 0);
+            if (!voucher || baseAmount <= 0) return 0;
+            if (Number(voucher.min_order_amount || 0) > baseAmount) return 0;
+
+            let discount = 0;
+            if (voucher.discount_type === "percent") {
+                discount =
+                    baseAmount * (Number(voucher.discount_value || 0) / 100);
+                if (voucher.max_discount_amount !== null) {
+                    discount = Math.min(
+                        discount,
+                        Number(voucher.max_discount_amount || 0),
+                    );
+                }
+            } else {
+                discount = Number(voucher.discount_value || 0);
+            }
+
+            return Math.max(Math.min(discount, baseAmount), 0);
         },
         formatDate(dateStr) {
             if (!dateStr) return "";
@@ -1203,6 +1463,99 @@ export default {
     color: var(--sg-danger);
 }
 
+.voucher-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.voucher-column {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.voucher-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--sg-dark);
+}
+
+.voucher-heading span {
+    color: var(--sg-text-muted);
+    font-weight: 700;
+}
+
+.voucher-card {
+    width: 100%;
+    min-height: 78px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    align-items: center;
+    padding: 12px;
+    border-radius: var(--sg-radius-sm);
+    border: 1px solid var(--sg-border);
+    background: #fff;
+    text-align: left;
+    transition: var(--sg-transition);
+}
+
+.voucher-card:hover {
+    background: var(--sg-surface);
+    border-color: var(--sg-green-light);
+}
+
+.voucher-card.active {
+    background: var(--sg-green-pale);
+    border-color: var(--sg-green);
+}
+
+.voucher-name {
+    min-width: 0;
+    color: var(--sg-dark);
+    font-size: 13px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.voucher-meta {
+    min-width: 0;
+    color: var(--sg-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.voucher-discount {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    color: #047857;
+    font-size: 13px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.voucher-empty,
+.voucher-state {
+    margin: 0;
+    padding: 14px;
+    border-radius: var(--sg-radius-sm);
+    background: var(--sg-surface);
+    color: var(--sg-text-muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.voucher-state.error {
+    background: #fef2f2;
+    color: var(--sg-danger);
+}
+
 .payment-options {
     display: flex;
     flex-direction: column;
@@ -1412,6 +1765,9 @@ export default {
         position: static;
     }
     .schedule-controls {
+        grid-template-columns: 1fr;
+    }
+    .voucher-picker-grid {
         grid-template-columns: 1fr;
     }
 }
