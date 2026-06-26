@@ -364,7 +364,8 @@ class SystemWalletService
                 'total' => $bookingTotal,
                 'count' => (int) ($bookingPayments->count ?? 0),
             ],
-            'total_revenue' => round($platformTotalPaid + $bookingTotal, 2),
+            'custody_total' => $bookingTotal,
+            'total_revenue' => round($platformTotalPaid, 2),
         ];
     }
 
