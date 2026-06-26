@@ -459,6 +459,26 @@
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08) !important;
 }
 
+.sg-shell-admin .content-area .icon-btn.approve {
+  border-color: #10b981 !important;
+  background: #ecfdf5 !important;
+  color: #059669 !important;
+}
+.sg-shell-admin .content-area .icon-btn.approve:hover {
+  background: #10b981 !important;
+  color: white !important;
+}
+
+.sg-shell-admin .content-area .icon-btn.danger {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+.sg-shell-admin .content-area .icon-btn.danger:hover {
+  background: #ef4444 !important;
+  color: white !important;
+}
+
 .sg-shell-admin .content-area :is(.icon-only.primary:hover, .icon-command.primary:hover, .btn-action.primary:hover, .action-icon-button.variant-primary:hover) {
   border-color: var(--admin-primary-dark) !important;
   background: var(--admin-primary-dark) !important;

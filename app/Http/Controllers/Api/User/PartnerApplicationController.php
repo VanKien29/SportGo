@@ -94,7 +94,7 @@ class PartnerApplicationController extends Controller
             'status' => 'success',
             'data' => [
                 'document' => $document,
-                'download_url' => url('/api/files/documents/' . $document->id . '/download'),
+                'download_url' => '/api/files/documents/' . $document->id . '/download',
                 'preview' => $document->render_data,
                 'bank_verification_status' => $data['bank_verification_status'],
             ],
@@ -186,7 +186,7 @@ class PartnerApplicationController extends Controller
             'data' => [
                 'contract' => $contract,
                 'document' => $contract->generatedDocument,
-                'download_url' => $contract->generatedDocument ? url('/api/files/documents/' . $contract->generatedDocument->id . '/download') : null,
+                'download_url' => $contract->generatedDocument ? '/api/files/documents/' . $contract->generatedDocument->id . '/download' : null,
             ],
         ]);
     }
@@ -439,7 +439,7 @@ class PartnerApplicationController extends Controller
             ->get()
             ->map(fn (GeneratedDocument $document) => [
                 ...$document->toArray(),
-                'download_url' => url('/api/files/documents/' . $document->id . '/download'),
+                'download_url' => '/api/files/documents/' . $document->id . '/download',
             ]);
 
         return response()->json(['status' => 'success', 'data' => $documents]);

@@ -48,11 +48,18 @@ class PartnerDocumentService
     ): GeneratedDocument {
         $template = $this->activeTemplate($documentType);
         $documentCode = $this->uniqueDocumentCode($documentType);
-        $filePath = 'generated-documents/' . now()->format('Y/m') . '/' . $documentCode . '.docx';
-        $title = $context['title'] ?? $this->defaultTitle($documentType, $renderData);
         $referenceType = $context['reference_type'] ?? $reference::class;
         $referenceId = $context['reference_id'] ?? (string) $reference->getKey();
         $documentVersion = $this->nextDocumentVersion($documentType, $referenceType, $referenceId);
+        $renderedAt = now();
+        $renderData = array_merge($renderData, [
+            'document_code' => $documentCode,
+            'document_version' => $documentVersion,
+            'rendered_at' => $renderedAt->format('d/m/Y H:i'),
+            'rendered_by' => $actor?->full_name ?? $actor?->username ?? $actor?->email ?? 'Hệ thống',
+        ]);
+        $filePath = 'generated-documents/' . $renderedAt->format('Y/m') . '/' . $documentCode . '.docx';
+        $title = $context['title'] ?? $this->defaultTitle($documentType, $renderData);
 
         $sourcePath = $template ? Storage::disk($template->storage_disk)->path($template->file_path) : null;
         if (! $sourcePath || ! is_file($sourcePath)) {
@@ -90,7 +97,7 @@ class PartnerDocumentService
             'final_file_path' => $context['final_file_path'] ?? null,
             'file_hash' => hash_file('sha256', Storage::disk('local')->path($filePath)),
             'generated_by' => $actor?->id,
-            'generated_at' => now(),
+            'generated_at' => $renderedAt,
         ]);
 
         return $document;
@@ -137,9 +144,10 @@ class PartnerDocumentService
                     $processor->setImageValue($placeholder, [
                         'path' => Storage::disk('public')->path($media->file_path),
                         'width' => 150,
-                        'height' => 75,
+                        'height' => 70,
                         'ratio' => false,
                     ]);
+                    $processor->setValue($signerSide . '_signer_name', $signature->signer_full_name);
                     $processor->saveAs($filePath);
                     $document->forceFill([
                         'file_hash' => hash_file('sha256', $filePath),
@@ -307,6 +315,9 @@ class PartnerDocumentService
             @unlink($tempPath);
         }
 
+        $this->applyDocxRegexReplacements($targetPath, $data, $documentType);
+
+        $this->fillKnownTemplateBodyFields($targetPath, $data, $documentType);
         $this->appendDocumentDataAppendixToFile($targetPath, $data, $documentType);
     }
 
@@ -351,24 +362,8 @@ class PartnerDocumentService
 
     private function appendDocumentDataAppendixToFile(string $docxPath, array $data, string $documentType): void
     {
-        if (! in_array($documentType, [
-            'partner_application_form',
-            'partner_contract',
-            'termination_request',
-            'mutual_liquidation_minutes',
-            'unilateral_termination_notice',
-            'settlement_minutes',
-        ], true) || ! class_exists(ZipArchive::class)) {
-            return;
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($docxPath) !== true) {
-            return;
-        }
-
-        $this->appendDocumentDataAppendix($zip, $data, $documentType);
-        $zip->close();
+        // Phụ lục đã bị vô hiệu hóa theo yêu cầu của hệ thống (không chèn notes/phụ lục)
+        return;
     }
 
     private function replaceDocxPlaceholders(string $docxPath, array $data, string $documentType): void
@@ -406,6 +401,401 @@ class PartnerDocumentService
         }
 
         $zip->close();
+    }
+
+    private function applyDocxRegexReplacements(string $docxPath, array $data, string $documentType): void
+    {
+        if (! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $entry = $zip->getNameIndex($index);
+            if (! str_starts_with($entry, 'word/') || ! str_ends_with($entry, '.xml')) {
+                continue;
+            }
+
+            $xml = $zip->getFromName($entry);
+            if ($xml === false) {
+                continue;
+            }
+
+            $replaced = $xml;
+
+            // Kính gửi
+            $replaced = preg_replace('/Kính gửi:\s*(?:<[^>]+>)*\[Tên công ty\/đơn vị vận hành nền tảng SportGo\]/u', 'Kính gửi: Công ty TNHH SportGo', $replaced);
+            $replaced = preg_replace('/Kính gửi:\s*(?:<[^>]+>)*\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\./u', 'Kính gửi: Công ty TNHH SportGo', $replaced);
+
+            // Auto-fill contract number and date if they use dots instead of placeholders
+            if (isset($data['contract_code'])) {
+                $replaced = preg_replace('/(Số:\s*(?:<[^>]+>)*)[\. \t]+((?:<[^>]+>)*\/HĐHT-SG)/u', '${1}' . $data['contract_code'] . '${2}', $replaced);
+            }
+            if (isset($data['location_date'])) {
+                // Thay vì replace cả ngày tháng năm, chúng ta tìm và replace một cách an toàn
+                $replaced = preg_replace('/[\. \t_]*(?:<[^>]+>)*,?\s*(?:<[^>]+>)*ngày\s*(?:<[^>]+>)*[\. \t_]+(?:<[^>]+>)*tháng\s*(?:<[^>]+>)*[\. \t_]+(?:<[^>]+>)*năm\s*(?:<[^>]+>)*[\. \t_]+/u', $data['location_date'], $replaced);
+            }
+
+            if ($replaced !== $xml) {
+                $zip->addFromString($entry, $replaced);
+            }
+        }
+
+        $zip->close();
+    }
+
+    private function fillKnownTemplateBodyFields(string $docxPath, array $data, string $documentType): void
+    {
+        $fields = match ($documentType) {
+            'partner_application_form' => $this->applicationTemplateBodyValues($data),
+            'partner_contract' => $this->partnerContractTemplateValues($data),
+            default => [],
+        };
+
+        if ($fields === []) {
+            return;
+        }
+
+        $this->fillTwoColumnTemplateBodyFields($docxPath, $fields);
+    }
+
+    /**
+     * Some official templates use dotted blanks instead of {{placeholders}}.
+     * Fill the value cell by matching the left label cell in two-column tables.
+     *
+     * @param  array<string, mixed>  $fields
+     */
+    private function fillTwoColumnTemplateBodyFields(string $docxPath, array $fields): void
+    {
+        if (! class_exists(ZipArchive::class) || ! class_exists(\DOMDocument::class)) {
+            return;
+        }
+
+        $normalizedFields = [];
+        foreach ($fields as $label => $value) {
+            $text = $this->cellPlainValue($value);
+            if ($text === '') {
+                continue;
+            }
+
+            $normalizedFields[$this->normalizeDocxLabel((string) $label)] = $text;
+        }
+
+        if ($normalizedFields === []) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            return;
+        }
+
+        $dom = new \DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $loaded = $dom->loadXML($xml);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+
+        if (! $loaded) {
+            $zip->close();
+            return;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+        $changed = false;
+        foreach ($xpath->query('//w:tbl/w:tr') as $row) {
+            $cells = $xpath->query('./w:tc', $row);
+            if ($cells->length < 2) {
+                continue;
+            }
+
+            $label = $this->normalizeDocxLabel($this->docxNodeText($cells->item(0), $xpath));
+            if ($label === '') {
+                continue;
+            }
+
+            foreach ($normalizedFields as $needle => $value) {
+                if ($needle !== '' && str_contains($label, $needle)) {
+                    $changed = $this->replaceDocxCellText($cells->item(1), $xpath, $value) || $changed;
+                    break;
+                }
+            }
+        }
+
+        if ($changed) {
+            $zip->addFromString($entry, $dom->saveXML());
+        }
+
+        $zip->close();
+    }
+
+    private function applicationTemplateBodyValues(array $data): array
+    {
+        $applicantName = $this->firstFilled($data, ['applicant_full_name', 'full_name']);
+        $businessName = $this->firstFilled($data, ['business_name']);
+        $email = $this->firstFilled($data, ['applicant_email', 'email', 'venue_email']);
+        $phone = $this->firstFilled($data, ['applicant_phone', 'phone']);
+        $identityNumber = $this->firstFilled($data, ['representative_identity_number', 'id_number']);
+        $legalNumbers = $this->joinFilled([
+            $identityNumber,
+            $this->firstFilled($data, ['tax_code']),
+            $this->firstFilled($data, ['business_license_number', 'business_code']),
+        ], '; ');
+
+        return [
+            'Tên đơn vị' => 'Công ty TNHH SportGo',
+            'Mã số thuế/ĐKKD' => '0000000000',
+            'Địa chỉ trụ sở' => 'Tòa P cao đẳng FPT Polytechnic Đường Phan Tây Nhạc, Phường Xuân Phương, Hà Nội',
+            'Người đại diện' => 'Nguyễn Đức Kiên',
+            'Chức vụ' => 'Giám đốc',
+            'Căn cứ đại diện/ủy quyền' => 'Người đại diện theo pháp luật',
+            'Số điện thoại/Email' => 'contact@sportgo.vn',
+            'Tài khoản thu phí/hoàn trả nếu có' => 'Không có',
+            'Mã hồ sơ đăng ký' => $this->firstFilled($data, ['application_code', 'document_code']),
+            'Loại người đề nghị' => $this->applicantTypeLabel($this->firstFilled($data, ['applicant_type'])),
+            'Họ tên/Tên tổ chức' => $businessName ?: $applicantName,
+            'Số CCCD/CMND/Hộ chiếu/MST/ĐKKD' => $legalNumbers,
+            'Ngày cấp - Nơi cấp' => $this->issuedInfo($data),
+            'Người đại diện hợp pháp' => $this->firstFilled($data, ['representative_name']) ?: $applicantName,
+            'Chức vụ/Quan hệ đại diện' => $this->firstFilled($data, ['representative_position', 'business_representative_position']) ?: ($businessName ? 'Người đại diện' : 'Chủ cơ sở'),
+            'Số điện thoại liên hệ' => $phone,
+            'Email liên hệ' => $email,
+            'Địa chỉ thường trú/trụ sở/liên hệ' => $this->joinFilled([
+                $this->firstFilled($data, ['applicant_address']),
+                $this->firstFilled($data, ['business_address']),
+            ], ' | '),
+            'Tài khoản đăng nhập SportGo dự kiến' => $email,
+            'Tên cụm sân dự kiến hiển thị' => $this->firstFilled($data, ['venue_name']),
+            'Mã cụm sân trên hệ thống nếu đã có' => $this->firstFilled($data, ['venue_cluster_code', 'venue_cluster_id', 'approved_venue_cluster_id']) ?: 'Chưa có',
+            'Địa chỉ cụm sân' => $this->joinFilled([
+                $this->firstFilled($data, ['venue_address']),
+                $this->firstFilled($data, ['venue_ward']),
+                $this->firstFilled($data, ['venue_province']),
+            ]),
+            'Tọa độ/đường dẫn bản đồ' => $this->coordinatesAndMap($data),
+            'Người quản lý trực tiếp tại sân' => $this->firstFilled($data, ['venue_manager_name', 'representative_name', 'applicant_full_name', 'full_name']),
+            'Số điện thoại liên hệ tại sân' => $this->firstFilled($data, ['venue_phone', 'applicant_phone', 'phone']),
+            'Loại sân/môn thể thao kinh doanh' => $this->firstFilled($data, ['court_types', 'court_types_summary', 'courts_summary']),
+            'Số lượng sân con dự kiến' => $this->firstFilled($data, ['court_count_total', 'court_count']),
+            'Thời gian hoạt động dự kiến' => $this->firstFilled($data, ['expected_opening_hours']),
+            'Tiện ích, dịch vụ đi kèm' => $this->firstFilled($data, ['amenities']),
+            'Mô tả ngắn về cụm sân' => $this->firstFilled($data, ['venue_description']),
+            'Tư cách pháp lý của người đề nghị' => $this->applicantTypeLabel($this->firstFilled($data, ['applicant_type'])),
+            'Căn cứ quyền sử dụng/khai thác mặt bằng' => $this->firstFilled($data, ['premises_basis', 'land_use_basis']) ?: 'Hồ sơ mặt bằng đã tải lên trong phụ lục',
+            'Thời hạn quyền sử dụng/khai thác' => $this->firstFilled($data, ['premises_usage_term', 'land_use_term']) ?: 'Theo hồ sơ đính kèm',
+            'Giấy tờ kinh doanh liên quan' => $this->joinFilled([
+                $this->firstFilled($data, ['business_license_number', 'business_code']),
+                $this->firstFilled($data, ['tax_code']),
+            ], '; ') ?: 'Theo hồ sơ đính kèm',
+            'Giấy tờ/giấy phép khác nếu pháp luật yêu cầu' => $this->firstFilled($data, ['additional_licenses', 'attachments']) ?: 'Theo hồ sơ đính kèm',
+            'Tình trạng tranh chấp/hạn chế pháp lý của mặt bằng' => $this->firstFilled($data, ['legal_dispute_status']) ?: 'Người đăng ký cam kết không có tranh chấp/hạn chế pháp lý chưa khai báo',
+            'Tên ngân hàng' => $this->firstFilled($data, ['bank_name']),
+            'Số tài khoản' => $this->firstFilled($data, ['account_number']),
+            'Tên chủ tài khoản' => $this->firstFilled($data, ['account_holder_name']),
+            'Chi nhánh/ngân hàng liên quan nếu có' => $this->firstFilled($data, ['bank_branch']) ?: 'Không có',
+            'Tài liệu xác minh tài khoản nhận tiền' => $this->firstFilled($data, ['bank_verification_label', 'bank_verification_status']) ?: 'Chứng từ ngân hàng đã tải lên',
+            'Ngày tiếp nhận hồ sơ' => $this->firstFilled($data, ['submitted_at', 'rendered_at']),
+            'Người tiếp nhận' => 'Hệ thống SportGo',
+            'Tình trạng hồ sơ' => $this->firstFilled($data, ['application_status_label', 'status_label']) ?: 'Chờ ký/nộp hồ sơ',
+            'Tài liệu cần bổ sung nếu có' => $this->firstFilled($data, ['supplement_required']) ?: 'Chưa có',
+            'Kết quả xử lý' => $this->firstFilled($data, ['review_result']) ?: 'Chờ thẩm định',
+        ];
+    }
+
+    private function partnerContractTemplateValues(array $data): array
+    {
+        $applicantName = $this->firstFilled($data, ['owner_full_name', 'owner_signer_full_name', 'party_b_name', 'business_name']);
+        $businessName = $this->firstFilled($data, ['business_name']);
+        $email = $this->firstFilled($data, ['owner_email']);
+        $phone = $this->firstFilled($data, ['owner_phone']);
+        
+        $legalNumbers = $this->joinFilled([
+            $this->firstFilled($data, ['party_b_id', 'identity_number']),
+            $this->firstFilled($data, ['tax_code']),
+            $this->firstFilled($data, ['business_license_number', 'business_code']),
+        ], '; ');
+
+        return [
+            'Tên đơn vị' => 'Công ty TNHH SportGo',
+            'Mã số thuế/ĐKKD' => '0000000000',
+            'Địa chỉ trụ sở' => 'Tòa P cao đẳng FPT Polytechnic Đường Phan Tây Nhạc, Phường Xuân Phương, Hà Nội',
+            'Người đại diện' => 'Nguyễn Đức Kiên',
+            'Chức vụ' => 'Giám đốc',
+            'Căn cứ đại diện/ủy quyền' => 'Người đại diện theo pháp luật',
+            'Số điện thoại/Email' => 'contact@sportgo.vn',
+            'Tài khoản thu phí/hoàn trả nếu có' => 'Tài khoản SportGo trên hệ thống thanh toán trung gian',
+            'Họ tên/Tên tổ chức' => $businessName ?: $applicantName,
+            'Số CCCD/CMND/Hộ chiếu/MST/ĐKKD' => $legalNumbers,
+            'Ngày cấp - Nơi cấp' => $this->issuedInfo($data),
+            'Địa chỉ liên hệ/trụ sở' => $this->firstFilled($data, ['party_b_address', 'venue_address']),
+            'Người đại diện nếu là tổ chức' => $businessName ? $applicantName : 'Không',
+            'Chức vụ/Quan hệ đại diện' => $businessName ? 'Người đại diện' : 'Chủ cơ sở',
+            'Số điện thoại' => $phone,
+            'Email' => $email,
+            'Tài khoản nhận thanh toán' => $this->joinFilled([
+                $this->firstFilled($data, ['account_number']),
+                $this->firstFilled($data, ['bank_name']),
+            ], ' - '),
+            'Cụm sân hợp tác' => $this->firstFilled($data, ['venue_cluster_list', 'venue_name']),
+            'Địa chỉ cụm sân' => $this->firstFilled($data, ['venue_address']),
+            'Số lượng sân con' => $this->firstFilled($data, ['court_count_total', 'court_count']),
+            'Quy định khóa quá hạn' => $this->firstFilled($data, ['overdue_lock_rule']),
+            'Chính sách hoàn phí' => $this->firstFilled($data, ['refund_policy_summary']),
+        ];
+    }
+
+    private function docxNodeText(\DOMNode $node, \DOMXPath $xpath): string
+    {
+        $texts = [];
+        foreach ($xpath->query('.//w:t', $node) as $textNode) {
+            $texts[] = $textNode->nodeValue ?? '';
+        }
+
+        return trim(implode('', $texts));
+    }
+
+    private function replaceDocxCellText(\DOMNode $cell, \DOMXPath $xpath, string $text): bool
+    {
+        $textNodes = $xpath->query('.//w:t', $cell);
+        if ($textNodes->length === 0) {
+            $document = $cell->ownerDocument;
+            if (! $document) {
+                return false;
+            }
+
+            $paragraph = $document->createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'w:p');
+            $run = $document->createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'w:r');
+            $textNode = $document->createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'w:t');
+            $textNode->setAttribute('xml:space', 'preserve');
+            $textNode->appendChild($document->createTextNode($text));
+            $run->appendChild($textNode);
+            $paragraph->appendChild($run);
+            $cell->appendChild($paragraph);
+
+            return true;
+        }
+
+        $isFirst = true;
+        foreach ($textNodes as $textNode) {
+            $textNode->nodeValue = '';
+            if ($isFirst && $text !== '') {
+                $textNode->appendChild($textNode->ownerDocument->createTextNode($text));
+            }
+            $textNode->setAttribute('xml:space', 'preserve');
+            $isFirst = false;
+        }
+
+        return true;
+    }
+
+    private function normalizeDocxLabel(string $text): string
+    {
+        $normalized = Str::lower($text);
+
+        return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalized) ?: '';
+    }
+
+    private function firstFilled(array $data, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            $value = data_get($data, $key);
+            $text = $this->cellPlainValue($value);
+            if ($text !== '') {
+                return $text;
+            }
+        }
+
+        return null;
+    }
+
+    private function joinFilled(array $values, string $separator = ', '): ?string
+    {
+        $items = [];
+        foreach ($values as $value) {
+            $text = $this->cellPlainValue($value);
+            if ($text !== '' && ! in_array($text, $items, true)) {
+                $items[] = $text;
+            }
+        }
+
+        return $items === [] ? null : implode($separator, $items);
+    }
+
+    private function cellPlainValue(mixed $value): string
+    {
+        $text = trim($this->plainValue($value));
+
+        return preg_replace('/\s+/u', ' ', $text) ?: '';
+    }
+
+    private function applicantTypeLabel(?string $type): ?string
+    {
+        if (! $type) {
+            return null;
+        }
+
+        return [
+            'individual' => 'Cá nhân',
+            'business' => 'Hộ kinh doanh',
+            'company' => 'Doanh nghiệp',
+            'organization' => 'Tổ chức khác',
+        ][$type] ?? $type;
+    }
+
+    private function issuedInfo(array $data): ?string
+    {
+        if ($issuedInfo = $this->firstFilled($data, ['id_issued_info'])) {
+            return $issuedInfo;
+        }
+
+        return $this->joinFilled([
+            $this->formatDateForDocument(data_get($data, 'representative_identity_issued_date')),
+            $this->firstFilled($data, ['representative_identity_issued_place']),
+        ], ' - ');
+    }
+
+    private function coordinatesAndMap(array $data): ?string
+    {
+        $coordinates = $this->joinFilled([
+            $this->firstFilled($data, ['venue_latitude']),
+            $this->firstFilled($data, ['venue_longitude']),
+        ], ', ');
+
+        return $this->joinFilled([
+            $coordinates,
+            $this->firstFilled($data, ['venue_map_url']),
+        ], ' - ');
+    }
+
+    private function formatDateForDocument(mixed $value): ?string
+    {
+        $text = $this->cellPlainValue($value);
+        if ($text === '') {
+            return null;
+        }
+
+        if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $text)) {
+            return $text;
+        }
+
+        try {
+            return \Carbon\Carbon::parse($text)->format('d/m/Y');
+        } catch (Throwable) {
+            return $text;
+        }
     }
 
     private function appendDocumentDataAppendix(ZipArchive $zip, array $data, string $documentType): void
@@ -471,8 +861,10 @@ class PartnerDocumentService
         }
 
         $paragraphs[] = $this->docxParagraph('');
-        $paragraphs[] = $this->docxParagraph('Chữ ký người đăng ký/chủ sân:', true);
-        $paragraphs[] = $this->docxParagraph('{{signature_owner}}');
+        if (! str_contains($xml, '{{signature_owner}}')) {
+            $paragraphs[] = $this->docxParagraph('Chữ ký người đăng ký/chủ sân:', true);
+            $paragraphs[] = $this->docxParagraph('{{signature_owner}}');
+        }
 
         $insert = implode('', $paragraphs);
         $xml = str_replace('</w:body>', $insert . '</w:body>', $xml);
@@ -531,10 +923,14 @@ class PartnerDocumentService
         }
 
         $paragraphs[] = $this->docxParagraph('');
-        $paragraphs[] = $this->docxParagraph('Chữ ký đại diện SportGo:', true);
-        $paragraphs[] = $this->docxParagraph('{{signature_sportgo}}');
-        $paragraphs[] = $this->docxParagraph('Chữ ký đối tác/chủ sân:', true);
-        $paragraphs[] = $this->docxParagraph('{{signature_owner}}');
+        if (! str_contains($xml, '{{signature_sportgo}}')) {
+            $paragraphs[] = $this->docxParagraph('Chữ ký đại diện SportGo:', true);
+            $paragraphs[] = $this->docxParagraph('{{signature_sportgo}}');
+        }
+        if (! str_contains($xml, '{{signature_owner}}')) {
+            $paragraphs[] = $this->docxParagraph('Chữ ký đối tác/chủ sân:', true);
+            $paragraphs[] = $this->docxParagraph('{{signature_owner}}');
+        }
 
         $insert = implode('', $paragraphs);
         $xml = str_replace('</w:body>', $insert . '</w:body>', $xml);

@@ -230,13 +230,11 @@
                 <p>{{ document.document_code }} · {{ documentStatusLabel(document.status) }} · {{ signatureSummary(document.signatures) }}</p>
               </div>
               <div class="row-actions">
-                <button class="btn primary small" type="button" @click="openDocument(document)">
+                <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document)">
                   <AppIcon name="eye" size="15" />
-                  Xem
                 </button>
-                <a class="btn ghost small" :href="document.download_url" target="_blank" rel="noopener">
+                <a class="btn ghost small icon-only" title="Tải xuống" :href="document.download_url" target="_blank" rel="noopener">
                   <AppIcon name="download" size="15" />
-                  Tải
                 </a>
               </div>
             </div>
@@ -257,13 +255,11 @@
                 <p>{{ document.file_name || uploadedTypeLabel(document.document_type) }} · {{ fileSize(document.file_size) }}</p>
               </div>
               <div class="row-actions">
-                <button class="btn primary small" type="button" @click="openDocument(document, 'uploaded')">
+                <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document, 'uploaded')">
                   <AppIcon name="eye" size="15" />
-                  Xem
                 </button>
-                <a class="btn ghost small" :href="document.download_url" target="_blank" rel="noopener">
+                <a class="btn ghost small icon-only" title="Tải xuống" :href="document.download_url" target="_blank" rel="noopener">
                   <AppIcon name="download" size="15" />
-                  Tải
                 </a>
               </div>
             </div>
@@ -307,14 +303,23 @@
           <p v-if="!application.termination_requests?.length" class="empty-text">Chưa có yêu cầu chấm dứt hoặc quyết toán.</p>
         </div>
       </section>
+
+      <AdminPartnerDocumentModal
+        v-if="selectedDocumentId"
+        :application-id="application.id"
+        :document-id="selectedDocumentId"
+        @close="selectedDocumentId = null"
+        @signed="loadApplication"
+      />
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '../../components/AppIcon.vue';
+import AdminPartnerDocumentModal from './AdminPartnerDocumentModal.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
 
 const route = useRoute();
@@ -328,6 +333,7 @@ const actionError = ref('');
 const application = ref(null);
 const courtTypes = ref([]);
 const activeTab = ref('overview');
+const selectedDocumentId = ref(null);
 const actionMode = ref(route.query.action || '');
 const fieldErrors = reactive({});
 
@@ -349,7 +355,7 @@ const tabs = [
   { value: 'settlement', label: 'Quyết toán' },
 ];
 
-const generatedDocuments = computed(() => application.value?.documents || []);
+const generatedDocuments = computed(() => (application.value?.documents || []).filter(d => d.source !== 'uploaded'));
 const uploadedDocuments = computed(() => application.value?.uploaded_documents || []);
 const requiresInitialCourt = computed(() => !(application.value?.courts || []).length);
 const leafCourtTypes = computed(() => courtTypes.value.filter((type) => type.is_active !== false && Number(type.children_count || 0) === 0));
@@ -384,12 +390,14 @@ async function loadCourtTypes() {
   }
 }
 
-function openDocument(document, kind = 'generated') {
-  router.push({
-    name: 'admin-partner-application-document',
-    params: { id: application.value.id, documentId: document.id },
-    query: kind === 'uploaded' ? { type: 'uploaded' } : {},
-  });
+function openDocument(doc, type = 'generated') {
+  if (type === 'uploaded') {
+    if (doc.download_url) {
+      window.open(doc.download_url, '_blank');
+    }
+  } else {
+    selectedDocumentId.value = doc.id;
+  }
 }
 
 function clearAction() {

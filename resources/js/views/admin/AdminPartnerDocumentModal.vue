@@ -1,7 +1,8 @@
 <template>
-  <div class="partner-document-page">
-    <header class="page-head">
-      <button class="btn ghost" type="button" @click="router.push({ name: 'admin-partner-application-detail', params: { id: route.params.id } })">
+  <div class="document-modal-overlay" @click.self="emit('close')">
+    <div class="document-modal-content">
+      <header class="page-head">
+        <button class="btn ghost" type="button" @click="emit('close')">
         <AppIcon name="arrowLeft" size="16" />
         Quay lại hồ sơ
       </button>
@@ -11,10 +12,10 @@
         <h2>{{ documentTitle }}</h2>
       </div>
 
-      <a v-if="document?.download_url" class="btn ghost" :href="document.download_url" target="_blank" rel="noopener">
+      <button v-if="document?.download_url" type="button" class="btn ghost" @click="downloadFile(document.download_url, documentTitle)">
         <AppIcon name="download" size="16" />
         Tải file
-      </a>
+      </button>
     </header>
 
     <div v-if="message" class="notice success">{{ message }}</div>
@@ -78,21 +79,11 @@
             <span v-if="signatureEmpty">Ký vào đây</span>
           </div>
 
-          <div v-if="otpSent" class="otp-box">
-            <label for="admin-signature-otp">Mã OTP</label>
-            <input id="admin-signature-otp" v-model.trim="otp" inputmode="numeric" maxlength="6" placeholder="Nhập 6 số OTP" />
-            <small>OTP gắn với hash file {{ hashShort }} và hết hạn lúc {{ formatDate(otpExpiresAt) }}.</small>
-          </div>
-
           <div class="sign-actions">
             <button class="btn ghost" type="button" @click="clearSignature">Ký lại</button>
-            <button v-if="!otpSent" class="btn primary" type="button" :disabled="signatureEmpty || !confirmed || saving" @click="requestSignatureOtp">
+            <button class="btn primary" type="button" :disabled="signatureEmpty || !confirmed || saving" @click="submitSignature">
               <AppIcon name="pencil" size="16" />
-              {{ saving ? 'Đang lưu...' : 'Ký' }}
-            </button>
-            <button v-else class="btn primary" type="button" :disabled="otp.length !== 6 || saving" @click="verifySignatureOtp">
-              <AppIcon name="check" size="16" />
-              {{ saving ? 'Đang xác thực...' : 'Xác thực OTP' }}
+              {{ saving ? 'Đang ký...' : 'Ký xác nhận' }}
             </button>
           </div>
         </section>
@@ -103,18 +94,22 @@
         </section>
       </aside>
     </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '../../components/AppIcon.vue';
 import DocumentPreviewPane from '../../components/DocumentPreviewPane.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
 
-const route = useRoute();
-const router = useRouter();
+const props = defineProps({
+  applicationId: { type: [String, Number], required: true },
+  documentId: { type: [String, Number], required: true },
+});
+
+const emit = defineEmits(['close', 'signed']);
 
 const loading = ref(true);
 const saving = ref(false);
@@ -126,11 +121,7 @@ const canvas = ref(null);
 const drawing = ref(false);
 const signatureEmpty = ref(true);
 const confirmed = ref(false);
-const otpSent = ref(false);
-const otp = ref('');
-const signingRequestId = ref('');
-const hashShort = ref('');
-const otpExpiresAt = ref(null);
+
 
 const isGeneratedDocument = computed(() => document.value?.source !== 'uploaded');
 const isPartnerContract = computed(() => document.value?.document_type === 'partner_contract');
@@ -158,11 +149,12 @@ onMounted(loadData);
 async function loadData() {
   loading.value = true;
   error.value = '';
-
   try {
-    const response = await adminPartnerApplicationService.show(route.params.id);
+    const response = await adminPartnerApplicationService.getOne(props.applicationId);
     application.value = response.data;
-    document.value = findDocument(application.value, route.params.documentId);
+    if (!application.value) throw new Error('Không tìm thấy hồ sơ.');
+
+    document.value = findDocument(application.value, props.documentId);
     if (!document.value) throw new Error('Không tìm thấy văn bản.');
     await nextTick();
     prepareCanvas();
@@ -170,6 +162,14 @@ async function loadData() {
     error.value = err.message || 'Không tải được văn bản.';
   } finally {
     loading.value = false;
+  }
+}
+
+async function downloadFile(url, defaultTitle) {
+  try {
+    await apiDownload(url);
+  } catch (err) {
+    alert(err.message || 'Không thể tải xuống văn bản.');
   }
 }
 
@@ -239,63 +239,8 @@ function clearSignature() {
   prepareCanvas();
   resetOtpState();
 }
-
 function resetOtpState() {
   confirmed.value = false;
-  otpSent.value = false;
-  otp.value = '';
-  signingRequestId.value = '';
-  hashShort.value = '';
-  otpExpiresAt.value = null;
-}
-
-async function requestSignatureOtp() {
-  if (!canvas.value || !document.value) return;
-
-  saving.value = true;
-  error.value = '';
-  message.value = '';
-
-  try {
-    const response = await adminPartnerApplicationService.requestSignDocumentOtp(application.value.id, {
-      contract_id: document.value.partner_contract_id,
-      signature_image: canvas.value.toDataURL('image/png'),
-      confirmed: confirmed.value,
-      confirmation_text: confirmationText.value,
-    });
-    signingRequestId.value = response.data?.signing_request_id || '';
-    hashShort.value = response.data?.hash_short || '';
-    otpExpiresAt.value = response.data?.expires_at || null;
-    otpSent.value = true;
-    otp.value = '';
-    message.value = response.message || 'Mã OTP đã được gửi.';
-  } catch (err) {
-    error.value = err.message || 'Không gửi được OTP ký văn bản.';
-  } finally {
-    saving.value = false;
-  }
-}
-
-async function verifySignatureOtp() {
-  if (!signingRequestId.value || otp.value.length !== 6) return;
-
-  saving.value = true;
-  error.value = '';
-  message.value = '';
-
-  try {
-    const response = await adminPartnerApplicationService.verifySignDocumentOtp(application.value.id, {
-      signing_request_id: signingRequestId.value,
-      otp: otp.value,
-    });
-    message.value = response.message || 'SportGo đã ký hợp đồng.';
-    resetOtpState();
-    await loadData();
-  } catch (err) {
-    error.value = err.message || 'Không xác thực được OTP ký văn bản.';
-  } finally {
-    saving.value = false;
-  }
 }
 
 async function submitSignature() {
@@ -311,13 +256,17 @@ async function submitSignature() {
       signature_image: canvas.value.toDataURL('image/png'),
     });
     message.value = response.message || 'SportGo đã ký hợp đồng.';
+    resetOtpState();
     await loadData();
+    emit('signed');
   } catch (err) {
-    error.value = err.message || 'Không lưu được chữ ký.';
+    error.value = err.message || 'Không ký được văn bản.';
   } finally {
     saving.value = false;
   }
 }
+
+
 
 function documentTypeLabel(type) {
   return {
@@ -361,17 +310,37 @@ function formatDate(value) {
 </script>
 
 <style scoped>
-.partner-document-page {
-  display: grid;
-  gap: 16px;
-  max-width: 1440px;
+.document-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 32px;
+}
+
+.document-modal-content {
+  background: var(--bg-surface);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 1300px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
 }
 
 .page-head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 14px;
+  display: flex;
   align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  flex-shrink: 0;
 }
 
 .title-block p {

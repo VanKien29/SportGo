@@ -1,9 +1,8 @@
 <template>
-  <div class="document-page-shell">
-    <PublicNavbar />
-    <main class="document-page">
+  <div class="document-modal-overlay" @click.self="emit('close')">
+    <div class="document-modal-content">
       <header class="page-head">
-        <button class="btn ghost" type="button" @click="$router.push({ name: 'partner-application-detail', params: { id: route.params.id } })">
+        <button class="btn ghost" type="button" @click="emit('close')">
           <AppIcon name="arrowLeft" size="16" />
           Quay lại hồ sơ
         </button>
@@ -11,10 +10,10 @@
           <p class="eyebrow">{{ application?.venue_name || 'Hồ sơ đối tác' }}</p>
           <h1>{{ document?.title || documentTypeLabel(document?.document_type) || 'Văn bản' }}</h1>
         </div>
-        <a v-if="document?.download_url" class="btn ghost" :href="document.download_url" target="_blank" rel="noopener">
+        <button v-if="document?.download_url" class="btn ghost" type="button" @click="downloadFile(document.download_url, document.title)">
           <AppIcon name="download" size="16" />
           Tải file
-        </a>
+        </button>
       </header>
 
       <div v-if="loading" class="state">Đang tải văn bản...</div>
@@ -24,7 +23,7 @@
         <DocumentPreviewPane :document="document" />
 
         <aside class="side-panel">
-          <section>
+          <section v-if="isGeneratedDocument">
             <h2>Trạng thái chữ ký</h2>
             <div class="signature-list">
               <div v-for="side in requiredSides" :key="side.key" class="signature-item" :class="{ signed: signatureBySide(side.key) }">
@@ -64,8 +63,9 @@
             </div>
             <div v-if="otpSent" class="otp-box">
               <label for="signature-otp">Mã OTP</label>
-              <input id="signature-otp" v-model.trim="otp" inputmode="numeric" maxlength="6" placeholder="Nhập 6 số OTP" />
+              <input id="signature-otp" v-model.trim="otp" inputmode="numeric" maxlength="6" placeholder="Nhập 6 số OTP" @input="otpError = ''" />
               <small>OTP gắn với hash file {{ hashShort }} và hết hạn lúc {{ formatDate(otpExpiresAt) }}.</small>
+              <p v-if="otpError" class="inline-error">{{ otpError }}</p>
             </div>
             <div class="sign-actions">
               <button class="btn ghost" type="button" @click="clearSignature">Ký lại</button>
@@ -86,22 +86,27 @@
           </section>
         </aside>
       </div>
-    </main>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
-import PublicNavbar from '../../components/PublicNavbar.vue';
+import { api, apiDownload } from '../../services/api.js';
 import AppIcon from '../../components/AppIcon.vue';
 import DocumentPreviewPane from '../../components/DocumentPreviewPane.vue';
-import { api } from '../../services/api.js';
 
-const route = useRoute();
+const props = defineProps({
+  applicationId: { type: [String, Number], required: true },
+  documentId: { type: [String, Number], required: true },
+});
+
+const emit = defineEmits(['close', 'signed']);
+
 const loading = ref(true);
 const saving = ref(false);
 const error = ref('');
+const otpError = ref('');
 const application = ref(null);
 const document = ref(null);
 const contract = ref(null);
@@ -115,22 +120,26 @@ const signingRequestId = ref('');
 const hashShort = ref('');
 const otpExpiresAt = ref(null);
 
+const isGeneratedDocument = computed(() => document.value?.source !== 'uploaded');
 const isApplicationForm = computed(() => document.value?.document_type === 'partner_application_form');
 const isContract = computed(() => document.value?.document_type === 'partner_contract');
 const requiredSides = computed(() => isContract.value
   ? [{ key: 'sportgo', label: 'SportGo' }, { key: 'owner', label: 'Chủ sân' }]
   : [{ key: 'owner', label: 'Người đăng ký' }]);
-const canSign = computed(() => document.value?.status === 'pending_owner_signature' && !signatureBySide('owner'));
-const canSubmitApplication = computed(() => application.value?.status === 'draft' && isApplicationForm.value && document.value?.status === 'completed');
+const canSign = computed(() => isGeneratedDocument.value && document.value?.status === 'pending_owner_signature' && !signatureBySide('owner'));
+const canSubmitApplication = computed(() => isGeneratedDocument.value && application.value?.status === 'draft' && isApplicationForm.value && document.value?.status === 'completed');
 const signHint = computed(() => isContract.value
   ? 'Vui lòng ký xác nhận sau khi đã đọc hợp đồng đã được SportGo ký.'
   : 'Vui lòng ký xác nhận trên đơn đăng ký trước khi gửi hồ sơ.');
 const confirmationText = computed(() => isContract.value
   ? 'Tôi xác nhận đã đọc, hiểu rõ toàn bộ nội dung hợp đồng, đồng ý giao kết hợp đồng này với SportGo và xác nhận thông tin trong hợp đồng là đúng.'
   : 'Tôi xác nhận đã đọc, kiểm tra và chịu trách nhiệm về tính chính xác, hợp pháp của toàn bộ thông tin, tài liệu trong đơn đăng ký này.');
-const readonlyHint = computed(() => document.value?.status === 'completed'
-  ? 'Văn bản đã hoàn tất chữ ký bắt buộc.'
-  : 'Hiện chưa có thao tác cần thực hiện trên văn bản này.');
+const readonlyHint = computed(() => {
+  if (!isGeneratedDocument.value) return 'Tài liệu phụ lục chỉ hỗ trợ xem và tải xuống.';
+  return document.value?.status === 'completed'
+    ? 'Văn bản đã hoàn tất chữ ký bắt buộc.'
+    : 'Hiện chưa có thao tác cần thực hiện trên văn bản này.';
+});
 
 onMounted(loadData);
 
@@ -138,10 +147,11 @@ async function loadData() {
   loading.value = true;
   error.value = '';
   try {
-    const response = await api('/api/user/partner-application');
-    application.value = (response.data?.history || []).find((item) => String(item.id) === String(route.params.id)) || null;
+    const response = await api.get(`/partner/applications/${props.applicationId}`);
+    application.value = response.data;
     if (!application.value) throw new Error('Không tìm thấy hồ sơ.');
-    document.value = findDocument(application.value, route.params.documentId);
+
+    document.value = findDocument(application.value, props.documentId);
     if (!document.value) throw new Error('Không tìm thấy văn bản.');
     document.value.download_url = document.value.download_url || `/api/files/documents/${document.value.id}/download`;
     await nextTick();
@@ -154,13 +164,18 @@ async function loadData() {
 }
 
 function findDocument(app, documentId) {
+  const uploaded = [...(app.documents || []), ...(app.uploaded_documents || [])];
   const docs = [...(app.generated_documents || app.generatedDocuments || [])];
   for (const item of app.contracts || []) {
     const doc = item.generated_document || item.generatedDocument;
     if (doc) docs.push({ ...doc, partner_contract_id: item.id });
     if (doc && String(doc.id) === String(documentId)) contract.value = item;
   }
-  return docs.find((item) => String(item.id) === String(documentId)) || null;
+  const generatedDocument = docs.find((item) => String(item.id) === String(documentId));
+  if (generatedDocument) return { ...generatedDocument, source: 'generated' };
+
+  const uploadedDocument = uploaded.find((item) => String(item.id) === String(documentId));
+  return uploadedDocument ? { ...uploadedDocument, source: 'uploaded', status: uploadedDocument.status || 'uploaded' } : null;
 }
 
 function signatureBySide(side) {
@@ -224,7 +239,7 @@ function resetOtpState() {
 async function requestSignatureOtp() {
   if (!canvas.value || !document.value) return;
   saving.value = true;
-  error.value = '';
+  otpError.value = '';
   try {
     const signature_image = canvas.value.toDataURL('image/png');
     const payload = {
@@ -250,7 +265,7 @@ async function requestSignatureOtp() {
     otpSent.value = true;
     otp.value = '';
   } catch (err) {
-    error.value = err.message || 'Không gửi được OTP ký văn bản.';
+    otpError.value = err.message || 'Không gửi được OTP ký văn bản.';
   } finally {
     saving.value = false;
   }
@@ -259,7 +274,7 @@ async function requestSignatureOtp() {
 async function verifySignatureOtp() {
   if (!signingRequestId.value || otp.value.length !== 6) return;
   saving.value = true;
-  error.value = '';
+  otpError.value = '';
   try {
     if (isContract.value) {
       await api('/api/user/partner-application/sign-contract/verify-otp', {
@@ -274,34 +289,19 @@ async function verifySignatureOtp() {
     }
     resetOtpState();
     await loadData();
+    emit('signed');
   } catch (err) {
-    error.value = err.message || 'Không xác thực được OTP ký văn bản.';
+    otpError.value = err.message || 'Không xác thực được OTP ký văn bản.';
   } finally {
     saving.value = false;
   }
 }
 
-async function submitSignature() {
-  if (!canvas.value || !document.value) return;
-  saving.value = true;
+async function downloadFile(url, defaultTitle) {
   try {
-    const signature_image = canvas.value.toDataURL('image/png');
-    if (isContract.value) {
-      await api('/api/user/partner-application/sign-contract', {
-        method: 'POST',
-        body: JSON.stringify({ contract_id: document.value.partner_contract_id || contract.value?.id, signature_image }),
-      });
-    } else {
-      await api(`/api/user/partner-application/${application.value.id}/sign-document`, {
-        method: 'POST',
-        body: JSON.stringify({ signature_image }),
-      });
-    }
-    await loadData();
+    await apiDownload(url);
   } catch (err) {
-    error.value = err.message || 'Không lưu được chữ ký.';
-  } finally {
-    saving.value = false;
+    alert(err.message || 'Không thể tải xuống văn bản.');
   }
 }
 
@@ -328,13 +328,44 @@ function formatDate(value) {
 </script>
 
 <style scoped>
-.document-page-shell { min-height: 100vh; background: #f8fafc; }
-.document-page { max-width: 1320px; margin: 0 auto; padding: 108px 20px 56px; }
-.page-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center; margin-bottom: 18px; }
+.document-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 32px;
+}
+
+.document-modal-content {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 1300px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.page-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  flex-shrink: 0;
+}
+
 .page-head h1 { margin: 2px 0 0; color: #0f172a; font-size: 24px; }
 .eyebrow { margin: 0; color: #059669; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
-.document-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
-.side-panel { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 92px; }
+.document-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; padding: 24px; overflow-y: auto; }
+.side-panel { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; }
 .side-panel section { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
 .side-panel h2 { margin: 0 0 10px; font-size: 15px; color: #0f172a; }
 .side-panel p { margin: 0 0 12px; color: #64748b; font-size: 13px; line-height: 1.5; }

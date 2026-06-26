@@ -875,8 +875,21 @@ class PartnerApplicationService
             'id_number' => $application->representative_identity_number,
             'phone' => $application->applicant_phone,
             'email' => $application->applicant_email,
+            'applicant_type' => $application->applicant_type,
             'applicant_birth_date' => $application->applicant_birth_date?->format('d/m/Y'),
+            'sportgo_company_name' => 'Công ty TNHH SportGo',
+            'sportgo_tax_code' => '0000000000',
+            'sportgo_address' => 'Tòa P cao đẳng FPT Polytechnic Đường Phan Tây Nhạc, Phường Xuân Phương, Hà Nội',
+            'sportgo_representative' => 'Nguyễn Đức Kiên',
+            'sportgo_representative_position' => 'Giám đốc',
+            'location_date' => ($application->venue_province ?? 'Hà Nội') . ', ngày ' . date('d') . ' tháng ' . date('m') . ' năm ' . date('Y'),
             'applicant_address' => $application->applicant_address,
+            'representative_name' => $application->representative_name,
+            'representative_identity_type' => $application->representative_identity_type,
+            'representative_identity_number' => $application->representative_identity_number,
+            'representative_identity_issued_date' => $application->representative_identity_issued_date?->format('d/m/Y'),
+            'representative_identity_issued_place' => $application->representative_identity_issued_place,
+            'representative_position' => $application->representative_position,
             'venue_name' => $application->venue_name,
             'venue_address' => $application->venue_address,
             'venue_province' => $application->venue_province,
@@ -908,6 +921,7 @@ class PartnerApplicationService
             'venue_phone' => $application->venue_phone ?: $application->applicant_phone,
             'court_types' => $application->courts->pluck('courtType.name')->filter()->unique()->implode(', '),
             'amenities' => is_array($application->amenities) ? implode(', ', $application->amenities) : ($application->amenities ?: 'Không có'),
+            'venue_description' => $application->venue_description,
             'expected_opening_hours' => $application->expected_opening_hours ?: '...',
             'bank_branch' => $application->bank_branch ?: 'Không có',
         ], $actor, [
@@ -961,6 +975,12 @@ class PartnerApplicationService
             'applicant_birth_date' => isset($data['applicant_birth_date'])
                 ? Carbon::parse($data['applicant_birth_date'])->format('d/m/Y')
                 : null,
+            'sportgo_company_name' => 'Công ty TNHH SportGo',
+            'sportgo_tax_code' => '0000000000',
+            'sportgo_address' => 'Tòa P cao đẳng FPT Polytechnic Đường Phan Tây Nhạc, Phường Xuân Phương, Hà Nội',
+            'sportgo_representative' => 'Nguyễn Đức Kiên',
+            'sportgo_representative_position' => 'Giám đốc',
+            'location_date' => ($data['venue_province'] ?? 'Hà Nội') . ', ngày ' . date('d') . ' tháng ' . date('m') . ' năm ' . date('Y'),
             'applicant_address' => $data['applicant_address'] ?? null,
             'applicant_type' => $data['applicant_type'] ?? null,
             'representative_identity_type' => $data['representative_identity_type'] ?? null,
@@ -999,7 +1019,51 @@ class PartnerApplicationService
             'bank_verified_at' => $data['bank_verified_at'] ?? null,
             'attachments' => $data['attachments'] ?? null,
             'submitted_at' => $data['submitted_at'] ?? $this->timestamp(now()),
+            'id_issued_info' => $this->joinFilledForDocument([
+                $data['representative_identity_issued_date'] ?? null,
+                $data['representative_identity_issued_place'] ?? null,
+            ], ' - '),
+            'court_types' => $this->courtTypesSummaryFromArray($data['courts'] ?? []),
+            'amenities' => is_array($data['amenities'] ?? null) ? implode(', ', $data['amenities']) : ($data['amenities'] ?? null),
+            'expected_opening_hours' => $data['expected_opening_hours'] ?? null,
+            'bank_branch' => $data['bank_branch'] ?? null,
         ];
+    }
+
+    private function joinFilledForDocument(array $values, string $separator = ', '): ?string
+    {
+        $items = collect($values)
+            ->map(fn ($value) => is_scalar($value) ? trim((string) $value) : null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        return $items->isEmpty() ? null : $items->implode($separator);
+    }
+
+    private function courtTypesSummaryFromArray(array $courts): ?string
+    {
+        $names = collect($courts)
+            ->map(function (array $court): ?string {
+                if (! empty($court['court_type_name'])) {
+                    return $court['court_type_name'];
+                }
+
+                if (! empty($court['court_type_name_snapshot'])) {
+                    return $court['court_type_name_snapshot'];
+                }
+
+                if (! empty($court['court_type_id'])) {
+                    return CourtType::query()->whereKey($court['court_type_id'])->value('name');
+                }
+
+                return null;
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        return $names->isEmpty() ? null : $names->implode(', ');
     }
 
     private function courtsSummaryFromArray(array $courts): string

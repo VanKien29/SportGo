@@ -143,10 +143,6 @@ class PartnerApplicationController extends Controller
 
     public function signDocument(Request $request, string $id): JsonResponse
     {
-        throw ValidationException::withMessages([
-            'otp' => 'Vui lòng bấm Ký đại diện SportGo để nhận OTP, sau đó nhập OTP để hoàn tất ký văn bản.',
-        ]);
-
         $request->validate([
             'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
             'signature_image' => ['required', 'string'],
@@ -173,87 +169,7 @@ class PartnerApplicationController extends Controller
         ]);
     }
 
-    public function requestSignDocumentOtp(Request $request, string $id): JsonResponse
-    {
-        $data = $request->validate([
-            'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
-            'signature_image' => ['required', 'string'],
-            'confirmed' => ['accepted'],
-            'confirmation_text' => ['required', 'string', 'max:1000'],
-        ]);
 
-        $application = PartnerApplication::findOrFail($id);
-        $contract = PartnerContract::with(['application.user', 'generatedDocument'])
-            ->where('partner_application_id', $application->id)
-            ->when($data['contract_id'] ?? null, fn ($q, $contractId) => $q->whereKey($contractId))
-            ->where('status', 'pending_sportgo_signature')
-            ->latest()
-            ->first();
-
-        if (! $contract || ! $contract->generatedDocument) {
-            throw ValidationException::withMessages(['contract' => 'Không có hợp đồng đang chờ SportGo ký.']);
-        }
-
-        $signingRequest = $this->signing->requestOtp(
-            $contract->generatedDocument,
-            $request->user(),
-            'sportgo',
-            'Ký đại diện SportGo trên hợp đồng hợp tác đối tác',
-            $data['confirmation_text'],
-            $data['signature_image'],
-            $request
-        );
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Mã OTP ký văn bản SportGo đã được gửi đến email của bạn.',
-            'data' => [
-                'signing_request_id' => $signingRequest->id,
-                'expires_at' => $signingRequest->expires_at,
-                'hash_short' => substr($signingRequest->file_hash, 0, 16),
-            ],
-        ]);
-    }
-
-    public function verifySignDocumentOtp(Request $request, string $id): JsonResponse
-    {
-        $data = $request->validate([
-            'signing_request_id' => ['required', 'string', 'exists:document_signing_requests,id'],
-            'otp' => ['required', 'digits:6'],
-        ]);
-
-        $application = PartnerApplication::findOrFail($id);
-        $signingRequest = DocumentSigningRequest::with('document')
-            ->whereHas('document', fn ($query) => $query->where('partner_application_id', $application->id))
-            ->findOrFail($data['signing_request_id']);
-
-        $verifiedRequest = $this->signing->verifyOtp($signingRequest, $request->user(), $data['otp']);
-
-        $contract = PartnerContract::with(['application.user', 'generatedDocument.signatures'])
-            ->where('partner_application_id', $application->id)
-            ->where('generated_document_id', $verifiedRequest->generated_document_id)
-            ->where('status', 'pending_sportgo_signature')
-            ->firstOrFail();
-
-        $contract = $this->partners->signAdminContract($contract, $request->user(), $request, $verifiedRequest->signature_image);
-        $signature = $contract->generatedDocument
-            ?->signatures()
-            ->where('signer_side', 'sportgo')
-            ->where('signer_user_id', $request->user()->id)
-            ->where('status', 'signed')
-            ->latest()
-            ->first();
-
-        if ($signature) {
-            $this->signing->markSigned($verifiedRequest, $signature);
-        }
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'SportGo đã ký hợp đồng. Người dùng sẽ được thông báo để vào hệ thống ký xác nhận.',
-            'data' => $this->payload($contract->application->fresh($this->partners->detailRelations()), true),
-        ]);
-    }
 
     public function terminate(Request $request, string $id): JsonResponse
     {
@@ -388,7 +304,7 @@ class PartnerApplicationController extends Controller
                 'title' => $document->title,
                 'status' => $document->status,
                 'generated_at' => $document->generated_at,
-                'download_url' => url('/api/files/documents/' . $document->id . '/download'),
+                'download_url' => '/api/files/documents/' . $document->id . '/download',
                 'signatures' => $document->signatures,
             ]);
         $payload['uploaded_documents'] = $application->documents
@@ -405,7 +321,7 @@ class PartnerApplicationController extends Controller
                 'mime_type' => $document->media?->mime_type,
                 'file_size' => $document->media?->file_size,
                 'uploaded_at' => $document->created_at,
-                'download_url' => url('/api/admin/partner-profiles/documents/' . $document->id . '/download'),
+                'download_url' => '/api/admin/partner-profiles/documents/' . $document->id . '/download',
             ]);
         $payload['contracts'] = $application->contracts;
         $payload['status_histories'] = $application->statusHistories;

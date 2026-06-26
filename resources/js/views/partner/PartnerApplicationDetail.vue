@@ -59,10 +59,14 @@
                 <strong>{{ document.title || documentTypeLabel(document.document_type) }}</strong>
                 <p>{{ document.document_code }} · {{ documentStatusLabel(document.status) }} · {{ signatureSummary(document.signatures) }}</p>
               </div>
-              <button class="btn primary" type="button" @click="openDocument(document)">
-                <AppIcon name="eye" size="16" />
-                Xem/Ký
-              </button>
+              <div class="row-actions">
+                <button class="btn primary small icon-only" title="Xem / Ký" type="button" @click="openDocument(document)">
+                  <AppIcon name="eye" size="16" />
+                </button>
+                <a class="btn ghost small icon-only" title="Tải xuống" :href="document.download_url" target="_blank" rel="noopener">
+                  <AppIcon name="download" size="16" />
+                </a>
+              </div>
             </article>
             <p v-if="!generatedDocuments.length" class="empty">Chưa có văn bản nào.</p>
           </div>
@@ -78,10 +82,14 @@
                 <strong>{{ document.title || uploadedTypeLabel(document.document_type) }}</strong>
                 <p>{{ document.file_name || uploadedTypeLabel(document.document_type) }} · {{ fileSize(document.file_size) }}</p>
               </div>
-              <a class="btn ghost" :href="document.download_url" target="_blank" rel="noopener">
-                <AppIcon name="download" size="16" />
-                Tải
-              </a>
+              <div class="row-actions">
+                <button class="btn primary small icon-only" title="Xem" type="button" @click="openUploadedDocument(document)">
+                  <AppIcon name="eye" size="16" />
+                </button>
+                <a class="btn ghost small icon-only" title="Tải xuống" :href="document.download_url" target="_blank" rel="noopener">
+                  <AppIcon name="download" size="16" />
+                </a>
+              </div>
             </article>
             <p v-if="!uploadedDocuments.length" class="empty">Chưa có tài liệu phụ lục.</p>
           </div>
@@ -114,6 +122,14 @@
             </article>
           </div>
         </section>
+
+        <PartnerDocumentModal
+          v-if="selectedDocumentId"
+          :application-id="application.id"
+          :document-id="selectedDocumentId"
+          @close="selectedDocumentId = null"
+          @signed="loadData"
+        />
       </template>
     </main>
   </div>
@@ -124,6 +140,7 @@ import { computed, defineComponent, h, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PublicNavbar from '../../components/PublicNavbar.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import PartnerDocumentModal from './PartnerDocumentModal.vue';
 import { api } from '../../services/api.js';
 
 const route = useRoute();
@@ -131,6 +148,7 @@ const router = useRouter();
 const loading = ref(true);
 const error = ref('');
 const application = ref(null);
+const selectedDocumentId = ref(null);
 
 const generatedDocuments = computed(() => {
   const docs = [...(application.value?.generated_documents || application.value?.generatedDocuments || [])];
@@ -158,8 +176,16 @@ async function loadApplication() {
   }
 }
 
-function openDocument(document) {
-  router.push({ name: 'partner-application-document', params: { id: application.value.id, documentId: document.id } });
+function openDocument(doc) {
+  selectedDocumentId.value = doc.id;
+}
+
+function openUploadedDocument(document) {
+  router.push({
+    name: 'partner-application-document',
+    params: { id: application.value.id, documentId: document.id },
+    query: { type: 'uploaded' },
+  });
 }
 
 const InfoPanel = defineComponent({
@@ -236,6 +262,7 @@ dd { margin: 0; color: #111827; font-weight: 700; overflow-wrap: anywhere; }
 .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .doc-list { display: flex; flex-direction: column; gap: 10px; }
 .doc-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; }
+.row-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .doc-row p, .timeline-row p { margin: 4px 0 0; color: #64748b; font-size: 13px; }
 .court-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .court-row { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
@@ -254,6 +281,7 @@ dd { margin: 0; color: #111827; font-weight: 700; overflow-wrap: anywhere; }
 .empty { color: #64748b; }
 @media (max-width: 800px) {
   .page-head, .doc-row { align-items: flex-start; flex-direction: column; }
+  .row-actions { width: 100%; justify-content: flex-start; }
   .summary-grid { grid-template-columns: 1fr; }
   dl { grid-template-columns: 1fr; }
 }

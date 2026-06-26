@@ -47,8 +47,9 @@ class PartnerDocumentSigningService
 
         $nonce = (string) Str::uuid();
         $otpType = 'partner_document_signature:' . $nonce;
+        $verificationType = 'email_verify';
         $otp = $this->otpService->generate();
-        $verification = $this->otpService->create($signer, $identifier, $otpType, $otp, self::OTP_MINUTES);
+        $verification = $this->otpService->create($signer, $identifier, $verificationType, $otp, self::OTP_MINUTES);
 
         $signingRequest = DocumentSigningRequest::query()->create([
             'generated_document_id' => $document->id,
@@ -75,6 +76,7 @@ class PartnerDocumentSigningService
                 'document_title' => $document->title,
                 'viewed_at' => now()->toISOString(),
                 'hash_short' => substr($fileHash, 0, 16),
+                'verification_code_type' => $verificationType,
             ],
         ]);
 

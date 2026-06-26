@@ -5,7 +5,7 @@
     :section-label="currentSectionLabel"
     :active-route-name="String($route.name || '')"
   >
-    <router-view />
+    <router-view :key="$route.fullPath" />
   </AdminShell>
 </template>
 
