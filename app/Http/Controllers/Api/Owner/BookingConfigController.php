@@ -58,7 +58,7 @@ class BookingConfigController extends Controller
             'allow_no_prepay' => ['required', 'boolean'],
             'deposit_percent' => ['nullable', 'numeric', 'min:1', 'max:100'],
             'membership_tiers' => ['sometimes', 'array', 'size:4'],
-            'membership_tiers.*.tier_key' => ['required_with:membership_tiers', 'string', 'in:regular,silver,gold,diamond'],
+            'membership_tiers.*.tier_key' => ['required_with:membership_tiers', 'string', 'in:standard,silver,gold,diamond'],
             'membership_tiers.*.discount_percent' => ['required_with:membership_tiers', 'numeric', 'min:0', 'max:100'],
             'membership_tiers.*.min_completed_bookings' => ['required_with:membership_tiers', 'integer', 'min:0'],
             'membership_tiers.*.min_spend_amount' => ['required_with:membership_tiers', 'numeric', 'min:0'],

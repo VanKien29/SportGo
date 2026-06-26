@@ -80,13 +80,17 @@ return new class extends Migration
             }
         });
 
-        DB::statement("ALTER TABLE voucher_scopes MODIFY scope_type ENUM('all','venue_cluster','court_type','booking_type','membership_tier') NOT NULL");
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE voucher_scopes MODIFY scope_type ENUM('all','venue_cluster','court_type','booking_type','membership_tier') NOT NULL");
+        }
     }
 
     public function down(): void
     {
         DB::table('voucher_scopes')->where('scope_type', 'membership_tier')->delete();
-        DB::statement("ALTER TABLE voucher_scopes MODIFY scope_type ENUM('all','venue_cluster','court_type','booking_type') NOT NULL");
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE voucher_scopes MODIFY scope_type ENUM('all','venue_cluster','court_type','booking_type') NOT NULL");
+        }
 
         Schema::table('bookings', function (Blueprint $table): void {
             if (Schema::hasColumn('bookings', 'membership_tier_snapshot')) {

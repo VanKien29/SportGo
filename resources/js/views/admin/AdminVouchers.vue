@@ -90,6 +90,32 @@
           </label>
         </div>
         <label>Mô tả<textarea v-model.trim="form.description" rows="3"></textarea></label>
+        <div class="scope-editor">
+          <label>Pháº¡m vi
+            <select v-model="form.scopes[0].scope_type" @change="resetScopeId">
+              <option value="all">ToÃ n há»‡ thá»‘ng</option>
+              <option value="venue_cluster">Cá»¥m sÃ¢n</option>
+              <option value="court_type">Loáº¡i sÃ¢n</option>
+              <option value="booking_type">HÃ¬nh thá»©c booking</option>
+              <option value="membership_tier">Háº¡ng thÃ nh viÃªn</option>
+            </select>
+          </label>
+          <label v-if="form.scopes[0].scope_type === 'membership_tier'">Háº¡ng Ã¡p dá»¥ng
+            <select v-model="form.scopes[0].scope_id">
+              <option value="standard">ThÆ°á»ng</option>
+              <option value="silver">Báº¡c</option>
+              <option value="gold">VÃ ng</option>
+              <option value="diamond">Kim cÆ°Æ¡ng</option>
+            </select>
+          </label>
+          <label v-else-if="form.scopes[0].scope_type === 'booking_type'">Loáº¡i booking
+            <select v-model="form.scopes[0].scope_id">
+              <option value="single">ÄÆ¡n láº»</option>
+              <option value="recurring">Lá»‹ch cá»‘ Ä‘á»‹nh</option>
+            </select>
+          </label>
+          <label v-else-if="form.scopes[0].scope_type !== 'all'">MÃ£ pháº¡m vi<input v-model.trim="form.scopes[0].scope_id" required /></label>
+        </div>
         <footer>
           <button class="btn secondary" type="button" @click="closeForm">Hủy</button>
           <button class="btn primary" type="submit" :disabled="saving">{{ saving ? 'Đang lưu...' : 'Lưu' }}</button>

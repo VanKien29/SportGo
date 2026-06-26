@@ -250,7 +250,7 @@ class VoucherController extends Controller
                 }
             }
 
-            if ($scopeType === 'membership_tier' && ! in_array($scopeId, ['regular', 'silver', 'gold', 'diamond'], true)) {
+            if ($scopeType === 'membership_tier' && ! in_array($scopeId, ['standard', 'silver', 'gold', 'diamond'], true)) {
                 throw ValidationException::withMessages([
                     'scopes' => 'Hạng thành viên của voucher không hợp lệ.',
                 ]);

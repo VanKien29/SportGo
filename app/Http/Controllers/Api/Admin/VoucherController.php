@@ -245,7 +245,7 @@ class VoucherController extends Controller
                 ]);
             }
 
-            if ($scopeType === 'membership_tier' && ! in_array($scopeId, ['regular', 'silver', 'gold', 'diamond'], true)) {
+            if ($scopeType === 'membership_tier' && ! in_array($scopeId, ['standard', 'silver', 'gold', 'diamond'], true)) {
                 throw ValidationException::withMessages([
                     'scopes' => 'Hạng thành viên của voucher không hợp lệ.',
                 ]);
@@ -301,6 +301,7 @@ class VoucherController extends Controller
             'status' => $voucher->status,
             'status_label' => $this->statusLabel($voucher->status),
             'status_tone' => $this->statusTone($voucher->status),
+            'scopes' => $scopes,
             'scope_label' => $this->scopeSummary($scopes),
             'funding_label' => 'Voucher hệ thống - nền tảng chịu phần giảm giá',
             'actions_allowed' => [
@@ -559,7 +560,7 @@ class VoucherController extends Controller
     private function membershipTierLabel(?string $tier): string
     {
         return [
-            'regular' => 'Thường',
+            'standard' => 'Thường',
             'silver' => 'Bạc',
             'gold' => 'Vàng',
             'diamond' => 'Kim cương',

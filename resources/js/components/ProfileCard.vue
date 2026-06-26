@@ -18,6 +18,7 @@
           <button
             v-if="showMembershipTier"
             class="membership-pill"
+            :class="membershipBadgeClass"
             type="button"
             :title="membershipTooltip"
           >
@@ -99,7 +100,7 @@
         </div>
 
         <!-- Membership -->
-        <div v-if="showMembershipTier" class="membership-card">
+        <div v-if="showMembershipTier" class="membership-card" :class="membershipCardClass">
           <div class="membership-card-head">
             <div>
               <div class="membership-label">Hạng thành viên</div>
@@ -118,7 +119,7 @@
           <div v-if="membershipVenues.length > 1" class="membership-venues">
             <div v-for="item in membershipVenues" :key="item.venue_cluster_id" class="membership-venue-row">
               <span>{{ item.venue_name || 'Cụm sân' }}</span>
-              <strong>{{ item.label }}</strong>
+              <strong class="membership-mini-pill" :class="tierClass(item.key)">{{ item.label }}</strong>
             </div>
           </div>
         </div>
@@ -155,6 +156,12 @@ export default {
     },
     membershipTier() {
       return this.normalizeMembership(this.user?.membership_tier);
+    },
+    membershipBadgeClass() {
+      return this.tierClass(this.membershipTier?.key);
+    },
+    membershipCardClass() {
+      return this.tierCardClass(this.membershipTier?.key);
     },
     showMembershipTier() {
       return this.user?.role === 'user' && Boolean(this.membershipTier);
@@ -198,7 +205,7 @@ export default {
 
       return {
         ...item,
-        key: tier.key || tier.tier_key,
+        key: tier.key || tier.tier_key || tier.tier,
         label: tier.label || tier.tier_label,
         discount_percent: Number(tier.discount_percent || 0),
         completed_bookings: Number(item.completed_bookings || 0),
@@ -210,6 +217,12 @@ export default {
     },
     formatMoney(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
+    },
+    tierClass(key) {
+      return `tier-${key || 'standard'}`;
+    },
+    tierCardClass(key) {
+      return `membership-card-${key || 'standard'}`;
     },
   },
 };
@@ -330,19 +343,40 @@ export default {
   gap: 7px;
   min-height: 34px;
   padding: 6px 12px 6px 14px;
-  border: 0;
+  border: 1px solid var(--tier-border, #e5e7eb);
   border-radius: 999px;
-  background: #fff;
-  color: #111827;
+  background: var(--tier-bg, #fff);
+  color: var(--tier-text, #111827);
   box-shadow: 0 8px 24px rgba(15,23,42,.18);
   font-size: 14px;
   font-weight: 800;
   line-height: 1;
+  white-space: nowrap;
 }
 .membership-chevron {
-  color: #374151;
+  color: currentColor;
   font-size: 21px;
   line-height: 1;
+}
+.tier-standard {
+  --tier-bg: #f8fafc;
+  --tier-border: #cbd5e1;
+  --tier-text: #334155;
+}
+.tier-silver {
+  --tier-bg: #f3f4f6;
+  --tier-border: #cbd5e1;
+  --tier-text: #111827;
+}
+.tier-gold {
+  --tier-bg: #fef3c7;
+  --tier-border: #f59e0b;
+  --tier-text: #78350f;
+}
+.tier-diamond {
+  --tier-bg: #e0f2fe;
+  --tier-border: #38bdf8;
+  --tier-text: #075985;
 }
 
 /* Role badge */
@@ -465,12 +499,50 @@ export default {
 
 /* Membership */
 .membership-card {
+  --member-bg: #f0fdf4;
+  --member-border: #d1fae5;
+  --member-strong: #064e3b;
+  --member-text: #047857;
+  --member-track: #bbf7d0;
+  --member-accent: linear-gradient(90deg, #16a34a, #0f766e);
   display: grid;
   gap: 12px;
   padding: 16px;
-  border: 1px solid #d1fae5;
+  border: 1px solid var(--member-border);
   border-radius: 12px;
-  background: #f0fdf4;
+  background: var(--member-bg);
+}
+.membership-card-standard {
+  --member-bg: #f8fafc;
+  --member-border: #e2e8f0;
+  --member-strong: #334155;
+  --member-text: #64748b;
+  --member-track: #e2e8f0;
+  --member-accent: linear-gradient(90deg, #64748b, #334155);
+}
+.membership-card-silver {
+  --member-bg: #f9fafb;
+  --member-border: #d1d5db;
+  --member-strong: #111827;
+  --member-text: #4b5563;
+  --member-track: #e5e7eb;
+  --member-accent: linear-gradient(90deg, #9ca3af, #4b5563);
+}
+.membership-card-gold {
+  --member-bg: #fffbeb;
+  --member-border: #fde68a;
+  --member-strong: #78350f;
+  --member-text: #92400e;
+  --member-track: #fde68a;
+  --member-accent: linear-gradient(90deg, #f59e0b, #b45309);
+}
+.membership-card-diamond {
+  --member-bg: #f0f9ff;
+  --member-border: #bae6fd;
+  --member-strong: #075985;
+  --member-text: #0369a1;
+  --member-track: #bae6fd;
+  --member-accent: linear-gradient(90deg, #38bdf8, #2563eb);
 }
 .membership-card-head {
   display: flex;
@@ -479,7 +551,7 @@ export default {
   gap: 14px;
 }
 .membership-label {
-  color: #047857;
+  color: var(--member-text);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0;
@@ -487,20 +559,20 @@ export default {
 }
 .membership-title {
   margin-top: 3px;
-  color: #064e3b;
+  color: var(--member-strong);
   font-size: 18px;
   font-weight: 850;
 }
 .membership-venue {
   margin-top: 3px;
-  color: #047857;
+  color: var(--member-text);
   font-size: 12px;
   font-weight: 700;
 }
 .membership-bookings {
   display: grid;
   justify-items: end;
-  color: #065f46;
+  color: var(--member-strong);
   font-size: 18px;
   font-weight: 850;
   line-height: 1.1;
@@ -508,7 +580,7 @@ export default {
 }
 .membership-bookings span {
   margin-top: 3px;
-  color: #047857;
+  color: var(--member-text);
   font-size: 11px;
   font-weight: 700;
 }
@@ -516,16 +588,16 @@ export default {
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
-  background: #bbf7d0;
+  background: var(--member-track);
 }
 .membership-progress span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #16a34a, #0f766e);
+  background: var(--member-accent);
 }
 .membership-note {
-  color: #047857;
+  color: var(--member-text);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.35;
@@ -541,8 +613,8 @@ export default {
   gap: 12px;
   padding: 8px 10px;
   border-radius: 8px;
-  background: #dcfce7;
-  color: #065f46;
+  background: rgba(255,255,255,.58);
+  color: var(--member-strong);
   font-size: 12px;
   font-weight: 700;
 }
@@ -552,7 +624,18 @@ export default {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.membership-venue-row strong {
+.membership-mini-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 5px 10px;
+  border: 1px solid var(--tier-border, #e5e7eb);
+  border-radius: 999px;
+  background: var(--tier-bg, #fff);
+  color: var(--tier-text, #111827);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
   white-space: nowrap;
 }
 
