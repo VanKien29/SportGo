@@ -113,27 +113,7 @@
         </div>
 
         <div class="wizard-container">
-          <!-- Wizard Header -->
-          <div class="wizard-header">
-            <div class="stepper">
-              <div class="step-item" :class="{ active: currentStep === 1, completed: currentStep > 1 }" @click="setStep(1)" style="cursor: pointer;">
-                <div class="step-circle">1</div>
-                <div class="step-title">Thông tin cá nhân</div>
-              </div>
-              <div class="step-item" :class="{ active: currentStep === 2, completed: currentStep > 2 }" @click="setStep(2)" style="cursor: pointer;">
-                <div class="step-circle">2</div>
-                <div class="step-title">Thông tin kinh doanh</div>
-              </div>
-              <div class="step-item" :class="{ active: currentStep === 3, completed: currentStep > 3 }" @click="setStep(3)" style="cursor: pointer;">
-                <div class="step-circle">3</div>
-                <div class="step-title">Cụm sân & Dịch vụ</div>
-              </div>
-              <div class="step-item" :class="{ active: currentStep === 4, completed: currentStep > 4 }" @click="setStep(4)" style="cursor: pointer; flex: 0;">
-                <div class="step-circle">4</div>
-                <div class="step-title">Tài liệu & Hoàn tất</div>
-              </div>
-            </div>
-          </div>
+          <!-- Header removed for single form layout -->
 
           <form novalidate @submit.prevent="submit" style="display: flex; flex-direction: column; flex: 1;">
             
@@ -143,7 +123,7 @@
               </div>
 
               <!-- STEP 1: Cá nhân -->
-              <div v-show="currentStep === 1" class="step-content">
+              <div class="step-content">
                 <FormSection title="Thông tin người đăng ký / đại diện">
                   <div class="form-grid">
                     <FormField label="Họ tên người đăng ký" required :error="fieldErrors.applicant_full_name">
@@ -181,7 +161,7 @@
               </div>
 
               <!-- STEP 2: Kinh doanh -->
-              <div v-show="currentStep === 2" class="step-content">
+              <div class="step-content" style="margin-top: 40px;">
                 <FormSection title="Thông tin kinh doanh">
                   <div class="form-grid">
                     <FormField label="Tên đơn vị / Cá nhân kinh doanh" required :error="fieldErrors.business_name">
@@ -207,7 +187,7 @@
               </div>
 
               <!-- STEP 3: Cụm sân -->
-              <div v-show="currentStep === 3" class="step-content">
+              <div class="step-content" style="margin-top: 40px;">
                 <FormSection title="Địa chỉ và thông tin Cụm sân">
                   <div class="form-grid">
                     <FormField label="Tỉnh/Thành phố" required :error="fieldErrors.venue_province_code">
@@ -297,7 +277,7 @@
               </div>
 
               <!-- STEP 4: Tài liệu & Ngân hàng -->
-              <div v-show="currentStep === 4" class="step-content">
+              <div class="step-content" style="margin-top: 40px;">
                 <FormSection title="Thông tin ngân hàng">
                   <div class="form-grid">
                     <FormField label="Ngân hàng" required :error="fieldErrors.bank_code">
@@ -341,17 +321,14 @@
               </div>
             </div>
 
-            <!-- Wizard Footer -->
+            <!-- Form Actions -->
             <div class="wizard-footer">
-              <div>
-                <button v-if="currentStep > 1" type="button" class="btn btn-secondary" @click="prevStep">Quay lại</button>
-              </div>
+              <div></div>
               <div style="display: flex; gap: 12px;">
                 <button type="button" class="btn btn-outline" @click="saveDraft">Lưu nháp</button>
-                <button v-if="currentStep < totalSteps" type="button" class="btn btn-primary" @click="nextStep">Tiếp tục</button>
-                <button v-if="currentStep === totalSteps" type="submit" class="btn btn-primary" :disabled="submitDisabled">
+                <button type="submit" class="btn btn-primary" :disabled="submitDisabled">
                   <span v-if="submitting" style="margin-right: 8px; display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></span>
-                  {{ submitting ? 'Đang xử lý...' : 'Hoàn tất & Gửi hồ sơ' }}
+                  {{ submitting ? 'Đang xử lý...' : 'Gửi hồ sơ đăng ký' }}
                 </button>
               </div>
             </div>
