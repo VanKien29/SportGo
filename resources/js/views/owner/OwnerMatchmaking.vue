@@ -81,7 +81,7 @@
             <tr v-for="post in posts" :key="post.id" class="post-row">
               <td>
                 <div class="author-cell">
-                  {{ post.author?.full_name || post.author?.username || 'Người chơi' }}
+                  <strong>{{ post.author?.full_name || post.author?.username || 'Người chơi' }}</strong>
                   <span class="muted small">{{ post.author?.phone || 'Không có SĐT' }}</span>
                   <span class="muted small">{{ post.author?.email || '' }}</span>
                 </div>
@@ -99,13 +99,13 @@
                   </div>
                   <div class="post-court">
                     <AppIcon name="building" size="14" class="muted-icon" />
-                    <span>{{ post.booking?.venueCluster?.name }} · {{ post.booking?.venueCourt?.name }}</span>
+                    <span>{{ post.booking?.venueCluster?.name }} · <strong>{{ post.booking?.venueCourt?.name }}</strong></span>
                   </div>
                 </div>
               </td>
               <td>
                 <div class="needed-cell">
-                  <span class="needed-badge">Cần thêm: {{ post.needed_players }} người</span>
+                  <span class="needed-badge">Cần thêm: <strong>{{ post.needed_players }} người</strong></span>
                   <span class="cost-badge" v-if="post.cost_per_player > 0">
                     Chi phí: {{ formatCurrency(post.cost_per_player) }}/người
                   </span>
@@ -486,23 +486,23 @@ export default {
 .page-header h2 {
   font-size: 24px;
   font-weight: 850;
-  color: var(--admin-text);
+  color: #0f172a;
   margin: 0;
 }
  
 .muted {
-  color: var(--admin-muted);
+  color: #64748b;
   margin: 4px 0 0;
   font-size: 14px;
 }
  
 .muted-icon {
-  color: var(--admin-faint);
+  color: #94a3b8;
 }
  
 .card {
-  background: var(--admin-surface, #fff);
-  border: 1px solid var(--admin-border);
+  background: #fff;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
@@ -529,7 +529,7 @@ export default {
   padding: 8px 16px;
   border: 0;
   background: transparent;
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
@@ -538,8 +538,8 @@ export default {
 }
  
 .tab-btn:hover {
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f8fafc;
+  color: #0f172a;
 }
  
 .tab-btn.active {
@@ -559,7 +559,7 @@ export default {
   gap: 6px;
   font-size: 13px;
   font-weight: 800;
-  color: var(--admin-text);
+  color: #334155;
 }
  
 .field.compact {
@@ -570,7 +570,7 @@ export default {
  
 .search-field input {
   min-width: 280px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
@@ -586,12 +586,12 @@ export default {
 .select-field select {
   min-width: 200px;
   height: 38px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
   font-weight: 500;
-  background: var(--admin-surface, #fff);
+  background: #fff;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -607,7 +607,7 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: var(--admin-muted);
+  color: #64748b;
   text-align: center;
   padding: 32px;
 }
@@ -649,13 +649,13 @@ th, td {
 }
  
 th {
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f8fafc;
+  color: #334155;
   font-weight: 850;
 }
  
 .post-row:hover {
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
 }
  
 .author-cell {
@@ -665,7 +665,7 @@ th {
 }
  
 .author-cell strong {
-  color: var(--admin-text);
+  color: #0f172a;
 }
  
 .small {
@@ -681,13 +681,13 @@ th {
  
 .post-title {
   font-weight: 800;
-  color: var(--admin-text);
+  color: #0f172a;
   font-size: 15px;
 }
  
 .post-desc {
   margin: 0;
-  color: var(--admin-faint);
+  color: #475569;
   font-size: 13px;
   line-height: 1.5;
   display: -webkit-box;
@@ -701,7 +701,7 @@ th {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--admin-text);
+  color: #334155;
 }
  
 .needed-cell {
@@ -722,8 +722,8 @@ th {
  
 .cost-badge {
   display: inline-block;
-  background: var(--admin-surface-muted);
-  color: var(--admin-faint);
+  background: #f1f5f9;
+  color: #475569;
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 12px;
@@ -750,8 +750,8 @@ th {
 }
  
 .status-closed {
-  background: var(--admin-surface-muted);
-  color: var(--admin-muted);
+  background: #f1f5f9;
+  color: #64748b;
 }
  
 .status-cancelled {
@@ -777,7 +777,7 @@ th {
  
 .booking-code {
   font-weight: 700;
-  color: var(--admin-text);
+  color: #0f172a;
 }
  
 .btn-link {
@@ -836,13 +836,13 @@ th {
 }
  
 .btn.ghost {
-  background: var(--admin-surface, #fff);
-  border-color: var(--admin-border);
-  color: var(--admin-text);
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #334155;
 }
  
 .btn.ghost:hover {
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
 }
  
 .btn.ghost.danger {
@@ -872,17 +872,17 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--admin-surface-muted);
+  background: #f1f5f9;
   border: 0;
   border-radius: 50%;
-  color: var(--admin-faint);
+  color: #475569;
   cursor: pointer;
   transition: all 0.15s;
 }
  
 .icon-btn:hover {
-  background: var(--admin-border);
-  color: var(--admin-text);
+  background: #e2e8f0;
+  color: #0f172a;
 }
  
 .notice {
@@ -916,7 +916,7 @@ th {
 .page-info {
   font-size: 14px;
   font-weight: 700;
-  color: var(--admin-faint);
+  color: #475569;
 }
  
 /* Modals */
@@ -935,7 +935,7 @@ th {
 }
  
 .modal {
-  background: var(--admin-surface, #fff);
+  background: #fff;
   border-radius: 16px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   width: 100%;
@@ -960,7 +960,7 @@ th {
 .modal-header h3 {
   font-size: 18px;
   font-weight: 850;
-  color: var(--admin-text);
+  color: #0f172a;
   margin: 0;
 }
  
@@ -995,13 +995,13 @@ th {
 }
  
 .field textarea, .field select {
-  border: 1px solid var(--admin-border);
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
   font-weight: 500;
-  background: var(--admin-surface, #fff);
-  color: var(--admin-text);
+  background: #fff;
+  color: #0f172a;
   outline: none;
   transition: border-color 0.15s;
 }

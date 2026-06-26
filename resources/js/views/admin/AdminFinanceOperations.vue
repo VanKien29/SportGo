@@ -233,7 +233,7 @@
                                     <template
                                         v-if="hasRefundBankAccount(refund)"
                                     >
-                                        
+                                        <strong>
                                             {{
                                                 refund.refund_destination
                                                     ?.label || "-"
@@ -243,7 +243,7 @@
                                                 refund.refund_destination
                                                     ?.account_number
                                             }}
-                                        
+                                        </strong>
                                         <span class="sub-line">{{
                                             refund.refund_destination
                                                 ?.account_holder || "-"
@@ -257,19 +257,19 @@
                                         </span>
                                     </template>
                                     <template v-else>
-                                        {{
+                                        <strong>{{
                                             refund.refund_destination?.label ||
                                             "Tài khoản ngân hàng"
-                                        }}
+                                        }}</strong>
                                         <span class="inline-warning">
                                             Thiếu tài khoản nhận tiền
                                         </span>
                                     </template>
                                 </template>
                                 <template v-else>
-                                    {{
+                                    <strong>{{
                                         refund.refund_destination?.label || "-"
-                                    }}
+                                    }}</strong>
                                     <!-- <span class="sub-line">{{
                                     refund.refund_destination?.type ===
                                     "user_wallet"
@@ -309,9 +309,9 @@
                                 }}</span>
                             </td>
                             <td>
-                                {{
+                                <strong>{{
                                     formatCurrency(refund.amount)
-                                }}
+                                }}</strong>
                                 <span class="sub-line">{{
                                     refund.reason || "-"
                                 }}</span>
@@ -425,31 +425,31 @@
                                         class="policy-detail-grid"
                                     >
                                         <span>Nguồn</span
-                                        >{{
+                                        ><strong>{{
                                             refund.policy_evaluation.detail
                                                 .source_label || "-"
-                                        }}
+                                        }}</strong>
                                         <span>Rule</span
-                                        >{{
+                                        ><strong>{{
                                             refund.policy_evaluation.detail
                                                 .rule_name || "-"
-                                        }}
+                                        }}</strong>
                                         <span>Đã thanh toán</span
-                                        >{{
+                                        ><strong>{{
                                             formatCurrency(
                                                 refund.policy_evaluation.detail
                                                     .paid_amount,
                                             )
-                                        }}
+                                        }}</strong>
                                         <span>Giờ trước sân</span
-                                        >{{
+                                        ><strong>{{
                                             refund.policy_evaluation.detail
                                                 .hours_before_start != null
                                                 ? refund.policy_evaluation
                                                       .detail
                                                       .hours_before_start + "h"
                                                 : "-"
-                                        }}
+                                        }}</strong>
                                     </div>
                                     <div
                                         v-for="(v, vi) in refund
@@ -1951,11 +1951,11 @@ export default {
 .page-header h2,
 .receipt-modal h3 {
     margin: 0 0 4px;
-    color: var(--admin-text);
+    color: #0f172a;
 }
 .page-header p {
     margin: 0;
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 13px;
 }
 .tabs {
@@ -1968,7 +1968,7 @@ export default {
     border-bottom: 3px solid transparent;
     background: transparent;
     padding: 10px 18px;
-    color: var(--admin-muted);
+    color: #64748b;
     font-weight: 800;
     cursor: pointer;
 }
@@ -2001,7 +2001,7 @@ export default {
 }
 .sub-line {
     display: block;
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 12px;
 }
 .transfer-subline {
@@ -2041,8 +2041,8 @@ export default {
 .action-modal textarea {
     border: 1px solid #dbe2ea;
     border-radius: 7px;
-    background: var(--admin-surface);
-    color: var(--admin-text);
+    background: #fff;
+    color: #0f172a;
     padding: 9px 10px;
     font: inherit;
 }
@@ -2054,7 +2054,7 @@ export default {
     border: 1px solid #dbe2ea;
     border-radius: 7px;
     padding: 0 10px;
-    background: var(--admin-surface);
+    background: #fff;
 }
 .search-field input {
     flex: 1;
@@ -2069,13 +2069,13 @@ export default {
     padding: 0 8px;
     border: 1px solid #dbe2ea;
     border-radius: 7px;
-    background: var(--admin-surface-muted);
-    color: var(--admin-muted);
+    background: #f8fafc;
+    color: #64748b;
 }
 .date-range-fields input {
     width: 142px;
     border-color: transparent;
-    background: var(--admin-surface);
+    background: #fff;
 }
 .primary-btn,
 .secondary-btn,
@@ -2103,8 +2103,8 @@ export default {
 .secondary-btn,
 .export-btn {
     border: 1px solid #dbe2ea;
-    background: var(--admin-surface-muted);
-    color: var(--admin-text);
+    background: #f8fafc;
+    color: #334155;
     padding: 9px 12px;
 }
 .export-btn {
@@ -2129,8 +2129,8 @@ export default {
     width: 34px;
     height: 34px;
     border: 1px solid #dbe2ea;
-    background: var(--admin-surface);
-    color: var(--admin-faint);
+    background: #fff;
+    color: #475569;
 }
 button:disabled {
     opacity: 0.55;
@@ -2151,9 +2151,9 @@ button:disabled {
 }
 .table-wrap {
     overflow: auto;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    background: var(--admin-surface);
+    background: #fff;
 }
 table {
     width: 100%;
@@ -2163,27 +2163,27 @@ table {
 th,
 td {
     padding: 12px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
     text-align: left;
     vertical-align: top;
     font-size: 13px;
 }
 th {
-    background: var(--admin-surface-muted);
-    color: var(--admin-text);
+    background: #f8fafc;
+    color: #334155;
     font-weight: 800;
 }
 .empty {
     padding: 28px;
     text-align: center;
-    color: var(--admin-muted);
+    color: #64748b;
 }
 .status-pill {
     display: inline-flex;
     padding: 4px 8px;
     border-radius: 999px;
-    background: var(--admin-border);
-    color: var(--admin-text);
+    background: #e2e8f0;
+    color: #334155;
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
@@ -2245,8 +2245,8 @@ th {
     color: #92400e;
 }
 .policy-badge.muted {
-    background: var(--admin-surface-muted);
-    color: var(--admin-muted);
+    background: #f1f5f9;
+    color: #64748b;
 }
 .policy-icon {
     display: inline-flex;
@@ -2279,18 +2279,18 @@ th {
     margin-top: 6px;
     padding: 8px 10px;
     border-radius: 6px;
-    background: var(--admin-surface-muted);
-    border: 1px solid var(--admin-border);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     font-size: 12px;
 }
 .policy-detail-grid {
     display: grid;
     grid-template-columns: 90px 1fr;
     gap: 4px 10px;
-    color: var(--admin-muted);
+    color: #64748b;
 }
 .policy-detail-grid strong {
-    color: var(--admin-text);
+    color: #0f172a;
     font-weight: 700;
 }
 .policy-violation {
@@ -2325,15 +2325,15 @@ th {
     min-height: 30px;
     padding: 0 10px;
     border-radius: 999px;
-    background: var(--admin-surface-muted);
-    color: var(--admin-muted);
+    background: #f1f5f9;
+    color: #64748b;
     font-size: 12px;
     font-weight: 800;
 }
 .pagination {
     justify-content: flex-end;
     gap: 12px;
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 13px;
 }
 .modal-backdrop {
@@ -2351,7 +2351,7 @@ th {
     width: min(540px, calc(100vw - 32px));
     padding: 22px;
     border-radius: 8px;
-    background: var(--admin-surface);
+    background: #fff;
 }
 .payout-modal {
     width: min(760px, calc(100vw - 32px));
@@ -2379,7 +2379,7 @@ th {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    color: var(--admin-text);
+    color: #334155;
     font-size: 13px;
     font-weight: 700;
 }
@@ -2388,7 +2388,7 @@ th {
     gap: 8px;
 }
 .eyebrow {
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
@@ -2398,11 +2398,11 @@ th {
     grid-template-columns: 130px 1fr;
     gap: 8px 14px;
     margin: 18px 0;
-    color: var(--admin-faint);
+    color: #475569;
     font-size: 13px;
 }
 .receipt-facts strong {
-    color: var(--admin-text);
+    color: #0f172a;
 }
 .receipt-facts.compact {
     margin: 0;
@@ -2424,13 +2424,13 @@ th {
 .detail-note-grid strong {
     display: block;
     margin-bottom: 6px;
-    color: var(--admin-text);
+    color: #334155;
     font-size: 12px;
     text-transform: uppercase;
 }
 .detail-note-grid p {
     margin: 0;
-    color: var(--admin-text);
+    color: #0f172a;
     line-height: 1.5;
 }
 .transfer-code {
@@ -2447,9 +2447,9 @@ th {
 .payout-content img {
     width: 280px;
     max-width: 100%;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    background: var(--admin-surface);
+    background: #fff;
 }
 .payout-info {
     display: flex;

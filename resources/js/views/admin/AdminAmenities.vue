@@ -563,7 +563,7 @@ export default {
     width: 32px;
     height: 32px;
     border: 3px solid rgba(0, 0, 0, 0.05);
-    border-top-color: var(--admin-text);
+    border-top-color: #0f172a;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -595,13 +595,13 @@ export default {
 }
 
 .btn-outline {
-    border: 1px solid var(--sg-border, var(--admin-border));
+    border: 1px solid var(--sg-border, #e2e8f0);
     background: transparent;
     color: var(--sg-text, #0f172a);
 }
 
 .btn-outline:hover {
-    background: var(--admin-surface-muted);
+    background: #f8fafc;
 }
 
 /* SaaS Compact Rows View */
@@ -624,7 +624,7 @@ export default {
     justify-content: space-between;
     min-height: 52px;
     padding: 10px 16px;
-    background: var(--admin-surface);
+    background: #ffffff;
     border: 1px solid rgba(15, 23, 42, 0.04);
     border-radius: 8px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -773,13 +773,13 @@ export default {
     font-weight: 700;
     border-radius: 6px;
     cursor: pointer;
-    border: 1px solid var(--sg-border, var(--admin-border));
-    background: var(--admin-surface);
+    border: 1px solid var(--sg-border, #e2e8f0);
+    background: #fff;
     transition: all 0.15s ease;
 }
 
 .btn-action:hover {
-    background: var(--admin-surface-muted);
+    background: #f1f5f9;
 }
 
 .btn-edit {
@@ -838,7 +838,7 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    border-bottom: 1px solid var(--sg-border, var(--admin-border));
+    border-bottom: 1px solid var(--sg-border, #e2e8f0);
 }
 
 .modal-header h3 {
@@ -852,7 +852,7 @@ export default {
     border: none;
     font-size: 20px;
     cursor: pointer;
-    color: var(--admin-muted);
+    color: #64748b;
 }
 
 .modal-body {
@@ -876,7 +876,7 @@ export default {
 .form-control {
     padding: 10px 12px;
     border-radius: 8px;
-    border: 1px solid var(--sg-border, var(--admin-border));
+    border: 1px solid var(--sg-border, #e2e8f0);
     outline: none;
     font-size: 14px;
     box-sizing: border-box;
@@ -884,7 +884,7 @@ export default {
 }
 
 .form-control:focus {
-    border-color: var(--admin-text);
+    border-color: #0f172a;
 }
 
 .checkbox-group {
@@ -903,7 +903,7 @@ export default {
 .checkbox-label input {
     width: 16px;
     height: 16px;
-    accent-color: var(--admin-text);
+    accent-color: #0f172a;
 }
 
 .modal-footer {
@@ -911,8 +911,8 @@ export default {
     justify-content: flex-end;
     gap: 10px;
     padding: 16px 20px;
-    border-top: 1px solid var(--sg-border, var(--admin-border));
-    background: var(--admin-surface-muted);
+    border-top: 1px solid var(--sg-border, #e2e8f0);
+    background: #f8fafc;
 }
 
 .alert-danger {
@@ -952,25 +952,25 @@ export default {
 .detail-label {
     font-size: 12px;
     font-weight: 700;
-    color: var(--admin-muted);
+    color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 .detail-value {
     font-size: 15px;
-    color: var(--admin-text);
+    color: #0f172a;
     line-height: 1.5;
 }
 .text-lg {
     font-size: 16px;
 }
 .detail-desc-box {
-    background: var(--admin-surface-muted);
-    border: 1px solid var(--admin-border);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 14px;
-    color: var(--admin-text);
+    color: #334155;
     line-height: 1.6;
 }
 .reject-reason-box {
@@ -1076,10 +1076,10 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--admin-primary);
+    background-color: #10b981;
     color: #fff;
     border: none;
-    box-shadow: 0 4px 12px var(--admin-primary-ring);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;

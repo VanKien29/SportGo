@@ -75,7 +75,7 @@
           <tbody>
             <tr v-for="policy in policies" :key="policy.id">
               <td class="main-cell">
-                {{ policy.title }}
+                <strong>{{ policy.title }}</strong>
                 <span>Mã kỹ thuật: {{ policy.key || 'chưa có' }}</span>
               </td>
               <td>{{ policyTypeLabel(policy) }}</td>
@@ -433,9 +433,9 @@ p {
 .filter-panel,
 .table-card,
 .modal {
-  border: 1px solid var(--admin-border);
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: var(--admin-surface, #fff);
+  background: #fff;
 }
 
 .filter-panel {
@@ -452,10 +452,10 @@ p {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 0 12px;
-  color: var(--admin-muted);
+  color: #64748b;
 }
 
 .search-box input {
@@ -467,12 +467,12 @@ input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 10px 12px;
-  color: var(--admin-text);
+  color: #0f172a;
   font: inherit;
-  background: var(--admin-surface, #fff);
+  background: #fff;
 }
 
 input:focus,
@@ -504,22 +504,22 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid var(--admin-border);
+  border-bottom: 1px solid #e2e8f0;
   padding: 13px 14px;
   text-align: left;
   vertical-align: middle;
 }
 
 th {
-  background: var(--admin-surface-muted);
-  color: var(--admin-faint);
+  background: #f8fafc;
+  color: #475569;
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 tbody tr:hover {
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
 }
 
 .main-cell {
@@ -528,12 +528,12 @@ tbody tr:hover {
 
 .main-cell strong {
   display: block;
-  color: var(--admin-text);
+  color: #0f172a;
 }
 
 .main-cell span,
 .muted-text {
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 13px;
 }
 
@@ -549,7 +549,7 @@ tbody tr:hover {
   place-items: center;
   border-radius: 999px;
   background: #eef2f7;
-  color: var(--admin-text);
+  color: #334155;
   font-weight: 900;
 }
 
@@ -597,13 +597,13 @@ tbody tr:hover {
 
 .status-archived,
 .status-default {
-  background: var(--admin-surface-muted);
-  color: var(--admin-faint);
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .table-state {
   padding: 36px;
-  color: var(--admin-muted);
+  color: #64748b;
   text-align: center;
 }
 
@@ -643,15 +643,15 @@ tbody tr:hover {
 
 .mini-btn {
   padding: 7px 9px;
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f1f5f9;
+  color: #334155;
 }
 
 .icon-btn {
   width: 40px;
   height: 40px;
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f1f5f9;
+  color: #334155;
 }
 
 .icon-action {
@@ -661,18 +661,18 @@ tbody tr:hover {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface, #fff);
-  color: var(--admin-faint);
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
   font: inherit;
 }
 
 .icon-action:hover {
-  background: var(--admin-surface-muted);
-  border-color: var(--admin-border);
-  color: var(--admin-text);
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
   transform: translateY(-1px);
 }
 
@@ -705,8 +705,8 @@ tbody tr:hover {
 }
 
 .btn.secondary {
-  background: var(--admin-border);
-  color: var(--admin-text);
+  background: #e2e8f0;
+  color: #334155;
 }
 
 .mini-btn.danger {
@@ -745,12 +745,12 @@ tbody tr:hover {
 }
 
 .modal-head {
-  border-bottom: 1px solid var(--admin-border);
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .modal-head p {
   margin-top: 4px;
-  color: var(--admin-muted);
+  color: #64748b;
 }
 
 .form-body {
@@ -770,7 +770,7 @@ label {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: var(--admin-text);
+  color: #334155;
   font-weight: 800;
 }
 
@@ -785,8 +785,8 @@ label {
 
 .modal-actions {
   justify-content: flex-end;
-  border-top: 1px solid var(--admin-border);
-  background: var(--admin-surface-muted);
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
 }
 
 @media (max-width: 920px) {

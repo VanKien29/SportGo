@@ -523,19 +523,19 @@ export default {
 .page-header h2 {
   font-size: 24px;
   font-weight: 850;
-  color: var(--admin-text);
+  color: #0f172a;
   margin: 0;
 }
 
 .muted {
-  color: var(--admin-muted);
+  color: #64748b;
   margin: 4px 0 0;
   font-size: 14px;
 }
 
 .card {
-  background: var(--admin-surface, #fff);
-  border: 1px solid var(--admin-border);
+  background: #fff;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
@@ -562,7 +562,7 @@ export default {
   padding: 8px 16px;
   border: 0;
   background: transparent;
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
@@ -571,8 +571,8 @@ export default {
 }
 
 .tab-btn:hover {
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 .tab-btn.active {
@@ -592,7 +592,7 @@ export default {
   gap: 6px;
   font-size: 13px;
   font-weight: 800;
-  color: var(--admin-text);
+  color: #334155;
   min-width: 240px;
 }
 
@@ -608,13 +608,13 @@ export default {
 
 .field select,
 .field textarea {
-  border: 1px solid var(--admin-border);
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
   font-weight: 500;
-  background: var(--admin-surface, #fff);
-  color: var(--admin-text);
+  background: #fff;
+  color: #0f172a;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -654,13 +654,13 @@ export default {
 }
 
 .btn.ghost {
-  background: var(--admin-surface, #fff);
-  border-color: var(--admin-border);
-  color: var(--admin-text);
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #334155;
 }
 
 .btn.ghost:hover {
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
 }
 
 .btn.ghost.danger {
@@ -690,17 +690,17 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--admin-surface-muted);
+  background: #f1f5f9;
   border: 0;
   border-radius: 50%;
-  color: var(--admin-faint);
+  color: #475569;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .icon-btn:hover {
-  background: var(--admin-border);
-  color: var(--admin-text);
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 .notice {
@@ -729,7 +729,7 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: var(--admin-muted);
+  color: #64748b;
   text-align: center;
   padding: 32px;
 }
@@ -777,8 +777,8 @@ export default {
 }
 
 .cluster-badge {
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f1f5f9;
+  color: #334155;
   font-weight: 800;
   font-size: 12px;
   padding: 4px 8px;
@@ -786,7 +786,7 @@ export default {
 }
 
 .post-time {
-  color: var(--admin-faint);
+  color: #94a3b8;
   font-size: 12px;
 }
 
@@ -814,14 +814,14 @@ export default {
 }
 
 .status-hidden {
-  background: var(--admin-surface-muted);
-  color: var(--admin-muted);
+  background: #f1f5f9;
+  color: #64748b;
 }
 
 .post-content {
   font-size: 15px;
   line-height: 1.6;
-  color: var(--admin-text);
+  color: #1e293b;
   margin: 0;
   white-space: pre-wrap;
 }
@@ -902,7 +902,7 @@ export default {
 .post-stats {
   display: flex;
   gap: 16px;
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 13px;
 }
 
@@ -928,7 +928,7 @@ export default {
 .page-info {
   font-size: 14px;
   font-weight: 700;
-  color: var(--admin-faint);
+  color: #475569;
 }
 
 /* Modals */
@@ -947,7 +947,7 @@ export default {
 }
 
 .modal {
-  background: var(--admin-surface, #fff);
+  background: #fff;
   border-radius: 16px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   width: 100%;
@@ -972,7 +972,7 @@ export default {
 .modal-header h3 {
   font-size: 18px;
   font-weight: 850;
-  color: var(--admin-text);
+  color: #0f172a;
   margin: 0;
 }
 
@@ -997,16 +997,16 @@ export default {
 .image-uploader-section > span {
   font-size: 13px;
   font-weight: 800;
-  color: var(--admin-text);
+  color: #334155;
 }
 
 .upload-area {
-  border: 2px dashed var(--admin-border);
+  border: 2px dashed #cbd5e1;
   border-radius: 10px;
   padding: 24px;
   text-align: center;
   cursor: pointer;
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
   transition: all 0.15s;
 }
 
@@ -1018,7 +1018,7 @@ export default {
 .upload-area p {
   margin: 8px 0 0;
   font-size: 13px;
-  color: var(--admin-muted);
+  color: #64748b;
   font-weight: 700;
 }
 
@@ -1039,7 +1039,7 @@ export default {
   height: 90px;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #e2e8f0;
 }
 
 .preview-item img {

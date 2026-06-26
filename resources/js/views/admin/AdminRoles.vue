@@ -69,7 +69,7 @@
           <tbody>
             <tr v-for="role in sortedRoles" :key="role.id">
               <td class="main-cell">
-                {{ role.display_name || role.name }}
+                <strong>{{ role.display_name || role.name }}</strong>
                 <span>{{ role.name }}</span>
               </td>
               <td class="desc-cell">{{ role.description || 'Chưa có mô tả phạm vi sử dụng.' }}</td>
@@ -408,20 +408,20 @@ p {
 }
 
 .page-head h2 {
-  color: var(--admin-text);
+  color: #0f172a;
   font-size: 24px;
 }
 
 .page-head p:not(.eyebrow) {
   margin-top: 6px;
-  color: var(--admin-muted);
+  color: #64748b;
   line-height: 1.55;
 }
 
 .view-tabs {
   display: flex;
   gap: 8px;
-  border-bottom: 1px solid var(--admin-border);
+  border-bottom: 1px solid #e2e8f0;
   padding-bottom: 2px;
 }
 
@@ -430,7 +430,7 @@ p {
   border: none;
   padding: 10px 16px;
   font-weight: 700;
-  color: var(--admin-muted);
+  color: #64748b;
   cursor: pointer;
   border-bottom: 3px solid transparent;
   transition: all 0.2s;
@@ -442,16 +442,16 @@ p {
 }
 
 .view-tabs button:hover:not(.active) {
-  color: var(--admin-text);
+  color: #0f172a;
 }
 
 .filter-panel,
 .fixed-note,
 .table-card,
 .modal {
-  border: 1px solid var(--admin-border);
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  background: var(--admin-surface, #fff);
+  background: #fff;
 }
 
 .filter-panel {
@@ -467,11 +467,11 @@ p {
 }
 
 .filter-head strong {
-  color: var(--admin-text);
+  color: #0f172a;
 }
 
 .filter-head span {
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 13px;
 }
 
@@ -489,10 +489,10 @@ p {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 0 12px;
-  color: var(--admin-muted);
+  color: #64748b;
   font-weight: normal;
 }
 
@@ -505,12 +505,12 @@ input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 10px 12px;
-  color: var(--admin-text);
+  color: #0f172a;
   font: inherit;
-  background: var(--admin-surface, #fff);
+  background: #fff;
 }
 
 input:focus,
@@ -535,12 +535,12 @@ textarea:focus {
   gap: 10px;
   align-items: center;
   padding: 12px 14px;
-  color: var(--admin-faint);
-  background: var(--admin-surface-muted);
+  color: #475569;
+  background: #f8fafc;
 }
 
 .fixed-note strong {
-  color: var(--admin-text);
+  color: #0f172a;
 }
 
 .table-card {
@@ -559,22 +559,22 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid var(--admin-border);
+  border-bottom: 1px solid #e2e8f0;
   padding: 13px 14px;
   text-align: left;
   vertical-align: middle;
 }
 
 th {
-  background: var(--admin-surface-muted);
-  color: var(--admin-faint);
+  background: #f8fafc;
+  color: #475569;
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 tbody tr:hover {
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
 }
 
 .main-cell {
@@ -583,12 +583,12 @@ tbody tr:hover {
 
 .main-cell strong {
   display: block;
-  color: var(--admin-text);
+  color: #0f172a;
 }
 
 .main-cell span,
 .desc-cell {
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 13px;
 }
 
@@ -604,7 +604,7 @@ tbody tr:hover {
   place-items: center;
   border-radius: 999px;
   background: #eef2f7;
-  color: var(--admin-text);
+  color: #334155;
   font-weight: 900;
 }
 
@@ -632,7 +632,7 @@ tbody tr:hover {
 
 .risk-low {
   background: #eef2f7;
-  color: var(--admin-text);
+  color: #334155;
 }
 
 .risk-medium {
@@ -646,8 +646,8 @@ tbody tr:hover {
 }
 
 .risk-locked {
-  background: var(--admin-surface-muted);
-  color: var(--admin-faint);
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .actions-col {
@@ -668,7 +668,7 @@ tbody tr:hover {
 
 .table-state {
   padding: 36px;
-  color: var(--admin-muted);
+  color: #64748b;
   text-align: center;
 }
 
@@ -707,8 +707,8 @@ tbody tr:hover {
 }
 
 .btn.secondary {
-  background: var(--admin-border);
-  color: var(--admin-text);
+  background: #e2e8f0;
+  color: #334155;
 }
 
 .btn:disabled {
@@ -740,12 +740,12 @@ tbody tr:hover {
 }
 
 .modal-head {
-  border-bottom: 1px solid var(--admin-border);
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .modal-head p {
   margin-top: 4px;
-  color: var(--admin-muted);
+  color: #64748b;
 }
 
 .form-body {
@@ -759,19 +759,19 @@ label {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: var(--admin-text);
+  color: #334155;
   font-weight: 800;
 }
 
 small {
-  color: var(--admin-muted);
+  color: #64748b;
   font-weight: 400;
 }
 
 .modal-actions {
   justify-content: flex-end;
-  border-top: 1px solid var(--admin-border);
-  background: var(--admin-surface-muted);
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
 }
 
 @media (max-width: 1120px) {

@@ -85,8 +85,8 @@ export default {
     gap: 16px;
 }
 .panel {
-    background: var(--admin-surface, #fff);
-    border: 1px solid var(--admin-border);
+    background: #fff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 16px;
 }
@@ -112,12 +112,12 @@ label {
     flex-direction: column;
     gap: 6px;
     font-weight: 800;
-    color: var(--admin-text);
+    color: #334155;
 }
 input,
 textarea {
     width: 100%;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #cbd5e1;
     border-radius: 8px;
     padding: 10px 12px;
     font: inherit;
@@ -145,8 +145,8 @@ textarea {
     color: #fff;
 }
 .btn.secondary {
-    background: var(--admin-border);
-    color: var(--admin-text);
+    background: #e2e8f0;
+    color: #334155;
 }
 .toast {
     border-radius: 8px;

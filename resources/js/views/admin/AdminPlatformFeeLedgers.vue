@@ -723,8 +723,8 @@ p {
 .panel,
 .kpi-card,
 .modal {
-    background: var(--admin-surface, #fff);
-    border: 1px solid var(--admin-border);
+    background: #fff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
 }
 .panel {
@@ -740,7 +740,7 @@ input,
 select,
 textarea {
     width: 100%;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #cbd5e1;
     border-radius: 8px;
     padding: 10px 12px;
     font: inherit;
@@ -749,7 +749,7 @@ textarea {
     flex-direction: row;
     align-items: center;
     font-weight: 800;
-    color: var(--admin-text);
+    color: #334155;
 }
 .check-row input {
     width: auto;
@@ -762,14 +762,14 @@ textarea {
 .kpi-card {
     padding: 16px;
     text-decoration: none;
-    color: var(--admin-text);
+    color: #0f172a;
 }
 .kpi-card strong {
     display: block;
     font-size: 24px;
 }
 .kpi-card span {
-    color: var(--admin-muted);
+    color: #64748b;
 }
 .kpi-card.danger strong {
     color: #b91c1c;
@@ -785,13 +785,13 @@ table {
 th,
 td {
     padding: 11px 12px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
     text-align: left;
     vertical-align: top;
 }
 th {
-    background: var(--admin-surface-muted);
-    color: var(--admin-faint);
+    background: #f8fafc;
+    color: #475569;
     font-size: 12px;
     text-transform: uppercase;
 }
@@ -814,7 +814,8 @@ th {
     box-shadow: 0 0 0 3px #fef3c7;
 }
 .status-dot.paid {
-    background: var(--admin-primary); box-shadow: 0 0 0 3px var(--admin-primary-ring);
+    background: #10b981;
+    box-shadow: 0 0 0 3px #d1fae5;
 }
 .status-dot.overdue {
     background: #ef4444;
@@ -835,8 +836,8 @@ th {
     place-items: center;
     border: 1px solid #dbe3ea;
     border-radius: 8px;
-    background: var(--admin-surface-muted);
-    color: var(--admin-text);
+    background: #f8fafc;
+    color: #334155;
     cursor: pointer;
 }
 .icon-btn {
@@ -877,11 +878,12 @@ th {
     cursor: pointer;
 }
 .btn.primary {
-    background: var(--admin-primary); color: var(--admin-bg);
+    background: #16a34a;
+    color: #fff;
 }
 .btn.secondary {
-    background: var(--admin-border);
-    color: var(--admin-text);
+    background: #e2e8f0;
+    color: #334155;
 }
 .icon-text {
     align-items: center;
@@ -890,7 +892,7 @@ th {
 .empty {
     padding: 36px;
     text-align: center;
-    color: var(--admin-muted);
+    color: #64748b;
 }
 .toast {
     border-radius: 8px;
@@ -899,7 +901,7 @@ th {
 }
 .toast.success {
     background: #ecfdf5;
-    color: var(--admin-primary);
+    color: #047857;
 }
 .toast.error,
 .alert.error {
@@ -936,7 +938,7 @@ th {
 .modal-head {
     justify-content: space-between;
     padding: 18px 22px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
 }
 .modal-head button {
     border: 0;
@@ -958,7 +960,7 @@ label {
     flex-direction: column;
     gap: 6px;
     font-weight: 800;
-    color: var(--admin-text);
+    color: #334155;
 }
 .preview-grid {
     display: grid;
@@ -967,20 +969,20 @@ label {
     padding: 0 18px 10px;
 }
 .preview-grid div {
-    background: var(--admin-surface-muted);
+    background: #f8fafc;
     border-radius: 8px;
     padding: 12px;
 }
 .preview-grid span {
     display: block;
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 12px;
 }
 .modal-actions {
     justify-content: flex-end;
     padding: 16px 22px;
-    border-top: 1px solid var(--admin-border);
-    background: var(--admin-surface-muted);
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
 }
 @media (max-width: 1000px) {
     .filter-grid,
