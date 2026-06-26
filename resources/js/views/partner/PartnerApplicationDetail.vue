@@ -199,7 +199,7 @@ function coordinateText(item) {
   return item?.venue_latitude && item?.venue_longitude ? `${item.venue_latitude}, ${item.venue_longitude}` : '-';
 }
 function statusLabel(status) {
-  return { draft: 'Chờ ký đơn', submitted: 'Chờ xét duyệt', pending: 'Chờ xét duyệt', reviewing: 'Đang xem xét', need_supplement: 'Cần bổ sung', contract_pending_sportgo_signature: 'Chờ SportGo ký', contract_pending_owner_signature: 'Chờ chủ sân ký hợp đồng', completed: 'Đang hoạt động', rejected: 'Bị từ chối', cancelled: 'Đã hủy' }[status] || status || '-';
+  return { draft: 'Chờ ký đơn', submitted: 'Chờ xét duyệt', pending: 'Chờ xét duyệt', reviewing: 'Đang xem xét', need_supplement: 'Cần bổ sung', approved_pending_contract: 'Đã duyệt, chờ hợp đồng', contract_pending_sportgo_signature: 'Chờ SportGo ký', contract_pending_owner_signature: 'Chờ chủ sân ký hợp đồng', completed: 'Đang hoạt động', rejected: 'Bị từ chối', cancelled: 'Đã hủy' }[status] || status || '-';
 }
 function documentTypeLabel(type) {
   return { partner_application_form: 'Đơn đăng ký đối tác', partner_contract: 'Hợp đồng đối tác kinh doanh' }[type] || type;
