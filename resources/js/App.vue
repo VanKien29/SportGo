@@ -75,10 +75,10 @@ export default {
 
 <style>
 :root {
-  --sg-green: #000000;
-  --sg-green-dark: #000000;
-  --sg-green-light: #3f3f46;
-  --sg-green-pale: #f3f4f6;
+  --sg-green: #22c55e;
+  --sg-green-dark: #16a34a;
+  --sg-green-light: #4ade80;
+  --sg-green-pale: #dcfce7;
   --sg-dark: #111827;
   --sg-darker: #0a0f1a;
   --sg-surface: #f8fafc;

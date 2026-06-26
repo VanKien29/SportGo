@@ -21,7 +21,7 @@
             <!-- Products List Table/Grid -->
             <div v-if="loadingProducts" class="loading-state card" style="padding: 40px 0; text-align: center;">
                 <div class="spinner"></div>
-                <p style="margin-top: 10px; color: var(--admin-muted);">Đang tải danh sách sản phẩm...</p>
+                <p style="margin-top: 10px; color: #64748b;">Đang tải danh sách sản phẩm...</p>
             </div>
             
             <div v-else-if="affiliateProducts.length === 0" class="empty-state card">
@@ -42,8 +42,8 @@
                         <AppIcon name="search" size="32" />
                     </div>
                     <div>
-                        <h5 class="empty-title" style="font-weight: 700; font-size: 15px; color: var(--admin-text); margin-bottom: 6px;">Không tìm thấy sản phẩm</h5>
-                        <p class="empty-desc" style="font-size: 13px; color: var(--admin-muted); margin-bottom: 16px;">Không tìm thấy sản phẩm tiếp thị liên kết nào khớp với bộ lọc hiện tại của bạn.</p>
+                        <h5 class="empty-title" style="font-weight: 700; font-size: 15px; color: #1e293b; margin-bottom: 6px;">Không tìm thấy sản phẩm</h5>
+                        <p class="empty-desc" style="font-size: 13px; color: #64748b; margin-bottom: 16px;">Không tìm thấy sản phẩm tiếp thị liên kết nào khớp với bộ lọc hiện tại của bạn.</p>
                     </div>
                     <button type="button" class="btn btn-outline" style="min-height: 38px; padding: 0 16px; border: 1px solid var(--admin-border); border-radius: 8px; background: var(--admin-surface); font-weight: 700; font-size: 13px; cursor: pointer; color: var(--admin-text);" @click="resetFilters">Xóa bộ lọc</button>
                 </div>
@@ -333,11 +333,11 @@
                                 <div class="form-group" style="margin-top: 10px;">
                                     <label class="form-label-bold" style="margin-bottom: 8px;">Trạng thái hiển thị</label>
                                     <div style="display: flex; align-items: center; gap: 12px;">
-                                        <div class="switch-toggle-custom" :style="productForm.is_active ? 'background-color: var(--admin-text);' : ''" @click="productForm.is_active = !productForm.is_active">
+                                        <div class="switch-toggle-custom" :style="productForm.is_active ? 'background-color: #10b981;' : ''" @click="productForm.is_active = !productForm.is_active">
                                             <input type="checkbox" v-model="productForm.is_active" style="display: none;" />
                                             <div class="toggle-dot" :style="productForm.is_active ? 'transform: translateX(20px);' : ''"></div>
                                         </div>
-                                        <span style="color: var(--admin-text); font-weight: 600; font-size: 13px;">
+                                        <span style="color: #1e293b; font-weight: 600; font-size: 13px;">
                                             {{ productForm.is_active ? 'Bật hiển thị cho khách hàng' : 'Ẩn đối với khách hàng' }}
                                         </span>
                                     </div>
@@ -351,7 +351,7 @@
                                     <img v-if="productImagePreview" :src="productImagePreview" class="preview-img-full" />
                                     <div v-else class="empty-image-placeholder">
                                         <AppIcon name="image" size="48" style="color: #94a3b8; margin-bottom: 8px;" />
-                                        <p style="margin: 0; font-size: 13px; color: var(--admin-muted); font-weight: 600;">Chọn hình ảnh sản phẩm</p>
+                                        <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: 600;">Chọn hình ảnh sản phẩm</p>
                                         <p style="margin: 4px 0 0 0; font-size: 11px; color: #94a3b8;">Hỗ trợ JPG, PNG, WebP (Tối đa 5MB)</p>
                                     </div>
                                     <div v-if="productImagePreview" class="hover-change-text">Nhấp để thay đổi ảnh mới</div>
@@ -760,7 +760,7 @@ export default {
     right: 0;
     width: 290px;
     background: var(--admin-surface, #ffffff);
-    border: 1px solid var(--admin-border, var(--admin-border));
+    border: 1px solid var(--admin-border, #e2e8f0);
     border-radius: 14px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
     padding: 16px;
@@ -839,7 +839,7 @@ export default {
 .search-input-wrapper input {
     width: 100%;
     min-height: 36px;
-    border: 1px solid var(--admin-border, var(--admin-border));
+    border: 1px solid var(--admin-border, #cbd5e1);
     border-radius: 8px;
     padding: 8px 28px 8px 12px;
     background: var(--admin-surface, #ffffff);
@@ -862,7 +862,7 @@ export default {
     border: none;
     font-size: 14px;
     cursor: pointer;
-    color: var(--admin-faint);
+    color: #94a3b8;
     padding: 0;
     line-height: 1;
 }
@@ -908,30 +908,30 @@ export default {
     align-items: center;
     gap: 16px;
     justify-content: center;
-    background: var(--admin-surface);
+    background: #fff;
     border-radius: 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
 }
 .empty-icon-wrapper {
     width: 64px;
     height: 64px;
-    background-color: var(--admin-surface-muted);
+    background-color: #f1f5f9;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--admin-faint);
+    color: #94a3b8;
 }
 .empty-title {
     margin: 0 0 6px 0;
     font-size: 15px;
     font-weight: 700;
-    color: var(--admin-text);
+    color: #1e293b;
 }
 .empty-desc {
     margin: 0;
     font-size: 13px;
-    color: var(--admin-muted);
+    color: #64748b;
     max-width: 340px;
     line-height: 1.5;
 }
@@ -940,9 +940,9 @@ export default {
 .affiliate-list-card {
     padding: 0;
     overflow: hidden;
-    background: var(--admin-surface);
+    background: #fff;
     border-radius: 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
 }
 .table-scroll {
     overflow-x: auto;
@@ -953,23 +953,23 @@ export default {
     font-size: 14px;
 }
 .affiliate-table th {
-    background-color: var(--admin-surface-muted);
-    border-bottom: 1px solid var(--admin-border);
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
     padding: 14px 16px;
     text-align: left;
     font-weight: 700;
-    color: var(--admin-faint);
+    color: #475569;
 }
 .affiliate-table td {
     padding: 14px 16px;
     vertical-align: middle;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
 }
 .affiliate-table tr.product-row {
     transition: background-color 0.2s;
 }
 .affiliate-table tr.product-row:hover {
-    background-color: var(--admin-surface-muted);
+    background-color: #f8fafc;
 }
 
 .affiliate-table th.col-img { width: 80px; }
@@ -977,7 +977,7 @@ export default {
 .affiliate-table th.col-price { width: 160px; text-align: right; }
 .affiliate-table td.cell-price { text-align: right; }
 .affiliate-table th.col-clicks { width: 100px; text-align: center; }
-.affiliate-table td.cell-clicks { text-align: center; font-weight: 700; color: var(--admin-faint); }
+.affiliate-table td.cell-clicks { text-align: center; font-weight: 700; color: #475569; }
 .affiliate-table th.col-status { width: 120px; text-align: center; }
 .affiliate-table td.cell-status { text-align: center; }
 .affiliate-table th.col-actions { width: 120px; text-align: center; }
@@ -987,12 +987,12 @@ export default {
     width: 52px;
     height: 52px;
     border-radius: 8px;
-    background-color: var(--admin-surface-muted);
+    background-color: #f1f5f9;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
 }
 .product-thumb {
     width: 100%;
@@ -1004,7 +1004,7 @@ export default {
 }
 .product-title {
     font-weight: 700;
-    color: var(--admin-text);
+    color: #1e293b;
     margin-bottom: 4px;
     display: -webkit-box;
     -webkit-line-clamp: 1;
@@ -1013,7 +1013,7 @@ export default {
 }
 .product-desc {
     font-size: 12.5px;
-    color: var(--admin-muted);
+    color: #64748b;
     display: -webkit-box;
     -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
@@ -1031,23 +1031,23 @@ export default {
 .platform-badge.shopee { background-color: #ffeae6; color: #ee4d2d; }
 .platform-badge.lazada { background-color: #eef2ff; color: #3b82f6; }
 .platform-badge.tiki { background-color: #e0f2fe; color: #0284c7; }
-.platform-badge.tiktok-shop { background-color: var(--admin-surface-muted); color: #111827; }
-.platform-badge.khac { background-color: #ecfdf5; color: var(--admin-text); }
+.platform-badge.tiktok-shop { background-color: #f3f4f6; color: #111827; }
+.platform-badge.khac { background-color: #ecfdf5; color: #10b981; }
 
 .price-discount {
     font-weight: 700;
-    color: var(--admin-text);
+    color: #10b981;
     font-size: 14.5px;
 }
 .price-original {
     font-size: 11.5px;
-    color: var(--admin-faint);
+    color: #94a3b8;
     text-decoration: line-through;
     margin-top: 2px;
 }
 .price-empty {
     font-style: italic;
-    color: var(--admin-faint);
+    color: #94a3b8;
     font-size: 12px;
 }
 
@@ -1072,7 +1072,7 @@ export default {
     transition: background-color 0.2s;
 }
 .switch-toggle input:checked + .slider-round {
-    background-color: var(--admin-text);
+    background-color: #10b981;
 }
 .slider-round::after {
     content: "";
@@ -1081,7 +1081,7 @@ export default {
     left: 2px;
     width: 18px;
     height: 18px;
-    background-color: var(--admin-surface);
+    background-color: #fff;
     border-radius: 50%;
     transition: transform 0.2s;
     box-shadow: 0 1px 3px rgba(0,0,0,0.15);
@@ -1102,16 +1102,16 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
     cursor: pointer;
     transition: all 0.2s;
 }
 .btn-action-icon:hover {
-    background-color: var(--admin-surface-muted);
-    border-color: var(--admin-border);
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
 }
 .btn-action-icon.edit {
-    color: var(--admin-faint);
+    color: #475569;
 }
 .btn-action-icon.delete {
     border-color: #fee2e2;
@@ -1150,9 +1150,9 @@ export default {
 }
 
 .modal {
-    background: var(--admin-surface);
+    background: #fff;
     border-radius: 16px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     display: flex;
     flex-direction: column;
@@ -1164,14 +1164,14 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 20px 24px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .modal-header h3 {
     font-size: 18px;
     font-weight: 800;
     margin: 0;
-    color: var(--admin-text);
+    color: #0f172a;
 }
 
 .btn-close {
@@ -1196,8 +1196,8 @@ export default {
     justify-content: flex-end;
     gap: 12px;
     padding: 20px 24px;
-    border-top: 1px solid var(--admin-border);
-    background: var(--admin-surface-muted);
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
 }
 
 /* Modal Design styles (Premium Glassmorphism-style) */
@@ -1222,7 +1222,7 @@ export default {
 }
 .image-preview-col {
     flex: 0.9;
-    border-left: 1px solid var(--admin-border);
+    border-left: 1px solid #e2e8f0;
     padding-left: 28px;
     display: flex;
     flex-direction: column;
@@ -1240,9 +1240,9 @@ export default {
     max-width: none !important;
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #cbd5e1;
     font-size: 14px;
-    color: var(--admin-text);
+    color: #1e293b;
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     box-sizing: border-box;
@@ -1256,7 +1256,7 @@ export default {
 .form-label-bold {
     font-weight: 700;
     font-size: 13.5px;
-    color: var(--admin-text);
+    color: #334155;
     display: block;
     margin-bottom: 6px;
 }
@@ -1271,8 +1271,8 @@ export default {
 
 /* Custom Select Dropdown styles */
 .custom-select-trigger {
-    background-color: var(--admin-surface);
-    border: 1px solid var(--admin-border);
+    background-color: #fff;
+    border: 1px solid #cbd5e1;
     border-radius: 8px;
     padding: 10px 14px;
     font-size: 14px;
@@ -1284,7 +1284,7 @@ export default {
     transition: all 0.2s;
 }
 .custom-select-trigger:hover, .custom-select-trigger.active {
-    border-color: var(--admin-faint);
+    border-color: #94a3b8;
 }
 .custom-select-wrapper {
     position: relative;
@@ -1295,8 +1295,8 @@ export default {
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: var(--admin-surface);
-    border: 1px solid var(--admin-border);
+    background: #fff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     z-index: 100;
@@ -1307,11 +1307,11 @@ export default {
     padding: 10px 14px;
     cursor: pointer;
     font-size: 14px;
-    color: var(--admin-text);
+    color: #1e293b;
     transition: background-color 0.15s;
 }
 .custom-option:hover {
-    background-color: var(--admin-surface-muted);
+    background-color: #f1f5f9;
 }
 .custom-option.selected {
     background-color: rgba(59, 130, 246, 0.15);
@@ -1322,8 +1322,8 @@ export default {
 /* Image Upload UI components */
 .desktop-image-zone {
     flex: 1;
-    border: 2px dashed var(--admin-border);
-    background-color: var(--admin-surface-muted);
+    border: 2px dashed #cbd5e1;
+    background-color: #f8fafc;
     border-radius: 12px;
     display: flex;
     flex-direction: column;
@@ -1386,7 +1386,7 @@ export default {
     left: 2px;
     width: 20px;
     height: 20px;
-    background-color: var(--admin-surface);
+    background-color: #fff;
     border-radius: 50%;
     transition: transform 0.2s;
     box-shadow: 0 1px 3px rgba(0,0,0,0.15);
@@ -1409,8 +1409,8 @@ export default {
         display: block;
     }
     .image-upload-box {
-        border: 1px solid var(--admin-border);
-        background-color: var(--admin-surface-muted);
+        border: 1px solid #cbd5e1;
+        background-color: #f8fafc;
         border-radius: 8px;
         height: 120px;
         display: flex;
@@ -1425,7 +1425,7 @@ export default {
         flex-direction: column;
         align-items: center;
         gap: 6px;
-        color: var(--admin-muted);
+        color: #64748b;
         font-size: 13px;
         font-weight: 600;
     }

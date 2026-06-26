@@ -7,7 +7,7 @@
       <!-- Ledger Info Bar -->
       <div class="ledger-info-bar" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
         <h2 style="margin: 0;">{{ ledger.code }}</h2>
-        <span style="color: var(--admin-muted); font-size: 14px; font-weight: 600;">{{ ledger.venue?.name }} - {{ ledger.owner?.full_name }}</span>
+        <span style="color: #64748b; font-size: 14px; font-weight: 600;">{{ ledger.venue?.name }} - {{ ledger.owner?.full_name }}</span>
         <span class="status-dot" :class="ledger.status" :title="statusLabel(ledger.status)" :aria-label="statusLabel(ledger.status)"></span>
       </div>
 
@@ -129,7 +129,6 @@ import {
   unlockVenueAfterPayment,
 } from '../../services/platformFeeLedger.service.js';
 import {
-  getEmailLogsByLedgerId,
   getReminderTypeForDate,
   sendPlatformFeeReminderEmail,
 } from '../../services/platformFeeReminder.service.js';
@@ -153,7 +152,7 @@ export default {
   methods: {
     async loadDetail() {
       this.ledger = await getLedgerById(this.$route.params.id);
-      this.emailLogs = await getEmailLogsByLedgerId(this.$route.params.id);
+      this.emailLogs = this.ledger?.email_logs || [];
     },
     async payFull() {
       await this.run(() => confirmLedgerPayment(this.ledger.id, { amount: this.ledger.remaining_amount }), 'Đã xác nhận thanh toán đủ.');
@@ -172,12 +171,11 @@ export default {
       await this.run(() => unlockVenueAfterPayment(this.ledger.id), 'Đã mở khóa cụm sân.');
     },
     async sendCurrentReminder() {
-      const type = getReminderTypeForDate(this.ledger, new Date());
-      if (!type) {
-        this.showMessage('Hôm nay không đúng mốc gửi email cho kỳ phí này.', 'error');
-        return;
-      }
-      await this.run(() => sendPlatformFeeReminderEmail(this.ledger, type), 'Đã xử lý email nhắc phí.');
+      const type = getReminderTypeForDate(this.ledger) || 'manual';
+      await this.run(
+        () => sendPlatformFeeReminderEmail(this.ledger, type, { force: true }),
+        'Đã gửi email nhắc phí.',
+      );
     },
     async run(action, success) {
       try {
@@ -196,6 +194,7 @@ export default {
         due_soon_7_days: 'Nhắc trước hạn 7 ngày',
         due_today: 'Nhắc đúng ngày đến hạn',
         overdue_3_days: 'Cảnh báo quá hạn 3 ngày',
+        manual: 'Nhắc thủ công',
       }[type] || type;
     },
     money(value) {
@@ -218,14 +217,14 @@ export default {
 
 <style scoped>
 .detail-page { display: flex; flex-direction: column; gap: 16px; }
-.panel { background: var(--admin-surface, #fff); border: 1px solid var(--admin-border); border-radius: 8px; padding: 16px; }
+.panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
 .panel-head, .actions, .modal-head, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
 h2, h3, p { margin: 0; }
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.metric span, .info-grid span { display: block; color: var(--admin-muted); font-size: 12px; }
+.metric span, .info-grid span { display: block; color: #64748b; font-size: 12px; }
 .metric strong { display: block; font-size: 22px; }
 .info-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.info-grid div, .receipt { background: var(--admin-surface-muted); border-radius: 8px; padding: 12px; }
+.info-grid div, .receipt { background: #f8fafc; border-radius: 8px; padding: 12px; }
 .status-dot {
   display: inline-grid;
   width: 14px;
@@ -234,28 +233,28 @@ h2, h3, p { margin: 0; }
   background: #f59e0b;
   box-shadow: 0 0 0 3px #fef3c7;
 }
-.status-dot.paid { background: var(--admin-primary); box-shadow: 0 0 0 3px var(--admin-primary-ring); }
+.status-dot.paid { background: #10b981; box-shadow: 0 0 0 3px #d1fae5; }
 .status-dot.overdue { background: #ef4444; box-shadow: 0 0 0 3px #fee2e2; }
 .status-dot.cancelled { background: #94a3b8; box-shadow: 0 0 0 3px #e2e8f0; }
 .email-chip { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 900; }
 .email-chip { background: #e0f2fe; color: #075985; }
 .btn { border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 900; cursor: pointer; }
-.btn.primary { background: var(--admin-primary); color: var(--admin-bg); }
-.btn.secondary { background: var(--admin-border); color: var(--admin-text); }
+.btn.primary { background: #16a34a; color: #fff; }
+.btn.secondary { background: #e2e8f0; color: #334155; }
 .btn.danger { background: #dc2626; color: #fff; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .icon-text { align-items: center; justify-content: center; }
-.link-btn { border: 0; background: transparent; color: var(--admin-primary); font-weight: 900; cursor: pointer; width: fit-content; }
+.link-btn { border: 0; background: transparent; color: #047857; font-weight: 900; cursor: pointer; width: fit-content; }
 table { width: 100%; border-collapse: collapse; }
-th, td { padding: 11px 12px; border-bottom: 1px solid var(--admin-border); text-align: left; }
-th { background: var(--admin-surface-muted); color: var(--admin-faint); font-size: 12px; text-transform: uppercase; }
-.empty { text-align: center; color: var(--admin-muted); }
+th, td { padding: 11px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: uppercase; }
+.empty { text-align: center; color: #64748b; }
 .compact { padding: 24px; }
 .toast { border-radius: 8px; padding: 11px 13px; font-weight: 800; }
-.toast.success { background: #ecfdf5; color: var(--admin-primary); }
+.toast.success { background: #ecfdf5; color: #047857; }
 .toast.error { background: #fef2f2; color: #991b1b; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: 20px; background: rgba(15,23,42,.55); }
-.modal { width: min(560px, calc(100vw - 32px)); background: var(--admin-surface, #fff); border-radius: 8px; padding: 18px; }
+.modal { width: min(560px, calc(100vw - 32px)); background: #fff; border-radius: 8px; padding: 18px; }
 .icon-close {
   display: inline-grid;
   width: 32px;
@@ -263,8 +262,8 @@ th { background: var(--admin-surface-muted); color: var(--admin-faint); font-siz
   place-items: center;
   border: 1px solid #dbe3ea;
   border-radius: 8px;
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f8fafc;
+  color: #334155;
   cursor: pointer;
 }
 @media (max-width: 900px) {

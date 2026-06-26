@@ -71,6 +71,11 @@ class VenuePlatformFeeLedger extends Model
         return $this->belongsTo(InternalReceipt::class, 'internal_receipt_id');
     }
 
+    public function emailLogs()
+    {
+        return $this->hasMany(PlatformFeeEmailLog::class, 'ledger_id')->latest();
+    }
+
     public function paymentConfirmedBy()
     {
         return $this->belongsTo(User::class, 'payment_confirmed_by');

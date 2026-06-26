@@ -95,7 +95,7 @@ class VoucherController extends Controller
         $this->audit($request, 'admin.system_voucher.created', 'vouchers', $voucherId, [], (array) $voucher, 'Tạo voucher hệ thống.');
 
         return response()->json([
-            'message' => 'Đã tạo voucher hệ thống. Nền tảng chịu phần giảm giá.',
+            'message' => 'Đã tạo voucher hệ thống.',
             'data' => $this->detailPayload($voucher),
         ], 201);
     }

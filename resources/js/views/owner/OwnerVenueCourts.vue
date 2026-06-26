@@ -2075,9 +2075,9 @@ export default {
 }
 
 .card {
-    background: var(--admin-surface, #fff);
+    background: #fff;
     border-radius: 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--sg-border);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     padding: 24px;
 }
@@ -2096,7 +2096,7 @@ export default {
 }
 
 .btn-back {
-    color: var(--admin-muted);
+    color: rgba(0, 0, 0, 0.6);
     text-decoration: none;
     font-weight: 700;
     font-size: 13px;
@@ -2105,19 +2105,19 @@ export default {
 }
 
 .btn-back:hover {
-    color: var(--admin-text);
+    color: #000000;
 }
 
 .header-left h2 {
     font-size: 22px;
     font-weight: 800;
-    color: var(--admin-text);
+    color: var(--sg-text);
     margin: 0;
 }
 
 .subtitle {
     margin-top: 4px;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.5);
     font-size: 14px;
 }
 
@@ -2146,29 +2146,29 @@ export default {
 
 .btn-primary:hover {
     background: #222222;
-    border-color: var(--admin-text);
+    border-color: #222222;
 }
 
 .btn-outline {
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--sg-border);
     background: transparent;
-    color: var(--admin-text);
+    color: var(--sg-text);
 }
 
 .btn-outline:hover {
-    background: var(--admin-surface-muted);
+    background: var(--sg-surface);
 }
 
 .btn-danger-outline {
     border: 1px solid rgba(0, 0, 0, 0.15);
     background: transparent;
-    color: var(--admin-text);
+    color: rgba(0, 0, 0, 0.7);
 }
 
 .btn-danger-outline:hover {
     background: rgba(0, 0, 0, 0.05);
-    border-color: var(--admin-faint);
-    color: var(--admin-text);
+    border-color: rgba(0, 0, 0, 0.25);
+    color: #000000;
 }
 
 /* SaaS Grouped Compact Rows */
@@ -2207,20 +2207,20 @@ export default {
 .group-title {
     font-size: 11px;
     font-weight: 750;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.4);
     letter-spacing: 0.06em;
 }
 
 .group-divider {
     flex: 1;
     height: 1px;
-    background: var(--admin-hover);
+    background: rgba(15, 23, 42, 0.05);
 }
 
 .group-count {
     font-size: 11px;
     font-weight: 700;
-    color: var(--admin-faint);
+    color: rgba(15, 23, 42, 0.35);
 }
 
 .group-items {
@@ -2236,16 +2236,16 @@ export default {
     justify-content: space-between;
     height: 52px;
     padding: 0 16px;
-    background: var(--admin-surface, #ffffff);
-    border: 1px solid var(--admin-border-soft);
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.04);
     border-radius: 8px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
 }
 
 .court-row-item:hover {
-    background: var(--admin-hover);
-    border-color: var(--admin-faint);
+    background: rgba(15, 23, 42, 0.015);
+    border-color: rgba(15, 23, 42, 0.08);
     transform: translateX(2px);
 }
 
@@ -2278,14 +2278,14 @@ export default {
 .row-order {
     font-size: 12px;
     font-weight: 700;
-    color: var(--admin-faint);
+    color: rgba(15, 23, 42, 0.3);
     font-family: monospace;
 }
 
 .row-name {
     font-size: 14px;
     font-weight: 600;
-    color: var(--admin-text);
+    color: var(--sg-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2305,8 +2305,8 @@ export default {
 }
 
 .row-status-badge.inactive {
-    background: var(--admin-hover);
-    color: var(--admin-muted);
+    background: rgba(15, 23, 42, 0.05);
+    color: rgba(15, 23, 42, 0.5);
 }
 
 .row-status-badge.maintenance {
@@ -2326,7 +2326,7 @@ export default {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: var(--admin-primary, #000000);
+    color: #16a34a;
     font-size: 12.5px;
     font-weight: 600;
 }
@@ -2378,7 +2378,7 @@ export default {
     align-items: center;
     justify-content: center;
     padding: 48px 16px;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.4);
     gap: 12px;
 }
 
@@ -2413,7 +2413,7 @@ export default {
         opacity: 1;
         transform: none;
         justify-content: flex-end;
-        border-top: 1px dashed var(--admin-border-soft);
+        border-top: 1px dashed rgba(15, 23, 42, 0.05);
         padding-top: 8px;
     }
 }
@@ -2422,7 +2422,7 @@ export default {
 .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(15, 23, 42, 0.4);
     backdrop-filter: blur(4px);
     display: grid;
     place-items: center;
@@ -2452,7 +2452,7 @@ export default {
     font-size: 18px;
     font-weight: 800;
     margin: 0;
-    color: var(--admin-text);
+    color: var(--sg-text);
 }
 
 .btn-close {
@@ -2460,7 +2460,7 @@ export default {
     border: none;
     font-size: 24px;
     cursor: pointer;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.4);
 }
 
 .modal-body {
@@ -2479,7 +2479,7 @@ export default {
 .form-group label {
     font-size: 13px;
     font-weight: 700;
-    color: var(--admin-text);
+    color: var(--sg-text);
 }
 
 .required {
@@ -2489,15 +2489,15 @@ export default {
 .form-control {
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--sg-border);
     font-size: 14px;
-    color: var(--admin-text);
+    color: var(--sg-text);
     outline: none;
     transition: border-color 0.2s ease;
 }
 
 .form-control:focus {
-    border-color: var(--admin-text);
+    border-color: #000000;
 }
 
 .modal-footer {
@@ -2506,11 +2506,11 @@ export default {
     gap: 12px;
     padding: 20px 24px;
     border-top: 1px solid var(--sg-border);
-    background: var(--admin-surface-muted);
+    background: var(--sg-surface);
 }
 
 .alert-danger {
-    background: var(--admin-surface-muted);
+    background: #f3f4f6;
     color: #ef4444;
     padding: 12px 16px;
     border-radius: 8px;
@@ -2529,14 +2529,14 @@ export default {
     padding: 60px 24px;
     text-align: center;
     gap: 16px;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.6);
 }
 
 .spinner {
     width: 40px;
     height: 40px;
     border: 3px solid rgba(0, 0, 0, 0.1);
-    border-top-color: var(--admin-text);
+    border-top-color: #000000;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -2558,48 +2558,48 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 10px 14px;
-    background: var(--admin-surface, #fff);
-    border: 1px solid var(--admin-border);
+    background: #fff;
+    border: 1px solid var(--sg-border);
     border-radius: 8px;
     font-size: 14px;
-    color: var(--admin-text);
+    color: var(--sg-text);
     cursor: pointer;
     user-select: none;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .custom-select-trigger:hover {
-    border-color: var(--admin-text);
+    border-color: #000000;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .custom-select-trigger.active {
-    border-color: var(--admin-text);
+    border-color: #000000;
     box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
 }
 
 .custom-select-trigger .parent-name {
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.4);
     font-weight: 500;
 }
 
 .custom-select-trigger .separator {
     margin: 0 6px;
-    color: var(--admin-faint);
+    color: rgba(15, 23, 42, 0.2);
 }
 
 .custom-select-trigger .child-name {
     font-weight: 700;
-    color: var(--admin-text);
+    color: var(--sg-text);
 }
 
 .custom-select-trigger .placeholder {
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.4);
 }
 
 .custom-select-trigger .arrow {
     font-size: 10px;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.5);
     transition: transform 0.2s ease;
 }
 
@@ -2613,8 +2613,8 @@ export default {
     top: calc(100% + 6px);
     left: 0;
     right: 0;
-    background: var(--admin-surface, #ffffff);
-    border: 1px solid var(--admin-border);
+    background: #ffffff;
+    border: 1px solid var(--sg-border);
     border-radius: 10px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
     z-index: 100;
@@ -2639,8 +2639,8 @@ export default {
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--admin-muted);
-    background: var(--admin-hover);
+    color: rgba(15, 23, 42, 0.4);
+    background: rgba(15, 23, 42, 0.02);
     border-bottom: 1px solid rgba(0, 0, 0, 0.02);
 }
 
@@ -2651,7 +2651,7 @@ export default {
     padding: 10px 14px;
     cursor: pointer;
     font-size: 13.5px;
-    color: var(--admin-text);
+    color: var(--sg-text);
     transition:
         background 0.15s ease,
         color 0.15s ease;
@@ -2673,12 +2673,12 @@ export default {
 .custom-option .option-details {
     margin-left: 6px;
     font-size: 12px;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.4);
 }
 
 .custom-option .check-mark {
     margin-left: auto;
-    color: var(--admin-text);
+    color: #000000;
     font-weight: 900;
 }
 
@@ -2696,7 +2696,7 @@ export default {
     padding: 10px 16px;
     font-size: 14px;
     font-weight: 700;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.4);
     cursor: pointer;
     border-bottom: 3px solid transparent;
     transition: all 0.2s ease;
@@ -2704,18 +2704,18 @@ export default {
 }
 
 .tab-btn:hover {
-    color: var(--admin-text);
-    border-bottom-color: var(--admin-faint);
+    color: var(--sg-text);
+    border-bottom-color: rgba(0, 0, 0, 0.1);
 }
 
 .tab-btn.active {
-    color: var(--admin-text);
-    border-bottom-color: var(--admin-text);
+    color: #000000;
+    border-bottom-color: #000000;
 }
 
 .badge-placed {
-    background: var(--admin-primary-soft, #f3f4f6);
-    color: var(--admin-primary, #000000);
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 11px;
@@ -2741,8 +2741,8 @@ export default {
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
-    background: var(--admin-surface, #ffffff);
-    border: 1px solid var(--admin-border);
+    background: #ffffff;
+    border: 1px solid var(--sg-border);
     padding: 12px 20px;
     border-radius: 12px;
 }
@@ -2755,13 +2755,13 @@ export default {
 .info-badge {
     font-size: 12.5px;
     font-weight: 700;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.5);
 }
 /* ── Tool Switcher ── */
 .tool-switcher {
     display: flex;
-    background: var(--admin-surface-muted);
-    border: 1.5px solid var(--admin-border);
+    background: #f1f5f9;
+    border: 1.5px solid #e2e8f0;
     border-radius: 8px;
     padding: 3px;
     gap: 2px;
@@ -2776,22 +2776,22 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--admin-muted);
+    color: #64748b;
     transition: all 0.15s;
 }
 .tool-btn:hover {
-    background: var(--admin-border);
-    color: var(--admin-text);
+    background: #e2e8f0;
+    color: #1e293b;
 }
 .tool-btn.active {
-    background: var(--admin-surface, #fff);
+    background: #fff;
     color: #3b82f6;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 .toolbar-divider {
     width: 1px;
     height: 28px;
-    background: var(--admin-border);
+    background: #e2e8f0;
     align-self: center;
     margin: 0 2px;
 }
@@ -2807,8 +2807,8 @@ export default {
     flex: 1;
     min-width: 0;
     height: 600px;
-    background-color: var(--admin-surface-muted);
-    border: 1px solid var(--admin-border);
+    background-color: #f8fafc;
+    border: 1px solid var(--sg-border);
     border-radius: 16px;
     box-shadow:
         inset 0 2px 8px rgba(0, 0, 0, 0.04),
@@ -2847,8 +2847,8 @@ export default {
     right: 20px;
     display: flex;
     align-items: center;
-    background: var(--admin-surface, #ffffff);
-    border: 1px solid var(--admin-border);
+    background: #ffffff;
+    border: 1px solid var(--sg-border);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     z-index: 100;
@@ -2862,12 +2862,12 @@ export default {
     font-weight: 700;
     font-size: 16px;
     cursor: pointer;
-    color: var(--admin-text);
+    color: var(--sg-text);
     transition: background 0.2s;
 }
 
 .btn-zoom:hover {
-    background: var(--admin-surface-muted);
+    background: #f1f5f9;
 }
 
 .btn-zoom.reset {
@@ -2879,7 +2879,7 @@ export default {
     font-size: 13px;
     font-weight: 700;
     padding: 0 10px;
-    color: var(--admin-text);
+    color: var(--sg-text);
     min-width: 48px;
     text-align: center;
 }
@@ -2990,7 +2990,7 @@ export default {
     left: 20px;
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(8px);
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--sg-border);
     border-radius: 10px;
     padding: 12px 14px;
     z-index: 99;
@@ -3003,7 +3003,7 @@ export default {
 
 .guide-item {
     font-size: 11.5px;
-    color: var(--admin-text);
+    color: var(--sg-text);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -3037,7 +3037,7 @@ export default {
     position: absolute;
     width: 10px;
     height: 10px;
-    background-color: var(--admin-surface, #ffffff);
+    background-color: #ffffff;
     border: 2px solid #000000;
     border-radius: 50%;
     z-index: 25;
@@ -3074,8 +3074,8 @@ export default {
 }
 
 .sidebar-section {
-    background: var(--admin-surface, #ffffff);
-    border: 1px solid var(--admin-border);
+    background: #ffffff;
+    border: 1px solid var(--sg-border);
     border-radius: 12px;
     padding: 16px;
 }
@@ -3085,14 +3085,14 @@ export default {
     font-weight: 800;
     margin-top: 0;
     margin-bottom: 12px;
-    color: var(--admin-text);
+    color: var(--sg-text);
     border-bottom: 1px solid var(--sg-border);
     padding-bottom: 8px;
 }
 
 .section-desc {
     font-size: 12px;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.5);
     margin-top: 0;
     margin-bottom: 12px;
 }
@@ -3114,12 +3114,12 @@ export default {
 
 .field-row .label {
     font-weight: 700;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.5);
 }
 
 .field-row .value {
     font-weight: 700;
-    color: var(--admin-text);
+    color: var(--sg-text);
 }
 
 .field-group {
@@ -3131,7 +3131,7 @@ export default {
 .field-group label {
     font-size: 12.5px;
     font-weight: 700;
-    color: var(--admin-text);
+    color: var(--sg-text);
 }
 
 .input-row {
@@ -3144,21 +3144,21 @@ export default {
     width: 100%;
     padding: 8px 10px;
     border-radius: 6px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--sg-border);
     font-size: 13px;
     outline: none;
     font-weight: 700;
 }
 
 .input-row input:focus {
-    border-color: var(--admin-text);
+    border-color: #000000;
 }
 
 .input-row .x,
 .input-row .comma {
     font-size: 12px;
     font-weight: 700;
-    color: var(--admin-faint);
+    color: rgba(15, 23, 42, 0.3);
 }
 
 .rotation-control {
@@ -3169,7 +3169,7 @@ export default {
 
 .rotation-slider {
     flex: 1;
-    accent-color: var(--admin-text);
+    accent-color: #000000;
     height: 4px;
 }
 
@@ -3195,16 +3195,16 @@ export default {
 
 .unplaced-court-item {
     padding: 10px 12px;
-    background: var(--admin-surface-muted);
-    border: 1px solid var(--admin-border);
+    background: var(--sg-surface);
+    border: 1px solid var(--sg-border);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
 .unplaced-court-item:hover {
-    background: var(--admin-surface, #ffffff);
-    border-color: var(--admin-text);
+    background: #ffffff;
+    border-color: #000000;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
 }
 
@@ -3217,13 +3217,13 @@ export default {
 .item-name {
     font-weight: 700;
     font-size: 13.5px;
-    color: var(--admin-text);
+    color: var(--sg-text);
 }
 
 .item-add-hint {
     font-size: 11px;
     font-weight: 700;
-    color: var(--admin-text);
+    color: #000000;
     opacity: 0;
     transition: opacity 0.15s ease;
 }
@@ -3234,13 +3234,13 @@ export default {
 
 .item-type {
     font-size: 11.5px;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.4);
     margin-top: 2px;
 }
 
 .empty-unplaced {
     font-size: 12.5px;
-    color: var(--admin-muted);
+    color: rgba(15, 23, 42, 0.4);
     text-align: center;
     padding: 20px 0;
     font-style: italic;
@@ -3291,12 +3291,12 @@ export default {
 }
 .btn-add-decor {
     padding: 8px;
-    background: var(--admin-surface-muted);
-    border: 1.5px solid var(--admin-border);
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
     border-radius: 8px;
     font-size: 11px;
     font-weight: 700;
-    color: var(--admin-faint);
+    color: #475569;
     cursor: pointer;
     text-align: center;
     transition: all 0.2s;
@@ -3307,8 +3307,8 @@ export default {
     gap: 4px;
 }
 .btn-add-decor:hover {
-    background: var(--admin-surface-muted);
-    border-color: var(--admin-border);
-    color: var(--admin-text);
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #1e293b;
 }
 </style>

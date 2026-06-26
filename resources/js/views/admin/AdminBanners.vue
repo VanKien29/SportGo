@@ -417,8 +417,8 @@ export default {
 }
 
 .card {
-  background: var(--admin-surface);
-  border: 1px solid var(--admin-border);
+  background: #fff;
+  border: 1px solid var(--sg-border);
   border-radius: 8px;
 }
 
@@ -444,7 +444,7 @@ export default {
   gap: 6px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--admin-text);
+  color: var(--sg-text);
 }
 
 .field.full {
@@ -455,13 +455,13 @@ export default {
 .field select {
   width: 100%;
   height: 40px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--sg-border);
   border-radius: 8px;
   padding: 0 12px;
   font-size: 14px;
   font-weight: 500;
-  background: var(--admin-surface);
-  color: var(--admin-text);
+  background: #fff;
+  color: var(--sg-text);
 }
 
 .btn,
@@ -489,9 +489,9 @@ export default {
 }
 
 .btn.ghost {
-  background: var(--admin-surface);
+  background: #fff;
   border-color: var(--sg-border);
-  color: var(--admin-text);
+  color: var(--sg-text);
 }
 
 .btn:disabled {
@@ -502,9 +502,9 @@ export default {
 .icon-btn {
   width: 34px;
   height: 34px;
-  background: var(--admin-surface-muted);
-  border-color: var(--admin-border);
-  color: var(--admin-text);
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #334155;
 }
 
 .icon-btn.danger {
@@ -542,7 +542,7 @@ export default {
   width: 34px;
   height: 34px;
   border: 3px solid rgba(15, 23, 42, 0.08);
-  border-top-color: var(--admin-text);
+  border-top-color: #0f172a;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -577,10 +577,10 @@ td {
 }
 
 th {
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
   font-size: 12px;
   font-weight: 900;
-  color: var(--admin-faint);
+  color: #475569;
   text-transform: uppercase;
 }
 
@@ -604,13 +604,13 @@ th {
   height: 58px;
   flex: 0 0 104px;
   overflow: hidden;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--sg-border);
   border-radius: 8px;
-  background: var(--admin-surface-muted);
+  background: #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--admin-faint);
+  color: #94a3b8;
   font-size: 12px;
   font-weight: 800;
 }
@@ -631,7 +631,7 @@ th {
 }
 
 .banner-title {
-  color: var(--admin-text);
+  color: var(--sg-text);
   font-weight: 800;
 }
 
@@ -698,7 +698,7 @@ th {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--admin-surface);
+  background: #fff;
   border-radius: 8px;
 }
 
@@ -735,7 +735,7 @@ th {
   height: 180px;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--sg-border);
 }
 
 .toggle-row {
@@ -775,10 +775,10 @@ th {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--admin-primary);
+  background-color: #10b981;
   color: #fff;
   border: none;
-  box-shadow: 0 4px 12px var(--admin-primary-ring);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;

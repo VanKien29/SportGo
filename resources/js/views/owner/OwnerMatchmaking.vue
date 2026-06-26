@@ -75,7 +75,7 @@
             <tr v-for="post in posts" :key="post.id" class="post-row">
               <td>
                 <div class="author-cell">
-                  {{ post.author?.full_name || post.author?.username || 'Người chơi' }}
+                  <strong>{{ post.author?.full_name || post.author?.username || 'Người chơi' }}</strong>
                   <span class="muted small">{{ post.author?.phone || 'Không có SĐT' }}</span>
                   <span class="muted small">{{ post.author?.email || '' }}</span>
                 </div>
@@ -93,13 +93,13 @@
                   </div>
                   <div class="post-court">
                     <AppIcon name="building" size="14" class="muted-icon" />
-                    <span>{{ post.booking?.venueCluster?.name }} · {{ post.booking?.venueCourt?.name }}</span>
+                    <span>{{ post.booking?.venueCluster?.name }} · <strong>{{ post.booking?.venueCourt?.name }}</strong></span>
                   </div>
                 </div>
               </td>
               <td>
                 <div class="needed-cell">
-                  <span class="needed-badge">Cần thêm: {{ post.needed_players }} người</span>
+                  <span class="needed-badge">Cần thêm: <strong>{{ post.needed_players }} người</strong></span>
                   <span class="cost-badge" v-if="post.cost_per_player > 0">
                     Chi phí: {{ formatCurrency(post.cost_per_player) }}/người
                   </span>
@@ -493,6 +493,21 @@ export default {
   background: var(--admin-danger-soft);
   color: var(--admin-danger-text);
   border: 1px solid var(--admin-danger);
+.page-header h2 {
+  font-size: 24px;
+  font-weight: 850;
+  color: #0f172a;
+  margin: 0;
+}
+ 
+.muted {
+  color: #64748b;
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+ 
+.muted-icon {
+  color: #94a3b8;
 }
  
 /* ---- Card base ---- */
@@ -931,7 +946,7 @@ tbody tr:last-child td {
   background: var(--admin-surface-muted);
   border: 1px solid var(--admin-border);
   border-radius: 50%;
-  color: var(--admin-faint);
+  color: #475569;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -954,7 +969,7 @@ tbody tr:last-child td {
 .page-info {
   font-size: 13px;
   font-weight: 700;
-  color: var(--admin-faint);
+  color: #475569;
 }
  
 /* ====== MODAL ====== */

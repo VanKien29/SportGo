@@ -92,7 +92,7 @@
             </thead>
             <tbody>
               <tr v-for="item in history.data" :key="item.id">
-                <td>{{ item.request_code }}</td>
+                <td><strong>{{ item.request_code }}</strong></td>
                 <td>
                   <span v-if="item.bank_account">
                     {{ item.bank_account.bank_name }} - {{ item.bank_account.account_number }}
@@ -282,7 +282,7 @@ export default {
   border: 1px solid #dddddd;
   padding: 20px;
   margin-bottom: 20px;
-  background-color: var(--admin-surface, #ffffff);
+  background-color: #ffffff;
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -295,7 +295,7 @@ export default {
   margin-bottom: 15px;
   border-bottom: 1px solid #dddddd;
   padding-bottom: 8px;
-  color: var(--admin-text);
+  color: #000000;
 }
 
 .wallet-simple-grid {
@@ -327,7 +327,7 @@ export default {
 
 .bold {
   font-weight: 700;
-  color: var(--admin-text);
+  color: #000000;
 }
 
 .form-group-simple {
@@ -356,7 +356,7 @@ export default {
 }
 
 .form-control-simple:focus {
-  border-color: var(--admin-text);
+  border-color: #000000;
 }
 
 .help-text {
@@ -367,7 +367,7 @@ export default {
 
 .btn-simple {
   padding: 10px 20px;
-  background-color: var(--admin-text);
+  background-color: #000000;
   color: #ffffff;
   border: 1px solid #000000;
   border-radius: 4px;
@@ -466,7 +466,7 @@ export default {
 
 .btn-page {
   padding: 5px 12px;
-  background-color: var(--admin-surface, #ffffff);
+  background-color: #ffffff;
   border: 1px solid #cccccc;
   cursor: pointer;
   font-size: 12px;

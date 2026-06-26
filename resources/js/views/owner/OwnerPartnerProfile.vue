@@ -47,7 +47,7 @@
               <div>
                 <strong>{{ contract.contract_number }}</strong>
                 <span class="status-badge" :class="`status-${contract.status}`">{{ contractStatusLabel(contract.status) }}</span>
-                <div v-if="contract.owner_signed_at || contract.sportgo_signed_at" class="muted small" style="margin-top: 4px; font-size: 0.85em; color: var(--admin-muted);">
+                <div v-if="contract.owner_signed_at || contract.sportgo_signed_at" class="muted small" style="margin-top: 4px; font-size: 0.85em; color: #64748b;">
                   <div v-if="contract.owner_signed_at">Ngày đối tác ký: {{ formatDate(contract.owner_signed_at) }}</div>
                   <div v-if="contract.sportgo_signed_at">Ngày SportGo ký: {{ formatDate(contract.sportgo_signed_at) }}</div>
                 </div>
@@ -532,8 +532,8 @@ export default {
 }
 
 .card {
-  background: var(--admin-surface, #fff);
-  border: 1px solid var(--admin-border);
+  background: #fff;
+  border: 1px solid var(--sg-border);
   border-radius: 12px;
   padding: 24px;
 }
@@ -548,7 +548,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
 }
 
 .status-header {
@@ -602,7 +602,7 @@ export default {
 
 .info-item .label {
   font-size: 12px;
-  color: var(--admin-muted);
+  color: #64748b;
   text-transform: uppercase;
   font-weight: 700;
 }
@@ -610,7 +610,7 @@ export default {
 .info-item .value {
   font-size: 15px;
   font-weight: 500;
-  color: var(--admin-text);
+  color: var(--sg-text);
 }
 
 .account-box {
@@ -618,9 +618,9 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 12px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--sg-border);
   border-radius: 8px;
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
 }
 
 .account-details {
@@ -631,7 +631,7 @@ export default {
 
 .badge {
   background: #cbd5e1;
-  color: var(--admin-text);
+  color: #334155;
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 12px;
@@ -649,9 +649,9 @@ export default {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: var(--admin-surface-muted);
+  background: #f1f5f9;
   border-radius: 8px;
-  color: var(--admin-text);
+  color: var(--sg-text);
   text-decoration: none;
   font-weight: 600;
   font-size: 14px;
@@ -659,7 +659,7 @@ export default {
 }
 
 .doc-item:hover {
-  background: var(--admin-border);
+  background: #e2e8f0;
 }
 
 .contracts-list {
@@ -673,9 +673,9 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--sg-border);
   border-radius: 12px;
-  background: var(--admin-surface, #fff);
+  background: #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
@@ -719,9 +719,9 @@ export default {
 }
 
 .btn.ghost {
-  background: var(--admin-surface, #fff);
+  background: #fff;
   border-color: var(--sg-border);
-  color: var(--admin-text);
+  color: var(--sg-text);
 }
 
 .btn.primary {
@@ -751,7 +751,7 @@ export default {
 }
 
 .muted {
-  color: var(--admin-muted);
+  color: #64748b;
 }
 
 /* Modal styles */
@@ -769,7 +769,7 @@ export default {
 }
 
 .modal-content {
-  background: var(--admin-surface, #fff);
+  background: #fff;
   border-radius: 12px;
   width: 90%;
   max-width: 600px;
@@ -795,7 +795,7 @@ export default {
 .close-btn {
   background: none;
   border: none;
-  color: var(--admin-muted);
+  color: #64748b;
   cursor: pointer;
   padding: 4px;
 }
@@ -818,7 +818,7 @@ export default {
 .input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--sg-border);
   border-radius: 6px;
   font-family: inherit;
   font-size: 14px;

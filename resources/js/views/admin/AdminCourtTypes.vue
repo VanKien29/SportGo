@@ -571,7 +571,7 @@ export default {
 }
 
 .court-type-group {
-    background: var(--admin-surface);
+    background: #ffffff;
     border: 1px solid rgba(15, 23, 42, 0.04);
     border-radius: 12px;
     padding: 16px;
@@ -634,7 +634,7 @@ export default {
     justify-content: space-between;
     min-height: 52px;
     padding: 10px 16px;
-    background: var(--admin-surface);
+    background: #ffffff;
     border: 1px solid rgba(15, 23, 42, 0.03);
     border-radius: 8px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -652,7 +652,7 @@ export default {
     top: 15%;
     bottom: 15%;
     width: 2.5px;
-    background: var(--admin-primary);
+    background: var(--admin-primary, #10b981);
     border-radius: 0 2px 2px 0;
     opacity: 0;
     transform: scaleY(0.7);
@@ -788,9 +788,9 @@ export default {
 
 /* Card base */
 .card {
-    background: var(--admin-surface);
+    background: #fff;
     border-radius: 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--sg-border);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     padding: 24px;
 }
@@ -815,17 +815,17 @@ export default {
 
 .btn-primary:hover {
     background: #222222;
-    border-color: var(--admin-text);
+    border-color: #222222;
 }
 
 .btn-outline {
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--sg-border);
     background: transparent;
-    color: var(--admin-text);
+    color: var(--sg-text);
 }
 
 .btn-outline:hover {
-    background: var(--admin-surface-muted);
+    background: var(--sg-surface);
 }
 
 /* Modal styling */
@@ -862,7 +862,7 @@ export default {
     font-size: 18px;
     font-weight: 800;
     margin: 0;
-    color: var(--admin-text);
+    color: var(--sg-text);
 }
 
 .btn-close {
@@ -889,7 +889,7 @@ export default {
 .form-group label {
     font-size: 13px;
     font-weight: 700;
-    color: var(--admin-text);
+    color: var(--sg-text);
 }
 
 .required {
@@ -899,15 +899,15 @@ export default {
 .form-control {
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--sg-border);
     font-size: 14px;
-    color: var(--admin-text);
+    color: var(--sg-text);
     outline: none;
     transition: border-color 0.2s ease;
 }
 
 .form-control:focus {
-    border-color: var(--admin-text);
+    border-color: #000000;
 }
 
 .checkbox-group {
@@ -921,13 +921,13 @@ export default {
     cursor: pointer;
     font-weight: 700;
     font-size: 14px;
-    color: var(--admin-text);
+    color: var(--sg-text);
 }
 
 .checkbox-label input {
     width: 18px;
     height: 18px;
-    accent-color: var(--admin-text);
+    accent-color: #000000;
 }
 
 .modal-footer {
@@ -936,11 +936,11 @@ export default {
     gap: 12px;
     padding: 20px 24px;
     border-top: 1px solid var(--sg-border);
-    background: var(--admin-surface-muted);
+    background: var(--sg-surface);
 }
 
 .alert-danger {
-    background: var(--admin-surface-muted);
+    background: #f3f4f6;
     color: #ef4444;
     padding: 12px 16px;
     border-radius: 8px;
@@ -962,10 +962,10 @@ export default {
     align-items: center;
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--admin-border);
-    background: var(--admin-surface);
+    border: 1px solid var(--sg-border);
+    background: #fff;
     font-size: 14px;
-    color: var(--admin-text);
+    color: var(--sg-text);
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -990,8 +990,8 @@ export default {
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: var(--admin-surface);
-    border: 1px solid var(--admin-border);
+    background: #fff;
+    border: 1px solid var(--sg-border);
     border-radius: 8px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     z-index: 1010;
@@ -1019,7 +1019,7 @@ export default {
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 14px;
-    color: var(--admin-text);
+    color: var(--sg-text);
     cursor: pointer;
     transition: background 0.15s ease;
 }
@@ -1044,7 +1044,7 @@ export default {
 
 .option-badge-root {
     background: rgba(0, 0, 0, 0.06);
-    color: var(--admin-muted);
+    color: rgba(0, 0, 0, 0.6);
 }
 
 .option-badge-parent {
@@ -1092,10 +1092,10 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--admin-primary);
+    background-color: #10b981;
     color: #fff;
     border: none;
-    box-shadow: 0 4px 12px var(--admin-primary-ring);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
@@ -1129,19 +1129,19 @@ export default {
 
 /* Theme overrides */
 .court-types-container .custom-select-option:hover {
-    background: var(--admin-hover);
+    background: rgba(232, 247, 236, 0.68);
 }
 
 .court-types-container .custom-select-option.active {
-    border-color: var(--admin-border);
-    background: var(--admin-primary-soft);
+    border-color: rgba(47, 158, 68, 0.18);
+    background: rgba(47, 158, 68, 0.12);
     color: var(--admin-primary-dark);
 }
 
 .court-types-container .custom-select-trigger:hover,
 .court-types-container .custom-select-trigger:focus-within {
-    border-color: var(--admin-primary);
-    box-shadow: 0 0 0 3px var(--admin-primary-ring);
+    border-color: rgba(47, 158, 68, 0.62);
+    box-shadow: 0 0 0 3px rgba(47, 158, 68, 0.14);
 }
 
 .court-types-container .btn-add-child,
@@ -1167,7 +1167,7 @@ export default {
     width: 32px;
     height: 32px;
     border: 3px solid rgba(0, 0, 0, 0.05);
-    border-top-color: var(--admin-text);
+    border-top-color: #000000;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }

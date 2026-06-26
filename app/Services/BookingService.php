@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
 use App\Services\Customers\WalkInCustomerService;
+use App\Services\Wallets\SystemWalletService;
 use App\Models\VenueCourt;
 use Carbon\Carbon;
 use Exception;
@@ -28,6 +29,7 @@ class BookingService
 
     public function __construct(
         private readonly WalkInCustomerService $walkInCustomers,
+        private readonly SystemWalletService $systemWallets,
     ) {}
 
     /**
@@ -601,6 +603,8 @@ class BookingService
                 'status_after' => $payment->status,
             ]);
 
+            $this->recordSystemVoucherSubsidyForPayment($payment);
+
             Payment::query()
                 ->where('booking_id', $booking->id)
                 ->where('status', 'pending')
@@ -1010,7 +1014,23 @@ class BookingService
             $this->recordVoucherUsage($voucher, $booking, $customer->id);
         }
 
-        $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash');
+        $payment = $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash');
+
+        if ($payment && $payment->status === 'paid') {
+            $this->recordSystemVoucherSubsidyForPayment($payment);
+        } elseif (
+            ! $payment
+            && $booking->payment_option !== 'no_prepay'
+            && (float) $booking->system_discount_amount > 0
+            && (float) $booking->required_payment_amount <= 0
+        ) {
+            $this->systemWallets->reserveVoucherForBooking((float) $booking->system_discount_amount, $booking->id, null, [
+                'booking_id' => $booking->id,
+                'booking_code' => $booking->booking_code,
+                'source' => 'counter_booking_fully_discounted',
+                'system_discount_amount' => (float) $booking->system_discount_amount,
+            ]);
+        }
 
         return $booking;
     }
@@ -1070,6 +1090,47 @@ class BookingService
         ]);
 
         return $payment;
+    }
+
+    private function recordSystemVoucherSubsidyForPayment(Payment $payment): void
+    {
+        $payment->loadMissing('booking');
+
+        $amount = $this->systemVoucherAmountForPayment($payment);
+
+        if ($amount <= 0) {
+            return;
+        }
+
+        $this->systemWallets->reserveVoucher($amount, $payment->id, null, [
+            'payment_id' => $payment->id,
+            'payment_code' => $payment->payment_code,
+            'booking_id' => $payment->booking_id,
+            'booking_code' => $payment->booking?->booking_code,
+            'source' => 'counter_payment',
+            'customer_paid_amount' => (float) $payment->amount,
+            'system_discount_amount' => (float) ($payment->booking?->system_discount_amount ?? 0),
+        ]);
+    }
+
+    private function systemVoucherAmountForPayment(Payment $payment): float
+    {
+        $booking = $payment->booking;
+        $systemDiscount = (float) ($booking?->system_discount_amount ?? 0);
+
+        if ($systemDiscount <= 0) {
+            return 0;
+        }
+
+        $customerPayable = (float) ($booking?->final_amount ?? $booking?->total_price ?? $payment->amount);
+
+        if ($customerPayable <= 0) {
+            return round($systemDiscount, 2);
+        }
+
+        $ratio = min(max((float) $payment->amount / $customerPayable, 0), 1);
+
+        return round($systemDiscount * $ratio, 2);
     }
 
     private function assertCounterBookingCanCollect(Booking $booking): void
@@ -1812,7 +1873,7 @@ class BookingService
 
     private function activeSlotLockConstraint($query): void
     {
-        $query->where('lock_type', 'manual')
+        $query->whereIn('lock_type', ['manual', 'emergency'])
             ->orWhere(function ($autoQuery): void {
                 $autoQuery->where('lock_type', 'auto')
                     ->where('expires_at', '>', Carbon::now());

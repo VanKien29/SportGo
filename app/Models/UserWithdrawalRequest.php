@@ -23,6 +23,11 @@ class UserWithdrawalRequest extends Model
         'rejected_reason',
         'approved_by',
         'paid_by',
+        'payment_method',
+        'transfer_reference',
+        'paid_note',
+        'payout_transfer_code',
+        'payout_qr_created_at',
         'requested_at',
         'approved_at',
         'paid_at',
@@ -35,6 +40,7 @@ class UserWithdrawalRequest extends Model
             'requested_at' => 'datetime',
             'approved_at' => 'datetime',
             'paid_at' => 'datetime',
+            'payout_qr_created_at' => 'datetime',
         ];
     }
 
@@ -51,6 +57,11 @@ class UserWithdrawalRequest extends Model
     public function payoutAccount()
     {
         return $this->belongsTo(UserPayoutAccount::class, 'payout_account_id');
+    }
+
+    public function receipt()
+    {
+        return $this->morphOne(InternalReceipt::class, 'receiptable');
     }
 
     public function user()

@@ -128,11 +128,11 @@
           <tbody>
             <tr v-for="row in filteredRows" :key="row.id">
               <td>
-                {{ row.court_type?.name || courtTypeName(row.court_type_id) }}
+                <strong>{{ row.court_type?.name || courtTypeName(row.court_type_id) }}</strong>
                 <small v-if="row.note">{{ row.note }}</small>
               </td>
               <td>
-                {{ applicationLabel(row) }}
+                <strong>{{ applicationLabel(row) }}</strong>
                 <small v-if="activeTab !== 'weekly'">{{ activeTabMeta.label }}</small>
               </td>
               <td><span class="time-pill">{{ time(row.start_time) }} - {{ time(row.end_time) }}</span></td>

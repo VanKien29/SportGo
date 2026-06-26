@@ -154,8 +154,8 @@ export default {
 }
 
 .module-tabs .tab-btn:hover:not(.active) {
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f1f5f9;
+  color: #334155;
 }
 
 .module-tabs {
@@ -167,7 +167,7 @@ export default {
   padding: 5px;
   border: 1px solid #dbe3ef;
   border-radius: 10px;
-  background: var(--admin-surface);
+  background: #fff;
 }
 
 .module-tabs .tab-btn {
@@ -178,7 +178,7 @@ export default {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--admin-muted);
+  color: #64748b;
   padding: 8px 12px;
   font: inherit;
   font-size: 13px;
@@ -188,7 +188,7 @@ export default {
 
 .module-tabs .tab-btn.active {
   background: #dcfce7;
-  color: var(--admin-primary);
+  color: #047857;
 }
 
 /* AUTO APPROVE TOGGLE */
@@ -196,10 +196,10 @@ export default {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
   padding: 6px 12px;
   border-radius: 8px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #cbd5e1;
 }
 
 .switch {
@@ -240,10 +240,12 @@ export default {
 }
 
 input:checked + .slider {
-  background-color: var(--admin-primary);
+  background-color: #10b981;
 }
 
-input:focus + .slider { box-shadow: 0 0 1px var(--admin-primary); }
+input:focus + .slider {
+  box-shadow: 0 0 1px #10b981;
+}
 
 input:checked + .slider:before {
   transform: translateX(18px);
@@ -252,6 +254,6 @@ input:checked + .slider:before {
 .switch-label {
   font-size: 13px;
   font-weight: 700;
-  color: var(--admin-text);
+  color: #334155;
 }
 </style>

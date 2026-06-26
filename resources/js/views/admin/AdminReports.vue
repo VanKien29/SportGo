@@ -148,9 +148,9 @@
     <div v-if="showAutoResolveModal" class="detail-backdrop" @click.self="closeAutoResolveModal">
       <div class="modal" style="max-width: 650px; background: #fff; border-radius: 12px; padding: 22px; display: grid; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
         <h3 style="margin: 0;">Cấu hình tự động xử lý báo cáo</h3>
-        <p class="muted" style="margin: 0; color: var(--admin-muted); font-size: 14px;">Thiết lập tự động ẩn nội dung hoặc khóa cụm sân khi đạt ngưỡng báo cáo vi phạm.</p>
+        <p class="muted" style="margin: 0; color: #64748b; font-size: 14px;">Thiết lập tự động ẩn nội dung hoặc khóa cụm sân khi đạt ngưỡng báo cáo vi phạm.</p>
         
-        <div v-if="autoResolveLoading" class="state" style="padding: 20px; text-align: center; color: var(--admin-muted);">Đang tải cấu hình...</div>
+        <div v-if="autoResolveLoading" class="state" style="padding: 20px; text-align: center; color: #64748b;">Đang tải cấu hình...</div>
         <template v-else-if="autoResolveConfigData">
           <!-- Chọn Đối Tượng Tab cấu hình -->
           <div class="auto-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
@@ -160,7 +160,7 @@
               type="button"
               :class="{ active: activeAutoTab === cfg.target_type }"
               @click="activeAutoTab = cfg.target_type"
-              style="border: 0; background: transparent; padding: 8px 12px; font-weight: 800; cursor: pointer; border-bottom: 2px solid transparent; color: var(--admin-muted); font-size: 14px;"
+              style="border: 0; background: transparent; padding: 8px 12px; font-weight: 800; cursor: pointer; border-bottom: 2px solid transparent; color: #64748b; font-size: 14px;"
               :style="activeAutoTab === cfg.target_type ? 'color: #166534; border-bottom-color: #22c55e;' : ''"
             >
               {{ cfg.target_type_label }}
@@ -169,23 +169,23 @@
 
           <div v-if="currentAutoConfig" class="auto-config-body" style="display: grid; gap: 14px;">
             <!-- Thông tin chính sách (chỉ đọc) -->
-            <div style="background: var(--admin-surface-muted); border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
+            <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
               <div style="font-weight: 700; color: #334155; margin-bottom: 10px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.3px;">Ngưỡng từ chính sách</div>
               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: var(--admin-muted); font-size: 0.9rem;">Ngưỡng cảnh báo:</span>
+                  <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng cảnh báo:</span>
                   <strong style="color: #d97706;">{{ currentAutoConfig.warning_threshold }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: var(--admin-muted); font-size: 0.9rem;">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
+                  <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
                   <strong style="color: #dc2626;">{{ currentAutoConfig.action_threshold }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: var(--admin-muted); font-size: 0.9rem;">Số người báo cáo khác nhau:</span>
+                  <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo khác nhau:</span>
                   <strong style="color: #2563eb;">{{ currentAutoConfig.unique_reporters_threshold }} người</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: var(--admin-muted); font-size: 0.9rem;">Thời gian theo dõi:</span>
+                  <span style="color: #64748b; font-size: 0.9rem;">Thời gian theo dõi:</span>
                   <strong style="color: #334155;">{{ currentAutoConfig.window_days }} ngày</strong>
                 </div>
               </div>
@@ -200,7 +200,7 @@
                   class="toggle-slider" 
                   :class="{ on: currentAutoConfig.is_auto_resolve_enabled }" 
                   @click="currentAutoConfig.is_auto_resolve_enabled = !currentAutoConfig.is_auto_resolve_enabled"
-                  style="width: 48px; height: 26px; border-radius: 13px; background: var(--admin-border); cursor: pointer; transition: background 0.2s; position: relative;"
+                  style="width: 48px; height: 26px; border-radius: 13px; background: #e2e8f0; cursor: pointer; transition: background 0.2s; position: relative;"
                   :style="currentAutoConfig.is_auto_resolve_enabled ? 'background: #16a34a;' : ''"
                 >
                   <div 
@@ -211,7 +211,7 @@
               </div>
               <div v-if="currentAutoConfig.is_auto_resolve_enabled" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
                 <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 800; font-size: 13px; color: #334155;">
-                  <span style="color: var(--admin-muted);">Lý do xử lý tự động:</span>
+                  <span style="color: #64748b;">Lý do xử lý tự động:</span>
                   <input type="text" v-model="currentAutoConfig.reason" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 500;" placeholder="Ví dụ: Vi phạm tiêu chuẩn cộng đồng" />
                 </label>
               </div>
@@ -226,15 +226,15 @@
           </div>
           
           <div style="text-align: center; margin-top: 8px;">
-            <router-link v-if="autoResolveConfigData.policy_id" :to="`/admin/policies/${autoResolveConfigData.policy_id}`" class="btn secondary" style="text-decoration: none; display: inline-block; font-size: 0.85rem; padding: 8px 12px; font-weight: 800; border-radius: 6px; background: var(--admin-surface-muted); color: #334155;">
+            <router-link v-if="autoResolveConfigData.policy_id" :to="`/admin/policies/${autoResolveConfigData.policy_id}`" class="btn secondary" style="text-decoration: none; display: inline-block; font-size: 0.85rem; padding: 8px 12px; font-weight: 800; border-radius: 6px; background: #f1f5f9; color: #334155;">
               Chỉnh ngưỡng tại Chính sách hệ thống →
             </router-link>
           </div>
         </template>
 
         <footer style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
-          <button type="button" class="btn secondary" @click="closeAutoResolveModal" style="border: 0; background: var(--admin-surface-muted); color: #334155; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;">Hủy</button>
-          <button type="button" class="btn primary" style="background: var(--admin-primary); color: var(--admin-bg); border: 0; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;" @click="saveAutoResolveConfig" :disabled="autoResolveSaving">Lưu cấu hình</button>
+          <button type="button" class="btn secondary" @click="closeAutoResolveModal" style="border: 0; background: #f1f5f9; color: #334155; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;">Hủy</button>
+          <button type="button" class="btn primary" style="background: #10b981; color: white; border: 0; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;" @click="saveAutoResolveConfig" :disabled="autoResolveSaving">Lưu cấu hình</button>
         </footer>
       </div>
     </div>
