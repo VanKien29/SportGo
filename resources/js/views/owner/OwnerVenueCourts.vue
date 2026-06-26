@@ -2326,7 +2326,7 @@ export default {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: var(--admin-primary, #000000);
+    color: #16a34a;
     font-size: 12.5px;
     font-weight: 600;
 }
@@ -2714,8 +2714,8 @@ export default {
 }
 
 .badge-placed {
-    background: var(--admin-primary-soft, #f3f4f6);
-    color: var(--admin-primary, #000000);
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 11px;

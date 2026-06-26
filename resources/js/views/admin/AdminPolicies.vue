@@ -480,8 +480,8 @@ select:focus,
 textarea:focus,
 .search-box:focus-within {
   outline: none;
-  border-color: var(--admin-primary);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
 }
 
 .search-box:focus-within input {

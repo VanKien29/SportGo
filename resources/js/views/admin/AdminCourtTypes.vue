@@ -1129,19 +1129,19 @@ export default {
 
 /* Theme overrides */
 .court-types-container .custom-select-option:hover {
-    background: var(--admin-hover);
+    background: rgba(232, 247, 236, 0.68);
 }
 
 .court-types-container .custom-select-option.active {
-    border-color: var(--admin-border);
-    background: var(--admin-primary-soft);
+    border-color: rgba(47, 158, 68, 0.18);
+    background: rgba(47, 158, 68, 0.12);
     color: var(--admin-primary-dark);
 }
 
 .court-types-container .custom-select-trigger:hover,
 .court-types-container .custom-select-trigger:focus-within {
-    border-color: var(--admin-primary);
-    box-shadow: 0 0 0 3px var(--admin-primary-ring);
+    border-color: rgba(47, 158, 68, 0.62);
+    box-shadow: 0 0 0 3px rgba(47, 158, 68, 0.14);
 }
 
 .court-types-container .btn-add-child,

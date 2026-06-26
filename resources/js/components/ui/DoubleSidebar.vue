@@ -1,5 +1,5 @@
 <template>
-  <aside class="double-sidebar sidebar" aria-label="Main Navigation">
+  <aside class="double-sidebar" aria-label="Main Navigation">
     <!-- Left Column: Icon Navigation -->
     <div class="sidebar-left">
       <div class="logo-container" @click="handleBrandClick">
@@ -360,7 +360,6 @@ export default {
 <style scoped>
 .double-sidebar {
   display: flex;
-  flex-direction: row !important;
   height: 100vh;
   min-height: 100vh;
   position: sticky;
@@ -429,7 +428,7 @@ export default {
   border-radius: 10px;
   background: transparent;
   border: none;
-  color: #a1a1aa;
+  color: #71717a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -440,13 +439,13 @@ export default {
 }
 
 .left-nav-item:hover {
-  background-color: #27272a;
+  background-color: #18181b;
   color: #ffffff;
 }
 
 .left-nav-item.active {
-  background-color: #ffffff;
-  color: #000000;
+  background-color: #27272a;
+  color: #ffffff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
@@ -468,14 +467,14 @@ export default {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #ffffff;
-  color: #000000;
+  background: linear-gradient(135deg, #10b981, #3b82f6);
+  color: #ffffff;
   font-weight: 700;
   font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Sidebar Tooltip */
@@ -556,7 +555,7 @@ export default {
 }
 
 .chevron-decor {
-  color: #71717a;
+  color: #3f3f46;
 }
 
 .search-box-container {
@@ -577,11 +576,11 @@ export default {
 }
 
 .search-box:focus-within {
-  border-color: #a1a1aa;
+  border-color: #52525b;
 }
 
 .search-icon {
-  color: #a1a1aa;
+  color: #52525b;
   margin-right: 8px;
 }
 
@@ -596,13 +595,13 @@ export default {
 }
 
 .search-input::placeholder {
-  color: #71717a;
+  color: #52525b;
 }
 
 .search-clear {
   background: transparent;
   border: none;
-  color: #a1a1aa;
+  color: #52525b;
   padding: 4px;
   cursor: pointer;
   display: flex;
@@ -642,7 +641,7 @@ export default {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  color: #a1a1aa;
+  color: #52525b;
   margin: 0 0 8px 8px;
   letter-spacing: 0.5px;
 }
@@ -658,7 +657,7 @@ export default {
   align-items: center;
   padding: 9px 12px;
   border-radius: 8px;
-  color: #e4e4e7;
+  color: #a1a1aa;
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
@@ -667,7 +666,7 @@ export default {
 }
 
 .dsb-nav-item:hover {
-  background-color: #1f1f22;
+  background-color: #141416;
   color: #ffffff;
 }
 
@@ -686,7 +685,7 @@ export default {
 }
 
 .item-icon {
-  color: #a1a1aa;
+  color: #52525b;
   margin-right: 10px;
   transition: color 0.15s ease;
 }
@@ -699,7 +698,7 @@ export default {
 }
 
 .chevron-down-decor {
-  color: #71717a;
+  color: #3f3f46;
   opacity: 0;
   transition: opacity 0.15s ease;
 }
@@ -742,8 +741,8 @@ export default {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #ffffff;
-  color: #000000;
+  background: linear-gradient(135deg, #10b981, #3b82f6);
+  color: #ffffff;
   font-weight: 700;
   font-size: 13px;
   display: flex;
@@ -768,7 +767,7 @@ export default {
 }
 
 .user-display-role {
-  color: #a1a1aa;
+  color: #52525b;
   font-size: 11px;
   font-weight: 500;
   margin-top: 2px;
@@ -777,7 +776,7 @@ export default {
 .more-menu-btn {
   background: transparent;
   border: none;
-  color: #a1a1aa;
+  color: #52525b;
   cursor: pointer;
   padding: 4px;
   display: flex;

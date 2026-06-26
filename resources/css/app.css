@@ -36,7 +36,7 @@
 .dark input::selection,
 .modal-overlay input::selection {
     color: #fff;
-    background: rgba(255, 255, 255, .3);
+    background: rgba(34, 197, 94, .35);
 }
 
 .auth-layout input:-webkit-autofill,

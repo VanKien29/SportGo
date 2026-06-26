@@ -64,12 +64,12 @@ export default {
 
 .action-icon-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+  box-shadow: 0 0 0 3px rgba(47, 158, 68, .18);
 }
 
 .action-icon-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 18px rgba(47, 158, 68, 0.08);
 }
 
 .variant-primary {
@@ -85,7 +85,7 @@ export default {
 }
 
 .variant-secondary:hover:not(:disabled) {
-  border-color: var(--admin-border);
+  border-color: rgba(47, 158, 68, 0.3);
   background: var(--admin-hover);
   color: var(--admin-primary-dark);
 }
