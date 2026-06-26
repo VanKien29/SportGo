@@ -37,6 +37,7 @@
             <th>Đã dùng</th>
             <th>Hiệu lực</th>
             <th>Trạng thái</th>
+            <th>Phạm vi</th>
             <th class="actions-col">Thao tác</th>
           </tr>
         </thead>
@@ -51,6 +52,7 @@
             <td>{{ voucher.used_quantity }}</td>
             <td>{{ date(voucher.valid_from) }} - {{ date(voucher.valid_to) }}</td>
             <td><span class="badge" :class="voucher.status">{{ voucher.status_label }}</span></td>
+            <td>{{ voucher.scope_label || 'Toàn hệ thống' }}</td>
             <td class="actions-col">
               <TableActionGroup>
                 <ActionIconButton icon="pencil" label="Sửa voucher" @click="openForm(voucher)" />
@@ -91,30 +93,42 @@
         </div>
         <label>Mô tả<textarea v-model.trim="form.description" rows="3"></textarea></label>
         <div class="scope-editor">
-          <label>Pháº¡m vi
+          <label>Phạm vi
             <select v-model="form.scopes[0].scope_type" @change="resetScopeId">
-              <option value="all">ToÃ n há»‡ thá»‘ng</option>
-              <option value="venue_cluster">Cá»¥m sÃ¢n</option>
-              <option value="court_type">Loáº¡i sÃ¢n</option>
-              <option value="booking_type">HÃ¬nh thá»©c booking</option>
-              <option value="membership_tier">Háº¡ng thÃ nh viÃªn</option>
+              <option value="all">Toàn hệ thống</option>
+              <option value="venue_cluster">Cụm sân</option>
+              <option value="court_type">Loại sân</option>
+              <option value="booking_type">Hình thức booking</option>
+              <option value="membership_tier">Hạng thành viên sân</option>
+              <option value="vip_package">Gói VIP hệ thống</option>
             </select>
           </label>
-          <label v-if="form.scopes[0].scope_type === 'membership_tier'">Háº¡ng Ã¡p dá»¥ng
-            <select v-model="form.scopes[0].scope_id">
-              <option value="standard">ThÆ°á»ng</option>
-              <option value="silver">Báº¡c</option>
-              <option value="gold">VÃ ng</option>
-              <option value="diamond">Kim cÆ°Æ¡ng</option>
+          <label v-if="form.scopes[0].scope_type === 'venue_cluster'">Cụm sân áp dụng
+            <select v-model="form.scopes[0].scope_id" required>
+              <option v-for="item in scopeOptions.venue_clusters" :key="item.id" :value="item.id">{{ item.name }}</option>
             </select>
           </label>
-          <label v-else-if="form.scopes[0].scope_type === 'booking_type'">Loáº¡i booking
-            <select v-model="form.scopes[0].scope_id">
-              <option value="single">ÄÆ¡n láº»</option>
-              <option value="recurring">Lá»‹ch cá»‘ Ä‘á»‹nh</option>
+          <label v-else-if="form.scopes[0].scope_type === 'court_type'">Loại sân áp dụng
+            <select v-model="form.scopes[0].scope_id" required>
+              <option v-for="item in scopeOptions.court_types" :key="item.id" :value="String(item.id)">{{ item.name }}</option>
             </select>
           </label>
-          <label v-else-if="form.scopes[0].scope_type !== 'all'">MÃ£ pháº¡m vi<input v-model.trim="form.scopes[0].scope_id" required /></label>
+          <label v-else-if="form.scopes[0].scope_type === 'membership_tier'">Hạng sân áp dụng
+            <select v-model="form.scopes[0].scope_id" required>
+              <option v-for="item in scopeOptions.membership_tiers" :key="item.id" :value="item.id">{{ item.name }}</option>
+            </select>
+          </label>
+          <label v-else-if="form.scopes[0].scope_type === 'vip_package'">Gói VIP áp dụng
+            <select v-model="form.scopes[0].scope_id" required>
+              <option v-for="item in scopeOptions.vip_packages" :key="item.id" :value="item.id">{{ item.name }}</option>
+            </select>
+          </label>
+          <label v-else-if="form.scopes[0].scope_type === 'booking_type'">Loại booking
+            <select v-model="form.scopes[0].scope_id" required>
+              <option v-for="item in scopeOptions.booking_types" :key="item.id" :value="item.id">{{ item.name }}</option>
+            </select>
+          </label>
+          <p class="scope-hint">{{ scopeHint }}</p>
         </div>
         <footer>
           <button class="btn secondary" type="button" @click="closeForm">Hủy</button>
@@ -151,6 +165,7 @@ export default {
       error: '',
       success: '',
       form: this.emptyForm(),
+      scopeOptions: this.emptyScopeOptions(),
       showScrollTop: false,
     };
   },
@@ -180,11 +195,32 @@ export default {
         scopes: [{ scope_type: 'all', scope_id: null }],
       };
     },
+    emptyScopeOptions() {
+      return {
+        venue_clusters: [],
+        court_types: [],
+        membership_tiers: [
+          { id: 'standard', name: 'Thường' },
+          { id: 'silver', name: 'Bạc' },
+          { id: 'gold', name: 'Vàng' },
+          { id: 'diamond', name: 'Kim cương' },
+        ],
+        vip_packages: [
+          { id: 'saving', name: 'Tiết kiệm' },
+          { id: 'pro', name: 'Pro' },
+        ],
+        booking_types: [
+          { id: 'single', name: 'Đơn lẻ' },
+          { id: 'recurring', name: 'Lịch cố định' },
+        ],
+      };
+    },
     async load() {
       this.loading = true;
       try {
         const response = await adminVoucherService.list(this.filters);
         this.vouchers = response.data || [];
+        this.scopeOptions = { ...this.emptyScopeOptions(), ...(response.meta?.scope_options || {}) };
       } catch (error) {
         this.error = error.message || 'Không thể tải voucher hệ thống.';
       } finally {
@@ -192,8 +228,22 @@ export default {
       }
     },
     openForm(voucher = null) {
-      this.form = voucher ? { ...voucher, valid_from: this.inputDate(voucher.valid_from), valid_to: this.inputDate(voucher.valid_to) } : this.emptyForm();
+      this.form = voucher ? this.formFromVoucher(voucher) : this.emptyForm();
+      this.ensureScopeValue();
       this.showModal = true;
+    },
+    formFromVoucher(voucher) {
+      const scope = (voucher.scopes || [])[0] || { scope_type: 'all', scope_id: null };
+      return {
+        ...this.emptyForm(),
+        ...voucher,
+        valid_from: this.inputDate(voucher.valid_from),
+        valid_to: this.inputDate(voucher.valid_to),
+        scopes: [{
+          scope_type: scope.scope_type || 'all',
+          scope_id: scope.scope_id !== null && scope.scope_id !== undefined ? String(scope.scope_id) : null,
+        }],
+      };
     },
     closeForm() {
       this.showModal = false;
@@ -222,6 +272,50 @@ export default {
     discountText(voucher) {
       return voucher.discount_type === 'percent' ? `${Number(voucher.discount_value)}%` : this.money(voucher.discount_value);
     },
+    resetScopeId() {
+      this.form.scopes[0].scope_id = null;
+      this.ensureScopeValue();
+    },
+    ensureScopeValue() {
+      const scope = this.form.scopes[0];
+      if (scope.scope_type === 'all') {
+        scope.scope_id = null;
+        return;
+      }
+
+      const optionMap = {
+        venue_cluster: 'venue_clusters',
+        court_type: 'court_types',
+        membership_tier: 'membership_tiers',
+        vip_package: 'vip_packages',
+        booking_type: 'booking_types',
+      };
+      const options = this.scopeOptions[optionMap[scope.scope_type]] || [];
+      if (!scope.scope_id && options.length) {
+        scope.scope_id = String(options[0].id);
+      }
+    },
+    scopeOptionName(type, id) {
+      const optionMap = {
+        venue_cluster: 'venue_clusters',
+        court_type: 'court_types',
+        membership_tier: 'membership_tiers',
+        vip_package: 'vip_packages',
+        booking_type: 'booking_types',
+      };
+      const item = (this.scopeOptions[optionMap[type]] || []).find((option) => String(option.id) === String(id));
+      return item?.name || id || '';
+    },
+    scopeTypeName(type) {
+      return {
+        all: 'toàn hệ thống',
+        venue_cluster: 'cụm sân',
+        court_type: 'loại sân',
+        booking_type: 'hình thức booking',
+        membership_tier: 'hạng thành viên sân',
+        vip_package: 'gói VIP hệ thống',
+      }[type] || 'phạm vi đã chọn';
+    },
     money(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
     },
@@ -237,9 +331,20 @@ export default {
       this.showScrollTop = window.scrollY > 250;
     },
   },
+  computed: {
+    scopeHint() {
+      const scope = this.form.scopes[0] || { scope_type: 'all', scope_id: null };
+      if (scope.scope_type === 'all') {
+        return 'Voucher áp dụng cho mọi booking đủ điều kiện thời gian, số lượng và giá trị đơn tối thiểu.';
+      }
+
+      const name = this.scopeOptionName(scope.scope_type, scope.scope_id);
+      return `Voucher chỉ áp dụng cho ${this.scopeTypeName(scope.scope_type)}${name ? `: ${name}` : ''}.`;
+    },
+  },
 };
 </script>
 
 <style scoped>
-.page{display:grid;gap:16px}.filters{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.filters{justify-content:flex-start;align-items:center}.filters input,.filters select{border:1px solid #dbe3ef;border-radius:8px;padding:10px;font:inherit}.notice{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:10px;padding:12px;font-weight:800}.table-card,.modal{background:#fff;border:1px solid #e2e8f0;border-radius:12px}.table-card{overflow:auto}table{width:100%;border-collapse:collapse;min-width:1040px}th,td{padding:12px;border-bottom:1px solid #e2e8f0;text-align:left}.state{padding:24px;color:#64748b}.btn,.mini-btn{border:0;border-radius:8px;font-weight:800;cursor:pointer}.btn{padding:10px 14px}.mini-btn{padding:7px 10px;margin-right:6px;background:#f1f5f9}.primary{background:#16a34a;color:#fff}.secondary{background:#f1f5f9;color:#0f172a}.danger{background:#fee2e2;color:#b91c1c}.badge{border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;background:#e2e8f0}.badge.active{background:#dcfce7;color:#166534}.badge.inactive,.badge.expired{background:#fee2e2;color:#b91c1c}.badge.draft{background:#f1f5f9;color:#475569}.alert{padding:12px;border-radius:10px;font-weight:700}.error{background:#fee2e2;color:#b91c1c}.success{background:#dcfce7;color:#166534}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.56);display:grid;place-items:center;z-index:500;padding:20px}.modal{width:min(760px,calc(100vw - 32px));padding:22px;display:grid;gap:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:6px;font-weight:800}input,select,textarea{border:1px solid #dbe3ef;border-radius:8px;padding:10px;font:inherit}footer{display:flex;justify-content:flex-end;gap:10px}@media(max-width:720px){.grid,.filters{grid-template-columns:1fr;flex-direction:column;align-items:stretch}}
+.page{display:grid;gap:16px}.filters{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.filters{justify-content:flex-start;align-items:center}.filters input,.filters select{border:1px solid #dbe3ef;border-radius:8px;padding:10px;font:inherit}.notice{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:10px;padding:12px;font-weight:800}.table-card,.modal{background:#fff;border:1px solid #e2e8f0;border-radius:12px}.table-card{overflow:auto}table{width:100%;border-collapse:collapse;min-width:1120px}th,td{padding:12px;border-bottom:1px solid #e2e8f0;text-align:left}.state{padding:24px;color:#64748b}.btn,.mini-btn{border:0;border-radius:8px;font-weight:800;cursor:pointer}.btn{padding:10px 14px}.mini-btn{padding:7px 10px;margin-right:6px;background:#f1f5f9}.primary{background:#16a34a;color:#fff}.secondary{background:#f1f5f9;color:#0f172a}.danger{background:#fee2e2;color:#b91c1c}.badge{border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;background:#e2e8f0}.badge.active{background:#dcfce7;color:#166534}.badge.inactive,.badge.expired{background:#fee2e2;color:#b91c1c}.badge.draft{background:#f1f5f9;color:#475569}.alert{padding:12px;border-radius:10px;font-weight:700}.error{background:#fee2e2;color:#b91c1c}.success{background:#dcfce7;color:#166534}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.56);display:grid;place-items:center;z-index:500;padding:20px}.modal{width:min(760px,calc(100vw - 32px));padding:22px;display:grid;gap:16px}.grid,.scope-editor{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:6px;font-weight:800}.scope-hint{grid-column:1/-1;margin:0;color:#64748b;font-size:13px;font-weight:700}input,select,textarea{border:1px solid #dbe3ef;border-radius:8px;padding:10px;font:inherit}footer{display:flex;justify-content:flex-end;gap:10px}@media(max-width:720px){.grid,.scope-editor,.filters{grid-template-columns:1fr;flex-direction:column;align-items:stretch}}
 </style>

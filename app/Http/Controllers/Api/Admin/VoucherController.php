@@ -45,6 +45,7 @@ class VoucherController extends Controller
                 'last_page' => $paginator->lastPage(),
                 'per_page' => $paginator->perPage(),
                 'total' => $paginator->total(),
+                'scope_options' => $this->scopeOptions(),
             ],
         ]);
     }
@@ -212,7 +213,7 @@ class VoucherController extends Controller
             'valid_to' => ['required', 'date', 'after:valid_from'],
             'status' => ['required', Rule::in(['draft', 'active', 'inactive', 'expired'])],
             'scopes' => ['array'],
-            'scopes.*.scope_type' => ['required_with:scopes', Rule::in(['all', 'venue_cluster', 'court_type', 'booking_type', 'membership_tier'])],
+            'scopes.*.scope_type' => ['required_with:scopes', Rule::in(['all', 'venue_cluster', 'court_type', 'booking_type', 'membership_tier', 'vip_package'])],
             'scopes.*.scope_id' => ['nullable', 'string', 'max:100'],
         ]);
 
@@ -248,6 +249,24 @@ class VoucherController extends Controller
             if ($scopeType === 'membership_tier' && ! in_array($scopeId, ['standard', 'silver', 'gold', 'diamond'], true)) {
                 throw ValidationException::withMessages([
                     'scopes' => 'Hạng thành viên của voucher không hợp lệ.',
+                ]);
+            }
+
+            if ($scopeType === 'vip_package' && ! in_array($scopeId, ['saving', 'pro'], true)) {
+                throw ValidationException::withMessages([
+                    'scopes' => 'Goi VIP cua voucher khong hop le.',
+                ]);
+            }
+
+            if ($scopeType === 'venue_cluster' && ! DB::table('venue_clusters')->where('id', $scopeId)->exists()) {
+                throw ValidationException::withMessages([
+                    'scopes' => 'Cum san cua voucher khong hop le.',
+                ]);
+            }
+
+            if ($scopeType === 'court_type' && ! DB::table('court_types')->where('id', $scopeId)->exists()) {
+                throw ValidationException::withMessages([
+                    'scopes' => 'Loai san cua voucher khong hop le.',
                 ]);
             }
 
@@ -541,6 +560,8 @@ class VoucherController extends Controller
             'venue_cluster' => 'Cụm sân',
             'court_type' => 'Loại sân',
             'booking_type' => 'Loại booking',
+            'membership_tier' => 'Hạng thành viên sân',
+            'vip_package' => 'Gói VIP hệ thống',
         ][$type] ?? 'Phạm vi khác';
     }
 
@@ -554,6 +575,18 @@ class VoucherController extends Controller
             return 'Hạng thành viên: ' . $this->membershipTierLabel($scope->scope_id);
         }
 
+        if ($scope->scope_type === 'vip_package') {
+            return 'Gói VIP: ' . $this->vipPackageLabel($scope->scope_id);
+        }
+
+        if ($scope->scope_type === 'venue_cluster') {
+            return 'Cụm sân: ' . ($this->lookupName('venue_clusters', $scope->scope_id) ?: $scope->scope_id);
+        }
+
+        if ($scope->scope_type === 'court_type') {
+            return 'Loại sân: ' . ($this->lookupName('court_types', $scope->scope_id) ?: $scope->scope_id);
+        }
+
         return $this->scopeTypeLabel($scope->scope_type) . ($scope->scope_id ? ': ' . $scope->scope_id : '');
     }
 
@@ -565,6 +598,57 @@ class VoucherController extends Controller
             'gold' => 'Vàng',
             'diamond' => 'Kim cương',
         ][$tier] ?? (string) $tier;
+    }
+
+    private function vipPackageLabel(?string $type): string
+    {
+        return [
+            'saving' => 'Tiết kiệm',
+            'pro' => 'Pro',
+        ][$type] ?? (string) $type;
+    }
+
+    private function lookupName(string $table, ?string $id): ?string
+    {
+        if (! $id || ! Schema::hasTable($table)) {
+            return null;
+        }
+
+        return DB::table($table)->where('id', $id)->value('name');
+    }
+
+    private function scopeOptions(): array
+    {
+        return [
+            'venue_clusters' => Schema::hasTable('venue_clusters')
+                ? DB::table('venue_clusters')
+                    ->select(['id', 'name'])
+                    ->where('status', 'active')
+                    ->orderBy('name')
+                    ->get()
+                : [],
+            'court_types' => Schema::hasTable('court_types')
+                ? DB::table('court_types')
+                    ->select(['id', 'name'])
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get()
+                : [],
+            'membership_tiers' => [
+                ['id' => 'standard', 'name' => 'Thường'],
+                ['id' => 'silver', 'name' => 'Bạc'],
+                ['id' => 'gold', 'name' => 'Vàng'],
+                ['id' => 'diamond', 'name' => 'Kim cương'],
+            ],
+            'vip_packages' => [
+                ['id' => 'saving', 'name' => 'Tiết kiệm'],
+                ['id' => 'pro', 'name' => 'Pro'],
+            ],
+            'booking_types' => [
+                ['id' => 'single', 'name' => 'Đơn lẻ'],
+                ['id' => 'recurring', 'name' => 'Lịch cố định'],
+            ],
+        ];
     }
 
     private function usageStatusLabel(?string $status): string
