@@ -209,6 +209,8 @@ class VenueController extends Controller
             'ward' => $cluster->ward,
             'address' => $cluster->address,
             'status' => $cluster->status,
+            'latitude' => $cluster->latitude,
+            'longitude' => $cluster->longitude,
             'rating_avg' => (float) $cluster->rating_avg,
             'rating_count' => (int) $cluster->rating_count,
             'court_count' => $cluster->venueCourts->count(),

@@ -1,6 +1,6 @@
 <template>
     <div class="booking-container">
-        <PublicNavbar />
+        <PublicNavbar theme="dark" />
 
         <main class="booking-main">
             <div class="booking-grid" v-if="!loadingInit">
@@ -539,9 +539,26 @@ export default {
         try {
             const res = await bookingService.getInitData();
             this.clusters = res.clusters || [];
-            if (this.clusters.length > 0) {
+            
+            const queryCluster = this.$route.query.cluster;
+            const queryDate = this.$route.query.date;
+            const queryCourtType = this.$route.query.court_type;
+
+            if (queryDate) {
+                this.bookingDate = queryDate;
+            }
+
+            if (queryCluster && this.clusters.some(c => String(c.id) === String(queryCluster))) {
+                this.selectedClusterId = Number(queryCluster);
+            } else if (this.clusters.length > 0) {
                 this.selectedClusterId = this.clusters[0].id;
-                this.onClusterChange();
+            }
+
+            if (this.selectedClusterId) {
+                if (queryCourtType) {
+                    this.selectedScheduleCourtTypeId = String(queryCourtType);
+                }
+                this.onClusterChange(!!queryCourtType);
             }
         } catch (err) {
             console.error(err);
@@ -550,9 +567,11 @@ export default {
         }
     },
     methods: {
-        onClusterChange() {
+        onClusterChange(keepCourtType = false) {
             this.selectedCourtId = "";
-            this.selectedScheduleCourtTypeId = "";
+            if (!keepCourtType) {
+                this.selectedScheduleCourtTypeId = "";
+            }
             this.isAvailable = false;
             this.availabilityChecked = false;
             this.clearGridSelection();
@@ -804,7 +823,8 @@ export default {
 <style scoped>
 .booking-container {
     min-height: 100vh;
-    background: var(--sg-surface);
+    background: #09090b;
+    color: #ffffff;
     overflow-x: hidden;
 }
 
@@ -821,13 +841,13 @@ export default {
 .page-title {
     font-size: 32px;
     font-weight: 800;
-    color: var(--sg-dark);
+    color: #ffffff;
     letter-spacing: -0.5px;
 }
 
 .page-desc {
     font-size: 15px;
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
     margin-top: 8px;
 }
 
@@ -844,12 +864,12 @@ export default {
 }
 
 .card {
-    background: var(--sg-white);
+    background: rgba(255, 255, 255, 0.03);
     border-radius: var(--sg-radius);
-    border: 1px solid var(--sg-border);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     padding: 18px;
     margin-bottom: 18px;
-    box-shadow: var(--sg-shadow);
+    box-shadow: none;
 }
 
 .card-header {
@@ -863,8 +883,8 @@ export default {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: var(--sg-green);
-    color: #fff;
+    background: #ffffff;
+    color: #09090b;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -875,7 +895,7 @@ export default {
 .card-header h2 {
     font-size: 18px;
     font-weight: 700;
-    color: var(--sg-dark);
+    color: #ffffff;
 }
 
 .form-group {
@@ -886,7 +906,7 @@ export default {
     display: block;
     font-size: 13px;
     font-weight: 600;
-    color: var(--sg-text);
+    color: rgba(255, 255, 255, 0.6);
     margin-bottom: 6px;
 }
 
@@ -894,18 +914,23 @@ export default {
     width: 100%;
     height: 42px;
     border-radius: var(--sg-radius-sm);
-    border: 1px solid var(--sg-border);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     padding: 0 14px;
     font-size: 14px;
-    color: var(--sg-text);
-    background: var(--sg-white);
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.04);
     transition: var(--sg-transition);
 }
 
 .form-control:focus {
     outline: none;
-    border-color: var(--sg-green);
-    box-shadow: 0 0 0 3px var(--sg-green-pale);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: none;
+}
+
+.form-control option {
+    background: #18181b;
+    color: #ffffff;
 }
 
 .time-range-group {
@@ -947,7 +972,7 @@ export default {
 .schedule-filter label {
     display: block;
     margin-bottom: 6px;
-    color: var(--sg-text);
+    color: #ffffff;
     font-size: 12px;
     font-weight: 700;
 }
@@ -959,7 +984,7 @@ export default {
     margin-bottom: 14px;
     padding: 12px;
     border-radius: var(--sg-radius-sm);
-    background: var(--sg-surface);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .schedule-legend {
@@ -968,7 +993,7 @@ export default {
     gap: 14px;
     flex-wrap: wrap;
     margin-bottom: 14px;
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
     font-size: 12px;
 }
 
@@ -984,42 +1009,42 @@ export default {
     height: 14px;
     display: inline-block;
     border-radius: 4px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .legend-free {
-    background: #fff;
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .legend-busy {
-    background: #e5e7eb;
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .legend-selected {
-    background: var(--sg-green);
+    background: #ffffff;
 }
 
 .schedule-state {
     padding: 28px 16px;
     border-radius: var(--sg-radius-sm);
-    background: var(--sg-surface);
-    color: var(--sg-text-muted);
+    background: rgba(255, 255, 255, 0.02);
+    color: rgba(255, 255, 255, 0.4);
     font-size: 13px;
     font-weight: 700;
     text-align: center;
 }
 
 .schedule-state.error {
-    background: #fef2f2;
+    background: rgba(239, 68, 68, 0.05);
     color: var(--sg-danger);
 }
 
 .schedule-wrap {
     overflow: auto;
     max-width: 100%;
-    border: 1px solid var(--sg-border);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--sg-radius-sm);
-    background: #fff;
+    background: rgba(255, 255, 255, 0.02);
     overscroll-behavior-x: contain;
 }
 
@@ -1032,16 +1057,16 @@ export default {
 .schedule-court,
 .schedule-cell {
     min-height: 32px;
-    border-right: 1px solid var(--sg-border);
-    border-bottom: 1px solid var(--sg-border);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .schedule-head {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f8fafc;
-    color: #334155;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.6);
     font-size: 10px;
     font-weight: 800;
 }
@@ -1062,43 +1087,43 @@ export default {
     justify-content: center;
     gap: 2px;
     padding: 6px 8px;
-    background: #fff;
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .schedule-court strong {
-    color: var(--sg-dark);
+    color: #ffffff;
     font-size: 11px;
     font-weight: 800;
 }
 
 .schedule-court span {
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
     font-size: 10px;
     white-space: nowrap;
 }
 
 .schedule-cell {
     width: 36px;
-    min-width: 36px;
-    background: #fff;
-    transition:
-        background 0.16s ease,
-        box-shadow 0.16s ease;
+    background: rgba(255, 255, 255, 0.03);
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    transition: background 0.15s;
 }
 
-.schedule-cell:not(:disabled):hover {
-    background: #dcfce7;
-    box-shadow: inset 0 0 0 2px var(--sg-green);
+.schedule-cell:hover:not(.busy) {
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .schedule-cell.busy {
-    background: #e5e7eb;
+    background: rgba(255, 255, 255, 0.08);
     cursor: not-allowed;
 }
 
 .schedule-cell.selected {
-    background: var(--sg-green);
-    box-shadow: inset 0 0 0 2px var(--sg-green-dark);
+    background: #ffffff;
+    box-shadow: inset 0 0 0 2px #ffffff;
 }
 
 .status-badge {
@@ -1112,12 +1137,12 @@ export default {
 }
 
 .status-badge.success {
-    background: var(--sg-green-pale);
-    color: var(--sg-green-dark);
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
 }
 
 .status-badge.danger {
-    background: #fef2f2;
+    background: rgba(239, 68, 68, 0.1);
     color: var(--sg-danger);
 }
 
@@ -1133,19 +1158,20 @@ export default {
     gap: 12px;
     padding: 16px;
     border-radius: var(--sg-radius-sm);
-    border: 1px solid var(--sg-border);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
     cursor: pointer;
     transition: var(--sg-transition);
 }
 
 .payment-option-card:hover {
-    background: var(--sg-surface);
-    border-color: var(--sg-green-light);
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .payment-option-card.active {
-    background: var(--sg-green-pale);
-    border-color: var(--sg-green);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #ffffff;
 }
 
 .option-info {
@@ -1156,12 +1182,12 @@ export default {
 .option-title {
     font-weight: 700;
     font-size: 14px;
-    color: var(--sg-dark);
+    color: #ffffff;
 }
 
 .option-desc {
     font-size: 12px;
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
     margin-top: 4px;
 }
 
@@ -1178,13 +1204,13 @@ export default {
 .summary-card h2 {
     font-size: 18px;
     font-weight: 700;
-    color: var(--sg-dark);
+    color: #ffffff;
     margin-bottom: 16px;
 }
 
 .divider {
     height: 1px;
-    background: var(--sg-border);
+    background: rgba(255, 255, 255, 0.08);
     margin: 16px 0;
 }
 
@@ -1196,12 +1222,12 @@ export default {
 }
 
 .summary-row .label {
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .summary-row .val {
     font-weight: 600;
-    color: var(--sg-dark);
+    color: #ffffff;
 }
 
 .total-row {
@@ -1212,7 +1238,7 @@ export default {
 .total-row .price {
     font-size: 20px;
     font-weight: 800;
-    color: var(--sg-dark);
+    color: #ffffff;
 }
 
 .deposit-row {
@@ -1223,41 +1249,40 @@ export default {
 .deposit-row .required-price {
     font-size: 16px;
     font-weight: 800;
-    color: var(--sg-green-dark);
+    color: #ffffff;
 }
 
 .btn-submit {
     width: 100%;
     height: 48px;
     border-radius: var(--sg-radius);
-    background: var(--sg-green);
-    color: #fff;
+    background: #ffffff;
+    color: #09090b;
     font-weight: 700;
     font-size: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-top: 24px;
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    box-shadow: none;
     transition: var(--sg-transition);
 }
 
 .btn-submit:hover:not(:disabled) {
-    background: var(--sg-green-dark);
+    background: rgba(255, 255, 255, 0.88);
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(34, 197, 94, 0.4);
 }
 
 .btn-submit:disabled {
-    background: var(--sg-border);
-    color: var(--sg-text-muted);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.3);
     box-shadow: none;
     cursor: not-allowed;
 }
 
 .hold-notice {
     font-size: 12px;
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.3);
     margin-top: 14px;
     line-height: 1.5;
     text-align: center;
@@ -1265,13 +1290,12 @@ export default {
 
 .error-msg {
     padding: 10px 14px;
-    background: #fef2f2;
+    background: rgba(239, 68, 68, 0.05);
     border-radius: var(--sg-radius-sm);
     color: var(--sg-danger);
     font-size: 13px;
     font-weight: 500;
     margin-top: 14px;
-    border: 1px solid rgba(239, 68, 68, 0.1);
 }
 
 /* Loading state */
@@ -1281,14 +1305,14 @@ export default {
     align-items: center;
     justify-content: center;
     padding: 80px 0;
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid var(--sg-border);
-    border-top-color: var(--sg-green);
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #ffffff;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin-bottom: 16px;
@@ -1297,8 +1321,8 @@ export default {
 .spinner-small {
     width: 18px;
     height: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: #fff;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-top-color: #000000;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
