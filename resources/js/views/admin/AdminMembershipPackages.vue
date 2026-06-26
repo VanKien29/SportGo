@@ -73,6 +73,7 @@
           </label>
           <label v-if="vipVoucherForm.discount_type === 'percent'">Tiền giảm tối đa<input v-model.number="vipVoucherForm.max_discount_amount" type="number" min="0" step="1000" /></label>
           <label>Đơn tối thiểu<input v-model.number="vipVoucherForm.min_order_amount" type="number" min="0" step="1000" /></label>
+          <label>Giới hạn mỗi khách<input v-model.number="vipVoucherForm.per_user_limit" type="number" min="1" required /></label>
           <label>Bắt đầu<input v-model="vipVoucherForm.valid_from" type="datetime-local" required /></label>
           <label>Kết thúc<input v-model="vipVoucherForm.valid_to" type="datetime-local" required /></label>
           <label>Trạng thái
@@ -105,6 +106,7 @@
               <th>Gói áp dụng</th>
               <th>Giảm</th>
               <th>Đơn tối thiểu</th>
+              <th>Mỗi khách</th>
               <th>Đã dùng</th>
               <th>Hiệu lực</th>
               <th>Trạng thái</th>
@@ -118,6 +120,7 @@
               <td>{{ vipVoucherPackageLabel(voucher) }}</td>
               <td>{{ discountText(voucher) }}</td>
               <td>{{ money(voucher.min_order_amount) }}</td>
+              <td>{{ voucher.per_user_limit || 'Không giới hạn' }}</td>
               <td>{{ voucher.used_quantity }}</td>
               <td>{{ date(voucher.valid_from) }} - {{ date(voucher.valid_to) }}</td>
               <td><span class="badge" :class="voucher.status">{{ voucher.status_label }}</span></td>
@@ -203,6 +206,7 @@ export default {
         discount_value: 10,
         max_discount_amount: null,
         min_order_amount: 0,
+        per_user_limit: 1,
         valid_from: this.toDatetimeLocal(validFrom),
         valid_to: this.toDatetimeLocal(validTo),
         status: 'active',
@@ -304,7 +308,7 @@ export default {
           : null,
         min_order_amount: Number(this.vipVoucherForm.min_order_amount || 0),
         total_quantity: null,
-        per_user_limit: null,
+        per_user_limit: Number(this.vipVoucherForm.per_user_limit || 1),
         valid_from: this.vipVoucherForm.valid_from,
         valid_to: this.vipVoucherForm.valid_to,
         status: this.vipVoucherForm.status,
