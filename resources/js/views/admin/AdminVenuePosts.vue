@@ -287,6 +287,7 @@
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import { adminVenuePostService } from '../../services/adminVenuePostService.js';
+import { normalizeMediaUrl } from '../../utils/mediaUrl.js';
 
 export default {
   name: 'AdminVenuePosts',
@@ -468,7 +469,7 @@ export default {
     getThumbnail(post) {
       if (!post.media?.length) return '';
       const thumb = post.media.find((m) => m.collection === 'thumbnail') || post.media[0];
-      return this.normalizeMediaUrl(thumb);
+      return normalizeMediaUrl(thumb);
     },
 
     hasThumbnail(post) {
@@ -477,20 +478,6 @@ export default {
 
     handleThumbnailError(postId) {
       this.brokenThumbnails = new Set([...this.brokenThumbnails, postId]);
-    },
-
-    normalizeMediaUrl(media) {
-      const rawPath = media?.url || media?.file_url || media?.full_url || media?.file_path || media?.path || '';
-      if (!rawPath) return '';
-
-      const path = String(rawPath).trim().replace(/\\/g, '/');
-      if (!path) return '';
-      if (/^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) return path;
-      if (path.startsWith('/storage/')) return path;
-      if (path.startsWith('storage/')) return `/${path}`;
-      if (path.startsWith('/')) return path;
-
-      return `/storage/${path.replace(/^public\//, '')}`;
     },
 
     formattedTagsList(post) {

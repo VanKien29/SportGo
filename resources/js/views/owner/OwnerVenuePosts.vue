@@ -238,7 +238,7 @@
 
             <!-- Right Sidebar -->
             <div style="flex: 1; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; padding: 16px; border-radius: 16px;">
-              <label class="field" style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="field" style="display: flex; flex-direction: column; gap: 6px;">
                 <span style="font-size: 13px; font-weight: 700; color: #475569;">Ảnh đại diện (Thumbnail)</span>
                 <div class="upload-zone" style="aspect-ratio: 16/10; border: 2px dashed #cbd5e1; border-radius: 12px; position: relative; cursor: pointer; overflow: hidden; background: white;" :style="editingPostStatus === 'pending_review' ? 'cursor: not-allowed; opacity: 0.8;' : ''" @click="editingPostStatus !== 'pending_review' && !thumbnailPreview && $refs.fileInputRef.click()">
                   <div v-if="thumbnailPreview" style="position: absolute; inset: 0;">
@@ -252,7 +252,7 @@
                   <input type="file" ref="fileInputRef" style="display: none;" @click.stop @change="handleFileUpload" accept="image/*" />
                 </div>
                 <p class="error-msg" v-if="errors.thumbnail" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.thumbnail[0] }}</p>
-              </label>
+              </div>
 
               <label class="field compact" style="display: flex; flex-direction: column; gap: 6px;">
                 <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8;">Cơ sở / Cụm sân <span class="required" style="color: #ef4444;">*</span></span>
@@ -331,6 +331,7 @@ import { api, apiFormData } from '../../services/api';
 import { useToast } from 'vue-toastification';
 import RichTextEditor from '../../components/RichTextEditor.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import { normalizeMediaUrl } from '../../utils/mediaUrl.js';
 
 const toast = useToast();
 
@@ -741,20 +742,6 @@ const handleThumbnailError = (postId) => {
   const next = new Set(brokenThumbnails.value);
   next.add(postId);
   brokenThumbnails.value = next;
-};
-
-const normalizeMediaUrl = (media) => {
-  const rawPath = media?.url || media?.file_url || media?.full_url || media?.file_path || media?.path || '';
-  if (!rawPath) return '';
-
-  const path = String(rawPath).trim().replace(/\\/g, '/');
-  if (!path) return '';
-  if (/^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) return path;
-  if (path.startsWith('/storage/')) return path;
-  if (path.startsWith('storage/')) return `/${path}`;
-  if (path.startsWith('/')) return path;
-
-  return `/storage/${path.replace(/^public\//, '')}`;
 };
 
 const statusLabel = (status) => {
