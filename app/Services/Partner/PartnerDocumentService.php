@@ -144,8 +144,6 @@ class PartnerDocumentService
                     $processor->setImageValue($placeholder, [
                         'path' => Storage::disk('public')->path($media->file_path),
                         'width' => 120,
-                        'height' => 55,
-                        'ratio' => false,
                     ]);
                     $processor->setValue($signerSide . '_signer_name', $signature->signer_full_name);
                     $processor->saveAs($filePath);
@@ -530,7 +528,7 @@ class PartnerDocumentService
             foreach ($xpath->query('//w:p') as $paragraph) {
                 $ascii = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($paragraph, $xpath)));
                 if ($ascii === 'hovaten') {
-                    $changed = $this->replaceDocxCellText($paragraph, $xpath, 'Họ và tên: {{owner_signer_name}}') || $changed;
+                    $changed = $this->replaceDocxCellText($paragraph, $xpath, '{{owner_signer_name}}') || $changed;
                     break;
                 }
             }
@@ -560,8 +558,8 @@ class PartnerDocumentService
                 if ($nameRow) {
                     $cells = $xpath->query('./w:tc', $nameRow);
                     if ($cells->length >= 2) {
-                        $changed = $this->replaceDocxCellText($cells->item(0), $xpath, 'Họ và tên: {{sportgo_signer_name}}') || $changed;
-                        $changed = $this->replaceDocxCellText($cells->item(1), $xpath, 'Họ và tên: {{owner_signer_name}}') || $changed;
+                        $changed = $this->replaceDocxCellText($cells->item(0), $xpath, '{{sportgo_signer_name}}') || $changed;
+                        $changed = $this->replaceDocxCellText($cells->item(1), $xpath, '{{owner_signer_name}}') || $changed;
                     }
                 }
             }
@@ -1264,9 +1262,9 @@ class PartnerDocumentService
                     if ($cells->length >= 2) {
                         $sportgoName = trim((string) ($sportgoSignature?->signer_full_name ?: config('sportgo.contracts.sportgo_representative', 'Đại diện SportGo')));
                         $ownerName = trim((string) ($ownerSignature?->signer_full_name ?: $partnerApplication?->representative_name ?: $partnerApplication?->user?->name));
-                        $changed = $this->replaceDocxCellText($cells->item(0), $xpath, 'Họ và tên: ' . $sportgoName) || $changed;
+                        $changed = $this->replaceDocxCellText($cells->item(0), $xpath, $sportgoName) || $changed;
                         if ($ownerName !== '') {
-                            $changed = $this->replaceDocxCellText($cells->item(1), $xpath, 'Họ và tên: ' . $ownerName) || $changed;
+                            $changed = $this->replaceDocxCellText($cells->item(1), $xpath, $ownerName) || $changed;
                         }
                     }
                 }
@@ -1278,7 +1276,7 @@ class PartnerDocumentService
                     foreach ($xpath->query('.//w:p', $signatureTable) as $paragraph) {
                         $ascii = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($paragraph, $xpath)));
                         if ($ascii === 'hovaten' || str_starts_with($ascii, 'hovaten')) {
-                            $changed = $this->replaceDocxCellText($paragraph, $xpath, 'Họ và tên: ' . $ownerName) || $changed;
+                            $changed = $this->replaceDocxCellText($paragraph, $xpath, $ownerName) || $changed;
                             break;
                         }
                     }

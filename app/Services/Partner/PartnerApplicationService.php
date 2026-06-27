@@ -647,7 +647,7 @@ class PartnerApplicationService
             abort(403, 'Bạn không có quyền hủy hồ sơ này.');
         }
 
-        if (! in_array($application->status, ['pending', 'submitted', 'reviewing', 'need_supplement'], true)) {
+        if (! in_array($application->status, ['draft', 'pending', 'submitted', 'reviewing', 'need_supplement'], true)) {
             throw ValidationException::withMessages([
                 'status' => 'Hồ sơ này đã được xử lý, không thể hủy.',
             ]);

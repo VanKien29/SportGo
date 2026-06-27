@@ -325,7 +325,9 @@ async function submitApplication() {
   saving.value = true;
   try {
     await api(`/api/user/partner-application/${application.value.id}/submit`, { method: 'POST' });
-    await loadData();
+    alert('Hồ sơ đã được gửi để SportGo xét duyệt thành công!');
+    emit('signed');
+    emit('close');
   } catch (err) {
     error.value = err.message || 'Không gửi được hồ sơ.';
   } finally {
