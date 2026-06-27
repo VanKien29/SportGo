@@ -87,7 +87,13 @@
         
         <!-- Image Cover -->
         <div class="cover-image" style="height: 200px; position: relative; background: #f8fafc; cursor: pointer; border-bottom: 1px solid #f1f5f9; overflow: hidden;">
-          <img v-if="getThumbnail(post)" :src="getThumbnail(post)" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease;" class="hover-scale" />
+          <img
+            v-if="hasThumbnail(post)"
+            :src="getThumbnail(post)"
+            style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease;"
+            class="hover-scale"
+            @error="handleThumbnailError(post.id)"
+          />
           <div v-else style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8; background: #f1f5f9;"><AppIcon name="image" size="36" /></div>
           
           <span class="status-badge" :class="post.status || 'draft'" style="position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.95); padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); backdrop-filter: blur(4px);">
@@ -370,6 +376,7 @@ const form = reactive({
 });
 
 const errors = ref({});
+const brokenThumbnails = ref(new Set());
 
 onMounted(async () => {
   await Promise.all([
@@ -401,6 +408,7 @@ const fetchPosts = async (page = 1) => {
     
     const res = await api('/api/owner/venue-posts' + (Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : ''));
     posts.value = res.data;
+    brokenThumbnails.value = new Set();
     pagination.current_page = res.current_page;
     pagination.last_page = res.last_page;
     pagination.per_page = res.per_page;
@@ -438,7 +446,10 @@ const toggleSort = (field) => {
   fetchPosts(1);
 };
 
-const handleFileUpload = (e) => {
+const MAX_SOURCE_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_UPLOAD_IMAGE_BYTES = 2 * 1024 * 1024;
+
+const handleFileUpload = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
@@ -450,16 +461,70 @@ const handleFileUpload = (e) => {
     return;
   }
 
-  if (file.size > 5 * 1024 * 1024) {
+  if (file.size > MAX_SOURCE_IMAGE_BYTES) {
     errors.value.thumbnail = ['Kích thước ảnh không được vượt quá 5MB.'];
     toast.error('Kích thước ảnh không được vượt quá 5MB.');
     if (fileInputRef.value) fileInputRef.value.value = '';
     return;
   }
 
-  form.thumbnail = file;
-  thumbnailPreview.value = URL.createObjectURL(file);
-  errors.value.thumbnail = null;
+  try {
+    const uploadFile = file.size > MAX_UPLOAD_IMAGE_BYTES ? await compressImage(file, MAX_UPLOAD_IMAGE_BYTES) : file;
+    form.thumbnail = uploadFile;
+    thumbnailPreview.value = URL.createObjectURL(uploadFile);
+    errors.value.thumbnail = null;
+  } catch (error) {
+    errors.value.thumbnail = ['Không thể xử lý ảnh. Vui lòng chọn ảnh JPG, PNG hoặc WEBP khác.'];
+    toast.error('Không thể xử lý ảnh. Vui lòng chọn ảnh khác.');
+    if (fileInputRef.value) fileInputRef.value.value = '';
+  }
+};
+
+const compressImage = (file, maxBytes) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = reject;
+      image.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const maxDimension = 1600;
+        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+          reject(new Error('Canvas is not supported.'));
+          return;
+        }
+
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        for (const quality of [0.86, 0.78, 0.7, 0.62, 0.54]) {
+          const blob = await canvasToBlob(canvas, 'image/webp', quality);
+          if (blob && blob.size <= maxBytes) {
+            resolve(new File([blob], replaceExtension(file.name, 'webp'), { type: 'image/webp' }));
+            return;
+          }
+        }
+
+        reject(new Error('Compressed image is still too large.'));
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+const canvasToBlob = (canvas, type, quality) => {
+  return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+};
+
+const replaceExtension = (fileName, extension) => {
+  const baseName = fileName.replace(/\.[^.]+$/, '') || 'thumbnail';
+  return `${baseName}.${extension}`;
 };
 
 const clearThumbnail = () => {
@@ -480,8 +545,9 @@ const openForm = (post = null) => {
     editingPostStatus.value = post.status;
     
     form.venue_cluster_id = post.venue_cluster_id;
-    form.title = post.title;
-    form.short_description = post.short_description || '';
+    const contentText = plainTextFromHtml(post.content);
+    form.title = normalizeExistingTitle(post.title, contentText);
+    form.short_description = normalizeExistingDescription(post.short_description, contentText);
     form.content = post.content;
     form.post_type = post.post_type;
     form.is_draft = post.status === 'draft';
@@ -579,8 +645,8 @@ const submitForm = async () => {
     fetchPosts(pagination.current_page);
   } catch (error) {
     if (error.response && error.response.status === 422) {
-      errors.value = error.response.data.errors;
-      toast.error(error.response.data.message || 'Dữ liệu nhập không hợp lệ, vui lòng kiểm tra lại.');
+      errors.value = error.response.data.errors || {};
+      toast.error(firstValidationMessage(error.response.data) || 'Dữ liệu nhập không hợp lệ, vui lòng kiểm tra lại.');
       focusFirstError();
     } else {
       toast.error('Có lỗi xảy ra trong quá trình xử lý, vui lòng thử lại.');
@@ -636,7 +702,59 @@ const executeDelete = async () => {
 const getThumbnail = (post) => {
   if (!post.media?.length) return '';
   const thumb = post.media.find((m) => m.collection === 'thumbnail') || post.media[0];
-  return thumb?.file_path ? `/storage/${thumb.file_path}` : '';
+  return normalizeMediaUrl(thumb);
+};
+
+const plainTextFromHtml = (html = '') => {
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html || '';
+  return (tempDiv.innerText || tempDiv.textContent || '').replace(/\s+/g, ' ').trim();
+};
+
+const normalizeExistingTitle = (title, contentText = '') => {
+  const normalized = String(title || '').trim();
+  if (normalized.length >= 5 && normalized.length <= 200) return normalized;
+
+  const fallback = contentText.slice(0, 80).trim();
+  return fallback.length >= 5 ? fallback : 'Bài viết sân thể thao';
+};
+
+const normalizeExistingDescription = (description, contentText = '') => {
+  const normalized = String(description || '').trim();
+  if (normalized.length >= 10 && normalized.length <= 500) return normalized;
+
+  const fallback = contentText.slice(0, 160).trim();
+  return fallback.length >= 10 ? fallback : 'Thông tin cập nhật từ chủ sân.';
+};
+
+const firstValidationMessage = (data) => {
+  const first = data?.errors ? Object.values(data.errors)[0] : null;
+  if (Array.isArray(first) && first[0]) return first[0];
+  return data?.message || '';
+};
+
+const hasThumbnail = (post) => {
+  return Boolean(getThumbnail(post)) && !brokenThumbnails.value.has(post.id);
+};
+
+const handleThumbnailError = (postId) => {
+  const next = new Set(brokenThumbnails.value);
+  next.add(postId);
+  brokenThumbnails.value = next;
+};
+
+const normalizeMediaUrl = (media) => {
+  const rawPath = media?.url || media?.file_url || media?.full_url || media?.file_path || media?.path || '';
+  if (!rawPath) return '';
+
+  const path = String(rawPath).trim().replace(/\\/g, '/');
+  if (!path) return '';
+  if (/^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) return path;
+  if (path.startsWith('/storage/')) return path;
+  if (path.startsWith('storage/')) return `/${path}`;
+  if (path.startsWith('/')) return path;
+
+  return `/storage/${path.replace(/^public\//, '')}`;
 };
 
 const statusLabel = (status) => {

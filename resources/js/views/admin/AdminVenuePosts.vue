@@ -106,7 +106,12 @@
               <td class="center font-bold muted">{{ (pagination.current_page - 1) * pagination.per_page + index + 1 }}</td>
               <td>
                 <div class="thumbnail">
-                  <img v-if="getThumbnail(post)" :src="getThumbnail(post)" alt="Thumbnail" />
+                  <img
+                    v-if="hasThumbnail(post)"
+                    :src="getThumbnail(post)"
+                    alt="Thumbnail"
+                    @error="handleThumbnailError(post.id)"
+                  />
                   <div v-else class="placeholder"><AppIcon name="image" size="16" /></div>
                 </div>
               </td>
@@ -316,6 +321,7 @@ export default {
       modalError: '',
       reviewReason: '',
       submitting: false,
+      brokenThumbnails: new Set(),
     };
   },
 
@@ -336,6 +342,7 @@ export default {
         });
         const paginator = res || {};
         this.posts = paginator.data || [];
+        this.brokenThumbnails = new Set();
         this.pagination = {
           current_page: paginator.current_page || 1,
           last_page: paginator.last_page || 1,
@@ -461,7 +468,29 @@ export default {
     getThumbnail(post) {
       if (!post.media?.length) return '';
       const thumb = post.media.find((m) => m.collection === 'thumbnail') || post.media[0];
-      return thumb?.file_path ? `/storage/${thumb.file_path}` : '';
+      return this.normalizeMediaUrl(thumb);
+    },
+
+    hasThumbnail(post) {
+      return Boolean(this.getThumbnail(post)) && !this.brokenThumbnails.has(post.id);
+    },
+
+    handleThumbnailError(postId) {
+      this.brokenThumbnails = new Set([...this.brokenThumbnails, postId]);
+    },
+
+    normalizeMediaUrl(media) {
+      const rawPath = media?.url || media?.file_url || media?.full_url || media?.file_path || media?.path || '';
+      if (!rawPath) return '';
+
+      const path = String(rawPath).trim().replace(/\\/g, '/');
+      if (!path) return '';
+      if (/^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) return path;
+      if (path.startsWith('/storage/')) return path;
+      if (path.startsWith('storage/')) return `/${path}`;
+      if (path.startsWith('/')) return path;
+
+      return `/storage/${path.replace(/^public\//, '')}`;
     },
 
     formattedTagsList(post) {

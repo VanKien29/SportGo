@@ -72,7 +72,7 @@ class VenuePostService
     public function updatePost(VenuePost $post, array $data, $user, ?UploadedFile $thumbnail)
     {
         // Enforce: Pending posts cannot be edited
-        if ($post->status === 'pending_review' && !$user->hasRole(['admin', 'super_admin'])) {
+        if ($post->status === 'pending_review' && !$this->userHasRole($user, ['admin', 'super_admin'])) {
             throw new \InvalidArgumentException('Không thể chỉnh sửa bài viết đang trong trạng thái chờ duyệt.');
         }
 
@@ -94,7 +94,7 @@ class VenuePostService
             if (!empty($data['is_draft'])) {
                 $this->validateStatusTransition($oldValues['status'], 'draft');
                 $post->status = 'draft';
-            } elseif (!$user->hasRole(['admin', 'super_admin'])) {
+            } elseif (!$this->userHasRole($user, ['admin', 'super_admin'])) {
                 // If the user is an owner and they are submitting/editing a non-draft post
                 if (in_array($oldValues['status'], ['published', 'rejected', 'hidden', 'draft'])) {
                     // Any edit to these states reverts to pending_review for admin check
@@ -195,6 +195,13 @@ class VenuePostService
             $toLabel = $this->statusLabel($to);
             throw new \InvalidArgumentException("Không thể chuyển trạng thái bài viết từ '{$fromLabel}' sang '{$toLabel}'.");
         }
+    }
+
+    private function userHasRole($user, array $roles): bool
+    {
+        return $user->roles()
+            ->whereIn('roles.name', $roles)
+            ->exists();
     }
 
     private function statusLabel(string $status): string
