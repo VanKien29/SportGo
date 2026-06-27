@@ -331,6 +331,16 @@ const routes = [
                 name: "owner-matchmaking",
                 component: () => import("../views/owner/OwnerMatchmaking.vue"),
             },
+            {
+                path: "complaints",
+                name: "owner-complaints",
+                component: () => import("../views/owner/OwnerComplaints.vue"),
+            },
+            {
+                path: "complaints/:id",
+                name: "owner-complaint-detail",
+                component: () => import("../views/owner/OwnerComplaintDetail.vue"),
+            },
             { path: "profile", name: "owner-profile", component: Profile },
             {
                 path: "partner-profile",

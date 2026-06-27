@@ -85,6 +85,12 @@ export const ownerNavigationSections = [
         activeNames: ['owner-finance'],
       },
       {
+        label: 'Khiếu nại',
+        icon: 'alertCircle',
+        to: '/owner/complaints',
+        activeNames: ['owner-complaints', 'owner-complaint-detail'],
+      },
+      {
         label: 'Voucher sân',
         icon: 'tag',
         to: '/owner/vouchers',

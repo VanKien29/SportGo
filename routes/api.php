@@ -382,6 +382,11 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::patch('/matchmaking-posts/{id}/hide', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'hide']);
         Route::post('/matchmaking-posts/{id}/report', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'report']);
 
+        // Complaints
+        Route::get('/complaints', [\App\Http\Controllers\Api\Owner\OwnerComplaintController::class, 'index']);
+        Route::get('/complaints/{id}', [\App\Http\Controllers\Api\Owner\OwnerComplaintController::class, 'show']);
+        Route::post('/complaints/{id}/reply', [\App\Http\Controllers\Api\Owner\OwnerComplaintController::class, 'reply']);
+
         // Cửa hàng tiếp thị liên kết (Affiliate Shop)
         Route::get('/venue-clusters/{clusterId}/affiliate-products', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'index']);
         Route::post('/venue-clusters/{clusterId}/affiliate-products', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'store']);

@@ -24,7 +24,7 @@
       <!-- Filter and Search -->
       <div class="filters-row">
         <label class="field compact search-field">
-          <span>Tìm kiếm</span>
+          <AppIcon name="search" size="16" />
           <input
             v-model="searchQuery"
             type="search"
@@ -529,47 +529,17 @@ export default {
  
 .tabs-header {
   display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--admin-border);
-  padding: 12px 16px 0;
+  gap: 8px;
+  padding: 12px 16px;
   flex-wrap: wrap;
   background: var(--admin-surface);
-}
- 
-.tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 14px;
-  border: 0;
-  background: transparent;
-  color: var(--admin-faint);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  border-radius: 8px 8px 0 0;
-  transition: color 0.18s, background 0.18s;
-  position: relative;
-  bottom: -1px;
-  border-bottom: 2px solid transparent;
-}
- 
-.tab-btn:hover {
-  background: var(--admin-hover);
-  color: var(--admin-text);
-}
- 
-.tab-btn.active {
-  color: var(--admin-text);
-  font-weight: 900;
-  border-bottom-color: var(--admin-text);
-  background: transparent;
 }
  
 .filters-row {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
   padding: 12px 16px;
   background: var(--admin-surface-muted);
   border-top: 1px solid var(--admin-border);
@@ -584,6 +554,7 @@ export default {
   color: var(--admin-faint);
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
  
 .field.compact {
@@ -592,24 +563,34 @@ export default {
   gap: 10px;
 }
  
-.search-field input {
-  min-width: 260px;
-  height: 36px;
+.search-field {
+  background: var(--admin-surface);
   border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 0 12px;
-  font-size: 13px;
-  font-weight: 500;
-  background: var(--admin-surface);
-  color: var(--admin-text);
-  outline: none;
+  min-width: 260px;
+  height: 36px;
+  gap: 8px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
- 
-.search-field input:focus {
+
+.search-field:focus-within {
   border-color: var(--admin-blue);
   box-shadow: 0 0 0 3px var(--admin-primary-ring);
 }
+
+.search-field input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-text);
+  padding: 0;
+  height: 100%;
+}
+
  
 .select-field select {
   min-width: 180px;
