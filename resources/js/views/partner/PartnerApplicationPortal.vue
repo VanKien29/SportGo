@@ -88,18 +88,20 @@
             </div>
 
             <div class="app-list-actions">
-              <button type="button" class="btn btn-secondary action-detail" @click="openApplicationDetail(application)">Chi tiết</button>
-              <button v-if="applicationWord(application)" type="button" class="btn btn-secondary action-document" @click="openApplicationDocument(applicationWord(application), application)">
-                Xem &amp; Ký Mẫu 01
+              <button type="button" class="btn btn-secondary action-detail icon-only" title="Xem chi tiết" @click="openApplicationDetail(application)">
+                <AppIcon name="eye" size="16" />
               </button>
-              <button v-if="contractWord(application)" type="button" class="btn btn-primary" @click="openApplicationDocument(contractWord(application), application)">
-                Xem &amp; Ký Hợp đồng
+              <button v-if="needsApplicationSignature(application)" type="button" class="btn btn-secondary action-document icon-only" title="Ký đơn đăng ký" @click="openApplicationDocument(applicationWord(application), application)">
+                <AppIcon name="edit" size="16" />
               </button>
-              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary action-submit" @click="submitSignedApplication(application)">
-                Gửi hồ sơ
+              <button v-if="needsContractSignature(application)" type="button" class="btn btn-primary icon-only" title="Ký Hợp đồng" @click="openApplicationDocument(contractWord(application), application)">
+                <AppIcon name="fileText" size="16" />
               </button>
-              <button v-if="canCancel(application)" type="button" class="btn btn-outline action-cancel" @click="cancelApplication(application)">
-                Hủy hồ sơ
+              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary action-submit icon-only" title="Gửi hồ sơ" @click="submitSignedApplication(application)">
+                <AppIcon name="send" size="16" />
+              </button>
+              <button v-if="canCancel(application)" type="button" class="btn btn-outline action-cancel icon-only" title="Hủy hồ sơ" @click="cancelApplication(application)">
+                <AppIcon name="trash" size="16" />
               </button>
             </div>
           </article>
@@ -337,65 +339,7 @@
         </div>
       </template>
 
-      <!-- DETAIL MODAL -->
-      <Teleport to="body">
-        <div v-if="selectedApplication" style="position: fixed; inset: 0; z-index: 600; display: grid; place-items: center; background: rgba(15, 23, 42, 0.5); padding: 16px;" @click.self="selectedApplication = null">
-          <div style="max-height: calc(100vh - 2rem); width: 100%; max-width: 800px; overflow: auto; background: white; border-radius: 20px; padding: 24px; box-shadow: var(--shadow-lg);">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 20px;">
-              <div>
-                <p class="portal-label">Hồ sơ đối tác</p>
-                <h2 class="portal-title" style="font-size: 20px;">{{ selectedApplication.venue_name }}</h2>
-                <span class="badge" :class="statusClass(selectedApplication.status)" style="margin-top: 8px;">
-                  {{ statusLabel(selectedApplication.status) }}
-                </span>
-              </div>
-              <button type="button" class="btn btn-outline" @click="selectedApplication = null">Đóng</button>
-            </div>
-            
-            <div class="form-grid">
-              <InfoBlock title="Người đăng ký" :items="[
-                ['Họ tên', selectedApplication.applicant_full_name],
-                ['Điện thoại', selectedApplication.applicant_phone],
-                ['Email', selectedApplication.applicant_email],
-                ['Ngày sinh', dateOnly(selectedApplication.applicant_birth_date)],
-              ]" />
-              <InfoBlock title="Ngân hàng" :items="[
-                ['Ngân hàng', selectedApplication.bank_name],
-                ['Số tài khoản', selectedApplication.account_number],
-                ['Chủ tài khoản', selectedApplication.account_holder_name],
-                ['Trạng thái', selectedApplication.bank_verification_status === 'verified' ? 'Đã xác minh' : 'Chưa xác minh'],
-              ]" />
-              <InfoBlock class="full-width" title="Cụm sân" :items="[
-                ['Địa chỉ', selectedApplication.venue_address],
-                ['Tọa độ', coordinateText(selectedApplication)],
-                ['Số sân con', selectedApplication.court_count_total],
-                ['Giá cơ bản', money(selectedApplication.base_price_per_hour)],
-              ]" />
-              <div class="portal-card full-width" style="background: #f8fafc;">
-                <h3 style="font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;">Tài liệu đính kèm</h3>
-                <div v-if="selectedApplication.documents?.length" style="display: flex; flex-wrap: wrap; gap: 8px;">
-                  <button v-for="doc in selectedApplication.documents" :key="doc.id" @click="viewFile(doc.file_path)" type="button" class="btn btn-secondary">
-                    {{ doc.title || doc.document_type || 'Tài liệu' }}
-                  </button>
-                </div>
-                <p v-else style="font-size: 14px; color: var(--text-muted);">Chưa có tài liệu đính kèm.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Teleport>
     </main>
-
-    <!-- Modals (kept identical functionality) -->
-    <DocumentViewerModal :show="showDocumentViewer" :document="viewingDocument" @close="closeDocumentViewer">
-      <template #actions v-if="needsSignature(viewingDocument)">
-        <button type="button" class="btn btn-primary" style="width: 100%;" @click="openSignaturePad">
-          {{ signingContract ? 'Ký hợp đồng' : 'Ký xác nhận văn bản' }}
-        </button>
-      </template>
-    </DocumentViewerModal>
-
-    <SignaturePadModal :show="showSignaturePad" :saving="savingSignature" @close="showSignaturePad = false" @confirm="submitSignature" />
 
     <FloatingActions />
   </div>
@@ -415,100 +359,19 @@ import { useRouter } from 'vue-router';
 import PublicNavbar from '../../components/PublicNavbar.vue';
 import FloatingActions from '../../components/FloatingActions.vue';
 import BackButton from '../../components/BackButton.vue';
-import DocumentViewerModal from '../../components/DocumentViewerModal.vue';
-import SignaturePadModal from '../../components/SignaturePadModal.vue';
+import AppIcon from '../../components/AppIcon.vue';
+import BaseCombobox from '../../components/BaseCombobox.vue';
+import UploadBox from '../../components/UploadBox.vue';
 import { getAuth } from '../../stores/auth.js';
-import { api, apiDownload, apiFormData } from '../../services/api.js';
+import { api, apiFormData } from '../../services/api.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-
-const currentStep = ref(1);
-const totalSteps = 4;
-
-function nextStep() {
-  if (currentStep.value < totalSteps) currentStep.value++;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function prevStep() {
-  if (currentStep.value > 1) currentStep.value--;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function setStep(step) {
-  if (step >= 1 && step <= totalSteps) {
-    currentStep.value = step;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-}
 
 const DRAFT_KEY = 'sportgo_partner_application_draft_v3';
 const BANK_CACHE_KEY = 'sportgo_partner_banks_v2';
 const BANK_CACHE_TTL = 24 * 60 * 60 * 1000;
 
 // ─── Inline components ───────────────────────────────────────────────────────
-const BaseCombobox = defineComponent({
-  name: 'BaseCombobox',
-  props: {
-    modelValue: { type: [String, Number], default: '' },
-    options: { type: Array, default: () => [] },
-    placeholder: { type: String, default: 'Chọn' },
-    disabled: { type: Boolean, default: false },
-    invalid: { type: Boolean, default: false },
-  },
-  emits: ['update:modelValue', 'select'],
-  setup(props, { emit }) {
-    const query = ref('');
-    const open = ref(false);
-
-    const handleFocusOut = (e) => {
-      // If the new focus target is not inside this combo-wrapper, close it
-      if (!e.currentTarget.contains(e.relatedTarget)) {
-        open.value = false;
-      }
-    };
-    const optionValue = (o) => String(o?.value ?? o?.code ?? o?.id ?? '');
-    const optionLabel = (o) => String(o?.label ?? o?.name ?? o?.short_name ?? '');
-    const selected = computed(() => props.options.find((o) => optionValue(o) === String(props.modelValue)) || null);
-    const filtered = computed(() => {
-      const kw = query.value.trim().toLowerCase();
-      if (!kw || (selected.value && query.value === optionLabel(selected.value))) return props.options;
-      return props.options.filter((o) => optionLabel(o).toLowerCase().includes(kw));
-    });
-    watch(selected, (o) => { if (!open.value) query.value = o ? optionLabel(o) : ''; }, { immediate: true });
-    const choose = (o) => { emit('update:modelValue', optionValue(o)); emit('select', o); query.value = optionLabel(o); open.value = false; };
-    const onInput = (e) => { query.value = e.target.value; open.value = true; };
-    const onBlur = () => { window.setTimeout(() => { open.value = false; query.value = selected.value ? optionLabel(selected.value) : ''; }, 130); };
-    return { open, query, filtered, selected, optionValue, optionLabel, choose, onInput, onBlur, handleFocusOut };
-  },
-  template: `
-    <div class="combo-wrapper" tabindex="-1" @focusout="handleFocusOut">
-      <div class="relative">
-        <input
-          :value="query" :placeholder="placeholder" :disabled="disabled"
-          class="form-select"
-          :class="invalid ? 'has-error' : ''"
-          @focus="!disabled && (open = true)" @blur="onBlur" @input="onInput"
-        />
-        <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
-        </svg>
-      </div>
-      <div v-if="open && !disabled" class="combo-list">
-        <button v-for="o in filtered" :key="optionValue(o)" type="button"
-          class="combo-item"
-          :class="optionValue(o) === String(modelValue) ? 'active' : ''"
-          @mousedown.prevent="choose(o)">
-          <span class="truncate">{{ optionLabel(o) }}</span>
-          <svg v-if="optionValue(o) === String(modelValue)" class="ml-3 h-3.5 w-3.5 shrink-0 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.25 7.31a1 1 0 0 1-1.42.005L3.29 9.27a1 1 0 1 1 1.42-1.41l4.04 4.04 6.54-6.604a1 1 0 0 1 1.414-.006Z" clip-rule="evenodd"/>
-          </svg>
-        </button>
-        <p v-if="filtered.length === 0" class="px-3 py-2 text-sm text-gray-400">Không tìm thấy lựa chọn phù hợp.</p>
-      </div>
-    </div>
-  `,
-});
 
 const FormSection = defineComponent({
   name: 'FormSection',
@@ -542,67 +405,12 @@ const FormField = defineComponent({
   },
 });
 
-const InfoBlock = defineComponent({
-  name: 'InfoBlock',
-  props: {
-    title: { type: String, required: true },
-    items: { type: Array, default: () => [] },
-  },
-  setup(props, { attrs }) {
-    return () => h('section', { class: ['portal-card', attrs.class], style: "background: #f8fafc; border: 1px solid var(--border-color);" }, [
-      h('h3', { class: 'text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3' }, props.title),
-      h('dl', { class: 'grid gap-1.5 text-sm sm:grid-cols-[140px_minmax(0,1fr)]' }, props.items.flatMap(([label, value]) => [
-        h('dt', { class: 'text-xs text-gray-400' }, label),
-        h('dd', { class: 'break-words text-sm text-gray-900' }, value || '-'),
-      ])),
-    ]);
-  },
-});
-
-const UploadBox = defineComponent({
-  name: 'UploadBox',
-  props: {
-    title: { type: String, required: true },
-    required: { type: Boolean, default: false },
-    files: { type: Array, default: () => [] },
-    error: { type: String, default: '' },
-  },
-  emits: ['change', 'remove'],
-  setup(props, { emit }) {
-    const fileSize = (file) => {
-      const bytes = Number(file?.size || 0);
-      if (!bytes) return '0 B';
-      const units = ['B', 'KB', 'MB', 'GB'];
-      const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-      return `${(bytes / 1024 ** i).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
-    };
-    return { emit, fileSize };
-  },
-  template: `
-    <div style="border-radius: 12px; padding: 16px; background: #f8fafc;" :style="{ border: error ? '1px dashed #f87171' : '1px dashed var(--border-color)' }" :class="error ? 'border-red-400' : ''">
-      <label class="block cursor-pointer">
-        <span class="text-xs font-medium text-gray-600">{{ title }}<span v-if="required" class="ml-1 text-red-500">*</span></span>
-        <input style="margin-top: 8px; width: 100%; font-size: 13px;" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" @change="emit('change', $event)" />
-      </label>
-      <p v-if="error" class="mt-1 text-xs text-red-500">{{ error }}</p>
-      <ul v-if="files.length" class="mt-3 space-y-1.5">
-        <li v-for="(file, idx) in files" :key="file.name + idx" class="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-1.5 text-xs border border-gray-100">
-          <span class="truncate text-gray-600">{{ file.name }} · {{ fileSize(file) }}</span>
-          <button type="button" class="shrink-0 text-xs font-medium text-red-500 hover:text-red-700" @click="emit('remove', idx)">Xóa</button>
-        </li>
-      </ul>
-      <p v-else class="mt-2 text-xs text-gray-400">Chưa chọn file.</p>
-    </div>
-  `,
-});
-
 // ─── State ───────────────────────────────────────────────────────────────────
 const router = useRouter();
 const user = getAuth();
 
 const loading = ref(false);
 const applications = ref([]);
-const selectedApplication = ref(null);
 const canRegister = ref(true);
 const draft = ref(null);
 const formOpen = ref(false);
@@ -620,12 +428,6 @@ const mapError = ref('');
 const mapStatus = ref('');
 const mapSuggestion = ref(null);
 const mapTimer = ref(null);
-const showDocumentViewer = ref(false);
-const viewingDocument = ref(null);
-const showSignaturePad = ref(false);
-const savingSignature = ref(false);
-const signingContract = ref(false);
-const signingApplicationId = ref(null);
 
 // ─── Static options ───────────────────────────────────────────────────────────
 const applicantTypeOptions = [
@@ -964,8 +766,13 @@ async function submit() {
 // ─── Application actions ──────────────────────────────────────────────────────
 async function cancelApplication(application) {
   if (!window.confirm(`Hủy hồ sơ đăng ký cho ${application.venue_name}?`)) return;
-  await api(`/api/user/partner-application/${application.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Người dùng hủy hồ sơ từ trang đăng ký đối tác.' }) });
-  await loadApplications();
+  try {
+    await api(`/api/user/partner-application/${application.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Người dùng hủy hồ sơ từ trang đăng ký đối tác.' }) });
+    alert('Đã hủy hồ sơ thành công.');
+    await loadApplications();
+  } catch (err) {
+    alert(err.message || 'Không thể hủy hồ sơ lúc này.');
+  }
 }
 
 function openApplicationDetail(application) {
@@ -988,51 +795,19 @@ async function submitSignedApplication(application) {
   await loadApplications();
 }
 
-// ─── Document / Signature ─────────────────────────────────────────────────────
-function viewDocument(doc, application) {
-  signingContract.value = false;
-  signingApplicationId.value = application?.id || null;
-  viewingDocument.value = { ...doc, download_url: `/api/files/documents/${doc.id}/download` };
-  showDocumentViewer.value = true;
-}
-function viewContractDocument(doc, application) {
-  signingContract.value = true;
-  signingApplicationId.value = application?.id || null;
-  viewingDocument.value = { ...doc, download_url: `/api/files/documents/${doc.id}/download`, status: 'pending_owner_signature' };
-  showDocumentViewer.value = true;
-}
-function closeDocumentViewer() { showDocumentViewer.value = false; signingContract.value = false; signingApplicationId.value = null; setTimeout(() => { viewingDocument.value = null; }, 300); }
-
-function viewFile(path) {
-  if (!path) return;
-  viewingDocument.value = {
-    title: 'Tài liệu đính kèm',
-    download_url: `/api/auth/files/download?path=${encodeURIComponent(path)}`
-  };
-  showDocumentViewer.value = true;
-}
-
-const needsSignature = (doc) => doc?.status === 'pending_owner_signature';
-function openSignaturePad() { showSignaturePad.value = true; }
-async function submitSignature(base64Image) {
-  if (!viewingDocument.value) return;
-  savingSignature.value = true;
-  try {
-    let r;
-    if (signingContract.value) {
-      // Sign the contract
-      r = await api('/api/user/partner-application/sign-contract', { method: 'POST', body: JSON.stringify({ contract_id: viewingDocument.value.partner_contract_id || null, signature_image: base64Image }) });
-    } else {
-      // Sign the application form (Mẫu 01)
-      const appId = signingApplicationId.value || viewingDocument.value.partner_application_id;
-      r = await api(`/api/user/partner-application/${appId}/sign-document`, { method: 'POST', body: JSON.stringify({ signature_image: base64Image }) });
-    }
-    alert(r.message || 'Ký văn bản thành công!');
-    showSignaturePad.value = false; closeDocumentViewer(); loadApplications();
-  } catch (e) { alert(e.message || 'Có lỗi xảy ra khi gửi chữ ký.'); } finally { savingSignature.value = false; }
-}
-
 // ─── Display helpers ──────────────────────────────────────────────────────────
+function needsApplicationSignature(application) {
+  const doc = applicationWord(application);
+  if (!doc || doc.status === 'completed') return false;
+  return !doc.signatures?.some(s => s.signer_side === 'owner' && s.status === 'signed');
+}
+
+function needsContractSignature(application) {
+  const doc = contractWord(application);
+  if (!doc || doc.status === 'completed') return false;
+  return !doc.signatures?.some(s => s.signer_side === 'owner' && s.status === 'signed');
+}
+
 function applicationWord(application) {
   const docs = application.generated_documents || application.generatedDocuments || [];
   return docs.find((d) => d.document_type === 'partner_application_form');

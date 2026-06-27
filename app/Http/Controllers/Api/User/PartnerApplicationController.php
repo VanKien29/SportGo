@@ -35,17 +35,20 @@ class PartnerApplicationController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        $applications = PartnerApplication::with($this->partners->detailRelations())
+        $models = PartnerApplication::with($this->partners->detailRelations())
             ->where('user_id', $request->user()->id)
             ->latest()
             ->get();
+        $applications = $models
+            ->map(fn (PartnerApplication $application) => $this->userApplicationPayload($application))
+            ->values();
 
         return response()->json([
             'status' => 'success',
             'data' => [
                 'latest' => $applications->first(),
                 'history' => $applications,
-                'can_register' => $applications->whereNotIn('status', ['rejected', 'cancelled'])->isEmpty(),
+                'can_register' => $models->whereNotIn('status', ['rejected', 'cancelled'])->isEmpty(),
             ],
         ]);
     }
@@ -254,7 +257,6 @@ class PartnerApplicationController extends Controller
             'data' => [
                 'signing_request_id' => $signingRequest->id,
                 'expires_at' => $signingRequest->expires_at,
-                'hash_short' => substr($signingRequest->file_hash, 0, 16),
             ],
         ]);
     }
@@ -262,7 +264,7 @@ class PartnerApplicationController extends Controller
     public function verifyContractSignatureOtp(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'signing_request_id' => ['required', 'string', 'exists:document_signing_requests,id'],
+            'signing_request_id' => ['required', 'uuid', 'exists:document_signing_requests,id'],
             'otp' => ['required', 'digits:6'],
         ], $this->messages(), $this->attributes());
 
@@ -377,7 +379,6 @@ class PartnerApplicationController extends Controller
             'data' => [
                 'signing_request_id' => $signingRequest->id,
                 'expires_at' => $signingRequest->expires_at,
-                'hash_short' => substr($signingRequest->file_hash, 0, 16),
             ],
         ]);
     }
@@ -385,7 +386,7 @@ class PartnerApplicationController extends Controller
     public function verifyDocumentSignatureOtp(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'signing_request_id' => ['required', 'string', 'exists:document_signing_requests,id'],
+            'signing_request_id' => ['required', 'uuid', 'exists:document_signing_requests,id'],
             'otp' => ['required', 'digits:6'],
         ], $this->messages(), $this->attributes());
 
@@ -443,6 +444,62 @@ class PartnerApplicationController extends Controller
             ]);
 
         return response()->json(['status' => 'success', 'data' => $documents]);
+    }
+
+    private function userApplicationPayload(PartnerApplication $application): array
+    {
+        $payload = $application->toArray();
+
+        $payload['generated_documents'] = $application->generatedDocuments
+            ->map(fn (GeneratedDocument $document) => $this->generatedDocumentPayload($document))
+            ->values();
+
+        $payload['documents'] = $application->documents
+            ->map(fn ($document) => $this->uploadedDocumentPayload($document))
+            ->values();
+
+        $payload['uploaded_documents'] = $payload['documents'];
+
+        $payload['contracts'] = $application->contracts
+            ->map(function (PartnerContract $contract): array {
+                $data = $contract->toArray();
+                if ($contract->generatedDocument) {
+                    $data['generated_document'] = $this->generatedDocumentPayload($contract->generatedDocument);
+                    $data['generatedDocument'] = $data['generated_document'];
+                }
+
+                return $data;
+            })
+            ->values();
+
+        return $payload;
+    }
+
+    private function generatedDocumentPayload(GeneratedDocument $document): array
+    {
+        return [
+            ...$document->toArray(),
+            'download_url' => '/api/files/documents/' . $document->id . '/download',
+            'signatures' => $document->signatures->values(),
+        ];
+    }
+
+    private function uploadedDocumentPayload($document): array
+    {
+        return [
+            'id' => $document->id,
+            'partner_application_id' => $document->partner_application_id,
+            'document_type' => $document->document_type,
+            'document_group' => $document->document_group,
+            'title' => $document->title,
+            'description' => $document->description,
+            'status' => $document->status,
+            'file_name' => $document->media?->file_name,
+            'mime_type' => $document->media?->mime_type,
+            'file_size' => $document->media?->file_size,
+            'uploaded_at' => $document->created_at,
+            'download_url' => '/api/user/partner-application/documents/' . $document->id . '/download',
+        ];
     }
 
     private function validatedApplicationData(Request $request, bool $includeFiles): array
@@ -674,6 +731,8 @@ class PartnerApplicationController extends Controller
             'file' => ':attribute phải là file hợp lệ.',
             'exists' => ':attribute không tồn tại trong danh mục.',
             'in' => ':attribute không hợp lệ.',
+            'uuid' => ':attribute không đúng định dạng.',
+            'digits' => ':attribute phải gồm đúng :digits chữ số.',
         ];
     }
 
@@ -713,6 +772,8 @@ class PartnerApplicationController extends Controller
             'bank_documents' => 'Chứng từ ngân hàng',
             'lease_documents' => 'Hợp đồng hoặc giấy tờ thuê mặt bằng',
             'additional_documents' => 'Tài liệu bổ sung',
+            'signing_request_id' => 'Mã giao dịch ký',
+            'otp' => 'Mã OTP',
         ];
     }
 }

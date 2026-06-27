@@ -37,7 +37,7 @@ class PartnerContractController extends Controller
 
         $data = $request->validate([
             'signature_image' => ['required', 'string'],
-        ]);
+        ], $this->messages(), $this->attributes());
 
         $contract = $this->partners->signAdminContract(
             PartnerContract::with(['application.user', 'generatedDocument'])->findOrFail($id),
@@ -59,7 +59,7 @@ class PartnerContractController extends Controller
             'signature_image' => ['required', 'string'],
             'confirmed' => ['accepted'],
             'confirmation_text' => ['required', 'string', 'max:1000'],
-        ]);
+        ], $this->messages(), $this->attributes());
 
         $contract = PartnerContract::with(['application.user', 'generatedDocument'])->findOrFail($id);
 
@@ -95,9 +95,9 @@ class PartnerContractController extends Controller
     public function verifyApproveSignatureOtp(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'signing_request_id' => ['required', 'integer', 'exists:document_signing_requests,id'],
+            'signing_request_id' => ['required', 'uuid', 'exists:document_signing_requests,id'],
             'otp' => ['required', 'digits:6'],
-        ]);
+        ], $this->messages(), $this->attributes());
 
         $contract = PartnerContract::with(['application.user', 'generatedDocument.signatures'])->findOrFail($id);
         $signingRequest = DocumentSigningRequest::query()
@@ -137,7 +137,7 @@ class PartnerContractController extends Controller
     {
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
-        ]);
+        ], $this->messages(), $this->attributes());
 
         $termination = $this->partners->initiateUnilateralTermination(
             PartnerContract::with('application.user')->findOrFail($id),
@@ -169,5 +169,30 @@ class PartnerContractController extends Controller
             'message' => 'Đã xác nhận yêu cầu chấm dứt và tạo quyết toán.',
             'data' => $termination,
         ]);
+    }
+
+    private function messages(): array
+    {
+        return [
+            'required' => ':attribute là bắt buộc.',
+            'string' => ':attribute không hợp lệ.',
+            'max' => ':attribute vượt quá giới hạn cho phép.',
+            'accepted' => 'Bạn cần xác nhận đã đọc và chịu trách nhiệm về nội dung văn bản.',
+            'exists' => ':attribute không tồn tại.',
+            'uuid' => ':attribute không đúng định dạng.',
+            'digits' => ':attribute phải gồm đúng :digits chữ số.',
+        ];
+    }
+
+    private function attributes(): array
+    {
+        return [
+            'signature_image' => 'Chữ ký điện tử',
+            'confirmed' => 'Xác nhận đọc văn bản',
+            'confirmation_text' => 'Nội dung xác nhận',
+            'signing_request_id' => 'Mã giao dịch ký',
+            'otp' => 'Mã OTP',
+            'reason' => 'Lý do chấm dứt',
+        ];
     }
 }

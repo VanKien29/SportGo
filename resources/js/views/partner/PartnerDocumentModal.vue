@@ -120,7 +120,6 @@ const confirmed = ref(false);
 const otpSent = ref(false);
 const otp = ref('');
 const signingRequestId = ref('');
-const hashShort = ref('');
 const otpExpiresAt = ref(null);
 
 const isGeneratedDocument = computed(() => document.value?.source !== 'uploaded');
@@ -251,7 +250,6 @@ function resetOtpState() {
   otpSent.value = false;
   otp.value = '';
   signingRequestId.value = '';
-  hashShort.value = '';
   otpExpiresAt.value = null;
 }
 
@@ -279,7 +277,6 @@ async function requestSignatureOtp() {
       });
     }
     signingRequestId.value = response.data?.signing_request_id || '';
-    hashShort.value = response.data?.hash_short || '';
     otpExpiresAt.value = response.data?.expires_at || null;
     otpSent.value = true;
     otp.value = '';
@@ -328,7 +325,9 @@ async function submitApplication() {
   saving.value = true;
   try {
     await api(`/api/user/partner-application/${application.value.id}/submit`, { method: 'POST' });
-    await loadData();
+    alert('Hồ sơ đã được gửi để SportGo xét duyệt thành công!');
+    emit('signed');
+    emit('close');
   } catch (err) {
     error.value = err.message || 'Không gửi được hồ sơ.';
   } finally {

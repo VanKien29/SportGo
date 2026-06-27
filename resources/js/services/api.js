@@ -108,7 +108,14 @@ export async function apiFormData(path, formData, options = {}) {
 
 export async function apiDownload(path, options = {}) {
   const headers = {
-    Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/octet-stream',
+    Accept: [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/pdf',
+      'image/*',
+      'text/csv',
+      'application/octet-stream',
+    ].join(','),
     ...(options.body ? { 'Content-Type': 'application/json' } : {}),
     ...(options.headers || {}),
   };
