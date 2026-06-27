@@ -2,8 +2,6 @@ import { createRouter, createWebHistory } from "vue-router";
 import {
     consumeGoogleCallback,
     getAuth,
-    restoreAdminAuth,
-    restoreAuth,
 } from "../stores/auth.js";
 
 import Home from "../views/Home.vue";
@@ -198,6 +196,11 @@ const routes = [
             { path: "roles", name: "admin-roles", component: AdminRoles },
             { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail, meta: { hideFloatingBack: true } },
             {
+                path: "venue-posts",
+                name: "admin-venue-posts",
+                component: () => import("../views/admin/AdminVenuePosts.vue"),
+            },
+            {
                 path: "court-types",
                 name: "admin-court-types",
                 component: () =>
@@ -317,15 +320,15 @@ const routes = [
                 name: "owner-schedule-locks",
                 component: () => import("../views/owner/OwnerScheduleLocks.vue"),
             },
+            {
+                path: "venue-posts",
+                name: "owner-venue-posts",
+                component: () => import("../views/owner/OwnerVenuePosts.vue"),
+            },
             { path: "staff", name: "owner-staff", component: OwnerStaff },
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
             { path: "wallet", redirect: { name: "owner-finance" } },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
-            {
-                path: "posts",
-                name: "owner-posts",
-                component: () => import("../views/owner/OwnerPosts.vue"),
-            },
             {
                 path: "matchmaking",
                 name: "owner-matchmaking",
@@ -366,12 +369,6 @@ router.beforeEach(async (to, from, next) => {
     }
 
     let auth = getAuth();
-    if (auth?.token) {
-        const isAdminRoute =
-            to.matched.some((route) => route.meta.role === "admin") ||
-            to.meta.guestAdmin;
-        auth = isAdminRoute ? await restoreAdminAuth() : await restoreAuth();
-    }
 
     if (to.meta.guestAdmin) {
         if (auth?.role_group === "admin")

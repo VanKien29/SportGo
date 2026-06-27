@@ -58,14 +58,13 @@ export default {
     async loadClusters() {
       this.clusterLoading = true;
       try {
-        const response = await venueClusterService.getClusters();
+        const response = await venueClusterService.getClusters({ compact: 1 });
         this.clusters = response.data || [];
         const savedId = localStorage.getItem(SELECTED_CLUSTER_KEY);
         const fallback = this.clusters[0]?.id || '';
-        this.selectedClusterId = this.clusters.some((cluster) => String(cluster.id) === String(savedId))
-          ? savedId
-          : fallback;
-        this.persistCluster();
+        const hasSavedCluster = this.clusters.some((cluster) => String(cluster.id) === String(savedId));
+        this.selectedClusterId = hasSavedCluster ? savedId : fallback;
+        this.persistCluster({ notify: !hasSavedCluster });
       } finally {
         this.clusterLoading = false;
       }
@@ -74,9 +73,10 @@ export default {
       this.selectedClusterId = clusterId;
       this.persistCluster();
     },
-    persistCluster() {
+    persistCluster({ notify = true } = {}) {
       if (!this.selectedClusterId) return;
       localStorage.setItem(SELECTED_CLUSTER_KEY, this.selectedClusterId);
+      if (!notify) return;
       window.dispatchEvent(new CustomEvent('owner-cluster-changed', {
         detail: this.selectedCluster,
       }));
