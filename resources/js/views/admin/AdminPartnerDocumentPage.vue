@@ -11,10 +11,10 @@
         <h2>{{ documentTitle }}</h2>
       </div>
 
-      <a v-if="document?.download_url" class="btn ghost" :href="document.download_url" target="_blank" rel="noopener">
+      <button v-if="document?.download_url" class="btn ghost" type="button" @click="downloadCurrentDocument">
         <AppIcon name="download" size="16" />
         Tải file
-      </a>
+      </button>
     </header>
 
     <div v-if="message" class="notice success">{{ message }}</div>
@@ -222,6 +222,20 @@ function stopDraw() {
 function clearSignature() {
   prepareCanvas();
   confirmed.value = false;
+}
+
+async function downloadCurrentDocument() {
+  if (!document.value?.id) return;
+  error.value = '';
+  try {
+    if (document.value.source === 'uploaded') {
+      await adminPartnerApplicationService.downloadUploadedDocument(document.value.id);
+    } else {
+      await adminPartnerApplicationService.downloadDocument(document.value.id);
+    }
+  } catch (err) {
+    error.value = err.message || 'Không tải được file.';
+  }
 }
 
 async function submitSignature() {

@@ -233,9 +233,9 @@
                 <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document)">
                   <AppIcon name="eye" size="15" />
                 </button>
-                <a class="btn ghost small icon-only" title="Tải xuống" :href="document.download_url" target="_blank" rel="noopener">
+                <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadGeneratedDocument(document)">
                   <AppIcon name="download" size="15" />
-                </a>
+                </button>
               </div>
             </div>
             <p v-if="!generatedDocuments.length" class="empty-text">Chưa có văn bản hệ thống.</p>
@@ -258,9 +258,9 @@
                 <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document, 'uploaded')">
                   <AppIcon name="eye" size="15" />
                 </button>
-                <a class="btn ghost small icon-only" title="Tải xuống" :href="document.download_url" target="_blank" rel="noopener">
+                <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadUploadedDocument(document)">
                   <AppIcon name="download" size="15" />
-                </a>
+                </button>
               </div>
             </div>
             <p v-if="!uploadedDocuments.length" class="empty-text">Chưa có tài liệu phụ lục.</p>
@@ -309,7 +309,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, defineComponent, h } from 'vue';
+import { computed, onMounted, reactive, ref, defineComponent, h, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '../../components/AppIcon.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
@@ -358,6 +358,15 @@ onMounted(async () => {
   await Promise.all([loadApplication(), loadCourtTypes()]);
 });
 
+watch(() => route.params.id, () => {
+  clearAction();
+  loadApplication();
+});
+
+watch(() => route.query.action, (action) => {
+  actionMode.value = action || '';
+});
+
 async function loadApplication() {
   loading.value = true;
   error.value = '';
@@ -387,6 +396,26 @@ function openDocument(doc, type = 'generated') {
     params: { id: application.value.id, documentId: doc.id },
     query: type === 'uploaded' ? { type: 'uploaded' } : {},
   });
+}
+
+async function downloadGeneratedDocument(document) {
+  if (!document?.id) return;
+  clearAlerts();
+  try {
+    await adminPartnerApplicationService.downloadDocument(document.id);
+  } catch (err) {
+    error.value = err.message || 'Không tải được văn bản.';
+  }
+}
+
+async function downloadUploadedDocument(document) {
+  if (!document?.id) return;
+  clearAlerts();
+  try {
+    await adminPartnerApplicationService.downloadUploadedDocument(document.id);
+  } catch (err) {
+    error.value = err.message || 'Không tải được tài liệu phụ lục.';
+  }
 }
 
 function clearAction() {

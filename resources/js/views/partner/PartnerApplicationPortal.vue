@@ -337,65 +337,7 @@
         </div>
       </template>
 
-      <!-- DETAIL MODAL -->
-      <Teleport to="body">
-        <div v-if="selectedApplication" style="position: fixed; inset: 0; z-index: 600; display: grid; place-items: center; background: rgba(15, 23, 42, 0.5); padding: 16px;" @click.self="selectedApplication = null">
-          <div style="max-height: calc(100vh - 2rem); width: 100%; max-width: 800px; overflow: auto; background: white; border-radius: 20px; padding: 24px; box-shadow: var(--shadow-lg);">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 20px;">
-              <div>
-                <p class="portal-label">Hồ sơ đối tác</p>
-                <h2 class="portal-title" style="font-size: 20px;">{{ selectedApplication.venue_name }}</h2>
-                <span class="badge" :class="statusClass(selectedApplication.status)" style="margin-top: 8px;">
-                  {{ statusLabel(selectedApplication.status) }}
-                </span>
-              </div>
-              <button type="button" class="btn btn-outline" @click="selectedApplication = null">Đóng</button>
-            </div>
-            
-            <div class="form-grid">
-              <InfoBlock title="Người đăng ký" :items="[
-                ['Họ tên', selectedApplication.applicant_full_name],
-                ['Điện thoại', selectedApplication.applicant_phone],
-                ['Email', selectedApplication.applicant_email],
-                ['Ngày sinh', dateOnly(selectedApplication.applicant_birth_date)],
-              ]" />
-              <InfoBlock title="Ngân hàng" :items="[
-                ['Ngân hàng', selectedApplication.bank_name],
-                ['Số tài khoản', selectedApplication.account_number],
-                ['Chủ tài khoản', selectedApplication.account_holder_name],
-                ['Trạng thái', selectedApplication.bank_verification_status === 'verified' ? 'Đã xác minh' : 'Chưa xác minh'],
-              ]" />
-              <InfoBlock class="full-width" title="Cụm sân" :items="[
-                ['Địa chỉ', selectedApplication.venue_address],
-                ['Tọa độ', coordinateText(selectedApplication)],
-                ['Số sân con', selectedApplication.court_count_total],
-                ['Giá cơ bản', money(selectedApplication.base_price_per_hour)],
-              ]" />
-              <div class="portal-card full-width" style="background: #f8fafc;">
-                <h3 style="font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;">Tài liệu đính kèm</h3>
-                <div v-if="selectedApplication.documents?.length" style="display: flex; flex-wrap: wrap; gap: 8px;">
-                  <button v-for="doc in selectedApplication.documents" :key="doc.id" @click="viewFile(doc.file_path)" type="button" class="btn btn-secondary">
-                    {{ doc.title || doc.document_type || 'Tài liệu' }}
-                  </button>
-                </div>
-                <p v-else style="font-size: 14px; color: var(--text-muted);">Chưa có tài liệu đính kèm.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Teleport>
     </main>
-
-    <!-- Modals (kept identical functionality) -->
-    <DocumentViewerModal :show="showDocumentViewer" :document="viewingDocument" @close="closeDocumentViewer">
-      <template #actions v-if="needsSignature(viewingDocument)">
-        <button type="button" class="btn btn-primary" style="width: 100%;" @click="openSignaturePad">
-          {{ signingContract ? 'Ký hợp đồng' : 'Ký xác nhận văn bản' }}
-        </button>
-      </template>
-    </DocumentViewerModal>
-
-    <SignaturePadModal :show="showSignaturePad" :saving="savingSignature" @close="showSignaturePad = false" @confirm="submitSignature" />
 
     <FloatingActions />
   </div>
@@ -415,32 +357,10 @@ import { useRouter } from 'vue-router';
 import PublicNavbar from '../../components/PublicNavbar.vue';
 import FloatingActions from '../../components/FloatingActions.vue';
 import BackButton from '../../components/BackButton.vue';
-import DocumentViewerModal from '../../components/DocumentViewerModal.vue';
-import SignaturePadModal from '../../components/SignaturePadModal.vue';
 import { getAuth } from '../../stores/auth.js';
-import { api, apiDownload, apiFormData } from '../../services/api.js';
+import { api, apiFormData } from '../../services/api.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-
-const currentStep = ref(1);
-const totalSteps = 4;
-
-function nextStep() {
-  if (currentStep.value < totalSteps) currentStep.value++;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function prevStep() {
-  if (currentStep.value > 1) currentStep.value--;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function setStep(step) {
-  if (step >= 1 && step <= totalSteps) {
-    currentStep.value = step;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-}
 
 const DRAFT_KEY = 'sportgo_partner_application_draft_v3';
 const BANK_CACHE_KEY = 'sportgo_partner_banks_v2';
@@ -542,23 +462,6 @@ const FormField = defineComponent({
   },
 });
 
-const InfoBlock = defineComponent({
-  name: 'InfoBlock',
-  props: {
-    title: { type: String, required: true },
-    items: { type: Array, default: () => [] },
-  },
-  setup(props, { attrs }) {
-    return () => h('section', { class: ['portal-card', attrs.class], style: "background: #f8fafc; border: 1px solid var(--border-color);" }, [
-      h('h3', { class: 'text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3' }, props.title),
-      h('dl', { class: 'grid gap-1.5 text-sm sm:grid-cols-[140px_minmax(0,1fr)]' }, props.items.flatMap(([label, value]) => [
-        h('dt', { class: 'text-xs text-gray-400' }, label),
-        h('dd', { class: 'break-words text-sm text-gray-900' }, value || '-'),
-      ])),
-    ]);
-  },
-});
-
 const UploadBox = defineComponent({
   name: 'UploadBox',
   props: {
@@ -602,7 +505,6 @@ const user = getAuth();
 
 const loading = ref(false);
 const applications = ref([]);
-const selectedApplication = ref(null);
 const canRegister = ref(true);
 const draft = ref(null);
 const formOpen = ref(false);
@@ -620,12 +522,6 @@ const mapError = ref('');
 const mapStatus = ref('');
 const mapSuggestion = ref(null);
 const mapTimer = ref(null);
-const showDocumentViewer = ref(false);
-const viewingDocument = ref(null);
-const showSignaturePad = ref(false);
-const savingSignature = ref(false);
-const signingContract = ref(false);
-const signingApplicationId = ref(null);
 
 // ─── Static options ───────────────────────────────────────────────────────────
 const applicantTypeOptions = [
@@ -986,50 +882,6 @@ async function submitSignedApplication(application) {
   if (!application?.id) return;
   await api(`/api/user/partner-application/${application.id}/submit`, { method: 'POST' });
   await loadApplications();
-}
-
-// ─── Document / Signature ─────────────────────────────────────────────────────
-function viewDocument(doc, application) {
-  signingContract.value = false;
-  signingApplicationId.value = application?.id || null;
-  viewingDocument.value = { ...doc, download_url: `/api/files/documents/${doc.id}/download` };
-  showDocumentViewer.value = true;
-}
-function viewContractDocument(doc, application) {
-  signingContract.value = true;
-  signingApplicationId.value = application?.id || null;
-  viewingDocument.value = { ...doc, download_url: `/api/files/documents/${doc.id}/download`, status: 'pending_owner_signature' };
-  showDocumentViewer.value = true;
-}
-function closeDocumentViewer() { showDocumentViewer.value = false; signingContract.value = false; signingApplicationId.value = null; setTimeout(() => { viewingDocument.value = null; }, 300); }
-
-function viewFile(path) {
-  if (!path) return;
-  viewingDocument.value = {
-    title: 'Tài liệu đính kèm',
-    download_url: `/api/auth/files/download?path=${encodeURIComponent(path)}`
-  };
-  showDocumentViewer.value = true;
-}
-
-const needsSignature = (doc) => doc?.status === 'pending_owner_signature';
-function openSignaturePad() { showSignaturePad.value = true; }
-async function submitSignature(base64Image) {
-  if (!viewingDocument.value) return;
-  savingSignature.value = true;
-  try {
-    let r;
-    if (signingContract.value) {
-      // Sign the contract
-      r = await api('/api/user/partner-application/sign-contract', { method: 'POST', body: JSON.stringify({ contract_id: viewingDocument.value.partner_contract_id || null, signature_image: base64Image }) });
-    } else {
-      // Sign the application form (Mẫu 01)
-      const appId = signingApplicationId.value || viewingDocument.value.partner_application_id;
-      r = await api(`/api/user/partner-application/${appId}/sign-document`, { method: 'POST', body: JSON.stringify({ signature_image: base64Image }) });
-    }
-    alert(r.message || 'Ký văn bản thành công!');
-    showSignaturePad.value = false; closeDocumentViewer(); loadApplications();
-  } catch (e) { alert(e.message || 'Có lỗi xảy ra khi gửi chữ ký.'); } finally { savingSignature.value = false; }
 }
 
 // ─── Display helpers ──────────────────────────────────────────────────────────

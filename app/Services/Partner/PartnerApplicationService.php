@@ -1413,6 +1413,20 @@ class PartnerApplicationService
 
     private function contractRenderData(PartnerApplication $application, string $contractCode): array
     {
+        $application->loadMissing(['user', 'courts.courtType', 'bankAccounts']);
+
+        $bankAccount = $application->bankAccounts
+            ->sortByDesc(fn (OwnerBankAccount $account) => (int) ($account->is_default ?? false))
+            ->sortByDesc(fn (OwnerBankAccount $account) => $account->status === 'active' ? 1 : 0)
+            ->first();
+        $bankName = $application->bank_name ?: $bankAccount?->bank_name;
+        $accountNumber = $application->account_number ?: $bankAccount?->account_number;
+        $accountHolderName = $application->account_holder_name ?: $bankAccount?->account_holder_name;
+        $courtCount = (int) ($application->court_count_total ?: $application->courts->count());
+        $ownerName = $application->user?->full_name ?: $application->representative_name ?: $application->applicant_full_name;
+        $ownerPhone = $application->user?->phone ?: $application->applicant_phone ?: $application->venue_phone;
+        $ownerEmail = $application->user?->email ?: $application->applicant_email ?: $application->venue_email;
+
         return [
             'contract_number' => $contractCode,
             'contract_code' => $contractCode,
@@ -1426,27 +1440,38 @@ class PartnerApplicationService
             'contract_title' => 'Hợp đồng hợp tác đối tác ' . $application->venue_name,
             'effective_from' => now()->format('d/m/Y'),
             'effective_to' => now()->addYear()->format('d/m/Y'),
-            'sportgo_company_name' => 'SportGo',
-            'sportgo_tax_code' => 'SPORTGO',
-            'sportgo_address' => config('app.url'),
-            'sportgo_representative_name' => 'Đại diện SportGo',
-            'sportgo_representative_title' => 'Đại diện pháp lý',
-            'owner_full_name' => $application->user?->full_name,
-            'owner_phone' => $application->user?->phone,
-            'owner_email' => $application->user?->email,
+            'sportgo_company_name' => 'Công ty TNHH SportGo',
+            'sportgo_tax_code' => '0000000000',
+            'sportgo_address' => 'Tòa P cao đẳng FPT Polytechnic Đường Phan Tây Nhạc, Phường Xuân Phương, Hà Nội',
+            'sportgo_representative_name' => 'Nguyễn Đức Kiên',
+            'sportgo_representative_title' => 'Giám đốc',
+            'sportgo_authorization_basis' => 'Người đại diện theo pháp luật',
+            'owner_full_name' => $ownerName,
+            'owner_phone' => $ownerPhone,
+            'owner_email' => $ownerEmail,
+            'representative_name' => $application->representative_name ?: $ownerName,
+            'representative_position' => $application->representative_position,
             'identity_number' => $application->representative_identity_number,
+            'representative_identity_issued_date' => $application->representative_identity_issued_date?->format('d/m/Y'),
+            'representative_identity_issued_place' => $application->representative_identity_issued_place,
             'business_name' => $application->business_name,
             'tax_code' => $application->tax_code,
-            'bank_name' => $application->bank_name,
-            'account_number' => $application->account_number,
+            'business_license_number' => $application->business_license_number,
+            'business_code' => $application->business_code,
+            'bank_name' => $bankName,
+            'account_number' => $accountNumber,
+            'account_holder_name' => $accountHolderName,
+            'bank_account_snapshot' => trim(($bankName ?: 'Chưa cung cấp') . ' - ' . ($accountNumber ?: 'Chưa cung cấp') . ' - ' . ($accountHolderName ?: 'Chưa cung cấp')),
             'venue_name' => $application->venue_name,
             'venue_address' => $application->venue_address,
             'court_types_summary' => $application->courts->pluck('courtType.name')->filter()->unique()->implode(', '),
+            'court_count_total' => $courtCount > 0 ? (string) $courtCount : 'Chưa cung cấp',
+            'expected_opening_hours' => $application->expected_opening_hours,
             'platform_fee_amount' => 'Theo chính sách phí nền tảng hiện hành',
             'payment_due_rule' => 'Thanh toán đúng hạn theo kỳ phí đã đăng ký.',
             'overdue_lock_rule' => 'Quá hạn có thể bị hạn chế quyền vận hành cụm sân.',
             'refund_policy_summary' => 'Phí chưa sử dụng được quyết toán khi chấm dứt hợp tác.',
-            'owner_signer_full_name' => $application->user?->full_name,
+            'owner_signer_full_name' => $ownerName,
             'sportgo_signer_full_name' => 'Đại diện SportGo',
         ];
     }
