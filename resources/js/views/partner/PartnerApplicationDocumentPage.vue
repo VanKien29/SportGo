@@ -18,11 +18,7 @@ const route = useRoute();
 const router = useRouter();
 
 function goBack() {
-  if (window.history.length > 1) {
-    router.back();
-  } else {
-    router.push({ name: 'partner-application' });
-  }
+  router.push({ name: 'partner-application-detail', params: { id: route.params.id } });
 }
 
 function onSigned() {

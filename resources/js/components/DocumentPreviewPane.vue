@@ -91,7 +91,7 @@ async function loadDocument() {
         ignoreFonts: false,
         breakPages: true,
         ignoreLastRenderedPageBreak: true,
-        trimXmlDeclaration: true,
+        trimXmlDeclaration: false,
       });
     } else {
       fileType.value = 'unsupported';

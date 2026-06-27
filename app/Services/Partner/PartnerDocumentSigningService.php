@@ -152,7 +152,8 @@ class PartnerDocumentSigningService
 
         if (! Hash::check($otp, $code->code)) {
             $code->increment('attempt_count');
-            if (($code->attempt_count + 1) >= $code->max_attempts) {
+            $code->refresh();
+            if ($code->attempt_count >= $code->max_attempts) {
                 $signingRequest->forceFill(['status' => 'failed'])->save();
             }
 

@@ -164,6 +164,15 @@
     background: var(--bg-color);
   }
   
+  .btn.icon-only {
+    padding: 0;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
   /* Wizard Stepper */
   .wizard-container {
     background: var(--surface-color);

@@ -144,8 +144,6 @@ class PartnerDocumentService
                     $processor->setImageValue($placeholder, [
                         'path' => Storage::disk('public')->path($media->file_path),
                         'width' => 120,
-                        'height' => 55,
-                        'ratio' => false,
                     ]);
                     $processor->setValue($signerSide . '_signer_name', $signature->signer_full_name);
                     $processor->saveAs($filePath);
@@ -165,6 +163,14 @@ class PartnerDocumentService
 
         if (! $signatureImage) {
             $this->polishSignedDocumentFile($document->fresh());
+            if ($document->generated_file_path) {
+                $filePath = Storage::disk('local')->path($document->generated_file_path);
+                if (file_exists($filePath)) {
+                    $document->forceFill([
+                        'file_hash' => hash_file('sha256', $filePath),
+                    ])->save();
+                }
+            }
         }
 
         $isCompleted = $this->checkAllSigned($document->refresh());
@@ -458,6 +464,10 @@ class PartnerDocumentService
         $fields = match ($documentType) {
             'partner_application_form' => $this->applicationTemplateBodyValues($data),
             'partner_contract' => $this->partnerContractTemplateValues($data),
+            'termination_request',
+            'mutual_liquidation_minutes',
+            'unilateral_termination_notice',
+            'settlement_minutes' => $this->workflowTemplateBodyValues($data, $documentType),
             default => [],
         };
 
@@ -468,6 +478,7 @@ class PartnerDocumentService
         $this->fillTwoColumnTemplateBodyFields($docxPath, $fields);
         $this->fillKnownTemplateInlineText($docxPath, $data, $documentType);
         $this->ensureDocumentSignaturePlaceholders($docxPath, $documentType);
+        $this->replaceResidualTemplateBlanks($docxPath, $documentType);
     }
 
     private function ensureDocumentSignaturePlaceholders(string $docxPath, string $documentType): void
@@ -517,7 +528,7 @@ class PartnerDocumentService
             foreach ($xpath->query('//w:p') as $paragraph) {
                 $ascii = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($paragraph, $xpath)));
                 if ($ascii === 'hovaten') {
-                    $changed = $this->replaceDocxCellText($paragraph, $xpath, 'Họ và tên: {{owner_signer_name}}') || $changed;
+                    $changed = $this->replaceDocxCellText($paragraph, $xpath, '{{owner_signer_name}}') || $changed;
                     break;
                 }
             }
@@ -547,10 +558,79 @@ class PartnerDocumentService
                 if ($nameRow) {
                     $cells = $xpath->query('./w:tc', $nameRow);
                     if ($cells->length >= 2) {
-                        $changed = $this->replaceDocxCellText($cells->item(0), $xpath, 'Họ và tên: {{sportgo_signer_name}}') || $changed;
-                        $changed = $this->replaceDocxCellText($cells->item(1), $xpath, 'Họ và tên: {{owner_signer_name}}') || $changed;
+                        $changed = $this->replaceDocxCellText($cells->item(0), $xpath, '{{sportgo_signer_name}}') || $changed;
+                        $changed = $this->replaceDocxCellText($cells->item(1), $xpath, '{{owner_signer_name}}') || $changed;
                     }
                 }
+            }
+        }
+
+        if ($changed) {
+            $zip->addFromString($entry, $dom->saveXML());
+        }
+
+        $zip->close();
+    }
+
+    private function replaceResidualTemplateBlanks(string $docxPath, string $documentType): void
+    {
+        if (! in_array($documentType, [
+            'termination_request',
+            'mutual_liquidation_minutes',
+            'unilateral_termination_notice',
+            'settlement_minutes',
+        ], true) || ! class_exists(ZipArchive::class) || ! class_exists(\DOMDocument::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            return;
+        }
+
+        $dom = new \DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $loaded = $dom->loadXML($xml);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+
+        if (! $loaded) {
+            $zip->close();
+            return;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+        $changed = false;
+        foreach ($xpath->query('//w:t') as $textNode) {
+            $value = (string) $textNode->nodeValue;
+            $trimmed = trim($value);
+
+            if ($trimmed === '') {
+                continue;
+            }
+
+            $replacement = $value;
+            if (preg_match('/^[\.\s_…\/-]{3,}$/u', $trimmed)) {
+                $replacement = 'Chưa cung cấp';
+            } else {
+                $replacement = preg_replace('/\.{6,}/u', 'Chưa cung cấp', $replacement);
+                $replacement = preg_replace('/…{2,}/u', 'Chưa cung cấp', $replacement);
+            }
+
+            if ($replacement !== $value) {
+                $textNode->nodeValue = '';
+                $textNode->appendChild($dom->createTextNode($replacement));
+                $textNode->setAttribute('xml:space', 'preserve');
+                $changed = true;
             }
         }
 
@@ -639,6 +719,10 @@ class PartnerDocumentService
             if (str_contains($ascii, 'homnaytai')) {
                 $address = $this->firstFilled($data, ['sportgo_address']) ?: $place;
                 return "Hôm nay, tại {$address}, các bên thống nhất ký kết Hợp đồng hợp tác đối tác SportGo với các nội dung sau:";
+            }
+
+            if (str_contains($ascii, 'hopdongduoclapthanh') && str_contains($ascii, 'bangiay')) {
+                return '• Hợp đồng được lập thành 02 bản giấy có giá trị như nhau hoặc được lưu dưới dạng điện tử trên hệ thống SportGo, mỗi Bên giữ/truy cập một bản.';
             }
         }
 
@@ -868,26 +952,146 @@ class PartnerDocumentService
             2 => [
                 'Họ tên/Tên tổ chức' => $businessName ?: $applicantName,
                 'Số CCCD/CMND/Hộ chiếu/MST/ĐKKD' => $legalNumbers,
-                'Ngày cấp - Nơi cấp' => $this->issuedInfo($data),
+                'Ngày cấp - Nơi cấp' => $this->issuedInfo($data) ?: 'Chưa cung cấp',
                 'Địa chỉ liên hệ/trụ sở' => $this->firstFilled($data, ['party_b_address', 'business_address', 'venue_address']),
                 'Người đại diện nếu là tổ chức' => $businessName ? $applicantName : 'Không áp dụng',
                 'Chức vụ/Quan hệ đại diện' => $this->firstFilled($data, ['representative_position']) ?: ($businessName ? 'Người đại diện' : 'Chủ cơ sở'),
                 'Số điện thoại/Email' => $this->joinFilled([$phone, $email], ' - '),
-                'Tài khoản nhận tiền' => $this->joinFilled([
+                'Tài khoản nhận tiền' => $this->firstFilled($data, ['bank_account_snapshot']) ?: $this->joinFilled([
                     $this->firstFilled($data, ['bank_name']),
                     $this->firstFilled($data, ['account_number']),
                     $this->firstFilled($data, ['account_holder_name']),
-                ], ' - '),
+                ], ' - ') ?: 'Chưa cung cấp',
             ],
             3 => [
                 'Tên cụm sân' => $this->firstFilled($data, ['venue_name', 'venue_cluster_list']),
                 'Mã cụm sân trên hệ thống' => $this->firstFilled($data, ['venue_cluster_code', 'venue_cluster_id']) ?: 'Tạo sau khi hợp đồng hoàn tất',
                 'Địa chỉ cụm sân' => $this->firstFilled($data, ['venue_address']),
                 'Loại sân/môn thể thao' => $this->firstFilled($data, ['court_types_summary', 'court_types']),
-                'Số lượng sân con' => $this->firstFilled($data, ['court_count_total', 'court_count']),
+                'Số lượng sân con' => $this->firstFilled($data, ['court_count_total', 'court_count']) ?: 'Chưa cung cấp',
                 'Thời gian hoạt động' => $this->firstFilled($data, ['expected_opening_hours']) ?: 'Theo cấu hình vận hành trên SportGo',
             ],
         ];
+    }
+
+    private function workflowTemplateBodyValues(array $data, string $documentType): array
+    {
+        $fallback = 'Chưa cung cấp';
+        $sportgoName = $this->firstFilled($data, ['sportgo_company_name']) ?: 'Công ty TNHH SportGo';
+        $sportgoTax = $this->firstFilled($data, ['sportgo_tax_code']) ?: '0000000000';
+        $sportgoAddress = $this->firstFilled($data, ['sportgo_address']) ?: 'Tòa P cao đẳng FPT Polytechnic Đường Phan Tây Nhạc, Phường Xuân Phương, Hà Nội';
+        $sportgoRep = $this->firstFilled($data, ['party_a_rep', 'issuer_representative_name', 'sportgo_representative_name']) ?: 'Đại diện SportGo';
+        $sportgoRole = $this->firstFilled($data, ['sportgo_representative_title']) ?: 'Đại diện được ủy quyền';
+
+        $ownerName = $this->firstFilled($data, [
+            'owner_full_name',
+            'party_b_name',
+            'receiver_name',
+            'venue_owner_name',
+            'full_name',
+        ]) ?: $fallback;
+        $ownerLegalId = $this->firstFilled($data, [
+            'party_b_id',
+            'identity_number',
+            'tax_code',
+            'business_license_number',
+        ]) ?: $fallback;
+        $ownerAddress = $this->firstFilled($data, ['party_b_address', 'business_address', 'applicant_address', 'venue_address']) ?: $fallback;
+        $venueName = $this->firstFilled($data, ['venue_name', 'venue_cluster_list']) ?: $fallback;
+        $venueCode = $this->firstFilled($data, ['venue_cluster_code', 'venue_cluster_id']) ?: $fallback;
+        $venueAddress = $this->firstFilled($data, ['venue_address']) ?: $fallback;
+        $contractCode = $this->firstFilled($data, ['contract_code', 'contract_number']) ?: $fallback;
+        $terminationCode = $this->firstFilled($data, ['termination_code', 'termination_request_code']) ?: $fallback;
+        $terminationReason = $this->firstFilled($data, ['termination_reason', 'reason']) ?: $fallback;
+        $effectiveDate = $this->firstFilled($data, ['effective_termination_date', 'effective_date', 'agreed_termination_date', 'requested_effective_date']) ?: $fallback;
+        $settlementItems = $this->firstFilled($data, ['settlement_items', 'settlement_table']) ?: $fallback;
+        $bankAccount = $this->firstFilled($data, ['bank_account', 'owner_bank_account_snapshot']) ?: $this->joinFilled([
+            $this->firstFilled($data, ['bank_name']),
+            $this->firstFilled($data, ['account_number']),
+            $this->firstFilled($data, ['account_holder_name']),
+        ], ' - ') ?: $fallback;
+
+        $commonOwner = [
+            'Họ tên/Tên tổ chức' => $ownerName,
+            'Số CCCD/CMND/Hộ chiếu/MST/ĐKKD' => $ownerLegalId,
+            'Người đại diện nếu là tổ chức' => $ownerName,
+            'Người đại diện nếu có' => $ownerName,
+            'Chức vụ/Quan hệ đại diện' => $this->firstFilled($data, ['representative_position']) ?: 'Chủ sân/đối tác',
+            'Số điện thoại' => $this->firstFilled($data, ['owner_phone', 'phone']) ?: $fallback,
+            'Email' => $this->firstFilled($data, ['owner_email', 'email']) ?: $fallback,
+            'Địa chỉ liên hệ/trụ sở' => $ownerAddress,
+            'Tên cụm sân' => $venueName,
+            'Mã cụm sân trên hệ thống' => $venueCode,
+            'Địa chỉ cụm sân' => $venueAddress,
+        ];
+
+        return match ($documentType) {
+            'termination_request' => [
+                ...$commonOwner,
+                'Lý do chấm dứt' => $terminationReason,
+                'Yêu cầu về thời điểm chấm dứt' => $effectiveDate,
+                'Yêu cầu quyết toán' => $bankAccount,
+                'Số hợp đồng hợp tác' => $contractCode,
+                'Ngày ký hợp đồng' => $this->firstFilled($data, ['contract_signed_at', 'signed_date']) ?: $fallback,
+            ],
+            'mutual_liquidation_minutes' => [
+                'Tên đơn vị' => $sportgoName,
+                'Mã số thuế/ĐKKD' => $sportgoTax,
+                'Địa chỉ' => $sportgoAddress,
+                'Người đại diện' => $sportgoRep,
+                'Chức vụ/Căn cứ đại diện' => $sportgoRole,
+                ...$commonOwner,
+                'Số hợp đồng' => $contractCode,
+                'Số hợp đồng hợp tác' => $contractCode,
+                'Lý do thanh lý' => $terminationReason,
+                'Thời điểm chấm dứt' => $effectiveDate,
+                'Tình trạng booking' => $this->firstFilled($data, ['booking_status_summary']) ?: 'Theo dữ liệu đối soát trên hệ thống',
+                'Tình trạng hoàn/hủy' => $this->firstFilled($data, ['refund_status_summary']) ?: 'Theo dữ liệu đối soát trên hệ thống',
+                'Bảng quyết toán' => $settlementItems,
+                'Số dư ví chủ sân' => $this->firstFilled($data, ['owner_wallet_available_amount']) ?: '0 VND',
+                'Phí nền tảng còn lại' => $this->firstFilled($data, ['unpaid_platform_fee_amount']) ?: '0 VND',
+                'Số tiền SportGo phải trả đối tác' => $this->firstFilled($data, ['final_payable_to_owner']) ?: '0 VND',
+                'Số tiền đối tác phải trả SportGo' => $this->firstFilled($data, ['final_receivable_from_owner']) ?: '0 VND',
+                'Thời điểm thu hồi quyền chủ sân' => $this->firstFilled($data, ['owner_access_revocation_date']) ?: $effectiveDate,
+            ],
+            'unilateral_termination_notice' => [
+                'Tên đối tác/chủ sân' => $ownerName,
+                'Số CCCD/CMND/Hộ chiếu/MST/ĐKKD' => $ownerLegalId,
+                'Người đại diện nếu có' => $ownerName,
+                'Số hợp đồng hợp tác' => $contractCode,
+                'Tên cụm sân' => $venueName,
+                'Mã cụm sân trên hệ thống' => $venueCode,
+                'Địa chỉ cụm sân' => $venueAddress,
+                'Lý do chấm dứt' => $terminationReason,
+                'Căn cứ chấm dứt' => $this->firstFilled($data, ['legal_basis_text']) ?: 'Theo hợp đồng và chính sách vận hành SportGo',
+                'Thời điểm hiệu lực' => $effectiveDate,
+                'Thời gian chuyển tiếp' => $this->firstFilled($data, ['transition_end_at']) ?: $effectiveDate,
+                'Yêu cầu đối soát/quyết toán' => $this->firstFilled($data, ['required_actions']) ?: 'Hai bên thực hiện đối soát theo dữ liệu hệ thống',
+                'Thời hạn phản hồi' => $this->firstFilled($data, ['settlement_deadline']) ?: $fallback,
+            ],
+            'settlement_minutes' => [
+                'Bên A' => $sportgoName,
+                'Đại diện Bên A' => $sportgoRep,
+                'Chức vụ/Căn cứ đại diện' => $sportgoRole,
+                'Bên B' => $ownerName,
+                'Đại diện Bên B' => $ownerName,
+                'Cụm sân liên quan' => $venueName,
+                'Số hợp đồng' => $contractCode,
+                'Kỳ/Thời điểm quyết toán' => $this->firstFilled($data, ['calculation_date', 'settlement_date']) ?: now()->format('d/m/Y'),
+                'Số dư ví chủ sân còn được rút' => $this->firstFilled($data, ['owner_wallet_available_amount']) ?: '0 VND',
+                'Tiền đang chờ rút/đối soát' => $this->firstFilled($data, ['withdrawal_code', 'withdrawal_status']) ?: 'Không có',
+                'Phí nền tảng/kỳ phí còn lại' => $this->firstFilled($data, ['platform_fee_remaining_refund_amount']) ?: '0 VND',
+                'Khoản phải thu từ đối tác' => $this->firstFilled($data, ['final_receivable_from_owner', 'unpaid_platform_fee_amount']) ?: '0 VND',
+                'Khoản điều chỉnh' => $this->firstFilled($data, ['adjustment_amount']) ?: '0 VND',
+                'Số tiền cuối cùng' => $this->joinFilled([
+                    'SportGo trả đối tác: ' . ($this->firstFilled($data, ['final_payable_to_owner']) ?: '0 VND'),
+                    'Đối tác trả SportGo: ' . ($this->firstFilled($data, ['final_receivable_from_owner']) ?: '0 VND'),
+                ], '; '),
+                'Tài khoản nhận tiền' => $bankAccount,
+                'Bảng quyết toán' => $settlementItems,
+            ],
+            default => [],
+        };
     }
 
     private function legacyPartnerContractTemplateValues(array $data): array
@@ -974,6 +1178,196 @@ class PartnerDocumentService
         }
 
         return true;
+    }
+
+    private function polishSignedDocumentFile(GeneratedDocument $document): void
+    {
+        if (! in_array($document->document_type, ['partner_application_form', 'partner_contract'], true)) {
+            return;
+        }
+
+        $path = $document->generated_file_path;
+        if (! $path || ! Storage::disk('local')->exists($path) || ! class_exists(ZipArchive::class) || ! class_exists(\DOMDocument::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        $filePath = Storage::disk('local')->path($path);
+        if ($zip->open($filePath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            return;
+        }
+
+        $dom = new \DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $loaded = $dom->loadXML($xml);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+
+        if (! $loaded) {
+            $zip->close();
+            return;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+        $changed = false;
+        $document->loadMissing('signatures');
+
+        $sportgoSignature = $document->signatures
+            ->where('signer_side', 'sportgo')
+            ->where('status', 'signed')
+            ->sortByDesc('signed_at')
+            ->first();
+        $ownerSignature = $document->signatures
+            ->where('signer_side', 'owner')
+            ->where('status', 'signed')
+            ->sortByDesc('signed_at')
+            ->first();
+        $partnerApplication = $document->partner_application_id
+            ? PartnerApplication::with('user')->find($document->partner_application_id)
+            : null;
+
+        if ($document->document_type === 'partner_contract') {
+            if ($sportgoSignature?->signed_at) {
+                $effectiveDate = $sportgoSignature->signed_at->format('d/m/Y');
+                foreach ($xpath->query('//w:p') as $paragraph) {
+                    $ascii = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($paragraph, $xpath)));
+                    if (str_contains($ascii, 'hopdongcohieulucke')) {
+                        $changed = $this->replaceDocxCellText($paragraph, $xpath, "• Hợp đồng có hiệu lực kể từ thời điểm Các Bên ký/xác nhận đầy đủ hoặc từ ngày {$effectiveDate} theo thỏa thuận.") || $changed;
+                        break;
+                    }
+                }
+            }
+        }
+
+        $tables = $xpath->query('//w:tbl');
+        $signatureTable = $tables->item(max(0, $tables->length - 1));
+        if ($signatureTable) {
+            $changed = $this->ensureDocxTableBorders($signatureTable) || $changed;
+            $changed = $this->centerDocxTableParagraphs($signatureTable, $xpath) || $changed;
+
+            $rows = $xpath->query('./w:tr', $signatureTable);
+            if ($document->document_type === 'partner_contract') {
+                $nameRow = $rows->item(3);
+                if ($nameRow) {
+                    $cells = $xpath->query('./w:tc', $nameRow);
+                    if ($cells->length >= 2) {
+                        $sportgoName = trim((string) ($sportgoSignature?->signer_full_name ?: config('sportgo.contracts.sportgo_representative', 'Đại diện SportGo')));
+                        $ownerName = trim((string) ($ownerSignature?->signer_full_name ?: $partnerApplication?->representative_name ?: $partnerApplication?->user?->name));
+                        $changed = $this->replaceDocxCellText($cells->item(0), $xpath, $sportgoName) || $changed;
+                        if ($ownerName !== '') {
+                            $changed = $this->replaceDocxCellText($cells->item(1), $xpath, $ownerName) || $changed;
+                        }
+                    }
+                }
+            }
+
+            if ($document->document_type === 'partner_application_form') {
+                $ownerName = trim((string) ($ownerSignature?->signer_full_name ?: $partnerApplication?->representative_name ?: $partnerApplication?->user?->name));
+                if ($ownerName !== '') {
+                    foreach ($xpath->query('.//w:p', $signatureTable) as $paragraph) {
+                        $ascii = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($paragraph, $xpath)));
+                        if ($ascii === 'hovaten' || str_starts_with($ascii, 'hovaten')) {
+                            $changed = $this->replaceDocxCellText($paragraph, $xpath, $ownerName) || $changed;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($changed) {
+            $zip->addFromString($entry, $dom->saveXML());
+        }
+
+        $zip->close();
+    }
+
+    private function ensureDocxTableBorders(\DOMNode $table): bool
+    {
+        $document = $table->ownerDocument;
+        if (! $document) {
+            return false;
+        }
+
+        $namespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+        $tblPr = null;
+        foreach ($table->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->localName === 'tblPr') {
+                $tblPr = $child;
+                break;
+            }
+        }
+
+        if (! $tblPr) {
+            $tblPr = $document->createElementNS($namespace, 'w:tblPr');
+            $table->insertBefore($tblPr, $table->firstChild);
+        }
+
+        foreach (iterator_to_array($tblPr->childNodes) as $child) {
+            if ($child instanceof \DOMElement && $child->localName === 'tblBorders') {
+                $tblPr->removeChild($child);
+            }
+        }
+
+        $borders = $document->createElementNS($namespace, 'w:tblBorders');
+        foreach (['top', 'left', 'bottom', 'right', 'insideH', 'insideV'] as $edge) {
+            $border = $document->createElementNS($namespace, 'w:' . $edge);
+            $border->setAttributeNS($namespace, 'w:val', 'single');
+            $border->setAttributeNS($namespace, 'w:sz', '4');
+            $border->setAttributeNS($namespace, 'w:space', '0');
+            $border->setAttributeNS($namespace, 'w:color', 'auto');
+            $borders->appendChild($border);
+        }
+        $tblPr->appendChild($borders);
+
+        return true;
+    }
+
+    private function centerDocxTableParagraphs(\DOMNode $table, \DOMXPath $xpath): bool
+    {
+        $document = $table->ownerDocument;
+        if (! $document) {
+            return false;
+        }
+
+        $namespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+        $changed = false;
+        foreach ($xpath->query('.//w:p', $table) as $paragraph) {
+            $pPr = null;
+            foreach ($paragraph->childNodes as $child) {
+                if ($child instanceof \DOMElement && $child->localName === 'pPr') {
+                    $pPr = $child;
+                    break;
+                }
+            }
+
+            if (! $pPr) {
+                $pPr = $document->createElementNS($namespace, 'w:pPr');
+                $paragraph->insertBefore($pPr, $paragraph->firstChild);
+            }
+
+            foreach (iterator_to_array($pPr->childNodes) as $child) {
+                if ($child instanceof \DOMElement && $child->localName === 'jc') {
+                    $pPr->removeChild($child);
+                }
+            }
+
+            $jc = $document->createElementNS($namespace, 'w:jc');
+            $jc->setAttributeNS($namespace, 'w:val', 'center');
+            $pPr->appendChild($jc);
+            $changed = true;
+        }
+
+        return $changed;
     }
 
     private function insertDocxParagraphAfter(\DOMNode $paragraph, string $text): bool

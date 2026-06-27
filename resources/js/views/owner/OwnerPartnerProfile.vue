@@ -75,9 +75,14 @@
               <p class="muted">{{ document.document_code }} · {{ documentStatusLabel(document.status) }}</p>
               <p class="muted">{{ signatureSummary(document.signatures) }}</p>
             </div>
-            <button class="btn ghost small" type="button" @click="downloadDocument(document.id)">
-              <AppIcon name="download" size="15" /> Tải xuống
-            </button>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn ghost small" type="button" @click="viewDocument(document)">
+                <AppIcon name="eye" size="15" /> Xem
+              </button>
+              <button class="btn ghost small" type="button" @click="downloadDocument(document.id)">
+                <AppIcon name="download" size="15" /> Tải xuống
+              </button>
+            </div>
           </div>
           <p v-if="activeDocuments.length === 0" class="muted">Chưa có văn bản nào.</p>
         </div>
@@ -163,16 +168,23 @@
         </div>
       </form>
     </div>
+
+    <DocumentViewerModal
+      :show="viewerModal.open"
+      :document="viewerModal.document"
+      @close="closeViewerModal"
+    />
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import DocumentViewerModal from '../../components/DocumentViewerModal.vue';
 import { api, apiDownload } from '../../services/api.js';
 
 export default {
   name: 'OwnerPartnerProfile',
-  components: { AppIcon },
+  components: { AppIcon, DocumentViewerModal },
   data() {
     return {
       applications: [],
@@ -192,6 +204,7 @@ export default {
       signModal: { open: false, accepted: false },
       terminationModal: { open: false },
       terminationForm: { reason: '' },
+      viewerModal: { open: false, document: null },
     };
   },
   computed: {
@@ -234,6 +247,20 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    viewDocument(doc) {
+      this.viewerModal = {
+        open: true,
+        document: {
+          title: doc.title || this.documentTypeLabel(doc.document_type),
+          file_type: doc.file_extension || 'docx',
+          download_url: `/api/files/documents/${doc.id}/download`,
+          signatures: doc.signatures || []
+        }
+      };
+    },
+    closeViewerModal() {
+      this.viewerModal.open = false;
     },
     openSignContract() {
       this.signModal = { open: true, accepted: false };

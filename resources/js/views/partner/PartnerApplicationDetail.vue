@@ -63,9 +63,9 @@
                 <button class="btn primary small icon-only" title="Xem / Ký" type="button" @click="openDocument(document)">
                   <AppIcon name="eye" size="16" />
                 </button>
-                <a class="btn ghost small icon-only" title="Tải xuống" :href="document.download_url" target="_blank" rel="noopener">
+                <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadFile(document.download_url)">
                   <AppIcon name="download" size="16" />
-                </a>
+                </button>
               </div>
             </article>
             <p v-if="!generatedDocuments.length" class="empty">Chưa có văn bản nào.</p>
@@ -86,9 +86,9 @@
                 <button class="btn primary small icon-only" title="Xem" type="button" @click="openUploadedDocument(document)">
                   <AppIcon name="eye" size="16" />
                 </button>
-                <a class="btn ghost small icon-only" title="Tải xuống" :href="document.download_url" target="_blank" rel="noopener">
+                <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadFile(document.download_url)">
                   <AppIcon name="download" size="16" />
-                </a>
+                </button>
               </div>
             </article>
             <p v-if="!uploadedDocuments.length" class="empty">Chưa có tài liệu phụ lục.</p>
@@ -129,11 +129,11 @@
 </template>
 
 <script setup>
-import { computed, defineComponent, h, onMounted, ref } from 'vue';
+import { computed, defineComponent, h, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PublicNavbar from '../../components/PublicNavbar.vue';
 import AppIcon from '../../components/AppIcon.vue';
-import { api } from '../../services/api.js';
+import { api, apiDownload } from '../../services/api.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -152,6 +152,10 @@ const generatedDocuments = computed(() => {
 const uploadedDocuments = computed(() => application.value?.documents || application.value?.uploaded_documents || []);
 
 onMounted(loadApplication);
+
+watch(() => route.params.id, () => {
+  loadApplication();
+});
 
 async function loadApplication() {
   loading.value = true;
@@ -177,6 +181,15 @@ function openUploadedDocument(document) {
     params: { id: application.value.id, documentId: document.id },
     query: { type: 'uploaded' },
   });
+}
+
+async function downloadFile(url) {
+  if (!url) return;
+  try {
+    await apiDownload(url);
+  } catch (err) {
+    error.value = err.message || 'Không tải được file.';
+  }
 }
 
 const InfoPanel = defineComponent({
