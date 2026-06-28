@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <div class="bookings-page">
-    <!-- Floating Add Button -->
+    <!-- ── Floating Add Button ─────────────────────────── -->
     <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
       <router-link class="btn-float-add" to="/owner/counter-booking" title="Tạo booking tại quầy">
         <AppIcon name="plus" size="20" />
@@ -8,129 +8,151 @@
       </router-link>
     </div>
 
-    <section class="filters">
-      <label>
-        <span>Cụm sân</span>
-        <select v-model="filters.venue_cluster_id" @change="onClusterChange">
-          <option value="">Tất cả</option>
-          <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
-        </select>
-      </label>
-      <label>
-        <span>Sân con</span>
-        <select v-model="filters.venue_court_id" @change="loadBookings">
-          <option value="">Tất cả</option>
-          <option v-for="court in courts" :key="court.id" :value="court.id">{{ court.name }}</option>
-        </select>
-      </label>
-      <label>
-        <span>Ngày chơi</span>
-        <input v-model="filters.booking_date" type="date" @change="loadBookings" />
-      </label>
-      <label>
-        <span>Trạng thái</span>
-        <select v-model="filters.status" @change="loadBookings">
-          <option value="">Tất cả</option>
-          <option value="pending_approval">Chờ duyệt</option>
-          <option value="pending_payment">Chờ thanh toán</option>
-          <option value="confirmed">Đã xác nhận</option>
-          <option value="checked_in">Đã check-in</option>
-          <option value="completed">Hoàn thành</option>
-          <option value="cancelled">Đã hủy</option>
-          <option value="rejected">Từ chối</option>
-        </select>
-      </label>
-      <button class="icon-btn" type="button" title="Tải lại" aria-label="Tải lại" @click="loadBookings">
-        <AppIcon name="refresh" size="17" />
-      </button>
-    </section>
+    <!-- ── Alerts ─────────────────────────────────────── -->
+    <div v-if="error" class="alert alert--error">{{ error }}</div>
+    <div v-if="notice" class="alert alert--success">{{ notice }}</div>
 
-    <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="notice" class="alert success">{{ notice }}</div>
+    <!-- ── Main 3-column layout ───────────────────────── -->
+    <div class="bk-layout">
 
-    <section class="schedule-card">
-      <div class="schedule-head">
-        <div>
-          <h2>Lịch sân trong ngày</h2>
-          <p>{{ scheduleSubtitle }}</p>
+      <!-- LEFT: Calendar + Filters -->
+      <aside class="bk-sidebar">
+        <div class="bk-sidebar__cal-card">
+          <MiniCalendar
+            mode="single"
+            :model-value="filters.booking_date"
+            :dots="calendarDots"
+            @update:model-value="onCalendarDatePick"
+          />
         </div>
-        <div class="legend">
-          <span><i class="status-confirmed"></i>Đã xác nhận</span>
-          <span><i class="status-pending"></i>Chờ xử lý</span>
-          <span><i class="status-playing"></i>Đang chơi</span>
-          <span><i class="status-lock"></i>Khóa sân</span>
+
+        <!-- Filters -->
+        <div class="bk-filter-card">
+          <p class="bk-filter-card__label">Bộ lọc</p>
+          <label class="bk-field">
+            <span>Cụm sân</span>
+            <select v-model="filters.venue_cluster_id" @change="onClusterChange">
+              <option value="">Tất cả</option>
+              <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
+            </select>
+          </label>
+          <label class="bk-field">
+            <span>Sân con</span>
+            <select v-model="filters.venue_court_id" @change="loadBookings">
+              <option value="">Tất cả</option>
+              <option v-for="court in courts" :key="court.id" :value="court.id">{{ court.name }}</option>
+            </select>
+          </label>
+          <label class="bk-field">
+            <span>Trạng thái</span>
+            <select v-model="filters.status" @change="loadBookings">
+              <option value="">Tất cả</option>
+              <option value="pending_approval">Chờ duyệt</option>
+              <option value="pending_payment">Chờ thanh toán</option>
+              <option value="confirmed">Đã xác nhận</option>
+              <option value="checked_in">Đã check-in</option>
+              <option value="completed">Hoàn thành</option>
+              <option value="cancelled">Đã hủy</option>
+              <option value="rejected">Từ chối</option>
+            </select>
+          </label>
+          <button class="bk-reload-btn" type="button" @click="loadBookings">
+            <AppIcon name="refresh" size="15" />
+            <span>Tải lại</span>
+          </button>
         </div>
-      </div>
+      </aside>
 
-      <div class="period-row">
-        <button
-          v-for="period in timePeriods"
-          :key="period.key"
-          type="button"
-          :class="{ active: activeTimePeriod === period.key }"
-          @click="activeTimePeriod = period.key"
-        >
-          <strong>{{ period.label }}</strong>
-          <span>{{ period.range }}</span>
-        </button>
-      </div>
+      <!-- CENTER: Timeline -->
+      <main class="bk-main">
+        <!-- Header: ngày + metrics + legend -->
+        <div class="bk-timeline-header">
+          <div class="bk-timeline-header__top">
+            <div>
+              <h2 class="bk-timeline-header__title">Lịch sân trong ngày</h2>
+              <p class="bk-timeline-header__sub">{{ scheduleSubtitle }}</p>
+            </div>
+            <div class="bk-legend">
+              <span><i class="bk-legend__dot bk-legend__dot--confirmed"></i>Đã xác nhận</span>
+              <span><i class="bk-legend__dot bk-legend__dot--pending"></i>Chờ xử lý</span>
+              <span><i class="bk-legend__dot bk-legend__dot--playing"></i>Đang chơi</span>
+              <span><i class="bk-legend__dot bk-legend__dot--lock"></i>Khóa sân</span>
+            </div>
+          </div>
 
-      <div class="metric-row">
-        <div v-for="metric in scheduleMetrics" :key="metric.label" class="metric-card">
-          <span>{{ metric.label }}</span>
-          <strong>{{ metric.value }}</strong>
+          <!-- Period tabs + metrics -->
+          <div class="bk-period-row">
+            <div class="bk-period-tabs">
+              <button
+                v-for="period in timePeriods"
+                :key="period.key"
+                type="button"
+                class="bk-period-tab"
+                :class="{ 'bk-period-tab--active': activeTimePeriod === period.key }"
+                @click="activeTimePeriod = period.key"
+              >
+                <strong>{{ period.label }}</strong>
+                <span>{{ period.range }}</span>
+              </button>
+            </div>
+            <div class="bk-metrics">
+              <div v-for="metric in scheduleMetrics" :key="metric.label" class="bk-metric">
+                <span>{{ metric.label }}</span>
+                <strong>{{ metric.value }}</strong>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div v-if="loading || scheduleLoading" class="state-card">Đang tải lịch sân...</div>
-      <div v-else-if="scheduleError" class="state-card error-state">{{ scheduleError }}</div>
-      <div v-else-if="!timelineRows.length" class="state-card">Chưa có sân phù hợp với bộ lọc hiện tại.</div>
-      <div v-else class="timeline-layout">
-        <div class="timeline-board">
-          <div class="timeline-scroller">
-            <div class="timeline-axis" :style="{ minWidth: timelineMinWidth }">
-              <div class="axis-court">Sân / giờ</div>
-              <div class="axis-track">
+        <!-- Timeline body -->
+        <div v-if="loading || scheduleLoading" class="bk-state">Đang tải lịch sân...</div>
+        <div v-else-if="scheduleError" class="bk-state bk-state--error">{{ scheduleError }}</div>
+        <div v-else-if="!timelineRows.length" class="bk-state">Chưa có sân phù hợp với bộ lọc hiện tại.</div>
+        <div v-else class="bk-timeline-board">
+          <div class="bk-timeline-scroller">
+            <!-- Axis -->
+            <div class="bk-timeline-axis" :style="{ minWidth: timelineMinWidth }">
+              <div class="bk-axis-court">Sân / giờ</div>
+              <div class="bk-axis-track">
                 <span
                   v-for="tick in timelineTicks"
                   :key="tick.value"
-                  class="axis-tick"
+                  class="bk-axis-tick"
                   :style="{ left: `${tick.left}%` }"
-                >
-                  {{ tick.label }}
-                </span>
+                >{{ tick.label }}</span>
               </div>
             </div>
 
+            <!-- Rows -->
             <article
               v-for="row in timelineRows"
               :key="row.court.id"
-              class="timeline-row"
+              class="bk-timeline-row"
               :style="{ minWidth: timelineMinWidth }"
             >
-              <div class="court-meta">
+              <div class="bk-court-meta">
                 <strong>{{ row.court.name }}</strong>
                 <span>{{ courtOptionLabel(row.court) }}</span>
               </div>
-              <div class="timeline-track">
+              <div class="bk-timeline-track">
                 <span
                   v-for="tick in timelineTicks"
                   :key="`${row.court.id}-${tick.value}`"
-                  class="track-gridline"
+                  class="bk-track-gridline"
                   :style="{ left: `${tick.left}%` }"
                 ></span>
-                <span v-if="!row.blocks.length" class="empty-track">Trống trong khoảng này</span>
+                <span v-if="!row.blocks.length" class="bk-empty-track">Trống trong khoảng này</span>
                 <button
                   v-for="block in row.blocks"
                   :key="block.key"
                   type="button"
-                  class="timeline-block"
-                  :class="[block.kindClass, { active: selectedTimelineItem?.key === block.key, compact: block.compact }]"
+                  class="bk-block"
+                  :class="[block.kindClass, { 'bk-block--active': selectedTimelineItem?.key === block.key, 'bk-block--compact': block.compact }]"
                   :style="block.style"
                   :title="block.titleText"
                   @click="selectTimelineItem(block)"
                 >
-                  <span class="block-time">{{ block.timeLabel }}</span>
+                  <span class="bk-block__time">{{ block.timeLabel }}</span>
                   <strong>{{ block.title }}</strong>
                   <small>{{ block.subtitle }}</small>
                 </button>
@@ -138,55 +160,66 @@
             </article>
           </div>
         </div>
+      </main>
 
-        <aside class="timeline-inspector">
-          <template v-if="selectedTimelineItem">
-            <p class="inspector-eyebrow">{{ selectedTimelineItem.type === 'booking' ? 'BOOKING' : 'KHÓA LỊCH' }}</p>
-            <h3>{{ selectedTimelineItem.title }}</h3>
-            <p class="inspector-subtitle">{{ selectedTimelineItem.timeLabel }} · {{ selectedTimelineItem.courtName }}</p>
-
-            <div v-if="selectedTimelineBooking" class="inspector-chips">
-              <span class="status-chip" :class="selectedTimelineBooking.status">{{ statusLabel(selectedTimelineBooking.status) }}</span>
-              <span class="payment-chip" :class="paymentState(selectedTimelineBooking)">{{ paymentStateLabel(selectedTimelineBooking) }}</span>
+      <!-- RIGHT: Slide-in detail panel -->
+      <aside class="bk-detail" :class="{ 'bk-detail--open': selectedTimelineItem }">
+        <template v-if="selectedTimelineItem">
+          <div class="bk-detail__header">
+            <div>
+              <p class="bk-detail__eyebrow">{{ selectedTimelineItem.type === 'booking' ? 'BOOKING' : 'KHÓA LỊCH' }}</p>
+              <h3 class="bk-detail__title">{{ selectedTimelineItem.title }}</h3>
+              <p class="bk-detail__sub">{{ selectedTimelineItem.timeLabel }} · {{ selectedTimelineItem.courtName }}</p>
             </div>
+            <button type="button" class="bk-detail__close" @click="selectedTimelineItem = null" aria-label="Đóng">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
 
-            <dl class="inspector-list">
-              <div v-for="row in selectedTimelineRows" :key="row.label">
-                <dt>{{ row.label }}</dt>
-                <dd>{{ row.value }}</dd>
-              </div>
-            </dl>
+          <div v-if="selectedTimelineBooking" class="bk-detail__chips">
+            <span class="bk-chip" :class="selectedTimelineBooking.status">{{ statusLabel(selectedTimelineBooking.status) }}</span>
+            <span class="bk-chip bk-chip--payment" :class="paymentState(selectedTimelineBooking)">{{ paymentStateLabel(selectedTimelineBooking) }}</span>
+          </div>
 
-            <div v-if="selectedTimelineBooking" class="inspector-actions">
-              <ActionIconButton
-                v-if="primaryAction(selectedTimelineBooking)"
-                :icon="primaryAction(selectedTimelineBooking).icon"
-                :label="primaryAction(selectedTimelineBooking).label"
-                :variant="primaryAction(selectedTimelineBooking).variant"
-                @click="runBookingAction(selectedTimelineBooking, primaryAction(selectedTimelineBooking).key)"
-              />
-              <button
-                v-for="action in secondaryActions(selectedTimelineBooking)"
-                :key="action.key"
-                type="button"
-                class="inspector-action"
-                :class="{ danger: action.variant === 'danger' }"
-                @click="runBookingAction(selectedTimelineBooking, action.key)"
-              >
-                <AppIcon :name="action.icon" size="16" />
-                <span>{{ action.label }}</span>
-              </button>
+          <dl class="bk-detail__list">
+            <div v-for="row in selectedTimelineRows" :key="row.label">
+              <dt>{{ row.label }}</dt>
+              <dd>{{ row.value }}</dd>
             </div>
-          </template>
-          <template v-else>
-            <p class="inspector-eyebrow">CHI TIẾT</p>
-            <h3>Chọn một block trên lịch</h3>
-            <p class="inspector-subtitle">Thông tin khách, trạng thái booking và thanh toán sẽ hiện ở đây.</p>
-          </template>
-        </aside>
-      </div>
-    </section>
+          </dl>
 
+          <div v-if="selectedTimelineBooking" class="bk-detail__actions">
+            <ActionIconButton
+              v-if="primaryAction(selectedTimelineBooking)"
+              :icon="primaryAction(selectedTimelineBooking).icon"
+              :label="primaryAction(selectedTimelineBooking).label"
+              :variant="primaryAction(selectedTimelineBooking).variant"
+              @click="runBookingAction(selectedTimelineBooking, primaryAction(selectedTimelineBooking).key)"
+            />
+            <button
+              v-for="action in secondaryActions(selectedTimelineBooking)"
+              :key="action.key"
+              type="button"
+              class="bk-action-btn"
+              :class="{ 'bk-action-btn--danger': action.variant === 'danger' }"
+              @click="runBookingAction(selectedTimelineBooking, action.key)"
+            >
+              <AppIcon :name="action.icon" size="15" />
+              <span>{{ action.label }}</span>
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <div class="bk-detail__empty">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#c8d8cc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <p>Chọn một block trên lịch</p>
+            <small>Thông tin khách, trạng thái booking và thanh toán sẽ hiện ở đây.</small>
+          </div>
+        </template>
+      </aside>
+    </div>
+
+    <!-- ── Teleport: action menu ───────────────────────── -->
     <Teleport to="body">
       <button
         v-if="actionMenu.booking"
@@ -215,32 +248,34 @@
       </div>
     </Teleport>
 
-    <div v-if="changeCourtBooking" class="modal-backdrop" @click.self="closeChangeCourt">
-      <form class="modal-panel" @submit.prevent="saveChangeCourt">
-        <header>
+    <!-- ── Modal: Đổi sân ─────────────────────────────── -->
+    <div v-if="changeCourtBooking" class="bk-modal-backdrop" @click.self="closeChangeCourt">
+      <form class="bk-modal" @submit.prevent="saveChangeCourt">
+        <header class="bk-modal__header">
           <h2>Đổi sân thực tế</h2>
           <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeChangeCourt" />
         </header>
-        <label>
+        <label class="bk-field">
           <span>Sân mới</span>
           <select v-model="changeCourtForm.venue_court_id" required>
             <option v-for="court in changeCourtOptions" :key="court.id" :value="court.id">{{ court.name }} · {{ court.court_type?.name }}</option>
           </select>
         </label>
-        <label>
+        <label class="bk-field">
           <span>Lý do đổi sân</span>
           <textarea v-model.trim="changeCourtForm.court_changed_reason" rows="4" required></textarea>
         </label>
-        <footer>
-          <button type="button" class="ghost-btn" @click="closeChangeCourt">Hủy</button>
-          <button class="primary-link" type="submit" :disabled="savingChangeCourt">Lưu đổi sân</button>
+        <footer class="bk-modal__footer">
+          <button type="button" class="bk-btn bk-btn--ghost" @click="closeChangeCourt">Hủy</button>
+          <button class="bk-btn bk-btn--primary" type="submit" :disabled="savingChangeCourt">Lưu đổi sân</button>
         </footer>
       </form>
     </div>
 
-    <div v-if="collectBooking" class="modal-backdrop" @click.self="closeCollectPayment">
-      <form class="modal-panel collect-panel" @submit.prevent="submitCollectPayment">
-        <header>
+    <!-- ── Modal: Thu tiền ────────────────────────────── -->
+    <div v-if="collectBooking" class="bk-modal-backdrop" @click.self="closeCollectPayment">
+      <form class="bk-modal bk-modal--wide" @submit.prevent="submitCollectPayment">
+        <header class="bk-modal__header">
           <div>
             <h2>Thu tiền booking</h2>
             <p>{{ collectBooking.booking_code }} · {{ customerName(collectBooking) }}</p>
@@ -248,7 +283,7 @@
           <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeCollectPayment" />
         </header>
 
-        <dl class="collect-summary">
+        <dl class="bk-collect-summary">
           <div>
             <dt>Tổng tiền</dt>
             <dd>{{ formatCurrency(collectBooking.total_price) }}</dd>
@@ -257,13 +292,13 @@
             <dt>Đã thu</dt>
             <dd>{{ formatCurrency(paidAmount(collectBooking)) }}</dd>
           </div>
-          <div class="highlight">
+          <div class="bk-collect-summary__highlight">
             <dt>Còn phải thu</dt>
             <dd>{{ formatCurrency(outstandingAmount(collectBooking)) }}</dd>
           </div>
         </dl>
 
-        <label>
+        <label class="bk-field">
           <span>Số tiền thu</span>
           <input
             v-model.number="collectForm.amount"
@@ -274,60 +309,63 @@
           />
         </label>
 
-        <div class="method-row">
-          <button type="button" :class="{ active: collectForm.payment_method === 'cash' }" @click="collectForm.payment_method = 'cash'">
+        <div class="bk-method-row">
+          <button type="button" class="bk-method-btn" :class="{ 'bk-method-btn--active': collectForm.payment_method === 'cash' }" @click="collectForm.payment_method = 'cash'">
             <AppIcon name="banknote" size="16" />
             <span>Tiền mặt</span>
           </button>
-          <button type="button" :class="{ active: collectForm.payment_method === 'sepay' }" @click="collectForm.payment_method = 'sepay'">
+          <button type="button" class="bk-method-btn" :class="{ 'bk-method-btn--active': collectForm.payment_method === 'sepay' }" @click="collectForm.payment_method = 'sepay'">
             <AppIcon name="creditCard" size="16" />
             <span>Chuyển khoản</span>
           </button>
         </div>
 
-        <div v-if="collectQr" class="collect-qr">
+        <div v-if="collectQr" class="bk-collect-qr">
           <img :src="collectQr.qr_url" alt="Mã chuyển khoản" />
-          <div>
-            <span>Nội dung chuyển khoản</span>
-            <button type="button" @click="copyText(collectQr.transfer_content)">{{ collectQr.transfer_content }}</button>
+          <div class="bk-collect-qr__info">
+            <div>
+              <span>Nội dung chuyển khoản</span>
+              <button type="button" @click="copyText(collectQr.transfer_content)">{{ collectQr.transfer_content }}</button>
+            </div>
+            <div>
+              <span>Số tiền</span>
+              <strong>{{ formatCurrency(collectQr.payment?.amount) }}</strong>
+            </div>
+            <small>Hệ thống sẽ tự cập nhật khi ngân hàng xác nhận thanh toán.</small>
           </div>
-          <div>
-            <span>Số tiền</span>
-            <strong>{{ formatCurrency(collectQr.payment?.amount) }}</strong>
-          </div>
-          <small>Hệ thống sẽ tự cập nhật khi ngân hàng xác nhận thanh toán.</small>
         </div>
 
-        <footer>
-          <button type="button" class="ghost-btn" @click="closeCollectPayment">Đóng</button>
-          <button class="primary-link" type="submit" :disabled="collectingPayment">
+        <footer class="bk-modal__footer">
+          <button type="button" class="bk-btn bk-btn--ghost" @click="closeCollectPayment">Đóng</button>
+          <button class="bk-btn bk-btn--primary" type="submit" :disabled="collectingPayment">
             {{ collectSubmitLabel() }}
           </button>
         </footer>
       </form>
     </div>
 
-    <div v-if="statusActionBooking" class="modal-backdrop" @click.self="closeStatusAction">
-      <form class="modal-panel status-action-panel" @submit.prevent="submitStatusAction">
-        <header>
+    <!-- ── Modal: Hủy / Từ chối ───────────────────────── -->
+    <div v-if="statusActionBooking" class="bk-modal-backdrop" @click.self="closeStatusAction">
+      <form class="bk-modal" @submit.prevent="submitStatusAction">
+        <header class="bk-modal__header">
           <div>
             <h2>{{ statusActionTitle() }}</h2>
             <p>{{ statusActionBooking.booking_code }} · {{ customerName(statusActionBooking) }}</p>
           </div>
           <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeStatusAction" />
         </header>
-        <p class="status-action-warning">
+        <p class="bk-status-warning">
           {{ statusAction === 'reject'
             ? 'Booking sẽ bị từ chối và giải phóng khung sân.'
             : 'Booking sẽ bị hủy và giao dịch đang chờ, nếu có, sẽ không còn hiệu lực.' }}
         </p>
-        <label>
+        <label class="bk-field">
           <span>Lý do {{ statusAction === 'reject' ? 'từ chối' : 'hủy' }}</span>
           <textarea v-model.trim="statusActionReason" rows="4" maxlength="1000" required></textarea>
         </label>
-        <footer>
-          <button type="button" class="ghost-btn" @click="closeStatusAction">Đóng</button>
-          <button class="danger-btn" type="submit" :disabled="updatingStatus">
+        <footer class="bk-modal__footer">
+          <button type="button" class="bk-btn bk-btn--ghost" @click="closeStatusAction">Đóng</button>
+          <button class="bk-btn bk-btn--danger" type="submit" :disabled="updatingStatus">
             {{ statusAction === 'reject' ? 'Xác nhận từ chối' : 'Xác nhận hủy' }}
           </button>
         </footer>
@@ -341,6 +379,7 @@ import { ownerBookingService } from '../../services/ownerBookings.js';
 import { venueClusterService } from '../../services/venueClusters.js';
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import MiniCalendar from '../../components/MiniCalendar.vue';
 
 function localIsoDate(date = new Date()) {
   const year = date.getFullYear();
@@ -351,7 +390,7 @@ function localIsoDate(date = new Date()) {
 
 export default {
   name: 'OwnerBookings',
-  components: { ActionIconButton, AppIcon },
+  components: { ActionIconButton, AppIcon, MiniCalendar },
   data() {
     return {
       clusters: [],
@@ -510,6 +549,25 @@ export default {
         { label: 'Nguồn', value: booking.source === 'counter' ? 'Tại quầy' : 'Online' },
       ];
     },
+    calendarDots() {
+      // Tổng hợp ngày có booking và lock để hiện chấm trên calendar
+      const dots = {};
+      this.bookings.forEach((booking) => {
+        const date = booking.booking_date || booking.items?.[0]?.booking_date;
+        if (!date) return;
+        if (!dots[date]) dots[date] = [];
+        if (!dots[date].includes('booking')) dots[date].push('booking');
+      });
+      this.scheduleBusyIntervals
+        .filter((i) => i.source === 'slot_lock')
+        .forEach((i) => {
+          const date = this.filters.booking_date;
+          if (!date) return;
+          if (!dots[date]) dots[date] = [];
+          if (!dots[date].includes('lock')) dots[date].push('lock');
+        });
+      return dots;
+    },
   },
   watch: {
     activeTimePeriod() {
@@ -555,6 +613,10 @@ export default {
     async loadClusters() {
       const response = await venueClusterService.getClusters();
       this.clusters = response.data || [];
+    },
+    onCalendarDatePick(date) {
+      this.filters.booking_date = date;
+      this.loadBookings();
     },
     async onClusterChange() {
       this.filters.venue_court_id = '';
@@ -1108,206 +1170,305 @@ export default {
 </script>
 
 <style scoped>
+/* ═══════════════════════════════════════════════════════════
+   Base
+═══════════════════════════════════════════════════════════ */
 .bookings-page {
   display: grid;
-  gap: 18px;
-  width: 100%;
-  max-width: none;
-  margin: 0 auto;
-}
-
-.filters,
-.schedule-card,
-.table-card,
-.state-card,
-.modal-panel,
-.alert {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
-}
-
-.filters {
-  display: grid;
-  grid-template-columns: 1fr 1fr 160px 180px auto;
   gap: 12px;
-  align-items: end;
-  padding: 16px;
+  width: 100%;
 }
 
-.booking-range {
-  display: block;
-}
-
-.booking-range + .booking-range {
-  margin-top: 7px;
-  padding-top: 7px;
-  border-top: 1px solid #edf2ed;
-}
-
-.schedule-card {
+.bk-layout {
   display: grid;
+  grid-template-columns: 268px minmax(0, 1fr) 0px;
   gap: 14px;
-  padding: 16px;
+  align-items: start;
+  transition: grid-template-columns .25s ease;
+}
+
+.bk-layout:has(.bk-detail--open) {
+  grid-template-columns: 268px minmax(0, 1fr) 320px;
+}
+
+/* ── Alerts ── */
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.alert--error {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.alert--success {
+  border: 1px solid #bbf7d0;
+  background: #dcfce7;
+  color: #166534;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LEFT: Sidebar
+═══════════════════════════════════════════════════════════ */
+.bk-sidebar {
+  display: grid;
+  gap: 10px;
+  position: sticky;
+  top: 14px;
+  align-self: start;
+}
+
+.bk-sidebar__cal-card {
+  border: 1px solid #d8ecdb;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.06);
   overflow: hidden;
 }
 
-.schedule-head {
+.bk-filter-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.bk-filter-card__label {
+  margin: 0 0 2px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.bk-field {
+  display: grid;
+  gap: 5px;
+}
+
+.bk-field span {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.bk-field select,
+.bk-field input,
+.bk-field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 13px;
+  transition: border-color .15s;
+}
+
+.bk-field select:focus,
+.bk-field input:focus {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
+.bk-reload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #d7e4d7;
+  border-radius: 8px;
+  background: #f7fbf5;
+  color: #3d6645;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background .13s, border-color .13s;
+}
+
+.bk-reload-btn:hover {
+  background: #eef8f0;
+  border-color: #16a34a;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CENTER: Timeline area
+═══════════════════════════════════════════════════════════ */
+.bk-main {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bk-timeline-header {
+  padding: 16px;
+  border: 1px solid #d8ecdb;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.06);
+}
+
+.bk-timeline-header__top {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 
-.schedule-head h2,
-.timeline-inspector h3 {
+.bk-timeline-header__title {
   margin: 0;
-  color: #0f172a;
+  font-size: 18px;
   font-weight: 900;
+  color: #0f172a;
 }
 
-.schedule-head p,
-.inspector-subtitle {
-  margin: 5px 0 0;
+.bk-timeline-header__sub {
+  margin: 4px 0 0;
   color: #64748b;
   font-size: 13px;
-  line-height: 1.45;
+  font-weight: 800;
 }
 
-.legend {
+.bk-legend {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: 10px;
   color: #64748b;
   font-size: 12px;
   font-weight: 800;
 }
 
-.legend span {
+.bk-legend span {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-.legend i {
+.bk-legend__dot {
+  display: inline-block;
   width: 10px;
   height: 10px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: #cbd5e1;
 }
 
-.legend .status-confirmed {
-  background: #16a34a;
-}
+.bk-legend__dot--confirmed { background: #16a34a; }
+.bk-legend__dot--pending   { background: #f59e0b; }
+.bk-legend__dot--playing   { background: #2563eb; }
+.bk-legend__dot--lock      { background: #dc2626; }
 
-.legend .status-pending {
-  background: #f59e0b;
-}
-
-.legend .status-playing {
-  background: #2563eb;
-}
-
-.legend .status-lock {
-  background: #dc2626;
-}
-
-.period-row {
+.bk-period-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 12px;
+  gap: 10px;
+  align-items: center;
 }
 
-.period-row button {
-  min-height: 42px;
+.bk-period-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.bk-period-tab {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 7px;
+  min-height: 38px;
+  padding: 6px 12px;
   border: 1px solid #d7e4d7;
   border-radius: 8px;
   background: #fff;
   color: #334155;
   font: inherit;
   cursor: pointer;
+  transition: background .13s, border-color .13s, color .13s;
 }
 
-.period-row button.active {
+.bk-period-tab strong { font-size: 13px; }
+.bk-period-tab span { opacity: .75; font-size: 12px; font-weight: 800; }
+
+.bk-period-tab--active {
   border-color: #16a34a;
   background: #16a34a;
   color: #fff;
 }
 
-.period-row span {
-  color: inherit;
-  opacity: .78;
-  font-size: 12px;
-  font-weight: 800;
+.bk-metrics {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.metric-row {
+.bk-metric {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  padding: 8px 12px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  overflow: hidden;
+  background: #f9fafb;
+  min-width: 80px;
 }
 
-.metric-card {
-  min-height: 68px;
-  display: grid;
-  align-content: center;
-  gap: 5px;
-  padding: 12px 14px;
-  background: #fbfdfb;
-}
-
-.metric-card + .metric-card {
-  border-left: 1px solid #e2e8f0;
-}
-
-.metric-card span {
+.bk-metric span {
   color: #64748b;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
 }
 
-.metric-card strong {
+.bk-metric strong {
   color: #0f172a;
-  font-size: 22px;
+  font-size: 20px;
+  font-weight: 900;
 }
 
-.timeline-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 16px;
-  align-items: start;
-}
-
-.timeline-board {
-  min-width: 0;
+.bk-state {
+  padding: 40px;
+  text-align: center;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: 12px;
   background: #fff;
+  color: #64748b;
+  font-weight: 800;
 }
 
-.timeline-scroller {
+.bk-state--error { color: #991b1b; }
+
+.bk-timeline-board {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+}
+
+.bk-timeline-scroller {
   max-width: 100%;
   overflow-x: auto;
 }
 
-.timeline-axis,
-.timeline-row {
+.bk-timeline-axis,
+.bk-timeline-row {
   display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
+  grid-template-columns: 160px minmax(0, 1fr);
 }
 
-.timeline-axis {
+.bk-timeline-axis {
   position: sticky;
   top: 0;
   z-index: 4;
@@ -1316,8 +1477,8 @@ export default {
   border-bottom: 1px solid #dfe8df;
 }
 
-.axis-court,
-.court-meta {
+.bk-axis-court,
+.bk-court-meta {
   position: sticky;
   left: 0;
   z-index: 3;
@@ -1325,7 +1486,7 @@ export default {
   background: inherit;
 }
 
-.axis-court {
+.bk-axis-court {
   display: grid;
   place-items: center;
   color: #334238;
@@ -1333,12 +1494,12 @@ export default {
   font-weight: 900;
 }
 
-.axis-track,
-.timeline-track {
+.bk-axis-track,
+.bk-timeline-track {
   position: relative;
 }
 
-.axis-tick {
+.bk-axis-tick {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
@@ -1348,49 +1509,47 @@ export default {
   white-space: nowrap;
 }
 
-.timeline-row {
-  min-height: 76px;
+.bk-timeline-row {
+  min-height: 72px;
   border-bottom: 1px solid #e2e8f0;
   background: #fff;
 }
 
-.timeline-row:last-child {
-  border-bottom: 0;
-}
+.bk-timeline-row:last-child { border-bottom: 0; }
 
-.court-meta {
+.bk-court-meta {
   display: grid;
   align-content: center;
-  gap: 4px;
+  gap: 3px;
   padding: 10px 12px;
   background: #fff;
 }
 
-.court-meta strong {
+.bk-court-meta strong {
   color: #0f172a;
   font-size: 13px;
+  font-weight: 900;
 }
 
-.court-meta span {
+.bk-court-meta span {
   color: #64748b;
   font-size: 11px;
   font-weight: 750;
-  line-height: 1.35;
 }
 
-.timeline-track {
-  min-height: 76px;
+.bk-timeline-track {
+  min-height: 72px;
   background: linear-gradient(180deg, #fff, #fbfdfb);
 }
 
-.track-gridline {
+.bk-track-gridline {
   position: absolute;
   inset-block: 0;
   width: 1px;
   background: #eef2f7;
 }
 
-.empty-track {
+.bk-empty-track {
   position: absolute;
   left: 12px;
   top: 50%;
@@ -1400,7 +1559,7 @@ export default {
   font-weight: 800;
 }
 
-.timeline-block {
+.bk-block {
   position: absolute;
   top: 10px;
   bottom: 10px;
@@ -1416,18 +1575,20 @@ export default {
   text-align: left;
   cursor: pointer;
   overflow: hidden;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
+  transition: outline .1s, box-shadow .1s;
 }
 
-.timeline-block:hover,
-.timeline-block.active {
-  outline: 2px solid rgba(22, 163, 74, 0.28);
+.bk-block:hover,
+.bk-block--active {
+  outline: 2px solid rgba(22, 163, 74, 0.35);
   outline-offset: 2px;
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.14);
 }
 
-.timeline-block strong,
-.timeline-block small,
-.block-time {
+.bk-block__time,
+.bk-block strong,
+.bk-block small {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -1435,117 +1596,150 @@ export default {
   white-space: nowrap;
 }
 
-.timeline-block strong {
-  font-size: 13px;
-  font-weight: 950;
-}
+.bk-block__time { font-size: 10px; font-weight: 900; opacity: .75; }
+.bk-block strong { font-size: 13px; font-weight: 950; }
+.bk-block small  { font-size: 11px; font-weight: 850; }
+.bk-block--compact small { display: none; }
 
-.timeline-block small,
-.block-time {
-  font-size: 11px;
-  font-weight: 850;
-}
+/* Block colors – giữ nguyên */
+.block-confirmed { background: #dcfce7; border-color: #86efac; color: #14532d; }
+.block-pending   { background: #fef3c7; border-color: #facc15; color: #713f12; }
+.block-playing   { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; }
+.block-muted     { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
+.block-lock      { background: #fee2e2; border-color: #fca5a5; color: #7f1d1d; }
 
-.timeline-block.compact small {
-  display: none;
-}
-
-.block-confirmed {
-  background: #dcfce7;
-  border-color: #86efac;
-  color: #14532d;
-}
-
-.block-pending {
-  background: #fef3c7;
-  border-color: #facc15;
-  color: #713f12;
-}
-
-.block-playing {
-  background: #dbeafe;
-  border-color: #93c5fd;
-  color: #1e3a8a;
-}
-
-.block-muted {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #475569;
-}
-
-.block-lock {
-  background: #fee2e2;
-  border-color: #fca5a5;
-  color: #7f1d1d;
-}
-
-.timeline-inspector {
+/* ═══════════════════════════════════════════════════════════
+   RIGHT: Detail slide-in panel
+═══════════════════════════════════════════════════════════ */
+.bk-detail {
+  width: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: width .25s ease, opacity .2s ease;
+  align-self: start;
   position: sticky;
   top: 14px;
-  display: grid;
-  gap: 14px;
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+}
+
+.bk-detail--open {
+  width: 320px;
+  opacity: 1;
+  pointer-events: auto;
+  border: 1px solid #d8ecdb;
+  border-radius: 12px;
   background: #fff;
+  box-shadow: 0 8px 32px rgba(22, 163, 74, 0.08);
+  overflow: visible;
 }
 
-.inspector-eyebrow {
-  margin: 0;
+.bk-detail__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f3f8f1;
+  border-radius: 12px 12px 0 0;
+}
+
+.bk-detail__eyebrow {
+  margin: 0 0 4px;
   color: #16a34a;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 950;
-  letter-spacing: .08em;
+  letter-spacing: .1em;
 }
 
-.inspector-chips {
+.bk-detail__title {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.bk-detail__sub {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bk-detail__close {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d7e4d7;
+  border-radius: 7px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: background .12s;
+}
+
+.bk-detail__close:hover { background: #f1f5f9; color: #334155; }
+
+.bk-detail__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  padding: 12px 16px 0;
 }
 
-.inspector-list {
+.bk-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.bk-chip.confirmed, .bk-chip.completed, .bk-chip.checked_in { background: #dcfce7; color: #166534; }
+.bk-chip.pending_payment, .bk-chip.pending_approval { background: #fef3c7; color: #92400e; }
+.bk-chip.cancelled, .bk-chip.rejected { background: #fee2e2; color: #991b1b; }
+.bk-chip--payment.paid { background: #dcfce7; color: #166534; }
+.bk-chip--payment.pending, .bk-chip--payment.partial { background: #fff7ed; color: #9a3412; }
+.bk-chip--payment.unpaid { background: #fef2f2; color: #991b1b; }
+
+.bk-detail__list {
   display: grid;
-  gap: 0;
-  margin: 0;
+  margin: 12px 0 0;
+  padding: 0 16px;
   border-top: 1px solid #e2e8f0;
 }
 
-.inspector-list div {
+.bk-detail__list div {
   display: grid;
-  grid-template-columns: 105px minmax(0, 1fr);
+  grid-template-columns: 90px minmax(0, 1fr);
   gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid #eef2f7;
+  padding: 9px 0;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.inspector-list dt {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 850;
-}
+.bk-detail__list dt { color: #64748b; font-size: 12px; font-weight: 850; }
+.bk-detail__list dd { margin: 0; color: #0f172a; font-size: 13px; font-weight: 850; overflow-wrap: anywhere; }
 
-.inspector-list dd {
-  min-width: 0;
-  margin: 0;
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 850;
-  overflow-wrap: anywhere;
-}
-
-.inspector-actions {
+.bk-detail__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 7px;
+  padding: 12px 16px 16px;
 }
 
-.inspector-action {
-  min-height: 36px;
+.bk-action-btn {
+  min-height: 34px;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   padding: 0 10px;
   border: 1px solid #d9e8d9;
   border-radius: 7px;
@@ -1555,215 +1749,164 @@ export default {
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
+  transition: background .12s;
 }
 
-.inspector-action.danger {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
-}
+.bk-action-btn:hover { background: #f7fbf5; }
+.bk-action-btn--danger { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+.bk-action-btn--danger:hover { background: #fee2e2; }
 
-label {
+.bk-detail__empty {
   display: grid;
-  gap: 7px;
+  place-items: center;
+  gap: 10px;
+  padding: 48px 24px;
+  text-align: center;
 }
 
-label span {
-  color: #334155;
-  font-size: 13px;
-  font-weight: 900;
+.bk-detail__empty p { margin: 0; color: #64748b; font-size: 14px; font-weight: 900; }
+.bk-detail__empty small { color: #94a3b8; font-size: 12px; font-weight: 700; line-height: 1.5; }
+
+/* ═══════════════════════════════════════════════════════════
+   Modals
+═══════════════════════════════════════════════════════════ */
+.bk-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(2px);
 }
 
-input,
-select,
-textarea {
-  width: 100%;
-  padding: 11px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+.bk-modal {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 0;
+  border: 1px solid #d8ecdb;
+  border-radius: 14px;
   background: #fff;
-  color: #0f172a;
-  font: inherit;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.2);
+  overflow: hidden;
 }
 
-.primary-link,
-.ghost-btn {
-  height: 42px;
+.bk-modal--wide { width: min(620px, 100%); }
+
+.bk-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f3f8f1;
+}
+
+.bk-modal__header h2 { margin: 0; font-size: 17px; font-weight: 900; color: #0f172a; }
+.bk-modal__header p  { margin: 4px 0 0; color: #64748b; font-size: 13px; }
+
+.bk-modal > .bk-field,
+.bk-modal > .bk-method-row,
+.bk-modal > .bk-collect-summary,
+.bk-modal > .bk-collect-qr,
+.bk-modal > .bk-status-warning {
+  margin: 16px 20px 0;
+}
+
+.bk-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid #e2e8f0;
+  background: #f9fafb;
+  margin-top: 16px;
+}
+
+.bk-btn {
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 0 14px;
+  padding: 0 16px;
   border-radius: 8px;
+  font: inherit;
   font-weight: 900;
-}
-
-.primary-link {
-  background: #16a34a;
-  color: #fff;
-}
-
-.ghost-btn {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #334155;
-}
-
-.alert,
-.state-card {
-  padding: 14px;
-  font-weight: 900;
-}
-
-.alert.error {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
-}
-
-.alert.success {
-  border-color: #bbf7d0;
-  background: #dcfce7;
-  color: #166534;
-}
-
-.state-card {
-  text-align: center;
-  color: #64748b;
-}
-
-.table-card {
-  overflow-x: auto;
-  overflow-y: visible;
-}
-
-.bookings-page table {
-  width: 100%;
-  min-width: 940px !important;
-  border-collapse: collapse;
-}
-
-.bookings-page th,
-.bookings-page td {
-  padding: 10px 12px !important;
-  border-bottom: 1px solid #e2e8f0;
-  text-align: left;
-  vertical-align: top !important;
   font-size: 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background .13s;
 }
 
-th {
-  background: #f3f8f1;
-  color: #3f4f43;
-  font-weight: 900;
-}
+.bk-btn--primary { background: #16a34a; border-color: #15803d; color: #fff; }
+.bk-btn--primary:hover { background: #15803d; }
+.bk-btn--primary:disabled { opacity: .55; cursor: not-allowed; }
 
-tbody tr {
-  transition: background .16s ease;
-}
+.bk-btn--ghost { background: #fff; border-color: #cbd5e1; color: #334155; }
+.bk-btn--ghost:hover { background: #f1f5f9; }
 
-tbody tr:hover {
-  background: #fbfdfb;
-}
+.bk-btn--danger { background: #dc2626; border-color: #dc2626; color: #fff; }
+.bk-btn--danger:hover { background: #b91c1c; }
+.bk-btn--danger:disabled { opacity: .55; cursor: not-allowed; }
 
-td small {
-  display: block;
-  margin-top: 4px;
-  color: #526056;
-}
-
-.strong,
-td strong {
-  color: #0f172a;
-  font-weight: 900;
-}
-
-.status-chip {
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.payment-cell {
-  min-width: 170px;
-}
-
-.payment-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.payment-chip.paid {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.payment-chip.pending,
-.payment-chip.partial {
-  background: #fff7ed;
-  color: #9a3412;
-}
-
-.payment-chip.unpaid {
+.bk-status-warning {
+  padding: 12px 14px;
+  border-left: 3px solid #dc2626;
   background: #fef2f2;
-  color: #991b1b;
+  color: #7f1d1d;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.5;
+  border-radius: 0 6px 6px 0;
 }
 
-.status-chip.confirmed,
-.status-chip.completed,
-.status-chip.checked_in {
-  background: #dcfce7;
-  color: #166534;
+.bk-collect-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
 }
 
-.status-chip.pending_payment,
-.status-chip.pending_approval {
-  background: #fef3c7;
-  color: #92400e;
+.bk-collect-summary div { padding: 12px; border: 1px solid #d9e8d9; border-radius: 8px; background: #f7fbf5; }
+.bk-collect-summary dt { color: #647265; font-size: 12px; font-weight: 800; }
+.bk-collect-summary dd { margin: 6px 0 0; color: #16231a; font-weight: 900; }
+.bk-collect-summary__highlight { border-color: rgba(47, 158, 68, 0.45) !important; background: #e8f7ec !important; }
+
+.bk-method-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.status-chip.cancelled,
-.status-chip.rejected {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.actions-heading {
-  width: 84px;
-  text-align: right;
-}
-
-.booking-actions-cell {
-  width: 84px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.row-actions {
+.bk-method-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
+  color: #344238;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background .13s, border-color .13s, color .13s;
 }
 
-.no-actions {
-  color: #7a877d;
-  font-size: 12px;
-  font-weight: 700;
-}
+.bk-method-btn--active { border-color: #2f9e44; background: #2f9e44; color: #fff; }
 
+.bk-collect-qr { display: grid; gap: 10px; padding: 14px; border: 1px solid #d9e8d9; border-radius: 8px; background: #f7fbf5; }
+.bk-collect-qr img { width: 200px; max-width: 100%; border: 1px solid #d9e8d9; border-radius: 8px; background: #fff; }
+.bk-collect-qr__info { display: grid; gap: 8px; }
+.bk-collect-qr__info div { display: flex; justify-content: space-between; gap: 14px; color: #647265; }
+.bk-collect-qr__info button { border: 0; background: transparent; color: #216b34; font-weight: 900; text-decoration: underline; cursor: pointer; }
+.bk-collect-qr__info small { color: #647265; font-size: 12px; }
+
+/* ── Action menu ── */
 .action-menu-dismiss {
   position: fixed;
   inset: 0;
@@ -1783,9 +1926,9 @@ td strong {
   gap: 4px;
   padding: 6px;
   border: 1px solid #d9e8d9;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #fff;
-  box-shadow: 0 16px 40px rgba(22, 35, 26, 0.16);
+  box-shadow: 0 16px 40px rgba(22, 35, 26, 0.18);
 }
 
 .row-action-menu button {
@@ -1796,7 +1939,7 @@ td strong {
   gap: 10px;
   padding: 8px 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
   color: #2f3d33;
   font: inherit;
@@ -1804,216 +1947,42 @@ td strong {
   font-weight: 800;
   text-align: left;
   cursor: pointer;
+  transition: background .12s;
 }
 
-.row-action-menu button:hover {
-  background: #eef8ef;
-  color: #216b34;
+.row-action-menu button:hover { background: #eef8ef; color: #216b34; }
+.row-action-menu button.danger { color: #b42318; }
+.row-action-menu button.danger:hover { background: #fef2f2; }
+
+/* ═══════════════════════════════════════════════════════════
+   Responsive
+═══════════════════════════════════════════════════════════ */
+@media (max-width: 1100px) {
+  .bk-layout,
+  .bk-layout:has(.bk-detail--open) {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .bk-detail--open {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 900;
+    width: 320px !important;
+    border-radius: 0;
+    overflow-y: auto;
+  }
 }
 
-.row-action-menu button.danger {
-  color: #b42318;
-}
-
-.row-action-menu button.danger:hover {
-  background: #fef2f2;
-}
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.48);
-}
-
-.modal-panel {
-  width: min(520px, 100%);
-  display: grid;
-  gap: 16px;
-  padding: 20px;
-}
-
-.status-action-panel {
-  width: min(500px, 100%);
-}
-
-.status-action-warning {
-  margin: 0;
-  padding: 12px 14px;
-  border-left: 3px solid #dc2626;
-  background: #fef2f2;
-  color: #7f1d1d;
-  font-size: 13px;
-  font-weight: 750;
-  line-height: 1.5;
-}
-
-.danger-btn {
-  min-height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 14px;
-  border: 1px solid #dc2626;
-  border-radius: 8px;
-  background: #dc2626;
-  color: #fff;
-  font: inherit;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.danger-btn:disabled {
-  cursor: not-allowed;
-  opacity: .55;
-}
-
-.modal-panel header p {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.collect-panel {
-  width: min(620px, 100%);
-}
-
-.collect-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0;
-}
-
-.collect-summary div {
-  padding: 12px;
-  border: 1px solid #d9e8d9;
-  border-radius: 8px;
-  background: #f7fbf5;
-}
-
-.collect-summary dt {
-  color: #647265;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.collect-summary dd {
-  margin: 6px 0 0;
-  color: #16231a;
-  font-weight: 900;
-}
-
-.collect-summary .highlight {
-  border-color: rgba(47, 158, 68, 0.45);
-  background: #e8f7ec;
-}
-
-.method-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.method-row button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 42px;
-  border: 1px solid #d9e8d9;
-  border-radius: 8px;
-  background: #fff;
-  color: #344238;
-  font-weight: 900;
-}
-
-.method-row button.active {
-  border-color: #2f9e44;
-  background: #2f9e44;
-  color: #fff;
-}
-
-.collect-qr {
-  display: grid;
-  gap: 10px;
-  justify-items: start;
-  padding: 14px;
-  border: 1px solid #d9e8d9;
-  border-radius: 8px;
-  background: #f7fbf5;
-}
-
-.collect-qr img {
-  width: 220px;
-  max-width: 100%;
-  border: 1px solid #d9e8d9;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.collect-qr div {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  width: 100%;
-  color: #647265;
-}
-
-.collect-qr button {
-  border: 0;
-  background: transparent;
-  color: #216b34;
-  font-weight: 900;
-  text-decoration: underline;
-}
-
-.collect-qr strong {
-  color: #16231a;
-}
-
-.collect-qr small {
-  color: #647265;
-  font-weight: 700;
-}
-
-.modal-panel header,
-.modal-panel footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-@media (max-width: 980px) {
-  .filters,
-  .collect-summary,
-  .method-row,
-  .timeline-layout,
-  .metric-row {
-    display: grid;
+@media (max-width: 768px) {
+  .bk-layout,
+  .bk-layout:has(.bk-detail--open) {
     grid-template-columns: 1fr;
   }
 
-  .schedule-head {
-    display: grid;
-  }
-
-  .legend {
-    justify-content: flex-start;
-  }
-
-  .metric-card + .metric-card {
-    border-left: 0;
-    border-top: 1px solid #e2e8f0;
-  }
-
-  .timeline-inspector {
-    position: static;
-  }
+  .bk-sidebar { position: static; }
+  .bk-metrics { display: none; }
+  .bk-collect-summary { grid-template-columns: 1fr; }
 }
 </style>
