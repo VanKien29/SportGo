@@ -34,8 +34,10 @@ class BookingManagementController extends Controller
             'venue_court_id' => ['nullable', 'uuid', 'exists:venue_courts,id'],
             'booking_date' => ['nullable', 'date_format:Y-m-d'],
             'status' => ['nullable', Rule::in(['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed', 'cancelled', 'expired', 'rejected'])],
+            'source' => ['nullable', Rule::in(['online', 'counter'])],
             'booking_type' => ['nullable', Rule::in(['single', 'recurring'])],
             'recurring_group_code' => ['nullable', 'string', 'max:30'],
+            'q' => ['nullable', 'string', 'max:120'],
         ]);
 
         $bookings = Booking::query()
@@ -49,6 +51,7 @@ class BookingManagementController extends Controller
             ])
             ->whereIn('venue_cluster_id', $clusterIds)
             ->when(! empty($validated['venue_cluster_id']), fn ($query) => $query->where('venue_cluster_id', $validated['venue_cluster_id']))
+            ->when(! empty($validated['source']), fn ($query) => $query->where('source', $validated['source']))
             ->when(! empty($validated['booking_type']), fn ($query) => $query->where('booking_type', $validated['booking_type']))
             ->when(! empty($validated['recurring_group_code']), fn ($query) => $query->where('recurring_group_code', $validated['recurring_group_code']))
             ->when(! empty($validated['venue_court_id']), function ($query) use ($validated) {
@@ -61,6 +64,21 @@ class BookingManagementController extends Controller
             })
             ->when(! empty($validated['booking_date']), fn ($query) => $query->where('booking_date', $validated['booking_date']))
             ->when(! empty($validated['status']), fn ($query) => $query->where('status', $validated['status']))
+            ->when(! empty($validated['q']), function ($query) use ($validated) {
+                $keyword = trim($validated['q']);
+
+                $query->where(function ($searchQuery) use ($keyword) {
+                    $searchQuery->where('booking_code', 'like', "%{$keyword}%")
+                        ->orWhere('walk_in_name', 'like', "%{$keyword}%")
+                        ->orWhere('walk_in_phone', 'like', "%{$keyword}%")
+                        ->orWhereHas('customer', function ($customerQuery) use ($keyword) {
+                            $customerQuery->where('username', 'like', "%{$keyword}%")
+                                ->orWhere('full_name', 'like', "%{$keyword}%")
+                                ->orWhere('phone', 'like', "%{$keyword}%")
+                                ->orWhere('email', 'like', "%{$keyword}%");
+                        });
+                });
+            })
             ->orderByRaw("CASE status
                 WHEN 'pending_approval' THEN 0
                 WHEN 'pending_payment' THEN 1
@@ -281,6 +299,7 @@ class BookingManagementController extends Controller
         $validated = $this->validateRecurringPayload($request);
 
         $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
+        $this->ensureRecurringClusterMatchesSelected($validated, $court);
         $this->ensureClusterCanMutate($request, $court->venueCluster);
 
         $preview = $this->bookingService->previewRecurringConflicts($validated);
@@ -307,6 +326,7 @@ class BookingManagementController extends Controller
         $validated = $this->validateRecurringPayload($request, false);
 
         $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
+        $this->ensureRecurringClusterMatchesSelected($validated, $court);
         $this->ensureClusterCanMutate($request, $court->venueCluster);
 
         return response()->json([
@@ -574,6 +594,7 @@ class BookingManagementController extends Controller
     {
         $rules = [
             'venue_court_id' => ['required', 'uuid', 'exists:venue_courts,id'],
+            'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
             'recurring_start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'recurring_end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:recurring_start_date'],
             'recurrence_type' => ['required', Rule::in(['daily', 'weekly', 'monthly'])],
@@ -634,6 +655,15 @@ class BookingManagementController extends Controller
         }
 
         return $validated;
+    }
+
+    private function ensureRecurringClusterMatchesSelected(array $validated, VenueCourt $court): void
+    {
+        if (($validated['venue_cluster_id'] ?? null) !== $court->venue_cluster_id) {
+            throw ValidationException::withMessages([
+                'venue_cluster_id' => 'Lịch cố định chỉ được tạo trong cụm sân đang chọn.',
+            ]);
+        }
     }
 
     private function ensureBookingAccess(Request $request, Booking $booking): void
