@@ -6,8 +6,10 @@ use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Mail\UserAccountLockedMail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class AdminUserManagementTest extends TestCase
@@ -188,6 +190,8 @@ class AdminUserManagementTest extends TestCase
      */
     public function test_locking_user_revokes_tokens_and_creates_audit_log(): void
     {
+        Mail::fake();
+
         // Tạo token giả cho staff
         $this->staff->createToken('test-token');
         $this->assertEquals(1, $this->staff->tokens()->count());
@@ -215,6 +219,14 @@ class AdminUserManagementTest extends TestCase
             'entity_type' => 'users',
             'entity_id' => $this->staff->id,
         ]);
+
+        Mail::assertSent(UserAccountLockedMail::class, function (UserAccountLockedMail $mail): bool {
+            return $mail->hasTo($this->staff->email)
+                && $mail->lockType === 'temporary'
+                && $mail->reason === 'Vi phạm quy định hệ thống.'
+                && $mail->actor->is($this->superAdmin);
+        });
+        Mail::assertSentCount(1);
     }
 
     /**

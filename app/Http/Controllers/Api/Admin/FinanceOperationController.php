@@ -231,7 +231,7 @@ class FinanceOperationController extends Controller
         $this->authorizePermission($request, 'withdrawal.manage');
 
         $data = $request->validate([
-            'payment_method' => ['required', Rule::in(['cash', 'bank_transfer'])],
+            'payment_method' => ['required', Rule::in(['bank_transfer'])],
             'transfer_reference' => ['nullable', 'string', 'max:100', 'required_if:payment_method,bank_transfer'],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -805,7 +805,7 @@ class FinanceOperationController extends Controller
             'payout_transfer_code' => $withdrawal->payout_transfer_code,
             'receipt' => $this->receiptPayload($withdrawal->receipt),
             'can_pay_by_qr' => false,
-            'can_pay_cash' => $canPay,
+            'can_pay_cash' => false,
             'can_pay_bank_transfer' => $canPayBankTransfer,
             'allowed_statuses' => [],
         ];

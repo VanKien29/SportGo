@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\UserAccountLockedMail;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\UserPermissionRevoke;
@@ -13,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -506,6 +508,13 @@ class UserController extends Controller
 
         $user->tokens()->delete();
         $this->audit($request, $actor, 'user.locked', $user, $oldValues, $this->lockSnapshot($user), $data['status_reason']);
+        Mail::to($user->email)->send(new UserAccountLockedMail(
+            $user,
+            $actor,
+            $data['lock_type'],
+            $data['status_reason'],
+            $data['locked_until'] ?? null,
+        ));
 
         return response()->json([
             'message' => 'Khóa tài khoản thành công.',

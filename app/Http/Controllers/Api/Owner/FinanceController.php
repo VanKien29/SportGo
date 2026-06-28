@@ -91,6 +91,8 @@ class FinanceController extends Controller
             ->latest('requested_at')
             ->paginate(15);
 
+        $withdrawals->getCollection()->each(fn (OwnerWithdrawalRequest $withdrawal) => $this->expireStalePayoutQr($withdrawal));
+
         return response()->json($withdrawals);
     }
 
@@ -198,6 +200,8 @@ class FinanceController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            $this->expireStalePayoutQr($withdrawal);
+
             if (! in_array($withdrawal->status, ['pending', 'reviewing', 'approved'], true)) {
                 throw ValidationException::withMessages([
                     'status' => 'Chỉ có thể hủy yêu cầu rút tiền đang chờ chuyển khoản.',
@@ -256,6 +260,32 @@ class FinanceController extends Controller
             'message' => 'Đã hủy yêu cầu rút tiền và hoàn lại số dư tạm giữ.',
             'data' => $withdrawal,
         ]);
+    }
+
+    private function expireStalePayoutQr(OwnerWithdrawalRequest $withdrawal): void
+    {
+        if (
+            ! $withdrawal->payout_transfer_code
+            || ! $withdrawal->payout_qr_created_at
+            || $withdrawal->payout_qr_created_at->gt(now()->subHours(24))
+            || ! in_array($withdrawal->status, ['pending', 'reviewing', 'approved'], true)
+        ) {
+            return;
+        }
+
+        $metadata = $withdrawal->metadata ?? [];
+        if (! empty($metadata['mb_bulk_exported_at'])) {
+            return;
+        }
+
+        $withdrawal->forceFill([
+            'payout_transfer_code' => null,
+            'payout_qr_created_at' => null,
+            'metadata' => array_merge(is_array($metadata) ? $metadata : [], [
+                'expired_payout_transfer_code' => $withdrawal->payout_transfer_code,
+                'payout_expired_at' => now()->toIso8601String(),
+            ]),
+        ])->save();
     }
 
     private function nextRequestCode(): string

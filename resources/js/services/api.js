@@ -62,6 +62,7 @@ export async function api(path, options = {}) {
     const error = new Error(extractError(data, 'Có lỗi xảy ra. Vui lòng thử lại.'));
     error.status = response.status;
     error.data = data;
+    error.response = { status: response.status, data };
     throw error;
   }
 
@@ -98,6 +99,7 @@ export async function apiFormData(path, formData, options = {}) {
     const error = new Error(extractError(data, 'Có lỗi xảy ra. Vui lòng thử lại.'));
     error.status = response.status;
     error.data = data;
+    error.response = { status: response.status, data };
     throw error;
   }
 

@@ -72,7 +72,9 @@ class AdminRefundService
                 $payment->status = $refundedAmountAfter + 0.01 >= (float) $payment->amount ? 'refunded' : 'paid';
                 $payment->save();
 
-                $ownerLedger = $this->debitOwnerWalletIfNeeded($payment, $refund, $context);
+                $ownerLedger = $status === 'completed'
+                    ? $this->debitOwnerWalletIfNeeded($payment, $refund, $context)
+                    : null;
                 $refund->owner_wallet_ledger_id = $ownerLedger?->id;
 
                 if ($status === 'completed') {

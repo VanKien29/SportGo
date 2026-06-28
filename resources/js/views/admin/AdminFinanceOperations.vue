@@ -926,19 +926,7 @@
                             </div>
                         </dl>
 
-                        <div class="method-row">
-                            <button
-                                type="button"
-                                :class="{ active: payoutMethod === 'cash' }"
-                                :disabled="
-                                    payingUserWithdrawal ||
-                                    !payoutItem?.can_pay_cash
-                                "
-                                @click="selectPayoutMethod('cash')"
-                            >
-                                <AppIcon name="banknote" size="16" />
-                                <span>Tiền mặt</span>
-                            </button>
+                        <div class="method-row single">
                             <button
                                 type="button"
                                 :class="{
@@ -1018,23 +1006,6 @@
                             </template>
                         </div>
 
-                        <label
-                            v-if="payoutMethod === 'cash'"
-                            class="payout-note-field"
-                        >
-                            <span>Ghi chú</span>
-                            <textarea
-                                v-model.trim="payoutNote"
-                                rows="3"
-                                :disabled="payingUserWithdrawal"
-                                placeholder="Ghi chú đối soát nếu có"
-                            ></textarea>
-                        </label>
-
-                        <p v-if="payoutMethod === 'cash'" class="review-note">
-                            Khi xác nhận, hệ thống trừ số tiền đang giữ trong ví
-                            người dùng, ghi lịch sử ví và phát hành phiếu chi.
-                        </p>
                         <p v-if="payoutError" class="inline-error">
                             {{ payoutError }}
                         </p>
@@ -1046,21 +1017,6 @@
                                 @click="closePayout"
                             >
                                 Đóng
-                            </button>
-                            <button
-                                v-if="payoutMethod === 'cash'"
-                                class="primary-btn"
-                                type="button"
-                                :disabled="payingUserWithdrawal"
-                                @click="
-                                    submitUserWithdrawalPayment(payoutMethod)
-                                "
-                            >
-                                {{
-                                    payingUserWithdrawal
-                                        ? "Đang xử lý..."
-                                        : "Xác nhận đã trả tiền mặt"
-                                }}
                             </button>
                         </footer>
                     </div>
@@ -1324,9 +1280,7 @@ export default {
             this.payoutItem = item;
             this.payoutError = "";
             this.copyMessage = "";
-            this.payoutMethod = item.can_pay_bank_transfer
-                ? "bank_transfer"
-                : "cash";
+            this.payoutMethod = "bank_transfer";
             this.payoutNote = "";
 
             if (this.isUserWithdrawalPayout()) {
@@ -1471,6 +1425,9 @@ export default {
             }
         },
         async selectPayoutMethod(method) {
+            if (this.isUserWithdrawalPayout() && method !== "bank_transfer") {
+                return;
+            }
             this.payoutMethod = method;
             this.payoutError = "";
             if (

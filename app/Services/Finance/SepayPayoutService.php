@@ -14,6 +14,8 @@ use RuntimeException;
 
 class SepayPayoutService
 {
+    private const PAYOUT_QR_TTL_HOURS = 24;
+
     public function __construct(
         private readonly AdminRefundService $refunds,
         private readonly AdminWithdrawalService $withdrawals,
@@ -23,6 +25,7 @@ class SepayPayoutService
 
     public function refundQr(Refund $refund): array
     {
+        $this->expireRefundPayoutIfStale($refund);
         $refund->loadMissing(['payment:id,payment_code', 'payoutAccount']);
 
         if (! in_array($refund->status, ['pending_confirmation', 'owner_confirmed', 'admin_processing', 'processing'], true)) {
@@ -60,6 +63,7 @@ class SepayPayoutService
 
     public function withdrawalQr(OwnerWithdrawalRequest $withdrawal): array
     {
+        $this->expireOwnerWithdrawalPayoutIfStale($withdrawal);
         $withdrawal->loadMissing('bankAccount');
 
         if (! in_array($withdrawal->status, ['pending', 'reviewing', 'approved'], true)) {
@@ -95,6 +99,7 @@ class SepayPayoutService
 
     public function userWithdrawalQr(UserWithdrawalRequest $withdrawal): array
     {
+        $this->expireUserWithdrawalPayoutIfStale($withdrawal);
         $withdrawal->loadMissing('payoutAccount');
 
         if (! in_array($withdrawal->status, ['pending', 'approved'], true)) {
@@ -145,6 +150,23 @@ class SepayPayoutService
             throw new RuntimeException('Yêu cầu hoàn tiền đã kết thúc, không thể kiểm tra SePay.');
         }
 
+        if ($this->expireRefundPayoutIfStale($refund)) {
+            return [
+                'completed' => false,
+                'expired' => true,
+                'message' => 'QR chi trả đã quá 24 giờ và được đưa về trạng thái chờ tạo lại.',
+                'data' => $refund->fresh(),
+            ];
+        }
+
+        if (! $refund->payout_transfer_code) {
+            return [
+                'completed' => false,
+                'message' => 'Yêu cầu chưa có QR chi trả đang hoạt động.',
+                'data' => $refund->fresh(),
+            ];
+        }
+
         $qr = $this->refundQr($refund);
         $transaction = $this->findOutboundTransaction($qr['transfer_code'], $qr['amount']);
 
@@ -174,6 +196,23 @@ class SepayPayoutService
             throw new RuntimeException('Yêu cầu rút tiền đã kết thúc, không thể kiểm tra SePay.');
         }
 
+        if ($this->expireOwnerWithdrawalPayoutIfStale($withdrawal)) {
+            return [
+                'completed' => false,
+                'expired' => true,
+                'message' => 'QR rút tiền đã quá 24 giờ và được đưa về trạng thái chờ tạo lại.',
+                'data' => $withdrawal->fresh(),
+            ];
+        }
+
+        if (! $withdrawal->payout_transfer_code) {
+            return [
+                'completed' => false,
+                'message' => 'Yêu cầu chưa có QR rút tiền đang hoạt động.',
+                'data' => $withdrawal->fresh(),
+            ];
+        }
+
         $qr = $this->withdrawalQr($withdrawal);
         $transaction = $this->findOutboundTransaction($qr['transfer_code'], $qr['amount']);
 
@@ -200,6 +239,23 @@ class SepayPayoutService
 
         if (in_array($withdrawal->status, ['rejected', 'cancelled'], true)) {
             throw new RuntimeException('Yêu cầu rút tiền đã kết thúc, không thể kiểm tra SePay.');
+        }
+
+        if ($this->expireUserWithdrawalPayoutIfStale($withdrawal)) {
+            return [
+                'completed' => false,
+                'expired' => true,
+                'message' => 'QR rút tiền người dùng đã quá 24 giờ và được đưa về trạng thái chờ tạo lại.',
+                'data' => $withdrawal->fresh(),
+            ];
+        }
+
+        if (! $withdrawal->payout_transfer_code) {
+            return [
+                'completed' => false,
+                'message' => 'Yêu cầu chưa có QR rút tiền đang hoạt động.',
+                'data' => $withdrawal->fresh(),
+            ];
         }
 
         $qr = $this->userWithdrawalQr($withdrawal);
@@ -300,6 +356,24 @@ class SepayPayoutService
         return $code;
     }
 
+    private function expireRefundPayoutIfStale(Refund $refund): bool
+    {
+        if (! $this->payoutQrIsStale($refund->payout_transfer_code, $refund->payout_qr_created_at)) {
+            return false;
+        }
+
+        if (in_array($refund->status, ['completed', 'completed_cash', 'rejected', 'cancelled'], true)) {
+            return false;
+        }
+
+        $refund->forceFill([
+            'payout_transfer_code' => null,
+            'payout_qr_created_at' => null,
+        ])->save();
+
+        return true;
+    }
+
     public function ensureWithdrawalTransferCode(OwnerWithdrawalRequest $withdrawal): string
     {
         if ($withdrawal->payout_transfer_code) {
@@ -318,6 +392,24 @@ class SepayPayoutService
         return $code;
     }
 
+    private function expireOwnerWithdrawalPayoutIfStale(OwnerWithdrawalRequest $withdrawal): bool
+    {
+        if (! $this->payoutQrIsStale($withdrawal->payout_transfer_code, $withdrawal->payout_qr_created_at)) {
+            return false;
+        }
+
+        if (in_array($withdrawal->status, ['completed', 'rejected', 'cancelled'], true)) {
+            return false;
+        }
+
+        $withdrawal->forceFill([
+            'payout_transfer_code' => null,
+            'payout_qr_created_at' => null,
+        ])->save();
+
+        return true;
+    }
+
     public function ensureUserWithdrawalTransferCode(UserWithdrawalRequest $withdrawal): string
     {
         if ($withdrawal->payout_transfer_code) {
@@ -334,6 +426,40 @@ class SepayPayoutService
         ])->save();
 
         return $code;
+    }
+
+    private function expireUserWithdrawalPayoutIfStale(UserWithdrawalRequest $withdrawal): bool
+    {
+        if (! $this->payoutQrIsStale($withdrawal->payout_transfer_code, $withdrawal->payout_qr_created_at)) {
+            return false;
+        }
+
+        if (in_array($withdrawal->status, ['paid', 'rejected', 'cancelled'], true)) {
+            return false;
+        }
+
+        $metadata = $withdrawal->metadata ?? [];
+        if (! empty($metadata['mb_bulk_exported_at'])) {
+            return false;
+        }
+
+        $withdrawal->forceFill([
+            'payout_transfer_code' => null,
+            'payout_qr_created_at' => null,
+            'metadata' => array_merge(is_array($metadata) ? $metadata : [], [
+                'expired_payout_transfer_code' => $withdrawal->payout_transfer_code,
+                'payout_expired_at' => now()->toIso8601String(),
+            ]),
+        ])->save();
+
+        return true;
+    }
+
+    private function payoutQrIsStale(?string $transferCode, $createdAt): bool
+    {
+        return filled($transferCode)
+            && $createdAt
+            && $createdAt->lte(now()->subHours(self::PAYOUT_QR_TTL_HOURS));
     }
 
     private function resolveRefundPayoutAccount(Refund $refund, bool $persist = false): ?UserPayoutAccount
