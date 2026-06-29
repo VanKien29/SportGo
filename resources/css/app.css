@@ -1,5 +1,7 @@
-@import 'tailwindcss';
-@import './admin/index.css';
+@import "tailwindcss";
+@import "./admin/index.css";
+
+@variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -8,8 +10,10 @@
 @source '../**/*.vue';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans:
+        "Instrument Sans", ui-sans-serif, system-ui, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
     --radius: 1rem;
     --color-accent: oklch(0.89 0 0);
     --color-destructive-foreground: var(--destructive-foreground);
@@ -36,7 +40,7 @@
 .dark input::selection,
 .modal-overlay input::selection {
     color: #fff;
-    background: rgba(34, 197, 94, .35);
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .auth-layout input:-webkit-autofill,
@@ -66,23 +70,4 @@
     -webkit-text-fill-color: #fff !important;
     box-shadow: 0 0 0 1000px #09090b inset !important;
     -webkit-box-shadow: 0 0 0 1000px #09090b inset !important;
-}
-
-input[type='date'],
-input[type='time'],
-input[type='datetime-local'],
-input[type='month'],
-input[type='week'] {
-    color: #0f172a !important;
-    -webkit-text-fill-color: #0f172a !important;
-    color-scheme: light;
-}
-
-input[type='date']::-webkit-calendar-picker-indicator,
-input[type='time']::-webkit-calendar-picker-indicator,
-input[type='datetime-local']::-webkit-calendar-picker-indicator,
-input[type='month']::-webkit-calendar-picker-indicator,
-input[type='week']::-webkit-calendar-picker-indicator {
-    opacity: 1;
-    filter: none;
 }

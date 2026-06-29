@@ -1,997 +1,1306 @@
 <template>
-  <div class="home-container">
-    <!-- Navbar with dark theme -->
-    <PublicNavbar theme="dark" />
-    <VipPromptToast v-if="showVipPrompt" :duration="9000" />
-    
-    <!-- Ambient glowing backgrounds in white/gray -->
-    <div class="glow glow-top"></div>
-    <div class="glow glow-center"></div>
+    <div class="page-container">
+        <!-- Navbar -->
+        <header class="site-header">
+            <div class="nav-container">
+                <!-- Logo -->
+                <router-link to="/" class="logo-link">
+                    <div class="logo-icon">
+                        <img v-if="customLogo" :src="customLogo" alt="SportGo Logo" class="custom-navbar-logo" />
+                        <svg
+                            v-else
+                            width="18"
+                            height="18"
+                            viewBox="0 0 32 32"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                        >
+                            <circle cx="16" cy="16" r="15" />
+                            <path
+                                d="M16 4 C20 8 22 12 22 16 C22 20 20 24 16 28"
+                                fill="none"
+                            />
+                            <path
+                                d="M16 4 C12 8 10 12 10 16 C10 20 12 24 16 28"
+                                fill="none"
+                            />
+                            <line x1="4" y1="12" x2="28" y2="12" />
+                            <line x1="4" y1="20" x2="28" y2="20" />
+                        </svg>
+                    </div>
+                    <span class="logo-text"
+                        >Sport<span class="logo-accent">Go</span></span
+                    >
+                </router-link>
 
-    <!-- Main Hero Content -->
-    <main class="hero-section">
-      <div class="hero-content">
-        <!-- Actions -->
-        <div class="hero-actions animate-slide-up-delayed-more">
-          <router-link to="/venues" class="btn-primary">
-            Khám phá sân ngay
-          </router-link>
+                <!-- Menu Links Desktop -->
+                <nav class="nav-links">
+                    <router-link to="/" class="nav-item active-link"
+                        >Trang chủ</router-link
+                    >
+                    <router-link to="/venues" class="nav-item"
+                        >Sân thể thao</router-link
+                    >
+                    <router-link
+                        v-if="user && user.role === 'user'"
+                        to="/booking"
+                        class="nav-item"
+                        >Lịch & Đặt sân</router-link
+                    >
+                    <router-link to="/become-partner" class="nav-item"
+                        >Đối tác chủ sân</router-link
+                    >
+                </nav>
 
-          <router-link to="/become-partner" class="btn-secondary">
-            <span class="btn-secondary-inner">
-              Dành cho chủ sân
-            </span>
-          </router-link>
-        </div>
-      </div>
+                <!-- Right Controls Desktop -->
+                <div class="nav-right">
+                    <template v-if="!user">
+                        <router-link to="/login" class="btn-login"
+                            >Đăng nhập</router-link
+                        >
+                        <router-link to="/register" class="btn-register"
+                            >Đăng ký</router-link
+                        >
+                    </template>
+                    <template v-else>
+                        <div
+                            class="user-dropdown-container"
+                            @mouseenter="showDropdown = true"
+                            @mouseleave="scheduleHide"
+                        >
+                            <button class="btn-avatar" @click="toggleDropdown">
+                                {{ userInitial }}
+                            </button>
 
-      <!-- Interactive Dashboard/Feature Section -->
-      <div class="slider-wrapper animate-slide-up-delayed-more">
-        <!-- Left Slider Arrow -->
-        <button class="arrow-btn arrow-left" @click="prevTab" aria-label="Trở lại">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-        </button>
+                            <transition name="dd">
+                                <div
+                                    v-if="showDropdown"
+                                    class="user-dropdown"
+                                    @mouseenter="cancelHide"
+                                    @mouseleave="scheduleHide"
+                                >
+                                    <div class="dropdown-header">
+                                        <div class="dd-avatar">
+                                            {{ userInitial }}
+                                        </div>
+                                        <div class="dd-info">
+                                            <div class="dd-name">
+                                                {{ user.fullName }}
+                                            </div>
+                                            <div class="dd-role">
+                                                {{ roleLabel }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="dd-divider"></div>
+                                    <router-link
+                                        :to="profileRoute"
+                                        class="dd-item"
+                                        @click="showDropdown = false"
+                                    >
+                                        <svg
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                        >
+                                            <path
+                                                d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+                                            />
+                                            <circle cx="12" cy="7" r="4" />
+                                        </svg>
+                                        Thông tin cá nhân
+                                    </router-link>
+                                    <button
+                                        v-if="user.role === 'owner'"
+                                        @click="goToManage"
+                                        class="dd-item dd-manage"
+                                    >
+                                        <svg
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                        >
+                                            <path
+                                                d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"
+                                            />
+                                            <circle cx="12" cy="10" r="3" />
+                                        </svg>
+                                        Quản lý sân
+                                    </button>
+                                    <button
+                                        v-if="user.role === 'admin'"
+                                        @click="goToManage"
+                                        class="dd-item dd-manage"
+                                    >
+                                        <svg
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                        >
+                                            <rect
+                                                x="3"
+                                                y="3"
+                                                width="7"
+                                                height="7"
+                                                rx="1"
+                                            />
+                                            <rect
+                                                x="14"
+                                                y="3"
+                                                width="7"
+                                                height="7"
+                                                rx="1"
+                                            />
+                                            <rect
+                                                x="3"
+                                                y="14"
+                                                width="7"
+                                                height="7"
+                                                rx="1"
+                                            />
+                                            <rect
+                                                x="14"
+                                                y="14"
+                                                width="7"
+                                                height="7"
+                                                rx="1"
+                                            />
+                                        </svg>
+                                        Quản trị hệ thống
+                                    </button>
+                                    <div class="dd-divider"></div>
+                                    <button
+                                        @click="handleLogout"
+                                        class="dd-item dd-logout"
+                                    >
+                                        <svg
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                        >
+                                            <path
+                                                d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+                                            />
+                                            <polyline
+                                                points="16 17 21 12 16 7"
+                                            />
+                                            <line
+                                                x1="21"
+                                                y1="12"
+                                                x2="9"
+                                                y2="12"
+                                            />
+                                        </svg>
+                                        Đăng xuất
+                                    </button>
+                                </div>
+                            </transition>
+                        </div>
+                    </template>
+                </div>
 
-        <!-- Main Feature Mockup Card -->
-        <div class="preview-card-container">
-          <div class="preview-card-header">
-            <div class="header-dots">
-              <span class="dot"></span>
-              <span class="dot"></span>
-              <span class="dot"></span>
+                <!-- Mobile Menu Toggle Button -->
+                <button
+                    @click="menuMobileOpen = !menuMobileOpen"
+                    class="btn-menu-mobile"
+                    aria-label="Toggle Menu"
+                >
+                    <svg
+                        v-if="!menuMobileOpen"
+                        width="22"
+                        height="22"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <line x1="4" x2="20" y1="12" y2="12" />
+                        <line x1="4" x2="20" y1="6" y2="6" />
+                        <line x1="4" x2="20" y1="18" y2="18" />
+                    </svg>
+                    <svg
+                        v-else
+                        width="22"
+                        height="22"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <path d="M18 6 6 18" />
+                        <path d="m6 6 12 12" />
+                    </svg>
+                </button>
             </div>
-            <div class="tab-selector">
-              <button :class="['tab-btn', currentTab === 0 ? 'active' : '']" @click="currentTab = 0">Dashboard</button>
-              <button :class="['tab-btn', currentTab === 1 ? 'active' : '']" @click="currentTab = 1">Lịch Đặt Sân</button>
-              <button :class="['tab-btn', currentTab === 2 ? 'active' : '']" @click="currentTab = 2">Doanh Thu</button>
-            </div>
-          </div>
 
-          <div class="preview-card-content">
-            <transition name="tab-fade" mode="out-in">
-              <div v-if="currentTab === 0" key="dashboard" class="dashboard-mockup">
-                <!-- Sidebar Panel -->
-                <div class="mockup-sidebar">
-                  <nav class="sidebar-nav">
-                    <div class="nav-item active">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                      Tổng quan
+            <!-- Mobile Menu Panel -->
+            <transition name="slide-down">
+                <div v-if="menuMobileOpen" class="mobile-menu-panel">
+                    <ul class="mobile-links">
+                        <li>
+                            <router-link
+                                to="/"
+                                @click="menuMobileOpen = false"
+                                class="m-link"
+                                >Trang chủ</router-link
+                            >
+                        </li>
+                        <li>
+                            <router-link
+                                to="/venues"
+                                @click="menuMobileOpen = false"
+                                class="m-link"
+                                >Sân thể thao</router-link
+                            >
+                        </li>
+                        <li v-if="user && user.role === 'user'">
+                            <router-link
+                                to="/booking"
+                                @click="menuMobileOpen = false"
+                                class="m-link"
+                                >Lịch & Đặt sân</router-link
+                            >
+                        </li>
+                        <li>
+                            <router-link
+                                to="/become-partner"
+                                @click="menuMobileOpen = false"
+                                class="m-link"
+                                >Đối tác chủ sân</router-link
+                            >
+                        </li>
+                    </ul>
+                    <div class="mobile-auth">
+                        <template v-if="!user">
+                            <router-link
+                                to="/login"
+                                @click="menuMobileOpen = false"
+                                class="btn-mobile-login"
+                                >Đăng nhập</router-link
+                            >
+                            <router-link
+                                to="/register"
+                                @click="menuMobileOpen = false"
+                                class="btn-mobile-register"
+                                >Đăng ký</router-link
+                            >
+                        </template>
+                        <template v-else>
+                            <div class="mobile-user-info">
+                                <div class="dd-avatar">{{ userInitial }}</div>
+                                <div>
+                                    <div class="mobile-username">
+                                        {{ user.fullName }}
+                                    </div>
+                                    <div class="mobile-role">
+                                        {{ roleLabel }}
+                                    </div>
+                                </div>
+                            </div>
+                            <router-link
+                                to="/profile"
+                                @click="menuMobileOpen = false"
+                                class="mobile-menu-btn"
+                                >Thông tin cá nhân</router-link
+                            >
+                            <button
+                                v-if="user.role === 'owner'"
+                                @click="goToManageMobile"
+                                class="mobile-menu-btn text-bold"
+                            >
+                                Quản lý sân
+                            </button>
+                            <button
+                                v-if="user.role === 'admin'"
+                                @click="goToManageMobile"
+                                class="mobile-menu-btn text-bold"
+                            >
+                                Quản trị hệ thống
+                            </button>
+                            <button
+                                @click="handleLogoutMobile"
+                                class="btn-mobile-logout"
+                            >
+                                Đăng xuất
+                            </button>
+                        </template>
                     </div>
-                    <div class="nav-item">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                      Sân đấu
-                    </div>
-                    <div class="nav-item">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                      Đội nhóm
-                    </div>
-                  </nav>
                 </div>
-              </div>
-              <div v-else-if="currentTab === 1" key="calendar" class="calendar-mockup">
-                <div class="calendar-grid-mockup">
-                  <div class="calendar-timeline-row">
-                    <div class="time-label">Khung giờ</div>
-                    <div class="court-header">Sân Bóng Đá A</div>
-                    <div class="court-header">Sân Tennis 1</div>
-                    <div class="court-header">Sân Cầu Lông 3</div>
-                  </div>
-
-                  <div class="calendar-grid-row">
-                    <div class="time-cell">17:00 - 18:30</div>
-                    <div class="slot-cell">
-                      <div class="booked-slot slot-soccer">FC Brother</div>
-                    </div>
-                    <div class="slot-cell">
-                      <div class="booked-slot slot-tennis">Anh Tuấn Tennis</div>
-                    </div>
-                    <div class="slot-cell">
-                      <div class="slot-empty">Còn trống</div>
-                    </div>
-                  </div>
-
-                  <div class="calendar-grid-row">
-                    <div class="time-cell">18:30 - 20:00</div>
-                    <div class="slot-cell">
-                      <div class="booked-slot slot-soccer">FC Friends</div>
-                    </div>
-                    <div class="slot-cell">
-                      <div class="slot-empty">Còn trống</div>
-                    </div>
-                    <div class="slot-cell">
-                      <div class="booked-slot slot-badminton">Club Cầu Lông Q1</div>
-                    </div>
-                  </div>
-
-                  <div class="calendar-grid-row">
-                    <div class="time-cell">20:00 - 21:30</div>
-                    <div class="slot-cell">
-                      <div class="booked-slot slot-soccer">FC Văn Phòng</div>
-                    </div>
-                    <div class="slot-cell">
-                      <div class="booked-slot slot-tennis">Chị Vy & Bạn</div>
-                    </div>
-                    <div class="slot-cell">
-                      <div class="booked-slot slot-badminton">Cầu lông tự do</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div v-else key="reports" class="reports-mockup">
-                <div class="reports-grid">
-                  <!-- Custom visual SVG bar graph -->
-                  <div class="chart-panel">
-                    <div class="chart-title-sub">Biểu đồ doanh thu tuần (Triệu VNĐ)</div>
-                    <div class="chart-bars-flex">
-                      <div class="chart-bar-container">
-                        <div class="chart-bar" style="height: 45%;">
-                          <span class="bar-value">9.2M</span>
-                        </div>
-                        <span class="bar-label">Tuần 1</span>
-                      </div>
-                      <div class="chart-bar-container">
-                        <div class="chart-bar" style="height: 60%;">
-                          <span class="bar-value">12.1M</span>
-                        </div>
-                        <span class="bar-label">Tuần 2</span>
-                      </div>
-                      <div class="chart-bar-container">
-                        <div class="chart-bar" style="height: 75%;">
-                          <span class="bar-value">15.5M</span>
-                        </div>
-                        <span class="bar-label">Tuần 3</span>
-                      </div>
-                      <div class="chart-bar-container">
-                        <div class="chart-bar current-week-bar" style="height: 90%;">
-                          <span class="bar-value">18.4M</span>
-                        </div>
-                        <span class="bar-label">Tuần này</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Share breakdown progress -->
-                  <div class="distribution-panel">
-                    <h5 class="dist-title">Doanh thu theo bộ môn</h5>
-                    <div class="dist-list">
-                      <div class="dist-item">
-                        <div class="dist-label-flex">
-                          <span>Sân Bóng Đá</span>
-                          <span class="dist-pct">45%</span>
-                        </div>
-                        <div class="progress-track"><div class="progress-bar" style="width: 45%;"></div></div>
-                      </div>
-
-                      <div class="dist-item">
-                        <div class="dist-label-flex">
-                          <span>Sân Cầu Lông</span>
-                          <span class="dist-pct">35%</span>
-                        </div>
-                        <div class="progress-track"><div class="progress-bar" style="width: 35%;"></div></div>
-                      </div>
-
-                      <div class="dist-item">
-                        <div class="dist-label-flex">
-                          <span>Sân Tennis</span>
-                          <span class="dist-pct">20%</span>
-                        </div>
-                        <div class="progress-track"><div class="progress-bar" style="width: 20%;"></div></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
             </transition>
-          </div>
-        </div>
+        </header>
 
-        <!-- Right Slider Arrow -->
-        <button class="arrow-btn arrow-right" @click="nextTab" aria-label="Tiếp theo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </button>
-      </div>
-    </main>
-    <HomeBannerCarousel position="home" />
-  </div>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Hero Section -->
+            <section class="hero-section">
+                <!-- Action Buttons (Monochrome: Black & White) -->
+                <div class="hero-actions">
+                    <router-link to="/venues" class="btn-hero-primary">
+                        Đặt sân ngay
+                    </router-link>
+                    <router-link
+                        to="/become-partner"
+                        class="btn-hero-secondary"
+                    >
+                        Trở thành đối tác chủ sân
+                    </router-link>
+                </div>
+
+                <!-- Mockup Display -->
+                <div class="mockup-container">
+                    <div class="mockup-mask"></div>
+                    <div class="mockup-frame">
+                        <img
+                            class="mockup-img img-dark"
+                            :src="mockDark"
+                            alt="app screen dark"
+                        />
+                        <img
+                            class="mockup-img img-light"
+                            :src="mockLight"
+                            alt="app screen light"
+                        />
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
 </template>
 
 <script>
-import HomeBannerCarousel from '../components/HomeBannerCarousel.vue';
-import PublicNavbar from '../components/PublicNavbar.vue';
-import VipPromptToast from '../components/VipPromptToast.vue';
-import { getAuth } from '../stores/auth.js';
+
+import { getAuth, logout } from "../stores/auth.js";
 
 export default {
-  name: 'HomeView',
-  components: { HomeBannerCarousel, PublicNavbar, VipPromptToast },
-  data() {
-    return {
-      user: getAuth(),
-      currentTab: 0,
-      totalTabs: 3
-    };
-  },
-  methods: {
-    nextTab() {
-      this.currentTab = (this.currentTab + 1) % this.totalTabs;
+    name: "HomeView",
+    components: { },
+    data() {
+        return {
+            user: getAuth(),
+            menuMobileOpen: false,
+            showDropdown: false,
+            hideTimer: null,
+            isLoaded: false,
+            customLogo: '',
+            mockLight: 'https://tailark.com/_next/image?url=%2Fmail2-light.png&w=3840&q=75',
+            mockDark: 'https://tailark.com//_next/image?url=%2Fmail2.png&w=3840&q=75',
+        };
     },
-    prevTab() {
-      this.currentTab = (this.currentTab - 1 + this.totalTabs) % this.totalTabs;
-    }
-  },
-  computed: {
-    showVipPrompt() {
-      return !this.user || this.user.role === 'user';
+    computed: {
+        userInitial() {
+            return this.user?.fullName?.charAt(0)?.toUpperCase() || "?";
+        },
+        roleLabel() {
+            const map = {
+                admin: "Quản trị viên",
+                owner: "Chủ sân",
+                user: "Người chơi",
+            };
+            return map[this.user?.role] || "";
+        },
+        profileRoute() {
+            if (!this.user) return "/login";
+            if (this.user.role === "owner") return "/owner/profile";
+            return "/profile";
+        },
     },
-  },
+    mounted() {
+        this.loadSystemThemeSettings();
+        window.addEventListener('sportgo-settings-updated', this.loadSystemThemeSettings);
+        setTimeout(() => {
+            this.isLoaded = true;
+        }, 100);
+    },
+    beforeUnmount() {
+        this.clearTimer();
+        window.removeEventListener('sportgo-settings-updated', this.loadSystemThemeSettings);
+    },
+    methods: {
+        toggleDropdown() {
+            this.showDropdown = !this.showDropdown;
+        },
+        loadSystemThemeSettings() {
+            const stored = localStorage.getItem('sportgo_general_settings');
+            if (stored) {
+                try {
+                    const settings = JSON.parse(stored);
+                    this.customLogo = settings.app_logo || '';
+                    this.mockLight = settings.homepage_mock_light || 'https://tailark.com/_next/image?url=%2Fmail2-light.png&w=3840&q=75';
+                    this.mockDark = settings.homepage_mock_dark || 'https://tailark.com//_next/image?url=%2Fmail2.png&w=3840&q=75';
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        },
+        scheduleHide() {
+            this.hideTimer = setTimeout(() => {
+                this.showDropdown = false;
+            }, 200);
+        },
+        cancelHide() {
+            if (this.hideTimer) clearTimeout(this.hideTimer);
+        },
+        goToManage() {
+            this.showDropdown = false;
+            const role = this.user?.role;
+            if (role === "admin") {
+                this.$router.push("/admin/dashboard");
+            } else if (role === "owner") {
+                this.$router.push("/owner/dashboard");
+            }
+        },
+        goToManageMobile() {
+            this.menuMobileOpen = false;
+            const role = this.user?.role;
+            if (role === "admin") {
+                this.$router.push("/admin/dashboard");
+            } else if (role === "owner") {
+                this.$router.push("/owner/dashboard");
+            }
+        },
+        async handleLogout() {
+            await logout();
+            this.user = null;
+            this.showDropdown = false;
+            this.$router.push("/login");
+        },
+        async handleLogoutMobile() {
+            await logout();
+            this.user = null;
+            this.menuMobileOpen = false;
+            this.$router.push("/login");
+        },
+        clearTimer() {
+            if (this.hideTimer) {
+                clearTimeout(this.hideTimer);
+                this.hideTimer = null;
+            }
+        },
+    },
 };
 </script>
 
 <style scoped>
-/* Base Dark Theme Overrides (strictly black/white/gray) */
-.home-container {
-  min-height: 100vh;
-  background-color: #09090b;
-  color: #ffffff;
-  position: relative;
-  overflow-x: hidden;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  box-sizing: border-box;
+/* Reset base inside component for maximum isolation */
+.page-container {
+    min-height: 100vh;
+    background-color: #ffffff;
+    color: #09090b;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+        sans-serif;
+    transition:
+        background-color 0.3s,
+        color 0.3s;
 }
 
-/* Ambient Radial Glows (strictly translucent whites/grays) */
-.glow {
-  position: absolute;
-  pointer-events: none;
-  border-radius: 50%;
-  filter: blur(130px);
-  z-index: 0;
+:global([data-theme="dark"]) .page-container {
+    background-color: #09090b;
+    color: #f4f4f5;
 }
-.glow-top {
-  top: -150px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 600px;
-  height: 300px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.04) 0%, transparent 80%);
+
+/* Site Header (Navbar) */
+.site-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    height: 64px;
+    background-color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid #e4e4e7;
+    transition:
+        background-color 0.3s,
+        border-color 0.3s;
 }
-.glow-center {
-  top: 55%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 700px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.02) 0%, transparent 80%);
+
+:global([data-theme="dark"]) .site-header {
+    background-color: rgba(9, 9, 11, 0.9);
+    border-bottom-color: #27272a;
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
+}
+
+/* Logo */
+.logo-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: inherit;
+}
+
+.logo-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background-color: #09090b;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+:global([data-theme="dark"]) .logo-icon {
+    background-color: #ffffff;
+    color: #09090b;
+}
+
+.logo-text {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+}
+
+.logo-accent {
+    color: #71717a;
+}
+
+/* Nav Menu Items */
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-item {
+    font-size: 14px;
+    font-weight: 700;
+    color: #52525b;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.nav-item:hover,
+.nav-item.active-link {
+    color: #09090b;
+}
+
+:global([data-theme="dark"]) .nav-item {
+    color: #a1a1aa;
+}
+
+:global([data-theme="dark"]) .nav-item:hover,
+:global([data-theme="dark"]) .nav-item.active-link {
+    color: #ffffff;
+}
+
+/* Nav Right Actions */
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.btn-login {
+    font-size: 14px;
+    font-weight: 700;
+    color: #52525b;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.btn-login:hover {
+    color: #09090b;
+}
+
+:global([data-theme="dark"]) .btn-login {
+    color: #a1a1aa;
+}
+
+:global([data-theme="dark"]) .btn-login:hover {
+    color: #ffffff;
+}
+
+.btn-register {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 16px;
+    background-color: #09090b;
+    color: #ffffff !important;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background-color 0.2s;
+}
+
+.btn-register:hover {
+    background-color: #27272a;
+}
+
+:global([data-theme="dark"]) .btn-register {
+    background-color: #ffffff;
+    color: #09090b !important;
+}
+
+:global([data-theme="dark"]) .btn-register:hover {
+    background-color: #e4e4e7;
+}
+
+/* User Avatar / Dropdown */
+.user-dropdown-container {
+    position: relative;
+}
+
+.btn-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: #09090b;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.btn-avatar:hover {
+    transform: scale(1.05);
+}
+
+:global([data-theme="dark"]) .btn-avatar {
+    background-color: #ffffff;
+    color: #09090b;
+}
+
+.user-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: 240px;
+    background-color: #ffffff;
+    border: 1px solid #e4e4e7;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    padding: 8px;
+    z-index: 110;
+    box-sizing: border-box;
+}
+
+:global([data-theme="dark"]) .user-dropdown {
+    background-color: #18181b;
+    border-color: #27272a;
+}
+
+.dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+}
+
+.dd-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: #09090b;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+:global([data-theme="dark"]) .dd-avatar {
+    background-color: #ffffff;
+    color: #09090b;
+}
+
+.dd-info {
+    overflow: hidden;
+}
+
+.dd-name {
+    font-weight: 700;
+    font-size: 13px;
+    color: #09090b;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+:global([data-theme="dark"]) .dd-name {
+    color: #ffffff;
+}
+
+.dd-role {
+    font-size: 11px;
+    color: #71717a;
+    margin-top: 2px;
+}
+
+.dd-divider {
+    height: 1px;
+    background-color: #e4e4e7;
+    margin: 6px 0;
+}
+
+:global([data-theme="dark"]) .dd-divider {
+    background-color: #27272a;
+}
+
+.dd-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px;
+    font-size: 12px;
+    color: #27272a;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+        background-color 0.2s,
+        color 0.2s;
+    box-sizing: border-box;
+}
+
+.dd-item:hover {
+    background-color: #f4f4f5;
+    color: #09090b;
+}
+
+:global([data-theme="dark"]) .dd-item {
+    color: #d4d4d8;
+}
+
+:global([data-theme="dark"]) .dd-item:hover {
+    background-color: #27272a;
+    color: #ffffff;
+}
+
+.dd-manage {
+    font-weight: 700;
+    color: #09090b;
+}
+
+:global([data-theme="dark"]) .dd-manage {
+    color: #ffffff;
+}
+
+.dd-logout {
+    color: #ef4444;
+}
+
+.dd-logout:hover {
+    background-color: #fef2f2;
+}
+
+:global([data-theme="dark"]) .dd-logout:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* Mobile Nav Toggle */
+.btn-menu-mobile {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #09090b;
+    padding: 4px;
+}
+
+:global([data-theme="dark"]) .btn-menu-mobile {
+    color: #ffffff;
+}
+
+/* Main Content Area */
+.main-content {
+    padding-top: 64px;
+    box-sizing: border-box;
 }
 
 /* Hero Section */
 .hero-section {
-  position: relative;
-  z-index: 1;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 130px 24px 80px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 0;
+    text-align: center;
+    box-sizing: border-box;
 }
-.hero-content {
-  max-width: 780px;
-  margin-bottom: 54px;
-}
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 9999px;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
-  margin-bottom: 28px;
-}
-.badge-tag {
-  color: rgba(255, 255, 255, 0.4);
-}
-.badge-text {
-  color: #ffffff;
-}
-.hero-title {
-  font-size: 64px;
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -2px;
-  color: #ffffff;
-  margin-bottom: 22px;
-}
-.gradient-text {
-  background: linear-gradient(to right, #ffffff 40%, rgba(255, 255, 255, 0.5) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.hero-subtitle {
-  font-size: 18px;
-  line-height: 1.65;
-  color: rgba(255, 255, 255, 0.55);
-  max-width: 620px;
-  margin: 0 auto 36px;
-}
+
 .hero-actions {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 28px;
-  background: #ffffff;
-  color: #09090b;
-  font-weight: 600;
-  font-size: 15px;
-  border-radius: 9999px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.12);
-}
-.btn-primary:hover {
-  background: rgba(255, 255, 255, 0.9);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(255, 255, 255, 0.2);
-}
-.btn-icon {
-  width: 14px;
-  height: 14px;
-}
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  padding: 12px 28px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-  font-weight: 500;
-  font-size: 15px;
-  border-radius: 9999px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.15);
-  transform: translateY(-2px);
-}
-.btn-secondary-inner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.shortcut-kbd {
-  display: inline-flex;
-  padding: 2px 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
-  font-family: inherit;
-}
-.hero-meta-desc {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.35);
-}
-
-/* Slider Section */
-.slider-wrapper {
-  width: 100%;
-  max-width: 1040px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  position: relative;
-}
-.arrow-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-shrink: 0;
-  box-sizing: border-box;
-}
-.arrow-btn:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-}
-.arrow-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* Mockup Card Container */
-.preview-card-container {
-  flex-grow: 1;
-  max-width: 880px;
-  background: rgba(15, 15, 17, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: border-color 0.3s;
-}
-.preview-card-container:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-}
-.preview-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.01);
-}
-.header-dots {
-  display: flex;
-  gap: 6px;
-}
-.header-dots .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-}
-.tab-selector {
-  display: flex;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 3px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-.tab-btn {
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-sizing: border-box;
-}
-.tab-btn.active {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.preview-card-content {
-  min-height: 380px;
-  position: relative;
-}
-
-/* ──── Tab 0: Dashboard ──── */
-.dashboard-mockup {
-  display: flex;
-  min-height: 380px;
-  text-align: left;
-}
-.mockup-sidebar {
-  width: 180px;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 18px;
-  background: rgba(255, 255, 255, 0.01);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.sidebar-logo-circle {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid #ffffff;
-}
-.sidebar-logo-text {
-  font-size: 13px;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.3px;
-}
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  font-size: 12.5px;
-  color: rgba(255, 255, 255, 0.45);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.nav-item svg {
-  opacity: 0.5;
-  transition: all 0.15s;
-}
-.nav-item.active {
-  background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
-}
-.nav-item.active svg {
-  opacity: 1;
-}
-.nav-item:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.mockup-main {
-  flex-grow: 1;
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.mockup-main-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.mockup-main-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #ffffff;
-}
-.mockup-quick-create {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #ffffff;
-  color: #09090b;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 9999px;
-  transition: opacity 0.15s;
-}
-.mockup-quick-create:hover {
-  opacity: 0.9;
-}
-.mockup-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-.mockup-card {
-  padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.mockup-card:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
-  transform: translateY(-1px);
-}
-.card-header-flex {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-.card-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.45);
-}
-.trend-badge {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 1px 5px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-  border-radius: 4px;
-}
-.card-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #ffffff;
-}
-.card-footer-text {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
-  margin-top: 4px;
-}
-
-/* ──── Tab 1: Calendar ──── */
-.calendar-mockup {
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-height: 380px;
-  text-align: left;
-}
-.calendar-header-mockup {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.calendar-date-info {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.cal-month {
-  font-size: 15px;
-  font-weight: 700;
-  color: #ffffff;
-}
-.cal-legend {
-  display: flex;
-  gap: 10px;
-}
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.45);
-}
-.legend-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-.legend-dot.soccer { background: #ffffff; }
-.legend-dot.tennis { background: rgba(255, 255, 255, 0.6); }
-.legend-dot.badminton { background: rgba(255, 255, 255, 0.3); }
-
-.cal-actions {
-  font-size: 11.5px;
-  padding: 3px 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.8);
-}
-.calendar-grid-mockup {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.01);
-}
-.calendar-timeline-row {
-  display: grid;
-  grid-template-columns: 100px repeat(3, 1fr);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
-}
-.time-label, .court-header {
-  padding: 8px;
-  font-size: 11.5px;
-  font-weight: 600;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.7);
-}
-.court-header {
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
-}
-.calendar-grid-row {
-  display: grid;
-  grid-template-columns: 100px repeat(3, 1fr);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-.calendar-grid-row:last-child {
-  border-bottom: none;
-}
-.time-cell {
-  padding: 10px;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.slot-cell {
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.booked-slot {
-  width: 100%;
-  padding: 5px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  text-align: center;
-  box-sizing: border-box;
-}
-.slot-soccer {
-  background: rgba(255, 255, 255, 0.07);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-}
-.slot-tennis {
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-.slot-badminton {
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-}
-.slot-empty {
-  font-size: 10.5px;
-  color: rgba(255, 255, 255, 0.15);
-  font-style: italic;
-}
-
-/* ──── Tab 2: Reports ──── */
-.reports-mockup {
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-height: 380px;
-  text-align: left;
-}
-.reports-header-flex {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.reports-heading h4 {
-  font-size: 15px;
-  color: #ffffff;
-  margin: 0;
-}
-.reports-heading p {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.4);
-  margin: 2px 0 0;
-}
-.reports-period {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.5);
-}
-.reports-grid {
-  display: grid;
-  grid-template-columns: 1.8fr 1.2fr;
-  gap: 16px;
-}
-.chart-panel {
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.chart-title-sub {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.4);
-}
-.chart-bars-flex {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  height: 140px;
-  padding: 0 4px;
-}
-.chart-bar-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex-grow: 1;
-  max-width: 48px;
-}
-.chart-bar {
-  width: 24px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px 4px 0 0;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  transition: all 0.2s;
-}
-.chart-bar:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: #ffffff;
-}
-.current-week-bar {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.35);
-  animation: pulse-bar 3s infinite ease-in-out;
-}
-@keyframes pulse-bar {
-  0%, 100% { border-color: rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.15); }
-  50% { border-color: #ffffff; background: rgba(255, 255, 255, 0.22); }
-}
-.bar-value {
-  position: absolute;
-  top: -20px;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: #ffffff;
-}
-.bar-label {
-  font-size: 10.5px;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.distribution-panel {
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.dist-title {
-  font-size: 13px;
-  color: #ffffff;
-  margin: 0;
-}
-.dist-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.dist-item {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.dist-label-flex {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.55);
-}
-.dist-pct {
-  font-weight: 600;
-  color: #ffffff;
-}
-.progress-track {
-  height: 4px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.progress-bar {
-  height: 100%;
-  background: rgba(255, 255, 255, 0.22);
-  border-radius: 2px;
-}
-
-/* ──── Vue Transitions & Animations ──── */
-.tab-fade-enter-active,
-.tab-fade-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-.tab-fade-enter-from {
-  opacity: 0;
-  transform: translateY(4px);
-}
-.tab-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.8s ease-out forwards;
-}
-.animate-slide-up {
-  animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-.animate-slide-up-delayed {
-  animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards;
-  opacity: 0;
-}
-.animate-slide-up-delayed-more {
-  animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.24s forwards;
-  opacity: 0;
-}
-
-/* Responsive Rules */
-@media (max-width: 800px) {
-  .hero-title {
-    font-size: 46px;
-  }
-  .hero-subtitle {
-    font-size: 16px;
-  }
-  .dashboard-mockup {
-    flex-direction: column;
-  }
-  .mockup-sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    flex-direction: row;
-    overflow-x: auto;
-    padding: 12px 18px;
-    gap: 12px;
-  }
-  .sidebar-brand {
-    display: none;
-  }
-  .sidebar-nav {
-    flex-direction: row;
-    gap: 8px;
-  }
-  .reports-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .hero-section {
-    padding: 100px 16px 40px;
-  }
-  .hero-actions {
-    flex-direction: column;
-    gap: 12px;
-    width: 100%;
-    max-width: 280px;
-    margin: 0 auto 20px;
-  }
-  .btn-primary, .btn-secondary {
+    display: flex;
+    align-items: center;
     justify-content: center;
+    gap: 16px;
+    margin-bottom: 48px;
+}
+
+.btn-hero-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    padding: 0 32px;
+    background-color: #09090b;
+    color: #ffffff !important;
+    font-size: 15px;
+    font-weight: 700;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background-color 0.2s;
+    box-shadow: 0 4px 12px rgba(9, 9, 11, 0.1);
+}
+
+.btn-hero-primary:hover {
+    background-color: #27272a;
+}
+
+:global([data-theme="dark"]) .btn-hero-primary {
+    background-color: #ffffff;
+    color: #09090b !important;
+}
+
+:global([data-theme="dark"]) .btn-hero-primary:hover {
+    background-color: #e4e4e7;
+}
+
+.btn-hero-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    padding: 0 28px;
+    background-color: #ffffff;
+    color: #09090b !important;
+    font-size: 15px;
+    font-weight: 700;
+    border-radius: 8px;
+    border: 1px solid #d4d4d8;
+    text-decoration: none;
+    transition:
+        background-color 0.2s,
+        border-color 0.2s;
+}
+
+.btn-hero-secondary:hover {
+    background-color: #f4f4f5;
+}
+
+:global([data-theme="dark"]) .btn-hero-secondary {
+    background-color: #18181b;
+    color: #ffffff !important;
+    border-color: #27272a;
+}
+
+:global([data-theme="dark"]) .btn-hero-secondary:hover {
+    background-color: #27272a;
+}
+
+/* Mockup Frame */
+.mockup-container {
+    position: relative;
+    margin-top: 40px;
+    box-sizing: border-box;
+}
+
+.mockup-mask {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: linear-gradient(to bottom, transparent 40%, #ffffff 95%);
+    pointer-events: none;
+}
+
+:global([data-theme="dark"]) .mockup-mask {
+    background: linear-gradient(to bottom, transparent 40%, #09090b 95%);
+}
+
+.mockup-frame {
+    position: relative;
+    background-color: #f4f4f5;
+    border: 1px solid #e4e4e7;
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+}
+
+:global([data-theme="dark"]) .mockup-frame {
+    background-color: #18181b;
+    border-color: #27272a;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.mockup-img {
     width: 100%;
-  }
-  .mockup-grid {
-    grid-template-columns: 1fr;
-  }
-  .arrow-btn {
-    display: none; /* Hide slider arrows on small screens */
-  }
+    aspect-ratio: 16/9;
+    border-radius: 8px;
+    object-fit: cover;
+    object-position: top;
+    display: block;
+}
+
+.img-dark {
+    display: none;
+}
+
+:global([data-theme="dark"]) .img-dark {
+    display: block;
+}
+
+:global([data-theme="dark"]) .img-light {
+    display: none;
+}
+
+
+
+
+
+/* Features Section */
+.features-section {
+    padding: 80px 24px;
+    background-color: #fafafa;
+}
+
+:global([data-theme="dark"]) .features-section {
+    background-color: #0c0c0e;
+}
+
+.features-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.features-header {
+    text-align: center;
+    margin-bottom: 56px;
+}
+
+.features-title {
+    font-size: 32px;
+    font-weight: 900;
+    color: #09090b;
+    margin: 0 0 16px;
+    letter-spacing: -0.5px;
+}
+
+:global([data-theme="dark"]) .features-title {
+    color: #ffffff;
+}
+
+.features-subtitle {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #71717a;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+:global([data-theme="dark"]) .features-subtitle {
+    color: #a1a1aa;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-cols: repeat(3, 1fr);
+    gap: 24px;
+}
+
+.feature-card {
+    background-color: #ffffff;
+    border: 1px solid #e4e4e7;
+    border-radius: 12px;
+    padding: 32px;
+    transition:
+        transform 0.3s,
+        box-shadow 0.3s;
+}
+
+.feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+:global([data-theme="dark"]) .feature-card {
+    background-color: #18181b;
+    border-color: #27272a;
+}
+
+:global([data-theme="dark"]) .feature-card:hover {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.feature-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background-color: #f4f4f5;
+    color: #09090b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+:global([data-theme="dark"]) .feature-icon {
+    background-color: #27272a;
+    color: #ffffff;
+}
+
+.feature-card-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #09090b;
+    margin: 0 0 12px;
+}
+
+:global([data-theme="dark"]) .feature-card-title {
+    color: #ffffff;
+}
+
+.feature-card-desc {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #71717a;
+    margin: 0;
+}
+
+:global([data-theme="dark"]) .feature-card-desc {
+    color: #a1a1aa;
+}
+
+/* Animations */
+.dd-enter-active,
+.dd-leave-active {
+    transition:
+        opacity 0.15s ease,
+        transform 0.15s ease;
+}
+.dd-enter-from,
+.dd-leave-to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+}
+
+/* Media Queries */
+@media (max-width: 1024px) {
+    .nav-links,
+    .nav-right {
+        display: none;
+    }
+    .btn-menu-mobile {
+        display: block;
+    }
+    .logos-grid {
+        grid-template-cols: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .hero-actions {
+        flex-direction: column;
+        gap: 12px;
+    }
+    .btn-hero-primary,
+    .btn-hero-secondary {
+        width: 100%;
+    }
+    .features-grid {
+        grid-template-cols: 1fr;
+    }
+    .logos-grid {
+        grid-template-cols: repeat(2, 1fr);
+    }
+    .carousel-section {
+        margin-top: -20px;
+    }
+}
+
+/* Mobile Dropdown Panel */
+.mobile-menu-panel {
+    position: absolute;
+    top: 64px;
+    left: 0;
+    right: 0;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e4e4e7;
+    padding: 24px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+:global([data-theme="dark"]) .mobile-menu-panel {
+    background-color: #09090b;
+    border-bottom-color: #27272a;
+}
+
+.mobile-links {
+    list-style: none;
+    margin: 0 0 20px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.m-link {
+    font-size: 16px;
+    font-weight: 700;
+    color: #09090b;
+    text-decoration: none;
+}
+
+:global([data-theme="dark"]) .m-link {
+    color: #ffffff;
+}
+
+.mobile-auth {
+    border-top: 1px solid #e4e4e7;
+    padding-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+:global([data-theme="dark"]) .mobile-auth {
+    border-top-color: #27272a;
+}
+
+.btn-mobile-login {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    border: 1px solid #d4d4d8;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    color: #09090b;
+}
+
+:global([data-theme="dark"]) .btn-mobile-login {
+    border-color: #27272a;
+    color: #ffffff;
+}
+
+.btn-mobile-register {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    background-color: #09090b;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    color: #ffffff !important;
+}
+
+:global([data-theme="dark"]) .btn-mobile-register {
+    background-color: #ffffff;
+    color: #09090b !important;
+}
+
+.mobile-user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.mobile-username {
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.mobile-role {
+    font-size: 12px;
+    color: #71717a;
+    margin-top: 2px;
+}
+
+.mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    font-size: 14px;
+    color: #27272a;
+    text-decoration: none;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+}
+
+:global([data-theme="dark"]) .mobile-menu-btn {
+    color: #d4d4d8;
+}
+
+.btn-mobile-logout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    background-color: #fef2f2;
+    color: #ef4444;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+:global([data-theme="dark"]) .btn-mobile-logout {
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+.text-bold {
+    font-weight: 750;
+}
+
+/* Animations for Mobile Menu */
+.slide-down-enter-active,
+.slide-down-leave-active {
+    transition: all 0.25s ease-out;
+}
+.slide-down-enter-from,
+.slide-down-leave-to {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+.custom-navbar-logo {
+    height: 22px;
+    width: auto;
+    object-fit: contain;
 }
 </style>

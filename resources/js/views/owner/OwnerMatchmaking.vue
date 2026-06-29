@@ -1,6 +1,6 @@
 <template>
   <div class="matchmaking-page">
-
+ 
     <!-- Alerts -->
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>

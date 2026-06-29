@@ -1,12 +1,10 @@
 <template>
   <div class="owner-profile-page">
-    <header class="page-header">
-      <div>
-        <h2>Hồ sơ đối tác của tôi</h2>
-        <p class="muted">Theo dõi hồ sơ đăng ký, hợp đồng, yêu cầu chấm dứt và quyết toán.</p>
-      </div>
-      <button class="icon-btn" type="button" title="Làm mới" @click="fetchData"><AppIcon name="refresh" size="16" /></button>
-    </header>
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+      <button class="btn primary" @click="openNewClusterModal()">
+        <AppIcon name="plus" size="16" /> Đăng ký Cụm sân mới
+      </button>
+    </div>
 
     <div v-if="loading" class="state-box card">
       <div class="spinner"></div>

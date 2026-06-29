@@ -1,26 +1,29 @@
 <template>
-  <div class="partner-page">
-    <header class="page-header">
-      <div>
-        <h2>Quản lý hồ sơ đối tác</h2>
-        <p>Theo dõi hồ sơ, hợp đồng, chữ ký điện tử và chấm dứt hợp tác của chủ sân.</p>
+  <div class="partner-app-page">
+    <div class="tabs-container">
+      <div class="tabs">
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'danh-sach' }" 
+          @click="setTab('danh-sach')"
+        >
+          Danh sách
+        </button>
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'cho-duyet' }" 
+          @click="setTab('cho-duyet')"
+        >
+          Chờ duyệt
+        </button>
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'da-tu-choi' }" 
+          @click="setTab('da-tu-choi')"
+        >
+          Đã từ chối
+        </button>
       </div>
-      <button class="icon-btn" type="button" title="Làm mới" @click="refresh">
-        <AppIcon name="refresh" size="16" />
-      </button>
-    </header>
-
-    <div class="tabs">
-      <button
-        v-for="tab in listTabs"
-        :key="tab.value"
-        class="tab-btn"
-        :class="{ active: filters.tab === tab.value }"
-        type="button"
-        @click="selectListTab(tab.value)"
-      >
-        {{ tab.label }}
-      </button>
     </div>
 
     <div class="toolbar card">
