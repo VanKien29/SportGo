@@ -89,6 +89,9 @@ export const adminReportService = {
       body: JSON.stringify(payload),
     });
   },
+  getViolationRecord(targetType, targetId) {
+    return api(`/api/admin/violation-records/${targetType}/${targetId}`);
+  },
 };
 
 export const adminComplaintService = {

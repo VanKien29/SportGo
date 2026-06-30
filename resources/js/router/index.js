@@ -186,20 +186,21 @@ const routes = [
             },
             { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail, meta: { hideFloatingBack: true } },
             {
+                path: "reports-complaints",
+                name: "admin-reports-complaints",
+                component: () => import("../views/admin/AdminReportsAndComplaints.vue"),
+            },
+            {
                 path: "reports",
-                redirect: { name: "admin-moderation", query: { tab: "reports" } }
+                redirect: { name: "admin-reports-complaints", query: { tab: "reports" } }
             },
             {
                 path: "complaints",
-                redirect: { name: "admin-moderation", query: { tab: "complaints" } }
+                redirect: { name: "admin-reports-complaints", query: { tab: "complaints" } }
             },
             { path: "roles", name: "admin-roles", component: AdminRoles },
             { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail, meta: { hideFloatingBack: true } },
-            {
-                path: "venue-posts",
-                name: "admin-venue-posts",
-                component: () => import("../views/admin/AdminVenuePosts.vue"),
-            },
+
             {
                 path: "court-types",
                 name: "admin-court-types",
