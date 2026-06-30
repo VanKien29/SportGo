@@ -23,6 +23,14 @@
                 </button>
                 <button
                     type="button"
+                    :class="{ active: activeTab === 'bookingList' }"
+                    @click="setActiveTab('bookingList')"
+                >
+                    <AppIcon name="fileText" size="16" />
+                    <span>Danh sách booking</span>
+                </button>
+                <button
+                    type="button"
                     :class="{ active: activeTab === 'recurringList' }"
                     @click="setActiveTab('recurringList')"
                 >
@@ -30,7 +38,7 @@
                     <span>Danh sách cố định</span>
                 </button>
             </div>
-            <button class="secondary-btn" type="button" @click="loadSchedule">
+            <button class="secondary-btn" type="button" @click="refreshActiveTab">
                 <AppIcon name="refresh" size="16" />
                 <span>Tải lại lịch</span>
             </button>
@@ -71,10 +79,10 @@
                     </label>
                     <label>
                         <span>Ngày chơi</span>
-                        <input
-                            v-model="form.booking_date"
-                            type="date"
-                            @change="handleScheduleDateChange"
+                        <MiniCalendar
+                            mode="single"
+                            :model-value="form.booking_date"
+                            @update:model-value="val => { form.booking_date = val; handleScheduleDateChange(); }"
                         />
                     </label>
                     <label>
@@ -99,8 +107,20 @@
                     {{ selectionError }}
                 </p>
 
-                <div v-if="scheduleLoading" class="state-card compact-state">
-                    Đang tải lịch sân...
+                <div v-if="scheduleLoading" class="schedule-skeleton">
+                    <div class="skeleton-summary">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="skeleton-tabs">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="skeleton-matrix">
+                        <span v-for="item in 15" :key="item"></span>
+                    </div>
                 </div>
                 <div v-else-if="scheduleError" class="state-card error-state">
                     {{ scheduleError }}
@@ -208,7 +228,42 @@
                 </div>
             </div>
 
-            <aside class="booking-side">
+            <div
+                v-if="hasCounterSelection || selectedOccupiedInterval"
+                class="counter-bottom-bar"
+            >
+                <div>
+                    <strong v-if="selectedOccupiedInterval">Đang xem lịch đã đặt</strong>
+                    <strong v-else>{{ selectedCourtText }} · {{ selectedDurationText }}</strong>
+                    <span v-if="selectedOccupiedInterval">{{ occupiedPanelSubtitle }}</span>
+                    <span v-else>{{ selectedTimeText }} · {{ formatCurrency(selectedTotal) }}</span>
+                </div>
+                <button
+                    type="button"
+                    class="primary-btn"
+                    @click="counterDrawerOpen = true"
+                >
+                    {{ selectedOccupiedInterval ? "Xem chi tiết" : "Tiếp theo" }}
+                </button>
+            </div>
+
+            <button
+                v-if="counterDrawerOpen"
+                type="button"
+                class="counter-drawer-backdrop"
+                aria-label="Đóng thông tin booking"
+                @click="counterDrawerOpen = false"
+            ></button>
+
+            <aside class="booking-side" :class="{ open: counterDrawerOpen }">
+                <button
+                    type="button"
+                    class="drawer-close-btn"
+                    aria-label="Đóng thông tin booking"
+                    @click="counterDrawerOpen = false"
+                >
+                    <AppIcon name="x" size="18" />
+                </button>
                 <section v-if="!selectedOccupiedInterval" class="side-section">
                     <div class="section-title muted">
                         <h2>Thông tin booking</h2>
@@ -535,21 +590,10 @@
                 </div>
 
                 <div class="form-grid">
-                    <label>
+                    <div class="readonly-field">
                         <span>Cụm sân</span>
-                        <select
-                            v-model="selectedClusterId"
-                            @change="handleClusterChange"
-                        >
-                            <option
-                                v-for="cluster in clusters"
-                                :key="cluster.id"
-                                :value="cluster.id"
-                            >
-                                {{ cluster.name }}
-                            </option>
-                        </select>
-                    </label>
+                        <strong>{{ selectedCluster?.name || "Chưa chọn cụm sân" }}</strong>
+                    </div>
                     <label>
                         <span>Loại sân</span>
                         <select
@@ -618,22 +662,17 @@
                             {{ walkInPhoneError }}
                         </small>
                     </label>
-                    <label>
-                        <span>Từ ngày</span>
-                        <input
-                            v-model="form.recurring_start_date"
-                            type="date"
-                            :min="today"
+                    <div class="calendar-range-field">
+                        <span>Khoảng ngày</span>
+                        <MiniCalendar
+                            mode="range"
+                            :start-date="form.recurring_start_date"
+                            :end-date="form.recurring_end_date"
+                            :min-date="today"
+                            @update:start-date="val => { form.recurring_start_date = val; }"
+                            @update:end-date="val => { form.recurring_end_date = val; }"
                         />
-                    </label>
-                    <label>
-                        <span>Đến ngày</span>
-                        <input
-                            v-model="form.recurring_end_date"
-                            type="date"
-                            :min="form.recurring_start_date || today"
-                        />
-                    </label>
+                    </div>
                     <label>
                         <span>Kiểu lặp</span>
                         <select v-model="form.recurrence_type">
@@ -653,6 +692,24 @@
                                 {{ value }}
                             </option>
                         </select>
+                    </label>
+                </div>
+                <div v-if="form.recurrence_type === 'weekly'" class="day-grid recurring-day-grid">
+                    <label
+                        v-for="day in weekDays"
+                        :key="day.value"
+                        :class="{
+                            selected: form.recurrence_days_of_week.includes(
+                                day.value,
+                            ),
+                        }"
+                    >
+                        <input
+                            v-model="form.recurrence_days_of_week"
+                            type="checkbox"
+                            :value="day.value"
+                        />
+                        <span>{{ day.label }}</span>
                     </label>
                 </div>
                 <p class="recurring-helper">
@@ -761,25 +818,6 @@
                         </template>
                     </div>
                 </section>
-
-                <div v-if="form.recurrence_type === 'weekly'" class="day-grid">
-                    <label
-                        v-for="day in weekDays"
-                        :key="day.value"
-                        :class="{
-                            selected: form.recurrence_days_of_week.includes(
-                                day.value,
-                            ),
-                        }"
-                    >
-                        <input
-                            v-model="form.recurrence_days_of_week"
-                            type="checkbox"
-                            :value="day.value"
-                        />
-                        <span>{{ day.label }}</span>
-                    </label>
-                </div>
 
                 <label
                     v-if="form.recurrence_type === 'monthly'"
@@ -1003,7 +1041,200 @@
             </aside>
         </section>
 
-        <section v-else class="recurring-list-panel">
+        <section v-else-if="activeTab === 'bookingList'" class="recurring-list-panel">
+            <div class="list-toolbar">
+                <div>
+                    <h2>Danh sách booking</h2>
+                    <p>
+                        Theo dõi booking online và booking tại quầy theo ngày,
+                        sân, trạng thái và thanh toán.
+                    </p>
+                </div>
+                <button
+                    class="icon-btn"
+                    type="button"
+                    title="Tải lại"
+                    @click="loadBookingList"
+                >
+                    <AppIcon name="refresh" size="17" />
+                </button>
+            </div>
+
+            <div class="filters booking-list-filters">
+                <label>
+                    <span>Sân con</span>
+                    <select
+                        v-model="bookingListFilters.venue_court_id"
+                        @change="loadBookingList"
+                    >
+                        <option value="">Tất cả</option>
+                        <option
+                            v-for="court in courts"
+                            :key="court.id"
+                            :value="court.id"
+                        >
+                            {{ court.name }}
+                        </option>
+                    </select>
+                </label>
+                <label>
+                    <span>Ngày chơi</span>
+                    <input
+                        v-model="bookingListFilters.booking_date"
+                        type="date"
+                        @change="loadBookingList"
+                    />
+                </label>
+                <label>
+                    <span>Nguồn đặt</span>
+                    <select
+                        v-model="bookingListFilters.source"
+                        @change="loadBookingList"
+                    >
+                        <option value="">Tất cả</option>
+                        <option value="online">Online</option>
+                        <option value="counter">Tại quầy</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Trạng thái</span>
+                    <select
+                        v-model="bookingListFilters.status"
+                        @change="loadBookingList"
+                    >
+                        <option value="">Tất cả</option>
+                        <option value="pending_approval">Chờ duyệt</option>
+                        <option value="pending_payment">Chờ thanh toán</option>
+                        <option value="confirmed">Đã xác nhận</option>
+                        <option value="checked_in">Đã check-in</option>
+                        <option value="completed">Hoàn thành</option>
+                        <option value="cancelled">Đã hủy</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Tìm kiếm</span>
+                    <input
+                        v-model.trim="bookingListFilters.q"
+                        type="search"
+                        placeholder="Mã booking, khách, SĐT"
+                        @keyup.enter="loadBookingList"
+                    />
+                </label>
+                <button
+                    class="secondary-btn"
+                    type="button"
+                    @click="loadBookingList"
+                >
+                    <AppIcon name="search" size="16" />
+                    <span>Lọc</span>
+                </button>
+            </div>
+
+            <div v-if="bookingListLoading" class="table-skeleton">
+                <div
+                    v-for="row in 4"
+                    :key="row"
+                    class="table-skeleton-row"
+                >
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+            <div v-else-if="!bookingList.length" class="state-card">
+                Chưa có booking phù hợp.
+            </div>
+            <div v-else class="recurring-table-card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã / khách</th>
+                            <th>Sân & giờ</th>
+                            <th>Nguồn đặt</th>
+                            <th>Thanh toán</th>
+                            <th>Trạng thái</th>
+                            <th class="money-col">Còn thu</th>
+                            <th class="action-col">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="booking in bookingList" :key="booking.id">
+                            <td>
+                                <span class="group-code">{{
+                                    booking.booking_code
+                                }}</span>
+                                <strong>{{
+                                    bookingCustomerName(booking)
+                                }}</strong>
+                                <small>{{ bookingCustomerPhone(booking) }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ bookingCourtText(booking) }}</strong>
+                                <small>
+                                    {{ formatDate(booking.booking_date) }} ·
+                                    {{ bookingTimeText(booking) }}
+                                </small>
+                            </td>
+                            <td>
+                                <span
+                                    class="source-pill"
+                                    :class="booking.source"
+                                >
+                                    {{ bookingSourceLabel(booking.source) }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>{{
+                                    paymentOptionLabel(booking.payment_option)
+                                }}</strong>
+                                <small>
+                                    Đã thu
+                                    {{ formatCurrency(paidAmount(booking)) }}
+                                    / {{ formatCurrency(booking.total_price) }}
+                                </small>
+                            </td>
+                            <td>
+                                <span
+                                    class="status-badge"
+                                    :class="`tone-${bookingStatusTone(booking.status)}`"
+                                >
+                                    {{ bookingStatusLabel(booking.status) }}
+                                </span>
+                            </td>
+                            <td class="money-col">
+                                <strong
+                                    :class="{
+                                        paid:
+                                            bookingOutstandingAmount(booking) <=
+                                            0,
+                                    }"
+                                >
+                                    {{
+                                        formatCurrency(
+                                            bookingOutstandingAmount(booking),
+                                        )
+                                    }}
+                                </strong>
+                            </td>
+                            <td class="action-col">
+                                <button
+                                    type="button"
+                                    class="secondary-btn compact"
+                                    @click="openBookingListDetail(booking)"
+                                >
+                                    <AppIcon name="eye" size="15" />
+                                    <span>Chi tiết</span>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section v-else-if="activeTab === 'recurringList'" class="recurring-list-panel">
             <div class="list-toolbar">
                 <div>
                     <h2>Danh sách booking cố định</h2>
@@ -1400,6 +1631,63 @@
                 </section>
             </div>
 
+            <div v-if="bookingListDetail" class="modal-backdrop">
+                <section class="confirm-modal booking-detail-modal">
+                    <div class="modal-head">
+                        <div>
+                            <span>BOOKING</span>
+                            <h2>{{ bookingListDetail.booking_code }}</h2>
+                        </div>
+                        <button
+                            type="button"
+                            class="icon-btn"
+                            @click="closeBookingListDetail"
+                        >
+                            <AppIcon name="x" size="18" />
+                        </button>
+                    </div>
+
+                    <div class="booking-status-strip">
+                        <span
+                            class="status-badge"
+                            :class="`tone-${bookingStatusTone(bookingListDetail.status)}`"
+                        >
+                            {{ bookingStatusLabel(bookingListDetail.status) }}
+                        </span>
+                        <span
+                            class="status-badge"
+                            :class="`tone-${paymentStateTone(bookingPaymentState(bookingListDetail))}`"
+                        >
+                            {{
+                                paymentStateLabel(
+                                    bookingPaymentState(bookingListDetail),
+                                )
+                            }}
+                        </span>
+                    </div>
+
+                    <dl class="summary-list confirm-summary">
+                        <div
+                            v-for="[label, value] in bookingListDetailRows"
+                            :key="label"
+                        >
+                            <dt>{{ label }}</dt>
+                            <dd>{{ value }}</dd>
+                        </div>
+                    </dl>
+
+                    <div class="modal-actions">
+                        <button
+                            class="secondary-btn"
+                            type="button"
+                            @click="closeBookingListDetail"
+                        >
+                            Đóng
+                        </button>
+                    </div>
+                </section>
+            </div>
+
             <div v-if="bookingActionConfirm" class="modal-backdrop">
                 <section class="confirm-modal">
                     <div class="modal-head">
@@ -1691,6 +1979,7 @@
 
 <script>
 import AppIcon from "../../components/AppIcon.vue";
+import MiniCalendar from "../../components/MiniCalendar.vue";
 import { ownerBookingService } from "../../services/ownerBookings.js";
 import { venueClusterService } from "../../services/venueClusters.js";
 
@@ -1736,7 +2025,7 @@ const SLOT_PERIODS = [
 
 export default {
     name: "OwnerCounterBooking",
-    components: { AppIcon },
+    components: { AppIcon, MiniCalendar },
     data() {
         const now = new Date();
         const today = toIsoDate(now);
@@ -1802,11 +2091,22 @@ export default {
             counterQrBookingId: "",
             counterQrPollInterval: null,
             qrModalOpen: false,
+            counterDrawerOpen: false,
             selectedOccupiedInterval: null,
             selectedBusyBooking: null,
             selectedBusyBookingLoading: false,
             bookingActionLoading: false,
             bookingActionConfirm: null,
+            bookingList: [],
+            bookingListLoading: false,
+            bookingListDetail: null,
+            bookingListFilters: {
+                venue_court_id: "",
+                booking_date: "",
+                source: "",
+                status: "",
+                q: "",
+            },
             recurringGroups: [],
             recurringGroupsLoading: false,
             recurringGroupCollecting: "",
@@ -2187,6 +2487,31 @@ export default {
                 0,
             );
         },
+        bookingListDetailRows() {
+            const booking = this.bookingListDetail;
+            if (!booking) return [];
+
+            return [
+                ["Mã booking", booking.booking_code || "-"],
+                ["Nguồn đặt", this.bookingSourceLabel(booking.source)],
+                [
+                    "Khách",
+                    `${this.bookingCustomerName(booking)} · ${this.bookingCustomerPhone(booking)}`,
+                ],
+                ["Cụm sân", this.selectedCluster?.name || "-"],
+                ["Sân", this.bookingCourtText(booking)],
+                ["Ngày", this.formatDate(booking.booking_date)],
+                ["Khung giờ", this.bookingTimeText(booking)],
+                ["Trạng thái", this.bookingStatusLabel(booking.status)],
+                ["Hình thức", this.paymentOptionLabel(booking.payment_option)],
+                ["Tổng tiền", this.formatCurrency(booking.total_price)],
+                ["Đã thu", this.formatCurrency(this.paidAmount(booking))],
+                [
+                    "Còn thu",
+                    this.formatCurrency(this.bookingOutstandingAmount(booking)),
+                ],
+            ];
+        },
         occupiedPanelTitle() {
             if (this.selectedBusyBookingLoading) return "Đang tải booking";
             if (this.selectedBusyBooking) return "Thông tin booking";
@@ -2509,7 +2834,17 @@ export default {
     async created() {
         await this.loadOwnerData();
     },
+    mounted() {
+        window.addEventListener(
+            "owner-cluster-changed",
+            this.handleExternalClusterChange,
+        );
+    },
     beforeUnmount() {
+        window.removeEventListener(
+            "owner-cluster-changed",
+            this.handleExternalClusterChange,
+        );
         this.clearCounterQrPolling();
         clearTimeout(this.recurringPreviewTimer);
     },
@@ -2585,6 +2920,24 @@ export default {
                 return;
             }
 
+            if (tab === "bookingList") {
+                await this.loadBookingList();
+                return;
+            }
+
+            await this.loadSchedule();
+        },
+        async refreshActiveTab() {
+            if (this.activeTab === "bookingList") {
+                await this.loadBookingList();
+                return;
+            }
+
+            if (this.activeTab === "recurringList") {
+                await this.loadRecurringGroups();
+                return;
+            }
+
             await this.loadSchedule();
         },
         routeBookingFocusQuery() {
@@ -2649,15 +3002,42 @@ export default {
 
             if (!this.selectedClusterId) return;
             localStorage.setItem("selected_cluster", this.selectedClusterId);
+            this.notifyOwnerClusterChanged();
 
             await Promise.all([this.loadClusterDetail(), this.loadCourts()]);
             this.syncPaymentOption();
             if (this.activeTab === "recurringList") {
                 this.recurringGroupFilters.venue_court_id = "";
                 await this.loadRecurringGroups();
+            } else if (this.activeTab === "bookingList") {
+                this.bookingListFilters.venue_court_id = "";
+                await this.loadBookingList();
             } else {
                 await this.loadSchedule();
             }
+        },
+        async handleExternalClusterChange(event) {
+            const clusterId =
+                event?.detail?.id || localStorage.getItem("selected_cluster");
+
+            if (
+                !clusterId ||
+                String(clusterId) === String(this.selectedClusterId)
+            ) {
+                return;
+            }
+
+            this.selectedClusterId = clusterId;
+            await this.handleClusterChange();
+        },
+        notifyOwnerClusterChanged() {
+            window.dispatchEvent(
+                new CustomEvent("owner-cluster-changed", {
+                    detail: this.selectedCluster || {
+                        id: this.selectedClusterId,
+                    },
+                }),
+            );
         },
         async loadClusterDetail() {
             try {
@@ -2909,6 +3289,33 @@ export default {
                 this.recurringGroupsLoading = false;
             }
         },
+        async loadBookingList() {
+            if (!this.selectedClusterId) return;
+
+            this.bookingListLoading = true;
+            this.error = "";
+
+            try {
+                const response = await ownerBookingService.list({
+                    venue_cluster_id: this.selectedClusterId,
+                    booking_type: "single",
+                    ...this.bookingListFilters,
+                });
+                this.bookingList = response.data || [];
+            } catch (error) {
+                this.error =
+                    error.message || "Không thể tải danh sách booking.";
+                this.bookingList = [];
+            } finally {
+                this.bookingListLoading = false;
+            }
+        },
+        openBookingListDetail(booking) {
+            this.bookingListDetail = booking;
+        },
+        closeBookingListDetail() {
+            this.bookingListDetail = null;
+        },
         slotStatus(courtId, slot) {
             if (!slot) return null;
             return (
@@ -3096,6 +3503,7 @@ export default {
             this.selectionError = "";
             this.selectedOccupiedInterval = null;
             this.selectedBusyBooking = null;
+            this.counterDrawerOpen = false;
             this.selectedSlotKeys = this.selectedSlotKeys.includes(key)
                 ? this.selectedSlotKeys.filter((item) => item !== key)
                 : [...this.selectedSlotKeys, key];
@@ -3129,6 +3537,7 @@ export default {
                       source: "busy",
                   };
             this.selectedBusyBooking = null;
+            this.counterDrawerOpen = true;
             this.counterQr = null;
             this.qrModalOpen = false;
             this.clearCounterQrPolling();
@@ -3282,6 +3691,7 @@ export default {
                 recurring_end_date: this.form.recurring_end_date,
                 recurrence_type: this.form.recurrence_type,
                 recurrence_interval: this.form.recurrence_interval,
+                venue_cluster_id: this.selectedClusterId,
                 ...extra,
             };
 
@@ -3517,6 +3927,12 @@ export default {
             return (booking?.payments || [])
                 .filter((payment) => payment.status === "paid")
                 .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+        },
+        bookingOutstandingAmount(booking) {
+            return Math.max(
+                Number(booking?.total_price || 0) - this.paidAmount(booking),
+                0,
+            );
         },
         bookingCustomerName(booking) {
             return (
@@ -4341,7 +4757,7 @@ export default {
 
 .counter-board {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
     align-items: start;
 }
@@ -4389,6 +4805,149 @@ export default {
         minmax(220px, 1.2fr) auto;
     gap: 10px;
     align-items: end;
+}
+
+.booking-list-filters {
+    display: grid;
+    grid-template-columns:
+        minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(140px, 0.7fr)
+        minmax(160px, 0.8fr) minmax(220px, 1.2fr) auto;
+    gap: 10px;
+    align-items: end;
+}
+
+.schedule-skeleton,
+.table-skeleton {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.skeleton-summary,
+.skeleton-tabs {
+    display: grid;
+    gap: 10px;
+}
+
+.skeleton-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.skeleton-tabs {
+    grid-template-columns: repeat(3, minmax(120px, 160px));
+}
+
+.skeleton-summary span,
+.skeleton-tabs span,
+.skeleton-matrix span,
+.table-skeleton-row span {
+    display: block;
+    overflow: hidden;
+    position: relative;
+    border-radius: 999px;
+    background: #edf2f0;
+}
+
+.skeleton-summary span::after,
+.skeleton-tabs span::after,
+.skeleton-matrix span::after,
+.table-skeleton-row span::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.72) 48%,
+        transparent 100%
+    );
+    animation: skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+.skeleton-summary span {
+    height: 64px;
+    border-radius: 12px;
+    background: #f0f4f1;
+}
+
+.skeleton-tabs span {
+    height: 38px;
+    background: #edf2f0;
+}
+
+.skeleton-matrix {
+    display: grid;
+    grid-template-columns: 120px repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+    overflow: hidden;
+    padding: 16px;
+    border-radius: 10px;
+    background: #f8faf9;
+}
+
+.skeleton-matrix span {
+    height: 22px;
+    align-self: center;
+}
+
+.skeleton-matrix span:nth-child(3n + 1) {
+    height: 36px;
+    border-radius: 10px;
+}
+
+.skeleton-matrix span:nth-child(3n + 2) {
+    width: 78%;
+}
+
+.skeleton-matrix span:nth-child(3n) {
+    width: 54%;
+}
+
+.table-skeleton-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 0.8fr;
+    gap: 18px;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid #e4eee4;
+}
+
+.table-skeleton-row:last-child {
+    border-bottom: 0;
+}
+
+.table-skeleton-row span {
+    height: 18px;
+}
+
+.table-skeleton-row span:nth-child(n + 4) {
+    display: none;
+}
+
+.table-skeleton-row span:nth-child(1) {
+    height: 36px;
+    border-radius: 10px;
+}
+
+.table-skeleton-row span:nth-child(2) {
+    width: 82%;
+}
+
+.table-skeleton-row span:nth-child(3) {
+    width: 58%;
+}
+
+@keyframes skeleton-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
 }
 
 .recurring-group-list {
@@ -4593,6 +5152,30 @@ export default {
 
 .recurring-table-card strong.paid {
     color: #0f7a31;
+}
+
+.source-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 26px;
+    border-radius: 999px;
+    padding: 5px 10px;
+    background: #ecfdf5;
+    color: #15803d;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.source-pill.online {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.source-pill.counter {
+    background: #fef3c7;
+    color: #92400e;
 }
 
 .money-col {
@@ -4916,6 +5499,28 @@ export default {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
+}
+
+.readonly-field {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    min-height: 58px;
+    border: 1px solid #cfe3cf;
+    border-radius: 8px;
+    background: #f7fbf5;
+}
+
+.readonly-field span {
+    color: #607267;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.readonly-field strong {
+    color: #16231a;
+    font-size: 14px;
+    font-weight: 850;
 }
 
 .booking-picker {
@@ -5575,10 +6180,110 @@ input.invalid {
 }
 
 .booking-side {
-    position: sticky;
-    top: 88px;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1002;
+    width: min(430px, calc(100vw - 36px));
     display: grid;
+    align-content: start;
     gap: 12px;
+    padding: 24px;
+    overflow-y: auto;
+    background: #fff;
+    border-left: 1px solid #d9e8d9;
+    box-shadow: -16px 0 46px rgba(15, 23, 42, 0.16);
+    transform: translateX(106%);
+    transition: transform 0.22s ease;
+}
+
+.booking-side.open {
+    transform: translateX(0);
+}
+
+.counter-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1001;
+    border: 0;
+    background: rgba(15, 23, 42, 0.34);
+    cursor: default;
+}
+
+.drawer-close-btn {
+    position: sticky;
+    top: 0;
+    justify-self: end;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+    color: #334238;
+}
+
+.counter-bottom-bar {
+    position: sticky;
+    bottom: 16px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: -2px;
+    padding: 12px 14px;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    background: rgba(240, 253, 244, 0.96);
+    box-shadow: 0 12px 36px rgba(22, 101, 52, 0.15);
+    backdrop-filter: blur(8px);
+}
+
+.counter-bottom-bar div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.counter-bottom-bar strong,
+.counter-bottom-bar span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.counter-bottom-bar strong {
+    color: #14532d;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.counter-bottom-bar span {
+    color: #475569;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.calendar-range-field {
+    display: grid;
+    gap: 8px;
+    grid-column: span 2;
+}
+
+.calendar-range-field > span {
+    color: #223127;
+    font-size: 13px;
+    font-weight: 760;
+}
+
+.schedule-filters .mini-cal,
+.calendar-range-field .mini-cal {
+    max-width: none;
 }
 
 .side-section {
@@ -6386,12 +7091,10 @@ input.invalid {
 }
 
 @media (max-width: 1080px) {
-    .counter-board,
     .recurring-panel {
         grid-template-columns: 1fr;
     }
 
-    .booking-side,
     .preview-box {
         position: static;
     }

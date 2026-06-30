@@ -8,46 +8,64 @@
       </router-link>
     </div>
 
-    <section class="filters">
-      <label>
-        <span>Cụm sân</span>
-        <select v-model="filters.venue_cluster_id" @change="onClusterChange">
-          <option value="">Tất cả</option>
-          <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
-        </select>
-      </label>
-      <label>
-        <span>Sân con</span>
-        <select v-model="filters.venue_court_id" @change="loadBookings">
-          <option value="">Tất cả</option>
-          <option v-for="court in courts" :key="court.id" :value="court.id">{{ court.name }}</option>
-        </select>
-      </label>
-      <label>
-        <span>Ngày chơi</span>
-        <input v-model="filters.booking_date" type="date" @change="loadBookings" />
-      </label>
-      <label>
-        <span>Trạng thái</span>
-        <select v-model="filters.status" @change="loadBookings">
-          <option value="">Tất cả</option>
-          <option value="pending_approval">Chờ duyệt</option>
-          <option value="pending_payment">Chờ thanh toán</option>
-          <option value="confirmed">Đã xác nhận</option>
-          <option value="checked_in">Đã check-in</option>
-          <option value="completed">Hoàn thành</option>
-          <option value="cancelled">Đã hủy</option>
-          <option value="rejected">Từ chối</option>
-        </select>
-      </label>
-      <button class="icon-btn" type="button" title="Tải lại" aria-label="Tải lại" @click="loadBookings">
-        <AppIcon name="refresh" size="17" />
-      </button>
-    </section>
+    <div class="top-strip">
+      <!-- Left: Calendar -->
+      <div class="top-calendar">
+        <MiniCalendar
+          mode="single"
+          :model-value="filters.booking_date"
+          @update:model-value="val => { filters.booking_date = val; loadBookings(); }"
+        />
+      </div>
+
+      <!-- Right: Filters + Metrics -->
+      <div class="top-right">
+        <section class="filters">
+          <label>
+            <span>Cụm sân</span>
+            <select v-model="filters.venue_cluster_id" @change="onClusterChange">
+              <option value="">Tất cả</option>
+              <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
+            </select>
+          </label>
+          <label>
+            <span>Sân con</span>
+            <select v-model="filters.venue_court_id" @change="loadBookings">
+              <option value="">Tất cả</option>
+              <option v-for="court in courts" :key="court.id" :value="court.id">{{ court.name }}</option>
+            </select>
+          </label>
+          <label>
+            <span>Trạng thái</span>
+            <select v-model="filters.status" @change="loadBookings">
+              <option value="">Tất cả</option>
+              <option value="pending_approval">Chờ duyệt</option>
+              <option value="pending_payment">Chờ thanh toán</option>
+              <option value="confirmed">Đã xác nhận</option>
+              <option value="checked_in">Đã check-in</option>
+              <option value="completed">Hoàn thành</option>
+              <option value="cancelled">Đã hủy</option>
+              <option value="rejected">Từ chối</option>
+            </select>
+          </label>
+          <button class="icon-btn" type="button" title="Tải lại" aria-label="Tải lại" @click="loadBookings">
+            <AppIcon name="refresh" size="17" />
+          </button>
+        </section>
+
+        <div class="metric-row">
+          <div v-for="metric in scheduleMetrics" :key="metric.label" class="metric-card">
+            <span>{{ metric.label }}</span>
+            <strong>{{ metric.value }}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="notice" class="alert success">{{ notice }}</div>
 
+    <!-- Schedule Card: Slot Grid Matrix -->
     <section class="schedule-card">
       <div class="schedule-head">
         <div>
@@ -75,117 +93,98 @@
         </button>
       </div>
 
-      <div class="metric-row">
-        <div v-for="metric in scheduleMetrics" :key="metric.label" class="metric-card">
-          <span>{{ metric.label }}</span>
-          <strong>{{ metric.value }}</strong>
-        </div>
-      </div>
-
       <div v-if="loading || scheduleLoading" class="state-card">Đang tải lịch sân...</div>
       <div v-else-if="scheduleError" class="state-card error-state">{{ scheduleError }}</div>
       <div v-else-if="!timelineRows.length" class="state-card">Chưa có sân phù hợp với bộ lọc hiện tại.</div>
-      <div v-else class="timeline-layout">
-        <div class="timeline-board">
-          <div class="timeline-scroller">
-            <div class="timeline-axis" :style="{ minWidth: timelineMinWidth }">
-              <div class="axis-court">Sân / giờ</div>
-              <div class="axis-track">
-                <span
-                  v-for="tick in timelineTicks"
-                  :key="tick.value"
-                  class="axis-tick"
-                  :style="{ left: `${tick.left}%` }"
-                >
-                  {{ tick.label }}
-                </span>
-              </div>
-            </div>
-
-            <article
-              v-for="row in timelineRows"
-              :key="row.court.id"
-              class="timeline-row"
-              :style="{ minWidth: timelineMinWidth }"
-            >
-              <div class="court-meta">
-                <strong>{{ row.court.name }}</strong>
-                <span>{{ courtOptionLabel(row.court) }}</span>
-              </div>
-              <div class="timeline-track">
-                <span
-                  v-for="tick in timelineTicks"
-                  :key="`${row.court.id}-${tick.value}`"
-                  class="track-gridline"
-                  :style="{ left: `${tick.left}%` }"
-                ></span>
-                <span v-if="!row.blocks.length" class="empty-track">Trống trong khoảng này</span>
-                <button
-                  v-for="block in row.blocks"
-                  :key="block.key"
-                  type="button"
-                  class="timeline-block"
-                  :class="[block.kindClass, { active: selectedTimelineItem?.key === block.key, compact: block.compact }]"
-                  :style="block.style"
-                  :title="block.titleText"
-                  @click="selectTimelineItem(block)"
-                >
-                  <span class="block-time">{{ block.timeLabel }}</span>
-                  <strong>{{ block.title }}</strong>
-                  <small>{{ block.subtitle }}</small>
-                </button>
-              </div>
-            </article>
+      <div v-else class="slot-grid-shell">
+        <div class="slot-grid" :style="scheduleGridStyle">
+          <div class="slot-head sticky-col">Sân / giờ</div>
+          <div
+            v-for="slot in activeScheduleSlots"
+            :key="slot.start_time"
+            class="slot-head time-head"
+          >
+            {{ formatTime(slot.start_time) }}
           </div>
+
+          <template v-for="row in timelineRows" :key="row.court.id">
+            <div class="slot-court sticky-col">
+              <strong>{{ row.court.name }}</strong>
+              <span>{{ courtOptionLabel(row.court) }}</span>
+            </div>
+            <button
+              v-for="slot in activeScheduleSlots"
+              :key="`${row.court.id}-${slot.start_time}`"
+              type="button"
+              class="slot-cell"
+              :class="slotCellClass(row, slot)"
+              :title="slotCellTitle(row, slot)"
+              :disabled="!slotBlock(row, slot)"
+              @click="selectSlotBlock(row, slot)"
+            >
+              <span v-if="slotCellLabel(row, slot)" class="slot-cell-label">
+                {{ slotCellLabel(row, slot) }}
+              </span>
+            </button>
+          </template>
         </div>
-
-        <aside class="timeline-inspector">
-          <template v-if="selectedTimelineItem">
-            <p class="inspector-eyebrow">{{ selectedTimelineItem.type === 'booking' ? 'BOOKING' : 'KHÓA LỊCH' }}</p>
-            <h3>{{ selectedTimelineItem.title }}</h3>
-            <p class="inspector-subtitle">{{ selectedTimelineItem.timeLabel }} · {{ selectedTimelineItem.courtName }}</p>
-
-            <div v-if="selectedTimelineBooking" class="inspector-chips">
-              <span class="status-chip" :class="selectedTimelineBooking.status">{{ statusLabel(selectedTimelineBooking.status) }}</span>
-              <span class="payment-chip" :class="paymentState(selectedTimelineBooking)">{{ paymentStateLabel(selectedTimelineBooking) }}</span>
-            </div>
-
-            <dl class="inspector-list">
-              <div v-for="row in selectedTimelineRows" :key="row.label">
-                <dt>{{ row.label }}</dt>
-                <dd>{{ row.value }}</dd>
-              </div>
-            </dl>
-
-            <div v-if="selectedTimelineBooking" class="inspector-actions">
-              <ActionIconButton
-                v-if="primaryAction(selectedTimelineBooking)"
-                :icon="primaryAction(selectedTimelineBooking).icon"
-                :label="primaryAction(selectedTimelineBooking).label"
-                :variant="primaryAction(selectedTimelineBooking).variant"
-                @click="runBookingAction(selectedTimelineBooking, primaryAction(selectedTimelineBooking).key)"
-              />
-              <button
-                v-for="action in secondaryActions(selectedTimelineBooking)"
-                :key="action.key"
-                type="button"
-                class="inspector-action"
-                :class="{ danger: action.variant === 'danger' }"
-                @click="runBookingAction(selectedTimelineBooking, action.key)"
-              >
-                <AppIcon :name="action.icon" size="16" />
-                <span>{{ action.label }}</span>
-              </button>
-            </div>
-          </template>
-          <template v-else>
-            <p class="inspector-eyebrow">CHI TIẾT</p>
-            <h3>Chọn một block trên lịch</h3>
-            <p class="inspector-subtitle">Thông tin khách, trạng thái booking và thanh toán sẽ hiện ở đây.</p>
-          </template>
-        </aside>
       </div>
     </section>
+
+    <!-- Slide-in Drawer (replaces fixed inspector) -->
+    <Teleport to="body">
+      <div
+        v-if="selectedTimelineItem"
+        class="drawer-backdrop"
+        @click.self="selectedTimelineItem = null"
+      >
+        <aside class="drawer-panel">
+          <div class="drawer-header">
+            <div>
+              <p class="drawer-eyebrow">{{ selectedTimelineItem.type === 'booking' ? 'BOOKING' : 'KHÓA LỊCH' }}</p>
+              <h3 class="drawer-title">{{ selectedTimelineItem.title }}</h3>
+              <p class="drawer-subtitle">{{ selectedTimelineItem.timeLabel }} · {{ selectedTimelineItem.courtName }}</p>
+            </div>
+            <button type="button" class="drawer-close" @click="selectedTimelineItem = null">
+              <AppIcon name="x" size="18" />
+            </button>
+          </div>
+
+          <div v-if="selectedTimelineBooking" class="drawer-chips">
+            <span class="status-chip" :class="selectedTimelineBooking.status">{{ statusLabel(selectedTimelineBooking.status) }}</span>
+            <span class="payment-chip" :class="paymentState(selectedTimelineBooking)">{{ paymentStateLabel(selectedTimelineBooking) }}</span>
+          </div>
+
+          <dl class="drawer-list">
+            <div v-for="row in selectedTimelineRows" :key="row.label">
+              <dt>{{ row.label }}</dt>
+              <dd>{{ row.value }}</dd>
+            </div>
+          </dl>
+
+          <div v-if="selectedTimelineBooking" class="drawer-actions">
+            <ActionIconButton
+              v-if="primaryAction(selectedTimelineBooking)"
+              :icon="primaryAction(selectedTimelineBooking).icon"
+              :label="primaryAction(selectedTimelineBooking).label"
+              :variant="primaryAction(selectedTimelineBooking).variant"
+              @click="runBookingAction(selectedTimelineBooking, primaryAction(selectedTimelineBooking).key)"
+            />
+            <button
+              v-for="action in secondaryActions(selectedTimelineBooking)"
+              :key="action.key"
+              type="button"
+              class="drawer-action"
+              :class="{ danger: action.variant === 'danger' }"
+              @click="runBookingAction(selectedTimelineBooking, action.key)"
+            >
+              <AppIcon :name="action.icon" size="16" />
+              <span>{{ action.label }}</span>
+            </button>
+          </div>
+        </aside>
+      </div>
+    </Teleport>
 
     <Teleport to="body">
       <button
@@ -341,6 +340,7 @@ import { ownerBookingService } from '../../services/ownerBookings.js';
 import { venueClusterService } from '../../services/venueClusters.js';
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import MiniCalendar from '../../components/MiniCalendar.vue';
 
 function localIsoDate(date = new Date()) {
   const year = date.getFullYear();
@@ -351,7 +351,7 @@ function localIsoDate(date = new Date()) {
 
 export default {
   name: 'OwnerBookings',
-  components: { ActionIconButton, AppIcon },
+  components: { ActionIconButton, AppIcon, MiniCalendar },
   data() {
     return {
       clusters: [],
@@ -436,6 +436,22 @@ export default {
         });
       }
       return ticks;
+    },
+    activeScheduleSlots() {
+      return this.scheduleSlots
+        .filter((slot) => {
+          const start = this.timeToMinutes(slot.start_time);
+          const end = this.timeToMinutes(slot.end_time);
+          return end > this.timelineStart && start < this.timelineEnd;
+        })
+        .sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
+    },
+    scheduleGridStyle() {
+      const slotCount = Math.max(this.activeScheduleSlots.length, 1);
+      return {
+        gridTemplateColumns: `168px repeat(${slotCount}, minmax(74px, 1fr))`,
+        minWidth: `${168 + slotCount * 74}px`,
+      };
     },
     scheduleSubtitle() {
       const clusterText = this.filters.venue_cluster_id
@@ -717,6 +733,40 @@ export default {
     selectTimelineItem(block) {
       this.selectedTimelineItem = block;
     },
+    slotBlock(row, slot) {
+      const slotStart = this.timeToMinutes(slot.start_time);
+      const slotEnd = this.timeToMinutes(slot.end_time);
+      return (row.blocks || []).find((block) => block.start < slotEnd && block.end > slotStart) || null;
+    },
+    slotCellClass(row, slot) {
+      const block = this.slotBlock(row, slot);
+      if (!block) return 'is-empty';
+      return [
+        block.kindClass,
+        {
+          active: this.selectedTimelineItem?.key === block.key,
+          'block-start': this.isBlockStartCell(block, slot),
+          'block-mid': !this.isBlockStartCell(block, slot),
+        },
+      ];
+    },
+    slotCellTitle(row, slot) {
+      return this.slotBlock(row, slot)?.titleText || 'Trống';
+    },
+    slotCellLabel(row, slot) {
+      const block = this.slotBlock(row, slot);
+      if (!block || !this.isBlockStartCell(block, slot)) return '';
+      return block.type === 'lock' ? 'Khóa' : block.title;
+    },
+    selectSlotBlock(row, slot) {
+      const block = this.slotBlock(row, slot);
+      if (block) this.selectTimelineItem(block);
+    },
+    isBlockStartCell(block, slot) {
+      const slotStart = this.timeToMinutes(slot.start_time);
+      const firstVisibleStart = Math.max(block.start, this.timelineStart);
+      return slotStart === firstVisibleStart || (slotStart < firstVisibleStart && this.timeToMinutes(slot.end_time) > firstVisibleStart);
+    },
     refreshSelectedTimeline() {
       const blocks = this.timelineBlocks;
       if (!blocks.length) {
@@ -725,7 +775,7 @@ export default {
       }
 
       const currentKey = this.selectedTimelineItem?.key;
-      this.selectedTimelineItem = blocks.find((block) => block.key === currentKey) || blocks[0];
+      this.selectedTimelineItem = blocks.find((block) => block.key === currentKey) || null;
     },
     async updateStatus(booking, action, statusReason = null) {
       if (this.updatingStatus) return;
@@ -1116,24 +1166,33 @@ export default {
   margin: 0 auto;
 }
 
-.filters,
-.schedule-card,
-.table-card,
-.state-card,
-.modal-panel,
-.alert {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+/* ===== Top Strip: Calendar + Filters + Metrics ===== */
+.top-strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.top-calendar :deep(.mini-cal) {
+  max-width: 300px;
+}
+
+.top-right {
+  display: grid;
+  gap: 14px;
 }
 
 .filters {
   display: grid;
-  grid-template-columns: 1fr 1fr 160px 180px auto;
+  grid-template-columns: 1fr 1fr 160px auto;
   gap: 12px;
   align-items: end;
   padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
 .booking-range {
@@ -1146,11 +1205,16 @@ export default {
   border-top: 1px solid #edf2ed;
 }
 
+/* ===== Schedule Card ===== */
 .schedule-card {
   display: grid;
   gap: 14px;
   padding: 16px;
   overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
 .schedule-head {
@@ -1160,15 +1224,13 @@ export default {
   gap: 16px;
 }
 
-.schedule-head h2,
-.timeline-inspector h3 {
+.schedule-head h2 {
   margin: 0;
   color: #0f172a;
   font-weight: 900;
 }
 
-.schedule-head p,
-.inspector-subtitle {
+.schedule-head p {
   margin: 5px 0 0;
   color: #64748b;
   font-size: 13px;
@@ -1198,21 +1260,10 @@ export default {
   background: #cbd5e1;
 }
 
-.legend .status-confirmed {
-  background: #16a34a;
-}
-
-.legend .status-pending {
-  background: #f59e0b;
-}
-
-.legend .status-playing {
-  background: #2563eb;
-}
-
-.legend .status-lock {
-  background: #dc2626;
-}
+.legend .status-confirmed { background: #16a34a; }
+.legend .status-pending { background: #f59e0b; }
+.legend .status-playing { background: #2563eb; }
+.legend .status-lock { background: #dc2626; }
 
 .period-row {
   display: flex;
@@ -1234,6 +1285,7 @@ export default {
   color: #334155;
   font: inherit;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .period-row button.active {
@@ -1253,7 +1305,7 @@ export default {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
 }
 
@@ -1281,84 +1333,46 @@ export default {
   font-size: 22px;
 }
 
-.timeline-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 16px;
-  align-items: start;
-}
-
-.timeline-board {
-  min-width: 0;
+.slot-grid-shell {
+  max-width: 100%;
+  overflow-x: auto;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  overflow: hidden;
   background: #fff;
 }
 
-.timeline-scroller {
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.timeline-axis,
-.timeline-row {
+.slot-grid {
   display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
 }
 
-.timeline-axis {
-  position: sticky;
-  top: 0;
-  z-index: 4;
-  min-height: 44px;
-  background: #f3f8f1;
-  border-bottom: 1px solid #dfe8df;
+.slot-head,
+.slot-court,
+.slot-cell {
+  min-height: 42px;
+  border-right: 1px solid #e5eee5;
+  border-bottom: 1px solid #e5eee5;
 }
 
-.axis-court,
-.court-meta {
-  position: sticky;
-  left: 0;
-  z-index: 3;
-  border-right: 1px solid #e2e8f0;
-  background: inherit;
-}
-
-.axis-court {
+.slot-head {
   display: grid;
   place-items: center;
+  background: #f3f8f1;
   color: #334238;
   font-size: 12px;
   font-weight: 900;
 }
 
-.axis-track,
-.timeline-track {
-  position: relative;
+.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 3;
 }
 
-.axis-tick {
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  color: #475569;
-  font-size: 12px;
-  font-weight: 900;
-  white-space: nowrap;
+.slot-head.sticky-col {
+  z-index: 4;
 }
 
-.timeline-row {
-  min-height: 76px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #fff;
-}
-
-.timeline-row:last-child {
-  border-bottom: 0;
-}
-
-.court-meta {
+.slot-court {
   display: grid;
   align-content: center;
   gap: 4px;
@@ -1366,88 +1380,48 @@ export default {
   background: #fff;
 }
 
-.court-meta strong {
+.slot-court strong {
   color: #0f172a;
   font-size: 13px;
+  font-weight: 900;
 }
 
-.court-meta span {
+.slot-court span {
   color: #64748b;
   font-size: 11px;
   font-weight: 750;
   line-height: 1.35;
 }
 
-.timeline-track {
-  min-height: 76px;
-  background: linear-gradient(180deg, #fff, #fbfdfb);
-}
-
-.track-gridline {
-  position: absolute;
-  inset-block: 0;
-  width: 1px;
-  background: #eef2f7;
-}
-
-.empty-track {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.timeline-block {
-  position: absolute;
-  top: 10px;
-  bottom: 10px;
-  min-width: 0;
-  display: grid;
-  align-content: center;
-  gap: 2px;
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: 7px;
+.slot-cell {
+  min-width: 74px;
+  padding: 0 6px;
+  border-radius: 0;
   color: #0f172a;
   font: inherit;
-  text-align: left;
+  font-size: 11px;
+  font-weight: 900;
   cursor: pointer;
   overflow: hidden;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  transition: box-shadow 0.12s ease, filter 0.12s ease;
 }
 
-.timeline-block:hover,
-.timeline-block.active {
-  outline: 2px solid rgba(22, 163, 74, 0.28);
-  outline-offset: 2px;
+.slot-cell.is-empty {
+  background: #fff;
+  cursor: default;
 }
 
-.timeline-block strong,
-.timeline-block small,
-.block-time {
+.slot-cell:not(.is-empty):hover,
+.slot-cell.active {
+  box-shadow: inset 0 0 0 2px #16a34a;
+  filter: saturate(1.08);
+}
+
+.slot-cell-label {
   display: block;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.timeline-block strong {
-  font-size: 13px;
-  font-weight: 950;
-}
-
-.timeline-block small,
-.block-time {
-  font-size: 11px;
-  font-weight: 850;
-}
-
-.timeline-block.compact small {
-  display: none;
 }
 
 .block-confirmed {
@@ -1480,39 +1454,102 @@ export default {
   color: #7f1d1d;
 }
 
-.timeline-inspector {
-  position: sticky;
-  top: 14px;
-  display: grid;
-  gap: 14px;
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
+/* ===== Slide-in Drawer ===== */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.35);
+  animation: fadeIn 0.2s ease;
 }
 
-.inspector-eyebrow {
-  margin: 0;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 100vw - 48px);
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  gap: 16px;
+  padding: 24px;
+  background: #fff;
+  box-shadow: -8px 0 40px rgba(15, 23, 42, 0.16);
+  overflow-y: auto;
+  animation: slideIn 0.25s ease;
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.drawer-eyebrow {
+  margin: 0 0 4px;
   color: #16a34a;
   font-size: 11px;
   font-weight: 950;
   letter-spacing: .08em;
 }
 
-.inspector-chips {
+.drawer-title {
+  margin: 0;
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.drawer-subtitle {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.drawer-close {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.drawer-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.drawer-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.inspector-list {
+.drawer-list {
   display: grid;
   gap: 0;
   margin: 0;
   border-top: 1px solid #e2e8f0;
 }
 
-.inspector-list div {
+.drawer-list div {
   display: grid;
   grid-template-columns: 105px minmax(0, 1fr);
   gap: 10px;
@@ -1520,13 +1557,13 @@ export default {
   border-bottom: 1px solid #eef2f7;
 }
 
-.inspector-list dt {
+.drawer-list dt {
   color: #64748b;
   font-size: 12px;
   font-weight: 850;
 }
 
-.inspector-list dd {
+.drawer-list dd {
   min-width: 0;
   margin: 0;
   color: #0f172a;
@@ -1535,13 +1572,13 @@ export default {
   overflow-wrap: anywhere;
 }
 
-.inspector-actions {
+.drawer-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.inspector-action {
+.drawer-action {
   min-height: 36px;
   display: inline-flex;
   align-items: center;
@@ -1555,14 +1592,64 @@ export default {
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
+  transition: all 0.12s ease;
 }
 
-.inspector-action.danger {
+.drawer-action:hover {
+  background: #f1f5f9;
+}
+
+.drawer-action.danger {
   border-color: #fecaca;
   background: #fef2f2;
   color: #991b1b;
 }
 
+/* ===== Status & Payment Chips ===== */
+.status-chip {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.payment-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.payment-chip.paid { background: #dcfce7; color: #166534; }
+.payment-chip.pending, .payment-chip.partial { background: #fff7ed; color: #9a3412; }
+.payment-chip.unpaid { background: #fef2f2; color: #991b1b; }
+.status-chip.confirmed, .status-chip.completed, .status-chip.checked_in { background: #dcfce7; color: #166534; }
+.status-chip.pending_payment, .status-chip.pending_approval { background: #fef3c7; color: #92400e; }
+.status-chip.cancelled, .status-chip.rejected { background: #fee2e2; color: #991b1b; }
+
+/* ===== State & Alert ===== */
+.state-card, .alert {
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  font-weight: 900;
+}
+
+.state-card { text-align: center; color: #64748b; }
+.alert.error { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+.alert.success { border-color: #bbf7d0; background: #dcfce7; color: #166534; }
+
+/* ===== Icons & Buttons ===== */
 label {
   display: grid;
   gap: 7px;
@@ -1574,9 +1661,7 @@ label span {
   font-weight: 900;
 }
 
-input,
-select,
-textarea {
+input, select, textarea {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid #cbd5e1;
@@ -1586,8 +1671,7 @@ textarea {
   font: inherit;
 }
 
-.primary-link,
-.ghost-btn {
+.primary-link, .ghost-btn {
   height: 42px;
   display: inline-flex;
   align-items: center;
@@ -1609,248 +1693,6 @@ textarea {
   color: #334155;
 }
 
-.alert,
-.state-card {
-  padding: 14px;
-  font-weight: 900;
-}
-
-.alert.error {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
-}
-
-.alert.success {
-  border-color: #bbf7d0;
-  background: #dcfce7;
-  color: #166534;
-}
-
-.state-card {
-  text-align: center;
-  color: #64748b;
-}
-
-.table-card {
-  overflow-x: auto;
-  overflow-y: visible;
-}
-
-.bookings-page table {
-  width: 100%;
-  min-width: 940px !important;
-  border-collapse: collapse;
-}
-
-.bookings-page th,
-.bookings-page td {
-  padding: 10px 12px !important;
-  border-bottom: 1px solid #e2e8f0;
-  text-align: left;
-  vertical-align: top !important;
-  font-size: 14px;
-}
-
-th {
-  background: #f3f8f1;
-  color: #3f4f43;
-  font-weight: 900;
-}
-
-tbody tr {
-  transition: background .16s ease;
-}
-
-tbody tr:hover {
-  background: #fbfdfb;
-}
-
-td small {
-  display: block;
-  margin-top: 4px;
-  color: #526056;
-}
-
-.strong,
-td strong {
-  color: #0f172a;
-  font-weight: 900;
-}
-
-.status-chip {
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.payment-cell {
-  min-width: 170px;
-}
-
-.payment-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.payment-chip.paid {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.payment-chip.pending,
-.payment-chip.partial {
-  background: #fff7ed;
-  color: #9a3412;
-}
-
-.payment-chip.unpaid {
-  background: #fef2f2;
-  color: #991b1b;
-}
-
-.status-chip.confirmed,
-.status-chip.completed,
-.status-chip.checked_in {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-chip.pending_payment,
-.status-chip.pending_approval {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status-chip.cancelled,
-.status-chip.rejected {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.actions-heading {
-  width: 84px;
-  text-align: right;
-}
-
-.booking-actions-cell {
-  width: 84px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.row-actions {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.no-actions {
-  color: #7a877d;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.action-menu-dismiss {
-  position: fixed;
-  inset: 0;
-  z-index: 1190;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-
-.row-action-menu {
-  position: fixed;
-  z-index: 1200;
-  width: 220px;
-  display: grid;
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid #d9e8d9;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 16px 40px rgba(22, 35, 26, 0.16);
-}
-
-.row-action-menu button {
-  width: 100%;
-  min-height: 38px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #2f3d33;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  text-align: left;
-  cursor: pointer;
-}
-
-.row-action-menu button:hover {
-  background: #eef8ef;
-  color: #216b34;
-}
-
-.row-action-menu button.danger {
-  color: #b42318;
-}
-
-.row-action-menu button.danger:hover {
-  background: #fef2f2;
-}
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.48);
-}
-
-.modal-panel {
-  width: min(520px, 100%);
-  display: grid;
-  gap: 16px;
-  padding: 20px;
-}
-
-.status-action-panel {
-  width: min(500px, 100%);
-}
-
-.status-action-warning {
-  margin: 0;
-  padding: 12px 14px;
-  border-left: 3px solid #dc2626;
-  background: #fef2f2;
-  color: #7f1d1d;
-  font-size: 13px;
-  font-weight: 750;
-  line-height: 1.5;
-}
-
 .danger-btn {
   min-height: 42px;
   display: inline-flex;
@@ -1869,6 +1711,43 @@ td strong {
 .danger-btn:disabled {
   cursor: not-allowed;
   opacity: .55;
+}
+
+/* ===== Modals ===== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.modal-panel {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.2);
+}
+
+.status-action-panel {
+  width: min(500px, 100%);
+}
+
+.status-action-warning {
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 3px solid #dc2626;
+  background: #fef2f2;
+  color: #7f1d1d;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.5;
 }
 
 .modal-panel header p {
@@ -1972,14 +1851,8 @@ td strong {
   text-decoration: underline;
 }
 
-.collect-qr strong {
-  color: #16231a;
-}
-
-.collect-qr small {
-  color: #647265;
-  font-weight: 700;
-}
+.collect-qr strong { color: #16231a; }
+.collect-qr small { color: #647265; font-weight: 700; }
 
 .modal-panel header,
 .modal-panel footer {
@@ -1989,11 +1862,65 @@ td strong {
   gap: 12px;
 }
 
+/* ===== Action Menus ===== */
+.action-menu-dismiss {
+  position: fixed;
+  inset: 0;
+  z-index: 1190;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.row-action-menu {
+  position: fixed;
+  z-index: 1200;
+  width: 220px;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #d9e8d9;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(22, 35, 26, 0.16);
+}
+
+.row-action-menu button {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #2f3d33;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-action-menu button:hover { background: #eef8ef; color: #216b34; }
+.row-action-menu button.danger { color: #b42318; }
+.row-action-menu button.danger:hover { background: #fef2f2; }
+
+/* ===== Responsive ===== */
 @media (max-width: 980px) {
+  .top-strip {
+    grid-template-columns: 1fr;
+  }
+  .top-calendar {
+    display: flex;
+    justify-content: center;
+  }
   .filters,
   .collect-summary,
   .method-row,
-  .timeline-layout,
   .metric-row {
     display: grid;
     grid-template-columns: 1fr;
@@ -2010,10 +1937,6 @@ td strong {
   .metric-card + .metric-card {
     border-left: 0;
     border-top: 1px solid #e2e8f0;
-  }
-
-  .timeline-inspector {
-    position: static;
   }
 }
 </style>
