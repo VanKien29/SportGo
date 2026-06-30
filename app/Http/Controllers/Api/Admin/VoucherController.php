@@ -204,9 +204,9 @@ class VoucherController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'discount_type' => ['required', Rule::in(['percent', 'fixed'])],
-            'discount_value' => ['required', 'numeric', 'min:0.01'],
-            'max_discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'min_order_amount' => ['nullable', 'numeric', 'min:0'],
+            'discount_value' => ['required', 'numeric', 'min:0.01', 'max:9999999999.99'],
+            'max_discount_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
+            'min_order_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
             'total_quantity' => ['nullable', 'integer', 'min:1'],
             'per_user_limit' => ['nullable', 'integer', 'min:-1'],
             'valid_from' => ['required', 'date'],
@@ -222,6 +222,8 @@ class VoucherController extends Controller
                 'discount_value' => 'Voucher phần trăm phải nằm trong khoảng 1 đến 100.',
             ]);
         }
+
+        $data = $this->normalizeDiscountData($data);
 
         if (($data['per_user_limit'] ?? null) === 0) {
             throw ValidationException::withMessages([
@@ -240,6 +242,78 @@ class VoucherController extends Controller
         }
 
         return $data;
+    }
+
+    private function normalizeDiscountData(array $data): array
+    {
+        $discountValue = (float) $data['discount_value'];
+
+        if ($data['discount_type'] === 'percent') {
+            if ($discountValue <= 0 || $discountValue > 100) {
+                throw ValidationException::withMessages([
+                    'discount_value' => 'Voucher phan tram phai nam trong khoang tren 0 den 100.',
+                ]);
+            }
+
+            $data['discount_value'] = $this->normalizePercentValue($discountValue);
+            $data['max_discount_amount'] = $this->normalizeNullableMoneyValue(
+                $data['max_discount_amount'] ?? null,
+                'max_discount_amount',
+                'Muc giam toi da'
+            );
+        } else {
+            $data['discount_value'] = $this->normalizeRequiredMoneyValue(
+                $discountValue,
+                'discount_value',
+                'So tien giam'
+            );
+            $data['max_discount_amount'] = null;
+        }
+
+        $data['min_order_amount'] = $this->normalizeRequiredMoneyValue(
+            $data['min_order_amount'] ?? 0,
+            'min_order_amount',
+            'Don toi thieu'
+        );
+
+        return $data;
+    }
+
+    private function normalizePercentValue(float $value): int|float
+    {
+        $rounded = round($value, 2);
+
+        if (abs($value - $rounded) > 0.00001) {
+            throw ValidationException::withMessages([
+                'discount_value' => 'Phan tram giam chi duoc toi da 2 chu so thap phan.',
+            ]);
+        }
+
+        return abs($rounded - round($rounded)) < 0.00001 ? (int) round($rounded) : $rounded;
+    }
+
+    private function normalizeRequiredMoneyValue(mixed $value, string $field, string $label): int
+    {
+        $amount = (float) ($value ?? 0);
+
+        if ($amount < 0 || abs($amount - round($amount)) > 0.00001) {
+            throw ValidationException::withMessages([
+                $field => "{$label} phai la so tien VND nguyen, khong nhap phan thap phan.",
+            ]);
+        }
+
+        return (int) round($amount);
+    }
+
+    private function normalizeNullableMoneyValue(mixed $value, string $field, string $label): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $amount = $this->normalizeRequiredMoneyValue($value, $field, $label);
+
+        return $amount > 0 ? $amount : null;
     }
 
     private function syncScopes(string $voucherId, array $scopes): void
@@ -317,10 +391,10 @@ class VoucherController extends Controller
             'name' => $voucher->name,
             'discount_type' => $voucher->discount_type,
             'discount_type_label' => $this->discountTypeLabel($voucher->discount_type),
-            'discount_value' => $voucher->discount_value,
+            'discount_value' => $this->discountValuePayload($voucher),
             'discount_label' => $this->discountLabel($voucher),
-            'max_discount_amount' => $voucher->max_discount_amount,
-            'min_order_amount' => $voucher->min_order_amount,
+            'max_discount_amount' => $this->nullableMoneyPayload($voucher->max_discount_amount),
+            'min_order_amount' => $this->moneyPayload($voucher->min_order_amount),
             'total_quantity' => $voucher->total_quantity,
             'per_user_limit' => $voucher->per_user_limit,
             'used_quantity' => $voucher->used_quantity,
@@ -353,6 +427,9 @@ class VoucherController extends Controller
             'summary' => $this->listPayload($voucher),
             'voucher' => [
                 ...(array) $voucher,
+                'discount_value' => $this->discountValuePayload($voucher),
+                'max_discount_amount' => $this->nullableMoneyPayload($voucher->max_discount_amount),
+                'min_order_amount' => $this->moneyPayload($voucher->min_order_amount),
                 'status_label' => $this->statusLabel($voucher->status),
                 'discount_type_label' => $this->discountTypeLabel($voucher->discount_type),
                 'discount_label' => $this->discountLabel($voucher),
@@ -360,8 +437,8 @@ class VoucherController extends Controller
                 'funding_label' => 'Voucher hệ thống - nền tảng chịu phần giảm giá',
             ],
             'conditions' => [
-                'min_order_amount' => $voucher->min_order_amount,
-                'max_discount_amount' => $voucher->max_discount_amount,
+                'min_order_amount' => $this->moneyPayload($voucher->min_order_amount),
+                'max_discount_amount' => $this->nullableMoneyPayload($voucher->max_discount_amount),
                 'per_user_limit' => $voucher->per_user_limit,
                 'stacking_rule' => $voucher->stacking_rule,
                 'stacking_rule_label' => $this->stackingRuleLabel($voucher->stacking_rule),
@@ -509,10 +586,29 @@ class VoucherController extends Controller
     private function discountLabel(object $voucher): string
     {
         if ($voucher->discount_type === 'percent') {
-            return rtrim(rtrim((string) $voucher->discount_value, '0'), '.') . '%';
+            return rtrim(rtrim(number_format((float) $voucher->discount_value, 2, '.', ''), '0'), '.') . '%';
         }
 
-        return number_format((float) $voucher->discount_value, 0, ',', '.') . ' đ';
+        return number_format($this->moneyPayload($voucher->discount_value), 0, ',', '.') . ' đ';
+    }
+
+    private function discountValuePayload(object $voucher): int|float
+    {
+        if ($voucher->discount_type === 'percent') {
+            return $this->normalizePercentValue((float) $voucher->discount_value);
+        }
+
+        return $this->moneyPayload($voucher->discount_value);
+    }
+
+    private function moneyPayload(mixed $value): int
+    {
+        return (int) round((float) ($value ?? 0));
+    }
+
+    private function nullableMoneyPayload(mixed $value): ?int
+    {
+        return $value === null ? null : $this->moneyPayload($value);
     }
 
     private function discountTypeLabel(?string $type): string

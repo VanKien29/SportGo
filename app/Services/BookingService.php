@@ -1543,11 +1543,13 @@ class BookingService
             'owner_type' => $voucher->owner_type,
             'funded_by' => $voucher->funded_by,
             'discount_type' => $voucher->discount_type,
-            'discount_value' => (float) $voucher->discount_value,
-            'max_discount_amount' => $voucher->max_discount_amount !== null ? (float) $voucher->max_discount_amount : null,
-            'min_order_amount' => (float) $voucher->min_order_amount,
-            'discount_amount' => $discountAmount,
-            'final_amount' => round(max($amount - $discountAmount, 0), 2),
+            'discount_value' => $voucher->discount_type === 'percent'
+                ? $this->percentPayload((float) $voucher->discount_value)
+                : $this->moneyPayload($voucher->discount_value),
+            'max_discount_amount' => $voucher->max_discount_amount !== null ? $this->moneyPayload($voucher->max_discount_amount) : null,
+            'min_order_amount' => $this->moneyPayload($voucher->min_order_amount),
+            'discount_amount' => $this->moneyPayload($discountAmount),
+            'final_amount' => $this->moneyPayload(max($amount - $discountAmount, 0)),
             'discount_label' => $voucher->discount_type === 'percent'
                 ? rtrim(rtrim(number_format((float) $voucher->discount_value, 2, '.', ''), '0'), '.') . '%'
                 : number_format((float) $voucher->discount_value, 0, ',', '.') . ' đ',
@@ -1619,7 +1621,19 @@ class BookingService
             $discount = min($discount, (float) $voucher->max_discount_amount);
         }
 
-        return round(min(max($discount, 0), $amount), 2);
+        return (float) $this->moneyPayload(min(max($discount, 0), $amount));
+    }
+
+    private function percentPayload(float $value): int|float
+    {
+        $rounded = round($value, 2);
+
+        return abs($rounded - round($rounded)) < 0.00001 ? (int) round($rounded) : $rounded;
+    }
+
+    private function moneyPayload(mixed $value): int
+    {
+        return (int) round((float) ($value ?? 0));
     }
 
     private function recordVoucherUsage(array $voucher, Booking $booking, string $usageUserId): void
@@ -1649,6 +1663,40 @@ class BookingService
                 'voucher_code' => 'Voucher vừa hết lượt sử dụng. Vui lòng chọn voucher khác hoặc bỏ áp dụng voucher.',
             ]);
         }
+    }
+
+    public function releaseVoucherUsageForBooking(Booking|string $booking, string $usageStatus = 'cancelled'): void
+    {
+        $bookingId = $booking instanceof Booking ? $booking->id : $booking;
+        $usageStatus = in_array($usageStatus, ['cancelled', 'refunded'], true) ? $usageStatus : 'cancelled';
+
+        $usages = DB::table('voucher_usages')
+            ->where('booking_id', $bookingId)
+            ->where('status', 'applied')
+            ->lockForUpdate()
+            ->get(['id', 'voucher_id']);
+
+        if ($usages->isEmpty()) {
+            return;
+        }
+
+        DB::table('voucher_usages')
+            ->whereIn('id', $usages->pluck('id')->all())
+            ->update([
+                'status' => $usageStatus,
+                'updated_at' => now(),
+            ]);
+
+        $usages->groupBy('voucher_id')->each(function (Collection $voucherUsages, string $voucherId): void {
+            $count = $voucherUsages->count();
+
+            DB::table('vouchers')
+                ->where('id', $voucherId)
+                ->update([
+                    'used_quantity' => DB::raw("CASE WHEN used_quantity >= {$count} THEN used_quantity - {$count} ELSE 0 END"),
+                    'updated_at' => now(),
+                ]);
+        });
     }
 
     private function requiredPaymentAmount(string $venueClusterId, float $totalPrice, string $paymentOption): float
