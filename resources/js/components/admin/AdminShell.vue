@@ -1,8 +1,16 @@
 <template>
-    <div class="sg-shell-admin" :class="{ 'nav-open': sidebarOpen }">
+    <div
+        class="sg-shell-admin"
+        :class="{
+            'nav-open': sidebarOpen,
+            'sidebar-collapsed': sidebarCollapsed,
+            'sidebar-style-two-level': sidebarStyle === 'two-level',
+        }"
+    >
         <AdminSidebar
             :sections="sections"
             :active-route-name="activeRouteName"
+            :collapsed="sidebarCollapsed"
             @navigate="closeSidebar"
         />
         <button
@@ -17,7 +25,9 @@
             <AdminTopbar
                 :title="title"
                 :section-label="sectionLabel"
+                :sidebar-collapsed="sidebarCollapsed"
                 @toggle-sidebar="toggleSidebar"
+                @toggle-collapse="toggleCollapse"
             />
             <div class="content-area">
                 <slot />
@@ -45,14 +55,29 @@ export default {
     data() {
         return {
             sidebarOpen: false,
+            sidebarCollapsed: localStorage.getItem('admin-sidebar-collapsed') === 'true',
+            sidebarStyle: localStorage.getItem('admin-sidebar-style') || 'one-level',
         };
     },
+    created() {
+        window.addEventListener('sidebar-style-changed', this.loadSidebarStyle);
+    },
+    beforeUnmount() {
+        window.removeEventListener('sidebar-style-changed', this.loadSidebarStyle);
+    },
     methods: {
+        loadSidebarStyle() {
+            this.sidebarStyle = localStorage.getItem('admin-sidebar-style') || 'one-level';
+        },
         toggleSidebar() {
             this.sidebarOpen = !this.sidebarOpen;
         },
         closeSidebar() {
             this.sidebarOpen = false;
+        },
+        toggleCollapse() {
+            this.sidebarCollapsed = !this.sidebarCollapsed;
+            localStorage.setItem('admin-sidebar-collapsed', this.sidebarCollapsed);
         },
     },
     watch: {

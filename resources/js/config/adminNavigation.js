@@ -122,6 +122,12 @@ export const adminNavigationSections = [
         to: '/admin/banners',
         activeNames: ['admin-banners'],
       },
+      {
+        label: 'Cài đặt giao diện',
+        icon: 'palette',
+        to: '/admin/settings',
+        activeNames: ['admin-settings'],
+      },
     ],
   },
   {
@@ -185,6 +191,7 @@ export const adminRouteTitles = {
   'admin-platform-fee-ledger-detail': 'Chi tiết kỳ phí duy trì',
   'admin-venue-platform-fees': 'Phí duy trì cụm sân',
   'admin-platform-fee-settings': 'Cài đặt phí duy trì',
+  'admin-settings': 'Cấu hình giao diện',
 };
 
 export function findAdminNavigationSection(routeName) {

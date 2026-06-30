@@ -257,6 +257,12 @@ const routes = [
                     import("../views/admin/AdminPlatformFeeSettings.vue"),
             },
             {
+                path: "settings",
+                name: "admin-settings",
+                component: () =>
+                    import("../views/admin/AdminSettings.vue"),
+            },
+            {
                 path: "posts/:id",
                 name: "admin-post-detail",
                 component: () =>
