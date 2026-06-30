@@ -32,10 +32,6 @@
             <div class="budget-copy">
                 <span class="eyebrow">Ngân sách khuyến mãi</span>
                 <h3>Theo dõi chi phí voucher hệ thống</h3>
-                <p>
-                    Ngân sách chỉ dùng để cảnh báo, không chặn khách dùng
-                    voucher hệ thống.
-                </p>
             </div>
             <div class="budget-metrics">
                 <article class="budget-metric">
@@ -246,7 +242,7 @@
         </section>
 
         <div v-if="showModal" class="modal-backdrop" @click.self="closeForm">
-            <form class="modal" @submit.prevent="save">
+            <form class="modal" novalidate @submit.prevent="save">
                 <h3>
                     {{
                         form.id
@@ -256,11 +252,11 @@
                 </h3>
                 <div class="grid">
                     <label
-                        >Mã voucher<input v-model.trim="form.code" required
-                    /></label>
+                        >Mã voucher<input v-model.trim="form.code" @input="clearFieldError('code')"
+                    /><small v-if="validationErrors.code" class="field-error">{{ validationErrors.code }}</small></label>
                     <label
-                        >Tên voucher<input v-model.trim="form.name" required
-                    /></label>
+                        >Tên voucher<input v-model.trim="form.name" @input="clearFieldError('name')"
+                    /><small v-if="validationErrors.name" class="field-error">{{ validationErrors.name }}</small></label>
                     <label
                         >Loại giảm
                         <select v-model="form.discount_type" @change="normalizeDiscountFields">
@@ -269,71 +265,67 @@
                         </select>
                     </label>
                     <label
-                        >Giá trị giảm<input
+                        >{{ discountValueLabel }}<span class="suffix-field"><input
                             v-model.number="form.discount_value"
                             type="number"
                             min="0.01"
                             :max="form.discount_type === 'percent' ? 100 : null"
-                            :step="form.discount_type === 'percent' ? 0.01 : 1000"
-                            required
+                            :step="form.discount_type === 'percent' ? 0.01 : 1"
+                            @input="clearFieldError('discount_value')"
                             @change="normalizeDiscountFields"
-                    /></label>
-                    <label
-                        >Giảm tối đa<input
+                    /><span>{{ discountValueUnit }}</span></span><small v-if="validationErrors.discount_value" class="field-error">{{ validationErrors.discount_value }}</small></label>
+                    <label v-if="form.discount_type === 'percent'"
+                        >Giảm tối đa bao nhiêu tiền<span class="suffix-field"><input
                             v-model.number="form.max_discount_amount"
                             type="number"
                             min="0"
-                            step="1000"
-                            :disabled="form.discount_type === 'fixed'"
+                            step="1"
+                            @input="clearFieldError('max_discount_amount')"
                             @change="normalizeDiscountFields"
-                    /></label>
+                    /><span>VNĐ</span></span><small v-if="validationErrors.max_discount_amount" class="field-error">{{ validationErrors.max_discount_amount }}</small></label>
                     <label
-                        >Đơn tối thiểu<input
+                        >Đơn tối thiểu<span class="suffix-field"><input
                             v-model.number="form.min_order_amount"
                             type="number"
                             min="0"
-                            step="1000"
+                            step="1"
+                            @input="clearFieldError('min_order_amount')"
                             @change="normalizeDiscountFields"
-                    /></label>
+                    /><span>VNĐ</span></span><small v-if="validationErrors.min_order_amount" class="field-error">{{ validationErrors.min_order_amount }}</small></label>
                     <label
                         >Tổng số lượng<input
                             v-model.number="form.total_quantity"
                             type="number"
                             min="1"
-                    /></label>
+                            @input="clearFieldError('total_quantity')"
+                    /><small v-if="validationErrors.total_quantity" class="field-error">{{ validationErrors.total_quantity }}</small></label>
                     <label
                         >Giới hạn mỗi khách<input
                             v-model.number="form.per_user_limit"
                             type="number"
                             min="1"
-                    /></label>
+                            @input="clearFieldError('per_user_limit')"
+                    /><small v-if="validationErrors.per_user_limit" class="field-error">{{ validationErrors.per_user_limit }}</small></label>
                     <label
                         >Bắt đầu<input
                             v-model="form.valid_from"
                             type="datetime-local"
-                            required
-                    /></label>
+                            @input="clearFieldError('valid_from')"
+                    /><small v-if="validationErrors.valid_from" class="field-error">{{ validationErrors.valid_from }}</small></label>
                     <label
                         >Kết thúc<input
                             v-model="form.valid_to"
                             type="datetime-local"
-                            required
-                    /></label>
+                            @input="clearFieldError('valid_to')"
+                    /><small v-if="validationErrors.valid_to" class="field-error">{{ validationErrors.valid_to }}</small></label>
                     <label
                         >Trạng thái
                         <select v-model="form.status">
-                            <option value="draft">Bản nháp</option>
                             <option value="active">Đang áp dụng</option>
                             <option value="inactive">Đã tắt</option>
                         </select>
                     </label>
                 </div>
-                <label
-                    >Mô tả<textarea
-                        v-model.trim="form.description"
-                        rows="3"
-                    ></textarea>
-                </label>
                 <div class="scope-editor">
                     <label>
                         Phạm vi
@@ -351,7 +343,10 @@
                     </label>
                     <label v-if="form.scopes[0].scope_type === 'venue_cluster'">
                         Cụm sân áp dụng
-                        <select v-model="form.scopes[0].scope_id" required>
+                        <select
+                            v-model="form.scopes[0].scope_id"
+                            @change="clearFieldError('scope_id')"
+                        >
                             <option
                                 v-for="item in scopeOptions.venue_clusters"
                                 :key="item.id"
@@ -363,7 +358,10 @@
                     </label>
                     <label v-else-if="form.scopes[0].scope_type === 'court_type'">
                         Loại sân áp dụng
-                        <select v-model="form.scopes[0].scope_id" required>
+                        <select
+                            v-model="form.scopes[0].scope_id"
+                            @change="clearFieldError('scope_id')"
+                        >
                             <option
                                 v-for="item in scopeOptions.court_types"
                                 :key="item.id"
@@ -375,7 +373,10 @@
                     </label>
                     <label v-else-if="form.scopes[0].scope_type === 'membership_tier'">
                         Hạng sân áp dụng
-                        <select v-model="form.scopes[0].scope_id" required>
+                        <select
+                            v-model="form.scopes[0].scope_id"
+                            @change="clearFieldError('scope_id')"
+                        >
                             <option
                                 v-for="item in scopeOptions.membership_tiers"
                                 :key="item.id"
@@ -387,7 +388,10 @@
                     </label>
                     <label v-else-if="form.scopes[0].scope_type === 'vip_package'">
                         Gói VIP áp dụng
-                        <select v-model="form.scopes[0].scope_id" required>
+                        <select
+                            v-model="form.scopes[0].scope_id"
+                            @change="clearFieldError('scope_id')"
+                        >
                             <option
                                 v-for="item in scopeOptions.vip_packages"
                                 :key="item.id"
@@ -399,7 +403,10 @@
                     </label>
                     <label v-else-if="form.scopes[0].scope_type === 'booking_type'">
                         Loại booking
-                        <select v-model="form.scopes[0].scope_id" required>
+                        <select
+                            v-model="form.scopes[0].scope_id"
+                            @change="clearFieldError('scope_id')"
+                        >
                             <option
                                 v-for="item in scopeOptions.booking_types"
                                 :key="item.id"
@@ -409,6 +416,7 @@
                             </option>
                         </select>
                     </label>
+                    <small v-if="validationErrors.scope_id" class="field-error">{{ validationErrors.scope_id }}</small>
                     <p class="scope-hint">{{ scopeHint }}</p>
                 </div>
                 <footer>
@@ -462,6 +470,7 @@ export default {
             error: "",
             success: "",
             form: this.emptyForm(),
+            validationErrors: {},
             scopeOptions: this.emptyScopeOptions(),
             showHistoryPanel: false,
             showScrollTop: false,
@@ -487,6 +496,12 @@ export default {
         window.removeEventListener("scroll", this.handleScroll);
     },
     computed: {
+        discountValueLabel() {
+            return this.form.discount_type === "percent" ? "Giảm bao nhiêu %" : "Giảm bao nhiêu tiền";
+        },
+        discountValueUnit() {
+            return this.form.discount_type === "percent" ? "%" : "VNĐ";
+        },
         budgetUsageText() {
             if (
                 this.promotionBudget?.usage_percent === null ||
@@ -532,7 +547,7 @@ export default {
                 id: null,
                 code: "",
                 name: "",
-                description: "",
+                description: null,
                 discount_type: "percent",
                 discount_value: 10,
                 max_discount_amount: null,
@@ -541,7 +556,7 @@ export default {
                 per_user_limit: 1,
                 valid_from: "",
                 valid_to: "",
-                status: "draft",
+                status: "active",
                 scopes: [{ scope_type: "all", scope_id: null }],
             };
         },
@@ -639,22 +654,30 @@ export default {
             this.form = voucher
                 ? {
                       ...voucher,
+                      description: null,
+                      status: voucher.status === "draft" ? "active" : voucher.status,
                       valid_from: this.inputDate(voucher.valid_from),
                       valid_to: this.inputDate(voucher.valid_to),
                       scopes: this.normalizeScopes(voucher.scopes),
                   }
                 : this.emptyForm();
+            this.validationErrors = {};
+            this.error = "";
             this.showModal = true;
         },
         closeForm() {
             this.showModal = false;
+            this.validationErrors = {};
         },
         async save() {
+            this.normalizeDiscountFields();
+            if (!this.validateForm()) return;
+
             this.saving = true;
             try {
-                this.normalizeDiscountFields();
                 const payload = {
                     ...this.form,
+                    description: null,
                     scopes: this.normalizeScopes(this.form.scopes),
                 };
                 const response = this.form.id
@@ -664,10 +687,83 @@ export default {
                 this.closeForm();
                 await this.load();
             } catch (error) {
+                this.applyApiValidationErrors(error);
                 this.error = error.message || "Không thể lưu voucher hệ thống.";
             } finally {
                 this.saving = false;
             }
+        },
+        validateForm() {
+            const errors = {};
+            const discountValue = Number(this.form.discount_value);
+            const maxDiscountAmount = Number(this.form.max_discount_amount || 0);
+            const minOrderAmount = Number(this.form.min_order_amount || 0);
+            const totalQuantity = Number(this.form.total_quantity);
+            const perUserLimit = Number(this.form.per_user_limit);
+            const scope = this.form.scopes?.[0] || { scope_type: "all", scope_id: null };
+
+            if (!this.form.code) errors.code = "Vui lòng nhập mã voucher.";
+            if (!this.form.name) errors.name = "Vui lòng nhập tên voucher.";
+            if (!discountValue || discountValue <= 0) {
+                errors.discount_value =
+                    this.form.discount_type === "percent"
+                        ? "Vui lòng nhập phần trăm giảm lớn hơn 0."
+                        : "Vui lòng nhập số tiền giảm lớn hơn 0.";
+            } else if (this.form.discount_type === "percent" && discountValue > 100) {
+                errors.discount_value = "Phần trăm giảm không được vượt quá 100%.";
+            }
+
+            if (this.form.discount_type === "percent" && maxDiscountAmount < 0) {
+                errors.max_discount_amount = "Số tiền giảm tối đa không được âm.";
+            }
+
+            if (minOrderAmount < 0) errors.min_order_amount = "Đơn tối thiểu không được âm.";
+            if (!Number.isInteger(totalQuantity) || totalQuantity < 1) {
+                errors.total_quantity = "Tổng số lượng phải từ 1 trở lên.";
+            }
+            if (!Number.isInteger(perUserLimit) || perUserLimit < 1) {
+                errors.per_user_limit = "Giới hạn mỗi khách phải từ 1 trở lên.";
+            }
+            if (
+                Number.isInteger(totalQuantity)
+                && Number.isInteger(perUserLimit)
+                && perUserLimit > totalQuantity
+            ) {
+                errors.per_user_limit = "Giới hạn mỗi khách không được lớn hơn tổng số lượng.";
+            }
+            if (!this.form.valid_from) errors.valid_from = "Vui lòng chọn thời gian bắt đầu.";
+            if (!this.form.valid_to) errors.valid_to = "Vui lòng chọn thời gian kết thúc.";
+            if (
+                this.form.valid_from
+                && this.form.valid_to
+                && new Date(this.form.valid_to) <= new Date(this.form.valid_from)
+            ) {
+                errors.valid_to = "Thời gian kết thúc phải sau thời gian bắt đầu.";
+            }
+            if (scope.scope_type !== "all" && !scope.scope_id) {
+                errors.scope_id = "Vui lòng chọn phạm vi áp dụng.";
+            }
+
+            this.validationErrors = errors;
+            return Object.keys(errors).length === 0;
+        },
+        clearFieldError(field) {
+            if (!this.validationErrors[field]) return;
+            const { [field]: removed, ...rest } = this.validationErrors;
+            this.validationErrors = rest;
+        },
+        applyApiValidationErrors(error) {
+            const apiErrors = error?.data?.errors || {};
+            const mapped = {};
+
+            Object.entries(apiErrors).forEach(([field, messages]) => {
+                mapped[field] = Array.isArray(messages) ? messages[0] : String(messages);
+            });
+
+            this.validationErrors = {
+                ...this.validationErrors,
+                ...mapped,
+            };
         },
         async turnOff(voucher) {
             if (!confirm(`Tắt voucher hệ thống ${voucher.code}?`)) return;
@@ -732,6 +828,7 @@ export default {
         resetScopeId() {
             const scope = this.form.scopes[0];
             scope.scope_id = scope.scope_type === "all" ? null : "";
+            this.clearFieldError("scope_id");
         },
         money(value) {
             return new Intl.NumberFormat("vi-VN", {
@@ -918,6 +1015,42 @@ textarea {
     border-radius: 8px;
     padding: 10px;
     font: inherit;
+}
+.suffix-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+}
+.suffix-field input {
+    min-width: 0;
+    border: 0;
+    border-radius: 0;
+}
+.suffix-field input:disabled {
+    background: #f8fafc;
+    color: #94a3b8;
+}
+.suffix-field span {
+    padding: 0 12px;
+    color: #475569;
+    font-weight: 900;
+    white-space: nowrap;
+}
+.modal .field-error {
+    display: block;
+    width: 100%;
+    border-left: 3px solid #dc2626;
+    border-radius: 6px;
+    background: #fef2f2;
+    color: #b91c1c !important;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.35;
+    padding: 6px 8px;
 }
 .scope-editor {
     display: grid;
