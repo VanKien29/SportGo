@@ -1,530 +1,509 @@
 <template>
-  <div class="mini-cal" :class="{ 'mini-cal--range': mode === 'range' }">
-    <!-- Header: tháng + mũi tên điều hướng -->
-    <div class="mini-cal__header">
-      <button type="button" class="mini-cal__nav" @click="prevMonth" aria-label="Tháng trước">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <span class="mini-cal__title">{{ monthTitle }}</span>
-      <button type="button" class="mini-cal__nav" @click="nextMonth" aria-label="Tháng sau">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
-    </div>
+    <div class="mini-cal" :class="{ 'mini-cal--range': mode === 'range' }">
+        <header class="mini-cal__header">
+            <button
+                type="button"
+                class="mini-cal__nav"
+                title="Tháng trước"
+                @click="prevMonth"
+            >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button
+                type="button"
+                class="mini-cal__title"
+                @click="goToday"
+                title="Về hôm nay"
+            >
+                <span class="mini-cal__month">{{ monthLabel }}</span>
+                <span class="mini-cal__year">{{ viewYear }}</span>
+            </button>
+            <button
+                type="button"
+                class="mini-cal__nav"
+                title="Tháng sau"
+                @click="nextMonth"
+            >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        </header>
 
-    <!-- Tên thứ -->
-    <div class="mini-cal__weekdays">
-      <span v-for="day in weekDayLabels" :key="day">{{ day }}</span>
-    </div>
+        <div class="mini-cal__weekdays">
+            <span v-for="day in weekDayLabels" :key="day">{{ day }}</span>
+        </div>
 
-    <!-- Các ô ngày -->
-    <div class="mini-cal__grid">
-      <button
-        v-for="cell in calendarCells"
-        :key="cell.key"
-        type="button"
-        class="mini-cal__cell"
-        :class="cellClass(cell)"
-        :disabled="isCellDisabled(cell)"
-        :tabindex="cell.isCurrentMonth ? 0 : -1"
-        @click="handleCellClick(cell)"
-        @mouseenter="handleCellHover(cell)"
-      >
-        <span class="mini-cal__day">{{ cell.day }}</span>
-        <!-- Dot indicators -->
-        <span v-if="cell.isCurrentMonth && getDots(cell).length" class="mini-cal__dots">
-          <i
-            v-for="dot in getDots(cell)"
-            :key="dot.type"
-            class="mini-cal__dot"
-            :class="`mini-cal__dot--${dot.type}`"
-          ></i>
-        </span>
-      </button>
+        <div class="mini-cal__grid">
+            <button
+                v-for="cell in calendarCells"
+                :key="cell.key"
+                type="button"
+                class="mini-cal__day"
+                :class="dayClasses(cell)"
+                :disabled="cell.disabled"
+                :title="cell.iso"
+                @click="selectDay(cell)"
+                @mouseenter="onDayHover(cell)"
+            >
+                <span class="mini-cal__day-num">{{ cell.day }}</span>
+                <span
+                    v-if="cell.dots.length"
+                    class="mini-cal__dots"
+                >
+                    <i
+                        v-for="(dot, idx) in cell.dots.slice(0, 3)"
+                        :key="idx"
+                        :style="{ background: dot }"
+                    />
+                </span>
+            </button>
+        </div>
     </div>
-
-    <!-- Range hint (chỉ hiện ở mode range) -->
-    <div v-if="mode === 'range' && (modelValue.start || modelValue.end)" class="mini-cal__range-info">
-      <span>{{ rangeInfoText }}</span>
-      <button v-if="modelValue.start || modelValue.end" type="button" class="mini-cal__clear" @click="clearRange">
-        Xóa
-      </button>
-    </div>
-  </div>
 </template>
 
 <script>
-/**
- * MiniCalendar – Component lịch mini dùng chung
- *
- * Props:
- *  mode: 'single' | 'range'  (default: 'single')
- *  modelValue:
- *    - mode=single: String 'YYYY-MM-DD'
- *    - mode=range:  Object { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD' }
- *  minDate: String 'YYYY-MM-DD' – không cho chọn trước ngày này
- *  maxDate: String 'YYYY-MM-DD'
- *  dots: Object { 'YYYY-MM-DD': ['booking', 'lock', ...] }
- *        Hiện dot màu dưới ô ngày
- *
- * Emits:
- *  update:modelValue – emit value mới khi chọn ngày
- */
+const MONTH_NAMES = [
+    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4',
+    'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8',
+    'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12',
+];
+const WEEKDAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+function toIso(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function parseIso(str) {
+    if (!str) return null;
+    const d = new Date(`${str}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export default {
-  name: 'MiniCalendar',
-  props: {
-    mode: { type: String, default: 'single' }, // 'single' | 'range'
-    modelValue: { type: [String, Object], default: null },
-    minDate: { type: String, default: null },
-    maxDate: { type: String, default: null },
-    // dots: { 'YYYY-MM-DD': ['booking'] | ['lock'] | ['booking','lock'] }
-    dots: { type: Object, default: () => ({}) },
-  },
-  emits: ['update:modelValue'],
-  data() {
-    const today = this.todayStr();
-    // Khởi tạo viewYear/viewMonth theo giá trị hiện tại hoặc today
-    const init = this.mode === 'range'
-      ? (this.modelValue?.start || today)
-      : (this.modelValue || today);
-    const d = init ? new Date(init + 'T00:00:00') : new Date();
-    return {
-      viewYear: d.getFullYear(),
-      viewMonth: d.getMonth(), // 0-11
-      hoverDate: null, // dùng trong range mode để preview
-    };
-  },
-  computed: {
-    weekDayLabels() {
-      return ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    name: 'MiniCalendar',
+    props: {
+        /** Single mode: selected date (YYYY-MM-DD) */
+        modelValue: { type: String, default: '' },
+        /** Range mode: start date */
+        startDate: { type: String, default: '' },
+        /** Range mode: end date */
+        endDate: { type: String, default: '' },
+        /** 'single' | 'range' */
+        mode: { type: String, default: 'single' },
+        /** Min selectable date (YYYY-MM-DD) */
+        minDate: { type: String, default: '' },
+        /** Max selectable date (YYYY-MM-DD) */
+        maxDate: { type: String, default: '' },
+        /**
+         * Array of { date: 'YYYY-MM-DD', color: '#hex' }
+         * Shows colored dots under the day number
+         */
+        markedDates: { type: Array, default: () => [] },
     },
-    monthTitle() {
-      return `Tháng ${this.viewMonth + 1} / ${this.viewYear}`;
+    emits: ['update:modelValue', 'update:startDate', 'update:endDate', 'select', 'range-change'],
+    data() {
+        const ref = this.mode === 'range'
+            ? parseIso(this.startDate) || new Date()
+            : parseIso(this.modelValue) || new Date();
+        return {
+            viewMonth: ref.getMonth(),
+            viewYear: ref.getFullYear(),
+            hoverDate: '',
+            rangeSelecting: false,
+            weekDayLabels: WEEKDAY_LABELS,
+        };
     },
-    calendarCells() {
-      const year = this.viewYear;
-      const month = this.viewMonth;
+    computed: {
+        monthLabel() {
+            return MONTH_NAMES[this.viewMonth];
+        },
+        todayIso() {
+            return toIso(new Date());
+        },
+        markedMap() {
+            const map = {};
+            (this.markedDates || []).forEach(item => {
+                if (!map[item.date]) map[item.date] = [];
+                map[item.date].push(item.color || '#16a34a');
+            });
+            return map;
+        },
+        calendarCells() {
+            const cells = [];
+            const firstDay = new Date(this.viewYear, this.viewMonth, 1);
+            // Monday = 0, Sunday = 6
+            const startWeekday = (firstDay.getDay() + 6) % 7;
+            const daysInMonth = new Date(this.viewYear, this.viewMonth + 1, 0).getDate();
 
-      // Ngày đầu tháng, xem nó là thứ mấy (0=CN,1=T2,...6=T7)
-      const firstDay = new Date(year, month, 1).getDay();
-      // Đưa CN = 6 (index cuối), T2=0, T3=1,...
-      const startOffset = (firstDay === 0) ? 6 : firstDay - 1;
+            // Previous month padding
+            const prevMonthDays = new Date(this.viewYear, this.viewMonth, 0).getDate();
+            for (let i = startWeekday - 1; i >= 0; i--) {
+                const day = prevMonthDays - i;
+                const d = new Date(this.viewYear, this.viewMonth - 1, day);
+                const iso = toIso(d);
+                cells.push({
+                    key: `prev-${day}`,
+                    day,
+                    iso,
+                    outside: true,
+                    disabled: this.isDisabled(iso),
+                    dots: this.markedMap[iso] || [],
+                });
+            }
 
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const daysInPrevMonth = new Date(year, month, 0).getDate();
+            // Current month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const d = new Date(this.viewYear, this.viewMonth, day);
+                const iso = toIso(d);
+                cells.push({
+                    key: `cur-${day}`,
+                    day,
+                    iso,
+                    outside: false,
+                    disabled: this.isDisabled(iso),
+                    dots: this.markedMap[iso] || [],
+                });
+            }
 
-      const cells = [];
+            // Next month padding to fill 6 rows
+            const remaining = 42 - cells.length;
+            for (let i = 1; i <= remaining; i++) {
+                const d = new Date(this.viewYear, this.viewMonth + 1, i);
+                const iso = toIso(d);
+                cells.push({
+                    key: `next-${i}`,
+                    day: i,
+                    iso,
+                    outside: true,
+                    disabled: this.isDisabled(iso),
+                    dots: this.markedMap[iso] || [],
+                });
+            }
 
-      // Ngày tháng trước (filler)
-      for (let i = startOffset - 1; i >= 0; i--) {
-        const day = daysInPrevMonth - i;
-        const prevMonth = month === 0 ? 11 : month - 1;
-        const prevYear = month === 0 ? year - 1 : year;
-        cells.push({
-          key: `prev-${day}`,
-          day,
-          dateStr: this.toDateStr(prevYear, prevMonth, day),
-          isCurrentMonth: false,
-        });
-      }
+            return cells;
+        },
+        effectiveRangeStart() {
+            return this.startDate || '';
+        },
+        effectiveRangeEnd() {
+            if (this.rangeSelecting && this.hoverDate) {
+                // While hovering, show preview range
+                const start = this.effectiveRangeStart;
+                if (start && this.hoverDate >= start) return this.hoverDate;
+                if (start && this.hoverDate < start) return start;
+            }
+            return this.endDate || this.effectiveRangeStart;
+        },
+    },
+    watch: {
+        modelValue(newVal) {
+            if (this.mode === 'single' && newVal) {
+                const d = parseIso(newVal);
+                if (d) {
+                    this.viewMonth = d.getMonth();
+                    this.viewYear = d.getFullYear();
+                }
+            }
+        },
+        startDate(newVal) {
+            if (this.mode === 'range' && newVal) {
+                const d = parseIso(newVal);
+                if (d) {
+                    this.viewMonth = d.getMonth();
+                    this.viewYear = d.getFullYear();
+                }
+            }
+        },
+    },
+    methods: {
+        prevMonth() {
+            if (this.viewMonth === 0) {
+                this.viewMonth = 11;
+                this.viewYear--;
+            } else {
+                this.viewMonth--;
+            }
+        },
+        nextMonth() {
+            if (this.viewMonth === 11) {
+                this.viewMonth = 0;
+                this.viewYear++;
+            } else {
+                this.viewMonth++;
+            }
+        },
+        goToday() {
+            const now = new Date();
+            this.viewMonth = now.getMonth();
+            this.viewYear = now.getFullYear();
+        },
+        isDisabled(iso) {
+            if (this.minDate && iso < this.minDate) return true;
+            if (this.maxDate && iso > this.maxDate) return true;
+            return false;
+        },
+        dayClasses(cell) {
+            const classes = [];
+            if (cell.outside) classes.push('outside');
+            if (cell.iso === this.todayIso) classes.push('today');
 
-      // Ngày tháng này
-      for (let day = 1; day <= daysInMonth; day++) {
-        cells.push({
-          key: `cur-${day}`,
-          day,
-          dateStr: this.toDateStr(year, month, day),
-          isCurrentMonth: true,
-        });
-      }
+            if (this.mode === 'single') {
+                if (cell.iso === this.modelValue) classes.push('selected');
+            } else {
+                // Range mode
+                const start = this.effectiveRangeStart;
+                let end = this.effectiveRangeEnd;
 
-      // Ngày tháng sau (filler) để đủ hàng
-      const remaining = 42 - cells.length;
-      const nextMonth = month === 11 ? 0 : month + 1;
-      const nextYear = month === 11 ? year + 1 : year;
-      for (let day = 1; day <= remaining; day++) {
-        cells.push({
-          key: `next-${day}`,
-          day,
-          dateStr: this.toDateStr(nextYear, nextMonth, day),
-          isCurrentMonth: false,
-        });
-      }
+                // Handle hover preview
+                if (this.rangeSelecting && this.hoverDate) {
+                    end = this.hoverDate >= start ? this.hoverDate : start;
+                    const actualStart = this.hoverDate < start ? this.hoverDate : start;
+                    if (cell.iso === actualStart) classes.push('range-start');
+                    if (cell.iso === end) classes.push('range-end');
+                    if (cell.iso >= actualStart && cell.iso <= end && !cell.outside) classes.push('in-range');
+                } else {
+                    if (start && cell.iso === start) classes.push('range-start', 'selected');
+                    if (end && cell.iso === end && end !== start) classes.push('range-end', 'selected');
+                    if (start && end && cell.iso >= start && cell.iso <= end && !cell.outside) classes.push('in-range');
+                }
+            }
 
-      return cells;
-    },
-    // Dải ngày đang được chọn (range mode)
-    rangeStart() {
-      return this.mode === 'range' ? (this.modelValue?.start || null) : null;
-    },
-    rangeEnd() {
-      return this.mode === 'range' ? (this.modelValue?.end || null) : null;
-    },
-    // Ngày đang "preview" khi hover (chỉ khi đã có start, chưa có end)
-    effectiveRangeEnd() {
-      if (this.mode !== 'range') return null;
-      if (this.rangeStart && !this.rangeEnd && this.hoverDate) {
-        return this.hoverDate >= this.rangeStart ? this.hoverDate : this.rangeStart;
-      }
-      return this.rangeEnd;
-    },
-    effectiveRangeStart() {
-      if (this.mode !== 'range') return null;
-      if (this.rangeStart && !this.rangeEnd && this.hoverDate) {
-        return this.hoverDate < this.rangeStart ? this.hoverDate : this.rangeStart;
-      }
-      return this.rangeStart;
-    },
-    rangeInfoText() {
-      const s = this.modelValue?.start;
-      const e = this.modelValue?.end;
-      if (s && e) return `${this.formatDate(s)} – ${this.formatDate(e)}`;
-      if (s) return `Từ ${this.formatDate(s)} — chọn ngày kết thúc`;
-      return '';
-    },
-  },
-  methods: {
-    todayStr() {
-      const d = new Date();
-      return this.toDateStr(d.getFullYear(), d.getMonth(), d.getDate());
-    },
-    toDateStr(year, month, day) {
-      return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    },
-    formatDate(str) {
-      if (!str) return '';
-      const [y, m, d] = str.split('-');
-      return `${d}/${m}/${y}`;
-    },
-    prevMonth() {
-      if (this.viewMonth === 0) {
-        this.viewMonth = 11;
-        this.viewYear--;
-      } else {
-        this.viewMonth--;
-      }
-    },
-    nextMonth() {
-      if (this.viewMonth === 11) {
-        this.viewMonth = 0;
-        this.viewYear++;
-      } else {
-        this.viewMonth++;
-      }
-    },
-    isCellDisabled(cell) {
-      if (!cell.isCurrentMonth) return true;
-      if (this.minDate && cell.dateStr < this.minDate) return true;
-      if (this.maxDate && cell.dateStr > this.maxDate) return true;
-      return false;
-    },
-    cellClass(cell) {
-      const cls = [];
-      if (!cell.isCurrentMonth) cls.push('mini-cal__cell--filler');
-      if (cell.dateStr === this.todayStr()) cls.push('mini-cal__cell--today');
+            return classes;
+        },
+        selectDay(cell) {
+            if (cell.disabled) return;
 
-      if (this.mode === 'single') {
-        if (cell.dateStr === this.modelValue) cls.push('mini-cal__cell--selected');
-      } else {
-        // Range mode
-        const rs = this.effectiveRangeStart;
-        const re = this.effectiveRangeEnd;
-        if (rs && cell.dateStr === rs) cls.push('mini-cal__cell--range-start');
-        if (re && cell.dateStr === re) cls.push('mini-cal__cell--range-end');
-        if (rs && re && cell.dateStr > rs && cell.dateStr < re) {
-          cls.push('mini-cal__cell--in-range');
-        }
-        // Khi mới chọn start, hover preview
-        if (this.rangeStart && !this.rangeEnd && this.hoverDate) {
-          if (cell.dateStr === this.rangeStart && this.hoverDate > this.rangeStart) {
-            cls.push('mini-cal__cell--range-start');
-          }
-        }
-      }
+            if (this.mode === 'single') {
+                this.$emit('update:modelValue', cell.iso);
+                this.$emit('select', cell.iso);
+            } else {
+                // Range mode
+                if (!this.rangeSelecting) {
+                    // First click: set start
+                    this.$emit('update:startDate', cell.iso);
+                    this.$emit('update:endDate', cell.iso);
+                    this.rangeSelecting = true;
+                } else {
+                    // Second click: set end
+                    const start = this.effectiveRangeStart;
+                    let rangeStart = start;
+                    let rangeEnd = cell.iso;
 
-      return cls;
-    },
-    handleCellClick(cell) {
-      if (this.isCellDisabled(cell)) return;
+                    if (rangeEnd < rangeStart) {
+                        [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
+                    }
 
-      if (this.mode === 'single') {
-        this.$emit('update:modelValue', cell.dateStr);
-        return;
-      }
-
-      // Range mode
-      const { start, end } = this.modelValue || {};
-      if (!start || (start && end)) {
-        // Bắt đầu chọn mới
-        this.$emit('update:modelValue', { start: cell.dateStr, end: null });
-      } else {
-        // Đã có start, chọn end
-        if (cell.dateStr >= start) {
-          this.$emit('update:modelValue', { start, end: cell.dateStr });
-        } else {
-          // Nếu click ngày trước start → đổi start
-          this.$emit('update:modelValue', { start: cell.dateStr, end: null });
-        }
-        this.hoverDate = null;
-      }
+                    this.$emit('update:startDate', rangeStart);
+                    this.$emit('update:endDate', rangeEnd);
+                    this.$emit('range-change', { start: rangeStart, end: rangeEnd });
+                    this.rangeSelecting = false;
+                    this.hoverDate = '';
+                }
+            }
+        },
+        onDayHover(cell) {
+            if (this.mode === 'range' && this.rangeSelecting && !cell.disabled) {
+                this.hoverDate = cell.iso;
+            }
+        },
     },
-    handleCellHover(cell) {
-      if (this.mode !== 'range') return;
-      if (this.rangeStart && !this.rangeEnd) {
-        this.hoverDate = cell.dateStr;
-      }
-    },
-    clearRange() {
-      this.$emit('update:modelValue', { start: null, end: null });
-      this.hoverDate = null;
-    },
-    getDots(cell) {
-      const types = this.dots[cell.dateStr] || [];
-      // Trả về unique types để vẽ dot
-      return [...new Set(types)].slice(0, 3).map((type) => ({ type }));
-    },
-  },
-  watch: {
-    modelValue(val) {
-      // Khi modelValue thay đổi từ bên ngoài, cuộn lịch về tháng có giá trị đó
-      const dateStr = this.mode === 'range' ? val?.start : val;
-      if (!dateStr) return;
-      const d = new Date(dateStr + 'T00:00:00');
-      if (!isNaN(d)) {
-        this.viewYear = d.getFullYear();
-        this.viewMonth = d.getMonth();
-      }
-    },
-  },
 };
 </script>
 
 <style scoped>
 .mini-cal {
-  display: grid;
-  gap: 0;
-  width: 100%;
-  font-size: 13px;
-  user-select: none;
+    display: grid;
+    gap: 6px;
+    width: 100%;
+    max-width: 320px;
+    padding: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    user-select: none;
 }
 
-/* ── Header ── */
 .mini-cal__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 8px 8px;
-  gap: 8px;
-}
-
-.mini-cal__title {
-  flex: 1;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 900;
-  color: #1a2e1c;
-  letter-spacing: .01em;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 }
 
 .mini-cal__nav {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #d7ead9;
-  border-radius: 7px;
-  background: #fff;
-  color: #3d6645;
-  cursor: pointer;
-  transition: background .13s, border-color .13s;
-  flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s ease;
 }
 
 .mini-cal__nav:hover {
-  background: #eef8f0;
-  border-color: #16a34a;
-  color: #16a34a;
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+    color: #0f172a;
 }
 
-/* ── Weekday header ── */
+.mini-cal__title {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+}
+
+.mini-cal__title:hover {
+    background: #f1f5f9;
+}
+
+.mini-cal__month {
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.mini-cal__year {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 750;
+}
+
 .mini-cal__weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  padding: 0 4px 4px;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-top: 4px;
 }
 
 .mini-cal__weekdays span {
-  text-align: center;
-  font-size: 11px;
-  font-weight: 900;
-  color: #7a9580;
-  padding: 4px 0;
+    display: grid;
+    place-items: center;
+    height: 28px;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.03em;
 }
 
-/* ── Grid ── */
 .mini-cal__grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-  padding: 0 4px 6px;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
 }
 
-/* ── Cell ── */
-.mini-cal__cell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  aspect-ratio: 1;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  cursor: pointer;
-  color: #1e3322;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  transition: background .12s, color .12s, border-color .12s;
-  padding: 0;
-  min-height: 32px;
+.mini-cal__day {
+    position: relative;
+    display: grid;
+    place-items: center;
+    gap: 2px;
+    min-height: 36px;
+    padding: 2px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #1e293b;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 750;
+    cursor: pointer;
+    transition: all 0.12s ease;
 }
 
-.mini-cal__cell:hover:not(:disabled):not(.mini-cal__cell--filler) {
-  background: #eef8f0;
-  border-color: #b4dab9;
+.mini-cal__day:hover:not(:disabled):not(.selected):not(.range-start):not(.range-end) {
+    background: #f1f5f9;
 }
 
-.mini-cal__cell:disabled {
-  cursor: not-allowed;
-  opacity: .35;
+.mini-cal__day:disabled {
+    color: #cbd5e1;
+    cursor: not-allowed;
 }
 
-.mini-cal__cell--filler {
-  color: #b0c4b5;
-  font-weight: 700;
-  cursor: default;
-  pointer-events: none;
+.mini-cal__day.outside {
+    color: #cbd5e1;
 }
 
-.mini-cal__cell--today .mini-cal__day {
-  color: #16a34a;
-  font-weight: 950;
+.mini-cal__day.today .mini-cal__day-num {
+    position: relative;
 }
 
-.mini-cal__cell--today::after {
-  content: '';
-  position: absolute;
-  bottom: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #16a34a;
+.mini-cal__day.today .mini-cal__day-num::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--admin-primary, #16a34a);
 }
 
-/* Single mode – selected */
-.mini-cal__cell--selected {
-  background: #16a34a !important;
-  border-color: #15803d !important;
-  color: #fff !important;
+.mini-cal__day.selected,
+.mini-cal__day.range-start,
+.mini-cal__day.range-end {
+    background: var(--admin-primary, #16a34a);
+    color: #fff;
+    font-weight: 900;
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
 }
 
-.mini-cal__cell--selected .mini-cal__day {
-  color: #fff;
+.mini-cal__day.selected .mini-cal__day-num::after,
+.mini-cal__day.range-start .mini-cal__day-num::after,
+.mini-cal__day.range-end .mini-cal__day-num::after {
+    background: rgba(255, 255, 255, 0.7);
 }
 
-/* Range mode */
-.mini-cal__cell--range-start,
-.mini-cal__cell--range-end {
-  background: #16a34a !important;
-  border-color: #15803d !important;
-  color: #fff !important;
-  z-index: 1;
+.mini-cal__day.in-range:not(.range-start):not(.range-end):not(.selected) {
+    background: var(--admin-primary-soft, #dcfce7);
+    color: var(--admin-primary-dark, #166534);
+    border-radius: 4px;
 }
 
-.mini-cal__cell--range-start .mini-cal__day,
-.mini-cal__cell--range-end .mini-cal__day {
-  color: #fff;
+.mini-cal__day.range-start {
+    border-radius: 8px 4px 4px 8px;
 }
 
-.mini-cal__cell--in-range {
-  background: #dcfce7;
-  border-color: #86efac;
-  border-radius: 0;
-  color: #14532d;
+.mini-cal__day.range-end {
+    border-radius: 4px 8px 8px 4px;
 }
 
-/* Bo góc cho ô đầu / cuối range trong 1 hàng */
-.mini-cal__cell--range-start {
-  border-radius: 8px 8px 8px 8px;
-}
-.mini-cal__cell--range-end {
-  border-radius: 8px 8px 8px 8px;
+.mini-cal__day.range-start.range-end {
+    border-radius: 8px;
 }
 
-/* ── Dots ── */
+.mini-cal__day-num {
+    line-height: 1;
+}
+
 .mini-cal__dots {
-  display: flex;
-  gap: 2px;
-  justify-content: center;
-  height: 5px;
-  margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 6px;
 }
 
-.mini-cal__dot {
-  display: block;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #94a3b8;
-  flex-shrink: 0;
+.mini-cal__dots i {
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    flex: 0 0 auto;
 }
 
-.mini-cal__dot--booking {
-  background: #16a34a;
-}
-
-.mini-cal__dot--lock {
-  background: #dc2626;
-}
-
-.mini-cal__dot--conflict {
-  background: #f59e0b;
-}
-
-/* ── Range info footer ── */
-.mini-cal__range-info {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  margin: 0 4px 4px;
-  border-radius: 7px;
-  background: #f0faf2;
-  font-size: 12px;
-  font-weight: 800;
-  color: #1a6b2e;
-}
-
-.mini-cal__clear {
-  border: 0;
-  background: transparent;
-  color: #64748b;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 900;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 5px;
-  white-space: nowrap;
-  transition: background .12s;
-}
-
-.mini-cal__clear:hover {
-  background: #e2e8f0;
-  color: #334155;
+.mini-cal__day.selected .mini-cal__dots i,
+.mini-cal__day.range-start .mini-cal__dots i,
+.mini-cal__day.range-end .mini-cal__dots i {
+    opacity: 0.7;
 }
 </style>

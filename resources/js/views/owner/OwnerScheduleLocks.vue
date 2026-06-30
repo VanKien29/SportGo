@@ -1,29 +1,40 @@
-﻿<template>
+<template>
     <section class="schedule-lock-page">
-        <!-- Floating Lock Button -->
-        <div
-            v-if="selectedSlots.length"
-            class="floating-add-container"
-            style="z-index: 100"
-        >
-            <button
-                class="btn-float-add"
-                type="button"
-                :disabled="saving || previewing || !canSubmit"
-                @click="createLock"
-                title="Khóa lịch"
+        <!-- Floating Lock Button (sticky bottom bar) -->
+        <Teleport to="body">
+            <div
+                v-if="selectedSlots.length || (form.lock_mode === 'whole_day' && selectedCourtIds.length)"
+                class="sticky-bottom-bar"
             >
-                <AppIcon name="lock" size="20" />
-                <span class="btn-float-text"
-                    >Khóa {{ selectedSlots.length }} ô</span
-                >
-            </button>
-        </div>
+                <div class="sticky-bottom-inner">
+                    <div class="sticky-bottom-info">
+                        <strong v-if="form.lock_mode === 'slots'">{{ selectedSlots.length }} ô đã chọn</strong>
+                        <strong v-else>{{ selectedCourtIds.length }} sân · cả ngày</strong>
+                        <span>{{ dateRangeLabel }}</span>
+                    </div>
+                    <div class="sticky-bottom-actions">
+                        <button
+                            type="button"
+                            class="sticky-btn-clear"
+                            @click="clearSelection"
+                        >Bỏ chọn</button>
+                        <button
+                            type="button"
+                            class="sticky-btn-submit"
+                            :disabled="saving || previewing || !canSubmit"
+                            @click="createLock"
+                        >
+                            {{ saving ? 'Đang khóa...' : previewing ? 'Đang kiểm tra...' : lockButtonLabel }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
 
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="notice" class="alert success">{{ notice }}</div>
 
-        <!-- Conflict Modal -->
+        <!-- Conflict Preview Modal (unchanged logic) -->
         <div
             v-if="lockConflictPreview"
             class="modal-backdrop"
@@ -59,7 +70,7 @@
                     <article
                         v-for="item in lockConflictPreview.items"
                         :key="item.booking_item_id"
-                        class="conflict-row"
+                        class="conflict-card"
                     >
                         <div class="conflict-main">
                             <strong>{{
@@ -97,20 +108,6 @@
                         </div>
 
                         <div class="conflict-actions">
-                            <label
-                                v-if="item.alternatives?.length"
-                                class="radio-line"
-                            >
-                                <input
-                                    v-model="
-                                        lockResolutions[item.booking_item_id]
-                                            .action
-                                    "
-                                    type="radio"
-                                    value="switch"
-                                />
-                                Đổi sân
-                            </label>
                             <select
                                 v-if="item.alternatives?.length"
                                 v-model="
@@ -121,6 +118,7 @@
                                     lockResolutions[item.booking_item_id]
                                         .action !== 'switch'
                                 "
+                                class="conflict-select"
                             >
                                 <option
                                     v-for="court in item.alternatives"
@@ -130,31 +128,47 @@
                                     {{ court.name }}
                                 </option>
                             </select>
-                            <label class="radio-line danger">
-                                <input
-                                    v-model="
-                                        lockResolutions[item.booking_item_id]
-                                            .action
-                                    "
-                                    type="radio"
-                                    value="cancel"
-                                />
-                                Hủy/hoàn ví
-                            </label>
-                            <label
-                                v-if="item.payment_status === 'paid'"
-                                class="radio-line cash"
-                            >
-                                <input
-                                    v-model="
-                                        lockResolutions[item.booking_item_id]
-                                            .action
-                                    "
-                                    type="radio"
-                                    value="cash_refund"
-                                />
-                                Đã hoàn tiền mặt
-                            </label>
+                            <div class="conflict-radios">
+                                <label
+                                    v-if="item.alternatives?.length"
+                                    class="radio-line"
+                                >
+                                    <input
+                                        v-model="
+                                            lockResolutions[item.booking_item_id]
+                                                .action
+                                        "
+                                        type="radio"
+                                        value="switch"
+                                    />
+                                    Đổi sân
+                                </label>
+                                <label class="radio-line danger">
+                                    <input
+                                        v-model="
+                                            lockResolutions[item.booking_item_id]
+                                                .action
+                                        "
+                                        type="radio"
+                                        value="cancel"
+                                    />
+                                    Hủy/hoàn ví
+                                </label>
+                                <label
+                                    v-if="item.payment_status === 'paid'"
+                                    class="radio-line cash"
+                                >
+                                    <input
+                                        v-model="
+                                            lockResolutions[item.booking_item_id]
+                                                .action
+                                        "
+                                        type="radio"
+                                        value="cash_refund"
+                                    />
+                                    Đã hoàn tiền mặt
+                                </label>
+                            </div>
                         </div>
                     </article>
                 </div>
@@ -179,349 +193,287 @@
             </section>
         </div>
 
-        <div class="content-grid">
-            <aside class="side-panel">
-                <!-- MiniCalendar Date Range selector -->
-                <div class="calendar-card">
-                    <MiniCalendar
-                        mode="range"
-                        :model-value="{ start: form.start_date, end: form.end_date }"
-                        :min-date="today"
-                        @update:model-value="onCalendarRangePick"
-                    />
+        <!-- ===== TOP: Config panel ===== -->
+        <div class="config-strip">
+            <div class="config-left">
+                <MiniCalendar
+                    mode="range"
+                    :start-date="form.start_date"
+                    :end-date="form.end_date"
+                    :min-date="today"
+                    @update:start-date="val => { form.start_date = val; handleStartDateChange(); }"
+                    @update:end-date="val => { form.end_date = val; handleEndDateChange(); }"
+                />
+            </div>
+            <div class="config-right">
+                <div class="config-section">
+                    <p class="config-label">Chế độ khóa</p>
+                    <div class="mode-switch">
+                        <button
+                            type="button"
+                            :class="{ active: form.lock_mode === 'slots' }"
+                            @click="setLockMode('slots')"
+                        >
+                            Theo khung giờ
+                        </button>
+                        <button
+                            type="button"
+                            :class="{ active: form.lock_mode === 'whole_day' }"
+                            @click="setLockMode('whole_day')"
+                        >
+                            Theo ngày
+                        </button>
+                    </div>
                 </div>
 
-                <article class="form-card">
-                    <div class="card-head compact-head">
-                        <div>
-                            <p class="eyebrow">TẠO KHÓA MỚI</p>
-                            <h3>Chọn khoảng không nhận khách</h3>
+                <div class="config-section">
+                    <p class="config-label">Loại khóa</p>
+                    <div class="lock-type-switch">
+                        <button
+                            type="button"
+                            :class="{ active: form.lock_type === 'manual' }"
+                            @click="form.lock_type = 'manual'"
+                        >
+                            Khóa thường
+                        </button>
+                        <button
+                            type="button"
+                            :class="{ active: form.lock_type === 'emergency' }"
+                            @click="form.lock_type = 'emergency'"
+                        >
+                            Khóa đột xuất
+                        </button>
+                    </div>
+                    <p v-if="form.lock_type === 'emergency'" class="emergency-hint">
+                        Có thể chọn ô đang có booking để đổi sân hoặc xử lý phần thời gian còn lại.
+                    </p>
+                </div>
+
+                <div class="config-section">
+                    <label class="reason-label">
+                        <span>Lý do khóa</span>
+                        <textarea
+                            v-model.trim="form.reason"
+                            rows="3"
+                            maxlength="500"
+                            placeholder="Ví dụ: Bảo trì mặt sân, nghỉ lễ, sự kiện nội bộ..."
+                            required
+                        />
+                    </label>
+                </div>
+
+                <!-- Whole-day: court picker inline -->
+                <div v-if="form.lock_mode === 'whole_day'" class="config-section">
+                    <div class="court-picker">
+                        <div class="picker-head">
+                            <strong>Chọn sân áp dụng</strong>
+                            <span>{{ selectedCourtIds.length }} sân</span>
+                            <button type="button" @click="toggleAllCourts">
+                                {{
+                                    selectedCourtIds.length === scheduleCourts.length
+                                        ? "Bỏ chọn tất cả"
+                                        : "Chọn tất cả"
+                                }}
+                            </button>
+                        </div>
+                        <div class="court-chip-grid">
+                            <label
+                                v-for="court in scheduleCourts"
+                                :key="court.id"
+                                :class="{
+                                    active: selectedCourtIds.includes(court.id),
+                                }"
+                            >
+                                <input
+                                    v-model="selectedCourtIds"
+                                    type="checkbox"
+                                    :value="court.id"
+                                />
+                                <span>
+                                    <strong>{{ court.name }}</strong>
+                                    <small>{{ court.court_type?.name || "-" }}</small>
+                                </span>
+                            </label>
                         </div>
                     </div>
+                </div>
 
-                    <form @submit.prevent="createLock">
-                        <div class="mode-switch">
-                            <button
-                                type="button"
-                                :class="{ active: form.lock_mode === 'slots' }"
-                                @click="setLockMode('slots')"
-                            >
-                                Theo khung giờ
-                            </button>
-                            <button
-                                type="button"
-                                :class="{
-                                    active: form.lock_mode === 'whole_day',
-                                }"
-                                @click="setLockMode('whole_day')"
-                            >
-                                Theo ngày
-                            </button>
-                        </div>
-
-                        <div class="lock-type-switch">
-                            <button
-                                type="button"
-                                :class="{ active: form.lock_type === 'manual' }"
-                                @click="form.lock_type = 'manual'"
-                            >
-                                Khóa thường
-                            </button>
-                            <button
-                                type="button"
-                                :class="{
-                                    active: form.lock_type === 'emergency',
-                                }"
-                                @click="form.lock_type = 'emergency'"
-                            >
-                                Khóa đột xuất
-                            </button>
-                        </div>
-                        <p
-                            v-if="form.lock_type === 'emergency'"
-                            class="emergency-hint"
+                <!-- Lock preview (collapsible) -->
+                <details v-if="lockPreviewRows.length" class="preview-details">
+                    <summary>
+                        <strong>Preview</strong>
+                        <span>{{ lockPreviewStats.total }} lượt khóa</span>
+                        <em v-if="lockPreviewStats.knownBusy">
+                            {{ lockPreviewStats.knownBusy }} đang bận
+                        </em>
+                    </summary>
+                    <div class="lock-preview-list">
+                        <article
+                            v-for="row in lockPreviewRows.slice(0, 12)"
+                            :key="row.key"
+                            :class="{ busy: row.isBusy }"
                         >
-                            Có thể chọn ô đang có booking để đổi sân hoặc xử lý
-                            phần thời gian còn lại.
-                        </p>
+                            <div>
+                                <strong>{{ row.dateLabel }}</strong>
+                                <small>{{ row.courtName }} · {{ row.timeText }}</small>
+                            </div>
+                            <span>{{ row.statusLabel }}</span>
+                        </article>
+                    </div>
+                    <small v-if="lockPreviewRows.length > 12" class="preview-more">
+                        Còn {{ lockPreviewRows.length - 12 }} lượt khóa khác.
+                    </small>
+                </details>
+            </div>
+        </div>
 
-                        <!-- Selection Summary or Court Picker -->
-                        <div
-                            v-if="form.lock_mode === 'slots'"
-                            class="selection-box"
-                            :class="{ empty: !selectedSlots.length }"
-                        >
-                            <strong>{{ selectionSummary }}</strong>
-                            <span>{{ dateRangeLabel }}</span>
-                            <button
-                                v-if="selectedSlots.length"
-                                type="button"
-                                @click="clearSelection"
-                            >
-                                Bỏ chọn tất cả
-                            </button>
+        <!-- ===== MIDDLE: Schedule Grid (full width) ===== -->
+        <article class="schedule-card">
+            <div class="schedule-headline">
+                <div class="schedule-headline-left">
+                    <p class="eyebrow">TRẠNG THÁI TRONG NGÀY</p>
+                    <h3>{{ date(form.start_date) }}</h3>
+                </div>
+                <div class="schedule-headline-right">
+                    <div class="legend">
+                        <span><i class="dot-available"></i>Trống</span>
+                        <span><i class="dot-booking"></i>Đã đặt</span>
+                        <span><i class="dot-holding"></i>Đang giữ</span>
+                        <span><i class="dot-manual"></i>Đã khóa</span>
+                        <span v-if="form.lock_mode === 'slots'"><i class="dot-selected"></i>Đang chọn</span>
+                    </div>
+                    <button
+                        class="secondary-btn btn-compact"
+                        type="button"
+                        :disabled="loading"
+                        @click="loadData"
+                    >
+                        Làm mới
+                    </button>
+                </div>
+            </div>
+
+            <div class="quick-ranges">
+                <button
+                    v-for="range in quickRanges"
+                    :key="range.key"
+                    type="button"
+                    :class="{ active: activeTimePeriod === range.key }"
+                    :disabled="loading"
+                    @click="activeTimePeriod = range.key"
+                >
+                    <strong>{{ range.label }}</strong>
+                    <small>{{ range.start }} - {{ range.end }}</small>
+                </button>
+            </div>
+
+            <div v-if="loading" class="state">Đang tải lịch sân...</div>
+            <div v-else-if="!selectedClusterId" class="state">
+                Vui lòng chọn cụm sân.
+            </div>
+            <div v-else-if="!scheduleCourts.length" class="state">
+                Cụm sân chưa có sân đang hoạt động.
+            </div>
+            <div v-else class="schedule-wrap">
+                <div class="schedule-grid" :style="scheduleGridStyle">
+                    <div class="grid-head sticky-col">Sân \ Giờ</div>
+                    <div
+                        v-for="slot in activePeriodSlots"
+                        :key="slot.start_time"
+                        class="grid-head time-head"
+                    >
+                        {{ time(slot.start_time) }}
+                    </div>
+
+                    <template
+                        v-for="court in scheduleCourts"
+                        :key="court.id"
+                    >
+                        <div class="court-cell sticky-col">
+                            <strong>{{ court.name }}</strong>
+                            <span>{{ court.court_type?.name }}</span>
                         </div>
-
-                        <div v-else class="court-picker">
-                            <div class="picker-head">
-                                <strong>Chọn sân áp dụng</strong>
-                                <span>{{ selectedCourtIds.length }} sân</span>
-                                <button type="button" @click="toggleAllCourts">
-                                    {{
-                                        selectedCourtIds.length ===
-                                        scheduleCourts.length
-                                            ? "Bỏ chọn tất cả"
-                                            : "Chọn tất cả"
-                                    }}
-                                </button>
-                            </div>
-                            <div class="court-chip-grid">
-                                <label
-                                    v-for="court in scheduleCourts"
-                                    :key="court.id"
-                                    :class="{
-                                        active: selectedCourtIds.includes(
-                                            court.id,
-                                        ),
-                                    }"
-                                >
-                                    <input
-                                        v-model="selectedCourtIds"
-                                        type="checkbox"
-                                        :value="court.id"
-                                    />
-                                    <span>
-                                        <strong>{{ court.name }}</strong>
-                                        <small>{{
-                                            court.court_type?.name || "-"
-                                        }}</small>
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <section
-                            v-if="lockPreviewRows.length"
-                            class="lock-preview-panel"
-                        >
-                            <div class="preview-headline">
-                                <div>
-                                    <strong>Preview áp dụng</strong>
-                                    <span
-                                        >{{ lockPreviewStats.total }} lượt
-                                        khóa</span
-                                    >
-                                </div>
-                                <em v-if="lockPreviewStats.knownBusy">
-                                    {{ lockPreviewStats.knownBusy }} lượt đang
-                                    bận ở ngày đang xem
-                                </em>
-                            </div>
-
-                            <div class="lock-preview-list">
-                                <article
-                                    v-for="row in lockPreviewRows.slice(0, 12)"
-                                    :key="row.key"
-                                    :class="{ busy: row.isBusy }"
-                                >
-                                    <div>
-                                        <strong>{{ row.dateLabel }}</strong>
-                                        <small
-                                            >{{ row.courtName }} ·
-                                            {{ row.timeText }}</small
-                                        >
-                                    </div>
-                                    <span>{{ row.statusLabel }}</span>
-                                </article>
-                            </div>
-
-                            <small
-                                v-if="lockPreviewRows.length > 12"
-                                class="preview-more"
-                            >
-                                Còn {{ lockPreviewRows.length - 12 }} lượt khóa
-                                khác.
-                            </small>
-                        </section>
-
-                        <label>
-                            Lý do khóa
-                            <textarea
-                                v-model.trim="form.reason"
-                                rows="4"
-                                maxlength="500"
-                                placeholder="Ví dụ: Bảo trì mặt sân, nghỉ lễ, sự kiện nội bộ..."
-                                required
-                            />
-                        </label>
-
                         <button
-                            class="primary-btn"
-                            type="submit"
-                            :disabled="saving || previewing || !canSubmit"
-                        >
-                            {{
-                                saving
-                                    ? "Đang khóa..."
-                                    : previewing
-                                      ? "Đang kiểm tra..."
-                                      : lockButtonLabel
-                            }}
-                        </button>
-                    </form>
-                </article>
+                            v-for="slot in activePeriodSlots"
+                            :key="`${court.id}-${slot.start_time}`"
+                            class="slot-cell"
+                            :class="slotClass(court.id, slot)"
+                            :title="slotTitle(court.id, slot)"
+                            type="button"
+                            :disabled="!canSelectSlot(court.id, slot)"
+                            :aria-pressed="isSelected(court.id, slot)"
+                            @click="pickSlot(court, slot)"
+                        />
+                    </template>
+                </div>
+            </div>
+        </article>
 
-                <article class="locks-card">
-                    <div class="card-head compact-head">
+        <!-- ===== BOTTOM: Existing locks (collapsible) ===== -->
+        <details v-if="locks.length" class="locks-section" open>
+            <summary class="locks-summary">
+                <div>
+                    <strong>Khoảng đã khóa trong ngày</strong>
+                    <span>{{ locks.length }} khoảng · {{ date(form.start_date) }}</span>
+                </div>
+                <button
+                    v-if="locks.length"
+                    class="text-danger-btn"
+                    type="button"
+                    :disabled="Boolean(deletingId)"
+                    @click.stop="
+                        removeLocks(
+                            locks,
+                            'Mở tất cả khoảng đã khóa trong ngày này?',
+                        )
+                    "
+                >
+                    Mở tất cả
+                </button>
+            </summary>
+            <div class="lock-list">
+                <div
+                    v-for="group in lockGroups"
+                    :key="group.courtId"
+                    class="lock-group"
+                >
+                    <div class="lock-group-head">
                         <div>
-                            <p class="eyebrow">MỞ KHÓA</p>
-                            <h3>Khoảng đã khóa</h3>
-                            <span>{{ date(form.start_date) }}</span>
+                            <strong>{{ group.courtName }}</strong>
+                            <span>{{ group.items.length }} khoảng</span>
                         </div>
                         <button
-                            v-if="locks.length"
-                            class="text-danger-btn"
                             type="button"
                             :disabled="Boolean(deletingId)"
                             @click="
                                 removeLocks(
-                                    locks,
-                                    'Mở tất cả khoảng đã khóa trong ngày này?',
+                                    group.items,
+                                    `Mở tất cả khoảng khóa của ${group.courtName}?`,
                                 )
                             "
                         >
-                            Mở tất cả
+                            Mở sân này
                         </button>
                     </div>
-
-                    <div v-if="!locks.length" class="state compact-state">
-                        Ngày này chưa có khoảng khóa thủ công.
-                    </div>
-                    <div v-else class="lock-list">
-                        <div
-                            v-for="group in lockGroups"
-                            :key="group.courtId"
-                            class="lock-group"
-                        >
-                            <div class="lock-group-head">
-                                <div>
-                                    <strong>{{ group.courtName }}</strong>
-                                    <span>{{ group.items.length }} khoảng</span>
-                                </div>
-                                <button
-                                    type="button"
-                                    :disabled="Boolean(deletingId)"
-                                    @click="
-                                        removeLocks(
-                                            group.items,
-                                            `Mở tất cả khoảng khóa của ${group.courtName}?`,
-                                        )
-                                    "
-                                >
-                                    Mở sân này
-                                </button>
-                            </div>
-                            <div class="lock-chip-list">
-                                <button
-                                    v-for="lock in group.items"
-                                    :key="lock.id"
-                                    type="button"
-                                    :disabled="Boolean(deletingId)"
-                                    :title="lock.reason || 'Mở khoảng khóa'"
-                                    @click="removeLock(lock)"
-                                >
-                                    <strong>
-                                        {{ time(lock.start_time) }} -
-                                        {{ time(lock.end_time) }}
-                                    </strong>
-                                    <span>Mở</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </article>
-            </aside>
-
-            <article class="schedule-card">
-                <div class="card-head schedule-headline">
-                    <div>
-                        <p class="eyebrow">TRẠNG THÁI TRONG NGÀY</p>
-                        <h3>{{ date(form.start_date) }}</h3>
-                    </div>
-                    <div class="header-actions">
-                        <div class="legend">
-                            <span><i class="available"></i>Trống</span>
-                            <span><i class="booking"></i>Đã đặt</span>
-                            <span><i class="holding"></i>Đang giữ</span>
-                            <span><i class="manual"></i>Đã khóa</span>
-                        </div>
+                    <div class="lock-chip-list">
                         <button
-                            class="secondary-btn btn-refresh"
+                            v-for="lock in group.items"
+                            :key="lock.id"
                             type="button"
-                            :disabled="loading"
-                            @click="loadData"
+                            :disabled="Boolean(deletingId)"
+                            :title="lock.reason || 'Mở khoảng khóa'"
+                            @click="removeLock(lock)"
                         >
-                            Làm mới
+                            <strong>
+                                {{ time(lock.start_time) }} -
+                                {{ time(lock.end_time) }}
+                            </strong>
+                            <span>Mở</span>
                         </button>
                     </div>
                 </div>
-
-                <div class="quick-ranges">
-                    <button
-                        v-for="range in quickRanges"
-                        :key="range.key"
-                        type="button"
-                        :class="{ active: activeTimePeriod === range.key }"
-                        :disabled="loading"
-                        @click="activeTimePeriod = range.key"
-                    >
-                        <strong>{{ range.label }}</strong>
-                        <small>{{ range.start }} - {{ range.end }}</small>
-                    </button>
-                </div>
-
-                <div v-if="loading" class="state">Đang tải lịch sân...</div>
-                <div v-else-if="!selectedClusterId" class="state">
-                    Vui lòng chọn cụm sân ở thanh bên.
-                </div>
-                <div v-else-if="!scheduleCourts.length" class="state">
-                    Cụm sân chưa có sân đang hoạt động.
-                </div>
-                <div v-else class="schedule-wrap">
-                    <div class="schedule-grid" :style="scheduleGridStyle">
-                        <div class="grid-head sticky-col">Sân \ Giờ</div>
-                        <div
-                            v-for="slot in activePeriodSlots"
-                            :key="slot.start_time"
-                            class="grid-head time-head"
-                        >
-                            {{ time(slot.start_time) }}
-                        </div>
-
-                        <template
-                            v-for="court in scheduleCourts"
-                            :key="court.id"
-                        >
-                            <div class="court-cell sticky-col">
-                                <strong>{{ court.name }}</strong>
-                                <span>{{ court.court_type?.name }}</span>
-                            </div>
-                            <button
-                                v-for="slot in activePeriodSlots"
-                                :key="`${court.id}-${slot.start_time}`"
-                                class="slot-cell"
-                                :class="slotClass(court.id, slot)"
-                                :title="slotTitle(court.id, slot)"
-                                type="button"
-                                :disabled="!canSelectSlot(court.id, slot)"
-                                :aria-pressed="isSelected(court.id, slot)"
-                                @click="pickSlot(court, slot)"
-                            />
-                        </template>
-                    </div>
-                </div>
-            </article>
-        </div>
+            </div>
+        </details>
     </section>
 </template>
 
@@ -529,11 +481,10 @@
 import { bookingService } from "../../services/bookingService.js";
 import { ownerScheduleLockService } from "../../services/ownerScheduleLocks.js";
 import MiniCalendar from "../../components/MiniCalendar.vue";
-import AppIcon from "../../components/AppIcon.vue";
 
 export default {
     name: "OwnerScheduleLocks",
-    components: { MiniCalendar, AppIcon },
+    components: { MiniCalendar },
     data() {
         const today = new Date().toISOString().split("T")[0];
 
@@ -788,12 +739,6 @@ export default {
                 event.detail?.id ||
                 localStorage.getItem("selected_cluster") ||
                 "";
-            this.clearSelection();
-            await this.loadData();
-        },
-        async onCalendarRangePick(val) {
-            this.form.start_date = val?.start || "";
-            this.form.end_date = val?.end || "";
             this.clearSelection();
             await this.loadData();
         },
@@ -1135,731 +1080,923 @@ export default {
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, "0");
             const day = String(date.getDate()).padStart(2, "0");
-           <style scoped>
-/* ═══════════════════════════════════════════════════════════
-   Base Page Layout
-═══════════════════════════════════════════════════════════ */
+            return `${year}-${month}-${day}`;
+        },
+        date(value) {
+            if (!value) return "-";
+            return new Intl.DateTimeFormat("vi-VN").format(
+                new Date(`${value}T00:00:00`),
+            );
+        },
+        currency(value) {
+            return new Intl.NumberFormat("vi-VN", {
+                style: "currency",
+                currency: "VND",
+                maximumFractionDigits: 0,
+            }).format(Number(value || 0));
+        },
+    },
+};
+</script>
+
+<style scoped>
+/* ===== Page layout ===== */
 .schedule-lock-page {
-  display: grid;
-  gap: 14px;
-  width: 100%;
+    display: grid;
+    gap: 18px;
+    max-width: 1400px;
+    padding-bottom: 80px; /* space for sticky bar */
 }
 
-.content-grid {
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
+/* ===== Alerts ===== */
+.alert {
+    padding: 13px 15px;
+    border-radius: 10px;
+    font-weight: 800;
+}
+.alert.error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.alert.success {
+    background: #dcfce7;
+    color: #166534;
 }
 
-/* ── Sidebar Panels ── */
-.side-panel {
-  display: grid;
-  gap: 12px;
-  position: sticky;
-  top: 14px;
-  align-self: start;
+/* ===== Config Strip (calendar + settings) ===== */
+.config-strip {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
 }
 
-.calendar-card {
-  border: 1px solid #d8ecdb;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.06);
-  overflow: hidden;
+.config-left {
+    flex: 0 0 auto;
 }
 
-.form-card,
-.locks-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #fff;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+.config-left :deep(.mini-cal) {
+    border: 0;
+    padding: 0;
 }
 
-.card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+.config-right {
+    display: grid;
+    gap: 16px;
 }
 
-.card-head h3 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 15px;
-  font-weight: 900;
-  line-height: 1.3;
+.config-section {
+    display: grid;
+    gap: 8px;
 }
 
-.eyebrow {
-  margin: 0 0 3px;
-  color: #16a34a;
-  font-size: 10px;
-  font-weight: 950;
-  letter-spacing: .08em;
+.config-label {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }
 
-/* Forms */
-.form-card form {
-  display: grid;
-  gap: 12px;
-  margin-top: 12px;
-}
-
+/* ===== Mode + Lock Type Switches ===== */
 .mode-switch,
 .lock-type-switch {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  padding: 3px;
-  border: 1px solid #d9e8d9;
-  border-radius: 8px;
-  background: #f7fbf5;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
 }
-
 .mode-switch button,
 .lock-type-switch button {
-  min-height: 34px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #475b4d;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-  transition: background .12s, color .12s;
+    min-height: 40px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #64748b;
+    font: inherit;
+    font-weight: 850;
+    cursor: pointer;
+    transition: all 0.15s ease;
 }
-
-.mode-switch button.active,
+.mode-switch button.active {
+    background: var(--admin-primary, #16a34a);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
 .lock-type-switch button.active {
-  background: #16a34a;
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.15);
+    background: #16a34a;
+    color: #fff;
 }
 
 .emergency-hint {
-  margin: 0;
-  padding: 8px 10px;
-  border-left: 3px solid #f59e0b;
-  background: #fffbeb;
-  color: #92400e;
-  font-size: 11px;
-  font-weight: 750;
-  line-height: 1.4;
-  border-radius: 0 6px 6px 0;
+    margin: 0;
+    padding: 9px 12px;
+    border-left: 3px solid #f59e0b;
+    border-radius: 0 8px 8px 0;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 12px;
+    line-height: 1.45;
 }
 
-.form-card label {
-  display: grid;
-  gap: 5px;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 900;
+.incident-summary {
+    color: #b45309 !important;
+    font-weight: 800;
 }
 
-.form-card textarea {
-  width: 100%;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: #fff;
-  color: #0f172a;
-  font: inherit;
-  font-size: 13px;
-  min-height: 80px;
-  resize: vertical;
+/* ===== Reason ===== */
+.reason-label {
+    display: grid;
+    gap: 7px;
+}
+.reason-label span {
+    color: #334155;
+    font-size: 13px;
+    font-weight: 850;
+}
+.reason-label textarea {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    padding: 10px 11px;
+    background: #fff;
+    color: #0f172a;
+    font: inherit;
+    min-height: 76px;
+    resize: vertical;
 }
 
-.form-card textarea:focus {
-  outline: none;
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
-}
-
-.primary-btn {
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #15803d;
-  border-radius: 8px;
-  background: #16a34a;
-  color: #fff;
-  font: inherit;
-  font-weight: 900;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background .13s;
-}
-
-.primary-btn:hover { background: #15803d; }
-.primary-btn:disabled { opacity: .55; cursor: not-allowed; }
-
-.secondary-btn {
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #cbd5e1;
-  border-radius: 7px;
-  background: #fff;
-  color: #334155;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-  padding: 0 12px;
-}
-
-.secondary-btn:hover { background: #f1f5f9; }
-
-/* Selection Box */
-.selection-box {
-  display: grid;
-  gap: 3px;
-  padding: 10px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.selection-box strong { font-size: 13px; color: #0f172a; font-weight: 950; }
-.selection-box span { font-size: 11px; color: #64748b; font-weight: 800; }
-.selection-box button {
-  border: 0;
-  background: transparent;
-  color: #b42318;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 900;
-  text-align: left;
-  cursor: pointer;
-  padding: 2px 0 0;
-  text-decoration: underline;
-}
-
-/* Court picker (whole day mode) */
+/* ===== Court Picker ===== */
 .court-picker {
-  display: grid;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid #d9e8d9;
-  border-radius: 8px;
-  background: #f7fbf5;
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid #d9e8d9;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #fbfefb, #f4fbf5);
 }
-
 .picker-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #14532d;
 }
-
-.picker-head strong { color: #14532d; font-weight: 900; }
+.picker-head strong {
+    flex: 1;
+    font-size: 14px;
+}
 .picker-head span {
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: #e8f5e9;
-  color: #1b5e20;
-  font-size: 10px;
-  font-weight: 900;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: var(--admin-primary-soft, #dcfce7);
+    color: var(--admin-primary-dark, #166534);
+    font-size: 12px;
+    font-weight: 900;
 }
-
 .picker-head button {
-  border: 0;
-  background: transparent;
-  color: #16a34a;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 950;
-  cursor: pointer;
-  text-decoration: underline;
+    border: 0;
+    background: transparent;
+    color: var(--admin-primary, #16a34a);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
 }
-
 .court-chip-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
-  max-height: 160px;
-  overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 8px;
 }
-
 .court-chip-grid label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid #d9e8d9;
-  border-radius: 6px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 12px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 56px;
+    padding: 10px 32px 10px 12px;
+    border: 1px solid #d9e8d9;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.15s ease;
 }
-
+.court-chip-grid label::after {
+    content: "";
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 16px;
+    height: 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: inset 0 0 0 3px #fff;
+}
+.court-chip-grid label:hover {
+    border-color: var(--admin-border);
+    background: var(--admin-hover);
+}
 .court-chip-grid label.active {
-  border-color: #16a34a;
-  background: #eef8f0;
+    border-color: var(--admin-primary);
+    background: var(--admin-primary-soft);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+.court-chip-grid label.active::after {
+    border-color: var(--admin-primary);
+    background: var(--admin-primary);
+}
+.court-chip-grid input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+.court-chip-grid span {
+    display: grid;
+    gap: 2px;
+}
+.court-chip-grid strong {
+    color: #1f2f25;
+    font-size: 13px;
+}
+.court-chip-grid small {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
 }
 
-.court-chip-grid label strong { color: #0f172a; font-weight: 900; }
-.court-chip-grid label small { color: #64748b; font-weight: 750; margin-left: auto; }
-
-/* Applied lock preview */
-.lock-preview-panel {
-  display: grid;
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+/* ===== Preview (collapsible) ===== */
+.preview-details {
+    border: 1px solid #d9e8d9;
+    border-radius: 10px;
+    background: #fbfefc;
+    overflow: hidden;
 }
-
-.preview-headline {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #64748b;
-  font-weight: 800;
+.preview-details summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
 }
-
-.preview-headline strong { color: #0f172a; font-weight: 900; }
-
+.preview-details summary strong {
+    color: #16231a;
+    font-size: 13px;
+}
+.preview-details summary span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 750;
+}
+.preview-details summary em {
+    color: #b45309;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 750;
+}
 .lock-preview-list {
-  display: grid;
-  gap: 4px;
-  max-height: 120px;
-  overflow-y: auto;
+    display: grid;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0 14px 14px;
 }
-
 .lock-preview-list article {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: #f8fafc;
-  font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
 }
-
 .lock-preview-list article.busy {
-  background: #fffbeb;
-  color: #b45309;
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+.lock-preview-list article > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+.lock-preview-list strong {
+    color: #1f2937;
+    font-size: 12px;
+}
+.lock-preview-list small {
+    color: #64748b;
+    font-size: 11px;
+}
+.lock-preview-list article > span {
+    flex: 0 0 auto;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 900;
+}
+.lock-preview-list article.busy > span {
+    background: #ffedd5;
+    color: #c2410c;
+}
+.preview-more {
+    display: block;
+    padding: 4px 14px 12px;
+    color: #607267;
+    font-size: 12px;
 }
 
-.lock-preview-list article strong { font-weight: 900; }
-.lock-preview-list article small { color: #64748b; font-weight: 800; }
-
-/* Unlocking section (khoảng đã khóa) */
-.lock-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 10px;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.lock-group {
-  display: grid;
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-
-.lock-group-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.lock-group-head strong { font-size: 12px; color: #0f172a; font-weight: 900; }
-.lock-group-head span { font-size: 10px; color: #64748b; font-weight: 800; margin-left: 6px; }
-.lock-group-head button {
-  border: 0;
-  background: transparent;
-  color: #b42318;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 900;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.lock-chip-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.lock-chip-list button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border: 1px solid #fca5a5;
-  border-radius: 6px;
-  background: #fee2e2;
-  color: #7f1d1d;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 900;
-  cursor: pointer;
-  transition: background .12s;
-}
-
-.lock-chip-list button:hover {
-  background: #fca5a5;
-}
-
-.lock-chip-list button span { opacity: .75; text-decoration: underline; }
-
-.state {
-  padding: 24px;
-  text-align: center;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.compact-state {
-  padding: 12px 6px;
-  font-size: 12px;
-}
-
-.text-danger-btn {
-  border: 0;
-  background: transparent;
-  color: #dc2626;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   CENTER: Schedule Grid Area
-═══════════════════════════════════════════════════════════ */
+/* ===== Schedule Card ===== */
 .schedule-card {
-  padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
 }
-
 .schedule-headline {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.schedule-headline-left h3 {
+    margin: 0;
+    color: #0f172a;
+}
+.schedule-headline-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.eyebrow {
+    margin: 0 0 4px;
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
 }
 
-.schedule-headline h3 {
-  margin: 4px 0 0;
-  font-size: 18px;
-  font-weight: 900;
-  color: #0f172a;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
+/* ===== Legend ===== */
 .legend {
-  display: flex;
-  gap: 10px;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 800;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
 }
-
 .legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
-
 .legend i {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    border: 1px solid #cbd5e1;
 }
+.dot-available { background: #fff; }
+.dot-booking { background: #cbd5e1; }
+.dot-holding { background: #fde68a; }
+.dot-manual { background: #fca5a5; }
+.dot-selected { background: var(--admin-primary, #16a34a); border-color: var(--admin-primary, #16a34a); }
 
-.legend .available { background: #fff; border: 1px solid #cbd5e1; }
-.legend .booking   { background: #dbeafe; border: 1px solid #93c5fd; }
-.legend .holding   { background: #fef3c7; border: 1px solid #facc15; }
-.legend .manual    { background: #fee2e2; border: 1px solid #fca5a5; }
-
+/* ===== Quick Ranges ===== */
 .quick-ranges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 14px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
 }
-
 .quick-ranges button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 38px;
-  padding: 6px 12px;
-  border: 1px solid #d7e4d7;
-  border-radius: 8px;
-  background: #fff;
-  color: #334155;
-  font: inherit;
-  cursor: pointer;
-  transition: background .13s, border-color .13s, color .13s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 8px 14px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+    color: #344238;
+    font: inherit;
+    font-weight: 850;
+    cursor: pointer;
+    transition: all 0.15s ease;
 }
-
-.quick-ranges button strong { font-size: 13px; }
-.quick-ranges button small { opacity: .75; font-size: 11px; font-weight: 800; }
-
+.quick-ranges button strong {
+    font-size: 14px;
+    font-weight: 850;
+}
+.quick-ranges button small {
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0.78;
+}
+.quick-ranges button:hover:not(:disabled):not(.active) {
+    border-color: var(--admin-border);
+    background: var(--admin-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 9px rgba(0, 0, 0, 0.04);
+}
 .quick-ranges button.active {
-  border-color: #16a34a;
-  background: #16a34a;
-  color: #fff;
+    border-color: var(--admin-primary, #16a34a);
+    background: var(--admin-primary, #16a34a);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.quick-ranges button.active strong,
+.quick-ranges button.active small {
+    color: #fff;
+}
+.quick-ranges button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
-/* Timeline scroller grid */
+/* ===== States ===== */
+.state {
+    padding: 40px;
+    text-align: center;
+    color: #64748b;
+    font-weight: 700;
+}
+
+/* ===== Schedule Grid ===== */
 .schedule-wrap {
-  max-width: 100%;
-  overflow-x: auto;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #fff;
+    max-width: 100%;
+    overflow-x: auto;
 }
-
 .schedule-grid {
-  display: grid;
-  min-width: 680px;
-  background: #e2e8f0;
-  gap: 1px;
+    display: grid;
+    width: 100%;
+    min-width: 760px;
 }
-
 .grid-head,
 .court-cell,
 .slot-cell {
-  background: #fff;
-  padding: 8px;
-  min-height: 36px;
-  display: flex;
-  align-items: center;
+    min-height: 48px;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
 }
-
 .grid-head {
-  justify-content: center;
-  background: #f3f8f1;
-  color: #334238;
-  font-size: 11px;
-  font-weight: 900;
-  text-align: center;
-  border-bottom: 1px solid #dfe8df;
+    display: grid;
+    place-items: center;
+    background: #f2f7ef;
+    color: #334238;
+    font-size: 11px;
+    font-weight: 900;
 }
-
-.court-cell {
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 2px;
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.03);
+.time-head {
+    padding: 8px 4px;
+    white-space: nowrap;
 }
-
-.court-cell strong { font-size: 12px; color: #0f172a; font-weight: 900; }
-.court-cell span { font-size: 10px; color: #64748b; font-weight: 750; }
-
 .sticky-col {
-  position: sticky;
-  left: 0;
-  z-index: 2;
+    position: sticky;
+    left: 0;
+    z-index: 2;
 }
-
+.grid-head.sticky-col {
+    z-index: 3;
+}
+.court-cell {
+    display: grid;
+    align-content: center;
+    gap: 3px;
+    padding: 8px 10px;
+    background: #fff;
+}
+.court-cell strong {
+    color: #0f172a;
+    font-size: 12px;
+}
+.court-cell span {
+    color: #64748b;
+    font-size: 11px;
+}
 .slot-cell {
-  border: 0;
-  cursor: pointer;
-  transition: transform .1s, outline .1s;
+    min-width: 0;
+    padding: 0;
+    border-top: 0;
+    border-left: 0;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.12s ease, box-shadow 0.12s ease;
 }
-
-.slot-cell:hover:not(:disabled) {
-  outline: 2px solid rgba(22, 163, 74, 0.35);
-  outline-offset: -2px;
-  transform: scale(1.02);
-  z-index: 1;
+.slot-cell.available:hover {
+    background: #d1fae5;
+    box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.35);
 }
-
+.slot-cell.booking {
+    background: #cbd5e1;
+}
+.slot-cell.holding {
+    background: #fde68a;
+}
+.slot-cell.manual {
+    background: repeating-linear-gradient(
+        -45deg,
+        #fca5a5,
+        #fca5a5 4px,
+        #fecaca 4px,
+        #fecaca 8px
+    );
+}
+.slot-cell.selected {
+    background: var(--admin-primary, #16a34a);
+    box-shadow: inset 0 0 0 2px var(--admin-primary-light, #22c55e);
+}
+.slot-cell.selected:hover {
+    background: var(--admin-primary-dark, #15803d);
+}
 .slot-cell:disabled {
-  cursor: not-allowed;
+    cursor: not-allowed;
 }
 
-/* Colors for cells */
-.slot-cell.available { background: #fff; }
-.slot-cell.booking   { background: #dbeafe; border: 1px solid #93c5fd; }
-.slot-cell.holding   { background: #fef3c7; border: 1px solid #facc15; }
-.slot-cell.manual    { background: #fee2e2; border: 1px solid #fca5a5; }
-.slot-cell.selected  { background: #16a34a !important; border: 1px solid #15803d !important; }
+/* ===== Existing Locks Section ===== */
+.locks-section {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+}
+.locks-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+}
+.locks-summary > div {
+    display: grid;
+    gap: 3px;
+}
+.locks-summary strong {
+    color: #0f172a;
+    font-size: 15px;
+}
+.locks-summary span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 750;
+}
+.lock-list {
+    display: grid;
+    gap: 10px;
+    padding: 0 20px 20px;
+}
+.lock-group {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+.lock-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.lock-group-head > div {
+    display: grid;
+    gap: 2px;
+}
+.lock-group-head strong {
+    color: #0f172a;
+    font-size: 14px;
+}
+.lock-group-head span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 750;
+}
+.lock-group-head button,
+.text-danger-btn {
+    border: 0;
+    background: transparent;
+    color: #dc2626;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+}
+.lock-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+.lock-chip-list button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid #fecaca;
+    border-radius: 999px;
+    padding: 7px 10px;
+    background: #fff;
+    color: #991b1b;
+    font: inherit;
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+.lock-chip-list button strong {
+    font-size: 12px;
+    font-weight: 900;
+}
+.lock-chip-list button span {
+    color: #dc2626;
+    font-size: 11px;
+    font-weight: 900;
+}
+.lock-chip-list button:hover:not(:disabled) {
+    border-color: #fca5a5;
+    background: #fff5f5;
+}
+.lock-chip-list button:disabled,
+.lock-group-head button:disabled,
+.text-danger-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
 
-/* ═══════════════════════════════════════════════════════════
-   Conflict Modal
-═══════════════════════════════════════════════════════════ */
+/* ===== Sticky Bottom Bar ===== */
+.sticky-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 0 24px 16px;
+    pointer-events: none;
+}
+.sticky-bottom-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 14px 20px;
+    border: 1px solid #d9e8d9;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.12);
+    pointer-events: auto;
+}
+.sticky-bottom-info {
+    display: grid;
+    gap: 3px;
+}
+.sticky-bottom-info strong {
+    color: #0f172a;
+    font-size: 15px;
+}
+.sticky-bottom-info span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 750;
+}
+.sticky-bottom-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.sticky-btn-clear {
+    border: 0;
+    background: transparent;
+    color: #dc2626;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+}
+.sticky-btn-submit {
+    min-height: 42px;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--admin-primary, #16a34a);
+    color: #fff;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.15s ease;
+}
+.sticky-btn-submit:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+}
+.sticky-btn-submit:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ===== Buttons ===== */
+.primary-btn,
+.secondary-btn {
+    border: 0;
+    border-radius: 9px;
+    padding: 10px 16px;
+    font: inherit;
+    font-weight: 850;
+    cursor: pointer;
+}
+.primary-btn {
+    background: var(--admin-primary, #16a34a);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.secondary-btn {
+    border: 1px solid var(--admin-border, #e5e7eb);
+    background: #fff;
+    color: var(--admin-text, #0f172a);
+}
+.btn-compact {
+    padding: 8px 14px;
+    font-size: 13px;
+}
+.primary-btn:disabled,
+.secondary-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ===== Modal ===== */
 .modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.48);
-  backdrop-filter: blur(2px);
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.55);
 }
-
 .conflict-modal {
-  width: min(640px, 100%);
-  display: grid;
-  gap: 0;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.2);
-  overflow: hidden;
+    width: min(900px, 100%);
+    max-height: min(760px, calc(100vh - 48px));
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 14px;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid #d7ead7;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
 }
-
-.conflict-modal header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #fef2f2;
-}
-
-.conflict-modal header h3 { margin: 0; font-size: 16px; font-weight: 900; color: #991b1b; }
-
-.icon-close {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  color: #991b1b;
-  cursor: pointer;
-}
-
-.conflict-help {
-  margin: 14px 20px 0;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.conflict-list {
-  margin: 12px 20px 0;
-  max-height: 280px;
-  overflow-y: auto;
-  display: grid;
-  gap: 10px;
-}
-
-.conflict-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 14px;
-  padding: 12px;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  background: #fff5f5;
-  align-items: start;
-}
-
-.conflict-main {
-  display: grid;
-  gap: 3px;
-}
-
-.conflict-main strong { font-size: 13px; color: #7f1d1d; font-weight: 900; }
-.conflict-main span { font-size: 11px; color: #991b1b; font-weight: 800; }
-.conflict-main small { font-size: 11px; color: #64748b; }
-
-.incident-summary {
-  color: #b45309 !important;
-  font-weight: 800;
-}
-
-.conflict-actions {
-  display: grid;
-  gap: 6px;
-  justify-items: end;
-}
-
-.radio-line {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 800;
-  color: #334155;
-  cursor: pointer;
-}
-
-.radio-line input { cursor: pointer; }
-.radio-line.danger { color: #dc2626; }
-.radio-line.cash   { color: #16a34a; }
-
-.conflict-actions select {
-  padding: 4px 8px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font: inherit;
-  font-size: 11px;
-}
-
+.conflict-modal header,
 .conflict-modal footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 14px 20px;
-  border-top: 1px solid #e2e8f0;
-  background: #f9fafb;
-  margin-top: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 0;
 }
-
-/* Alerts */
-.alert {
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 800;
+.conflict-modal footer {
+    padding: 0 20px 18px;
 }
-
-.alert.error {
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
+.conflict-modal h3 {
+    margin: 0;
+    color: #163222;
+    font-size: 20px;
 }
-
-.alert.success {
-  border: 1px solid #bbf7d0;
-  background: #dcfce7;
-  color: #166534;
+.icon-close {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #d8e8d8;
+    border-radius: 8px;
+    background: #fff;
+    color: #334155;
+    cursor: pointer;
 }
+.conflict-help {
+    margin: 0 20px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #f0fdf4;
+    color: #496355;
+    font-size: 13px;
+    line-height: 1.45;
+}
+.conflict-list {
+    display: grid;
+    gap: 10px;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 20px;
+}
+.conflict-card {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid #e2eadf;
+    border-radius: 10px;
+    background: #fbfffb;
+}
+.conflict-main {
+    display: grid;
+    gap: 4px;
+}
+.conflict-main strong {
+    color: #12301f;
+    font-size: 14px;
+}
+.conflict-main span,
+.conflict-main small {
+    color: #5d7165;
+    font-size: 12px;
+    line-height: 1.35;
+}
+.conflict-actions {
+    display: grid;
+    gap: 8px;
+}
+.conflict-select {
+    width: 100%;
+    height: 38px;
+    border: 1px solid #d8e8d8;
+    border-radius: 8px;
+    padding: 0 10px;
+    background: #fff;
+    color: #1f2937;
+    font: inherit;
+    font-weight: 750;
+}
+.conflict-radios {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.radio-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #2f5a3a;
+    font-size: 13px;
+    font-weight: 850;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.radio-line.danger { color: #b91c1c; }
+.radio-line.cash { color: #b45309; }
 
-/* ═══════════════════════════════════════════════════════════
-   Responsive
-═══════════════════════════════════════════════════════════ */
-@media (max-width: 900px) {
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
-  .side-panel {
-    position: static;
-  }
+/* ===== Responsive ===== */
+@media (max-width: 860px) {
+    .config-strip {
+        grid-template-columns: 1fr;
+    }
+    .config-left {
+        display: flex;
+        justify-content: center;
+    }
+    .schedule-headline {
+        flex-direction: column;
+        gap: 12px;
+    }
+    .schedule-headline-right {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .legend {
+        justify-content: flex-start;
+    }
+    .quick-ranges {
+        padding: 14px;
+    }
+    .quick-ranges button {
+        flex: 1 1 120px;
+    }
+    .sticky-bottom-inner {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+    }
 }
 </style>
