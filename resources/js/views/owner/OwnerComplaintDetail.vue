@@ -100,7 +100,7 @@
               <div class="evidence-list" v-if="complaint.evidence?.length">
                 <p class="evidence-title">Bằng chứng đính kèm:</p>
                 <div class="media-grid">
-                  <a v-for="media in complaint.evidence" :key="media.id" :href="media.file_path" target="_blank" class="media-item">
+                  <a v-for="media in complaint.evidence" :key="media.id" href="#" @click.prevent="media.mime_type?.startsWith('image/') ? openImagePreview(media.file_path) : window.open(media.file_path, '_blank')" class="media-item">
                     <img v-if="media.mime_type?.startsWith('image/')" :src="media.file_path" :alt="media.file_name" />
                     <div v-else class="media-doc">
                       <AppIcon name="fileText" size="24" />
@@ -152,7 +152,7 @@
                 
                 <div class="evidence-list" v-if="item.evidence?.length">
                   <div class="media-grid">
-                    <a v-for="media in item.evidence" :key="media.id" :href="media.file_path" target="_blank" class="media-item">
+                    <a v-for="media in item.evidence" :key="media.id" href="#" @click.prevent="media.file_name?.match(/\.(jpg|jpeg|png)$/i) ? openImagePreview(media.file_path) : window.open(media.file_path, '_blank')" class="media-item">
                       <img v-if="media.file_name?.match(/\.(jpg|jpeg|png)$/i)" :src="media.file_path" :alt="media.file_name" />
                       <div v-else class="media-doc">
                         <AppIcon name="fileText" size="24" />
@@ -186,8 +186,14 @@
                 <div class="file-upload">
                   <input type="file" multiple accept="image/*,.pdf" @change="onFilesSelected" ref="fileInput" />
                   <div class="file-list" v-if="replyForm.evidenceFiles.length">
-                    <div v-for="(file, i) in replyForm.evidenceFiles" :key="i" class="file-item">
-                      <span>{{ file.name }}</span>
+                    <div v-for="(fileItem, i) in replyForm.evidenceFiles" :key="i" class="file-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px; border: 1px solid var(--border); border-radius: 6px; margin-top: 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <img v-if="fileItem.preview" :src="fileItem.preview" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px;" />
+                        <div v-else style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--surface-muted); border-radius: 4px;">
+                          <AppIcon name="fileText" size="18" />
+                        </div>
+                        <span style="font-size: 14px;">{{ fileItem.file.name }}</span>
+                      </div>
                       <button type="button" @click="removeFile(i)" class="btn ghost danger icon-only btn-sm">
                         <AppIcon name="trash" size="14" />
                       </button>
@@ -211,6 +217,42 @@
           </div>
         </div>
       </div>
+
+      <!-- Image Preview Modal -->
+      <div
+          v-if="previewImage"
+          style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; cursor: default; overflow: hidden;"
+          @click="closeImagePreview"
+      >
+          <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;" @click.self="closeImagePreview">
+              <img 
+                  :src="previewImage" 
+                  draggable="false"
+                  :style="{
+                      maxWidth: '90%', 
+                      maxHeight: '90%', 
+                      objectFit: 'contain', 
+                      transformOrigin: '0 0',
+                      cursor: zoomState.scale > 1 ? (zoomState.isDragging ? 'grabbing' : 'grab') : 'zoom-in',
+                      transform: `translate(${zoomState.x}px, ${zoomState.y}px) scale(${zoomState.scale})`,
+                      transition: zoomState.isDragging ? 'none' : 'transform 0.1s ease-out'
+                  }" 
+                  @wheel.stop="handleWheelZoom"
+                  @mousedown.stop.prevent="startPan"
+                  @mousemove.stop.prevent="doPan"
+                  @mouseup.stop.prevent="endPan"
+                  @mouseleave.stop.prevent="endPan"
+                  @click.stop="zoomState.scale === 1 ? handleWheelZoom({ clientX: $event.clientX, clientY: $event.clientY, deltaY: -1, target: $event.target, preventDefault: () => {} }) : null"
+              />
+          </div>
+          <button
+              @click="closeImagePreview"
+              style="position: absolute; top: 24px; right: 24px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer;"
+          >
+              <AppIcon name="x" size="24" />
+          </button>
+      </div>
+
     </template>
   </div>
 </template>
@@ -218,8 +260,8 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import api from '@/services/api';
-import AppIcon from '@/components/ui/AppIcon.vue';
+import { api, apiFormData } from '../../services/api.js';
+import AppIcon from '../../components/AppIcon.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -237,13 +279,23 @@ const replyForm = ref({
   evidenceFiles: [],
 });
 
+const previewImage = ref(null);
+const zoomState = ref({
+    scale: 1,
+    x: 0,
+    y: 0,
+    isDragging: false,
+    startX: 0,
+    startY: 0
+});
+
 const loadData = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const response = await api.get(`/owner/complaints/${route.params.id}`);
-    complaint.value = response.data.data.complaint;
-    timeline.value = response.data.data.timeline;
+    const response = await api(`/api/owner/complaints/${route.params.id}`);
+    complaint.value = response.data.complaint;
+    timeline.value = response.data.timeline;
   } catch (err) {
     console.error(err);
     error.value = 'Không thể tải chi tiết khiếu nại.';
@@ -262,11 +314,19 @@ const onFilesSelected = (e) => {
     alert('Tối đa đính kèm 5 file.');
     return;
   }
-  replyForm.value.evidenceFiles = [...replyForm.value.evidenceFiles, ...files];
+  const filesWithPreview = files.map(file => ({
+    file,
+    preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+  }));
+  replyForm.value.evidenceFiles = [...replyForm.value.evidenceFiles, ...filesWithPreview];
   fileInput.value.value = '';
 };
 
 const removeFile = (index) => {
+  const fileItem = replyForm.value.evidenceFiles[index];
+  if (fileItem.preview) {
+    URL.revokeObjectURL(fileItem.preview);
+  }
   replyForm.value.evidenceFiles.splice(index, 1);
 };
 
@@ -278,29 +338,26 @@ const submitReply = async () => {
   try {
     const formData = new FormData();
     formData.append('content', replyForm.value.content);
-    replyForm.value.evidenceFiles.forEach((file) => {
-      formData.append('evidence[]', file);
+    replyForm.value.evidenceFiles.forEach((fileItem) => {
+      formData.append('evidence[]', fileItem.file);
     });
 
-    const res = await api.post(`/owner/complaints/${complaint.value.id}/reply`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const res = await apiFormData(`/api/owner/complaints/${complaint.value.id}/reply`, formData);
 
     // Reset form
     replyForm.value.content = '';
+    replyForm.value.evidenceFiles.forEach(f => f.preview && URL.revokeObjectURL(f.preview));
     replyForm.value.evidenceFiles = [];
     
     // Add new reply to timeline and update status if needed
-    timeline.value.push(res.data.data);
+    timeline.value.push(res.data);
     if (complaint.value.status === 'open') {
         complaint.value.status = 'processing';
     }
 
   } catch (err) {
     console.error(err);
-    replyError.value = err.response?.data?.message || 'Có lỗi xảy ra khi gửi phản hồi.';
+    replyError.value = err.message || 'Có lỗi xảy ra khi gửi phản hồi.';
   } finally {
     submitting.value = false;
   }
@@ -342,6 +399,55 @@ const getStatusLabelFromAction = (action) => {
   const parts = action.split('.');
   const status = parts[parts.length - 1];
   return getStatusLabel(status);
+};
+
+const openImagePreview = (url) => {
+    previewImage.value = url;
+    resetZoom();
+};
+const closeImagePreview = () => {
+    previewImage.value = null;
+    resetZoom();
+};
+const resetZoom = () => {
+    zoomState.value = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0 };
+};
+const handleWheelZoom = (e) => {
+    e.preventDefault();
+    const zoomFactor = 0.15;
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const newScale = Math.max(1, Math.min(zoomState.value.scale + direction * zoomFactor, 5));
+    
+    if (newScale === 1) {
+        resetZoom();
+        return;
+    }
+
+    const rect = e.target.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left;
+    const cursorY = e.clientY - rect.top;
+    
+    const ratio = newScale / zoomState.value.scale;
+    const diffX = cursorX * ratio - cursorX;
+    const diffY = cursorY * ratio - cursorY;
+
+    zoomState.value.x -= diffX;
+    zoomState.value.y -= diffY;
+    zoomState.value.scale = newScale;
+};
+const startPan = (e) => {
+    if (zoomState.value.scale <= 1) return;
+    zoomState.value.isDragging = true;
+    zoomState.value.startX = e.clientX - zoomState.value.x;
+    zoomState.value.startY = e.clientY - zoomState.value.y;
+};
+const doPan = (e) => {
+    if (!zoomState.value.isDragging) return;
+    zoomState.value.x = e.clientX - zoomState.value.startX;
+    zoomState.value.y = e.clientY - zoomState.value.startY;
+};
+const endPan = () => {
+    zoomState.value.isDragging = false;
 };
 </script>
 
@@ -612,4 +718,18 @@ const getStatusLabelFromAction = (action) => {
 .mb-4 { margin-bottom: 16px; }
 .text-muted { color: var(--admin-muted); }
 .text-sm { font-size: 13px; }
+
+@media (max-width: 768px) {
+  .detail-content {
+    flex-direction: column;
+  }
+  .detail-sidebar {
+    width: 100%;
+  }
+  .detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
 </style>

@@ -56,7 +56,7 @@
               <th>Cụm sân / Booking</th>
               <th>Trạng thái</th>
               <th>Ngày tạo</th>
-              <th class="right">Thao tác</th>
+              <th class="center" style="width: 120px;">Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -95,7 +95,7 @@
               <td>
                 <span class="date-cell">{{ formatDate(complaint.created_at) }}</span>
               </td>
-              <td class="right">
+              <td class="center">
                 <div class="actions-cell">
                   <router-link
                     :to="{ name: 'owner-complaint-detail', params: { id: complaint.id } }"
@@ -134,9 +134,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import api from '@/services/api';
-import AppIcon from '@/components/ui/AppIcon.vue';
-import { debounce } from '@/utils/debounce';
+import { api } from '../../services/api.js';
+import AppIcon from '../../components/AppIcon.vue';
 
 const loading = ref(true);
 const complaints = ref([]);
@@ -179,11 +178,14 @@ const loadComplaints = async (page = 1) => {
       keyword: searchQuery.value,
     };
     
-    const response = await api.get('/owner/complaints', { params });
-    complaints.value = response.data.data.data;
-    currentPage.value = response.data.data.current_page;
-    totalPages.value = response.data.data.last_page;
-    summary.value = response.data.summary;
+    const validParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== '' && v !== null));
+    const query = new URLSearchParams(validParams);
+    
+    const response = await api(`/api/owner/complaints?${query.toString()}`);
+    complaints.value = response.data.data;
+    currentPage.value = response.data.current_page;
+    totalPages.value = response.data.last_page;
+    summary.value = response.summary;
   } catch (err) {
     console.error(err);
     error.value = 'Lỗi tải danh sách khiếu nại.';
@@ -197,9 +199,13 @@ const changeTab = (tab) => {
   loadComplaints(1);
 };
 
-const onSearchInput = debounce(() => {
-  loadComplaints(1);
-}, 500);
+let searchTimeout = null;
+const onSearchInput = () => {
+  if (searchTimeout) clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    loadComplaints(1);
+  }, 500);
+};
 
 const truncate = (text, length) => {
   if (!text) return '';
@@ -293,8 +299,9 @@ const getComplaintTypeLabel = (type) => {
 
 .field.compact {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
   font-size: 11px;
   font-weight: 700;
   color: var(--admin-faint);
@@ -305,24 +312,30 @@ const getComplaintTypeLabel = (type) => {
 
 .search-field {
   position: relative;
-  flex: 1;
-  min-width: 250px;
-  flex-direction: row;
-  align-items: center;
+  width: 320px;
+  max-width: 100%;
   background: var(--admin-surface);
   border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-sm);
+  border-radius: 8px;
   padding: 0 12px;
   height: 36px;
+  gap: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.search-field:focus-within {
+  border-color: var(--admin-blue);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
 }
 .search-field input {
+  flex: 1;
   border: none;
   background: transparent;
-  flex: 1;
-  font-size: 14px;
   outline: none;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--admin-text);
-  font-weight: 400;
+  padding: 0;
+  height: 100%;
   text-transform: none;
 }
 
@@ -362,6 +375,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  min-width: 1000px;
 }
 
 th {
@@ -384,6 +398,10 @@ td {
 
 th.right, td.right {
   text-align: right;
+}
+
+th.center, td.center {
+  text-align: center;
 }
 
 .complaint-row:hover {
@@ -485,7 +503,7 @@ th.right, td.right {
 .actions-cell {
   display: flex;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .pagination {
@@ -503,5 +521,21 @@ th.right, td.right {
 }
 .mt-1 {
   margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .tabs-header {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 8px; /* Room for scrollbar */
+  }
+  .tab-btn {
+    flex-shrink: 0;
+  }
+  .search-field {
+    width: 100%;
+    max-width: none;
+  }
 }
 </style>

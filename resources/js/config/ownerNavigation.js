@@ -146,9 +146,11 @@ export const ownerRouteTitles = {
   'owner-refunds': 'Yêu cầu hoàn/hủy',
   'owner-staff': 'Nhân viên sân',
   'owner-vouchers': 'Voucher của sân',
+  'owner-complaints': 'Quản lý khiếu nại',
+  'owner-complaint-detail': 'Chi tiết khiếu nại',
+  'owner-matchmaking': 'Giao lưu tại sân',
   'owner-policies': 'Chính sách sân',
   'owner-posts': 'Bài đăng & Thông báo',
-  'owner-matchmaking': 'Giao lưu tại sân',
   'owner-affiliate': 'Tiếp thị liên kết',
 };
 

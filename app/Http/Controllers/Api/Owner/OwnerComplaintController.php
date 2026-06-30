@@ -153,8 +153,8 @@ class OwnerComplaintController extends Controller
         $auditLogs = AuditLog::query()
             ->where('entity_type', 'complaints')
             ->where('entity_id', $complaint->id)
-            ->with('user:id,full_name,username')
-            ->get(['id', 'user_id', 'action', 'details', 'created_at']);
+            ->with('actor:id,full_name,username')
+            ->get(['id', 'actor_id', 'action', 'old_values', 'new_values', 'created_at']);
 
         // Format timeline merging audit_logs and replies
         $timeline = collect();
@@ -164,8 +164,8 @@ class OwnerComplaintController extends Controller
                 'type' => 'log',
                 'id' => $log->id,
                 'action' => $log->action,
-                'details' => $log->details,
-                'user' => $log->user,
+                'details' => $log->new_values,
+                'user' => $log->actor,
                 'created_at' => $log->created_at,
             ]);
         }

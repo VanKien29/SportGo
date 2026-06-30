@@ -126,17 +126,19 @@ class AdminComplaintController extends Controller
         $this->authorizePermission($request, 'complaint.handle');
 
         $data = $request->validate([
-            'assigned_to' => ['required', 'uuid', 'exists:users,id'],
+            'assigned_to' => ['nullable', 'uuid', 'exists:users,id'],
         ]);
 
+        $assigneeId = $data['assigned_to'] ?? $request->user()->id;
+
         $assignee = User::query()
-            ->whereKey($data['assigned_to'])
+            ->whereKey($assigneeId)
             ->where('status', 'active')
             ->whereHas('roles', fn ($query) => $query->whereIn('roles.name', ['super_admin', 'admin', 'complaint_handler', 'system_staff']))
             ->first();
 
         if (! $assignee) {
-            throw ValidationException::withMessages(['assigned_to' => 'Người được chọn không có quyền xử lý khiếu nại.']);
+            throw ValidationException::withMessages(['assigned_to' => 'Người dùng không có quyền xử lý khiếu nại.']);
         }
 
         $complaint = Complaint::query()->findOrFail($id);
@@ -154,7 +156,7 @@ class AdminComplaintController extends Controller
         $this->notify($assignee, $complaint, 'Bạn được phân công xử lý khiếu nại', 'Vui lòng kiểm tra nội dung và bằng chứng liên quan.');
 
         return response()->json([
-            'message' => 'Đã phân công người xử lý.',
+            'message' => isset($data['assigned_to']) && $data['assigned_to'] ? 'Đã phân công người xử lý.' : 'Đã nhận xử lý khiếu nại.',
             'data' => $this->detailPayload($complaint->fresh($this->detailRelations())),
         ]);
     }
@@ -298,17 +300,47 @@ class AdminComplaintController extends Controller
 
     private function auditLogs(Complaint $complaint)
     {
-        if (! Schema::hasTable('audit_logs')) {
-            return [];
+        $timeline = collect();
+
+        if (Schema::hasTable('audit_logs')) {
+            $logs = AuditLog::query()
+                ->where('entity_type', 'complaints')
+                ->where('entity_id', $complaint->id)
+                ->with('actor:id,full_name,username')
+                ->latest()
+                ->limit(50)
+                ->get();
+
+            foreach ($logs as $log) {
+                $timeline->push([
+                    'type' => 'log',
+                    'id' => $log->id,
+                    'action' => $log->action,
+                    'details' => $log->new_values,
+                    'user' => $log->actor,
+                    'created_at' => $log->created_at,
+                ]);
+            }
         }
 
-        return AuditLog::query()
-            ->where('entity_type', 'complaints')
-            ->where('entity_id', $complaint->id)
-            ->with('actor:id,full_name,username')
-            ->latest()
-            ->limit(50)
-            ->get();
+        $complaint->loadMissing('replies.user', 'replies.evidence');
+        
+        foreach ($complaint->replies as $reply) {
+            $timeline->push([
+                'type' => 'reply',
+                'id' => $reply->id,
+                'content' => $reply->content,
+                'user' => $reply->user,
+                'evidence' => $reply->evidence->map(fn ($media) => [
+                    'id' => $media->id,
+                    'file_name' => $media->file_name,
+                    'file_path' => $media->file_path,
+                ]),
+                'created_at' => $reply->created_at,
+            ]);
+        }
+
+        return $timeline->sortBy('created_at')->values()->all();
     }
 
     private function notify(?User $user, Complaint $complaint, string $title, string $body): void
