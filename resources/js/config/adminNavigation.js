@@ -128,6 +128,12 @@ export const adminNavigationSections = [
     label: 'Kiểm duyệt & hỗ trợ',
     items: [
       {
+        label: 'Kiểm duyệt bài viết',
+        icon: 'fileText',
+        to: '/admin/venue-posts',
+        activeNames: ['admin-venue-posts'],
+      },
+      {
         label: 'Kiểm duyệt nội dung',
         icon: 'eye',
         to: '/admin/moderation',
@@ -162,6 +168,7 @@ export const adminRouteTitles = {
   'admin-partner-applications': 'Quản lý hồ sơ đối tác',
   'admin-banners': 'Quản lý banner',
   'admin-moderation': 'Kiểm duyệt nội dung',
+  'admin-venue-posts': 'Kiểm duyệt bài viết',
   'admin-roles': 'Quản lý nhóm quyền',
   'admin-role-detail': 'Chi tiết nhóm quyền',
   'admin-policies': 'Quản lý chính sách',

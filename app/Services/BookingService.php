@@ -275,7 +275,7 @@ class BookingService
             $rangeCourts = $this->courtsForTimeRanges($timeRanges, $court);
             $this->validateTimeRanges($timeRanges);
             $this->ensureRangesAreNotInPast($data['booking_date'], $timeRanges, 'start_time');
-            $this->validateDurationMinutesAndPayment($court->venue_cluster_id, $this->rangesDurationMinutes($timeRanges), $data['payment_option']);
+            $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
 
             foreach ($timeRanges as $range) {
                 $this->assertWithinOperatingHours(
@@ -324,7 +324,7 @@ class BookingService
             $timeRanges = $this->normalizeTimeRanges($data, $court->id);
             $rangeCourts = $this->courtsForTimeRanges($timeRanges, $court);
             $this->validateTimeRanges($timeRanges);
-            $this->validateDurationMinutesAndPayment($court->venue_cluster_id, $this->rangesDurationMinutes($timeRanges), $data['payment_option']);
+            $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
 
             $dates = $this->recurringDates($data);
 
@@ -538,10 +538,11 @@ class BookingService
         $timeRanges = $this->normalizeTimeRanges($data, $court->id);
         $this->courtsForTimeRanges($timeRanges, $court);
         $this->validateTimeRanges($timeRanges);
-        $this->validateDurationMinutesAndPayment($court->venue_cluster_id, $this->rangesDurationMinutes($timeRanges), $data['payment_option']);
+        $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
 
         $dates = $this->recurringDates($data);
         $this->validateRecurringDates($dates);
+        $this->ensureRecurringRangesAreNotInPast($dates, $timeRanges);
 
         $conflicts = $this->recurringConflictPayloadForRanges($court, $dates, $timeRanges);
 
@@ -1308,18 +1309,43 @@ class BookingService
         $minDuration = $config?->min_duration_minutes ?: 30;
         $maxDuration = $config?->max_duration_minutes;
 
+        $this->assertDurationWithinConfig($durationMinutes, $minDuration, $maxDuration, 'end_time');
+        $this->assertPaymentOptionAllowed($config, $paymentOption);
+    }
+
+    private function validateRangeDurationsAndPayment(string $venueClusterId, array $timeRanges, string $paymentOption): void
+    {
+        $config = $this->bookingConfigForCluster($venueClusterId);
+        $minDuration = $config?->min_duration_minutes ?: 30;
+        $maxDuration = $config?->max_duration_minutes;
+
+        collect($timeRanges)
+            ->groupBy('venue_court_id')
+            ->each(function (Collection $ranges) use ($minDuration, $maxDuration): void {
+                $durationMinutes = $ranges->sum(fn (array $range): int => $this->durationMinutes($range['start_time'], $range['end_time']));
+                $this->assertDurationWithinConfig($durationMinutes, $minDuration, $maxDuration, 'time_ranges');
+            });
+
+        $this->assertPaymentOptionAllowed($config, $paymentOption);
+    }
+
+    private function assertDurationWithinConfig(int $durationMinutes, int $minDuration, ?int $maxDuration, string $errorKey): void
+    {
         if ($durationMinutes < $minDuration) {
             throw ValidationException::withMessages([
-                'end_time' => "Thời lượng đặt tối thiểu là {$minDuration} phút.",
+                $errorKey => "Mỗi sân phải được đặt tối thiểu {$minDuration} phút.",
             ]);
         }
 
         if ($maxDuration && $durationMinutes > $maxDuration) {
             throw ValidationException::withMessages([
-                'end_time' => "Thời lượng đặt tối đa là {$maxDuration} phút.",
+                $errorKey => "Mỗi sân chỉ được đặt tối đa {$maxDuration} phút.",
             ]);
         }
+    }
 
+    private function assertPaymentOptionAllowed(?BookingConfig $config, string $paymentOption): void
+    {
         $allowed = [
             'full_payment' => $config?->allow_full_payment ?? true,
             'deposit' => $config?->allow_deposit ?? true,
@@ -1562,6 +1588,10 @@ class BookingService
 
     private function voucherUnavailableReason(object $voucher, string $usageUserId, string $venueClusterId, string $courtTypeId, string $bookingType, float $amount, int $usageCount = 1): ?string
     {
+        if (($voucher->status ?? null) !== 'active') {
+            return 'Voucher đã bị tắt hoặc chưa được kích hoạt.';
+        }
+
         if (($voucher->assigned_user_id ?? null) && (string) $voucher->assigned_user_id !== (string) $usageUserId) {
             return 'Voucher VIP nay chi danh cho dung tai khoan duoc phat.';
         }
@@ -1624,6 +1654,32 @@ class BookingService
 
     private function recordVoucherUsage(array $voucher, Booking $booking, string $usageUserId): void
     {
+        $voucherRow = DB::table('vouchers')
+            ->where('id', $voucher['id'])
+            ->lockForUpdate()
+            ->first();
+
+        if (! $voucherRow) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'Voucher không tồn tại hoặc đã bị xóa.',
+            ]);
+        }
+
+        if (($voucherRow->status ?? null) !== 'active') {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'Voucher đã bị tắt hoặc chưa được kích hoạt.',
+            ]);
+        }
+
+        if (
+            $voucherRow->total_quantity !== null
+            && ((int) $voucherRow->used_quantity + 1) > (int) $voucherRow->total_quantity
+        ) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'Voucher vừa hết lượt sử dụng. Vui lòng chọn voucher khác hoặc bỏ áp dụng voucher.',
+            ]);
+        }
+
         DB::table('voucher_usages')->insert([
             'id' => (string) Str::uuid(),
             'voucher_id' => $voucher['id'],
@@ -1637,18 +1693,12 @@ class BookingService
             'updated_at' => now(),
         ]);
 
-        $updated = DB::table('vouchers')
+        DB::table('vouchers')
             ->where('id', $voucher['id'])
-            ->where(fn ($query) => $query
-                ->whereNull('total_quantity')
-                ->orWhereColumn('used_quantity', '<', 'total_quantity'))
-            ->increment('used_quantity');
-
-        if (! $updated) {
-            throw ValidationException::withMessages([
-                'voucher_code' => 'Voucher vừa hết lượt sử dụng. Vui lòng chọn voucher khác hoặc bỏ áp dụng voucher.',
+            ->update([
+                'used_quantity' => (int) $voucherRow->used_quantity + 1,
+                'updated_at' => now(),
             ]);
-        }
     }
 
     private function requiredPaymentAmount(string $venueClusterId, float $totalPrice, string $paymentOption): float

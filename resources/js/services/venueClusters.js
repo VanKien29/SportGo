@@ -2,8 +2,9 @@ import { api } from './api';
 
 export const venueClusterService = {
   // Venue Clusters (Owner)
-  getClusters() {
-    return api('/api/owner/venue-clusters');
+  getClusters(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return api(`/api/owner/venue-clusters${query ? `?${query}` : ''}`);
   },
   getClusterDetails(id) {
     return api(`/api/owner/venue-clusters/${id}`);
@@ -99,4 +100,3 @@ export const venueClusterService = {
     });
   },
 };
-

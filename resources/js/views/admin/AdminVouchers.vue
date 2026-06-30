@@ -449,7 +449,7 @@ export default {
     components: { ActionIconButton, AppIcon, TableActionGroup },
     data() {
         return {
-            filters: { keyword: "", status: "", discount_type: "" },
+            filters: { keyword: "", status: "", discount_type: "", per_page: 50 },
             vouchers: [],
             loading: false,
             saving: false,
