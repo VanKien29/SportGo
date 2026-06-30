@@ -3,13 +3,20 @@
         <!-- Floating Lock Button (sticky bottom bar) -->
         <Teleport to="body">
             <div
-                v-if="selectedSlots.length || (form.lock_mode === 'whole_day' && selectedCourtIds.length)"
+                v-if="
+                    selectedSlots.length ||
+                    (form.lock_mode === 'whole_day' && selectedCourtIds.length)
+                "
                 class="sticky-bottom-bar"
             >
                 <div class="sticky-bottom-inner">
                     <div class="sticky-bottom-info">
-                        <strong v-if="form.lock_mode === 'slots'">{{ selectedSlots.length }} ô đã chọn</strong>
-                        <strong v-else>{{ selectedCourtIds.length }} sân · cả ngày</strong>
+                        <strong v-if="form.lock_mode === 'slots'"
+                            >{{ selectedSlots.length }} ô đã chọn</strong
+                        >
+                        <strong v-else
+                            >{{ selectedCourtIds.length }} sân · cả ngày</strong
+                        >
                         <span>{{ dateRangeLabel }}</span>
                     </div>
                     <div class="sticky-bottom-actions">
@@ -17,14 +24,22 @@
                             type="button"
                             class="sticky-btn-clear"
                             @click="clearSelection"
-                        >Bỏ chọn</button>
+                        >
+                            Bỏ chọn
+                        </button>
                         <button
                             type="button"
                             class="sticky-btn-submit"
                             :disabled="saving || previewing || !canSubmit"
                             @click="createLock"
                         >
-                            {{ saving ? 'Đang khóa...' : previewing ? 'Đang kiểm tra...' : lockButtonLabel }}
+                            {{
+                                saving
+                                    ? "Đang khóa..."
+                                    : previewing
+                                      ? "Đang kiểm tra..."
+                                      : lockButtonLabel
+                            }}
                         </button>
                     </div>
                 </div>
@@ -54,9 +69,19 @@
                         class="icon-close"
                         @click="closeConflictPreview"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
                     </button>
                 </header>
@@ -100,8 +125,7 @@
                                 phút · dự kiến hoàn
                                 {{
                                     currency(
-                                        item.incident
-                                            ?.estimated_refund_amount,
+                                        item.incident?.estimated_refund_amount,
                                     )
                                 }}
                             </small>
@@ -135,8 +159,9 @@
                                 >
                                     <input
                                         v-model="
-                                            lockResolutions[item.booking_item_id]
-                                                .action
+                                            lockResolutions[
+                                                item.booking_item_id
+                                            ].action
                                         "
                                         type="radio"
                                         value="switch"
@@ -146,8 +171,9 @@
                                 <label class="radio-line danger">
                                     <input
                                         v-model="
-                                            lockResolutions[item.booking_item_id]
-                                                .action
+                                            lockResolutions[
+                                                item.booking_item_id
+                                            ].action
                                         "
                                         type="radio"
                                         value="cancel"
@@ -160,8 +186,9 @@
                                 >
                                     <input
                                         v-model="
-                                            lockResolutions[item.booking_item_id]
-                                                .action
+                                            lockResolutions[
+                                                item.booking_item_id
+                                            ].action
                                         "
                                         type="radio"
                                         value="cash_refund"
@@ -201,8 +228,18 @@
                     :start-date="form.start_date"
                     :end-date="form.end_date"
                     :min-date="today"
-                    @update:start-date="val => { form.start_date = val; handleStartDateChange(); }"
-                    @update:end-date="val => { form.end_date = val; handleEndDateChange(); }"
+                    @update:start-date="
+                        (val) => {
+                            form.start_date = val;
+                            handleStartDateChange();
+                        }
+                    "
+                    @update:end-date="
+                        (val) => {
+                            form.end_date = val;
+                            handleEndDateChange();
+                        }
+                    "
                 />
             </div>
             <div class="config-right">
@@ -227,29 +264,6 @@
                 </div>
 
                 <div class="config-section">
-                    <p class="config-label">Loại khóa</p>
-                    <div class="lock-type-switch">
-                        <button
-                            type="button"
-                            :class="{ active: form.lock_type === 'manual' }"
-                            @click="form.lock_type = 'manual'"
-                        >
-                            Khóa thường
-                        </button>
-                        <button
-                            type="button"
-                            :class="{ active: form.lock_type === 'emergency' }"
-                            @click="form.lock_type = 'emergency'"
-                        >
-                            Khóa đột xuất
-                        </button>
-                    </div>
-                    <p v-if="form.lock_type === 'emergency'" class="emergency-hint">
-                        Có thể chọn ô đang có booking để đổi sân hoặc xử lý phần thời gian còn lại.
-                    </p>
-                </div>
-
-                <div class="config-section">
                     <label class="reason-label">
                         <span>Lý do khóa</span>
                         <textarea
@@ -263,14 +277,18 @@
                 </div>
 
                 <!-- Whole-day: court picker inline -->
-                <div v-if="form.lock_mode === 'whole_day'" class="config-section">
+                <div
+                    v-if="form.lock_mode === 'whole_day'"
+                    class="config-section"
+                >
                     <div class="court-picker">
                         <div class="picker-head">
                             <strong>Chọn sân áp dụng</strong>
                             <span>{{ selectedCourtIds.length }} sân</span>
                             <button type="button" @click="toggleAllCourts">
                                 {{
-                                    selectedCourtIds.length === scheduleCourts.length
+                                    selectedCourtIds.length ===
+                                    scheduleCourts.length
                                         ? "Bỏ chọn tất cả"
                                         : "Chọn tất cả"
                                 }}
@@ -291,39 +309,55 @@
                                 />
                                 <span>
                                     <strong>{{ court.name }}</strong>
-                                    <small>{{ court.court_type?.name || "-" }}</small>
+                                    <small>{{
+                                        court.court_type?.name || "-"
+                                    }}</small>
                                 </span>
                             </label>
                         </div>
                     </div>
                 </div>
 
-                <!-- Lock preview (collapsible) -->
-                <details v-if="lockPreviewRows.length" class="preview-details">
-                    <summary>
-                        <strong>Preview</strong>
-                        <span>{{ lockPreviewStats.total }} lượt khóa</span>
-                        <em v-if="lockPreviewStats.knownBusy">
-                            {{ lockPreviewStats.knownBusy }} đang bận
-                        </em>
-                    </summary>
-                    <div class="lock-preview-list">
-                        <article
-                            v-for="row in lockPreviewRows.slice(0, 12)"
-                            :key="row.key"
-                            :class="{ busy: row.isBusy }"
+                <div class="lock-preview-panel">
+                    <details
+                        v-if="lockPreviewIssues.length"
+                        class="preview-details"
+                    >
+                        <summary>
+                            <strong>Cần chú ý</strong>
+                            <span
+                                >{{ lockPreviewIssues.length }} lịch bị ảnh
+                                hưởng</span
+                            >
+                        </summary>
+                        <div class="lock-preview-list">
+                            <article
+                                v-for="row in lockPreviewIssues.slice(0, 12)"
+                                :key="row.key"
+                                :class="{ busy: row.isBusy }"
+                            >
+                                <div>
+                                    <strong>{{ row.dateLabel }}</strong>
+                                    <small
+                                        >{{ row.courtName }} ·
+                                        {{ row.timeText }}</small
+                                    >
+                                </div>
+                                <span>{{ row.statusLabel }}</span>
+                            </article>
+                        </div>
+                        <small
+                            v-if="lockPreviewIssues.length > 12"
+                            class="preview-more"
                         >
-                            <div>
-                                <strong>{{ row.dateLabel }}</strong>
-                                <small>{{ row.courtName }} · {{ row.timeText }}</small>
-                            </div>
-                            <span>{{ row.statusLabel }}</span>
-                        </article>
+                            Còn {{ lockPreviewIssues.length - 12 }} lịch cần chú
+                            ý khác.
+                        </small>
+                    </details>
+                    <div v-else class="lock-empty-preview">
+                        <strong>Chưa có lịch cần chú ý.</strong>
                     </div>
-                    <small v-if="lockPreviewRows.length > 12" class="preview-more">
-                        Còn {{ lockPreviewRows.length - 12 }} lượt khóa khác.
-                    </small>
-                </details>
+                </div>
             </div>
         </div>
 
@@ -340,7 +374,9 @@
                         <span><i class="dot-booking"></i>Đã đặt</span>
                         <span><i class="dot-holding"></i>Đang giữ</span>
                         <span><i class="dot-manual"></i>Đã khóa</span>
-                        <span v-if="form.lock_mode === 'slots'"><i class="dot-selected"></i>Đang chọn</span>
+                        <span v-if="form.lock_mode === 'slots'"
+                            ><i class="dot-selected"></i>Đang chọn</span
+                        >
                     </div>
                     <button
                         class="secondary-btn btn-compact"
@@ -355,7 +391,7 @@
 
             <div class="quick-ranges">
                 <button
-                    v-for="range in quickRanges"
+                    v-for="range in dynamicQuickRanges"
                     :key="range.key"
                     type="button"
                     :class="{ active: activeTimePeriod === range.key }"
@@ -363,7 +399,7 @@
                     @click="activeTimePeriod = range.key"
                 >
                     <strong>{{ range.label }}</strong>
-                    <small>{{ range.start }} - {{ range.end }}</small>
+                    <small>{{ range.range }}</small>
                 </button>
             </div>
 
@@ -385,10 +421,7 @@
                         {{ time(slot.start_time) }}
                     </div>
 
-                    <template
-                        v-for="court in scheduleCourts"
-                        :key="court.id"
-                    >
+                    <template v-for="court in scheduleCourts" :key="court.id">
                         <div class="court-cell sticky-col">
                             <strong>{{ court.name }}</strong>
                             <span>{{ court.court_type?.name }}</span>
@@ -414,7 +447,14 @@
             <summary class="locks-summary">
                 <div>
                     <strong>Khoảng đã khóa trong ngày</strong>
+<<<<<<< HEAD
                     <span>{{ locks.length }} khoảng · {{ date(form.start_date) }}</span>
+=======
+                    <span
+                        >{{ locks.length }} khoảng ·
+                        {{ date(form.start_date) }}</span
+                    >
+>>>>>>> origin/owner-refund-withdrawal-requests
                 </div>
                 <button
                     v-if="locks.length"
@@ -504,21 +544,10 @@ export default {
                 start_date: today,
                 end_date: today,
                 lock_mode: "slots",
-                lock_type: "manual",
                 reason: "",
             },
             selectedSlots: [],
             selectedCourtIds: [],
-            quickRanges: [
-                { key: "morning", label: "Sáng", start: "06:00", end: "12:00" },
-                {
-                    key: "afternoon",
-                    label: "Chiều",
-                    start: "12:00",
-                    end: "18:00",
-                },
-                { key: "evening", label: "Tối", start: "18:00", end: "22:00" },
-            ],
             activeTimePeriod: "morning",
             previewing: false,
             pendingLockPayload: null,
@@ -691,6 +720,9 @@ export default {
                 }),
             );
         },
+        lockPreviewIssues() {
+            return this.lockPreviewRows.filter((row) => row.isBusy);
+        },
         lockPreviewStats() {
             return {
                 total: this.lockPreviewRows.length,
@@ -698,19 +730,74 @@ export default {
                     .length,
             };
         },
+        dynamicQuickRanges() {
+            const slotStarts = this.scheduleSlots.map((slot) =>
+                this.minutes(slot.start_time),
+            );
+            const slotEnds = this.scheduleSlots.map((slot) =>
+                this.minutes(slot.end_time),
+            );
+
+            const open = slotStarts.length ? Math.min(...slotStarts) : 6 * 60;
+            const close = Math.max(
+                slotEnds.length ? Math.max(...slotEnds) : 22 * 60,
+                open + 30,
+            );
+            const ranges = [
+                {
+                    key: "morning",
+                    label: "Sáng",
+                    startMinutes: open,
+                    endMinutes: Math.min(close, 12 * 60),
+                },
+                {
+                    key: "afternoon",
+                    label: "Chiều",
+                    startMinutes: Math.max(open, 12 * 60),
+                    endMinutes: Math.min(close, 18 * 60),
+                },
+                {
+                    key: "evening",
+                    label: "Tối",
+                    startMinutes: Math.max(open, 18 * 60),
+                    endMinutes: close,
+                },
+            ]
+                .filter((range) => range.endMinutes > range.startMinutes)
+                .map((range) => ({
+                    ...range,
+                    start: this.minutesToTime(range.startMinutes),
+                    end: this.minutesToTime(range.endMinutes),
+                    range: `${this.minutesToTime(range.startMinutes)} - ${this.minutesToTime(range.endMinutes)}`,
+                }));
+
+            return ranges.length
+                ? ranges
+                : [
+                      {
+                          key: "all",
+                          label: "Cả ngày",
+                          startMinutes: open,
+                          endMinutes: close,
+                          start: this.minutesToTime(open),
+                          end: this.minutesToTime(close),
+                          range: `${this.minutesToTime(open)} - ${this.minutesToTime(close)}`,
+                      },
+                  ];
+        },
         activePeriod() {
             return (
-                this.quickRanges.find(
+                this.dynamicQuickRanges.find(
                     (range) => range.key === this.activeTimePeriod,
-                ) || this.quickRanges[0]
+                ) || this.dynamicQuickRanges[0]
             );
         },
         activePeriodSlots() {
             return this.scheduleSlots.filter((slot) => {
-                const start = this.time(slot.start_time);
+                const start = this.minutes(slot.start_time);
                 return (
-                    start >= this.activePeriod.start &&
-                    start < this.activePeriod.end
+                    start >= this.activePeriod.startMinutes &&
+                    start < this.activePeriod.endMinutes
                 );
             });
         },
@@ -789,6 +876,7 @@ export default {
             this.scheduleSlots = response.time_slots || [];
             this.scheduleCourts = response.courts || [];
             this.scheduleSlotStatuses = response.slot_statuses || [];
+            this.ensureActiveTimePeriod();
         },
         async loadLocks() {
             if (!this.selectedClusterId || !this.form.start_date) return;
@@ -811,7 +899,10 @@ export default {
                 const data = preview.data || {};
 
                 if ((data.affected_count || 0) > 0) {
-                    this.pendingLockPayload = payload;
+                    this.pendingLockPayload = {
+                        ...payload,
+                        lock_type: "emergency",
+                    };
                     this.lockConflictPreview = data;
                     this.lockResolutions = this.defaultLockResolutions(
                         data.items || [],
@@ -830,7 +921,7 @@ export default {
             return {
                 start_date: this.form.start_date,
                 end_date: this.form.end_date,
-                lock_type: this.form.lock_type,
+                lock_type: "manual",
                 reason: this.form.reason,
                 slots:
                     this.form.lock_mode === "whole_day"
@@ -935,10 +1026,7 @@ export default {
             const status = this.statusFor(courtId, slot);
             if (!status || status.is_available) return true;
 
-            return (
-                this.form.lock_type === "emergency" &&
-                status.busy_source === "booking"
-            );
+            return status.busy_source === "booking";
         },
         isRangeBusy(courtId, range) {
             const start = this.minutes(range.start_time);
@@ -971,9 +1059,7 @@ export default {
             if (!status || status.is_available)
                 return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} · Trống`;
             if (status.busy_source === "booking") {
-                return this.form.lock_type === "emergency"
-                    ? "Đã có booking · có thể chọn để xử lý đột xuất"
-                    : "Đã có booking";
+                return "Đã có booking · có thể chọn để khóa và xử lý";
             }
             if (["manual", "emergency"].includes(status.busy_status))
                 return `Đã khóa: ${status.lock_reason || "Không có lý do"}`;
@@ -1067,6 +1153,22 @@ export default {
         time(value) {
             return (value || "").slice(0, 5);
         },
+        minutesToTime(minutes) {
+            const normalized = Math.max(0, Math.min(24 * 60, minutes));
+            const hour = Math.floor(normalized / 60);
+            const minute = normalized % 60;
+            return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+        },
+        ensureActiveTimePeriod() {
+            if (
+                !this.dynamicQuickRanges.some(
+                    (range) => range.key === this.activeTimePeriod,
+                )
+            ) {
+                this.activeTimePeriod =
+                    this.dynamicQuickRanges[0]?.key || "morning";
+            }
+        },
         minutes(value) {
             const normalized = this.withSeconds(value || "00:00:00");
             if (normalized.startsWith("24:00")) return 24 * 60;
@@ -1103,7 +1205,7 @@ export default {
 /* ===== Page layout ===== */
 .schedule-lock-page {
     display: grid;
-    gap: 18px;
+    gap: 14px;
     max-width: 1400px;
     padding-bottom: 80px; /* space for sticky bar */
 }
@@ -1126,33 +1228,50 @@ export default {
 /* ===== Config Strip (calendar + settings) ===== */
 .config-strip {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 20px;
+    grid-template-columns: 236px minmax(0, 1fr);
+    gap: 18px;
     align-items: start;
-    padding: 20px;
+    width: 100%;
+    padding: 14px;
     border: 1px solid #e2e8f0;
-    border-radius: 14px;
+    border-radius: 12px;
     background: #fff;
-    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.035);
 }
 
 .config-left {
     flex: 0 0 auto;
+    width: 236px;
 }
 
 .config-left :deep(.mini-cal) {
     border: 0;
     padding: 0;
+    max-width: 236px;
 }
 
 .config-right {
     display: grid;
-    gap: 16px;
+    grid-template-columns: minmax(220px, 280px) minmax(420px, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px;
+    align-self: stretch;
+    align-items: start;
 }
 
 .config-section {
     display: grid;
     gap: 8px;
+}
+
+.config-section:nth-child(3) {
+    grid-column: 1 / -1;
+    max-width: none;
+}
+
+.lock-preview-panel {
+    grid-column: 1 / -1;
+    align-self: stretch;
 }
 
 .config-label {
@@ -1164,20 +1283,19 @@ export default {
     text-transform: uppercase;
 }
 
-/* ===== Mode + Lock Type Switches ===== */
-.mode-switch,
-.lock-type-switch {
+/* ===== Mode Switch ===== */
+.mode-switch {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 4px;
+    max-width: 280px;
     padding: 4px;
     border: 1px solid #e2e8f0;
     border-radius: 10px;
     background: #f8fafc;
 }
-.mode-switch button,
-.lock-type-switch button {
-    min-height: 40px;
+.mode-switch button {
+    min-height: 36px;
     border: 0;
     border-radius: 7px;
     background: transparent;
@@ -1192,19 +1310,36 @@ export default {
     color: #fff;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
-.lock-type-switch button.active {
-    background: #16a34a;
-    color: #fff;
+
+.lock-flow-note {
+    min-height: 64px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid #dbe8d8;
+    border-radius: 10px;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(34, 197, 94, 0.08),
+            rgba(255, 255, 255, 0.95)
+        ),
+        #fff;
 }
 
-.emergency-hint {
-    margin: 0;
-    padding: 9px 12px;
-    border-left: 3px solid #f59e0b;
-    border-radius: 0 8px 8px 0;
-    background: #fffbeb;
-    color: #92400e;
+.lock-flow-note strong {
+    color: #14532d;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.lock-flow-note span {
+    color: #64756b;
     font-size: 12px;
+    font-weight: 700;
     line-height: 1.45;
 }
 
@@ -1338,18 +1473,46 @@ export default {
 /* ===== Preview (collapsible) ===== */
 .preview-details {
     border: 1px solid #d9e8d9;
-    border-radius: 10px;
+    border-radius: 12px;
     background: #fbfefc;
     overflow: hidden;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
+
+.preview-details[open] {
+    width: 100%;
+    border-radius: 12px;
+}
+
 .preview-details summary {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px 14px;
+    min-height: 46px;
+    padding: 10px 13px;
     cursor: pointer;
     user-select: none;
 }
+
+.preview-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.preview-details summary::after {
+    content: "Xem";
+    margin-left: auto;
+    color: #15803d;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.preview-details[open] summary::after {
+    content: "Thu gọn";
+}
+
 .preview-details summary strong {
     color: #16231a;
     font-size: 13px;
@@ -1365,6 +1528,52 @@ export default {
     font-style: normal;
     font-weight: 750;
 }
+
+.lock-empty-preview {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    min-height: 74px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid #d9e8d9;
+    border-radius: 10px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(240, 253, 244, 0.72),
+            rgba(255, 255, 255, 0.95)
+        ),
+        #fff;
+}
+
+.lock-empty-preview::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 8px;
+    height: 34px;
+    border-radius: 999px;
+    background: #22c55e;
+    opacity: 0.75;
+}
+
+.lock-empty-preview strong {
+    flex: 0 0 auto;
+    color: #14532d;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.lock-empty-preview span {
+    color: #607267;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+    max-width: 760px;
+}
+
 .lock-preview-list {
     display: grid;
     gap: 6px;
@@ -1473,11 +1682,22 @@ export default {
     border-radius: 3px;
     border: 1px solid #cbd5e1;
 }
-.dot-available { background: #fff; }
-.dot-booking { background: #cbd5e1; }
-.dot-holding { background: #fde68a; }
-.dot-manual { background: #fca5a5; }
-.dot-selected { background: var(--admin-primary, #16a34a); border-color: var(--admin-primary, #16a34a); }
+.dot-available {
+    background: #fff;
+}
+.dot-booking {
+    background: #cbd5e1;
+}
+.dot-holding {
+    background: #fde68a;
+}
+.dot-manual {
+    background: #fca5a5;
+}
+.dot-selected {
+    background: var(--admin-primary, #16a34a);
+    border-color: var(--admin-primary, #16a34a);
+}
 
 /* ===== Quick Ranges ===== */
 .quick-ranges {
@@ -1600,7 +1820,9 @@ export default {
     border-left: 0;
     background: #fff;
     cursor: pointer;
-    transition: background 0.12s ease, box-shadow 0.12s ease;
+    transition:
+        background 0.12s ease,
+        box-shadow 0.12s ease;
 }
 .slot-cell.available:hover {
     background: #d1fae5;
@@ -1745,11 +1967,13 @@ export default {
 /* ===== Sticky Bottom Bar ===== */
 .sticky-bottom-bar {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    bottom: 16px;
+    left: var(--owner-sidebar-width, 280px);
+    right: 24px;
     z-index: 100;
-    padding: 0 24px 16px;
+    display: flex;
+    justify-content: center;
+    padding: 0;
     pointer-events: none;
 }
 .sticky-bottom-inner {
@@ -1757,8 +1981,8 @@ export default {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    max-width: 1400px;
-    margin: 0 auto;
+    width: min(1400px, 100%);
+    margin: 0;
     padding: 14px 20px;
     border: 1px solid #d9e8d9;
     border-radius: 14px;
@@ -1963,17 +2187,48 @@ export default {
     white-space: nowrap;
     cursor: pointer;
 }
-.radio-line.danger { color: #b91c1c; }
-.radio-line.cash { color: #b45309; }
+.radio-line.danger {
+    color: #b91c1c;
+}
+.radio-line.cash {
+    color: #b45309;
+}
 
 /* ===== Responsive ===== */
 @media (max-width: 860px) {
+    .sticky-bottom-bar {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+    }
+
     .config-strip {
         grid-template-columns: 1fr;
+    }
+    .config-right {
+        grid-template-columns: 1fr;
+    }
+    .config-section:nth-child(3),
+    .config-section:nth-child(n + 4),
+    .preview-details,
+    .lock-empty-preview {
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    .lock-empty-preview {
+        width: 100%;
+        min-width: 0;
+        align-items: flex-start;
+    }
+    .preview-details {
+        width: 100%;
+        min-width: 0;
     }
     .config-left {
         display: flex;
         justify-content: center;
+        width: 100%;
     }
     .schedule-headline {
         flex-direction: column;

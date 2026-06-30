@@ -315,10 +315,10 @@ export default {
 <style scoped>
 .mini-cal {
     display: grid;
-    gap: 6px;
+    gap: 5px;
     width: 100%;
-    max-width: 320px;
-    padding: 14px;
+    max-width: 276px;
+    padding: 10px;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     background: #fff;
@@ -335,8 +335,8 @@ export default {
 .mini-cal__nav {
     display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     background: #fff;
@@ -369,7 +369,7 @@ export default {
 
 .mini-cal__month {
     color: #0f172a;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 900;
 }
 
@@ -389,7 +389,7 @@ export default {
 .mini-cal__weekdays span {
     display: grid;
     place-items: center;
-    height: 28px;
+    height: 24px;
     color: #94a3b8;
     font-size: 11px;
     font-weight: 900;
@@ -407,14 +407,14 @@ export default {
     display: grid;
     place-items: center;
     gap: 2px;
-    min-height: 36px;
+    min-height: 31px;
     padding: 2px;
     border: 0;
     border-radius: 8px;
     background: transparent;
     color: #1e293b;
     font: inherit;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 750;
     cursor: pointer;
     transition: all 0.12s ease;
