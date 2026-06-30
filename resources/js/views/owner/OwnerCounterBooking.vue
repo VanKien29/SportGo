@@ -23,6 +23,14 @@
                 </button>
                 <button
                     type="button"
+                    :class="{ active: activeTab === 'bookingList' }"
+                    @click="setActiveTab('bookingList')"
+                >
+                    <AppIcon name="fileText" size="16" />
+                    <span>Danh sách booking</span>
+                </button>
+                <button
+                    type="button"
                     :class="{ active: activeTab === 'recurringList' }"
                     @click="setActiveTab('recurringList')"
                 >
@@ -30,7 +38,7 @@
                     <span>Danh sách cố định</span>
                 </button>
             </div>
-            <button class="secondary-btn" type="button" @click="loadSchedule">
+            <button class="secondary-btn" type="button" @click="refreshActiveTab">
                 <AppIcon name="refresh" size="16" />
                 <span>Tải lại lịch</span>
             </button>
@@ -53,8 +61,8 @@
                     </button>
                 </div>
 
-                <div class="filters schedule-filters">
-                    <label>
+                <div class="filters schedule-filters counter-toolbar">
+                    <label class="schedule-filter-field cluster-field">
                         <span>Cụm sân</span>
                         <select
                             v-model="selectedClusterId"
@@ -69,15 +77,38 @@
                             </option>
                         </select>
                     </label>
-                    <label>
+                    <label class="schedule-filter-field date-field">
                         <span>Ngày chơi</span>
-                        <input
-                            v-model="form.booking_date"
-                            type="date"
-                            @change="handleScheduleDateChange"
-                        />
+                        <div class="date-stepper">
+                            <button
+                                type="button"
+                                aria-label="Ngày trước"
+                                @click="shiftCounterDate(-1)"
+                            >
+                                <AppIcon name="chevronLeft" size="15" />
+                            </button>
+                            <input
+                                v-model="form.booking_date"
+                                type="date"
+                                @change="handleScheduleDateChange"
+                            />
+                            <button
+                                type="button"
+                                aria-label="Ngày sau"
+                                @click="shiftCounterDate(1)"
+                            >
+                                <AppIcon name="chevronRight" size="15" />
+                            </button>
+                            <button
+                                type="button"
+                                class="today-btn"
+                                @click="setCounterDateToday"
+                            >
+                                Hôm nay
+                            </button>
+                        </div>
                     </label>
-                    <label>
+                    <label class="schedule-filter-field type-field">
                         <span>Loại sân</span>
                         <select
                             v-model="selectedCourtTypeId"
@@ -99,8 +130,20 @@
                     {{ selectionError }}
                 </p>
 
-                <div v-if="scheduleLoading" class="state-card compact-state">
-                    Đang tải lịch sân...
+                <div v-if="scheduleLoading" class="schedule-skeleton">
+                    <div class="skeleton-summary">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="skeleton-tabs">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="skeleton-matrix">
+                        <span v-for="item in 15" :key="item"></span>
+                    </div>
                 </div>
                 <div v-else-if="scheduleError" class="state-card error-state">
                     {{ scheduleError }}
@@ -131,7 +174,7 @@
                     <div class="period-row">
                         <div class="period-tabs">
                             <button
-                                v-for="period in timePeriods"
+                                v-for="period in dynamicTimePeriods"
                                 :key="period.key"
                                 type="button"
                                 :class="{
@@ -208,7 +251,42 @@
                 </div>
             </div>
 
-            <aside class="booking-side">
+            <div
+                v-if="hasCounterSelection || selectedOccupiedInterval"
+                class="counter-bottom-bar"
+            >
+                <div>
+                    <strong v-if="selectedOccupiedInterval">Đang xem lịch đã đặt</strong>
+                    <strong v-else>{{ selectedCourtText }} · {{ selectedDurationText }}</strong>
+                    <span v-if="selectedOccupiedInterval">{{ occupiedPanelSubtitle }}</span>
+                    <span v-else>{{ selectedTimeText }} · {{ formatCurrency(selectedTotal) }}</span>
+                </div>
+                <button
+                    type="button"
+                    class="primary-btn"
+                    @click="counterDrawerOpen = true"
+                >
+                    {{ selectedOccupiedInterval ? "Xem chi tiết" : "Tiếp theo" }}
+                </button>
+            </div>
+
+            <button
+                v-if="counterDrawerOpen"
+                type="button"
+                class="counter-drawer-backdrop"
+                aria-label="Đóng thông tin booking"
+                @click="counterDrawerOpen = false"
+            ></button>
+
+            <aside class="booking-side" :class="{ open: counterDrawerOpen }">
+                <button
+                    type="button"
+                    class="drawer-close-btn"
+                    aria-label="Đóng thông tin booking"
+                    @click="counterDrawerOpen = false"
+                >
+                    <AppIcon name="x" size="18" />
+                </button>
                 <section v-if="!selectedOccupiedInterval" class="side-section">
                     <div class="section-title muted">
                         <h2>Thông tin booking</h2>
@@ -534,22 +612,11 @@
                     </div>
                 </div>
 
-                <div class="form-grid">
-                    <label>
+                <div class="form-grid recurring-form-grid">
+                    <div class="readonly-field">
                         <span>Cụm sân</span>
-                        <select
-                            v-model="selectedClusterId"
-                            @change="handleClusterChange"
-                        >
-                            <option
-                                v-for="cluster in clusters"
-                                :key="cluster.id"
-                                :value="cluster.id"
-                            >
-                                {{ cluster.name }}
-                            </option>
-                        </select>
-                    </label>
+                        <strong>{{ selectedCluster?.name || "Chưa chọn cụm sân" }}</strong>
+                    </div>
                     <label>
                         <span>Loại sân</span>
                         <select
@@ -618,22 +685,17 @@
                             {{ walkInPhoneError }}
                         </small>
                     </label>
-                    <label>
-                        <span>Từ ngày</span>
-                        <input
-                            v-model="form.recurring_start_date"
-                            type="date"
-                            :min="today"
+                    <div class="calendar-range-field">
+                        <span>Khoảng ngày</span>
+                        <MiniCalendar
+                            mode="range"
+                            :start-date="form.recurring_start_date"
+                            :end-date="form.recurring_end_date"
+                            :min-date="today"
+                            @update:start-date="val => { form.recurring_start_date = val; }"
+                            @update:end-date="val => { form.recurring_end_date = val; }"
                         />
-                    </label>
-                    <label>
-                        <span>Đến ngày</span>
-                        <input
-                            v-model="form.recurring_end_date"
-                            type="date"
-                            :min="form.recurring_start_date || today"
-                        />
-                    </label>
+                    </div>
                     <label>
                         <span>Kiểu lặp</span>
                         <select v-model="form.recurrence_type">
@@ -654,6 +716,50 @@
                             </option>
                         </select>
                     </label>
+                </div>
+                <div
+                    v-if="form.recurrence_type === 'weekly'"
+                    class="recurring-weekday-planner"
+                >
+                    <div class="weekday-planner-head">
+                        <div>
+                            <strong>Lịch theo từng thứ</strong>
+                            <span>Chọn thứ, rồi chọn sân và khung giờ riêng cho thứ đó ở bảng bên dưới.</span>
+                        </div>
+                        <div class="weekday-planner-actions">
+                            <button
+                                type="button"
+                                :disabled="!activeRecurringWeekdayKeys.length"
+                                @click="applyActiveWeekdayScheduleToSelected"
+                            >
+                                Áp dụng cho thứ đã chọn
+                            </button>
+                            <button
+                                type="button"
+                                :disabled="!activeRecurringWeekdayKeys.length"
+                                @click="clearActiveWeekdaySchedule"
+                            >
+                                Xóa giờ thứ này
+                            </button>
+                        </div>
+                    </div>
+                    <button
+                        v-for="day in weekDays"
+                        :key="day.value"
+                        type="button"
+                        class="weekday-plan-card"
+                        :class="{
+                            selected: form.recurrence_days_of_week.includes(
+                                day.value,
+                            ),
+                            active: recurringActiveWeekday === day.value,
+                        }"
+                        @click="toggleRecurringWeekday(day.value)"
+                    >
+                        <span class="weekday-name">{{ day.label }}</span>
+                        <strong>{{ recurringWeekdayTimeText(day.value) }}</strong>
+                        <small>{{ recurringWeekdayCourtText(day.value) }}</small>
+                    </button>
                 </div>
                 <p class="recurring-helper">
                     Hệ thống sẽ tự tạo các buổi rơi vào ngày/thứ đã chọn trong
@@ -686,10 +792,20 @@
                         {{ selectionError }}
                     </p>
 
+                    <div
+                        v-if="form.recurrence_type === 'weekly'"
+                        class="active-weekday-note"
+                    >
+                        <strong>Đang chỉnh {{ recurringActiveWeekdayLabel }}</strong>
+                        <span>
+                            Các ô chọn trong bảng chỉ áp dụng cho {{ recurringActiveWeekdayLabel }}.
+                        </span>
+                    </div>
+
                     <div class="period-row">
                         <div class="period-tabs">
                             <button
-                                v-for="period in timePeriods"
+                                v-for="period in dynamicTimePeriods"
                                 :key="period.key"
                                 type="button"
                                 :class="{
@@ -762,36 +878,39 @@
                     </div>
                 </section>
 
-                <div v-if="form.recurrence_type === 'weekly'" class="day-grid">
-                    <label
-                        v-for="day in weekDays"
-                        :key="day.value"
-                        :class="{
-                            selected: form.recurrence_days_of_week.includes(
-                                day.value,
-                            ),
-                        }"
-                    >
-                        <input
-                            v-model="form.recurrence_days_of_week"
-                            type="checkbox"
-                            :value="day.value"
-                        />
-                        <span>{{ day.label }}</span>
-                    </label>
-                </div>
-
-                <label
+                <section
                     v-if="form.recurrence_type === 'monthly'"
-                    class="month-days"
+                    class="month-day-picker"
                 >
-                    <span>Ngày trong tháng</span>
-                    <input
-                        v-model="monthDaysInput"
-                        type="text"
-                        placeholder="1, 15, 30"
-                    />
-                </label>
+                    <div class="month-day-head">
+                        <div>
+                            <strong>Ngày lặp trong tháng</strong>
+                            <span>Chọn trực tiếp các ngày khách muốn đặt lịch.</span>
+                        </div>
+                        <div class="month-day-actions">
+                            <button type="button" @click="setMonthDays([1, 15])">
+                                1 & 15
+                            </button>
+                            <button type="button" @click="setMonthDays([15, 30])">
+                                15 & 30
+                            </button>
+                            <button type="button" @click="setMonthDays([])">
+                                Xóa chọn
+                            </button>
+                        </div>
+                    </div>
+                    <div class="month-day-grid">
+                        <button
+                            v-for="day in 31"
+                            :key="day"
+                            type="button"
+                            :class="{ active: selectedMonthDays.includes(day) }"
+                            @click="toggleMonthDay(day)"
+                        >
+                            {{ day }}
+                        </button>
+                    </div>
+                </section>
 
                 <section class="recurring-payment">
                     <div class="section-title muted">
@@ -1003,7 +1122,200 @@
             </aside>
         </section>
 
-        <section v-else class="recurring-list-panel">
+        <section v-else-if="activeTab === 'bookingList'" class="recurring-list-panel">
+            <div class="list-toolbar">
+                <div>
+                    <h2>Danh sách booking</h2>
+                    <p>
+                        Theo dõi booking online và booking tại quầy theo ngày,
+                        sân, trạng thái và thanh toán.
+                    </p>
+                </div>
+                <button
+                    class="icon-btn"
+                    type="button"
+                    title="Tải lại"
+                    @click="loadBookingList"
+                >
+                    <AppIcon name="refresh" size="17" />
+                </button>
+            </div>
+
+            <div class="filters booking-list-filters">
+                <label>
+                    <span>Sân con</span>
+                    <select
+                        v-model="bookingListFilters.venue_court_id"
+                        @change="loadBookingList"
+                    >
+                        <option value="">Tất cả</option>
+                        <option
+                            v-for="court in courts"
+                            :key="court.id"
+                            :value="court.id"
+                        >
+                            {{ court.name }}
+                        </option>
+                    </select>
+                </label>
+                <label>
+                    <span>Ngày chơi</span>
+                    <input
+                        v-model="bookingListFilters.booking_date"
+                        type="date"
+                        @change="loadBookingList"
+                    />
+                </label>
+                <label>
+                    <span>Nguồn đặt</span>
+                    <select
+                        v-model="bookingListFilters.source"
+                        @change="loadBookingList"
+                    >
+                        <option value="">Tất cả</option>
+                        <option value="online">Online</option>
+                        <option value="counter">Tại quầy</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Trạng thái</span>
+                    <select
+                        v-model="bookingListFilters.status"
+                        @change="loadBookingList"
+                    >
+                        <option value="">Tất cả</option>
+                        <option value="pending_approval">Chờ duyệt</option>
+                        <option value="pending_payment">Chờ thanh toán</option>
+                        <option value="confirmed">Đã xác nhận</option>
+                        <option value="checked_in">Đã check-in</option>
+                        <option value="completed">Hoàn thành</option>
+                        <option value="cancelled">Đã hủy</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Tìm kiếm</span>
+                    <input
+                        v-model.trim="bookingListFilters.q"
+                        type="search"
+                        placeholder="Mã booking, khách, SĐT"
+                        @keyup.enter="loadBookingList"
+                    />
+                </label>
+                <button
+                    class="secondary-btn"
+                    type="button"
+                    @click="loadBookingList"
+                >
+                    <AppIcon name="search" size="16" />
+                    <span>Lọc</span>
+                </button>
+            </div>
+
+            <div v-if="bookingListLoading" class="table-skeleton">
+                <div
+                    v-for="row in 4"
+                    :key="row"
+                    class="table-skeleton-row"
+                >
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+            <div v-else-if="!bookingList.length" class="state-card">
+                Chưa có booking phù hợp.
+            </div>
+            <div v-else class="recurring-table-card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã / khách</th>
+                            <th>Sân & giờ</th>
+                            <th>Nguồn đặt</th>
+                            <th>Thanh toán</th>
+                            <th>Trạng thái</th>
+                            <th class="money-col">Còn thu</th>
+                            <th class="action-col">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="booking in bookingList" :key="booking.id">
+                            <td>
+                                <span class="group-code">{{
+                                    booking.booking_code
+                                }}</span>
+                                <strong>{{
+                                    bookingCustomerName(booking)
+                                }}</strong>
+                                <small>{{ bookingCustomerPhone(booking) }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ bookingCourtText(booking) }}</strong>
+                                <small>
+                                    {{ formatDate(booking.booking_date) }} ·
+                                    {{ bookingTimeText(booking) }}
+                                </small>
+                            </td>
+                            <td>
+                                <span
+                                    class="source-pill"
+                                    :class="booking.source"
+                                >
+                                    {{ bookingSourceLabel(booking.source) }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>{{
+                                    paymentOptionLabel(booking.payment_option)
+                                }}</strong>
+                                <small>
+                                    Đã thu
+                                    {{ formatCurrency(paidAmount(booking)) }}
+                                    / {{ formatCurrency(booking.total_price) }}
+                                </small>
+                            </td>
+                            <td>
+                                <span
+                                    class="status-badge"
+                                    :class="`tone-${bookingStatusTone(booking.status)}`"
+                                >
+                                    {{ bookingStatusLabel(booking.status) }}
+                                </span>
+                            </td>
+                            <td class="money-col">
+                                <strong
+                                    :class="{
+                                        paid:
+                                            bookingOutstandingAmount(booking) <=
+                                            0,
+                                    }"
+                                >
+                                    {{
+                                        formatCurrency(
+                                            bookingOutstandingAmount(booking),
+                                        )
+                                    }}
+                                </strong>
+                            </td>
+                            <td class="action-col">
+                                <button
+                                    type="button"
+                                    class="secondary-btn compact"
+                                    @click="openBookingListDetail(booking)"
+                                >
+                                    <AppIcon name="eye" size="15" />
+                                    <span>Chi tiết</span>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section v-else-if="activeTab === 'recurringList'" class="recurring-list-panel">
             <div class="list-toolbar">
                 <div>
                     <h2>Danh sách booking cố định</h2>
@@ -1400,6 +1712,63 @@
                 </section>
             </div>
 
+            <div v-if="bookingListDetail" class="modal-backdrop">
+                <section class="confirm-modal booking-detail-modal">
+                    <div class="modal-head">
+                        <div>
+                            <span>BOOKING</span>
+                            <h2>{{ bookingListDetail.booking_code }}</h2>
+                        </div>
+                        <button
+                            type="button"
+                            class="icon-btn"
+                            @click="closeBookingListDetail"
+                        >
+                            <AppIcon name="x" size="18" />
+                        </button>
+                    </div>
+
+                    <div class="booking-status-strip">
+                        <span
+                            class="status-badge"
+                            :class="`tone-${bookingStatusTone(bookingListDetail.status)}`"
+                        >
+                            {{ bookingStatusLabel(bookingListDetail.status) }}
+                        </span>
+                        <span
+                            class="status-badge"
+                            :class="`tone-${paymentStateTone(bookingPaymentState(bookingListDetail))}`"
+                        >
+                            {{
+                                paymentStateLabel(
+                                    bookingPaymentState(bookingListDetail),
+                                )
+                            }}
+                        </span>
+                    </div>
+
+                    <dl class="summary-list confirm-summary">
+                        <div
+                            v-for="[label, value] in bookingListDetailRows"
+                            :key="label"
+                        >
+                            <dt>{{ label }}</dt>
+                            <dd>{{ value }}</dd>
+                        </div>
+                    </dl>
+
+                    <div class="modal-actions">
+                        <button
+                            class="secondary-btn"
+                            type="button"
+                            @click="closeBookingListDetail"
+                        >
+                            Đóng
+                        </button>
+                    </div>
+                </section>
+            </div>
+
             <div v-if="bookingActionConfirm" class="modal-backdrop">
                 <section class="confirm-modal">
                     <div class="modal-head">
@@ -1691,6 +2060,7 @@
 
 <script>
 import AppIcon from "../../components/AppIcon.vue";
+import MiniCalendar from "../../components/MiniCalendar.vue";
 import { ownerBookingService } from "../../services/ownerBookings.js";
 import { venueClusterService } from "../../services/venueClusters.js";
 
@@ -1736,7 +2106,7 @@ const SLOT_PERIODS = [
 
 export default {
     name: "OwnerCounterBooking",
-    components: { AppIcon },
+    components: { AppIcon, MiniCalendar },
     data() {
         const now = new Date();
         const today = toIsoDate(now);
@@ -1755,6 +2125,10 @@ export default {
             scheduleBusyIntervals: [],
             selectedGridCourtId: "",
             selectedSlotKeys: [],
+            recurringActiveWeekday: toWeekDayIndex(now),
+            recurringWeekdaySlotKeys: {
+                [toWeekDayIndex(now)]: [],
+            },
             timePeriods: SLOT_PERIODS,
             activeTimePeriod: "morning",
             scheduleLoading: false,
@@ -1802,11 +2176,22 @@ export default {
             counterQrBookingId: "",
             counterQrPollInterval: null,
             qrModalOpen: false,
+            counterDrawerOpen: false,
             selectedOccupiedInterval: null,
             selectedBusyBooking: null,
             selectedBusyBookingLoading: false,
             bookingActionLoading: false,
             bookingActionConfirm: null,
+            bookingList: [],
+            bookingListLoading: false,
+            bookingListDetail: null,
+            bookingListFilters: {
+                venue_court_id: "",
+                booking_date: "",
+                source: "",
+                status: "",
+                q: "",
+            },
             recurringGroups: [],
             recurringGroupsLoading: false,
             recurringGroupCollecting: "",
@@ -1854,7 +2239,9 @@ export default {
             );
         },
         hasCounterSelection() {
-            return Boolean(this.selectedSlotKeys.length);
+            return this.activeTab === "recurring"
+                ? this.hasRecurringSelection
+                : Boolean(this.selectedSlotKeys.length);
         },
         isViewingPastScheduleDate() {
             return (
@@ -1868,6 +2255,72 @@ export default {
                 ? this.form.recurring_start_date
                 : this.form.booking_date;
         },
+        operatingStartMinutes() {
+            const configured =
+                this.selectedClusterDetail?.booking_config?.fixed_open_time;
+            return configured
+                ? this.timeToMinutes(configured)
+                : BOOKING_DAY_START;
+        },
+        operatingEndMinutes() {
+            const configured =
+                this.selectedClusterDetail?.booking_config?.fixed_close_time;
+            return configured ? this.timeToMinutes(configured) : BOOKING_DAY_END;
+        },
+        dynamicTimePeriods() {
+            const slotStarts = this.scheduleSlots.map((slot) =>
+                this.timeToMinutes(slot.start_time),
+            );
+            const slotEnds = this.scheduleSlots.map((slot) =>
+                this.timeToMinutes(slot.end_time),
+            );
+            const open = slotStarts.length
+                ? Math.min(...slotStarts)
+                : this.operatingStartMinutes;
+            const close = Math.max(
+                slotEnds.length ? Math.max(...slotEnds) : this.operatingEndMinutes,
+                open + SLOT_STEP_MINUTES,
+            );
+            const raw = [
+                {
+                    key: "morning",
+                    label: "Sáng",
+                    start: open,
+                    end: Math.min(close, 12 * 60),
+                },
+                {
+                    key: "afternoon",
+                    label: "Chiều",
+                    start: Math.max(open, 12 * 60),
+                    end: Math.min(close, 18 * 60),
+                },
+                {
+                    key: "evening",
+                    label: "Tối",
+                    start: Math.max(open, 18 * 60),
+                    end: close,
+                },
+            ];
+
+            const periods = raw
+                .filter((period) => period.end > period.start)
+                .map((period) => ({
+                    ...period,
+                    range: `${this.minutesToTime(period.start)} - ${this.minutesToTime(period.end)}`,
+                }));
+
+            return periods.length
+                ? periods
+                : [
+                      {
+                          key: "all",
+                          label: "Cả ngày",
+                          start: open,
+                          end: close,
+                          range: `${this.minutesToTime(open)} - ${this.minutesToTime(close)}`,
+                      },
+                  ];
+        },
         courtTypeOptions() {
             const map = new Map();
             this.courts.forEach((court) => {
@@ -1879,14 +2332,10 @@ export default {
             );
         },
         bookableScheduleSlots() {
-            return this.scheduleSlots.filter((slot) => {
-                const start = this.timeToMinutes(slot.start_time);
-                const end = this.timeToMinutes(slot.end_time);
-                return start >= BOOKING_DAY_START && end <= BOOKING_DAY_END;
-            });
+            return this.scheduleSlots;
         },
         slotPeriods() {
-            return this.timePeriods.map((period) => ({
+            return this.dynamicTimePeriods.map((period) => ({
                 ...period,
                 slots: this.bookableScheduleSlots.filter((slot) => {
                     const start = this.timeToMinutes(slot.start_time);
@@ -1896,9 +2345,9 @@ export default {
         },
         activePeriod() {
             return (
-                this.timePeriods.find(
+                this.dynamicTimePeriods.find(
                     (period) => period.key === this.activeTimePeriod,
-                ) || this.timePeriods[0]
+                ) || this.dynamicTimePeriods[0]
             );
         },
         activePeriodSlots() {
@@ -1913,27 +2362,115 @@ export default {
                 gridTemplateColumns: `minmax(128px, 0.85fr) repeat(${this.activePeriodSlots.length}, minmax(28px, 1fr))`,
             };
         },
-        selectedSlotEntries() {
-            return this.selectedSlotKeys
-                .map((key) => {
-                    const [courtId, startTime] = key.split("|");
-                    const court = this.scheduleCourts.find(
-                        (item) => String(item.id) === String(courtId),
-                    );
-                    const slot = this.bookableScheduleSlots.find(
-                        (item) => item.start_time === startTime,
-                    );
-                    return court && slot ? { courtId, court, slot } : null;
-                })
-                .filter(Boolean)
-                .sort((a, b) => {
-                    const courtSort = a.court.name.localeCompare(b.court.name);
-                    if (courtSort !== 0) return courtSort;
-                    return (
-                        this.timeToMinutes(a.slot.start_time) -
-                        this.timeToMinutes(b.slot.start_time)
-                    );
+        activeSelectionKeys() {
+            if (
+                this.activeTab !== "recurring" ||
+                this.form.recurrence_type !== "weekly"
+            )
+                return this.selectedSlotKeys;
+
+            return (
+                this.recurringWeekdaySlotKeys[this.recurringActiveWeekday] || []
+            );
+        },
+        activeRecurringWeekdayKeys() {
+            return this.recurringWeekdaySlotKeys[this.recurringActiveWeekday] || [];
+        },
+        recurringSelectedDays() {
+            return [...this.form.recurrence_days_of_week].sort(
+                (a, b) => a - b,
+            );
+        },
+        recurringActiveWeekdayLabel() {
+            return (
+                this.weekDays.find(
+                    (day) => day.value === this.recurringActiveWeekday,
+                )?.label || "thứ đang chọn"
+            );
+        },
+        recurringDayRanges() {
+            return this.recurringSelectedDays.reduce((result, day) => {
+                const ranges = this.slotRangesFromKeys(
+                    this.recurringWeekdaySlotKeys[day] || [],
+                );
+                if (ranges.length) result[day] = ranges;
+                return result;
+            }, {});
+        },
+        hasRecurringSelection() {
+            if (this.form.recurrence_type !== "weekly")
+                return Boolean(this.selectedSlotKeys.length);
+
+            return Object.keys(this.recurringDayRanges).length > 0;
+        },
+        recurringScheduleSummaries() {
+            return this.recurringSelectedDays.map((day) => ({
+                day,
+                label: this.weekDays.find((item) => item.value === day)?.label,
+                ranges: this.recurringDayRanges[day] || [],
+            }));
+        },
+        recurringPerDayTotals() {
+            return this.recurringSelectedDays.reduce((result, day) => {
+                result[day] = this.slotEntriesFromKeys(
+                    this.recurringWeekdaySlotKeys[day] || [],
+                ).reduce((total, entry) => {
+                    const status = this.slotStatus(entry.courtId, entry.slot);
+                    return total + Number(status?.price || 0);
+                }, 0);
+                return result;
+            }, {});
+        },
+        recurringSelectedCourtText() {
+            if (this.form.recurrence_type !== "weekly")
+                return this.selectedCourtText;
+
+            const names = new Set();
+            Object.values(this.recurringDayRanges).forEach((ranges) => {
+                ranges.forEach((range) => {
+                    if (range.court?.name) names.add(range.court.name);
                 });
+            });
+
+            const courtNames = [...names];
+            if (!courtNames.length) return "Chưa chọn";
+            if (courtNames.length <= 2) return courtNames.join(", ");
+            return `${courtNames.length} sân`;
+        },
+        recurringScheduleText() {
+            if (this.form.recurrence_type !== "weekly")
+                return this.hasCounterSelection
+                    ? this.selectedTimeText
+                    : "Chưa chọn";
+
+            const filled = this.recurringScheduleSummaries.filter(
+                (item) => item.ranges.length,
+            );
+            if (!filled.length) return "Chưa chọn";
+            if (filled.length === 1) {
+                return `${filled[0].label}: ${this.rangeListText(filled[0].ranges)}`;
+            }
+
+            return `${filled.length} thứ đã có khung giờ`;
+        },
+        recurringBaseTotal() {
+            if (this.form.recurrence_type !== "weekly")
+                return this.recurringUnitTotal * this.recurringPreview.length;
+
+            return this.recurringPreview.reduce((total, date) => {
+                const day = this.dayIndex(this.parseDate(date));
+                return total + Number(this.recurringPerDayTotals[day] || 0);
+            }, 0);
+        },
+        selectedMonthDays() {
+            return this.monthDaysInput
+                .split(",")
+                .map((item) => Number(item.trim()))
+                .filter((day) => day >= 1 && day <= 31)
+                .sort((a, b) => a - b);
+        },
+        selectedSlotEntries() {
+            return this.slotEntriesFromKeys(this.activeSelectionKeys);
         },
         selectedDurationMinutes() {
             return this.selectedSlotEntries.reduce((total, entry) => {
@@ -1957,30 +2494,15 @@ export default {
             return `${hours} giờ ${minutes} phút`;
         },
         selectedSlotRanges() {
-            const ranges = [];
-
-            this.selectedSlotEntries.forEach(({ courtId, court, slot }) => {
-                const current = ranges[ranges.length - 1];
-                if (
-                    !current ||
-                    current.venue_court_id !== courtId ||
-                    current.end_time !== slot.start_time
-                ) {
-                    ranges.push({
-                        venue_court_id: courtId,
-                        court,
-                        start_time: slot.start_time,
-                        end_time: slot.end_time,
-                    });
-                    return;
-                }
-
-                current.end_time = slot.end_time;
-            });
-
-            return ranges;
+            return this.slotRangesFromKeys(this.activeSelectionKeys);
         },
         selectedCourtText() {
+            if (
+                this.activeTab === "recurring" &&
+                this.form.recurrence_type === "weekly"
+            )
+                return this.recurringSelectedCourtText;
+
             const courtNames = [
                 ...new Set(
                     this.selectedSlotEntries.map((entry) => entry.court.name),
@@ -1992,17 +2514,10 @@ export default {
         },
         selectedTimeText() {
             if (!this.hasCounterSelection) return "-";
-            return this.selectedSlotRanges
-                .map(
-                    (range) =>
-                        `${range.court?.name || "Sân"}: ${this.formatTime(range.start_time)} - ${this.formatTime(range.end_time)}`,
-                )
-                .join(", ");
+            return this.rangeListText(this.selectedSlotRanges);
         },
         recurringTimeText() {
-            return this.hasCounterSelection
-                ? this.selectedTimeText
-                : "Chưa chọn";
+            return this.recurringScheduleText;
         },
         selectedTotal() {
             return this.selectedSlotEntries.reduce((total, entry) => {
@@ -2014,7 +2529,7 @@ export default {
             return this.activeTab === "recurring" ? this.selectedTotal : 0;
         },
         recurringTotalAmount() {
-            return this.recurringUnitTotal * this.recurringPreview.length;
+            return this.recurringBaseTotal;
         },
         voucherBaseAmount() {
             return this.activeTab === "counter" ? this.selectedTotal : 0;
@@ -2186,6 +2701,31 @@ export default {
                 total - this.paidAmount(this.selectedBusyBooking),
                 0,
             );
+        },
+        bookingListDetailRows() {
+            const booking = this.bookingListDetail;
+            if (!booking) return [];
+
+            return [
+                ["Mã booking", booking.booking_code || "-"],
+                ["Nguồn đặt", this.bookingSourceLabel(booking.source)],
+                [
+                    "Khách",
+                    `${this.bookingCustomerName(booking)} · ${this.bookingCustomerPhone(booking)}`,
+                ],
+                ["Cụm sân", this.selectedCluster?.name || "-"],
+                ["Sân", this.bookingCourtText(booking)],
+                ["Ngày", this.formatDate(booking.booking_date)],
+                ["Khung giờ", this.bookingTimeText(booking)],
+                ["Trạng thái", this.bookingStatusLabel(booking.status)],
+                ["Hình thức", this.paymentOptionLabel(booking.payment_option)],
+                ["Tổng tiền", this.formatCurrency(booking.total_price)],
+                ["Đã thu", this.formatCurrency(this.paidAmount(booking))],
+                [
+                    "Còn thu",
+                    this.formatCurrency(this.bookingOutstandingAmount(booking)),
+                ],
+            ];
         },
         occupiedPanelTitle() {
             if (this.selectedBusyBookingLoading) return "Đang tải booking";
@@ -2448,17 +2988,18 @@ export default {
             );
         },
         canSubmitRecurring() {
-            const start = this.timeToMinutes(this.form.start_time);
-            const end = this.timeToMinutes(this.form.end_time);
+            const weeklyReady =
+                this.form.recurrence_type !== "weekly" ||
+                this.recurringSelectedDays.every(
+                    (day) => (this.recurringDayRanges[day] || []).length,
+                );
 
             return (
-                this.hasCounterSelection &&
+                this.hasRecurringSelection &&
+                weeklyReady &&
                 !this.walkInNameError &&
                 !this.walkInPhoneError &&
                 this.form.payment_option &&
-                start >= BOOKING_DAY_START &&
-                end <= BOOKING_DAY_END &&
-                end > start &&
                 this.recurringPreview.length > 0 &&
                 !this.submitting
             );
@@ -2489,6 +3030,7 @@ export default {
             handler() {
                 if (this.activeTab === "recurring")
                     this.clearVoucherSelection();
+                this.syncRecurringWeekdayState();
                 this.queueRecurringPreview();
             },
         },
@@ -2502,6 +3044,12 @@ export default {
                 this.queueRecurringPreview();
             },
         },
+        recurringWeekdaySlotKeys: {
+            deep: true,
+            handler() {
+                this.queueRecurringPreview();
+            },
+        },
         activeTab() {
             this.queueRecurringPreview();
         },
@@ -2509,7 +3057,17 @@ export default {
     async created() {
         await this.loadOwnerData();
     },
+    mounted() {
+        window.addEventListener(
+            "owner-cluster-changed",
+            this.handleExternalClusterChange,
+        );
+    },
     beforeUnmount() {
+        window.removeEventListener(
+            "owner-cluster-changed",
+            this.handleExternalClusterChange,
+        );
         this.clearCounterQrPolling();
         clearTimeout(this.recurringPreviewTimer);
     },
@@ -2585,6 +3143,24 @@ export default {
                 return;
             }
 
+            if (tab === "bookingList") {
+                await this.loadBookingList();
+                return;
+            }
+
+            await this.loadSchedule();
+        },
+        async refreshActiveTab() {
+            if (this.activeTab === "bookingList") {
+                await this.loadBookingList();
+                return;
+            }
+
+            if (this.activeTab === "recurringList") {
+                await this.loadRecurringGroups();
+                return;
+            }
+
             await this.loadSchedule();
         },
         routeBookingFocusQuery() {
@@ -2596,6 +3172,16 @@ export default {
         hasRouteBookingFocus() {
             const focus = this.routeBookingFocusQuery();
             return Boolean(focus.id || focus.code);
+        },
+        async shiftCounterDate(days) {
+            const current = this.parseDate(this.form.booking_date) || new Date();
+            current.setDate(current.getDate() + days);
+            this.form.booking_date = this.formatIsoDate(current);
+            await this.handleScheduleDateChange();
+        },
+        async setCounterDateToday() {
+            this.form.booking_date = this.today;
+            await this.handleScheduleDateChange();
         },
         async handleScheduleDateChange() {
             await this.loadSchedule();
@@ -2649,15 +3235,42 @@ export default {
 
             if (!this.selectedClusterId) return;
             localStorage.setItem("selected_cluster", this.selectedClusterId);
+            this.notifyOwnerClusterChanged();
 
             await Promise.all([this.loadClusterDetail(), this.loadCourts()]);
             this.syncPaymentOption();
             if (this.activeTab === "recurringList") {
                 this.recurringGroupFilters.venue_court_id = "";
                 await this.loadRecurringGroups();
+            } else if (this.activeTab === "bookingList") {
+                this.bookingListFilters.venue_court_id = "";
+                await this.loadBookingList();
             } else {
                 await this.loadSchedule();
             }
+        },
+        async handleExternalClusterChange(event) {
+            const clusterId =
+                event?.detail?.id || localStorage.getItem("selected_cluster");
+
+            if (
+                !clusterId ||
+                String(clusterId) === String(this.selectedClusterId)
+            ) {
+                return;
+            }
+
+            this.selectedClusterId = clusterId;
+            await this.handleClusterChange();
+        },
+        notifyOwnerClusterChanged() {
+            window.dispatchEvent(
+                new CustomEvent("owner-cluster-changed", {
+                    detail: this.selectedCluster || {
+                        id: this.selectedClusterId,
+                    },
+                }),
+            );
         },
         async loadClusterDetail() {
             try {
@@ -2716,6 +3329,7 @@ export default {
                 this.scheduleSlotStatuses = response.slot_statuses || [];
                 this.scheduleBusyIntervals = response.busy_intervals || [];
 
+                this.ensureActiveTimePeriod();
                 this.syncCounterRangeFields();
                 this.scheduleLoading = false;
                 void this.focusRouteBooking();
@@ -2763,15 +3377,21 @@ export default {
         },
         periodKeyForTime(time) {
             const minutes = this.timeToMinutes(time);
-            const period = this.timePeriods.find((item) => {
-                const [start, end] = item.range.split(" - ");
-                return (
-                    minutes >= this.timeToMinutes(start) &&
-                    minutes < this.timeToMinutes(end)
-                );
-            });
+            const period = this.dynamicTimePeriods.find(
+                (item) => minutes >= item.start && minutes < item.end,
+            );
 
             return period?.key || this.activeTimePeriod;
+        },
+        ensureActiveTimePeriod() {
+            if (
+                !this.dynamicTimePeriods.some(
+                    (period) => period.key === this.activeTimePeriod,
+                )
+            ) {
+                this.activeTimePeriod =
+                    this.dynamicTimePeriods[0]?.key || "morning";
+            }
         },
         scrollSelectedBookingIntoView() {
             this.$nextTick(() => {
@@ -2909,6 +3529,33 @@ export default {
                 this.recurringGroupsLoading = false;
             }
         },
+        async loadBookingList() {
+            if (!this.selectedClusterId) return;
+
+            this.bookingListLoading = true;
+            this.error = "";
+
+            try {
+                const response = await ownerBookingService.list({
+                    venue_cluster_id: this.selectedClusterId,
+                    booking_type: "single",
+                    ...this.bookingListFilters,
+                });
+                this.bookingList = response.data || [];
+            } catch (error) {
+                this.error =
+                    error.message || "Không thể tải danh sách booking.";
+                this.bookingList = [];
+            } finally {
+                this.bookingListLoading = false;
+            }
+        },
+        openBookingListDetail(booking) {
+            this.bookingListDetail = booking;
+        },
+        closeBookingListDetail() {
+            this.bookingListDetail = null;
+        },
         slotStatus(courtId, slot) {
             if (!slot) return null;
             return (
@@ -2937,6 +3584,151 @@ export default {
         slotKey(courtId, slot) {
             return `${courtId}|${slot?.start_time || ""}`;
         },
+        slotEntriesFromKeys(keys = []) {
+            return keys
+                .map((key) => {
+                    const [courtId, startTime] = key.split("|");
+                    const court = this.scheduleCourts.find(
+                        (item) => String(item.id) === String(courtId),
+                    );
+                    const slot = this.bookableScheduleSlots.find(
+                        (item) => item.start_time === startTime,
+                    );
+                    return court && slot ? { courtId, court, slot } : null;
+                })
+                .filter(Boolean)
+                .sort((a, b) => {
+                    const courtSort = a.court.name.localeCompare(b.court.name);
+                    if (courtSort !== 0) return courtSort;
+                    return (
+                        this.timeToMinutes(a.slot.start_time) -
+                        this.timeToMinutes(b.slot.start_time)
+                    );
+                });
+        },
+        slotRangesFromKeys(keys = []) {
+            const ranges = [];
+
+            this.slotEntriesFromKeys(keys).forEach(({ courtId, court, slot }) => {
+                const current = ranges[ranges.length - 1];
+                if (
+                    !current ||
+                    current.venue_court_id !== courtId ||
+                    current.end_time !== slot.start_time
+                ) {
+                    ranges.push({
+                        venue_court_id: courtId,
+                        court,
+                        start_time: slot.start_time,
+                        end_time: slot.end_time,
+                    });
+                    return;
+                }
+
+                current.end_time = slot.end_time;
+            });
+
+            return ranges;
+        },
+        rangeListText(ranges = []) {
+            if (!ranges.length) return "-";
+
+            return ranges
+                .map(
+                    (range) =>
+                        `${range.court?.name || "Sân"}: ${this.formatTime(range.start_time)} - ${this.formatTime(range.end_time)}`,
+                )
+                .join(", ");
+        },
+        recurringWeekdayTimeText(day) {
+            const ranges = this.recurringDayRanges[day] || [];
+            if (!ranges.length) return "Chưa chọn giờ";
+            return ranges
+                .map(
+                    (range) =>
+                        `${this.formatTime(range.start_time)} - ${this.formatTime(range.end_time)}`,
+                )
+                .join(", ");
+        },
+        recurringWeekdayCourtText(day) {
+            const ranges = this.recurringDayRanges[day] || [];
+            const names = [...new Set(ranges.map((range) => range.court?.name))].filter(Boolean);
+            if (!names.length) return "Chưa chọn sân";
+            if (names.length <= 2) return names.join(", ");
+            return `${names.length} sân`;
+        },
+        toggleRecurringWeekday(day) {
+            const selected = this.form.recurrence_days_of_week.includes(day);
+            if (selected && this.form.recurrence_days_of_week.length > 1) {
+                this.form.recurrence_days_of_week =
+                    this.form.recurrence_days_of_week.filter(
+                        (item) => item !== day,
+                    );
+                if (this.recurringActiveWeekday === day) {
+                    this.recurringActiveWeekday =
+                        this.form.recurrence_days_of_week[0] ?? day;
+                }
+                return;
+            }
+
+            if (!selected) {
+                this.form.recurrence_days_of_week = [
+                    ...this.form.recurrence_days_of_week,
+                    day,
+                ].sort((a, b) => a - b);
+            }
+
+            this.recurringActiveWeekday = day;
+            if (!this.recurringWeekdaySlotKeys[day]) {
+                this.recurringWeekdaySlotKeys = {
+                    ...this.recurringWeekdaySlotKeys,
+                    [day]: [],
+                };
+            }
+        },
+        syncRecurringWeekdayState() {
+            const selected = this.recurringSelectedDays;
+            if (!selected.length) return;
+
+            const next = {};
+            selected.forEach((day) => {
+                next[day] = this.recurringWeekdaySlotKeys[day] || [];
+            });
+            this.recurringWeekdaySlotKeys = next;
+            if (!selected.includes(this.recurringActiveWeekday)) {
+                this.recurringActiveWeekday = selected[0];
+            }
+        },
+        applyActiveWeekdayScheduleToSelected() {
+            const source = this.activeRecurringWeekdayKeys;
+            if (!source.length) return;
+
+            const next = { ...this.recurringWeekdaySlotKeys };
+            this.recurringSelectedDays.forEach((day) => {
+                next[day] = [...source];
+            });
+            this.recurringWeekdaySlotKeys = next;
+            this.queueRecurringPreview();
+        },
+        clearActiveWeekdaySchedule() {
+            this.recurringWeekdaySlotKeys = {
+                ...this.recurringWeekdaySlotKeys,
+                [this.recurringActiveWeekday]: [],
+            };
+            this.queueRecurringPreview();
+        },
+        toggleMonthDay(day) {
+            const next = this.selectedMonthDays.includes(day)
+                ? this.selectedMonthDays.filter((item) => item !== day)
+                : [...this.selectedMonthDays, day];
+            this.setMonthDays(next);
+        },
+        setMonthDays(days = []) {
+            this.monthDaysInput = [...new Set(days)]
+                .filter((day) => day >= 1 && day <= 31)
+                .sort((a, b) => a - b)
+                .join(", ");
+        },
         isSlotDisabled(courtId, slot) {
             if (!courtId || !slot) return true;
 
@@ -2951,7 +3743,7 @@ export default {
             return false;
         },
         isSlotSelected(courtId, slot) {
-            return this.selectedSlotKeys.includes(this.slotKey(courtId, slot));
+            return this.activeSelectionKeys.includes(this.slotKey(courtId, slot));
         },
         slotButtonClass(courtId, slot) {
             const selected = this.isSlotSelected(courtId, slot);
@@ -3096,6 +3888,7 @@ export default {
             this.selectionError = "";
             this.selectedOccupiedInterval = null;
             this.selectedBusyBooking = null;
+            this.counterDrawerOpen = false;
             this.selectedSlotKeys = this.selectedSlotKeys.includes(key)
                 ? this.selectedSlotKeys.filter((item) => item !== key)
                 : [...this.selectedSlotKeys, key];
@@ -3106,10 +3899,15 @@ export default {
             if (!court?.id || !slot) return;
 
             const clickedKey = this.slotKey(court.id, slot);
+            const day = this.recurringActiveWeekday;
+            const currentKeys = this.recurringWeekdaySlotKeys[day] || [];
             this.selectionError = "";
-            this.selectedSlotKeys = this.selectedSlotKeys.includes(clickedKey)
-                ? this.selectedSlotKeys.filter((item) => item !== clickedKey)
-                : [...this.selectedSlotKeys, clickedKey];
+            this.recurringWeekdaySlotKeys = {
+                ...this.recurringWeekdaySlotKeys,
+                [day]: currentKeys.includes(clickedKey)
+                    ? currentKeys.filter((item) => item !== clickedKey)
+                    : [...currentKeys, clickedKey],
+            };
             this.syncCounterRangeFields();
             this.loadEligibleVouchers();
         },
@@ -3129,6 +3927,7 @@ export default {
                       source: "busy",
                   };
             this.selectedBusyBooking = null;
+            this.counterDrawerOpen = true;
             this.counterQr = null;
             this.qrModalOpen = false;
             this.clearCounterQrPolling();
@@ -3245,7 +4044,13 @@ export default {
             }
         },
         recurringPayload(extra = {}) {
-            const timeRanges = this.selectedSlotRanges.map((range) => ({
+            const selectedRanges =
+                this.activeTab === "recurring" &&
+                this.form.recurrence_type === "weekly" &&
+                this.hasRecurringSelection
+                    ? Object.values(this.recurringDayRanges).flat()
+                    : this.selectedSlotRanges;
+            const timeRanges = selectedRanges.map((range) => ({
                 venue_court_id: range.venue_court_id,
                 start_time: this.withSeconds(this.formatTime(range.start_time)),
                 end_time: this.withSeconds(this.formatTime(range.end_time)),
@@ -3282,12 +4087,29 @@ export default {
                 recurring_end_date: this.form.recurring_end_date,
                 recurrence_type: this.form.recurrence_type,
                 recurrence_interval: this.form.recurrence_interval,
+                venue_cluster_id: this.selectedClusterId,
                 ...extra,
             };
 
             if (this.form.recurrence_type === "weekly") {
                 payload.recurrence_days_of_week =
                     this.form.recurrence_days_of_week;
+                payload.weekday_time_ranges = this.recurringSelectedDays
+                    .map((day) => ({
+                        day_of_week: day,
+                        time_ranges: (this.recurringDayRanges[day] || []).map(
+                            (range) => ({
+                                venue_court_id: range.venue_court_id,
+                                start_time: this.withSeconds(
+                                    this.formatTime(range.start_time),
+                                ),
+                                end_time: this.withSeconds(
+                                    this.formatTime(range.end_time),
+                                ),
+                            }),
+                        ),
+                    }))
+                    .filter((item) => item.time_ranges.length);
             }
 
             if (this.form.recurrence_type === "monthly") {
@@ -3459,14 +4281,16 @@ export default {
         normalizeRecurringTime() {
             let start = this.timeToMinutes(this.form.start_time);
             let end = this.timeToMinutes(this.form.end_time);
+            const open = this.operatingStartMinutes;
+            const close = this.operatingEndMinutes;
 
-            if (start < BOOKING_DAY_START) start = BOOKING_DAY_START;
-            if (start >= BOOKING_DAY_END)
-                start = BOOKING_DAY_END - SLOT_STEP_MINUTES;
-            if (end > BOOKING_DAY_END) end = BOOKING_DAY_END;
-            if (end <= start) end = Math.min(start + 60, BOOKING_DAY_END);
+            if (start < open) start = open;
+            if (start >= close)
+                start = close - SLOT_STEP_MINUTES;
+            if (end > close) end = close;
+            if (end <= start) end = Math.min(start + 60, close);
             if (end <= start) {
-                start = Math.max(BOOKING_DAY_START, end - SLOT_STEP_MINUTES);
+                start = Math.max(open, end - SLOT_STEP_MINUTES);
             }
 
             this.form.start_time = this.minutesToTime(start);
@@ -3517,6 +4341,12 @@ export default {
             return (booking?.payments || [])
                 .filter((payment) => payment.status === "paid")
                 .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+        },
+        bookingOutstandingAmount(booking) {
+            return Math.max(
+                Number(booking?.total_price || 0) - this.paidAmount(booking),
+                0,
+            );
         },
         bookingCustomerName(booking) {
             return (
@@ -4341,15 +5171,15 @@ export default {
 
 .counter-board {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
     align-items: start;
 }
 
 .recurring-panel {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 16px;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 18px;
     align-items: start;
 }
 
@@ -4389,6 +5219,149 @@ export default {
         minmax(220px, 1.2fr) auto;
     gap: 10px;
     align-items: end;
+}
+
+.booking-list-filters {
+    display: grid;
+    grid-template-columns:
+        minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(140px, 0.7fr)
+        minmax(160px, 0.8fr) minmax(220px, 1.2fr) auto;
+    gap: 10px;
+    align-items: end;
+}
+
+.schedule-skeleton,
+.table-skeleton {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.skeleton-summary,
+.skeleton-tabs {
+    display: grid;
+    gap: 10px;
+}
+
+.skeleton-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.skeleton-tabs {
+    grid-template-columns: repeat(3, minmax(120px, 160px));
+}
+
+.skeleton-summary span,
+.skeleton-tabs span,
+.skeleton-matrix span,
+.table-skeleton-row span {
+    display: block;
+    overflow: hidden;
+    position: relative;
+    border-radius: 999px;
+    background: #edf2f0;
+}
+
+.skeleton-summary span::after,
+.skeleton-tabs span::after,
+.skeleton-matrix span::after,
+.table-skeleton-row span::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.72) 48%,
+        transparent 100%
+    );
+    animation: skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+.skeleton-summary span {
+    height: 64px;
+    border-radius: 12px;
+    background: #f0f4f1;
+}
+
+.skeleton-tabs span {
+    height: 38px;
+    background: #edf2f0;
+}
+
+.skeleton-matrix {
+    display: grid;
+    grid-template-columns: 120px repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+    overflow: hidden;
+    padding: 16px;
+    border-radius: 10px;
+    background: #f8faf9;
+}
+
+.skeleton-matrix span {
+    height: 22px;
+    align-self: center;
+}
+
+.skeleton-matrix span:nth-child(3n + 1) {
+    height: 36px;
+    border-radius: 10px;
+}
+
+.skeleton-matrix span:nth-child(3n + 2) {
+    width: 78%;
+}
+
+.skeleton-matrix span:nth-child(3n) {
+    width: 54%;
+}
+
+.table-skeleton-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 0.8fr;
+    gap: 18px;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid #e4eee4;
+}
+
+.table-skeleton-row:last-child {
+    border-bottom: 0;
+}
+
+.table-skeleton-row span {
+    height: 18px;
+}
+
+.table-skeleton-row span:nth-child(n + 4) {
+    display: none;
+}
+
+.table-skeleton-row span:nth-child(1) {
+    height: 36px;
+    border-radius: 10px;
+}
+
+.table-skeleton-row span:nth-child(2) {
+    width: 82%;
+}
+
+.table-skeleton-row span:nth-child(3) {
+    width: 58%;
+}
+
+@keyframes skeleton-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
 }
 
 .recurring-group-list {
@@ -4593,6 +5566,30 @@ export default {
 
 .recurring-table-card strong.paid {
     color: #0f7a31;
+}
+
+.source-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 26px;
+    border-radius: 999px;
+    padding: 5px 10px;
+    background: #ecfdf5;
+    color: #15803d;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.source-pill.online {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.source-pill.counter {
+    background: #fef3c7;
+    color: #92400e;
 }
 
 .money-col {
@@ -4844,13 +5841,32 @@ export default {
     gap: 16px;
 }
 
+.recurring-panel .form-card {
+    gap: 14px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.recurring-panel .panel-head.compact,
+.recurring-form-grid,
+.recurring-day-grid,
+.recurring-helper,
+.recurring-schedule-board,
+.recurring-payment {
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.recurring-panel .panel-head.compact {
+    padding: 16px 18px;
+}
+
 .recurring-schedule-board {
     display: grid;
     gap: 12px;
-    padding: 14px;
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #fbfdfb;
+    padding: 16px;
 }
 
 .schedule-summary {
@@ -4916,6 +5932,121 @@ export default {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
+}
+
+.recurring-form-grid {
+    grid-template-columns: minmax(240px, 276px) repeat(2, minmax(220px, 1fr));
+    grid-template-areas:
+        "date cluster type"
+        "date name phone"
+        "date repeat interval";
+    align-items: start;
+    padding: 16px;
+}
+
+.recurring-form-grid > .readonly-field {
+    grid-area: cluster;
+}
+
+.recurring-form-grid > label:nth-child(2) {
+    grid-area: type;
+}
+
+.recurring-form-grid > label:nth-child(3) {
+    grid-area: name;
+}
+
+.recurring-form-grid > label:nth-child(4) {
+    grid-area: phone;
+}
+
+.recurring-form-grid > label:nth-child(6) {
+    grid-area: repeat;
+}
+
+.recurring-form-grid > label:nth-child(7) {
+    grid-area: interval;
+}
+
+.schedule-filters {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: minmax(180px, 220px) minmax(320px, 400px) minmax(180px, 220px);
+    align-items: end;
+    justify-content: space-between;
+    padding: 12px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fbfdfb;
+}
+
+.counter-toolbar .schedule-filter-field {
+    min-width: 0;
+}
+
+.date-stepper {
+    display: grid;
+    grid-template-columns: 36px minmax(160px, 1fr) 36px auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.date-stepper button {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid #cfe3cf;
+    border-radius: 8px;
+    background: #fff;
+    color: #31443a;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.date-stepper button:hover {
+    border-color: #22c55e;
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.date-stepper .today-btn {
+    padding: 0 12px;
+    white-space: nowrap;
+}
+
+.date-stepper input {
+    min-height: 38px;
+    border: 1px solid #cfe3cf;
+    border-radius: 8px;
+    background: #fff;
+    color: #16231a;
+    font-weight: 850;
+}
+
+.readonly-field {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    min-height: 58px;
+    border: 1px solid #cfe3cf;
+    border-radius: 8px;
+    background: #f7fbf5;
+}
+
+.readonly-field span {
+    color: #607267;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.readonly-field strong {
+    color: #16231a;
+    font-size: 14px;
+    font-weight: 850;
 }
 
 .booking-picker {
@@ -5575,10 +6706,110 @@ input.invalid {
 }
 
 .booking-side {
-    position: sticky;
-    top: 88px;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1002;
+    width: min(430px, calc(100vw - 36px));
     display: grid;
+    align-content: start;
     gap: 12px;
+    padding: 24px;
+    overflow-y: auto;
+    background: #fff;
+    border-left: 1px solid #d9e8d9;
+    box-shadow: -16px 0 46px rgba(15, 23, 42, 0.16);
+    transform: translateX(106%);
+    transition: transform 0.22s ease;
+}
+
+.booking-side.open {
+    transform: translateX(0);
+}
+
+.counter-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1001;
+    border: 0;
+    background: rgba(15, 23, 42, 0.34);
+    cursor: default;
+}
+
+.drawer-close-btn {
+    position: sticky;
+    top: 0;
+    justify-self: end;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+    color: #334238;
+}
+
+.counter-bottom-bar {
+    position: static;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    background: rgba(240, 253, 244, 0.96);
+    box-shadow: 0 12px 36px rgba(22, 101, 52, 0.15);
+    backdrop-filter: blur(8px);
+}
+
+.counter-bottom-bar div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.counter-bottom-bar strong,
+.counter-bottom-bar span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.counter-bottom-bar strong {
+    color: #14532d;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.counter-bottom-bar span {
+    color: #475569;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.calendar-range-field {
+    display: grid;
+    gap: 8px;
+    grid-area: date;
+    max-width: 276px;
+}
+
+.calendar-range-field > span {
+    color: #223127;
+    font-size: 13px;
+    font-weight: 760;
+}
+
+.schedule-filters .mini-cal,
+.calendar-range-field .mini-cal {
+    max-width: 100%;
 }
 
 .side-section {
@@ -6040,6 +7271,154 @@ input.invalid {
     gap: 8px;
 }
 
+.recurring-day-grid {
+    padding: 12px 16px;
+}
+
+.recurring-weekday-planner {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(112px, 1fr));
+    gap: 10px;
+    padding: 14px 16px 16px;
+    border: 1px solid #d8eadb;
+    border-radius: 10px;
+    background: #fbfefc;
+}
+
+.weekday-planner-head {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+    padding-bottom: 4px;
+}
+
+.weekday-planner-head strong {
+    display: block;
+    color: #16231a;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.weekday-planner-head span {
+    display: block;
+    margin-top: 2px;
+    color: #64756b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.weekday-planner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.weekday-planner-actions button {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid #cfe3cf;
+    border-radius: 8px;
+    background: #fff;
+    color: #216b34;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.weekday-planner-actions button:hover:not(:disabled) {
+    border-color: #22c55e;
+    background: #f0fdf4;
+}
+
+.weekday-planner-actions button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.weekday-plan-card {
+    min-height: 92px;
+    display: grid;
+    align-content: start;
+    gap: 5px;
+    padding: 10px;
+    border: 1px solid #d9e8d9;
+    border-radius: 10px;
+    background: #fff;
+    color: #1f2f25;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
+}
+
+.weekday-plan-card:hover {
+    transform: translateY(-1px);
+    border-color: #86d19a;
+}
+
+.weekday-plan-card.selected {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+.weekday-plan-card.active {
+    border-color: #16a34a;
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.16);
+}
+
+.weekday-plan-card .weekday-name {
+    width: fit-content;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #e8f7ec;
+    color: #15803d;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.weekday-plan-card strong {
+    color: #132017;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.35;
+}
+
+.weekday-plan-card small {
+    color: #64756b;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.active-weekday-note {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    background: #f0fdf4;
+}
+
+.active-weekday-note strong {
+    color: #166534;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.active-weekday-note span {
+    color: #557063;
+    font-size: 12px;
+    font-weight: 700;
+}
+
 .day-grid label {
     position: relative;
     display: inline-flex;
@@ -6091,8 +7470,95 @@ input.invalid {
     max-width: 320px;
 }
 
+.month-day-picker {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.month-day-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.month-day-head strong {
+    display: block;
+    color: #16231a;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.month-day-head span {
+    display: block;
+    margin-top: 2px;
+    color: #64756b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.month-day-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.month-day-actions button {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid #cfe3cf;
+    border-radius: 8px;
+    background: #fff;
+    color: #216b34;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.month-day-actions button:hover {
+    border-color: #22c55e;
+    background: #f0fdf4;
+}
+
+.month-day-grid {
+    display: grid;
+    grid-template-columns: repeat(16, minmax(34px, 1fr));
+    gap: 8px;
+}
+
+.month-day-grid button {
+    min-height: 36px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+    color: #25352a;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.month-day-grid button:hover {
+    border-color: #86efac;
+    background: #f0fdf4;
+}
+
+.month-day-grid button.active {
+    border-color: #16a34a;
+    background: #16a34a;
+    color: #fff;
+    box-shadow: 0 8px 16px rgba(22, 163, 74, 0.16);
+}
+
 .recurring-helper {
-    margin: -6px 0 4px;
+    margin: 0;
+    padding: 11px 14px;
     color: #607267;
     font-size: 13px;
     line-height: 1.45;
@@ -6108,6 +7574,13 @@ input.invalid {
     top: 88px;
     display: grid;
     gap: 10px;
+    max-height: calc(100vh - 112px);
+    overflow: auto;
+}
+
+.recurring-detail-box {
+    padding: 16px;
+    background: #fbfdfb;
 }
 
 .preview-head {
@@ -6386,12 +7859,10 @@ input.invalid {
 }
 
 @media (max-width: 1080px) {
-    .counter-board,
     .recurring-panel {
         grid-template-columns: 1fr;
     }
 
-    .booking-side,
     .preview-box {
         position: static;
     }
@@ -6418,6 +7889,40 @@ input.invalid {
     .settlement-card,
     .recurring-payment-list {
         grid-template-columns: 1fr;
+    }
+
+    .recurring-form-grid {
+        grid-template-areas:
+            "date"
+            "cluster"
+            "type"
+            "name"
+            "phone"
+            "repeat"
+            "interval";
+    }
+
+    .calendar-range-field {
+        max-width: 100%;
+    }
+
+    .weekday-planner-head,
+    .month-day-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .weekday-planner-actions,
+    .month-day-actions {
+        justify-content: flex-start;
+    }
+
+    .recurring-weekday-planner {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .month-day-grid {
+        grid-template-columns: repeat(7, minmax(34px, 1fr));
     }
 
     .period-row {

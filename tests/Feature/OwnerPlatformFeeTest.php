@@ -13,6 +13,7 @@ use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Models\VenuePlatformFeeLedger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class OwnerPlatformFeeTest extends TestCase
@@ -100,6 +101,42 @@ class OwnerPlatformFeeTest extends TestCase
             ->assertJsonPath('summary.overdue', 1)
             ->assertJsonPath('summary.outstanding_amount', 200000)
             ->assertJsonPath('payment_account.account_number', '123456789');
+    }
+
+    public function test_owner_fee_list_uses_one_default_bank_account_lookup_for_many_ledgers(): void
+    {
+        for ($month = 2; $month <= 6; $month++) {
+            VenuePlatformFeeLedger::query()->create([
+                'venue_cluster_id' => $this->cluster->id,
+                'tier_id' => $this->ledger->tier_id,
+                'court_count' => 2,
+                'billing_cycle' => 'monthly',
+                'period_months' => 1,
+                'period_start' => today()->subMonths($month)->startOfMonth(),
+                'period_end' => today()->subMonths($month)->endOfMonth(),
+                'due_date' => today()->subMonths($month)->endOfMonth(),
+                'price_per_court_month' => 100000,
+                'discount_percent' => 0,
+                'amount_due' => 200000,
+                'amount_paid' => 0,
+                'payment_proof_status' => 'none',
+                'status' => 'pending',
+            ]);
+        }
+
+        $bankAccountQueries = 0;
+        DB::listen(function ($query) use (&$bankAccountQueries): void {
+            if (str_contains($query->sql, 'system_bank_accounts')) {
+                $bankAccountQueries++;
+            }
+        });
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->getJson('/api/owner/platform-fees?venue_cluster_id='.$this->cluster->id)
+            ->assertOk()
+            ->assertJsonCount(6, 'data');
+
+        $this->assertSame(1, $bankAccountQueries);
     }
 
     public function test_owner_can_create_bank_qr_for_platform_fee(): void

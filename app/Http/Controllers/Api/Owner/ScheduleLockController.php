@@ -116,27 +116,35 @@ class ScheduleLockController extends Controller
                         ]);
                     }
 
-                    if ($this->hasOverlappingScheduleLock(
+                    $overlappingLocks = $this->overlappingManualScheduleLocks(
                         $court->id,
                         $date,
                         $slot['start_time'],
-                        $slot['end_time']
-                    )) {
-                        throw ValidationException::withMessages([
-                            $isBatch ? "slots.{$index}.start_time" : 'start_time' => "{$court->name} ngày {$date} đã có khoảng khóa trùng giờ.",
-                        ]);
-                    }
+                        $slot['end_time'],
+                    );
+
+                    $mergedStartTime = $this->minTime($slot['start_time'], $overlappingLocks->pluck('start_time')->all());
+                    $mergedEndTime = $this->maxTime($slot['end_time'], $overlappingLocks->pluck('end_time')->all());
+                    $lockType = ($data['lock_type'] ?? 'manual') === 'emergency' || $overlappingLocks->contains('lock_type', 'emergency')
+                        ? 'emergency'
+                        : 'manual';
+
+                    $overlappingLocks->each(function (SlotLock $existingLock) use ($request): void {
+                        $oldPayload = $this->payload($existingLock);
+                        $this->audit($request, 'schedule_lock.merged', $existingLock, $oldPayload, null);
+                        $existingLock->delete();
+                    });
 
                     $lock = SlotLock::query()->create([
                         'venue_cluster_id' => $court->venue_cluster_id,
                         'venue_court_id' => $court->id,
                         'lock_scope' => 'court',
                         'booking_date' => $date,
-                        'start_time' => $slot['start_time'],
-                        'end_time' => $slot['end_time'],
+                        'start_time' => $mergedStartTime,
+                        'end_time' => $mergedEndTime,
                         'locked_by' => $request->user()->id,
                         'booking_id' => null,
-                        'lock_type' => $data['lock_type'] ?? 'manual',
+                        'lock_type' => $lockType,
                         'reason' => $data['reason'],
                         'expires_at' => Carbon::parse($date)->endOfDay(),
                     ])->load('venueCourt.courtType');
@@ -246,23 +254,36 @@ class ScheduleLockController extends Controller
         ]);
     }
 
-    private function hasOverlappingScheduleLock(string $venueCourtId, string $date, string $startTime, string $endTime): bool
+    private function overlappingManualScheduleLocks(string $venueCourtId, string $date, string $startTime, string $endTime): Collection
     {
         return SlotLock::query()
             ->where('booking_date', $date)
-            ->where(fn ($query) => $this->activeSlotLockConstraint($query))
+            ->whereIn('lock_type', ['manual', 'emergency'])
             ->whereNull('booking_id')
-            ->where(function ($query) use ($venueCourtId): void {
-                $query->where('venue_court_id', $venueCourtId)
-                    ->orWhere(function ($clusterQuery) use ($venueCourtId): void {
-                        $clusterQuery
-                            ->where('lock_scope', 'cluster')
-                            ->where('venue_cluster_id', VenueCourt::query()->whereKey($venueCourtId)->value('venue_cluster_id'));
-                    });
-            })
+            ->where('lock_scope', 'court')
+            ->where('venue_court_id', $venueCourtId)
             ->where('start_time', '<', $endTime)
             ->where('end_time', '>', $startTime)
-            ->exists();
+            ->lockForUpdate()
+            ->get();
+    }
+
+    private function minTime(string $baseTime, array $candidateTimes): string
+    {
+        return collect($candidateTimes)
+            ->push($baseTime)
+            ->filter()
+            ->sortBy(fn (string $time): int => $this->timeToMinutes($time))
+            ->first();
+    }
+
+    private function maxTime(string $baseTime, array $candidateTimes): string
+    {
+        return collect($candidateTimes)
+            ->push($baseTime)
+            ->filter()
+            ->sortByDesc(fn (string $time): int => $this->timeToMinutes($time))
+            ->first();
     }
 
     private function validateLockPayload(Request $request, bool $requireReason): array

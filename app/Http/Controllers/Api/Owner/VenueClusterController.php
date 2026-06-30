@@ -12,6 +12,29 @@ class VenueClusterController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $clusterIds = $this->accessibleClusterIds($request);
+
+        if ($request->boolean('compact')) {
+            $clusters = VenueCluster::query()
+                ->select(['id', 'name'])
+                ->whereIn('id', $clusterIds)
+                ->orderBy('name')
+                ->get();
+
+            return response()->json(['data' => $clusters]);
+        }
+
+        $clusters = VenueCluster::query()
+            ->with(['media', 'amenityCatalog'])
+            ->whereIn('id', $clusterIds)
+            ->latest()
+            ->get();
+
+        return response()->json(['data' => $clusters]);
+    }
+
+    private function accessibleClusterIds(Request $request)
+    {
         $ownedClusterIds = VenueCluster::query()
             ->where('owner_id', $request->user()->id)
             ->pluck('id');
@@ -21,13 +44,7 @@ class VenueClusterController extends Controller
             ->where('status', 'active')
             ->pluck('venue_cluster_id');
 
-        $clusters = VenueCluster::query()
-            ->with(['media', 'amenityCatalog'])
-            ->whereIn('id', $ownedClusterIds->merge($assignedClusterIds)->unique()->values())
-            ->latest()
-            ->get();
-
-        return response()->json(['data' => $clusters]);
+        return $ownedClusterIds->merge($assignedClusterIds)->unique()->values();
     }
 
     public function show(Request $request, string $id): JsonResponse

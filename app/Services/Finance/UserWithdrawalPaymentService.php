@@ -22,8 +22,8 @@ class UserWithdrawalPaymentService
         ?string $transferReference = null,
         ?string $note = null,
     ): UserWithdrawalRequest {
-        if (! in_array($method, ['cash', 'bank_transfer'], true)) {
-            throw new RuntimeException('Phương thức chi trả không hợp lệ.');
+        if ($method !== 'bank_transfer') {
+            throw new RuntimeException('Rút tiền người dùng chỉ hỗ trợ chi trả bằng chuyển khoản.');
         }
 
         $transferReference = trim((string) $transferReference);
@@ -142,8 +142,7 @@ class UserWithdrawalPaymentService
 
     private function ledgerNote(string $method, string $transferReference, ?string $note): string
     {
-        $label = $method === 'cash' ? 'Admin chi tiền mặt' : 'Admin chuyển khoản';
-        $parts = [$label];
+        $parts = ['Admin chuyển khoản'];
 
         if ($transferReference !== '') {
             $parts[] = 'Mã GD: '.$transferReference;

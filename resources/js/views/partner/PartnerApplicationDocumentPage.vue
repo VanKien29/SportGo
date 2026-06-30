@@ -1,12 +1,14 @@
 <template>
-  <PublicNavbar />
-  <PartnerDocumentModal
-    :application-id="route.params.id"
-    :document-id="route.params.documentId"
-    :document-kind="route.query.type"
-    @close="goBack"
-    @signed="onSigned"
-  />
+  <div class="partner-document-page-wrapper">
+    <PublicNavbar />
+    <PartnerDocumentModal
+      :application-id="route.params.id"
+      :document-id="route.params.documentId"
+      :document-kind="route.query.type"
+      @close="goBack"
+      @signed="onSigned"
+    />
+  </div>
 </template>
 
 <script setup>

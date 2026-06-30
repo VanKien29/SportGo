@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
+use App\Models\VenuePost;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class DashboardController extends Controller
 {
@@ -74,6 +76,7 @@ class DashboardController extends Controller
                 'wallet' => $walletData,
                 'golden_hours' => [],
                 'court_revenues' => [],
+                'published_posts' => [],
             ]);
         }
 
@@ -117,6 +120,31 @@ class DashboardController extends Controller
             ];
         });
 
+        $publishedPosts = VenuePost::query()
+            ->with('venueCluster:id,name')
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->where('status', 'published')
+            ->orderByDesc('reviewed_at')
+            ->orderByDesc('created_at')
+            ->limit(6)
+            ->get()
+            ->map(function (VenuePost $post): array {
+                return [
+                    'id' => $post->id,
+                    'venue_cluster_id' => $post->venue_cluster_id,
+                    'venue_cluster_name' => $post->venueCluster?->name,
+                    'title' => $post->title ?: Str::limit(strip_tags($post->content), 80),
+                    'slug' => $post->slug,
+                    'short_description' => $post->short_description,
+                    'post_type' => $post->post_type,
+                    'view_count' => (int) $post->view_count,
+                    'like_count' => (int) $post->like_count,
+                    'comment_count' => (int) $post->comment_count,
+                    'reviewed_at' => $post->reviewed_at,
+                    'created_at' => $post->created_at,
+                ];
+            });
+
         return response()->json([
             'bookings' => $bookingsCount,
             'revenue' => (float) $revenue,
@@ -125,6 +153,7 @@ class DashboardController extends Controller
             'wallet' => $walletData,
             'golden_hours' => $goldenHours,
             'court_revenues' => $courtRevenues,
+            'published_posts' => $publishedPosts,
         ]);
     }
 

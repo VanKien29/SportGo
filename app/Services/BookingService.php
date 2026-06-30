@@ -275,7 +275,7 @@ class BookingService
             $rangeCourts = $this->courtsForTimeRanges($timeRanges, $court);
             $this->validateTimeRanges($timeRanges);
             $this->ensureRangesAreNotInPast($data['booking_date'], $timeRanges, 'start_time');
-            $this->validateDurationMinutesAndPayment($court->venue_cluster_id, $this->rangesDurationMinutes($timeRanges), $data['payment_option']);
+            $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
 
             foreach ($timeRanges as $range) {
                 $this->assertWithinOperatingHours(
@@ -321,17 +321,18 @@ class BookingService
                 ]);
             }
 
-            $timeRanges = $this->normalizeTimeRanges($data, $court->id);
-            $rangeCourts = $this->courtsForTimeRanges($timeRanges, $court);
-            $this->validateTimeRanges($timeRanges);
-            $this->validateDurationMinutesAndPayment($court->venue_cluster_id, $this->rangesDurationMinutes($timeRanges), $data['payment_option']);
-
             $dates = $this->recurringDates($data);
-
             $this->validateRecurringDates($dates);
-            $this->ensureRecurringRangesAreNotInPast($dates, $timeRanges);
+            $rangesByDate = $this->recurringRangesByDate($data, $dates, $court);
 
-            $conflicts = $this->recurringConflictPayloadForRanges($court, $dates, $timeRanges);
+            $rangesByDate->each(function (array $timeRanges, string $dateString) use ($court, $data): void {
+                $this->courtsForTimeRanges($timeRanges, $court);
+                $this->validateTimeRanges($timeRanges);
+                $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
+                $this->ensureRangesAreNotInPast($dateString, $timeRanges, 'recurring_start_date');
+            });
+
+            $conflicts = $this->recurringConflictPayloadForDateRanges($rangesByDate);
             $resolution = $data['conflict_resolution'] ?? 'abort';
             $overrides = collect($data['conflict_overrides'] ?? [])->keyBy('date');
             $switchedCourtsByDate = collect();
@@ -379,20 +380,27 @@ class BookingService
                 $switchedCourtsByDate->put($conflict['date'], $override['venue_court_id']);
             }
 
-            $dates->each(fn (Carbon $date) => $this->assertWithinOperatingHours(
-                $court->venue_cluster_id,
-                $date->toDateString(),
-                $data['start_time'],
-                $data['end_time'],
-            ));
+            $dates->each(function (Carbon $date) use ($court, $rangesByDate): void {
+                foreach ($rangesByDate->get($date->toDateString(), []) as $range) {
+                    $this->assertWithinOperatingHours(
+                        $court->venue_cluster_id,
+                        $date->toDateString(),
+                        $range['start_time'],
+                        $range['end_time'],
+                    );
+                }
+            });
 
             $conflicts = $dates
-                ->filter(fn (Carbon $date) => ! $this->checkAvailability(
-                    $court->id,
-                    $date->toDateString(),
-                    $data['start_time'],
-                    $data['end_time'],
-                ))
+                ->filter(function (Carbon $date) use ($rangesByDate): bool {
+                    foreach ($rangesByDate->get($date->toDateString(), []) as $range) {
+                        if (! $this->checkAvailability($range['venue_court_id'], $date->toDateString(), $range['start_time'], $range['end_time'])) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                })
                 ->values()
                 ->map(fn (Carbon $date) => $date->toDateString());
 
@@ -420,18 +428,19 @@ class BookingService
                 $dateCourt = $switchedCourtsByDate->has($dateString)
                     ? $this->lockActiveCourt($switchedCourtsByDate->get($dateString))
                     : $court;
+                $baseDateTimeRanges = $rangesByDate->get($dateString, []);
                 $dateTimeRanges = $switchedCourtsByDate->has($dateString)
-                    ? collect($timeRanges)
+                    ? collect($baseDateTimeRanges)
                         ->map(fn (array $range): array => [
                             ...$range,
                             'venue_court_id' => $dateCourt->id,
                         ])
                         ->values()
                         ->all()
-                    : $timeRanges;
+                    : $baseDateTimeRanges;
                 $dateRangeCourts = $switchedCourtsByDate->has($dateString)
                     ? collect([$dateCourt->id => $dateCourt])
-                    : $rangeCourts;
+                    : $this->courtsForTimeRanges($dateTimeRanges, $court);
 
                 foreach ($dateTimeRanges as $range) {
                     if (! $this->checkAvailability($range['venue_court_id'], $dateString, $range['start_time'], $range['end_time'])) {
@@ -535,15 +544,18 @@ class BookingService
             ]);
         }
 
-        $timeRanges = $this->normalizeTimeRanges($data, $court->id);
-        $this->courtsForTimeRanges($timeRanges, $court);
-        $this->validateTimeRanges($timeRanges);
-        $this->validateDurationMinutesAndPayment($court->venue_cluster_id, $this->rangesDurationMinutes($timeRanges), $data['payment_option']);
-
         $dates = $this->recurringDates($data);
         $this->validateRecurringDates($dates);
+        $rangesByDate = $this->recurringRangesByDate($data, $dates, $court);
 
-        $conflicts = $this->recurringConflictPayloadForRanges($court, $dates, $timeRanges);
+        $rangesByDate->each(function (array $timeRanges, string $dateString) use ($court, $data): void {
+            $this->courtsForTimeRanges($timeRanges, $court);
+            $this->validateTimeRanges($timeRanges);
+            $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
+            $this->ensureRangesAreNotInPast($dateString, $timeRanges, 'recurring_start_date');
+        });
+
+        $conflicts = $this->recurringConflictPayloadForDateRanges($rangesByDate);
 
         return [
             'total_dates' => $dates->count(),
@@ -1308,18 +1320,43 @@ class BookingService
         $minDuration = $config?->min_duration_minutes ?: 30;
         $maxDuration = $config?->max_duration_minutes;
 
+        $this->assertDurationWithinConfig($durationMinutes, $minDuration, $maxDuration, 'end_time');
+        $this->assertPaymentOptionAllowed($config, $paymentOption);
+    }
+
+    private function validateRangeDurationsAndPayment(string $venueClusterId, array $timeRanges, string $paymentOption): void
+    {
+        $config = $this->bookingConfigForCluster($venueClusterId);
+        $minDuration = $config?->min_duration_minutes ?: 30;
+        $maxDuration = $config?->max_duration_minutes;
+
+        collect($timeRanges)
+            ->groupBy('venue_court_id')
+            ->each(function (Collection $ranges) use ($minDuration, $maxDuration): void {
+                $durationMinutes = $ranges->sum(fn (array $range): int => $this->durationMinutes($range['start_time'], $range['end_time']));
+                $this->assertDurationWithinConfig($durationMinutes, $minDuration, $maxDuration, 'time_ranges');
+            });
+
+        $this->assertPaymentOptionAllowed($config, $paymentOption);
+    }
+
+    private function assertDurationWithinConfig(int $durationMinutes, int $minDuration, ?int $maxDuration, string $errorKey): void
+    {
         if ($durationMinutes < $minDuration) {
             throw ValidationException::withMessages([
-                'end_time' => "Thời lượng đặt tối thiểu là {$minDuration} phút.",
+                $errorKey => "Mỗi sân phải được đặt tối thiểu {$minDuration} phút.",
             ]);
         }
 
         if ($maxDuration && $durationMinutes > $maxDuration) {
             throw ValidationException::withMessages([
-                'end_time' => "Thời lượng đặt tối đa là {$maxDuration} phút.",
+                $errorKey => "Mỗi sân chỉ được đặt tối đa {$maxDuration} phút.",
             ]);
         }
+    }
 
+    private function assertPaymentOptionAllowed(?BookingConfig $config, string $paymentOption): void
+    {
         $allowed = [
             'full_payment' => $config?->allow_full_payment ?? true,
             'deposit' => $config?->allow_deposit ?? true,
@@ -1564,6 +1601,10 @@ class BookingService
 
     private function voucherUnavailableReason(object $voucher, string $usageUserId, string $venueClusterId, string $courtTypeId, string $bookingType, float $amount, int $usageCount = 1): ?string
     {
+        if (($voucher->status ?? null) !== 'active') {
+            return 'Voucher đã bị tắt hoặc chưa được kích hoạt.';
+        }
+
         if (($voucher->assigned_user_id ?? null) && (string) $voucher->assigned_user_id !== (string) $usageUserId) {
             return 'Voucher VIP nay chi danh cho dung tai khoan duoc phat.';
         }
@@ -1638,6 +1679,32 @@ class BookingService
 
     private function recordVoucherUsage(array $voucher, Booking $booking, string $usageUserId): void
     {
+        $voucherRow = DB::table('vouchers')
+            ->where('id', $voucher['id'])
+            ->lockForUpdate()
+            ->first();
+
+        if (! $voucherRow) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'Voucher không tồn tại hoặc đã bị xóa.',
+            ]);
+        }
+
+        if (($voucherRow->status ?? null) !== 'active') {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'Voucher đã bị tắt hoặc chưa được kích hoạt.',
+            ]);
+        }
+
+        if (
+            $voucherRow->total_quantity !== null
+            && ((int) $voucherRow->used_quantity + 1) > (int) $voucherRow->total_quantity
+        ) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'Voucher vừa hết lượt sử dụng. Vui lòng chọn voucher khác hoặc bỏ áp dụng voucher.',
+            ]);
+        }
+
         DB::table('voucher_usages')->insert([
             'id' => (string) Str::uuid(),
             'voucher_id' => $voucher['id'],
@@ -1651,18 +1718,12 @@ class BookingService
             'updated_at' => now(),
         ]);
 
-        $updated = DB::table('vouchers')
+        DB::table('vouchers')
             ->where('id', $voucher['id'])
-            ->where(fn ($query) => $query
-                ->whereNull('total_quantity')
-                ->orWhereColumn('used_quantity', '<', 'total_quantity'))
-            ->increment('used_quantity');
-
-        if (! $updated) {
-            throw ValidationException::withMessages([
-                'voucher_code' => 'Voucher vừa hết lượt sử dụng. Vui lòng chọn voucher khác hoặc bỏ áp dụng voucher.',
+            ->update([
+                'used_quantity' => (int) $voucherRow->used_quantity + 1,
+                'updated_at' => now(),
             ]);
-        }
     }
 
     public function releaseVoucherUsageForBooking(Booking|string $booking, string $usageStatus = 'cancelled'): void
@@ -1836,6 +1897,49 @@ class BookingService
             ->values();
     }
 
+    private function recurringConflictPayloadForDateRanges(Collection $rangesByDate): Collection
+    {
+        return $rangesByDate
+            ->flatMap(function (array $timeRanges, string $dateString): Collection {
+                return collect($timeRanges)
+                    ->filter(fn (array $range): bool => ! $this->checkAvailability(
+                        $range['venue_court_id'],
+                        $dateString,
+                        $range['start_time'],
+                        $range['end_time'],
+                    ))
+                    ->map(function (array $range) use ($dateString): array {
+                        $rangeCourt = VenueCourt::query()
+                            ->with('courtType')
+                            ->findOrFail($range['venue_court_id']);
+
+                        return [
+                            'key' => implode('|', [
+                                $dateString,
+                                $range['venue_court_id'],
+                                $range['start_time'],
+                                $range['end_time'],
+                            ]),
+                            'date' => $dateString,
+                            'start_time' => $range['start_time'],
+                            'end_time' => $range['end_time'],
+                            'current_court' => $this->recurringCourtPayload($rangeCourt),
+                            'reason' => 'Một khung trong nhóm lịch đã có booking hoặc đang bị khóa.',
+                            'alternatives' => $this->availableAlternativeCourts(
+                                $rangeCourt,
+                                $dateString,
+                                $range['start_time'],
+                                $range['end_time'],
+                            )
+                                ->map(fn (VenueCourt $candidate): array => $this->recurringCourtPayload($candidate))
+                                ->values()
+                                ->all(),
+                        ];
+                    });
+            })
+            ->values();
+    }
+
     private function availableAlternativeCourts(VenueCourt $court, string $date, string $startTime, string $endTime): Collection
     {
         return VenueCourt::query()
@@ -1894,6 +1998,37 @@ class BookingService
         }
 
         return $dates;
+    }
+
+    private function recurringRangesByDate(array $data, Collection $dates, VenueCourt $defaultCourt): Collection
+    {
+        $weekdayRanges = $this->recurringWeekdayRanges($data, $defaultCourt);
+        $fallbackRanges = $this->normalizeTimeRanges($data, $defaultCourt->id);
+
+        return $dates
+            ->mapWithKeys(function (Carbon $date) use ($weekdayRanges, $fallbackRanges): array {
+                $day = $date->dayOfWeekIso - 1;
+
+                return [
+                    $date->toDateString() => $weekdayRanges[$day] ?? $fallbackRanges,
+                ];
+            });
+    }
+
+    private function recurringWeekdayRanges(array $data, VenueCourt $defaultCourt): array
+    {
+        if (($data['recurrence_type'] ?? null) !== 'weekly' || empty($data['weekday_time_ranges'])) {
+            return [];
+        }
+
+        return collect($data['weekday_time_ranges'])
+            ->mapWithKeys(fn (array $item): array => [
+                (int) $item['day_of_week'] => $this->normalizeTimeRanges(
+                    ['time_ranges' => $item['time_ranges']],
+                    $defaultCourt->id,
+                ),
+            ])
+            ->all();
     }
 
     private function uniqueBookingCode(): string

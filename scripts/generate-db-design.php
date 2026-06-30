@@ -203,6 +203,11 @@ namespace Illuminate\Database\Schema {
             return $this->addColumn('char', $name, ['length' => $length]);
         }
 
+        public function uuid(string $name): ColumnDefinition
+        {
+            return $this->addColumn('char', $name, ['length' => 36]);
+        }
+
         public function string(string $name, int $length = 255): ColumnDefinition
         {
             return $this->addColumn('string', $name, ['length' => $length]);
@@ -751,6 +756,16 @@ namespace Illuminate\Support\Facades {
         {
         }
 
+        public static function connection(?string $name = null): self
+        {
+            return new self();
+        }
+
+        public static function raw(string $expression): string
+        {
+            return $expression;
+        }
+
         public static function table(string $table): QueryBuilderStub
         {
             return new QueryBuilderStub();
@@ -778,6 +793,13 @@ namespace {
     use Illuminate\Support\Facades\Schema;
 
     date_default_timezone_set('Asia/Ho_Chi_Minh');
+
+    if (! function_exists('now')) {
+        function now(): \DateTimeImmutable
+        {
+            return new \DateTimeImmutable('now', new \DateTimeZone('Asia/Ho_Chi_Minh'));
+        }
+    }
 
     $root = dirname(__DIR__);
     $docPath = $root . DIRECTORY_SEPARATOR . 'docs' . DIRECTORY_SEPARATOR . 'DB_Design_Report_From_Migrations.md';
