@@ -60,6 +60,12 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: "/chat",
+        name: "chat",
+        component: () => import("../views/Chat.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
         path: "/partner-application",
         name: "partner-application",
         component: () => import("../views/partner/PartnerApplicationPortal.vue"),
@@ -257,11 +263,22 @@ const routes = [
                     import("../views/admin/AdminPlatformFeeSettings.vue"),
             },
             {
+                path: "settings",
+                name: "admin-settings",
+                component: () =>
+                    import("../views/admin/AdminSettings.vue"),
+            },
+            {
                 path: "posts/:id",
                 name: "admin-post-detail",
                 component: () =>
                     import("../views/admin/AdminPostDetail.vue"),
                 meta: { hideFloatingBack: true },
+            },
+            {
+                path: "chat",
+                name: "admin-chat",
+                component: () => import("../views/Chat.vue"),
             },
             { path: "", redirect: { name: "admin-dashboard" } },
         ],

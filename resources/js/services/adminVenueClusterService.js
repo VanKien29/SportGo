@@ -129,5 +129,24 @@ export const adminVenueClusterService = {
       body: JSON.stringify(payload),
     });
   },
+
+  /**
+   * Duyệt yêu cầu thay đổi thông tin cụm sân
+   */
+  approveInformationChange(clusterId, requestId) {
+    return api(`/api/admin/venue-clusters/${clusterId}/information-change-requests/${requestId}/approve`, {
+      method: 'PATCH',
+    });
+  },
+
+  /**
+   * Từ chối yêu cầu thay đổi thông tin cụm sân
+   */
+  rejectInformationChange(clusterId, requestId, payload) {
+    return api(`/api/admin/venue-clusters/${clusterId}/information-change-requests/${requestId}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
 };
 

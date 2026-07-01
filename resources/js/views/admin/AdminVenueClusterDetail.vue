@@ -32,6 +32,9 @@
           @click="activeTab = tab.key"
         >
           {{ tab.label }}
+          <span v-if="tab.key === 'info_changes' && pendingInfoChangeCount > 0" class="tab-badge-admin">
+            {{ pendingInfoChangeCount }}
+          </span>
           <span v-if="tab.key === 'location_changes' && pendingLocationChangeCount > 0" class="tab-badge-admin">
             {{ pendingLocationChangeCount }}
           </span>
@@ -617,6 +620,53 @@
         </div>
       </div>
 
+      <!-- ┌ Tab: Yêu cầu thay đổi thông tin sân ────────────────────────── -->
+      <div v-if="activeTab === 'info_changes'" class="avcd-card card">
+        <h3 class="section-title">Yêu cầu thay đổi thông tin cụm sân</h3>
+        <div class="approval-tabs">
+          <button class="tab-sm" :class="{ active: infoChangeFilter === '' }" @click="infoChangeFilter = ''">Tất cả</button>
+          <button class="tab-sm" :class="{ active: infoChangeFilter === 'pending' }" @click="infoChangeFilter = 'pending'">Chờ duyệt</button>
+          <button class="tab-sm" :class="{ active: infoChangeFilter === 'approved' }" @click="infoChangeFilter = 'approved'">Đã duyệt</button>
+          <button class="tab-sm" :class="{ active: infoChangeFilter === 'rejected' }" @click="infoChangeFilter = 'rejected'">Từ chối</button>
+        </div>
+        <div v-if="filteredInfoChanges.length === 0" class="empty-section">Không có yêu cầu nào.</div>
+        <div v-else class="approval-list">
+          <div v-for="req in filteredInfoChanges" :key="req.id" class="approval-card" :class="`approval-${req.status}`">
+            <div class="approval-row">
+              <div style="flex:1">
+                <div class="approval-name fw-bold">Yêu cầu thay đổi thông tin</div>
+                <div class="muted">Tên cụm sân mới: <span class="text-primary fw-bold">{{ req.new_name }}</span> (Cũ: {{ cluster.name }})</div>
+                <div class="muted">Số điện thoại mới: <span class="text-primary fw-bold">{{ req.new_phone_contact }}</span> (Cũ: {{ cluster.phone_contact }})</div>
+                <div class="muted">Mô tả mới: {{ req.new_description || '—' }}</div>
+                
+                <div v-if="req.new_images && req.new_images.length > 0" style="margin-top: 10px;">
+                  <div class="muted" style="margin-bottom: 6px; font-weight: 600;">Album ảnh mới đề xuất:</div>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <div v-for="(path, idx) in req.new_images" :key="idx" style="width: 80px; height: 60px; border-radius: 4px; overflow: hidden; border: 1px solid rgba(0,0,0,0.08);">
+                      <img :src="`/storage/${path}`" style="width:100%; height:100%; object-fit:cover;" />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="muted" style="margin-top: 8px;">Lý do yêu cầu: {{ req.note }}</div>
+                <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
+                <div v-if="req.reviewed_by" class="muted">Xử lý bởi: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
+                <div v-if="req.status_reason && req.status === 'rejected'" class="reason-text">Lý do từ chối: {{ req.status_reason }}</div>
+              </div>
+              <div class="approval-right">
+                <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
+                <div v-if="req.status === 'pending'" class="approval-btns">
+                  <button class="btn btn-success btn-sm" :disabled="processingInfoId === req.id" @click="handleApproveInfo(req)">
+                    {{ processingInfoId === req.id ? '...' : 'Duyệt' }}
+                  </button>
+                  <button class="btn btn-danger btn-sm" :disabled="processingInfoId === req.id" @click="openRejectInfoModal(req)">Từ chối</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ┌ Tab: Yêu cầu thay đổi vị trí ──────────────────────────────── -->
       <div v-if="activeTab === 'location_changes'" class="avcd-card card">
         <h3 class="section-title">Yêu cầu thay đổi vị trí cụm sân</h3>
@@ -773,6 +823,41 @@
       </form>
     </div>
 
+    <!-- ── Modal: Từ chối yêu cầu thông tin ── -->
+    <div v-if="rejectInfoTarget" class="modal-backdrop" @click.self="closeRejectInfoModal">
+      <form class="modal-box card" @submit.prevent="handleRejectInfo">
+        <div class="modal-header">
+          <h3>Từ chối yêu cầu thay đổi thông tin cụm sân</h3>
+          <button type="button" class="btn-close" @click="closeRejectInfoModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="muted">Tên đề xuất: <strong>{{ rejectInfoTarget.new_name }}</strong></p>
+          <div v-if="rejectInfoError" class="alert-error">{{ rejectInfoError }}</div>
+          <label class="form-label">
+            Lý do từ chối <span class="required">*</span>
+            <textarea
+              v-model="rejectInfoReason"
+              rows="4"
+              required
+              placeholder="Nhập lý do từ chối..."
+              class="form-control"
+            ></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" @click="closeRejectInfoModal">Hủy</button>
+          <button type="submit" class="btn btn-danger" :disabled="rejectingInfo">
+            {{ rejectingInfo ? 'Đang từ chối...' : 'Xác nhận từ chối' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
     <!-- ── Modal: Từ chối yêu cầu vị trí ── -->
     <div v-if="rejectLocationTarget" class="modal-backdrop" @click.self="closeRejectLocationModal">
       <form class="modal-box card" @submit.prevent="handleRejectLocation">
@@ -876,6 +961,7 @@ export default {
         { key: 'bookings', label: 'Booking' },
         { key: 'fees', label: 'Phí' },
         { key: 'lock_history', label: 'Lịch sử khóa' },
+        { key: 'info_changes', label: 'Yêu cầu thông tin' },
         { key: 'approvals', label: 'Yêu cầu quy mô' },
         { key: 'location_changes', label: 'Yêu cầu vị trí' },
         { key: 'unlock_appeals', label: 'Yêu cầu mở khóa' },
@@ -918,6 +1004,15 @@ export default {
       rejectUnlockError: '',
       rejectingUnlock: false,
 
+      // Info changes state
+      informationChangeRequests: [],
+      infoChangeFilter: '',
+      processingInfoId: null,
+      rejectInfoTarget: null,
+      rejectInfoReason: '',
+      rejectInfoError: '',
+      rejectingInfo: false,
+
       // Global message
       globalMsg: '',
       globalMsgType: 'msg-success',
@@ -943,6 +1038,13 @@ export default {
     pendingUnlockAppealCount() {
       return this.unlockRequests.filter((r) => r.status === 'pending').length;
     },
+    filteredInfoChanges() {
+      if (!this.infoChangeFilter) return this.informationChangeRequests;
+      return this.informationChangeRequests.filter((r) => r.status === this.infoChangeFilter);
+    },
+    pendingInfoChangeCount() {
+      return this.informationChangeRequests.filter((r) => r.status === 'pending').length;
+    },
   },
   mounted() {
     this.loadDetail();
@@ -966,6 +1068,7 @@ export default {
         this.approvalRequests = data.approval_requests || [];
         this.locationChangeRequests = data.location_change_requests || [];
         this.unlockRequests = data.unlock_requests || [];
+        this.informationChangeRequests = data.information_change_requests || [];
       } catch (err) {
         this.error = err.message || 'Không tải được dữ liệu.';
       } finally {
@@ -1056,6 +1159,50 @@ export default {
         this.rejectError = err.message || 'Từ chối không thành công.';
       } finally {
         this.rejecting = false;
+      }
+    },
+
+    // ── Approve / Reject Information Change ──
+    async handleApproveInfo(req) {
+      if (!confirm('Duyệt yêu cầu thay đổi thông tin này? Tên, SĐT, mô tả và album ảnh cụm sân sẽ được cập nhật ngay.')) return;
+      this.processingInfoId = req.id;
+      try {
+        const res = await adminVenueClusterService.approveInformationChange(this.cluster.id, req.id);
+        const idx = this.informationChangeRequests.findIndex((r) => r.id === req.id);
+        if (idx !== -1) this.informationChangeRequests.splice(idx, 1, res.request);
+        this.showMsg('Duyệt yêu cầu thành công. Thông tin đã được cập nhật.', 'msg-success');
+        await this.loadDetail();
+      } catch (err) {
+        this.showMsg(err.message || 'Duyệt không thành công.', 'msg-error');
+      } finally {
+        this.processingInfoId = null;
+      }
+    },
+    openRejectInfoModal(req) {
+      this.rejectInfoTarget = req;
+      this.rejectInfoReason = '';
+      this.rejectInfoError = '';
+    },
+    closeRejectInfoModal() {
+      this.rejectInfoTarget = null;
+    },
+    async handleRejectInfo() {
+      this.rejectingInfo = true;
+      this.rejectInfoError = '';
+      try {
+        const res = await adminVenueClusterService.rejectInformationChange(
+          this.cluster.id,
+          this.rejectInfoTarget.id,
+          { status_reason: this.rejectInfoReason },
+        );
+        const idx = this.informationChangeRequests.findIndex((r) => r.id === this.rejectInfoTarget.id);
+        if (idx !== -1) this.informationChangeRequests.splice(idx, 1, res.request);
+        this.closeRejectInfoModal();
+        this.showMsg('Đã từ chối yêu cầu.', 'msg-success');
+      } catch (err) {
+        this.rejectInfoError = err.message || 'Từ chối không thành công.';
+      } finally {
+        this.rejectingInfo = false;
       }
     },
 
