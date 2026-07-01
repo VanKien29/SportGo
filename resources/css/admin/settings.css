@@ -4,17 +4,17 @@
 }
 
 .settings-card {
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-lg);
-  background: var(--admin-surface);
-  box-shadow: var(--admin-shadow-card);
-  overflow: hidden;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .settings-card-header {
-  padding: 20px 24px;
-  border-b: 1px solid var(--admin-border-soft);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent);
+  padding: 16px 0;
+  border-bottom: 1px solid var(--admin-border-soft);
+  background: transparent;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -27,7 +27,7 @@
 }
 
 .settings-card-content {
-  padding: 24px;
+  padding: 20px 0;
 }
 
 /* Theme Configuration grid */
@@ -261,57 +261,178 @@
 }
 
 .sidebar-card-preview {
-  height: 100px;
-  border-radius: var(--admin-radius);
-  background: var(--admin-bg);
+  height: 120px;
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-bg-soft);
   border: 1px solid var(--admin-border-soft);
-  position: relative;
+  display: flex;
   overflow: hidden;
   margin-bottom: 12px;
 }
 
-.one-level-preview .preview-sidebar-line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 25px;
+/* One Level Preview */
+.one-level-preview .preview-sidebar {
+  width: 55px;
   background: var(--admin-surface);
   border-right: 1px solid var(--admin-border-soft);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 6px;
+  gap: 8px;
 }
 
-.two-level-preview .preview-rail-line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 12px;
+.preview-logo {
+  height: 6px;
+  width: 20px;
+  background: var(--admin-border);
+  border-radius: 1px;
+  margin-bottom: 4px;
+}
+
+.preview-menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.preview-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px;
+  border-radius: 3px;
+}
+
+.preview-menu-item.active {
+  background: var(--admin-primary-soft);
+}
+
+.preview-icon {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--admin-muted);
+  flex-shrink: 0;
+}
+
+.preview-menu-item.active .preview-icon {
+  background: var(--admin-primary);
+}
+
+.preview-text {
+  width: 22px;
+  height: 4px;
+  background: var(--admin-border);
+  border-radius: 1px;
+}
+
+.preview-menu-item.active .preview-text {
+  background: var(--admin-primary);
+}
+
+/* Two Level Preview */
+.two-level-preview .preview-rail {
+  width: 20px;
   background: #09090b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.two-level-preview .preview-sidebar-line.second {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 12px;
-  width: 25px;
+.preview-rail-logo {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--admin-primary);
+}
+
+.preview-rail-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  align-items: center;
+}
+
+.preview-rail-item {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: #27272a;
+}
+
+.preview-rail-item.active {
+  background: var(--admin-primary);
+}
+
+.two-level-preview .preview-sub-sidebar {
+  width: 45px;
   background: var(--admin-surface);
   border-right: 1px solid var(--admin-border-soft);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 6px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.preview-content-box {
-  position: absolute;
-  top: 10px;
-  left: 45px;
-  right: 10px;
-  bottom: 10px;
+.preview-sub-title {
+  height: 4px;
+  width: 18px;
+  background: var(--admin-muted);
+  border-radius: 1px;
+  margin-bottom: 4px;
+}
+
+.preview-sub-items {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.preview-sub-item {
+  height: 4px;
+  width: 24px;
+  background: var(--admin-border);
+  border-radius: 1px;
+}
+
+.preview-sub-item.active {
+  background: var(--admin-primary);
+  width: 28px;
+}
+
+/* Common Content Preview Area */
+.preview-content {
+  flex: 1;
+  background: var(--admin-bg-soft);
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 6px;
+}
+
+.preview-header {
+  height: 8px;
   background: var(--admin-surface);
-  border-radius: 4px;
   border: 1px solid var(--admin-border-soft);
+  border-radius: 2px;
 }
 
-.two-level-preview .preview-content-box {
-  left: 48px;
+.preview-body {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.preview-card-item {
+  flex: 1;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 3px;
 }
 
 .sidebar-card-info h3 {

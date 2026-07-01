@@ -19,11 +19,34 @@
             @click="sidebarStyle = 'one-level'"
           >
             <div class="sidebar-card-preview one-level-preview">
-              <div class="preview-sidebar-line"></div>
-              <div class="preview-content-box"></div>
+              <div class="preview-sidebar">
+                <div class="preview-logo"></div>
+                <div class="preview-menu-items">
+                  <div class="preview-menu-item active">
+                    <div class="preview-icon"></div>
+                    <div class="preview-text"></div>
+                  </div>
+                  <div class="preview-menu-item">
+                    <div class="preview-icon"></div>
+                    <div class="preview-text"></div>
+                  </div>
+                  <div class="preview-menu-item">
+                    <div class="preview-icon"></div>
+                    <div class="preview-text"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="preview-content">
+                <div class="preview-header"></div>
+                <div class="preview-body">
+                  <div class="preview-card-item"></div>
+                  <div class="preview-card-item"></div>
+                </div>
+              </div>
             </div>
             <div class="sidebar-card-info">
               <h3>Sidebar đơn cấp</h3>
+              <p>Hiển thị danh mục trực tiếp trên một thanh điều hướng duy nhất</p>
             </div>
           </div>
 
@@ -33,12 +56,33 @@
             @click="sidebarStyle = 'two-level'"
           >
             <div class="sidebar-card-preview two-level-preview">
-              <div class="preview-rail-line"></div>
-              <div class="preview-sidebar-line second"></div>
-              <div class="preview-content-box"></div>
+              <div class="preview-rail">
+                <div class="preview-rail-logo"></div>
+                <div class="preview-rail-items">
+                  <div class="preview-rail-item active"></div>
+                  <div class="preview-rail-item"></div>
+                  <div class="preview-rail-item"></div>
+                </div>
+              </div>
+              <div class="preview-sub-sidebar">
+                <div class="preview-sub-title"></div>
+                <div class="preview-sub-items">
+                  <div class="preview-sub-item active"></div>
+                  <div class="preview-sub-item"></div>
+                  <div class="preview-sub-item"></div>
+                </div>
+              </div>
+              <div class="preview-content">
+                <div class="preview-header"></div>
+                <div class="preview-body">
+                  <div class="preview-card-item"></div>
+                  <div class="preview-card-item"></div>
+                </div>
+              </div>
             </div>
             <div class="sidebar-card-info">
               <h3>Sidebar hai cấp</h3>
+              <p>Chia làm thanh chính (Rail) chứa icon và thanh phụ hiển thị menu chi tiết</p>
             </div>
           </div>
         </div>
@@ -62,6 +106,7 @@
               :key="preset.id"
               class="preset-card"
               :class="{ active: selectedPresetId === preset.id }"
+              :title="preset.name"
               @click="selectPreset(preset)"
             >
               <span class="preset-color-dot" :style="{ background: preset.color }"></span>
@@ -174,16 +219,7 @@
               <!-- Color Name -->
               <div class="figma-color-name">{{ color.label }}</div>
 
-              <!-- Hex Input -->
-              <div class="figma-hex-input-wrapper">
-                <input
-                  type="text"
-                  v-model="theme[activeModeTab][color.key]"
-                  class="figma-hex-text-input"
-                  placeholder="#000000"
-                  @input="selectedPresetId = 'custom'"
-                />
-              </div>
+
             </div>
           </div>
 
@@ -760,69 +796,78 @@ export default {
 
 /* Theme Presets Grid */
 .presets-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 20px;
 }
 
 .preset-card {
   position: relative;
-  border: 1px solid var(--admin-border-soft);
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--admin-border-soft);
   border-radius: var(--admin-radius);
-  padding: 8px 12px;
   cursor: pointer;
   background: var(--admin-surface);
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: all 120ms ease;
+  justify-content: center;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
+  box-sizing: border-box;
 }
 
 .preset-card:hover {
   border-color: var(--admin-primary);
-  background: var(--admin-hover);
+  transform: scale(1.08);
 }
 
 .preset-card.active {
   border-color: var(--admin-primary);
-  background: var(--admin-primary-soft);
-  font-weight: 600;
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+  transform: scale(1.04);
 }
 
 .preset-color-dot {
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
+  transition: transform 150ms ease;
+}
+
+.preset-card.active .preset-color-dot {
+  transform: scale(1.1);
 }
 
 .preset-name {
-  font-size: 12px;
-  color: var(--admin-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: none;
 }
 
 .delete-preset-btn {
-  background: transparent;
-  border: 0;
-  color: var(--admin-faint);
-  font-size: 16px;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--admin-danger);
+  color: #ffffff;
+  font-size: 10px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--admin-surface);
   cursor: pointer;
-  margin-left: auto;
-  padding: 0 4px;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
-  transition: color 120ms ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 10;
+  padding: 0;
 }
 
-.delete-preset-btn:hover {
-  color: var(--admin-danger);
+.preset-card:hover .delete-preset-btn {
+  display: flex;
 }
 
 /* Radius selector */
@@ -833,7 +878,12 @@ export default {
 }
 
 .radius-btn {
-  padding: 6px 12px;
+  height: 36px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
   background: var(--admin-surface);
@@ -872,6 +922,11 @@ export default {
   color: var(--admin-muted);
   cursor: pointer;
   transition: all 120ms ease;
+  height: 36px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tab-btn:hover {
@@ -885,34 +940,44 @@ export default {
 
 /* Figma Color Rows Styles */
 .figma-color-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--admin-surface);
-  padding: 8px;
-  border-radius: var(--admin-radius);
-  border: 1px solid var(--admin-border-soft);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  border: none;
   margin-bottom: 20px;
+}
+
+@media (max-width: 576px) {
+  .figma-color-rows {
+    grid-template-columns: 1fr;
+  }
 }
 
 .figma-color-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 6px 8px;
-  border-radius: var(--admin-radius);
-  transition: background-color 100ms ease;
+  gap: 10px;
+  padding: 6px 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-sizing: border-box;
+  height: 38px;
+  transition: all 120ms ease;
 }
 
 .figma-color-row:hover {
-  background: var(--admin-hover);
+  opacity: 0.8;
 }
 
 .figma-color-swatch-wrapper {
   position: relative;
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   border: 1px solid var(--admin-border-soft);
   cursor: pointer;
   flex-shrink: 0;
@@ -921,36 +986,43 @@ export default {
 .figma-color-indicator {
   width: 100%;
   height: 100%;
+  border-radius: 5px;
 }
 
 .figma-color-name {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--admin-text);
   flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .figma-hex-input-wrapper {
-  width: 80px;
+  width: 86px;
 }
 
 .figma-hex-text-input {
-  width: 100%;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 4px 6px;
-  font-family: monospace;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--admin-text);
-  text-transform: uppercase;
-  text-align: right;
-  transition: all 120ms ease;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: var(--admin-bg-soft) !important;
+  border: 1px solid var(--admin-border-soft) !important;
+  border-radius: 4px !important;
+  padding: 4px 6px !important;
+  font-family: monospace !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: var(--admin-text) !important;
+  text-transform: uppercase !important;
+  text-align: center !important;
+  transition: all 120ms ease !important;
+  height: 26px !important;
+  min-height: auto !important;
 }
 
 .figma-hex-text-input:hover {
-  border-color: var(--admin-border-soft);
+  border-color: var(--admin-muted);
 }
 
 .figma-hex-text-input:focus {
@@ -1099,15 +1171,18 @@ export default {
 /* Save Preset Inline */
 .save-preset-inline {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   margin-top: 8px;
   padding-top: 16px;
+  border-top: 1px solid var(--admin-border-soft);
 }
 
 .theme-name-input {
   flex: 1;
-  padding: 6px 12px;
+  height: 36px;
+  padding: 0 12px;
+  box-sizing: border-box;
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
   background: var(--admin-surface);
@@ -1122,15 +1197,20 @@ export default {
 }
 
 .save-preset-btn {
-  padding: 7px 14px;
+  height: 36px;
+  padding: 0 16px;
   font-size: 12px;
   white-space: nowrap;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Live Preview Panel */
 .preview-container {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
