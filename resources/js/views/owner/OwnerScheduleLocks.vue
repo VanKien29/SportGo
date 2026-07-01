@@ -447,10 +447,14 @@
             <summary class="locks-summary">
                 <div>
                     <strong>Khoảng đã khóa trong ngày</strong>
+<<<<<<< HEAD
+                    <span>{{ locks.length }} khoảng · {{ date(form.start_date) }}</span>
+=======
                     <span
                         >{{ locks.length }} khoảng ·
                         {{ date(form.start_date) }}</span
                     >
+>>>>>>> origin/owner-refund-withdrawal-requests
                 </div>
                 <button
                     v-if="locks.length"
