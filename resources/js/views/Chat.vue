@@ -1,10 +1,18 @@
 <template>
-  <div class="chat-page bg-zinc-950 min-h-screen text-zinc-100 flex flex-col font-sans">
+  <div
+    :class="['chat-page flex flex-col font-sans', isAdmin ? 'admin-chat-page admin-chat' : 'bg-zinc-950 min-h-screen text-zinc-100']"
+    :data-admin-chat="isAdmin ? '' : undefined"
+  >
     <!-- Navbar -->
-    <PublicNavbar theme="dark" />
+    <PublicNavbar v-if="!isAdmin" theme="dark" />
 
     <!-- Chat Workspace -->
-    <div class="flex-1 flex overflow-hidden border-t border-zinc-800 h-[calc(100vh-64px)] relative">
+    <div 
+      :class="[
+        'flex-1 flex overflow-hidden relative',
+        isAdmin ? 'bg-zinc-950 admin-chat-workspace' : 'border-t border-zinc-800 h-[calc(100vh-64px)]'
+      ]"
+    >
       
       <!-- Left Sidebar: Chat List -->
       <div 
@@ -13,55 +21,6 @@
           mobileShowChat ? 'hidden' : 'flex'
         ]"
       >
-        <!-- Search Area -->
-        <div class="p-4 border-b border-zinc-800 flex flex-col gap-3">
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg class="h-5 w-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </span>
-            <input 
-              v-model="searchQuery"
-              @input="handleSearch"
-              type="text" 
-              placeholder="Tìm kiếm người dùng..." 
-              class="w-full pl-10 pr-4 py-2 bg-zinc-950/60 border border-zinc-800 rounded-xl text-sm placeholder-zinc-500 text-zinc-100 focus:outline-none focus:border-zinc-700 transition-all focus:ring-1 focus:ring-zinc-700"
-            />
-            <button 
-              v-if="searchQuery" 
-              @click="clearSearch"
-              class="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-500 hover:text-zinc-300"
-            >
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <!-- Tabs Category Filters -->
-          <div v-if="!searchQuery" class="flex p-0.5 bg-zinc-950/80 rounded-xl border border-zinc-800">
-            <button 
-              @click="selectedTab = 'all'"
-              :class="['flex-1 py-1.5 text-xs font-medium rounded-lg transition-all', selectedTab === 'all' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200']"
-            >
-              Tất cả
-            </button>
-            <button 
-              @click="selectedTab = 'direct'"
-              :class="['flex-1 py-1.5 text-xs font-medium rounded-lg transition-all', selectedTab === 'direct' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200']"
-            >
-              Trực tiếp
-            </button>
-            <button 
-              @click="selectedTab = 'venue_contact'"
-              :class="['flex-1 py-1.5 text-xs font-medium rounded-lg transition-all', selectedTab === 'venue_contact' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200']"
-            >
-              Chủ sân
-            </button>
-          </div>
-        </div>
-
         <!-- Search Results List -->
         <div v-if="searchQuery" class="flex-1 overflow-y-auto divide-y divide-zinc-800/40">
           <div v-if="searching" class="p-4 text-center text-xs text-zinc-500">
@@ -91,11 +50,9 @@
           <div v-if="loadingConversations && conversations.length === 0" class="p-4 text-center text-xs text-zinc-500">
             Đang tải hộp thư...
           </div>
-          <div v-else-if="filteredConversations.length === 0" class="p-8 text-center text-zinc-500 flex flex-col items-center gap-3">
-            <svg class="h-12 w-12 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            <div class="text-xs">Không có cuộc trò chuyện nào</div>
+          <div v-else-if="filteredConversations.length === 0" class="chat-empty-sidebar">
+            <div class="chat-empty-sidebar__title">Chưa có cuộc trò chuyện</div>
+            <div class="chat-empty-sidebar__sub">Tìm kiếm thành viên để bắt đầu nhắn tin</div>
           </div>
           
           <button 
@@ -143,16 +100,9 @@
         ]"
       >
         <!-- No Active Conversation state -->
-        <div v-if="!activeConversation" class="flex-1 flex flex-col items-center justify-center p-8 text-zinc-500 bg-zinc-950">
-          <div class="p-6 bg-zinc-900/30 rounded-full border border-zinc-800/40 mb-4 shadow-xl">
-            <svg class="h-16 w-16 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          </div>
-          <h3 class="text-sm font-medium text-zinc-300 mb-1">Hãy chọn một cuộc trò chuyện</h3>
-          <p class="text-xs text-zinc-600 text-center max-w-xs leading-relaxed">
-            Chọn từ danh sách bên trái hoặc tìm kiếm thành viên mới để bắt đầu trò chuyện giống Telegram.
-          </p>
+        <div v-if="!activeConversation" class="chat-empty-main">
+          <div class="chat-empty-main__title">Chọn cuộc trò chuyện</div>
+          <div class="chat-empty-main__sub">Chọn từ danh sách bên trái hoặc tìm kiếm thành viên để bắt đầu nhắn tin</div>
         </div>
 
         <!-- Active Conversation Area -->
@@ -354,6 +304,9 @@ export default {
     },
     groupedMessages() {
       return this.groupMessages(this.messages);
+    },
+    isAdmin() {
+      return this.$route.path.startsWith('/admin');
     }
   },
   created() {
@@ -662,12 +615,154 @@ export default {
 </script>
 
 <style scoped>
-.chat-page {
+.chat-page:not(.admin-chat-page) {
   height: 100vh;
   overflow: hidden;
 }
 
-/* Custom Scrollbar Styles for elegant UI */
+.admin-chat-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.admin-chat-workspace {
+  flex: 1;
+  min-height: 0;
+}
+
+/* =============================================
+   Admin Theme Overrides
+   Map all dark zinc colors → admin CSS variables
+   so the chat respects light/dark theme config.
+   ============================================= */
+.admin-chat,
+.admin-chat * {
+  color: var(--admin-text);
+}
+
+/* Main backgrounds */
+.admin-chat .bg-zinc-950,
+.admin-chat .bg-zinc-900\/30,
+.admin-chat .bg-zinc-900\/40,
+.admin-chat .bg-zinc-900\/50 {
+  background-color: var(--admin-surface) !important;
+}
+
+/* Sidebar panel */
+.admin-chat .w-full.md\:w-\[360px\] {
+  background-color: var(--admin-surface-muted) !important;
+  border-right-color: var(--admin-border) !important;
+}
+
+/* All border-zinc-800 */
+.admin-chat .border-zinc-800,
+.admin-chat .border-zinc-700\/50 {
+  border-color: var(--admin-border) !important;
+}
+
+/* Dividers */
+.admin-chat .divide-zinc-800\/30 > *,
+.admin-chat .divide-zinc-800\/40 > * {
+  border-color: var(--admin-border-soft) !important;
+}
+
+/* Input fields */
+.admin-chat input {
+  background-color: var(--admin-bg) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+.admin-chat input::placeholder {
+  color: var(--admin-faint) !important;
+}
+.admin-chat input:focus {
+  border-color: var(--admin-primary) !important;
+  box-shadow: 0 0 0 2px var(--admin-primary-ring) !important;
+}
+
+/* Tabs bar */
+.admin-chat .bg-zinc-950\/80 {
+  background-color: var(--admin-bg) !important;
+}
+.admin-chat .bg-zinc-800 {
+  background-color: var(--admin-primary-soft) !important;
+}
+
+/* Tab active text */
+.admin-chat .bg-zinc-800.text-white {
+  color: var(--admin-primary-dark) !important;
+}
+
+/* Muted / secondary text */
+.admin-chat .text-zinc-400,
+.admin-chat .text-zinc-500,
+.admin-chat .text-zinc-600 {
+  color: var(--admin-faint) !important;
+}
+.admin-chat .text-zinc-100,
+.admin-chat .text-zinc-200,
+.admin-chat .text-zinc-300 {
+  color: var(--admin-text) !important;
+}
+
+/* Avatars */
+.admin-chat .bg-zinc-800,
+.admin-chat .bg-gradient-to-tr.from-zinc-800.to-zinc-700 {
+  background: var(--admin-surface-muted) !important;
+  background-color: var(--admin-surface-muted) !important;
+  color: var(--admin-muted) !important;
+}
+
+/* Conversation hover + active */
+.admin-chat .hover\:bg-zinc-800\/20:hover {
+  background-color: var(--admin-hover) !important;
+}
+.admin-chat .bg-zinc-800\/40 {
+  background-color: var(--admin-primary-soft) !important;
+}
+
+/* Messages area */
+.admin-chat .p-4.space-y-6 {
+  background-color: var(--admin-bg-soft) !important;
+}
+
+/* Date badge in messages */
+.admin-chat .bg-zinc-900\/90 {
+  background-color: var(--admin-surface) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-faint) !important;
+}
+
+/* Incoming message bubble */
+.admin-chat .bg-zinc-900.text-zinc-200 {
+  background-color: var(--admin-surface) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+/* Attachment button */
+.admin-chat .bg-zinc-900.border.border-zinc-800 {
+  background-color: var(--admin-surface-muted) !important;
+  border-color: var(--admin-border) !important;
+}
+.admin-chat .hover\:bg-zinc-800\/50:hover {
+  background-color: var(--admin-hover) !important;
+}
+
+/* Empty state icons */
+.admin-chat .text-zinc-700 {
+  color: var(--admin-border) !important;
+}
+
+/* More button */
+.admin-chat .hover\:bg-zinc-800\/30:hover {
+  background-color: var(--admin-hover) !important;
+}
+
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -675,10 +770,128 @@ export default {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--admin-border);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--admin-border-soft);
 }
+
+/* ── Empty States ────────────────────────────── */
+.chat-empty-sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 40px 20px;
+  text-align: center;
+}
+.chat-empty-sidebar__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-muted, #71717a);
+}
+.chat-empty-sidebar__sub {
+  font-size: 11px;
+  color: var(--admin-faint, #52525b);
+  line-height: 1.5;
+}
+
+.chat-empty-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 32px;
+  text-align: center;
+  background-color: var(--admin-bg-soft, #09090b);
+}
+.chat-empty-main__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--admin-text, #f4f4f5);
+}
+.chat-empty-main__sub {
+  font-size: 12px;
+  color: var(--admin-faint, #71717a);
+  max-width: 280px;
+  line-height: 1.6;
+}
+</style>
+
+<!-- Global (non-scoped) admin theme overrides — use [data-admin-chat] so it doesn't leak -->
+<style>
+/* All backgrounds */
+[data-admin-chat] { background-color: var(--admin-bg) !important; color: var(--admin-text) !important; }
+[data-admin-chat] .bg-zinc-950 { background-color: var(--admin-surface) !important; }
+[data-admin-chat] .bg-zinc-900\/50,
+[data-admin-chat] .bg-zinc-900\/40,
+[data-admin-chat] .bg-zinc-900\/30,
+[data-admin-chat] .bg-zinc-900\/90 { background-color: var(--admin-surface-muted) !important; }
+[data-admin-chat] .bg-zinc-950\/60,
+[data-admin-chat] .bg-zinc-950\/80 { background-color: var(--admin-bg) !important; }
+
+/* Sidebar background */
+[data-admin-chat] .backdrop-blur-md { backdrop-filter: none !important; background-color: var(--admin-surface-muted) !important; }
+
+/* Borders */
+[data-admin-chat] .border-zinc-800 { border-color: var(--admin-border) !important; }
+[data-admin-chat] .border-zinc-700\/50 { border-color: var(--admin-border-soft) !important; }
+[data-admin-chat] .divide-zinc-800\/30 > * + * { border-color: var(--admin-border-soft) !important; }
+[data-admin-chat] .divide-zinc-800\/40 > * + * { border-color: var(--admin-border) !important; }
+
+/* Text colors */
+[data-admin-chat] .text-zinc-100,
+[data-admin-chat] .text-zinc-200,
+[data-admin-chat] .text-zinc-300 { color: var(--admin-text) !important; }
+[data-admin-chat] .text-zinc-400,
+[data-admin-chat] .text-zinc-500 { color: var(--admin-faint) !important; }
+[data-admin-chat] .text-zinc-600,
+[data-admin-chat] .text-zinc-700 { color: var(--admin-border) !important; }
+
+/* Avatars and icon containers */
+[data-admin-chat] .bg-zinc-800 { background-color: var(--admin-surface-muted) !important; color: var(--admin-muted) !important; }
+[data-admin-chat] .from-zinc-800 { --tw-gradient-from: var(--admin-surface-muted) !important; }
+[data-admin-chat] .to-zinc-700 { --tw-gradient-to: var(--admin-border-soft) !important; }
+
+/* Hover states */
+[data-admin-chat] .hover\:bg-zinc-800\/20:hover { background-color: var(--admin-hover) !important; }
+[data-admin-chat] .hover\:bg-zinc-800\/30:hover { background-color: var(--admin-hover) !important; }
+[data-admin-chat] .hover\:bg-zinc-800\/50:hover { background-color: var(--admin-hover) !important; }
+[data-admin-chat] .hover\:text-zinc-200:hover,
+[data-admin-chat] .hover\:text-zinc-300:hover { color: var(--admin-text) !important; }
+
+/* Active conversation row */
+[data-admin-chat] .bg-zinc-800\/40 { background-color: var(--admin-primary-soft) !important; }
+
+/* Tab switcher */
+[data-admin-chat] .bg-zinc-800.text-white { background-color: var(--admin-primary-soft) !important; color: var(--admin-primary-dark) !important; }
+
+/* Inputs */
+[data-admin-chat] input[type="text"] {
+  background-color: var(--admin-bg) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+[data-admin-chat] input[type="text"]::placeholder { color: var(--admin-faint) !important; }
+[data-admin-chat] input[type="text"]:focus {
+  border-color: var(--admin-primary) !important;
+  box-shadow: 0 0 0 2px var(--admin-primary-ring) !important;
+}
+
+/* Messages feed background */
+[data-admin-chat] .space-y-6 { background-color: var(--admin-bg-soft) !important; }
+
+/* Incoming message bubble */
+[data-admin-chat] .rounded-bl-none.border.border-zinc-800 { background-color: var(--admin-surface) !important; border-color: var(--admin-border) !important; color: var(--admin-text) !important; }
+
+/* More / attachment buttons */
+[data-admin-chat] .bg-zinc-900 { background-color: var(--admin-surface-muted) !important; }
+
+/* Scrollbar for admin */
+[data-admin-chat] ::-webkit-scrollbar-thumb { background: var(--admin-border); }
+[data-admin-chat] ::-webkit-scrollbar-thumb:hover { background: var(--admin-faint); }
 </style>

@@ -9,7 +9,6 @@
         <div class="nav-links">
           <router-link to="/" class="nav-link" exact-active-class="active-link">Trang chủ</router-link>
           <router-link to="/booking" class="nav-link" active-class="active-link" v-if="user && user.role === 'user'">Lịch & Đặt sân</router-link>
-          <router-link to="/chat" class="nav-link" active-class="active-link" v-if="user">Trò chuyện</router-link>
         </div>
       </div>
 

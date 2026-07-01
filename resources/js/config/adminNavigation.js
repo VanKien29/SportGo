@@ -157,6 +157,12 @@ export const adminNavigationSections = [
         to: '/admin/complaints',
         activeNames: ['admin-complaints'],
       },
+      {
+        label: 'Hộp thư hỗ trợ',
+        icon: 'messageSquare',
+        to: '/admin/chat',
+        activeNames: ['admin-chat'],
+      },
     ],
   },
 ];
@@ -182,6 +188,7 @@ export const adminRouteTitles = {
   'admin-policy-detail': 'Chi tiết chính sách',
   'admin-reports': 'Xử lý báo cáo',
   'admin-complaints': 'Xử lý khiếu nại',
+  'admin-chat': 'Hộp thư hỗ trợ',
   'admin-court-types': 'Quản lý loại sân',
   'admin-amenities': 'Quản lý tiện ích',
   'admin-venue-clusters': 'Quản lý cụm sân',

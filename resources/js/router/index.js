@@ -275,6 +275,11 @@ const routes = [
                     import("../views/admin/AdminPostDetail.vue"),
                 meta: { hideFloatingBack: true },
             },
+            {
+                path: "chat",
+                name: "admin-chat",
+                component: () => import("../views/Chat.vue"),
+            },
             { path: "", redirect: { name: "admin-dashboard" } },
         ],
     },
