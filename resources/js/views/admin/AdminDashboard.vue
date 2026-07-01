@@ -1,12 +1,12 @@
 <template>
-    <section class="admin-dashboard">
+    <section class="admin-dashboard accounting-dashboard">
         <section class="dashboard-hero">
             <div>
                 <span class="eyebrow">SportGo Admin</span>
-                <h1>Bảng điều khiển</h1>
+                <h1>Kế toán hệ thống</h1>
                 <p>
-                    Theo dõi doanh thu hệ thống, tiền booking thu hộ và các
-                    khoản phí cần xử lý.
+                    Theo dõi tiền hệ thống đang giữ, doanh thu thật, công nợ
+                    chủ sân/khách hàng và các dòng tiền cần đối soát.
                 </p>
             </div>
             <div class="hero-actions">
@@ -15,11 +15,7 @@
                     <option value="month">Tháng này</option>
                     <option value="year">Năm nay</option>
                 </select>
-                <button
-                    class="ghost-button"
-                    type="button"
-                    @click="loadDashboard"
-                >
+                <button class="ghost-button" type="button" @click="loadDashboard">
                     <AppIcon name="refresh" size="17" />
                     <span>Tải lại</span>
                 </button>
@@ -28,7 +24,7 @@
 
         <div v-if="error" class="alert error">{{ error }}</div>
 
-        <section class="kpi-grid">
+        <section class="kpi-grid accounting-kpis">
             <article
                 v-for="item in primaryMetrics"
                 :key="item.label"
@@ -41,19 +37,17 @@
             </article>
         </section>
 
-        <section class="chart-layout">
-            <article class="dashboard-panel chart-panel trend-panel">
+        <section class="chart-layout accounting-charts">
+            <article class="dashboard-panel chart-panel">
                 <div class="panel-head">
                     <div>
                         <span class="eyebrow">Dòng tiền</span>
-                        <h2>Doanh thu và chi phí</h2>
+                        <h2>Tiền vào / tiền ra</h2>
                     </div>
-                    <RouterLink to="/admin/platform-fee-ledgers"
-                        >Xem phí nền tảng</RouterLink
-                    >
+                    <span class="period-label">{{ periodLabel }}</span>
                 </div>
                 <div class="chart-wrap">
-                    <canvas ref="financeComboChart"></canvas>
+                    <canvas ref="cashFlowChart"></canvas>
                 </div>
             </article>
 
@@ -61,242 +55,274 @@
                 <div class="panel-head">
                     <div>
                         <span class="eyebrow">Cơ cấu</span>
-                        <h2>Tiền trong kỳ</h2>
+                        <h2>Tổng tiền đang quản lý</h2>
                     </div>
-                    <span class="period-label">{{
-                        finance?.period_label || "Kỳ hiện tại"
-                    }}</span>
                 </div>
                 <div class="chart-wrap compact">
-                    <canvas ref="financeDonutChart"></canvas>
+                    <canvas ref="compositionChart"></canvas>
                 </div>
             </article>
         </section>
 
-        <section class="bottom-layout">
-            <article class="dashboard-panel">
-                <div class="panel-head">
-                    <div>
-                        <span class="eyebrow">Cần xử lý</span>
-                        <h2>Việc ưu tiên</h2>
-                    </div>
-                </div>
-                <div class="work-list">
-                    <RouterLink
-                        v-for="item in actionItems"
-                        :key="item.label"
-                        class="work-row"
-                        :to="item.to"
-                    >
-                        <span class="work-icon"
-                            ><AppIcon :name="item.icon" size="18"
-                        /></span>
-                        <span>
-                            <strong>{{ item.label }}</strong>
-                            <small>{{ item.caption }}</small>
-                        </span>
-                        <b>{{ item.value }}</b>
-                    </RouterLink>
-                </div>
-            </article>
+        <section class="dashboard-panel accounting-summary">
+            <div class="summary-row">
+                <span>Booking hệ thống thu hộ</span>
+                <strong>{{ money(overview.booking_collected_total) }}</strong>
+            </div>
+            <div class="summary-row">
+                <span>Tiền chi rút ví</span>
+                <strong>{{ money(overview.withdrawal_total) }}</strong>
+            </div>
+            <div class="summary-row">
+                <span>Tiền trừ voucher hệ thống</span>
+                <strong>{{ money(overview.voucher_cost_total) }}</strong>
+            </div>
+            <div class="summary-row">
+                <span>Phí nền tảng đã thu</span>
+                <strong>{{ money(overview.platform_fee_revenue_total) }}</strong>
+            </div>
+            <div class="summary-row">
+                <span>Thanh toán gói hội viên</span>
+                <strong>{{ money(overview.membership_revenue_total) }}</strong>
+            </div>
+        </section>
 
-            <article class="dashboard-panel">
-                <div class="panel-head">
-                    <div>
-                        <span class="eyebrow">Truy cập nhanh</span>
-                        <h2>Quản trị</h2>
-                    </div>
+        <section class="dashboard-panel accounting-ledger">
+            <div class="ledger-head">
+                <div>
+                    <span class="eyebrow">Đối soát</span>
+                    <h2>{{ activeTable.title }}</h2>
+                    <p>{{ activeTable.caption }}</p>
                 </div>
-                <div class="quick-grid">
-                    <RouterLink
-                        v-for="item in quickLinks"
-                        :key="item.to"
-                        class="quick-link"
-                        :to="item.to"
+                <div class="ledger-tabs">
+                    <button
+                        v-for="tab in tableTabs"
+                        :key="tab.key"
+                        type="button"
+                        :class="{ active: currentTab === tab.key }"
+                        @click="currentTab = tab.key"
                     >
-                        <AppIcon :name="item.icon" size="18" />
-                        <span>{{ item.label }}</span>
-                    </RouterLink>
+                        {{ tab.label }}
+                    </button>
                 </div>
-            </article>
+            </div>
+
+            <div class="accounting-table-wrap">
+                <table class="accounting-table">
+                    <thead>
+                        <tr>
+                            <th
+                                v-for="column in activeTable.columns"
+                                :key="column.key"
+                            >
+                                {{ column.label }}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-if="isLoading">
+                            <td :colspan="activeTable.columns.length">
+                                Đang tải dữ liệu kế toán...
+                            </td>
+                        </tr>
+                        <tr v-else-if="!activeRows.length">
+                            <td :colspan="activeTable.columns.length">
+                                Chưa có dữ liệu trong kỳ này.
+                            </td>
+                        </tr>
+                        <tr v-for="row in activeRows" v-else :key="row.id">
+                            <td
+                                v-for="column in activeTable.columns"
+                                :key="column.key"
+                                :class="{ amount: column.type === 'money' }"
+                            >
+                                {{ formatCell(row, column) }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
     </section>
 </template>
 
 <script>
-import { api } from "../../services/api.js";
-import { getPlatformFeeDashboardMetrics } from "../../services/platformFeeLedger.service.js";
-import AppIcon from "../../components/AppIcon.vue";
 import Chart from "chart.js/auto";
+import AppIcon from "../../components/AppIcon.vue";
+import { api } from "../../services/api.js";
 
 export default {
     name: "AdminDashboard",
     components: { AppIcon },
     data() {
         return {
-            stats: {
-                finance: null,
-            },
             financePeriod: "month",
-            financeComboChart: null,
-            financeDonutChart: null,
-            feeMetrics: {
-                pending: 0,
-                overdue: 0,
-                pending_amount: 0,
-                overdue_amount: 0,
-                paid_this_month: 0,
-                email_failed: 0,
-            },
+            accounting: null,
             isLoading: true,
             error: null,
-            quickLinks: [
+            currentTab: "booking_ledgers",
+            cashFlowChart: null,
+            compositionChart: null,
+            tableTabs: [
                 {
-                    label: "Thanh toán booking",
-                    icon: "creditCard",
-                    to: "/admin/payments",
+                    key: "booking_ledgers",
+                    label: "Booking thu hộ",
+                    title: "Tổng hợp booking",
+                    caption: "Các khoản tiền booking online hệ thống đã nhận hộ chủ sân.",
+                    columns: [
+                        { key: "code", label: "Payment" },
+                        { key: "booking_code", label: "Booking" },
+                        { key: "customer", label: "Khách" },
+                        { key: "venue_cluster", label: "Cụm sân" },
+                        { key: "amount", label: "Số tiền", type: "money" },
+                        { key: "method", label: "Phương thức" },
+                        { key: "paid_at", label: "Paid at", type: "date" },
+                    ],
                 },
                 {
-                    label: "Hoàn tiền & rút tiền",
-                    icon: "creditCard",
-                    to: "/admin/finance-operations",
+                    key: "withdrawal_ledgers",
+                    label: "Yêu cầu rút",
+                    title: "Tổng hợp yêu cầu rút",
+                    caption: "Các khoản chi ra cho chủ sân và người dùng.",
+                    columns: [
+                        { key: "code", label: "Mã yêu cầu" },
+                        { key: "type", label: "Loại" },
+                        { key: "requester", label: "Người nhận" },
+                        { key: "scope", label: "Phạm vi" },
+                        { key: "amount", label: "Số tiền", type: "money" },
+                        { key: "status", label: "Trạng thái", type: "status" },
+                        { key: "requested_at", label: "Ngày yêu cầu", type: "date" },
+                    ],
                 },
                 {
+                    key: "owner_debts",
+                    label: "Công nợ chủ sân",
+                    title: "Công nợ chủ sân",
+                    caption: "Số tiền hệ thống còn đang giữ cho từng ví chủ sân.",
+                    columns: [
+                        { key: "owner", label: "Chủ sân" },
+                        { key: "venue_cluster", label: "Cụm sân" },
+                        { key: "available_balance", label: "Có thể rút", type: "money" },
+                        { key: "pending_balance", label: "Đang giữ", type: "money" },
+                        { key: "debt_total", label: "Tổng công nợ", type: "money" },
+                        { key: "total_withdrawn", label: "Đã chi", type: "money" },
+                    ],
+                },
+                {
+                    key: "customer_debts",
+                    label: "Công nợ khách",
+                    title: "Công nợ khách hàng",
+                    caption: "Số dư ví và số dư đang khóa của khách hàng.",
+                    columns: [
+                        { key: "customer", label: "Khách hàng" },
+                        { key: "contact", label: "Liên hệ" },
+                        { key: "balance", label: "Số dư", type: "money" },
+                        { key: "locked_balance", label: "Đang khóa", type: "money" },
+                        { key: "debt_total", label: "Tổng công nợ", type: "money" },
+                        { key: "status", label: "Trạng thái", type: "status" },
+                    ],
+                },
+                {
+                    key: "voucher_ledgers",
                     label: "Voucher hệ thống",
-                    icon: "tag",
-                    to: "/admin/vouchers",
+                    title: "Lịch sử trừ tiền voucher",
+                    caption: "Các khoản hệ thống bù voucher cho chủ sân.",
+                    columns: [
+                        { key: "code", label: "Mã" },
+                        { key: "amount", label: "Số tiền", type: "money" },
+                        { key: "balance_after", label: "Số dư sau", type: "money" },
+                        { key: "reference", label: "Tham chiếu" },
+                        { key: "description", label: "Mô tả" },
+                        { key: "transacted_at", label: "Thời gian", type: "date" },
+                    ],
                 },
                 {
-                    label: "Cụm sân",
-                    icon: "building",
-                    to: "/admin/venue-clusters",
+                    key: "revenue_ledgers",
+                    label: "Doanh thu",
+                    title: "Lịch sử cộng doanh thu",
+                    caption: "Phí nền tảng và thanh toán gói hội viên hệ thống.",
+                    columns: [
+                        { key: "label", label: "Nguồn thu" },
+                        { key: "source", label: "Đối tượng" },
+                        { key: "amount", label: "Số tiền", type: "money" },
+                        { key: "note", label: "Ghi chú" },
+                        { key: "paid_at", label: "Paid at", type: "date" },
+                    ],
                 },
             ],
         };
     },
     computed: {
-        finance() {
-            return this.stats.finance || null;
+        overview() {
+            return this.accounting?.overview || {};
         },
-        systemRevenue() {
-            return Number(this.finance?.revenue?.total || 0);
-        },
-        custodyTotal() {
-            return Number(this.finance?.revenue?.custody_total || 0);
-        },
-        expenseTotal() {
-            return Number(this.finance?.promotion_expenses?.total || 0);
-        },
-        netRevenue() {
-            return Number(
-                this.finance?.net_revenue ||
-                    this.systemRevenue - this.expenseTotal,
-            );
+        periodLabel() {
+            return this.accounting?.period_label || "Kỳ hiện tại";
         },
         primaryMetrics() {
             return [
                 {
-                    label: "Doanh thu hệ thống",
-                    value: this.loadingText(
-                        this.formatCurrency(this.systemRevenue),
-                    ),
-                    caption: "Phí nền tảng và khoản admin thực nhận",
-                    tone: "green",
+                    label: "Tiền hệ thống còn lại",
+                    value: this.loadingText(this.money(this.overview.system_cash_balance)),
+                    caption: "Tổng tiền quản lý trừ công nợ đang giữ",
+                    tone: Number(this.overview.system_cash_balance || 0) >= 0 ? "green" : "red",
                 },
                 {
-                    label: "Booking thu hộ",
-                    value: this.loadingText(
-                        this.formatCurrency(this.custodyTotal),
-                    ),
-                    caption: "Tiền của chủ sân, không tính vào doanh thu admin",
+                    label: "Doanh thu hệ thống",
+                    value: this.loadingText(this.money(this.overview.system_revenue)),
+                    caption: "Phí nền tảng và gói hội viên",
+                    tone: "mint",
+                },
+                {
+                    label: "Công nợ chủ sân",
+                    value: this.loadingText(this.money(this.overview.owner_debt_total)),
+                    caption: "Ví chủ sân còn phải chi trả",
                     tone: "blue",
                 },
                 {
-                    label: "Chi phí hệ thống",
-                    value: this.loadingText(
-                        this.formatCurrency(this.expenseTotal),
-                    ),
-                    caption: "Voucher hệ thống và hoàn ví",
+                    label: "Công nợ khách hàng",
+                    value: this.loadingText(this.money(this.overview.customer_debt_total)),
+                    caption: "Số dư ví khách còn đang giữ",
                     tone: "orange",
                 },
                 {
-                    label: "Lãi ròng tham chiếu",
-                    value: this.loadingText(
-                        this.formatCurrency(this.netRevenue),
-                    ),
-                    caption: "Doanh thu hệ thống trừ chi phí hệ thống",
-                    tone: this.netRevenue >= 0 ? "mint" : "red",
+                    label: "Tổng tiền quản lý",
+                    value: this.loadingText(this.money(this.overview.managed_total)),
+                    caption: "Tiền còn lại + công nợ chủ sân + công nợ khách",
+                    tone: "purple",
                 },
             ];
         },
-        actionItems() {
-            return [
-                {
-                    label: "Phí nền tảng chờ thu",
-                    caption: "Các kỳ phí đang pending",
-                    value: this.loadingText(this.feeMetrics.pending),
-                    icon: "clock",
-                    to: "/admin/platform-fee-ledgers?status=pending",
-                },
-                {
-                    label: "Phí nền tảng quá hạn",
-                    caption: this.formatCurrency(
-                        this.feeMetrics.overdue_amount,
-                    ),
-                    value: this.loadingText(this.feeMetrics.overdue),
-                    icon: "alert",
-                    to: "/admin/platform-fee-ledgers?status=overdue",
-                },
-                {
-                    label: "Email nhắc phí lỗi",
-                    caption: "Cần kiểm tra email chủ sân hoặc SMTP",
-                    value: this.loadingText(this.feeMetrics.email_failed),
-                    icon: "alert",
-                    to: "/admin/platform-fee-ledgers?email_status=failed",
-                },
-                {
-                    label: "Thanh toán cần đối soát",
-                    caption: "Booking và giao dịch gateway",
-                    value: "",
-                    icon: "creditCard",
-                    to: "/admin/payments",
-                },
-            ];
-        },
-        financeChartValues() {
-            return this.finance?.charts?.trend || [];
-        },
-        compositionSlices() {
-            return (this.finance?.charts?.composition || []).filter(
-                (item) => Number(item.value || 0) > 0,
+        activeTable() {
+            return (
+                this.tableTabs.find((tab) => tab.key === this.currentTab) ||
+                this.tableTabs[0]
             );
+        },
+        activeRows() {
+            return this.accounting?.tables?.[this.currentTab] || [];
         },
     },
     async mounted() {
         await this.loadDashboard();
     },
     beforeUnmount() {
-        this.financeComboChart?.destroy();
-        this.financeDonutChart?.destroy();
+        this.cashFlowChart?.destroy();
+        this.compositionChart?.destroy();
     },
     methods: {
         async loadDashboard() {
             this.isLoading = true;
             this.error = null;
             try {
-                const [stats, feeMetrics] = await Promise.all([
-                    api(
-                        `/api/admin/dashboard?finance_period=${this.financePeriod}`,
-                    ),
-                    getPlatformFeeDashboardMetrics(),
-                ]);
-                this.stats = stats;
-                this.feeMetrics = feeMetrics;
+                const payload = await api(
+                    `/api/admin/dashboard?finance_period=${this.financePeriod}`,
+                );
+                this.accounting = payload.accounting || null;
                 await this.$nextTick();
-                this.renderFinanceCharts();
+                this.renderCharts();
             } catch (error) {
-                this.error =
-                    error.message || "Không thể tải dữ liệu dashboard.";
+                this.error = error.message || "Không thể tải dữ liệu kế toán.";
             } finally {
                 this.isLoading = false;
             }
@@ -304,89 +330,152 @@ export default {
         loadingText(value) {
             return this.isLoading ? "..." : value;
         },
-        formatCurrency(amount) {
+        money(amount) {
             return new Intl.NumberFormat("vi-VN", {
                 style: "currency",
                 currency: "VND",
-            }).format(amount || 0);
+                maximumFractionDigits: 0,
+            }).format(Number(amount || 0));
         },
-        compactCurrency(amount) {
+        shortMoney(amount) {
             const value = Number(amount || 0);
-            if (Math.abs(value) >= 1000000)
-                return `${Math.round(value / 1000000)}tr`;
+            if (Math.abs(value) >= 1000000) return `${Math.round(value / 1000000)}tr`;
             if (Math.abs(value) >= 1000) return `${Math.round(value / 1000)}k`;
             return value.toLocaleString("vi-VN");
         },
-        renderFinanceCharts() {
-            this.renderFinanceComboChart();
-            this.renderFinanceDonutChart();
+        formatDate(value) {
+            if (!value) return "-";
+            return new Intl.DateTimeFormat("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+            }).format(new Date(value));
         },
-        renderFinanceComboChart() {
-            const canvas = this.$refs.financeComboChart;
+        formatCell(row, column) {
+            const value = row[column.key];
+            if (column.type === "money") return this.money(value);
+            if (column.type === "date") return this.formatDate(value);
+            if (column.type === "status") return this.statusLabel(value);
+            return value || "-";
+        },
+        statusLabel(status) {
+            const labels = {
+                pending: "Chờ xử lý",
+                approved: "Đã duyệt",
+                paid: "Đã chi",
+                completed: "Hoàn tất",
+                rejected: "Từ chối",
+                cancelled: "Đã hủy",
+                active: "Hoạt động",
+                locked: "Đang khóa",
+                suspended: "Tạm ngưng",
+                owner: "Chủ sân",
+                user: "Người dùng",
+            };
+            return labels[status] || status || "-";
+        },
+        renderCharts() {
+            this.renderCashFlowChart();
+            this.renderCompositionChart();
+        },
+        renderCashFlowChart() {
+            const canvas = this.$refs.cashFlowChart;
             if (!canvas) return;
-
-            this.financeComboChart?.destroy();
-            const values = this.financeChartValues;
-            this.financeComboChart = new Chart(canvas, {
-                type: "bar",
+            this.cashFlowChart?.destroy();
+            const values = this.accounting?.charts?.cash_flow || [];
+            const context = canvas.getContext("2d");
+            const greenFill = this.chartGradient(context, "#16a34a", 0.18);
+            this.cashFlowChart = new Chart(canvas, {
+                type: "line",
                 data: {
                     labels: values.map((item) => item.label),
                     datasets: [
                         {
-                            type: "bar",
-                            label: "Doanh thu",
-                            data: values.map((item) => item.system_revenue),
-                            backgroundColor: "#16a34a",
-                            borderRadius: 8,
-                            maxBarThickness: 30,
+                            label: "Tiền vào",
+                            data: values.map((item) => item.money_in),
+                            borderColor: "#16a34a",
+                            backgroundColor: greenFill,
+                            fill: true,
+                            cubicInterpolationMode: "monotone",
+                            tension: 0.22,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            pointBackgroundColor: "#16a34a",
+                            pointBorderColor: "#ffffff",
+                            pointBorderWidth: 2,
+                            borderWidth: 2.5,
                         },
                         {
-                            type: "bar",
-                            label: "Chi phí",
-                            data: values.map((item) => item.system_expense),
+                            label: "Tiền ra",
+                            data: values.map((item) => item.money_out),
+                            borderColor: "#f59e0b",
                             backgroundColor: "#f59e0b",
-                            borderRadius: 8,
-                            maxBarThickness: 30,
+                            fill: false,
+                            cubicInterpolationMode: "monotone",
+                            tension: 0.22,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            pointBackgroundColor: "#f59e0b",
+                            pointBorderColor: "#ffffff",
+                            pointBorderWidth: 2,
+                            borderWidth: 2.5,
                         },
                         {
-                            type: "line",
-                            label: "Booking",
-                            data: values.map((item) => item.booking_custody),
-                            borderColor: "#2563eb",
-                            backgroundColor: "#2563eb",
-                            tension: 0.35,
-                            pointRadius: 3,
-                            borderWidth: 3,
+                            label: "Chênh lệch",
+                            data: values.map((item) => item.net_movement),
+                            borderColor: "#64748b",
+                            backgroundColor: "#64748b",
+                            fill: false,
+                            cubicInterpolationMode: "monotone",
+                            tension: 0.18,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            pointBackgroundColor: "#64748b",
+                            pointBorderColor: "#ffffff",
+                            pointBorderWidth: 2,
+                            borderWidth: 2,
+                            borderDash: [4, 4],
                         },
                     ],
                 },
                 options: this.chartOptions(),
             });
         },
-        renderFinanceDonutChart() {
-            const canvas = this.$refs.financeDonutChart;
+        chartGradient(context, color, opacity = 0.16) {
+            const gradient = context.createLinearGradient(0, 0, 0, 280);
+            const alpha = Math.round(opacity * 255)
+                .toString(16)
+                .padStart(2, "0");
+            gradient.addColorStop(0, `${color}${alpha}`);
+            gradient.addColorStop(0.55, `${color}0f`);
+            gradient.addColorStop(1, `${color}00`);
+            return gradient;
+        },
+        renderCompositionChart() {
+            const canvas = this.$refs.compositionChart;
             if (!canvas) return;
-
-            this.financeDonutChart?.destroy();
-            const slices = this.compositionSlices.length
-                ? this.compositionSlices
+            this.compositionChart?.destroy();
+            const slices = (this.accounting?.charts?.managed_composition || [])
+                .filter((item) => Number(item.value || 0) > 0);
+            const values = slices.length
+                ? slices
                 : [{ label: "Chưa có dữ liệu", value: 1, group: "empty" }];
-            this.financeDonutChart = new Chart(canvas, {
+            const colors = {
+                cash: "#16a34a",
+                owner_debt: "#2563eb",
+                customer_debt: "#f59e0b",
+                empty: "#e2e8f0",
+            };
+            this.compositionChart = new Chart(canvas, {
                 type: "doughnut",
                 data: {
-                    labels: slices.map((item) => item.label),
+                    labels: values.map((item) => item.label),
                     datasets: [
                         {
-                            data: slices.map((item) => item.value),
-                            backgroundColor: slices.map(
-                                (item) =>
-                                    ({
-                                        revenue: "#16a34a",
-                                        custody: "#2563eb",
-                                        expense: "#f59e0b",
-                                        empty: "#e2e8f0",
-                                    })[item.group] || "#94a3b8",
-                            ),
+                            data: values.map((item) => item.value),
+                            backgroundColor: values.map((item) => colors[item.group] || "#94a3b8"),
                             borderColor: "#fff",
                             borderWidth: 4,
                         },
@@ -407,14 +496,10 @@ export default {
                         },
                         tooltip: {
                             callbacks: {
-                                label: (context) => {
-                                    if (
-                                        slices[context.dataIndex]?.group ===
-                                        "empty"
-                                    )
-                                        return "Chưa có dữ liệu";
-                                    return `${context.label}: ${this.formatCurrency(context.parsed)}`;
-                                },
+                                label: (context) =>
+                                    values[context.dataIndex]?.group === "empty"
+                                        ? "Chưa có dữ liệu"
+                                        : `${context.label}: ${this.money(context.parsed)}`,
                             },
                         },
                     },
@@ -426,17 +511,32 @@ export default {
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { intersect: false, mode: "index" },
+                elements: {
+                    line: {
+                        capBezierPoints: true,
+                    },
+                },
                 scales: {
                     x: {
                         grid: { display: false },
-                        ticks: { color: "#66756d", font: { weight: 700 } },
+                        border: { display: false },
+                        ticks: {
+                            color: "#66756d",
+                            maxRotation: 0,
+                            font: { size: 12, weight: 700 },
+                        },
                     },
                     y: {
                         beginAtZero: true,
-                        grid: { color: "rgba(148, 163, 184, 0.18)" },
+                        border: { display: false },
+                        grid: {
+                            color: "rgba(148, 163, 184, 0.12)",
+                            drawTicks: false,
+                        },
                         ticks: {
                             color: "#66756d",
-                            callback: (value) => this.compactCurrency(value),
+                            padding: 10,
+                            callback: (value) => this.shortMoney(value),
                         },
                     },
                 },
@@ -445,6 +545,8 @@ export default {
                         position: "bottom",
                         labels: {
                             boxWidth: 10,
+                            boxHeight: 10,
+                            usePointStyle: true,
                             color: "#526056",
                             font: { size: 12, weight: 700 },
                         },
@@ -452,7 +554,7 @@ export default {
                     tooltip: {
                         callbacks: {
                             label: (context) =>
-                                `${context.dataset.label}: ${this.formatCurrency(context.parsed.y)}`,
+                                `${context.dataset.label}: ${this.money(context.parsed.y)}`,
                         },
                     },
                 },
