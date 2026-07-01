@@ -11,6 +11,15 @@ export function applyCustomThemeStyles() {
     const themeData = JSON.parse(themeDataStr);
     let cssContent = '';
     
+    if (themeData.radius) {
+      cssContent += `
+:root {
+  --admin-radius: ${themeData.radius} !important;
+  --admin-radius-lg: calc(${themeData.radius} + 4px) !important;
+}
+`;
+    }
+    
     if (themeData.light) {
       const l = themeData.light;
       cssContent += `

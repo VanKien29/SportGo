@@ -945,7 +945,7 @@
 }
 
 .detail-sidebar-header-title {
-  padding: 12px 18px 8px;
+  padding: 20px 18px 4px;
 }
 
 .detail-sidebar-header-title span {
@@ -957,7 +957,7 @@
 }
 
 .detail-sidebar-nav {
-  padding: 16px 12px;
+  padding: 4px 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 4px;

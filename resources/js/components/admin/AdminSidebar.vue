@@ -2,37 +2,6 @@
   <aside class="sidebar" :class="sidebarStyle" aria-label="Admin navigation">
     <!-- One-Level Sidebar -->
     <template v-if="sidebarStyle === 'one-level'">
-      <!-- Workspace Switcher style brand -->
-      <div class="workspace-switcher-wrapper">
-        <div class="workspace-switcher" @click.stop="toggleWsDropdown">
-          <div class="ws-avatar">S</div>
-          <div v-if="!collapsed" class="ws-info">
-            <span class="ws-name">Hệ thống SportGo</span>
-            <span class="ws-plan">Gói Quản trị</span>
-          </div>
-          <AppIcon v-if="!collapsed" name="chevronDown" size="14" class="ws-chevron" />
-        </div>
-
-        <!-- Dropdown matching mockup -->
-        <transition name="fade-slide">
-          <div v-if="wsDropdownOpen && !collapsed" class="ws-dropdown">
-            <div class="ws-dropdown-item active">
-              Hệ thống SportGo
-            </div>
-            <div class="ws-dropdown-item" @click="selectWorkspace('Không gian cá nhân')">
-              Không gian cá nhân
-            </div>
-            <div class="ws-dropdown-item" @click="selectWorkspace('Môi trường thử nghiệm')">
-              Môi trường thử nghiệm
-            </div>
-            <div class="ws-dropdown-divider"></div>
-            <div class="ws-dropdown-item create-ws" @click="selectWorkspace('Workspace mới')">
-              <span>+</span> Tạo Workspace mới
-            </div>
-          </div>
-        </transition>
-      </div>
-
       <!-- Navigation -->
       <nav class="sidebar-nav">
         <section v-for="section in sections" :key="section.label" class="admin-nav-section">
@@ -78,8 +47,6 @@
       <div class="sidebar-two-level-container">
         <!-- Left Rail -->
         <div class="icon-nav-rail">
-          <div class="rail-logo" title="SportGo Admin">SG</div>
-          
           <div class="rail-icons">
             <button
               v-for="(sec, idx) in sections"
@@ -111,37 +78,6 @@
 
         <!-- Right Detail Sidebar -->
         <div v-if="!collapsed" class="detail-sidebar">
-          <!-- Workspace Switcher style brand in two-level -->
-          <div class="workspace-switcher-wrapper two-level-header">
-            <div class="workspace-switcher" @click.stop="toggleWsDropdown">
-              <div class="ws-avatar">S</div>
-              <div class="ws-info">
-                <span class="ws-name">Hệ thống SportGo</span>
-                <span class="ws-plan">Gói Quản trị</span>
-              </div>
-              <AppIcon name="chevronDown" size="14" class="ws-chevron" />
-            </div>
-
-            <!-- Dropdown matching mockup -->
-            <transition name="fade-slide">
-              <div v-if="wsDropdownOpen" class="ws-dropdown">
-                <div class="ws-dropdown-item active">
-                  Hệ thống SportGo
-                </div>
-                <div class="ws-dropdown-item" @click="selectWorkspace('Không gian cá nhân')">
-                  Không gian cá nhân
-                </div>
-                <div class="ws-dropdown-item" @click="selectWorkspace('Môi trường thử nghiệm')">
-                  Môi trường thử nghiệm
-                </div>
-                <div class="ws-dropdown-divider"></div>
-                <div class="ws-dropdown-item create-ws" @click="selectWorkspace('Workspace mới')">
-                  <span>+</span> Tạo Workspace mới
-                </div>
-              </div>
-            </transition>
-          </div>
-
           <div class="detail-sidebar-header-title">
             <span>{{ sections[currentSectionIndex].label }}</span>
           </div>
@@ -177,7 +113,6 @@ export default {
   emits: ['navigate'],
   data() {
     return {
-      wsDropdownOpen: false,
       sidebarStyle: localStorage.getItem('admin-sidebar-style') || 'one-level',
       localActiveSectionIndex: null,
     };
@@ -216,32 +151,11 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('sidebar-style-changed', this.loadSidebarStyle);
-    document.removeEventListener('click', this.closeWsDropdown);
   },
   methods: {
     loadSidebarStyle() {
       this.sidebarStyle = localStorage.getItem('admin-sidebar-style') || 'one-level';
       this.localActiveSectionIndex = null;
-    },
-    toggleWsDropdown() {
-      this.wsDropdownOpen = !this.wsDropdownOpen;
-      if (this.wsDropdownOpen) {
-        document.addEventListener('click', this.closeWsDropdown);
-      }
-    },
-    closeWsDropdown(e) {
-      this.wsDropdownOpen = false;
-      document.removeEventListener('click', this.closeWsDropdown);
-    },
-    selectWorkspace(action) {
-      this.wsDropdownOpen = false;
-      if (action === 'Không gian cá nhân') {
-        this.$router.push('/admin/profile');
-      } else if (action === 'Môi trường thử nghiệm') {
-        this.$router.push('/');
-      } else if (action === 'Workspace mới') {
-        alert('Tính năng tạo Workspace mới chỉ khả dụng trên phiên bản SportGo Enterprise. Vui lòng liên hệ quản trị viên để nâng cấp hệ thống.');
-      }
     },
     async handleLogout() {
       if (confirm('Bạn có chắc chắn muốn đăng xuất khỏi trang quản trị?')) {
