@@ -79,7 +79,8 @@ class OwnerBookingConfigTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.min_duration_minutes', 60)
             ->assertJsonPath('data.min_advance_booking_minutes', 90)
-            ->assertJsonPath('data.deposit_percent', '40.00');
+            ->assertJsonPath('data.deposit_percent', '40.00')
+            ->assertJsonPath('data.reset_membership_progress_on_upgrade', false);
 
         $this->assertDatabaseHas('booking_configs', [
             'venue_cluster_id' => $this->cluster->id,
@@ -198,6 +199,35 @@ class OwnerBookingConfigTest extends TestCase
             ->assertJsonPath('data.min_advance_booking_minutes', 525600);
     }
 
+    public function test_membership_tiers_reject_duplicate_upgrade_conditions(): void
+    {
+        $tiers = $this->validMembershipTiers();
+        $tiers[1]['min_completed_bookings'] = 0;
+        $tiers[1]['min_spend_amount'] = 0;
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
+                ...$this->validPayload(),
+                'membership_tiers' => $tiers,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('membership_tiers');
+    }
+
+    public function test_membership_tiers_reject_lower_condition_for_higher_tier(): void
+    {
+        $tiers = $this->validMembershipTiers();
+        $tiers[2]['min_completed_bookings'] = 4;
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
+                ...$this->validPayload(),
+                'membership_tiers' => $tiers,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('membership_tiers');
+    }
+
     public function test_owner_cannot_update_another_owner_cluster(): void
     {
         $this->actingAs($this->otherOwner, 'sanctum')
@@ -220,6 +250,16 @@ class OwnerBookingConfigTest extends TestCase
             'allow_deposit' => true,
             'allow_no_prepay' => true,
             'deposit_percent' => 30,
+        ];
+    }
+
+    private function validMembershipTiers(): array
+    {
+        return [
+            ['tier_key' => 'standard', 'discount_percent' => 0, 'min_completed_bookings' => 0, 'min_spend_amount' => 0],
+            ['tier_key' => 'silver', 'discount_percent' => 3, 'min_completed_bookings' => 5, 'min_spend_amount' => 500000],
+            ['tier_key' => 'gold', 'discount_percent' => 5, 'min_completed_bookings' => 15, 'min_spend_amount' => 2000000],
+            ['tier_key' => 'diamond', 'discount_percent' => 8, 'min_completed_bookings' => 30, 'min_spend_amount' => 5000000],
         ];
     }
 

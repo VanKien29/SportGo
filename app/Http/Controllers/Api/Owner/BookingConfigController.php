@@ -57,6 +57,7 @@ class BookingConfigController extends Controller
             'allow_deposit' => ['required', 'boolean'],
             'allow_no_prepay' => ['required', 'boolean'],
             'deposit_percent' => ['nullable', 'numeric', 'min:1', 'max:100'],
+            'reset_membership_progress_on_upgrade' => ['sometimes', 'boolean'],
             'membership_tiers' => ['sometimes', 'array', 'size:4'],
             'membership_tiers.*.tier_key' => ['required_with:membership_tiers', 'string', 'in:standard,silver,gold,diamond'],
             'membership_tiers.*.discount_percent' => ['required_with:membership_tiers', 'numeric', 'min:0', 'max:100'],
@@ -130,6 +131,7 @@ class BookingConfigController extends Controller
             'allow_deposit' => $config?->allow_deposit ?? true,
             'allow_no_prepay' => $config?->allow_no_prepay ?? true,
             'deposit_percent' => $config?->deposit_percent ?? 30,
+            'reset_membership_progress_on_upgrade' => (bool) ($config?->reset_membership_progress_on_upgrade ?? false),
             'membership_tiers' => $this->venueMemberships->settingsPayload($clusterId),
         ];
     }
@@ -141,17 +143,24 @@ class BookingConfigController extends Controller
         }
 
         $errors = [];
-        $byKey = collect($tiers)->keyBy('tier_key');
+        $tierCollection = collect($tiers);
+        $byKey = $tierCollection->keyBy('tier_key');
         $expectedKeys = $this->venueMemberships->tierKeys();
+
+        if ($tierCollection->pluck('tier_key')->unique()->count() !== count($tiers)) {
+            $errors['membership_tiers'] = 'Không được cấu hình trùng hạng thành viên.';
+        }
 
         foreach ($expectedKeys as $key) {
             if (! $byKey->has($key)) {
-                $errors['membership_tiers'] = 'Phải cấu hình đủ 4 hạng thành viên cố định.';
+                $errors['membership_tiers'] = 'Phải cấu hình đủ 4 hạng thành viên cố định theo thứ tự Thường, Bạc, Vàng, Kim cương.';
             }
         }
 
         $previousBookings = -1;
         $previousSpend = -1;
+        $previousDiscount = -1;
+        $seenConditions = [];
         foreach ($expectedKeys as $key) {
             $tier = $byKey->get($key);
             if (! $tier) {
@@ -160,11 +169,45 @@ class BookingConfigController extends Controller
 
             $bookings = (int) ($tier['min_completed_bookings'] ?? 0);
             $spend = (float) ($tier['min_spend_amount'] ?? 0);
-            if ($bookings < $previousBookings || $spend < $previousSpend) {
-                $errors['membership_tiers'] = 'Mốc lên hạng phải tăng dần theo thứ tự Thường, Bạc, Vàng, Kim cương.';
+            $discount = (float) ($tier['discount_percent'] ?? 0);
+            $conditionKey = $bookings.'|'.number_format($spend, 2, '.', '');
+
+            if ($key === 'standard' && ($bookings !== 0 || abs($spend) > 0.00001)) {
+                $errors['membership_tiers'] = 'Hạng Thường phải bắt đầu từ 0 booking và 0 đồng chi tiêu.';
             }
+
+            if (isset($seenConditions[$conditionKey])) {
+                $errors['membership_tiers'] = 'Không được cấu hình hai hạng trùng điều kiện lên hạng.';
+            }
+
+            if ($bookings < $previousBookings || $spend < $previousSpend) {
+                $errors['membership_tiers'] = 'Điều kiện lên hạng sau không được thấp hơn hạng trước.';
+            }
+
+            if ($previousBookings >= 0 && $bookings === $previousBookings && abs($spend - $previousSpend) < 0.00001) {
+                $errors['membership_tiers'] = 'Mốc lên hạng phải tăng thật sự, không được trùng điều kiện với hạng trước.';
+            }
+
+            if ($discount < $previousDiscount) {
+                $errors['membership_tiers'] = 'Quyền lợi giảm giá của hạng cao hơn không được thấp hơn hạng trước.';
+            }
+
+            $maintainPeriod = $tier['maintain_period_months'] ?? null;
+            $maintainBookings = $tier['maintain_min_bookings'] ?? null;
+            $maintainSpend = $tier['maintain_min_spend_amount'] ?? null;
+            $hasMaintainCondition = $maintainBookings !== null || $maintainSpend !== null;
+            if ($hasMaintainCondition && ($maintainPeriod === null || $maintainPeriod === '')) {
+                $errors['membership_tiers'] = 'Nếu nhập điều kiện duy trì hạng thì phải nhập kỳ duy trì.';
+            }
+
+            if (($maintainPeriod !== null && $maintainPeriod !== '') && ! $hasMaintainCondition) {
+                $errors['membership_tiers'] = 'Nếu nhập kỳ duy trì hạng thì phải nhập ít nhất một điều kiện duy trì.';
+            }
+
+            $seenConditions[$conditionKey] = true;
             $previousBookings = $bookings;
             $previousSpend = $spend;
+            $previousDiscount = $discount;
         }
 
         if ($errors) {

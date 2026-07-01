@@ -20,7 +20,7 @@
     <div v-if="loading" class="state-card">Đang tải cấu hình đặt sân...</div>
     <div v-else-if="!selectedClusterId" class="state-card">Chưa có cụm sân để cấu hình.</div>
 
-    <form v-else class="settings-form" @submit.prevent="save">
+    <form v-else class="settings-form" novalidate @submit.prevent="save">
       <div v-if="validationMessages.length" class="validation-summary" role="alert">
         <strong>Vui lòng kiểm tra lại</strong>
         <ul>
@@ -171,25 +171,37 @@
 
       <article class="setting-card">
         <header class="card-head"><h3>Hạng thành viên</h3></header>
+        <label class="membership-reset-toggle" :class="{ enabled: form.reset_membership_progress_on_upgrade }">
+          <input v-model="form.reset_membership_progress_on_upgrade" type="checkbox">
+          <span>
+            <strong>Reset tiến độ sau khi lên hạng</strong>
+            <small>
+              {{ form.reset_membership_progress_on_upgrade ? 'Booking và chi tiêu sẽ về 0 cho mốc hạng tiếp theo.' : 'Booking và chi tiêu tiếp tục cộng dồn sau khi lên hạng.' }}
+            </small>
+          </span>
+        </label>
         <div class="membership-table">
           <div class="membership-row membership-head">
             <span>Hạng</span>
             <span>Giảm (%)</span>
             <span>Booking lên hạng</span>
-            <span>Chi tiêu lên hạng</span>
-            <span>Kỳ duy trì</span>
-            <span>Booking duy trì</span>
-            <span>Chi tiêu duy trì</span>
+            <span>Chi tiêu lên hạng (VNĐ)</span>
+            <span>Kỳ duy trì/ tháng</span>
+            <span>Số lượng Booking duy trì</span>
+            <span>Chi tiêu duy trì (VNĐ)</span>
           </div>
           <div v-for="tier in form.membership_tiers" :key="tier.tier_key" class="membership-row">
             <strong>{{ tier.label }}</strong>
-            <input v-model.number="tier.discount_percent" type="number" min="0" max="100" step="0.1">
-            <input v-model.number="tier.min_completed_bookings" type="number" min="0" step="1">
-            <input v-model.number="tier.min_spend_amount" type="number" min="0" step="1000">
-            <input v-model.number="tier.maintain_period_months" type="number" min="1" max="36" step="1" placeholder="Trống">
-            <input v-model.number="tier.maintain_min_bookings" type="number" min="0" step="1" placeholder="Trống">
-            <input v-model.number="tier.maintain_min_spend_amount" type="number" min="0" step="1000" placeholder="Trống">
+            <input v-model.trim="tier.discount_percent" type="text" inputmode="decimal">
+            <input v-model.trim="tier.min_completed_bookings" type="text" inputmode="numeric">
+            <input v-model.trim="tier.min_spend_amount" type="text" inputmode="decimal">
+            <input v-model.trim="tier.maintain_period_months" type="text" inputmode="numeric" placeholder="Trống">
+            <input v-model.trim="tier.maintain_min_bookings" type="text" inputmode="numeric" placeholder="Trống">
+            <input v-model.trim="tier.maintain_min_spend_amount" type="text" inputmode="decimal" placeholder="Trống">
           </div>
+        </div>
+        <div v-if="membershipValidationMessages.length" class="membership-inline-errors" role="alert">
+          <span v-for="message in membershipValidationMessages" :key="message">{{ message }}</span>
         </div>
       </article>
 
@@ -285,18 +297,100 @@ export default {
         messages.push('Phần trăm cọc phải từ 1 đến 100.');
       }
 
+      messages.push(...this.membershipValidationMessages);
+
       const tiers = this.form.membership_tiers || [];
       let previousBookings = -1;
       let previousSpend = -1;
+      let previousDiscount = -1;
+      const seenTierKeys = new Set();
+      const seenConditions = new Set();
+
+      if (tiers.length !== 4) {
+        messages.push('Phải cấu hình đủ 4 hạng thành viên cố định.');
+      }
+
       tiers.forEach((tier) => {
+        if (seenTierKeys.has(tier.tier_key)) {
+          messages.push('Không được cấu hình trùng hạng thành viên.');
+        }
+        seenTierKeys.add(tier.tier_key);
+
+        const bookings = Number(tier.min_completed_bookings || 0);
+        const spend = Number(tier.min_spend_amount || 0);
+        const discount = Number(tier.discount_percent || 0);
+        const conditionKey = `${bookings}|${spend.toFixed(2)}`;
+
         if (tier.discount_percent < 0 || tier.discount_percent > 100) {
           messages.push('Giảm giá hạng thành viên phải từ 0 đến 100%.');
         }
-        if (tier.min_completed_bookings < previousBookings || tier.min_spend_amount < previousSpend) {
-          messages.push('Mốc lên hạng phải tăng dần theo thứ tự Thường, Bạc, Vàng, Kim cương.');
+        if (tier.tier_key === 'standard' && (bookings !== 0 || spend !== 0)) {
+          messages.push('Hạng Thường phải bắt đầu từ 0 booking và 0 đồng chi tiêu.');
         }
-        previousBookings = Number(tier.min_completed_bookings || 0);
-        previousSpend = Number(tier.min_spend_amount || 0);
+        if (seenConditions.has(conditionKey)) {
+          messages.push('Không được cấu hình hai hạng trùng điều kiện lên hạng.');
+        }
+        if (bookings < previousBookings || spend < previousSpend) {
+          messages.push('Điều kiện lên hạng sau không được thấp hơn hạng trước.');
+        }
+        if (previousBookings >= 0 && bookings === previousBookings && spend === previousSpend) {
+          messages.push('Mốc lên hạng phải tăng thật sự, không được trùng điều kiện với hạng trước.');
+        }
+        if (discount < previousDiscount) {
+          messages.push('Quyền lợi giảm giá của hạng cao hơn không được thấp hơn hạng trước.');
+        }
+
+        const hasMaintainPeriod = tier.maintain_period_months !== null && tier.maintain_period_months !== '';
+        const hasMaintainCondition = (tier.maintain_min_bookings !== null && tier.maintain_min_bookings !== '')
+          || (tier.maintain_min_spend_amount !== null && tier.maintain_min_spend_amount !== '');
+        if (hasMaintainCondition && !hasMaintainPeriod) {
+          messages.push('Nếu nhập điều kiện duy trì hạng thì phải nhập kỳ duy trì.');
+        }
+        if (hasMaintainPeriod && !hasMaintainCondition) {
+          messages.push('Nếu nhập kỳ duy trì hạng thì phải nhập ít nhất một điều kiện duy trì.');
+        }
+
+        seenConditions.add(conditionKey);
+        previousBookings = bookings;
+        previousSpend = spend;
+        previousDiscount = discount;
+      });
+
+      return [...new Set(messages)];
+    },
+    membershipValidationMessages() {
+      if (!this.form) return [];
+
+      const messages = [];
+      const tiers = this.form.membership_tiers || [];
+
+      tiers.forEach((tier) => {
+        const label = tier.label || tier.tier_label || tier.tier_key || 'Hạng';
+        const discount = this.numberInputValue(tier.discount_percent);
+        const bookings = this.numberInputValue(tier.min_completed_bookings);
+        const spend = this.numberInputValue(tier.min_spend_amount);
+        const maintainPeriod = this.numberInputValue(tier.maintain_period_months);
+        const maintainBookings = this.numberInputValue(tier.maintain_min_bookings);
+        const maintainSpend = this.numberInputValue(tier.maintain_min_spend_amount);
+
+        if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
+          messages.push(`${label}: Giảm giá phải là số từ 0 đến 100%.`);
+        }
+        if (!Number.isInteger(bookings) || bookings < 0) {
+          messages.push(`${label}: Booking lên hạng phải là số nguyên không âm, ví dụ nhập 6 hoặc 7.`);
+        }
+        if (!Number.isFinite(spend) || spend < 0) {
+          messages.push(`${label}: Chi tiêu lên hạng phải là số không âm.`);
+        }
+        if (!this.isBlank(tier.maintain_period_months) && (!Number.isInteger(maintainPeriod) || maintainPeriod < 1 || maintainPeriod > 36)) {
+          messages.push(`${label}: Kỳ duy trì phải là số nguyên từ 1 đến 36 tháng.`);
+        }
+        if (!this.isBlank(tier.maintain_min_bookings) && (!Number.isInteger(maintainBookings) || maintainBookings < 0)) {
+          messages.push(`${label}: Số lượng booking duy trì phải là số nguyên không âm.`);
+        }
+        if (!this.isBlank(tier.maintain_min_spend_amount) && (!Number.isFinite(maintainSpend) || maintainSpend < 0)) {
+          messages.push(`${label}: Chi tiêu duy trì phải là số không âm.`);
+        }
       });
 
       return [...new Set(messages)];
@@ -316,6 +410,21 @@ export default {
     window.removeEventListener('owner-cluster-changed', this.handleClusterChanged);
   },
   methods: {
+    isBlank(value) {
+      return value === null || value === undefined || String(value).trim() === '';
+    },
+    numberInputValue(value) {
+      if (this.isBlank(value)) return NaN;
+      if (typeof value === 'number') return value;
+
+      const normalized = String(value).trim().replace(',', '.');
+      if (!/^-?\d+(?:\.\d+)?$/.test(normalized)) return NaN;
+
+      return Number(normalized);
+    },
+    nullableNumberInputValue(value) {
+      return this.isBlank(value) ? null : this.numberInputValue(value);
+    },
     defaultMembershipTiers() {
       return [
         { tier_key: 'standard', label: 'Thường', discount_percent: 0, min_completed_bookings: 0, min_spend_amount: 0, maintain_period_months: null, maintain_min_bookings: null, maintain_min_spend_amount: null },
@@ -338,6 +447,7 @@ export default {
         allow_deposit: true,
         allow_no_prepay: true,
         deposit_percent: 30,
+        reset_membership_progress_on_upgrade: false,
         membership_tiers: this.defaultMembershipTiers(),
       };
     },
@@ -426,6 +536,7 @@ export default {
           allow_deposit: Boolean(config.allow_deposit),
           allow_no_prepay: Boolean(config.allow_no_prepay),
           deposit_percent: Number(config.deposit_percent || 30),
+          reset_membership_progress_on_upgrade: Boolean(config.reset_membership_progress_on_upgrade),
           membership_tiers: this.normalizeMembershipTiers(config.membership_tiers),
         };
       }
@@ -450,12 +561,12 @@ export default {
           deposit_percent: this.form.allow_deposit ? this.form.deposit_percent : null,
           membership_tiers: this.form.membership_tiers.map((tier) => ({
             tier_key: tier.tier_key,
-            discount_percent: Number(tier.discount_percent || 0),
-            min_completed_bookings: Number(tier.min_completed_bookings || 0),
-            min_spend_amount: Number(tier.min_spend_amount || 0),
-            maintain_period_months: tier.maintain_period_months || null,
-            maintain_min_bookings: tier.maintain_min_bookings ?? null,
-            maintain_min_spend_amount: tier.maintain_min_spend_amount ?? null,
+            discount_percent: this.numberInputValue(tier.discount_percent),
+            min_completed_bookings: this.numberInputValue(tier.min_completed_bookings),
+            min_spend_amount: this.numberInputValue(tier.min_spend_amount),
+            maintain_period_months: this.nullableNumberInputValue(tier.maintain_period_months),
+            maintain_min_bookings: this.nullableNumberInputValue(tier.maintain_min_bookings),
+            maintain_min_spend_amount: this.nullableNumberInputValue(tier.maintain_min_spend_amount),
           })),
           special_operating_hours: this.form.special_operating_hours
             .map(({ _key, _touched, ...hours }) => hours)
@@ -495,5 +606,5 @@ export default {
 </script>
 
 <style scoped>
-.settings-page{display:grid;gap:14px;max-width:1120px}.page-head,.card-head,.save-bar{display:flex;justify-content:space-between;align-items:center;gap:16px}.page-head h2,.card-head h3{margin:0;color:#0f172a}.card-head h3{font-size:16px}.eyebrow{margin:0 0 5px;color:#059669;font-size:11px;font-weight:900;letter-spacing:.1em}.cluster-select{min-width:260px;display:grid;gap:6px;color:#475569;font-size:12px;font-weight:850}.cluster-select select,.fixed-hours input,.special-row input,.special-row select,.input-unit input,.deposit-field input,.membership-row input{width:100%;height:40px;border:1px solid #cbd5e1;border-radius:9px;padding:0 10px;background:#fff;color:#0f172a;font:inherit}.alert,.state-card,.validation-summary{padding:12px 14px;border-radius:10px;font-weight:750}.alert.error,.validation-summary{background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}.alert.success{background:#dcfce7;color:#166534}.state-card{text-align:center;background:#fff;border:1px solid #e2e8f0;color:#64748b}.settings-form{display:grid;gap:12px}.validation-summary{box-shadow:0 8px 24px rgba(159,18,57,.1)}.validation-summary ul{margin:6px 0 0;padding-left:20px;font-size:13px;font-weight:650}.setting-card,.save-bar{padding:15px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 5px 18px rgba(15,23,42,.035)}.card-head{padding-bottom:11px;border-bottom:1px solid #e2e8f0}.fixed-hours{display:grid;grid-template-columns:minmax(180px,1fr) auto minmax(180px,1fr) minmax(180px,1fr);align-items:end;gap:14px;margin-top:14px}.fixed-hours label,.special-row label,.compact-fields label{display:grid;gap:5px;color:#475569;font-size:12px;font-weight:800}.range-arrow{padding-bottom:10px;color:#94a3b8;font-size:20px}.secondary-btn,.remove-btn,.primary-btn{border:0;border-radius:9px;font:inherit;font-weight:850;cursor:pointer}.secondary-btn{padding:8px 11px;background:#ecfdf5;color:#047857}.empty-row{padding:18px 0 4px;text-align:center;color:#94a3b8;font-size:13px}.special-list{display:grid;gap:8px;margin-top:10px}.special-row{display:grid;grid-template-columns:1fr 1fr .8fr .8fr 36px;align-items:end;gap:9px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}.remove-btn{height:40px;background:#fee2e2;color:#be123c;font-size:21px}.two-column{display:grid;grid-template-columns:1fr 1fr;gap:12px}.compact-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.compact-fields label:first-child:last-child{grid-column:auto}.input-unit,.deposit-field{position:relative}.input-unit input{padding-right:50px}.input-unit>span,.deposit-field>span{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:11px;font-weight:800}.payment-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.payment-option{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;min-height:52px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer}.payment-option.enabled{border-color:#6ee7b7;background:#ecfdf5}.payment-option>input{width:17px;height:17px;accent-color:#059669}.payment-option strong{color:#0f172a;font-size:13px}.deposit-field{width:82px}.deposit-field input{padding-right:26px}.membership-table{display:grid;gap:8px;margin-top:12px;overflow:auto}.membership-row{display:grid;grid-template-columns:120px repeat(6,minmax(110px,1fr));gap:8px;align-items:center;min-width:900px}.membership-row strong{color:#0f172a}.membership-head{color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase}.save-bar{position:sticky;bottom:10px;border-color:#a7f3d0}.primary-btn{padding:10px 18px;background:#059669;color:#fff}.primary-btn:disabled{opacity:.5;cursor:not-allowed}@media(max-width:820px){.fixed-hours{grid-template-columns:1fr auto 1fr}.fixed-hours>label:last-child{grid-column:1/4}.two-column,.payment-list{grid-template-columns:1fr}.special-row{grid-template-columns:1fr 1fr}.remove-btn{grid-column:2;justify-self:end;width:40px}.page-head{align-items:end}}@media(max-width:560px){.page-head,.save-bar{display:grid}.cluster-select{min-width:0}.fixed-hours,.special-row,.compact-fields{grid-template-columns:1fr}.fixed-hours>label:last-child{grid-column:auto}.range-arrow{display:none}.remove-btn{grid-column:1}.primary-btn{width:100%}}
+.settings-page{display:grid;gap:14px;max-width:1120px}.page-head,.card-head,.save-bar{display:flex;justify-content:space-between;align-items:center;gap:16px}.page-head h2,.card-head h3{margin:0;color:#0f172a}.card-head h3{font-size:16px}.eyebrow{margin:0 0 5px;color:#059669;font-size:11px;font-weight:900;letter-spacing:.1em}.cluster-select{min-width:260px;display:grid;gap:6px;color:#475569;font-size:12px;font-weight:850}.cluster-select select,.fixed-hours input,.special-row input,.special-row select,.input-unit input,.deposit-field input,.membership-row input{width:100%;height:40px;border:1px solid #cbd5e1;border-radius:9px;padding:0 10px;background:#fff;color:#0f172a;font:inherit}.alert,.state-card,.validation-summary{padding:12px 14px;border-radius:10px;font-weight:750}.alert.error,.validation-summary{background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}.alert.success{background:#dcfce7;color:#166534}.state-card{text-align:center;background:#fff;border:1px solid #e2e8f0;color:#64748b}.settings-form{display:grid;gap:12px}.validation-summary{box-shadow:0 8px 24px rgba(159,18,57,.1)}.validation-summary ul{margin:6px 0 0;padding-left:20px;font-size:13px;font-weight:650}.setting-card,.save-bar{padding:15px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 5px 18px rgba(15,23,42,.035)}.card-head{padding-bottom:11px;border-bottom:1px solid #e2e8f0}.fixed-hours{display:grid;grid-template-columns:minmax(180px,1fr) auto minmax(180px,1fr) minmax(180px,1fr);align-items:end;gap:14px;margin-top:14px}.fixed-hours label,.special-row label,.compact-fields label{display:grid;gap:5px;color:#475569;font-size:12px;font-weight:800}.range-arrow{padding-bottom:10px;color:#94a3b8;font-size:20px}.secondary-btn,.remove-btn,.primary-btn{border:0;border-radius:9px;font:inherit;font-weight:850;cursor:pointer}.secondary-btn{padding:8px 11px;background:#ecfdf5;color:#047857}.empty-row{padding:18px 0 4px;text-align:center;color:#94a3b8;font-size:13px}.special-list{display:grid;gap:8px;margin-top:10px}.special-row{display:grid;grid-template-columns:1fr 1fr .8fr .8fr 36px;align-items:end;gap:9px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}.remove-btn{height:40px;background:#fee2e2;color:#be123c;font-size:21px}.two-column{display:grid;grid-template-columns:1fr 1fr;gap:12px}.compact-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.compact-fields label:first-child:last-child{grid-column:auto}.input-unit,.deposit-field{position:relative}.input-unit input{padding-right:50px}.input-unit>span,.deposit-field>span{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:11px;font-weight:800}.payment-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.payment-option{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;min-height:52px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer}.payment-option.enabled{border-color:#6ee7b7;background:#ecfdf5}.payment-option>input{width:17px;height:17px;accent-color:#059669}.payment-option strong{color:#0f172a;font-size:13px}.deposit-field{width:82px}.deposit-field input{padding-right:26px}.membership-reset-toggle{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-top:12px;padding:12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;cursor:pointer}.membership-reset-toggle.enabled{border-color:#6ee7b7;background:#ecfdf5}.membership-reset-toggle input{width:18px;height:18px;accent-color:#059669}.membership-reset-toggle span{display:grid;gap:3px}.membership-reset-toggle strong{color:#0f172a;font-size:13px}.membership-reset-toggle small{color:#64748b;font-size:12px;font-weight:700}.membership-table{display:grid;gap:8px;margin-top:12px;overflow:auto}.membership-row{display:grid;grid-template-columns:120px repeat(6,minmax(110px,1fr));gap:8px;align-items:center;min-width:900px}.membership-row strong{color:#0f172a}.membership-head{color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase}.membership-inline-errors{display:grid;gap:6px;margin-top:10px;padding:10px 12px;border:1px solid #fed7aa;border-radius:9px;background:#fff7ed;color:#9a3412;font-size:12px;font-weight:800}.save-bar{position:sticky;bottom:10px;border-color:#a7f3d0}.primary-btn{padding:10px 18px;background:#059669;color:#fff}.primary-btn:disabled{opacity:.5;cursor:not-allowed}@media(max-width:820px){.fixed-hours{grid-template-columns:1fr auto 1fr}.fixed-hours>label:last-child{grid-column:1/4}.two-column,.payment-list{grid-template-columns:1fr}.special-row{grid-template-columns:1fr 1fr}.remove-btn{grid-column:2;justify-self:end;width:40px}.page-head{align-items:end}}@media(max-width:560px){.page-head,.save-bar{display:grid}.cluster-select{min-width:0}.fixed-hours,.special-row,.compact-fields{grid-template-columns:1fr}.fixed-hours>label:last-child{grid-column:auto}.range-arrow{display:none}.remove-btn{grid-column:1}.primary-btn{width:100%}}
 </style>
