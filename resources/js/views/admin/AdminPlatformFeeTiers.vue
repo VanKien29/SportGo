@@ -225,11 +225,14 @@
                             max="9999999999"
                             step="1"
                         />
-                        <small
+                        <div
                             v-if="fieldError('price_per_court_month')"
-                            class="field-error"
-                            >{{ fieldError("price_per_court_month") }}</small
+                            class="validation-message"
+                            role="alert"
                         >
+                            <AppIcon name="alert" size="15" />
+                            <span>{{ fieldError("price_per_court_month") }}</span>
+                        </div>
                     </label>
                     <label>
                         Số sân tối thiểu *
@@ -1441,9 +1444,28 @@ label {
 .check-row input {
     width: auto;
 }
-.field-error {
-    color: #b91c1c;
+.field-error,
+small.field-error {
+    color: #dc2626 !important;
     font-weight: 800;
+}
+.validation-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 2px;
+    padding: 7px 9px;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    background: #fef2f2;
+    color: #dc2626 !important;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.35;
+}
+.validation-message svg {
+    flex: 0 0 auto;
+    margin-top: 1px;
 }
 .modal-actions {
     justify-content: flex-end;

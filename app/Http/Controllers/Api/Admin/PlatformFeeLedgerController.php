@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PlatformFeeReminderMail;
 use App\Models\InternalReceipt;
 use App\Models\PlatformFeeEmailLog;
 use App\Models\PlatformFeeTier;
@@ -72,9 +73,14 @@ class PlatformFeeLedgerController extends Controller
                     return;
                 }
 
-                $query->whereHas('emailLogs', fn ($emailQuery) => $emailQuery
-                    ->where('type', $emailStatus)
-                    ->where('status', 'sent'));
+                $query->whereHas('emailLogs', function ($emailQuery) use ($emailStatus): void {
+                    if ($emailStatus === 'due_soon') {
+                        $emailQuery->where('type', 'like', 'due_soon_%_days');
+                    } else {
+                        $emailQuery->where('type', $emailStatus);
+                    }
+                    $emailQuery->where('status', 'sent');
+                });
             })
             ->when($data['keyword'] ?? null, function ($query, string $keyword): void {
                 $keyword = trim($keyword);
@@ -132,7 +138,11 @@ class PlatformFeeLedgerController extends Controller
     public function sendReminder(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'type' => ['required', 'string', 'in:due_soon_7_days,due_today,overdue_3_days,manual'],
+            'type' => [
+                'required',
+                'string',
+                'regex:/^(due_soon_([1-9]|[12][0-9]|30)_days|due_today|overdue_3_days|manual)$/',
+            ],
             'force' => ['nullable', 'boolean'],
         ]);
 
@@ -193,9 +203,7 @@ class PlatformFeeLedgerController extends Controller
         }
 
         try {
-            Mail::raw($content, function ($message) use ($owner, $subject): void {
-                $message->to($owner->email)->subject($subject);
-            });
+            Mail::to($owner->email)->send(new PlatformFeeReminderMail($subject, $content));
 
             $log->forceFill([
                 'status' => 'sent',
@@ -719,8 +727,11 @@ class PlatformFeeLedgerController extends Controller
 
     private function reminderSubject(string $type): string
     {
+        if (str_starts_with($type, 'due_soon_')) {
+            return 'Phí duy trì sắp đến hạn';
+        }
+
         return [
-            'due_soon_7_days' => 'Phí duy trì sắp đến hạn',
             'due_today' => 'Hôm nay là hạn đóng phí duy trì',
             'overdue_3_days' => 'Phí duy trì đã quá hạn 3 ngày',
             'manual' => 'Nhắc thanh toán phí duy trì',
@@ -732,12 +743,16 @@ class PlatformFeeLedgerController extends Controller
         $venueName = $ledger->venueCluster?->name ?: 'cụm sân';
         $remaining = number_format(max((float) $ledger->amount_due - (float) $ledger->amount_paid, 0), 0, ',', '.');
         $dueDate = $ledger->due_date?->format('d/m/Y') ?: '-';
-        $line = [
-            'due_soon_7_days' => 'sẽ đến hạn sau 7 ngày',
+        $leadDays = preg_match('/^due_soon_(\d+)_days$/', $type, $matches)
+            ? (int) $matches[1]
+            : null;
+        $line = $leadDays !== null
+            ? "sẽ đến hạn sau {$leadDays} ngày"
+            : ([
             'due_today' => 'đến hạn trong hôm nay',
             'overdue_3_days' => 'đã quá hạn 3 ngày và có thể bị hạn chế vận hành',
             'manual' => 'cần được thanh toán',
-        ][$type] ?? 'cần được thanh toán';
+        ][$type] ?? 'cần được thanh toán');
 
         return "Kỳ phí duy trì của {$venueName} {$line}.\nHạn thanh toán: {$dueDate}.\nSố tiền còn lại: {$remaining} VND.\nVui lòng đăng nhập SportGo Owner để xử lý.";
     }

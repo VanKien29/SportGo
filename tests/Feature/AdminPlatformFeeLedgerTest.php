@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Mail\PlatformFeeReminderMail;
 use App\Models\CourtType;
 use App\Models\PlatformFeeTier;
 use App\Models\Role;
+use App\Models\SystemPolicy;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Models\VenueCluster;
@@ -411,7 +413,7 @@ class AdminPlatformFeeLedgerTest extends TestCase
 
         $response = $this->actingAs($this->admin, 'sanctum')
             ->postJson("/api/admin/platform-fee-ledgers/{$ledger->id}/reminders", [
-                'type' => 'manual',
+                'type' => 'due_soon_5_days',
             ]);
 
         $response->assertOk()
@@ -421,9 +423,50 @@ class AdminPlatformFeeLedgerTest extends TestCase
 
         $this->assertDatabaseHas('platform_fee_email_logs', [
             'ledger_id' => $ledger->id,
-            'type' => 'manual',
+            'type' => 'due_soon_5_days',
             'email' => $this->owner->email,
             'status' => 'sent',
         ]);
+
+        Mail::assertSent(PlatformFeeReminderMail::class, function (PlatformFeeReminderMail $mail): bool {
+            return $mail->hasTo($this->owner->email)
+                && $mail->mailSubject === 'Phí duy trì sắp đến hạn'
+                && str_contains($mail->mailContent, 'sẽ đến hạn sau 5 ngày');
+        });
+    }
+
+    public function test_admin_can_save_valid_platform_fee_reminder_settings(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson('/api/admin/platform-fee-settings', [
+                'default_due_days' => 5,
+                'lock_reason' => 'Quá hạn phí nền tảng',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.default_due_days', 5)
+            ->assertJsonPath('data.lock_reason', 'Quá hạn phí nền tảng');
+
+        $policy = SystemPolicy::query()
+            ->where('key', 'platform_fee_settings')
+            ->where('version', 1)
+            ->firstOrFail();
+
+        $this->assertSame('active', $policy->status);
+        $this->assertTrue($policy->is_active);
+        $this->assertSame(5, json_decode($policy->content, true)['default_due_days']);
+    }
+
+    public function test_platform_fee_reminder_settings_reject_invalid_values(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson('/api/admin/platform-fee-settings', [
+                'default_due_days' => 31,
+                'lock_reason' => 'x',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'default_due_days',
+                'lock_reason',
+            ]);
     }
 }

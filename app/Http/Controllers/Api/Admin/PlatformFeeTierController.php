@@ -169,10 +169,19 @@ class PlatformFeeTierController extends Controller
     public function updateSettings(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'default_due_days' => ['required', 'integer', 'min:0', 'max:365'],
-            'auto_mark_overdue' => ['required', 'boolean'],
-            'lock_reason' => ['required', 'string', 'max:500'],
+            'default_due_days' => ['required', 'integer', 'min:1', 'max:30'],
+            'lock_reason' => ['required', 'string', 'min:3', 'max:500'],
+        ], [
+            'default_due_days.required' => 'Vui lòng nhập số ngày nhắc trước hạn.',
+            'default_due_days.integer' => 'Số ngày nhắc trước hạn phải là số nguyên.',
+            'default_due_days.min' => 'Số ngày nhắc trước hạn phải từ 1 ngày.',
+            'default_due_days.max' => 'Số ngày nhắc trước hạn không được vượt quá 30 ngày.',
+            'lock_reason.required' => 'Vui lòng nhập lý do khóa cụm sân mặc định.',
+            'lock_reason.min' => 'Lý do khóa cụm sân phải có ít nhất 3 ký tự.',
+            'lock_reason.max' => 'Lý do khóa cụm sân không được vượt quá 500 ký tự.',
         ]);
+
+        $data['lock_reason'] = trim($data['lock_reason']);
 
         SystemPolicy::query()->updateOrCreate(
             ['key' => self::SETTINGS_KEY, 'version' => 1],
@@ -182,9 +191,11 @@ class PlatformFeeTierController extends Controller
                 'type' => 'general',
                 'policy_type' => 'platform_fee',
                 'policy_category' => 'numeric_threshold',
-                'status' => 'published',
+                'status' => 'active',
                 'is_active' => true,
                 'effective_from' => now(),
+                'published_at' => now(),
+                'published_by' => $request->user()?->id,
                 'updated_by' => $request->user()?->id,
                 'created_by' => $request->user()?->id,
             ],
@@ -390,7 +401,6 @@ class PlatformFeeTierController extends Controller
     {
         $defaults = [
             'default_due_days' => 7,
-            'auto_mark_overdue' => true,
             'lock_reason' => 'Quá hạn phí duy trì hệ thống',
         ];
 
@@ -405,6 +415,13 @@ class PlatformFeeTierController extends Controller
 
         $data = json_decode($policy->content, true);
 
-        return array_merge($defaults, is_array($data) ? $data : []);
+        if (! is_array($data)) {
+            return $defaults;
+        }
+
+        return [
+            'default_due_days' => (int) ($data['default_due_days'] ?? $defaults['default_due_days']),
+            'lock_reason' => (string) ($data['lock_reason'] ?? $defaults['lock_reason']),
+        ];
     }
 }

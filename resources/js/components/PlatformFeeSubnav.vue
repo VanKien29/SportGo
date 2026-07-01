@@ -37,11 +37,6 @@ export default {
                     label: "Chính sách áp dụng",
                     icon: "fileText",
                 },
-                {
-                    name: "admin-platform-fee-settings",
-                    label: "Cài đặt & nhắc hạn",
-                    icon: "settings",
-                },
             ],
         };
     },
