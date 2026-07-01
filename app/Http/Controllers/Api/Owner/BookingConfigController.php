@@ -60,6 +60,9 @@ class BookingConfigController extends Controller
             'reset_membership_progress_on_upgrade' => ['sometimes', 'boolean'],
             'membership_tiers' => ['sometimes', 'array', 'size:4'],
             'membership_tiers.*.tier_key' => ['required_with:membership_tiers', 'string', 'in:standard,silver,gold,diamond'],
+            'membership_tiers.*.tier_label' => ['required_with:membership_tiers', 'string', 'min:2', 'max:80'],
+            'membership_tiers.*.is_active' => ['required_with:membership_tiers', 'boolean'],
+            'membership_tiers.*.voucher_id' => ['nullable', 'uuid', 'exists:vouchers,id'],
             'membership_tiers.*.discount_percent' => ['required_with:membership_tiers', 'numeric', 'min:0', 'max:100'],
             'membership_tiers.*.min_completed_bookings' => ['required_with:membership_tiers', 'integer', 'min:0'],
             'membership_tiers.*.min_spend_amount' => ['required_with:membership_tiers', 'numeric', 'min:0'],
@@ -72,7 +75,7 @@ class BookingConfigController extends Controller
         ]);
 
         $this->validateOperatingHours($validated);
-        $this->validateMembershipTiers($validated['membership_tiers'] ?? null);
+        $this->validateMembershipTiers($validated['membership_tiers'] ?? null, $venueClusterId);
 
         if (
             ! $validated['allow_full_payment']
@@ -133,10 +136,11 @@ class BookingConfigController extends Controller
             'deposit_percent' => $config?->deposit_percent ?? 30,
             'reset_membership_progress_on_upgrade' => (bool) ($config?->reset_membership_progress_on_upgrade ?? false),
             'membership_tiers' => $this->venueMemberships->settingsPayload($clusterId),
+            'membership_voucher_options' => $this->membershipVoucherOptions($clusterId),
         ];
     }
 
-    private function validateMembershipTiers(?array $tiers): void
+    private function validateMembershipTiers(?array $tiers, string $venueClusterId): void
     {
         if ($tiers === null) {
             return;
@@ -171,6 +175,21 @@ class BookingConfigController extends Controller
             $spend = (float) ($tier['min_spend_amount'] ?? 0);
             $discount = (float) ($tier['discount_percent'] ?? 0);
             $conditionKey = $bookings.'|'.number_format($spend, 2, '.', '');
+
+            if (trim((string) ($tier['tier_label'] ?? '')) === '') {
+                $errors['membership_tiers'] = 'Tên hiển thị của hạng thành viên không được để trống.';
+            }
+
+            if ($key === 'standard' && ! (bool) ($tier['is_active'] ?? true)) {
+                $errors['membership_tiers'] = 'Hạng Thường luôn phải được kích hoạt.';
+            }
+
+            if (! empty($tier['voucher_id'])) {
+                $voucherError = $this->validateMembershipTierVoucher($venueClusterId, $key, (string) $tier['voucher_id']);
+                if ($voucherError) {
+                    $errors['membership_tiers'] = $voucherError;
+                }
+            }
 
             if ($key === 'standard' && ($bookings !== 0 || abs($spend) > 0.00001)) {
                 $errors['membership_tiers'] = 'Hạng Thường phải bắt đầu từ 0 booking và 0 đồng chi tiêu.';
@@ -213,6 +232,65 @@ class BookingConfigController extends Controller
         if ($errors) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    private function membershipVoucherOptions(string $venueClusterId): array
+    {
+        return DB::table('vouchers')
+            ->where('owner_type', 'venue')
+            ->where('owner_id', $venueClusterId)
+            ->where('status', 'active')
+            ->where(fn ($query) => $query
+                ->whereNull('valid_from')
+                ->orWhere('valid_from', '<=', now()))
+            ->where(fn ($query) => $query
+                ->whereNull('valid_to')
+                ->orWhere('valid_to', '>=', now()))
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'discount_type', 'discount_value'])
+            ->map(fn (object $voucher): array => [
+                'id' => $voucher->id,
+                'code' => $voucher->code,
+                'name' => $voucher->name,
+                'discount_type' => $voucher->discount_type,
+                'discount_value' => (float) $voucher->discount_value,
+            ])
+            ->all();
+    }
+
+    private function validateMembershipTierVoucher(string $venueClusterId, string $tierKey, string $voucherId): ?string
+    {
+        $voucher = DB::table('vouchers')
+            ->where('id', $voucherId)
+            ->where('owner_type', 'venue')
+            ->where('owner_id', $venueClusterId)
+            ->first(['id', 'status', 'valid_from', 'valid_to']);
+
+        if (! $voucher) {
+            return 'Voucher đi kèm hạng thành viên phải thuộc đúng cụm sân.';
+        }
+
+        if ($voucher->status !== 'active') {
+            return 'Voucher đi kèm hạng thành viên phải đang kích hoạt.';
+        }
+
+        if (
+            ($voucher->valid_from && now()->lt($voucher->valid_from))
+            || ($voucher->valid_to && now()->gt($voucher->valid_to))
+        ) {
+            return 'Voucher đi kèm hạng thành viên phải còn hiệu lực.';
+        }
+
+        $membershipScopes = DB::table('voucher_scopes')
+            ->where('voucher_id', $voucherId)
+            ->where('scope_type', 'membership_tier')
+            ->pluck('scope_id');
+
+        if ($membershipScopes->isNotEmpty() && ! $membershipScopes->contains($tierKey)) {
+            return 'Voucher đi kèm hạng thành viên phải có phạm vi đúng hạng được chọn.';
+        }
+
+        return null;
     }
 
     private function validateOperatingHours(array $validated): void

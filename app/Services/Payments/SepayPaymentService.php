@@ -265,6 +265,7 @@ class SepayPaymentService
                         $payment->booking()->update([
                             'status' => 'confirmed',
                         ]);
+                        $this->bookingService->syncVenueMembershipForSuccessfulBooking($booking);
                     }
 
                     SlotLock::query()

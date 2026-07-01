@@ -183,6 +183,9 @@
         <div class="membership-table">
           <div class="membership-row membership-head">
             <span>Hạng</span>
+            <span>Tên hiển thị</span>
+            <span>Trạng thái</span>
+            <span>Voucher đi kèm</span>
             <span>Giảm (%)</span>
             <span>Booking lên hạng</span>
             <span>Chi tiêu lên hạng (VNĐ)</span>
@@ -192,6 +195,17 @@
           </div>
           <div v-for="tier in form.membership_tiers" :key="tier.tier_key" class="membership-row">
             <strong>{{ tier.label }}</strong>
+            <input v-model.trim="tier.tier_label" type="text" maxlength="80">
+            <select v-model="tier.is_active" :disabled="tier.tier_key === 'standard'">
+              <option :value="true">Bật</option>
+              <option :value="false">Tắt</option>
+            </select>
+            <select v-model="tier.voucher_id">
+              <option :value="null">Không gắn</option>
+              <option v-for="voucher in membershipVoucherOptions" :key="voucher.id" :value="voucher.id">
+                {{ voucher.code }} - {{ voucher.name }}
+              </option>
+            </select>
             <input v-model.trim="tier.discount_percent" type="text" inputmode="decimal">
             <input v-model.trim="tier.min_completed_bookings" type="text" inputmode="numeric">
             <input v-model.trim="tier.min_spend_amount" type="text" inputmode="decimal">
@@ -235,6 +249,9 @@ export default {
   computed: {
     selectedCluster() {
       return this.clusters.find((cluster) => cluster.id === this.selectedClusterId) || null;
+    },
+    membershipVoucherOptions() {
+      return this.selectedCluster?.booking_config?.membership_voucher_options || [];
     },
     allTimeOptions() {
       return Array.from({ length: 49 }, (_, index) => {
@@ -363,6 +380,7 @@ export default {
 
       const messages = [];
       const tiers = this.form.membership_tiers || [];
+      const voucherIds = new Set(this.membershipVoucherOptions.map((voucher) => voucher.id));
 
       tiers.forEach((tier) => {
         const label = tier.label || tier.tier_label || tier.tier_key || 'Hạng';
@@ -373,6 +391,15 @@ export default {
         const maintainBookings = this.numberInputValue(tier.maintain_min_bookings);
         const maintainSpend = this.numberInputValue(tier.maintain_min_spend_amount);
 
+        if (!String(tier.tier_label || '').trim()) {
+          messages.push(`${label}: Tên hiển thị không được để trống.`);
+        }
+        if (tier.tier_key === 'standard' && !tier.is_active) {
+          messages.push('Hạng Thường luôn phải được kích hoạt.');
+        }
+        if (tier.voucher_id && !voucherIds.has(tier.voucher_id)) {
+          messages.push(`${label}: Voucher đi kèm không hợp lệ hoặc không còn kích hoạt.`);
+        }
         if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
           messages.push(`${label}: Giảm giá phải là số từ 0 đến 100%.`);
         }
@@ -427,10 +454,10 @@ export default {
     },
     defaultMembershipTiers() {
       return [
-        { tier_key: 'standard', label: 'Thường', discount_percent: 0, min_completed_bookings: 0, min_spend_amount: 0, maintain_period_months: null, maintain_min_bookings: null, maintain_min_spend_amount: null },
-        { tier_key: 'silver', label: 'Bạc', discount_percent: 3, min_completed_bookings: 5, min_spend_amount: 500000, maintain_period_months: null, maintain_min_bookings: null, maintain_min_spend_amount: null },
-        { tier_key: 'gold', label: 'Vàng', discount_percent: 5, min_completed_bookings: 15, min_spend_amount: 2000000, maintain_period_months: null, maintain_min_bookings: null, maintain_min_spend_amount: null },
-        { tier_key: 'diamond', label: 'Kim cương', discount_percent: 8, min_completed_bookings: 30, min_spend_amount: 5000000, maintain_period_months: null, maintain_min_bookings: null, maintain_min_spend_amount: null },
+        { tier_key: 'standard', label: 'Thường', tier_label: 'Thường', is_active: true, voucher_id: null, discount_percent: 0, min_completed_bookings: 0, min_spend_amount: 0, maintain_period_months: null, maintain_min_bookings: null, maintain_min_spend_amount: null },
+        { tier_key: 'silver', label: 'Bạc', tier_label: 'Bạc', is_active: true, voucher_id: null, discount_percent: 3, min_completed_bookings: 5, min_spend_amount: 500000, maintain_period_months: null, maintain_min_bookings: null, maintain_min_spend_amount: null },
+        { tier_key: 'gold', label: 'Vàng', tier_label: 'Vàng', is_active: true, voucher_id: null, discount_percent: 5, min_completed_bookings: 15, min_spend_amount: 2000000, maintain_period_months: null, maintain_min_bookings: null, maintain_min_spend_amount: null },
+        { tier_key: 'diamond', label: 'Kim cương', tier_label: 'Kim cương', is_active: true, voucher_id: null, discount_percent: 8, min_completed_bookings: 30, min_spend_amount: 5000000, maintain_period_months: null, maintain_min_bookings: null, maintain_min_spend_amount: null },
       ];
     },
     defaultForm() {
@@ -561,6 +588,9 @@ export default {
           deposit_percent: this.form.allow_deposit ? this.form.deposit_percent : null,
           membership_tiers: this.form.membership_tiers.map((tier) => ({
             tier_key: tier.tier_key,
+            tier_label: tier.tier_label || tier.label,
+            is_active: tier.tier_key === 'standard' ? true : Boolean(tier.is_active),
+            voucher_id: tier.voucher_id || null,
             discount_percent: this.numberInputValue(tier.discount_percent),
             min_completed_bookings: this.numberInputValue(tier.min_completed_bookings),
             min_spend_amount: this.numberInputValue(tier.min_spend_amount),
@@ -589,9 +619,16 @@ export default {
       const byKey = Object.fromEntries((tiers || []).map((tier) => [tier.tier_key || tier.tier || tier.key, tier]));
       return this.defaultMembershipTiers().map((fallback) => {
         const source = byKey[fallback.tier_key] || {};
+        const isActive = fallback.tier_key === 'standard'
+          ? true
+          : (source.is_active === undefined ? true : Boolean(source.is_active));
         return {
           ...fallback,
           label: source.label || source.tier_label || fallback.label,
+          tier_label: source.tier_label || source.label || fallback.tier_label || fallback.label,
+          is_active: isActive,
+          voucher_id: source.voucher_id || null,
+          voucher: source.voucher || null,
           discount_percent: Number(source.discount_percent ?? fallback.discount_percent),
           min_completed_bookings: Number(source.min_completed_bookings ?? source.min_bookings ?? fallback.min_completed_bookings),
           min_spend_amount: Number(source.min_spend_amount ?? source.min_spent_amount ?? fallback.min_spend_amount),
@@ -606,5 +643,5 @@ export default {
 </script>
 
 <style scoped>
-.settings-page{display:grid;gap:14px;max-width:1120px}.page-head,.card-head,.save-bar{display:flex;justify-content:space-between;align-items:center;gap:16px}.page-head h2,.card-head h3{margin:0;color:#0f172a}.card-head h3{font-size:16px}.eyebrow{margin:0 0 5px;color:#059669;font-size:11px;font-weight:900;letter-spacing:.1em}.cluster-select{min-width:260px;display:grid;gap:6px;color:#475569;font-size:12px;font-weight:850}.cluster-select select,.fixed-hours input,.special-row input,.special-row select,.input-unit input,.deposit-field input,.membership-row input{width:100%;height:40px;border:1px solid #cbd5e1;border-radius:9px;padding:0 10px;background:#fff;color:#0f172a;font:inherit}.alert,.state-card,.validation-summary{padding:12px 14px;border-radius:10px;font-weight:750}.alert.error,.validation-summary{background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}.alert.success{background:#dcfce7;color:#166534}.state-card{text-align:center;background:#fff;border:1px solid #e2e8f0;color:#64748b}.settings-form{display:grid;gap:12px}.validation-summary{box-shadow:0 8px 24px rgba(159,18,57,.1)}.validation-summary ul{margin:6px 0 0;padding-left:20px;font-size:13px;font-weight:650}.setting-card,.save-bar{padding:15px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 5px 18px rgba(15,23,42,.035)}.card-head{padding-bottom:11px;border-bottom:1px solid #e2e8f0}.fixed-hours{display:grid;grid-template-columns:minmax(180px,1fr) auto minmax(180px,1fr) minmax(180px,1fr);align-items:end;gap:14px;margin-top:14px}.fixed-hours label,.special-row label,.compact-fields label{display:grid;gap:5px;color:#475569;font-size:12px;font-weight:800}.range-arrow{padding-bottom:10px;color:#94a3b8;font-size:20px}.secondary-btn,.remove-btn,.primary-btn{border:0;border-radius:9px;font:inherit;font-weight:850;cursor:pointer}.secondary-btn{padding:8px 11px;background:#ecfdf5;color:#047857}.empty-row{padding:18px 0 4px;text-align:center;color:#94a3b8;font-size:13px}.special-list{display:grid;gap:8px;margin-top:10px}.special-row{display:grid;grid-template-columns:1fr 1fr .8fr .8fr 36px;align-items:end;gap:9px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}.remove-btn{height:40px;background:#fee2e2;color:#be123c;font-size:21px}.two-column{display:grid;grid-template-columns:1fr 1fr;gap:12px}.compact-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.compact-fields label:first-child:last-child{grid-column:auto}.input-unit,.deposit-field{position:relative}.input-unit input{padding-right:50px}.input-unit>span,.deposit-field>span{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:11px;font-weight:800}.payment-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.payment-option{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;min-height:52px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer}.payment-option.enabled{border-color:#6ee7b7;background:#ecfdf5}.payment-option>input{width:17px;height:17px;accent-color:#059669}.payment-option strong{color:#0f172a;font-size:13px}.deposit-field{width:82px}.deposit-field input{padding-right:26px}.membership-reset-toggle{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-top:12px;padding:12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;cursor:pointer}.membership-reset-toggle.enabled{border-color:#6ee7b7;background:#ecfdf5}.membership-reset-toggle input{width:18px;height:18px;accent-color:#059669}.membership-reset-toggle span{display:grid;gap:3px}.membership-reset-toggle strong{color:#0f172a;font-size:13px}.membership-reset-toggle small{color:#64748b;font-size:12px;font-weight:700}.membership-table{display:grid;gap:8px;margin-top:12px;overflow:auto}.membership-row{display:grid;grid-template-columns:120px repeat(6,minmax(110px,1fr));gap:8px;align-items:center;min-width:900px}.membership-row strong{color:#0f172a}.membership-head{color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase}.membership-inline-errors{display:grid;gap:6px;margin-top:10px;padding:10px 12px;border:1px solid #fed7aa;border-radius:9px;background:#fff7ed;color:#9a3412;font-size:12px;font-weight:800}.save-bar{position:sticky;bottom:10px;border-color:#a7f3d0}.primary-btn{padding:10px 18px;background:#059669;color:#fff}.primary-btn:disabled{opacity:.5;cursor:not-allowed}@media(max-width:820px){.fixed-hours{grid-template-columns:1fr auto 1fr}.fixed-hours>label:last-child{grid-column:1/4}.two-column,.payment-list{grid-template-columns:1fr}.special-row{grid-template-columns:1fr 1fr}.remove-btn{grid-column:2;justify-self:end;width:40px}.page-head{align-items:end}}@media(max-width:560px){.page-head,.save-bar{display:grid}.cluster-select{min-width:0}.fixed-hours,.special-row,.compact-fields{grid-template-columns:1fr}.fixed-hours>label:last-child{grid-column:auto}.range-arrow{display:none}.remove-btn{grid-column:1}.primary-btn{width:100%}}
+.settings-page{display:grid;gap:14px;max-width:1120px}.page-head,.card-head,.save-bar{display:flex;justify-content:space-between;align-items:center;gap:16px}.page-head h2,.card-head h3{margin:0;color:#0f172a}.card-head h3{font-size:16px}.eyebrow{margin:0 0 5px;color:#059669;font-size:11px;font-weight:900;letter-spacing:.1em}.cluster-select{min-width:260px;display:grid;gap:6px;color:#475569;font-size:12px;font-weight:850}.cluster-select select,.fixed-hours input,.special-row input,.special-row select,.input-unit input,.deposit-field input,.membership-row input,.membership-row select{width:100%;height:40px;border:1px solid #cbd5e1;border-radius:9px;padding:0 10px;background:#fff;color:#0f172a;font:inherit}.alert,.state-card,.validation-summary{padding:12px 14px;border-radius:10px;font-weight:750}.alert.error,.validation-summary{background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}.alert.success{background:#dcfce7;color:#166534}.state-card{text-align:center;background:#fff;border:1px solid #e2e8f0;color:#64748b}.settings-form{display:grid;gap:12px}.validation-summary{box-shadow:0 8px 24px rgba(159,18,57,.1)}.validation-summary ul{margin:6px 0 0;padding-left:20px;font-size:13px;font-weight:650}.setting-card,.save-bar{padding:15px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 5px 18px rgba(15,23,42,.035)}.card-head{padding-bottom:11px;border-bottom:1px solid #e2e8f0}.fixed-hours{display:grid;grid-template-columns:minmax(180px,1fr) auto minmax(180px,1fr) minmax(180px,1fr);align-items:end;gap:14px;margin-top:14px}.fixed-hours label,.special-row label,.compact-fields label{display:grid;gap:5px;color:#475569;font-size:12px;font-weight:800}.range-arrow{padding-bottom:10px;color:#94a3b8;font-size:20px}.secondary-btn,.remove-btn,.primary-btn{border:0;border-radius:9px;font:inherit;font-weight:850;cursor:pointer}.secondary-btn{padding:8px 11px;background:#ecfdf5;color:#047857}.empty-row{padding:18px 0 4px;text-align:center;color:#94a3b8;font-size:13px}.special-list{display:grid;gap:8px;margin-top:10px}.special-row{display:grid;grid-template-columns:1fr 1fr .8fr .8fr 36px;align-items:end;gap:9px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}.remove-btn{height:40px;background:#fee2e2;color:#be123c;font-size:21px}.two-column{display:grid;grid-template-columns:1fr 1fr;gap:12px}.compact-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.compact-fields label:first-child:last-child{grid-column:auto}.input-unit,.deposit-field{position:relative}.input-unit input{padding-right:50px}.input-unit>span,.deposit-field>span{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:11px;font-weight:800}.payment-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.payment-option{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;min-height:52px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer}.payment-option.enabled{border-color:#6ee7b7;background:#ecfdf5}.payment-option>input{width:17px;height:17px;accent-color:#059669}.payment-option strong{color:#0f172a;font-size:13px}.deposit-field{width:82px}.deposit-field input{padding-right:26px}.membership-reset-toggle{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-top:12px;padding:12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;cursor:pointer}.membership-reset-toggle.enabled{border-color:#6ee7b7;background:#ecfdf5}.membership-reset-toggle input{width:18px;height:18px;accent-color:#059669}.membership-reset-toggle span{display:grid;gap:3px}.membership-reset-toggle strong{color:#0f172a;font-size:13px}.membership-reset-toggle small{color:#64748b;font-size:12px;font-weight:700}.membership-table{display:grid;gap:8px;margin-top:12px;overflow:auto}.membership-row{display:grid;grid-template-columns:110px 150px 100px minmax(180px,1.2fr) repeat(6,minmax(110px,1fr));gap:8px;align-items:center;min-width:1280px}.membership-row strong{color:#0f172a}.membership-head{color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase}.membership-inline-errors{display:grid;gap:6px;margin-top:10px;padding:10px 12px;border:1px solid #fed7aa;border-radius:9px;background:#fff7ed;color:#9a3412;font-size:12px;font-weight:800}.save-bar{position:sticky;bottom:10px;border-color:#a7f3d0}.primary-btn{padding:10px 18px;background:#059669;color:#fff}.primary-btn:disabled{opacity:.5;cursor:not-allowed}@media(max-width:820px){.fixed-hours{grid-template-columns:1fr auto 1fr}.fixed-hours>label:last-child{grid-column:1/4}.two-column,.payment-list{grid-template-columns:1fr}.special-row{grid-template-columns:1fr 1fr}.remove-btn{grid-column:2;justify-self:end;width:40px}.page-head{align-items:end}}@media(max-width:560px){.page-head,.save-bar{display:grid}.cluster-select{min-width:0}.fixed-hours,.special-row,.compact-fields{grid-template-columns:1fr}.fixed-hours>label:last-child{grid-column:auto}.range-arrow{display:none}.remove-btn{grid-column:1}.primary-btn{width:100%}}
 </style>

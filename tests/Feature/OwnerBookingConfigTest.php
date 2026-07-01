@@ -228,6 +228,20 @@ class OwnerBookingConfigTest extends TestCase
             ->assertJsonValidationErrors('membership_tiers');
     }
 
+    public function test_membership_tiers_reject_blank_tier_label(): void
+    {
+        $tiers = $this->validMembershipTiers();
+        $tiers[1]['tier_label'] = '';
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
+                ...$this->validPayload(),
+                'membership_tiers' => $tiers,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('membership_tiers.1.tier_label');
+    }
+
     public function test_owner_cannot_update_another_owner_cluster(): void
     {
         $this->actingAs($this->otherOwner, 'sanctum')
@@ -256,10 +270,10 @@ class OwnerBookingConfigTest extends TestCase
     private function validMembershipTiers(): array
     {
         return [
-            ['tier_key' => 'standard', 'discount_percent' => 0, 'min_completed_bookings' => 0, 'min_spend_amount' => 0],
-            ['tier_key' => 'silver', 'discount_percent' => 3, 'min_completed_bookings' => 5, 'min_spend_amount' => 500000],
-            ['tier_key' => 'gold', 'discount_percent' => 5, 'min_completed_bookings' => 15, 'min_spend_amount' => 2000000],
-            ['tier_key' => 'diamond', 'discount_percent' => 8, 'min_completed_bookings' => 30, 'min_spend_amount' => 5000000],
+            ['tier_key' => 'standard', 'tier_label' => 'Thuong', 'is_active' => true, 'discount_percent' => 0, 'min_completed_bookings' => 0, 'min_spend_amount' => 0],
+            ['tier_key' => 'silver', 'tier_label' => 'Bac', 'is_active' => true, 'discount_percent' => 3, 'min_completed_bookings' => 5, 'min_spend_amount' => 500000],
+            ['tier_key' => 'gold', 'tier_label' => 'Vang', 'is_active' => true, 'discount_percent' => 5, 'min_completed_bookings' => 15, 'min_spend_amount' => 2000000],
+            ['tier_key' => 'diamond', 'tier_label' => 'Kim cuong', 'is_active' => true, 'discount_percent' => 8, 'min_completed_bookings' => 30, 'min_spend_amount' => 5000000],
         ];
     }
 

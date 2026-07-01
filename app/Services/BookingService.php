@@ -681,9 +681,16 @@ class BookingService
 
     public function syncMembershipForCompletedBooking(Booking $booking): void
     {
+        $fresh = $this->syncVenueMembershipForSuccessfulBooking($booking);
+        $this->systemVip->creditCashbackForCompletedBooking($fresh);
+    }
+
+    public function syncVenueMembershipForSuccessfulBooking(Booking $booking): Booking
+    {
         $fresh = $booking->fresh();
         $this->venueMemberships->syncBooking($fresh);
-        $this->systemVip->creditCashbackForCompletedBooking($fresh);
+
+        return $fresh;
     }
 
     public function collectRecurringGroupPayment(string $groupCode, User $actor, string $method, ?float $amount = null): array

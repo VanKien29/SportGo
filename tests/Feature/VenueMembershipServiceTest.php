@@ -124,6 +124,39 @@ class VenueMembershipServiceTest extends TestCase
         $this->assertSame('gold', $recalculated->tier);
     }
 
+    public function test_inactive_tier_is_skipped_when_user_meets_its_thresholds(): void
+    {
+        [$user, $cluster] = $this->createUserAndCluster();
+        $service = app(VenueMembershipService::class);
+
+        CourtMembershipTier::query()->create([
+            'venue_cluster_id' => $cluster->id,
+            'tier' => 'silver',
+            'tier_label' => 'Silver',
+            'is_active' => true,
+            'discount_percent' => 3,
+            'min_bookings' => 1,
+            'min_spent_amount' => 100000,
+        ]);
+
+        CourtMembershipTier::query()->create([
+            'venue_cluster_id' => $cluster->id,
+            'tier' => 'gold',
+            'tier_label' => 'Gold',
+            'is_active' => false,
+            'discount_percent' => 5,
+            'min_bookings' => 2,
+            'min_spent_amount' => 200000,
+        ]);
+
+        $this->createCompletedBooking($user, $cluster, 100000, 'BK-INACTIVE-1');
+        $this->createCompletedBooking($user, $cluster, 100000, 'BK-INACTIVE-2');
+
+        $membership = $service->syncUserVenue($user->id, $cluster->id, 'booking_completed')->fresh();
+
+        $this->assertSame('silver', $membership->tier);
+    }
+
     public function test_reset_progress_setting_starts_booking_and_spend_from_zero_after_upgrade(): void
     {
         [$user, $cluster] = $this->createUserAndCluster();
