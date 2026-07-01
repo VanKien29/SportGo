@@ -25,6 +25,18 @@ class Message extends Model
         'reference_id',
     ];
 
+    protected $appends = [
+        'image_url',
+    ];
+
+    public function getImageUrlAttribute()
+    {
+        if ($this->reference_type === 'image' && $this->reference_id) {
+            return asset('storage/' . $this->reference_id);
+        }
+        return null;
+    }
+
     protected function casts(): array
     {
         return [

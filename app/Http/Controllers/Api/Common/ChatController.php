@@ -145,17 +145,29 @@ class ChatController extends Controller
         }
 
         $request->validate([
-            'content' => 'required|string',
+            'content' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240', // tối đa 10MB
         ]);
 
-        $message = DB::transaction(function () use ($conversationId, $userId, $request) {
+        if (!$request->filled('content') && !$request->hasFile('image')) {
+            return response()->json(['message' => 'Nội dung tin nhắn hoặc hình ảnh là bắt buộc.'], 400);
+        }
+
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('chats', 'public');
+        }
+
+        $message = DB::transaction(function () use ($conversationId, $userId, $request, $imagePath) {
             $now = now();
             $msg = Message::create([
                 'id' => (string) Str::uuid(),
                 'conversation_id' => $conversationId,
                 'sender_id' => $userId,
-                'content' => $request->input('content'),
+                'content' => $request->input('content') ?: '[Hình ảnh]',
                 'is_system' => false,
+                'reference_type' => $imagePath ? 'image' : null,
+                'reference_id' => $imagePath ?: null,
                 'created_at' => $now,
             ]);
 

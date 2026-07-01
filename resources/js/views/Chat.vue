@@ -326,23 +326,28 @@
                     msg.sender_id === currentUser.id ? 'bubble-sent' : 'bubble-received'
                   ]"
                 >
+                  <!-- Image Attachments -->
+                  <div v-if="msg.image_url" class="mb-2 max-w-full rounded-lg overflow-hidden border border-black/10 cursor-pointer hover:opacity-95 transition-all" @click="openLightbox(msg.image_url)">
+                    <img :src="msg.image_url" class="max-h-60 w-auto object-contain max-w-full rounded-lg" alt="Hình ảnh" />
+                  </div>
+
                   <!-- Content text -->
                   <div class="bubble-text">
-                    {{ msg.content }}
+                    <span v-if="msg.content !== '[Hình ảnh]'">{{ msg.content }}</span>
                     <span class="bubble-meta">
-                      <span class="bubble-time">{{ formatTimeOnly(msg.created_at) }}</span>
-                      
-                      <!-- Read checkmarks logic for sent messages -->
-                      <span v-if="msg.sender_id === currentUser.id" class="bubble-ticks inline-flex">
-                        <!-- Read (Double check) -->
-                        <svg v-if="isMessageRead(msg)" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                        <!-- Sent but unread (Single check) -->
-                        <svg v-else class="h-3 w-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </span>
+                       <span class="bubble-time">{{ formatTimeOnly(msg.created_at) }}</span>
+                       
+                       <!-- Read checkmarks logic for sent messages -->
+                       <span v-if="msg.sender_id === currentUser.id" class="bubble-ticks inline-flex">
+                         <!-- Read (Double check) -->
+                         <svg v-if="isMessageRead(msg)" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                         </svg>
+                         <!-- Sent but unread (Single check) -->
+                         <svg v-else class="h-3 w-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                         </svg>
+                       </span>
                     </span>
                   </div>
                 </div>
@@ -351,7 +356,31 @@
           </div>
 
           <!-- Bottom Message Input Editor (Telegram Style) -->
-          <div class="tg-input-bar-container p-3 shrink-0 flex justify-center bg-transparent">
+          <div class="tg-input-bar-container p-3 shrink-0 flex flex-col items-center bg-transparent">
+            <!-- Hidden Image File Input -->
+            <input 
+              type="file" 
+              ref="imageInput" 
+              accept="image/*" 
+              class="hidden" 
+              @change="handleImageSelected" 
+            />
+
+            <!-- Image Preview Row -->
+            <div v-if="imagePreviewUrl" class="w-full max-w-3xl mb-2 px-3 py-2 bg-zinc-900/80 border border-zinc-800 rounded-xl flex items-center gap-3 relative shadow-md">
+              <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-zinc-700/60 shrink-0">
+                <img :src="imagePreviewUrl" class="w-full h-full object-cover" />
+                <button type="button" @click="clearSelectedImage" class="absolute top-0.5 right-0.5 bg-black/60 hover:bg-red-600 text-white p-0.5 rounded-full transition-all">
+                  <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div class="text-xs text-zinc-300 truncate">
+                {{ selectedImageFile?.name }}
+              </div>
+            </div>
+
             <form @submit.prevent="submitMessage" class="flex gap-2 items-center w-full max-w-3xl">
               
               <!-- Left Action: File Attachment -->
@@ -371,6 +400,7 @@
                   v-model="newMessage"
                   type="text" 
                   placeholder="Viết tin nhắn..." 
+                  @paste="handlePaste"
                   class="tg-input w-full pl-4 pr-10 py-2.5 bg-white border border-zinc-200 text-zinc-900 rounded-2xl text-sm focus:outline-none focus:border-zinc-300 transition-all shadow-sm"
                 />
               </div>
@@ -378,7 +408,7 @@
               <!-- Right Action: Circular Send Button -->
               <button 
                 type="submit"
-                :disabled="!newMessage.trim()"
+                :disabled="!newMessage.trim() && !selectedImageFile"
                 class="tg-send-btn h-10 w-10 bg-green-500 disabled:opacity-40 disabled:hover:bg-green-500 hover:bg-green-600 text-white rounded-full transition-all shadow-sm shrink-0 flex items-center justify-center"
               >
                 <svg class="h-5 w-5 fill-white text-white" viewBox="0 0 24 24">
@@ -388,6 +418,27 @@
             </form>
           </div>
         </div>
+      </div>
+
+      <!-- Lightbox Modal for Image Zoom -->
+      <div 
+        v-if="lightboxImage" 
+        class="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+        @click="closeLightbox"
+      >
+        <button 
+          class="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all"
+          @click.stop="closeLightbox"
+        >
+          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <img 
+          :src="lightboxImage" 
+          class="max-w-full max-h-[90vh] object-contain rounded-md shadow-2xl transition-transform duration-300 scale-100" 
+          @click.stop
+        />
       </div>
 
     </div>
@@ -422,7 +473,10 @@ export default {
       conversationsTimer: null,
       messagesTimer: null,
       showTelegramMenu: false,
-      isNightMode: false
+      isNightMode: false,
+      selectedImageFile: null,
+      imagePreviewUrl: null,
+      lightboxImage: null
     };
   },
   computed: {
@@ -597,20 +651,23 @@ export default {
     },
 
     async submitMessage() {
-      if (!this.newMessage.trim() || !this.activeConversation) return;
+      if ((!this.newMessage.trim() && !this.selectedImageFile) || !this.activeConversation) return;
       
       const content = this.newMessage.trim();
+      const imageFile = this.selectedImageFile;
+      
       this.newMessage = ''; // clear input instantly for native feel
+      this.clearSelectedImage();
       
       try {
-        const response = await chatService.sendMessage(this.activeConversation.id, content);
+        const response = await chatService.sendMessage(this.activeConversation.id, content, imageFile);
         this.messages.push(response);
         
         // Update last message in the conversations list locally
         const conv = this.conversations.find(c => c.id === this.activeConversation.id);
         if (conv) {
           conv.last_message = {
-            content: content,
+            content: content || '[Hình ảnh]',
             created_at: new Date().toISOString(),
             sender_id: this.currentUser.id
           };
@@ -684,7 +741,66 @@ export default {
     },
 
     clickAttachment() {
-      alert('Đính kèm tệp là tính năng cao cấp đang được phát triển!');
+      this.$refs.imageInput.click();
+    },
+
+    handleImageSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Dung lượng ảnh tối đa là 10MB.');
+        return;
+      }
+
+      this.selectedImageFile = file;
+      this.imagePreviewUrl = URL.createObjectURL(file);
+    },
+
+    handlePaste(event) {
+      const items = (event.clipboardData || event.originalEvent.clipboardData)?.items;
+      if (!items) return;
+      
+      for (const item of items) {
+        if (item.type.indexOf('image') === 0) {
+          const file = item.getAsFile();
+          if (file) {
+            if (file.size > 10 * 1024 * 1024) {
+              alert('Dung lượng ảnh tối đa là 10MB.');
+              return;
+            }
+            this.clearSelectedImage();
+            
+            // Create a fake name for the clipboard image file
+            const extension = file.type.split('/')[1] || 'png';
+            const namedFile = new File([file], `paste_${Date.now()}.${extension}`, { type: file.type });
+
+            this.selectedImageFile = namedFile;
+            this.imagePreviewUrl = URL.createObjectURL(namedFile);
+            event.preventDefault();
+            break;
+          }
+        }
+      }
+    },
+
+    clearSelectedImage() {
+      this.selectedImageFile = null;
+      if (this.imagePreviewUrl) {
+        URL.revokeObjectURL(this.imagePreviewUrl);
+        this.imagePreviewUrl = null;
+      }
+      if (this.$refs.imageInput) {
+        this.$refs.imageInput.value = '';
+      }
+    },
+
+    openLightbox(url) {
+      this.lightboxImage = url;
+    },
+
+    closeLightbox() {
+      this.lightboxImage = null;
     },
 
     scrollToBottom() {

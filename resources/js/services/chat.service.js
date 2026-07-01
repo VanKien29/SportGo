@@ -7,7 +7,18 @@ export const chatService = {
   getMessages(conversationId) {
     return api(`/api/chat/conversations/${conversationId}/messages`);
   },
-  sendMessage(conversationId, content) {
+  sendMessage(conversationId, content, imageFile = null) {
+    if (imageFile) {
+      const formData = new FormData();
+      if (content) {
+        formData.append('content', content);
+      }
+      formData.append('image', imageFile);
+      return api(`/api/chat/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        body: formData
+      });
+    }
     return api(`/api/chat/conversations/${conversationId}/messages`, {
       method: 'POST',
       body: JSON.stringify({ content })
