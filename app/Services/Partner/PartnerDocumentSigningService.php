@@ -81,7 +81,7 @@ class PartnerDocumentSigningService
         ]);
 
         try {
-            Mail::to($identifier)->queue(new PartnerDocumentOtpMail($signingRequest->load('document'), $otp, self::OTP_MINUTES));
+            Mail::to($identifier)->send(new PartnerDocumentOtpMail($signingRequest->load('document'), $otp, self::OTP_MINUTES));
         } catch (\Throwable $exception) {
             Log::error('Failed to send partner document signature OTP.', [
                 'signing_request_id' => $signingRequest->id,

@@ -3,13 +3,12 @@
 namespace App\Mail\Partner;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-abstract class PartnerWorkflowMail extends Mailable implements ShouldQueue
+abstract class PartnerWorkflowMail extends Mailable
 {
     use Queueable, SerializesModels;
 

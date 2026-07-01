@@ -25,14 +25,14 @@ class PartnerMailDispatcher
         }
 
         try {
-            Mail::to($email)->queue($mail);
-            Log::info('Partner workflow mail queued.', [
+            Mail::to($email)->send($mail);
+            Log::info('Partner workflow mail sent.', [
                 'recipient_id' => $id,
                 'recipient_email' => $email,
                 'mail' => $mail::class,
             ]);
         } catch (Throwable $exception) {
-            Log::error('Partner workflow mail failed to queue.', [
+            Log::error('Partner workflow mail failed to send.', [
                 'recipient_id' => $id,
                 'recipient_email' => $email,
                 'mail' => $mail::class,

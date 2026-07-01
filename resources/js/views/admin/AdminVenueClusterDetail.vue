@@ -583,6 +583,7 @@
         <div class="approval-tabs">
           <button class="tab-sm" :class="{ active: approvalFilter === '' }" @click="approvalFilter = ''">Tất cả</button>
           <button class="tab-sm" :class="{ active: approvalFilter === 'pending' }" @click="approvalFilter = 'pending'">Chờ duyệt</button>
+          <button class="tab-sm" :class="{ active: approvalFilter === 'need_supplement' }" @click="approvalFilter = 'need_supplement'">Cần bổ sung</button>
           <button class="tab-sm" :class="{ active: approvalFilter === 'approved' }" @click="approvalFilter = 'approved'">Đã duyệt</button>
           <button class="tab-sm" :class="{ active: approvalFilter === 'rejected' }" @click="approvalFilter = 'rejected'">Từ chối</button>
         </div>
@@ -609,6 +610,7 @@
                 <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
                 <div v-if="req.status === 'pending'" class="approval-btns">
                   <button class="btn btn-success btn-sm" :disabled="processingId === req.id" @click="handleApprove(req)">{{ processingId === req.id ? '...' : 'Duyệt' }}</button>
+                  <button class="btn btn-warning btn-sm" :disabled="processingId === req.id" @click="handleRequestSupplement(req)">Bổ sung</button>
                   <button class="btn btn-danger btn-sm" :disabled="processingId === req.id" @click="openRejectModal(req)">Từ chối</button>
                 </div>
               </div>
@@ -623,6 +625,7 @@
         <div class="approval-tabs">
           <button class="tab-sm" :class="{ active: locationChangeFilter === '' }" @click="locationChangeFilter = ''">Tất cả</button>
           <button class="tab-sm" :class="{ active: locationChangeFilter === 'pending' }" @click="locationChangeFilter = 'pending'">Chờ duyệt</button>
+          <button class="tab-sm" :class="{ active: locationChangeFilter === 'need_supplement' }" @click="locationChangeFilter = 'need_supplement'">Cần bổ sung</button>
           <button class="tab-sm" :class="{ active: locationChangeFilter === 'approved' }" @click="locationChangeFilter = 'approved'">Đã duyệt</button>
           <button class="tab-sm" :class="{ active: locationChangeFilter === 'rejected' }" @click="locationChangeFilter = 'rejected'">Từ chối</button>
         </div>
@@ -646,6 +649,7 @@
                   <button class="btn btn-success btn-sm" :disabled="processingLocationId === req.id" @click="handleApproveLocation(req)">
                     {{ processingLocationId === req.id ? '...' : 'Duyệt' }}
                   </button>
+                  <button class="btn btn-warning btn-sm" :disabled="processingLocationId === req.id" @click="handleRequestLocationSupplement(req)">Bổ sung</button>
                   <button class="btn btn-danger btn-sm" :disabled="processingLocationId === req.id" @click="openRejectLocationModal(req)">Từ chối</button>
                 </div>
               </div>
@@ -1031,6 +1035,22 @@ export default {
         this.processingId = null;
       }
     },
+    async handleRequestSupplement(req) {
+      const reason = prompt('Nhập nội dung giấy tờ/thông tin cần chủ sân bổ sung:');
+      if (!reason || !reason.trim()) return;
+      this.processingId = req.id;
+      try {
+        const res = await adminVenueClusterService.requestScaleSupplement(this.cluster.id, req.id, {
+          status_reason: reason.trim(),
+        });
+        const idx = this.approvalRequests.findIndex((r) => r.id === req.id);
+        if (idx !== -1) this.approvalRequests.splice(idx, 1, res.request);
+      } catch (err) {
+        alert(err.message || 'Không gửi được yêu cầu bổ sung.');
+      } finally {
+        this.processingId = null;
+      }
+    },
     openRejectModal(req) {
       this.rejectTarget = req;
       this.rejectReason = '';
@@ -1071,6 +1091,22 @@ export default {
         await this.loadDetail();
       } catch (err) {
         this.showMsg(err.message || 'Duyệt không thành công.', 'msg-error');
+      } finally {
+        this.processingLocationId = null;
+      }
+    },
+    async handleRequestLocationSupplement(req) {
+      const reason = prompt('Nhập nội dung giấy tờ/thông tin cần chủ sân bổ sung:');
+      if (!reason || !reason.trim()) return;
+      this.processingLocationId = req.id;
+      try {
+        const res = await adminVenueClusterService.requestLocationSupplement(this.cluster.id, req.id, {
+          status_reason: reason.trim(),
+        });
+        const idx = this.locationChangeRequests.findIndex((r) => r.id === req.id);
+        if (idx !== -1) this.locationChangeRequests.splice(idx, 1, res.request);
+      } catch (err) {
+        alert(err.message || 'Không gửi được yêu cầu bổ sung.');
       } finally {
         this.processingLocationId = null;
       }
@@ -1164,7 +1200,7 @@ export default {
       return { pending: 'Chờ duyệt', active: 'Hoạt động', locked: 'Đã khóa' }[status] || status;
     },
     approvalStatusLabel(status) {
-      return { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối', cancelled: 'Hủy' }[status] || status;
+      return { pending: 'Chờ duyệt', need_supplement: 'Cần bổ sung', approved: 'Đã duyệt', rejected: 'Từ chối', cancelled: 'Hủy' }[status] || status;
     },
     imageUrl(path) {
       if (!path || path.includes('default-home.jpg')) return '';
@@ -1607,6 +1643,7 @@ export default {
 .status-active  { background: #dcfce7; color: #166534; }
 .status-locked  { background: #fee2e2; color: #991b1b; }
 .status-approved { background: #dcfce7; color: #166534; }
+.status-need_supplement { background: #fffbeb; color: #92400e; }
 .status-rejected { background: #fee2e2; color: #991b1b; }
 .status-cancelled { background: var(--admin-surface-muted); color: #6b7280; }
 
@@ -1628,6 +1665,7 @@ export default {
 .custom-status-active  { background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; }
 .custom-status-locked  { background: #fef2f2 !important; color: #b91c1c !important; border: 1px solid #fecaca !important; }
 .custom-status-approved { background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; }
+.custom-status-need_supplement { background: #fffbeb !important; color: #92400e !important; border: 1px solid #fde68a !important; }
 .custom-status-rejected { background: #fef2f2 !important; color: #b91c1c !important; border: 1px solid #fecaca !important; }
 .custom-status-cancelled { background: var(--admin-surface-muted) !important; color: var(--admin-faint) !important; border: 1px solid var(--admin-border) !important; }
 .fee-paid { background: #dcfce7; color: #166534; }
@@ -2372,8 +2410,15 @@ export default {
 }
 .approval-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
 .approval-pending { border-left: 3px solid #f59e0b; }
+.approval-need_supplement { border-left: 3px solid #f59e0b; }
 .approval-approved { border-left: 3px solid #22c55e; }
 .approval-rejected { border-left: 3px solid #ef4444; }
+
+.btn-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
 .approval-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 .approval-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 .approval-btns { display: flex; gap: 8px; }

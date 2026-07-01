@@ -1180,6 +1180,18 @@
                                                 <img :src="req.evidence_image_url" alt="Ảnh minh chứng" class="approval-evidence-thumb" />
                                             </a>
                                         </div>
+                                        <div v-if="req.supplementary_documents?.length" class="supplement-documents">
+                                            <span class="approval-evidence-label">Giấy tờ bổ sung:</span>
+                                            <a
+                                                v-for="doc in req.supplementary_documents"
+                                                :key="doc.id || doc.file_path || doc.file_name"
+                                                :href="doc.download_url"
+                                                target="_blank"
+                                                rel="noopener"
+                                            >
+                                                {{ doc.file_name || 'Tải file' }}
+                                            </a>
+                                        </div>
                                         <div
                                             v-if="
                                                 req.reviewed_by &&
@@ -1358,6 +1370,18 @@
                                         >
                                             Lý do từ chối:
                                             {{ req.status_reason }}
+                                        </div>
+                                        <div v-if="req.supplementary_documents?.length" class="supplement-documents">
+                                            <span>Giấy tờ bổ sung:</span>
+                                            <a
+                                                v-for="doc in req.supplementary_documents"
+                                                :key="doc.id || doc.file_path || doc.file_name"
+                                                :href="doc.download_url"
+                                                target="_blank"
+                                                rel="noopener"
+                                            >
+                                                {{ doc.file_name || 'Tải file' }}
+                                            </a>
                                         </div>
                                         <div
                                             v-if="
@@ -1745,6 +1769,23 @@
                                 />
                             </div>
                         </div>
+                        <div class="form-group">
+                            <label>Giấy tờ bổ sung <span class="text-muted">(không bắt buộc)</span></label>
+                            <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
+                                Tải lên file PDF/DOC/DOCX hoặc ảnh liên quan đến yêu cầu mở rộng.
+                            </p>
+                            <input
+                                ref="scaleSupplementInput"
+                                type="file"
+                                class="form-control"
+                                multiple
+                                accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
+                                @change="handleScaleSupplementSelect"
+                            />
+                            <div v-if="scaleSupplementFiles.length" class="supplement-file-list">
+                                <span v-for="file in scaleSupplementFiles" :key="file.name + file.size">{{ file.name }}</span>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button
@@ -1956,6 +1997,23 @@
                                 placeholder="Mô tả lý do bạn muốn đổi vị trí..."
                                 required
                             ></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Giấy tờ bổ sung <span class="text-muted">(không bắt buộc)</span></label>
+                            <p class="map-help-text">
+                                Tải lên giấy tờ, hình ảnh hoặc xác nhận liên quan đến vị trí mới.
+                            </p>
+                            <input
+                                ref="locationSupplementInput"
+                                type="file"
+                                class="form-control"
+                                multiple
+                                accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
+                                @change="handleLocationSupplementSelect"
+                            />
+                            <div v-if="locationSupplementFiles.length" class="supplement-file-list">
+                                <span v-for="file in locationSupplementFiles" :key="file.name + file.size">{{ file.name }}</span>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -2294,6 +2352,7 @@ export default {
             newReqForm: { court_type_id: "", name: "", note: "" },
             evidenceFile: null,
             evidencePreview: null,
+            scaleSupplementFiles: [],
             newReqSuccess: null,
             newReqError: null,
             creatingReq: false,
@@ -2309,6 +2368,7 @@ export default {
             showLocationModal: false,
             locationSubmitting: false,
             locationModalError: null,
+            locationSupplementFiles: [],
             resolvingLocationMap: false,
             locationMapMsg: null,
             locationForm: {
@@ -2741,6 +2801,7 @@ export default {
         statusLabel(status) {
             return {
                 pending: "Đang chờ duyệt",
+                need_supplement: "Cần bổ sung",
                 approved: "Đã chấp nhận",
                 rejected: "Bị từ chối",
                 cancelled: "Đã hủy",
@@ -4049,10 +4110,29 @@ export default {
                 this.$refs.evidenceInput.value = '';
             }
         },
+        handleScaleSupplementSelect(e) {
+            this.scaleSupplementFiles = Array.from(e.target.files || []);
+        },
+        clearScaleSupplementFiles() {
+            this.scaleSupplementFiles = [];
+            if (this.$refs.scaleSupplementInput) {
+                this.$refs.scaleSupplementInput.value = '';
+            }
+        },
+        handleLocationSupplementSelect(e) {
+            this.locationSupplementFiles = Array.from(e.target.files || []);
+        },
+        clearLocationSupplementFiles() {
+            this.locationSupplementFiles = [];
+            if (this.$refs.locationSupplementInput) {
+                this.$refs.locationSupplementInput.value = '';
+            }
+        },
 
         openCreateApprovalModal() {
             this.newReqForm = { court_type_id: "", name: "", note: "" };
             this.removeEvidence();
+            this.clearScaleSupplementFiles();
             this.showCreateApprovalModal = true;
             this.newReqSuccess = null;
             this.newReqError = null;
@@ -4080,6 +4160,9 @@ export default {
                 if (this.evidenceFile) {
                     formData.append('evidence_image', this.evidenceFile);
                 }
+                this.scaleSupplementFiles.forEach((file) => {
+                    formData.append('supplementary_documents[]', file);
+                });
                 const res = await venueClusterService.createApprovalRequest(
                     this.selectedCluster.id,
                     formData,
@@ -4089,6 +4172,7 @@ export default {
                 this.approvalRequests.unshift(res.data);
                 this.newReqForm = { court_type_id: "", name: "", note: "" };
                 this.removeEvidence();
+                this.clearScaleSupplementFiles();
                 this.closeCreateApprovalModal();
                 if (!this.courtTypes.length) {
                     const typesRes = await courtTypeService.getAll();
@@ -4124,6 +4208,7 @@ export default {
             return (
                 {
                     pending: "Chờ duyệt",
+                    need_supplement: "Cần bổ sung",
                     approved: "Đã duyệt",
                     rejected: "Từ chối",
                     cancelled: "Đã hủy",
@@ -4154,6 +4239,7 @@ export default {
         async openLocationChangeModal() {
             this.locationModalError = null;
             this.locationMapMsg = null;
+            this.clearLocationSupplementFiles();
             this.locationForm = {
                 new_province: this.selectedCluster.province || "",
                 new_ward: this.selectedCluster.ward || "",
@@ -4188,16 +4274,26 @@ export default {
         closeLocationChangeModal() {
             this.showLocationModal = false;
             this.destroyLocationMap();
+            this.clearLocationSupplementFiles();
         },
 
         async handleLocationChangeSubmit() {
             this.locationSubmitting = true;
             this.locationModalError = null;
             try {
+                const formData = new FormData();
+                Object.entries(this.locationForm).forEach(([key, value]) => {
+                    if (value !== null && value !== undefined) {
+                        formData.append(key, value);
+                    }
+                });
+                this.locationSupplementFiles.forEach((file) => {
+                    formData.append('supplementary_documents[]', file);
+                });
                 const res =
                     await venueClusterService.createLocationChangeRequest(
                         this.selectedCluster.id,
-                        this.locationForm,
+                        formData,
                     );
                 this.locationRequests.unshift(res.data);
                 this.closeLocationChangeModal();
@@ -5370,6 +5466,9 @@ export default {
 .approval-pending {
     border-left-color: #f59e0b;
 }
+.approval-need_supplement {
+    border-left-color: #f59e0b;
+}
 .approval-approved {
     border-left-color: var(--admin-primary, #000000);
 }
@@ -5421,6 +5520,10 @@ export default {
 .approval-status-pending {
     background: #fef9c3;
     color: #713f12;
+}
+.approval-status-need_supplement {
+    background: #fffbeb;
+    color: #92400e;
 }
 .approval-status-approved {
     background: var(--admin-primary, #000000);

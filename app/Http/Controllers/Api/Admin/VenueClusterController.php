@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\Partner\VenueChangeRequestApprovedMail;
+use App\Mail\Partner\VenueChangeRequestRejectedMail;
 use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\Notification;
@@ -13,7 +15,10 @@ use App\Models\VenueLocationChangeRequest;
 use App\Models\VenuePlatformFeeLedger;
 use App\Models\VenueUnlockRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Mail\Mailable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
@@ -348,6 +353,13 @@ class VenueClusterController extends Controller
         ])->save();
 
         $this->audit($request, $actor, 'venue_court_approval.approved', $approvalRequest, ['status' => 'pending'], ['status' => 'approved', 'venue_court_id' => $newCourt->id]);
+        $approvalRequest->loadMissing(['venueCluster.owner', 'courtType']);
+        $this->sendVenueChangeMail($approvalRequest->venueCluster, new VenueChangeRequestApprovedMail([
+            'request_type' => 'Mở rộng quy mô sân',
+            'cluster_name' => $approvalRequest->venueCluster?->name,
+            'summary' => $approvalRequest->name . ' - ' . ($approvalRequest->courtType?->name ?? 'Loại sân'),
+            'reviewed_at' => optional($approvalRequest->reviewed_at)->format('H:i d/m/Y'),
+        ]), $approvalRequest->id);
 
         return response()->json([
             'message' => 'Duyệt yêu cầu thành công. Sân con mới đã được tạo.',
@@ -385,6 +397,14 @@ class VenueClusterController extends Controller
         ])->save();
 
         $this->audit($request, $actor, 'venue_court_approval.rejected', $approvalRequest, ['status' => 'pending'], ['status' => 'rejected', 'reason' => $data['status_reason']]);
+        $approvalRequest->loadMissing(['venueCluster.owner', 'courtType']);
+        $this->sendVenueChangeMail($approvalRequest->venueCluster, new VenueChangeRequestRejectedMail([
+            'request_type' => 'Mở rộng quy mô sân',
+            'cluster_name' => $approvalRequest->venueCluster?->name,
+            'summary' => $approvalRequest->name . ' - ' . ($approvalRequest->courtType?->name ?? 'Loại sân'),
+            'reason' => $data['status_reason'],
+            'reviewed_at' => optional($approvalRequest->reviewed_at)->format('H:i d/m/Y'),
+        ]), $approvalRequest->id);
 
         return response()->json([
             'message' => 'Đã từ chối yêu cầu.',
@@ -395,6 +415,50 @@ class VenueClusterController extends Controller
     // ─────────────────────────────────────────────────────────────────
     // Duyệt yêu cầu thay đổi vị trí
     // ─────────────────────────────────────────────────────────────────
+    public function requestSupplementForScale(Request $request, string $clusterId, string $requestId): JsonResponse
+    {
+        $data = $request->validate([
+            'status_reason' => ['required', 'string', 'max:2000'],
+        ], [
+            'status_reason.required' => 'Vui lòng nhập nội dung giấy tờ/thông tin cần bổ sung.',
+        ]);
+
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
+
+        $approvalRequest = VenueCourtApprovalRequest::query()
+            ->where('venue_cluster_id', $clusterId)
+            ->findOrFail($requestId);
+
+        if ($approvalRequest->status !== 'pending') {
+            return response()->json(['message' => 'Yêu cầu này đã được xử lý.'], 422);
+        }
+
+        $approvalRequest->forceFill([
+            'status' => 'need_supplement',
+            'reviewed_by' => $actor->id,
+            'reviewed_at' => now(),
+            'status_reason' => $data['status_reason'],
+        ])->save();
+
+        $this->audit($request, $actor, 'venue_court_approval.need_supplement', $approvalRequest, ['status' => 'pending'], ['status' => 'need_supplement', 'reason' => $data['status_reason']]);
+        $approvalRequest->loadMissing(['venueCluster.owner', 'courtType']);
+        $this->sendVenueChangeMail($approvalRequest->venueCluster, new VenueChangeRequestRejectedMail([
+            'request_type' => 'Mở rộng quy mô sân',
+            'cluster_name' => $approvalRequest->venueCluster?->name,
+            'summary' => $approvalRequest->name . ' - ' . ($approvalRequest->courtType?->name ?? 'Loại sân'),
+            'reason' => $data['status_reason'],
+            'reviewed_at' => optional($approvalRequest->reviewed_at)->format('H:i d/m/Y'),
+            'status_label' => 'Cần bổ sung hồ sơ',
+            'message' => 'SportGo cần bạn bổ sung thêm giấy tờ hoặc thông tin cho yêu cầu này. Vui lòng kiểm tra lý do và gửi lại yêu cầu mới sau khi đã chuẩn bị đủ hồ sơ.',
+        ]), $approvalRequest->id);
+
+        return response()->json([
+            'message' => 'Đã yêu cầu chủ sân bổ sung hồ sơ.',
+            'request' => $this->approvalPayload($approvalRequest->fresh(['courtType', 'requestedBy', 'reviewedBy'])),
+        ]);
+    }
+
     public function approveLocationChange(Request $request, string $clusterId, string $requestId): JsonResponse
     {
         /** @var \App\Models\User $actor */
@@ -449,6 +513,13 @@ class VenueClusterController extends Controller
                 'longitude' => $locationRequest->new_longitude,
             ]
         );
+        $cluster->loadMissing('owner');
+        $this->sendVenueChangeMail($cluster, new VenueChangeRequestApprovedMail([
+            'request_type' => 'Thay đổi vị trí sân',
+            'cluster_name' => $cluster->name,
+            'summary' => trim($locationRequest->new_address . ', ' . $locationRequest->new_ward . ', ' . $locationRequest->new_province, ', '),
+            'reviewed_at' => optional($locationRequest->reviewed_at)->format('H:i d/m/Y'),
+        ]), $locationRequest->id);
 
         return response()->json([
             'message' => 'Duyệt yêu cầu thành công. Vị trí cụm sân đã được cập nhật.',
@@ -492,6 +563,14 @@ class VenueClusterController extends Controller
             ['status' => 'pending'],
             ['status' => 'rejected', 'reason' => $data['status_reason']]
         );
+        $cluster = VenueCluster::with('owner')->findOrFail($clusterId);
+        $this->sendVenueChangeMail($cluster, new VenueChangeRequestRejectedMail([
+            'request_type' => 'Thay đổi vị trí sân',
+            'cluster_name' => $cluster->name,
+            'summary' => trim($locationRequest->new_address . ', ' . $locationRequest->new_ward . ', ' . $locationRequest->new_province, ', '),
+            'reason' => $data['status_reason'],
+            'reviewed_at' => optional($locationRequest->reviewed_at)->format('H:i d/m/Y'),
+        ]), $locationRequest->id);
 
         return response()->json([
             'message' => 'Đã từ chối yêu cầu.',
@@ -502,6 +581,50 @@ class VenueClusterController extends Controller
     // ─────────────────────────────────────────────────────────────────
     // Duyệt yêu cầu mở khóa cụm sân
     // ─────────────────────────────────────────────────────────────────
+    public function requestSupplementForLocationChange(Request $request, string $clusterId, string $requestId): JsonResponse
+    {
+        $data = $request->validate([
+            'status_reason' => ['required', 'string', 'max:2000'],
+        ], [
+            'status_reason.required' => 'Vui lòng nhập nội dung giấy tờ/thông tin cần bổ sung.',
+        ]);
+
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
+
+        $locationRequest = VenueLocationChangeRequest::query()
+            ->where('venue_cluster_id', $clusterId)
+            ->findOrFail($requestId);
+
+        if ($locationRequest->status !== 'pending') {
+            return response()->json(['message' => 'Yêu cầu này đã được xử lý.'], 422);
+        }
+
+        $locationRequest->forceFill([
+            'status' => 'need_supplement',
+            'reviewed_by' => $actor->id,
+            'reviewed_at' => now(),
+            'status_reason' => $data['status_reason'],
+        ])->save();
+
+        $cluster = VenueCluster::with('owner')->findOrFail($clusterId);
+        $this->audit($request, $actor, 'venue_cluster.location_change_need_supplement', $cluster, ['status' => 'pending'], ['status' => 'need_supplement', 'reason' => $data['status_reason']]);
+        $this->sendVenueChangeMail($cluster, new VenueChangeRequestRejectedMail([
+            'request_type' => 'Thay đổi vị trí sân',
+            'cluster_name' => $cluster->name,
+            'summary' => trim($locationRequest->new_address . ', ' . $locationRequest->new_ward . ', ' . $locationRequest->new_province, ', '),
+            'reason' => $data['status_reason'],
+            'reviewed_at' => optional($locationRequest->reviewed_at)->format('H:i d/m/Y'),
+            'status_label' => 'Cần bổ sung hồ sơ',
+            'message' => 'SportGo cần bạn bổ sung thêm giấy tờ hoặc thông tin cho yêu cầu thay đổi vị trí. Vui lòng kiểm tra lý do và gửi lại yêu cầu mới sau khi đã chuẩn bị đủ hồ sơ.',
+        ]), $locationRequest->id);
+
+        return response()->json([
+            'message' => 'Đã yêu cầu chủ sân bổ sung hồ sơ.',
+            'request' => $this->locationChangePayload($locationRequest->fresh(['requestedBy', 'reviewedBy'])),
+        ]);
+    }
+
     public function approveUnlockRequest(Request $request, string $clusterId, string $requestId): JsonResponse
     {
         /** @var \App\Models\User $actor */
@@ -591,6 +714,35 @@ class VenueClusterController extends Controller
     // Private helpers
     // ─────────────────────────────────────────────────────────────────
 
+    private function sendVenueChangeMail(?VenueCluster $cluster, Mailable $mail, ?string $referenceId = null): void
+    {
+        if (! $cluster) {
+            return;
+        }
+
+        $cluster->loadMissing('owner');
+        $owner = $cluster->owner;
+
+        if (! $owner?->email) {
+            Log::warning('Venue change request mail skipped: owner has no email.', [
+                'venue_cluster_id' => $cluster->id,
+                'reference_id' => $referenceId,
+            ]);
+            return;
+        }
+
+        try {
+            Mail::to($owner->email)->send($mail);
+        } catch (\Throwable $exception) {
+            Log::error('Venue change request mail failed.', [
+                'venue_cluster_id' => $cluster->id,
+                'reference_id' => $referenceId,
+                'owner_id' => $owner->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
     private function listPayload(VenueCluster $c): array
     {
         $courts      = $c->venueCourts ?? collect();
@@ -662,6 +814,7 @@ class VenueClusterController extends Controller
             'status_reason'           => $r->status_reason,
             'evidence_image'          => $r->evidence_image,
             'evidence_image_url'      => $r->evidence_image ? asset('storage/' . $r->evidence_image) : null,
+            'supplementary_documents' => $r->supplementary_documents ?: [],
             'court_type'              => $r->courtType ? ['id' => $r->courtType->id, 'name' => $r->courtType->name] : null,
             'requested_by'            => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
             'reviewed_by'             => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,
@@ -684,6 +837,7 @@ class VenueClusterController extends Controller
             'new_latitude'  => $r->new_latitude,
             'new_longitude' => $r->new_longitude,
             'new_map_url'   => $r->new_map_url,
+            'supplementary_documents' => $r->supplementary_documents ?: [],
             'requested_by'  => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
             'reviewed_by'   => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,
             'reviewed_at'   => $r->reviewed_at,

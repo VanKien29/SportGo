@@ -238,7 +238,7 @@ class AdminBannerPartnerApplicationTest extends TestCase
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.application.status', 'submitted');
 
-        Mail::assertQueued(PartnerApplicationReceivedMail::class, function (PartnerApplicationReceivedMail $mail) use ($applicationId): bool {
+        Mail::assertSent(PartnerApplicationReceivedMail::class, function (PartnerApplicationReceivedMail $mail) use ($applicationId): bool {
             return $mail->application->id === $applicationId;
         });
 
@@ -324,7 +324,7 @@ class AdminBannerPartnerApplicationTest extends TestCase
             'status_reason' => $reason,
         ]);
 
-        Mail::assertQueued(PartnerApplicationRejectedMail::class, function (PartnerApplicationRejectedMail $mail) use ($application): bool {
+        Mail::assertSent(PartnerApplicationRejectedMail::class, function (PartnerApplicationRejectedMail $mail) use ($application): bool {
             return $mail->application->id === $application->id;
         });
     }
@@ -457,7 +457,7 @@ class AdminBannerPartnerApplicationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'success');
 
-        Mail::assertQueued(PartnerApplicationApprovedMail::class, function (PartnerApplicationApprovedMail $mail) use ($application): bool {
+        Mail::assertSent(PartnerApplicationApprovedMail::class, function (PartnerApplicationApprovedMail $mail) use ($application): bool {
             return $mail->application->id === $application->id;
         });
 
@@ -495,7 +495,7 @@ class AdminBannerPartnerApplicationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'success');
 
-        Mail::assertQueued(PartnerContractSignedByOwnerMail::class, function (PartnerContractSignedByOwnerMail $mail) use ($contract): bool {
+        Mail::assertSent(PartnerContractSignedByOwnerMail::class, function (PartnerContractSignedByOwnerMail $mail) use ($contract): bool {
             return $mail->contract->id === $contract->id;
         });
 
@@ -595,7 +595,7 @@ class AdminBannerPartnerApplicationTest extends TestCase
     {
         $otp = null;
 
-        Mail::assertQueued(PartnerDocumentOtpMail::class, function (PartnerDocumentOtpMail $mail) use ($signingRequestId, &$otp): bool {
+        Mail::assertSent(PartnerDocumentOtpMail::class, function (PartnerDocumentOtpMail $mail) use ($signingRequestId, &$otp): bool {
             if ($mail->signingRequest->id !== $signingRequestId) {
                 return false;
             }

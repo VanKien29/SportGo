@@ -132,7 +132,7 @@
                       <input v-model.trim="form.applicant_full_name" :class="inputClass(fieldErrors.applicant_full_name)" />
                     </FormField>
                     <FormField label="Số điện thoại" required :error="fieldErrors.applicant_phone">
-                      <input v-model.trim="form.applicant_phone" :class="inputClass(fieldErrors.applicant_phone)" inputmode="tel" @input="normalizePhone('applicant_phone')" />
+                      <input v-model.trim="form.applicant_phone" :class="inputClass(fieldErrors.applicant_phone)" inputmode="tel" @input="sanitizePhoneCharacters('applicant_phone')" />
                     </FormField>
                     <FormField label="Email" required :error="fieldErrors.applicant_email">
                       <input v-model.trim="form.applicant_email" :class="inputClass(fieldErrors.applicant_email)" type="email" />
@@ -170,7 +170,7 @@
                       <input v-model.trim="form.business_name" :class="inputClass(fieldErrors.business_name)" />
                     </FormField>
                     <FormField label="Mã số thuế" :error="fieldErrors.tax_code">
-                      <input v-model.trim="form.tax_code" :class="inputClass(fieldErrors.tax_code)" @input="normalizeTaxCode" />
+                      <input v-model.trim="form.tax_code" :class="inputClass(fieldErrors.tax_code)" inputmode="numeric" @input="normalizeTaxCode" />
                     </FormField>
                     <FormField label="Số giấy đăng ký kinh doanh/pháp lý" required :error="fieldErrors.business_license_number">
                       <input v-model.trim="form.business_license_number" :class="inputClass(fieldErrors.business_license_number)" />
@@ -209,6 +209,22 @@
                       </div>
                       <p v-else-if="mapStatus" style="margin-top: 4px; font-size: 13px; color: #059669;">{{ mapStatus }}</p>
                     </FormField>
+                    <FormField class="full-width" label="Chọn vị trí trên bản đồ" required :error="fieldErrors.venue_coordinates">
+                      <div class="map-picker-shell">
+                        <div id="partner-application-map" class="map-picker"></div>
+                        <div class="map-coordinate-grid">
+                          <label :class="{ invalid: fieldErrors.venue_latitude }">
+                            <span>Vĩ độ</span>
+                            <input v-model.trim="form.venue_latitude" :class="inputClass(fieldErrors.venue_latitude)" inputmode="decimal" @input="sanitizeCoordinate('venue_latitude')" />
+                          </label>
+                          <label :class="{ invalid: fieldErrors.venue_longitude }">
+                            <span>Kinh độ</span>
+                            <input v-model.trim="form.venue_longitude" :class="inputClass(fieldErrors.venue_longitude)" inputmode="decimal" @input="sanitizeCoordinate('venue_longitude')" />
+                          </label>
+                        </div>
+                        <p class="map-help">Click trên bản đồ hoặc kéo marker để chọn tọa độ cụm sân. Link Google Maps nếu có tọa độ sẽ tự đặt marker.</p>
+                      </div>
+                    </FormField>
                     <input type="hidden" :value="form.venue_latitude" name="venue_latitude" />
                     <input type="hidden" :value="form.venue_longitude" name="venue_longitude" />
                     
@@ -216,7 +232,7 @@
                       <input v-model.trim="form.venue_name" :class="inputClass(fieldErrors.venue_name)" />
                     </FormField>
                     <FormField label="Số điện thoại tại sân" required :error="fieldErrors.venue_phone">
-                      <input v-model.trim="form.venue_phone" :class="inputClass(fieldErrors.venue_phone)" inputmode="tel" @input="normalizePhone('venue_phone')" />
+                      <input v-model.trim="form.venue_phone" :class="inputClass(fieldErrors.venue_phone)" inputmode="tel" @input="sanitizePhoneCharacters('venue_phone')" />
                     </FormField>
                     <FormField label="Giờ mở cửa dự kiến" :error="fieldErrors.expected_opening_hours">
                       <input v-model.trim="form.expected_opening_hours" :class="inputClass(fieldErrors.expected_opening_hours)" placeholder="05:00 - 23:00" />
@@ -230,10 +246,10 @@
                 <FormSection title="Cấu hình sân con" style="margin-top: 24px;">
                   <div class="form-grid">
                     <FormField label="Số lượng sân con" required :error="fieldErrors.court_count_total">
-                      <input v-model.number="form.court_count_total" :class="inputClass(fieldErrors.court_count_total)" type="number" min="1" max="100" @input="syncCourtRows" />
+                      <input v-model.trim="form.court_count_total" :class="inputClass(fieldErrors.court_count_total)" inputmode="numeric" @input="onCourtCountInput" />
                     </FormField>
                     <FormField label="Giá cơ bản/giờ (VNĐ)" required :error="fieldErrors.base_price_per_hour">
-                      <input v-model.number="form.base_price_per_hour" :class="inputClass(fieldErrors.base_price_per_hour)" type="number" min="1000" step="1000" />
+                      <input v-model.trim="form.base_price_per_hour" :class="inputClass(fieldErrors.base_price_per_hour)" inputmode="numeric" @input="sanitizeDigitsField('base_price_per_hour')" />
                     </FormField>
                   </div>
 
@@ -309,6 +325,7 @@
                     <UploadBox title="Hình ảnh cơ sở/sân" required :files="files.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
                     <UploadBox title="Chứng từ ngân hàng" required :files="files.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
                     <UploadBox title="Hợp đồng thuê mặt bằng" required :files="files.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
+                    <UploadBox title="Giấy tờ khác" :files="files.additional" :error="fieldErrors.additional_documents" @change="setFiles('additional', $event)" @remove="removeFile('additional', $event)" />
                   </div>
                 </FormSection>
 
@@ -347,6 +364,51 @@
 
 <style scoped>
 @import "../../../css/partner/partner.css";
+
+.map-picker-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.map-picker {
+  min-height: 320px;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #eef2f7;
+}
+
+.map-coordinate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.map-coordinate-grid label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.map-coordinate-grid label.invalid input {
+  border-color: #f87171;
+}
+
+.map-help {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .map-coordinate-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -428,6 +490,8 @@ const mapError = ref('');
 const mapStatus = ref('');
 const mapSuggestion = ref(null);
 const mapTimer = ref(null);
+const mapInstance = ref(null);
+const mapMarker = ref(null);
 
 // ─── Static options ───────────────────────────────────────────────────────────
 const applicantTypeOptions = [
@@ -461,12 +525,22 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   clearTimeout(bankTimer.value);
   clearTimeout(mapTimer.value);
+  destroyMapPicker();
 });
 
 watch(() => form.venue_province_code, async (code, old) => {
   if (code !== old) { form.venue_ward_code = ''; wards.value = []; await loadWards(code); syncVenueAddress(); }
 });
 watch(() => form.venue_ward_code, syncVenueAddress);
+watch(formOpen, async (open) => {
+  if (open) {
+    await nextTick();
+    initMapPicker();
+    return;
+  }
+  destroyMapPicker();
+});
+watch(() => [form.venue_latitude, form.venue_longitude], updateMapPickerMarker);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function defaultForm(authUser) {
@@ -555,24 +629,35 @@ async function continueDraft() {
 function clearDraft() { localStorage.removeItem(DRAFT_KEY); draft.value = null; }
 
 // ─── Input handlers ───────────────────────────────────────────────────────────
-function normalizePhone(field) {
+function sanitizePhoneCharacters(field) {
   let value = String(form[field] || '').replace(/[^\d+]/g, '');
   if (value.includes('+')) value = `+${value.replace(/\+/g, '')}`;
-  if (value.startsWith('+84')) value = `+84${value.slice(3).replace(/\D/g, '').slice(0, 9)}`;
-  else value = value.replace(/\D/g, '').slice(0, 10);
   form[field] = value;
 }
 
 function normalizeIdentityNumber() {
   const v = String(form.representative_identity_number || '');
-  form.representative_identity_number = form.representative_identity_type === 'passport' ? v.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 20) : v.replace(/\D/g, '').slice(0, 12);
+  form.representative_identity_number = form.representative_identity_type === 'passport' ? v.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : v.replace(/\D/g, '');
 }
 
-function normalizeTaxCode() { form.tax_code = String(form.tax_code || '').replace(/[^\d-]/g, '').slice(0, 14); }
+function normalizeTaxCode() { form.tax_code = String(form.tax_code || '').replace(/[^\d-]/g, ''); }
 
 // ─── Bank verification ────────────────────────────────────────────────────────
 function selectBank(bank) { form.bank_name = bank?.short_name || bank?.name || ''; form.bank_bin = bank?.bin || ''; }
-function onAccountNumberInput() { form.account_number = String(form.account_number || '').replace(/\D/g, '').slice(0, 19); }
+function onAccountNumberInput() { sanitizeDigitsField('account_number'); }
+function sanitizeDigitsField(field) { form[field] = String(form[field] || '').replace(/\D/g, ''); }
+function onCourtCountInput() {
+  sanitizeDigitsField('court_count_total');
+  const total = Number(form.court_count_total);
+  if (Number.isInteger(total) && total >= 1 && total <= 100) syncCourtRows();
+}
+function sanitizeCoordinate(field) {
+  let value = String(form[field] || '').replace(/[^0-9.-]/g, '');
+  value = value.replace(/(?!^)-/g, '');
+  const parts = value.split('.');
+  if (parts.length > 2) value = `${parts.shift()}.${parts.join('')}`;
+  form[field] = value;
+}
 function onManualBankHolderInput() {
   form.account_holder_name = String(form.account_holder_name || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
 }
@@ -584,6 +669,66 @@ function syncVenueAddress() {
   const province = provinces.value.find((p) => String(p.code) === String(form.venue_province_code))?.name;
   const ward = wards.value.find((w) => String(w.code) === String(form.venue_ward_code))?.name;
   form.venue_address = [form.street_address, ward, province].filter(Boolean).join(', ');
+}
+
+function initMapPicker() {
+  if (!window.L || mapInstance.value) return;
+  const container = document.getElementById('partner-application-map');
+  if (!container) return;
+  const lat = validLatitude(form.venue_latitude) ? Number(form.venue_latitude) : 21.0285;
+  const lng = validLongitude(form.venue_longitude) ? Number(form.venue_longitude) : 105.8542;
+  const DefaultIcon = window.L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
+  window.L.Marker.prototype.options.icon = DefaultIcon;
+  mapInstance.value = window.L.map(container, { scrollWheelZoom: false }).setView([lat, lng], 15);
+  window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(mapInstance.value);
+  mapMarker.value = window.L.marker([lat, lng], { draggable: true }).addTo(mapInstance.value);
+  mapMarker.value.on('dragend', (event) => applyPickedCoordinates(event.target.getLatLng()));
+  mapInstance.value.on('click', (event) => applyPickedCoordinates(event.latlng));
+  setTimeout(() => mapInstance.value?.invalidateSize(), 150);
+}
+
+function destroyMapPicker() {
+  if (!mapInstance.value) return;
+  mapInstance.value.remove();
+  mapInstance.value = null;
+  mapMarker.value = null;
+}
+
+function applyPickedCoordinates(point) {
+  form.venue_latitude = Number(point.lat).toFixed(7);
+  form.venue_longitude = Number(point.lng).toFixed(7);
+  mapStatus.value = 'Đã chọn tọa độ trên bản đồ.';
+  delete fieldErrors.venue_coordinates;
+  delete fieldErrors.venue_latitude;
+  delete fieldErrors.venue_longitude;
+}
+
+function updateMapPickerMarker() {
+  if (!mapInstance.value || !mapMarker.value) return;
+  if (!validLatitude(form.venue_latitude) || !validLongitude(form.venue_longitude)) return;
+  const lat = Number(form.venue_latitude);
+  const lng = Number(form.venue_longitude);
+  const current = mapMarker.value.getLatLng();
+  if (Math.abs(current.lat - lat) < 0.000001 && Math.abs(current.lng - lng) < 0.000001) return;
+  mapMarker.value.setLatLng([lat, lng]);
+  mapInstance.value.setView([lat, lng], mapInstance.value.getZoom() || 15);
+}
+
+function validLatitude(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= -90 && number <= 90;
+}
+
+function validLongitude(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= -180 && number <= 180;
 }
 
 function onMapUrlInput() {
@@ -688,8 +833,19 @@ function validateForm() {
   if (form.venue_phone && !/^(0\d{9}|\+84\d{9})$/.test(form.venue_phone)) fieldErrors.venue_phone = 'Số điện thoại sân phải có 10 số và bắt đầu bằng 0 hoặc +84.';
   if (form.applicant_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.applicant_email)) fieldErrors.applicant_email = 'Email không đúng định dạng.';
   if (form.venue_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.venue_email)) fieldErrors.venue_email = 'Email sân không đúng định dạng.';
+  if (form.tax_code && !/^\d{10}(-?\d{3})?$/.test(form.tax_code)) fieldErrors.tax_code = 'Mã số thuế phải gồm 10 số hoặc 13 số, có thể có dấu gạch ngang sau 10 số.';
+  if (form.account_number && !/^\d+$/.test(form.account_number)) fieldErrors.account_number = 'Số tài khoản chỉ được nhập chữ số.';
   if (!isValidIdentity()) fieldErrors.representative_identity_number = 'Số giấy tờ không đúng định dạng đã chọn.';
-  if (!form.venue_latitude || !form.venue_longitude) fieldErrors.venue_map_url = 'Vui lòng dùng link Google Maps có tọa độ hợp lệ.';
+  if (!validLatitude(form.venue_latitude) || !validLongitude(form.venue_longitude)) {
+    fieldErrors.venue_map_url = 'Vui lòng dùng link Google Maps có tọa độ hợp lệ hoặc chọn vị trí trên bản đồ.';
+    fieldErrors.venue_coordinates = 'Vui lòng chọn vị trí hợp lệ trên bản đồ.';
+    if (!validLatitude(form.venue_latitude)) fieldErrors.venue_latitude = 'Vĩ độ phải từ -90 đến 90.';
+    if (!validLongitude(form.venue_longitude)) fieldErrors.venue_longitude = 'Kinh độ phải từ -180 đến 180.';
+  }
+  const courtCount = Number(form.court_count_total);
+  if (!Number.isInteger(courtCount) || courtCount < 1 || courtCount > 100) fieldErrors.court_count_total = 'Số lượng sân con phải từ 1 đến 100.';
+  const basePrice = Number(form.base_price_per_hour);
+  if (!Number.isFinite(basePrice) || basePrice < 1000) fieldErrors.base_price_per_hour = 'Giá cơ bản phải từ 1.000 VNĐ trở lên.';
   // if (!bankVerified.value && !bankManualMode.value) fieldErrors.account_number = bankError.value || 'Vui lòng chờ xác minh tài khoản ngân hàng thành công.';
   if (!form.account_holder_name) fieldErrors.account_holder_name = 'Vui lòng nhập tên chủ tài khoản.';
   if (!files.identity.length) fieldErrors.identity_documents = 'Vui lòng tải lên CCCD/CMND.';

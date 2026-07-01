@@ -3,13 +3,22 @@
 namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
+use App\Mail\Partner\VenueScaleRequestReceivedMail;
 use App\Models\VenueCluster;
 use App\Models\VenueCourtApprovalRequest;
+use App\Services\Partner\PartnerProfileDocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Mailable;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class VenueCourtApprovalController extends Controller
 {
+    public function __construct(private readonly PartnerProfileDocumentService $profileDocuments)
+    {
+    }
+
     /**
      * Lấy danh sách yêu cầu quy mô sân của cụm sân.
      */
@@ -55,6 +64,8 @@ class VenueCourtApprovalController extends Controller
             'name'           => ['required', 'string', 'max:100'],
             'note'           => ['nullable', 'string', 'max:1000'],
             'evidence_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'supplementary_documents' => ['nullable', 'array', 'max:10'],
+            'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
         ], [
             'court_type_id.required'  => 'Vui lòng chọn loại sân.',
             'court_type_id.exists'    => 'Loại sân không tồn tại.',
@@ -63,6 +74,8 @@ class VenueCourtApprovalController extends Controller
             'evidence_image.image'    => 'File minh chứng phải là ảnh.',
             'evidence_image.mimes'    => 'Ảnh minh chứng phải có định dạng: jpg, jpeg, png, webp.',
             'evidence_image.max'      => 'Ảnh minh chứng không được quá 5MB.',
+            'supplementary_documents.*.mimes' => 'Giấy tờ bổ sung phải có định dạng: jpg, jpeg, png, webp, pdf, doc, docx.',
+            'supplementary_documents.*.max' => 'Mỗi giấy tờ bổ sung không được quá 10MB.',
         ]);
 
         // Xử lý upload ảnh minh chứng
@@ -81,6 +94,25 @@ class VenueCourtApprovalController extends Controller
             'status_reason'    => $data['note'] ?? null,
             'evidence_image'   => $evidencePath,
         ]);
+        $documents = $this->profileDocuments->attachVenueRequestDocuments(
+            $cluster,
+            $this->filesArray($request->file('supplementary_documents', [])),
+            $approvalRequest->id,
+            'scale_request_supplement',
+            'scale_request_documents',
+            'Giấy tờ bổ sung yêu cầu mở rộng quy mô',
+            'Giấy tờ chủ sân gửi kèm yêu cầu mở rộng quy mô sân.'
+        );
+        if ($documents !== []) {
+            $approvalRequest->forceFill(['supplementary_documents' => $documents])->save();
+        }
+        $approvalRequest->load(['courtType:id,name']);
+        $this->sendOwnerMail($cluster, new VenueScaleRequestReceivedMail([
+            'cluster_name' => $cluster->name,
+            'court_name' => $approvalRequest->name,
+            'court_type_name' => $approvalRequest->courtType?->name,
+            'submitted_at' => now()->format('H:i d/m/Y'),
+        ]), $approvalRequest->id);
 
         return response()->json([
             'message' => 'Gửi yêu cầu thành công. Vui lòng chờ Admin xét duyệt.',
@@ -117,6 +149,29 @@ class VenueCourtApprovalController extends Controller
         ]);
     }
 
+    private function sendOwnerMail(VenueCluster $cluster, Mailable $mail, ?string $referenceId = null): void
+    {
+        $owner = $cluster->owner()->first();
+        if (! $owner?->email) {
+            Log::warning('Venue scale request mail skipped: owner has no email.', [
+                'venue_cluster_id' => $cluster->id,
+                'reference_id' => $referenceId,
+            ]);
+            return;
+        }
+
+        try {
+            Mail::to($owner->email)->send($mail);
+        } catch (\Throwable $exception) {
+            Log::error('Venue scale request mail failed.', [
+                'venue_cluster_id' => $cluster->id,
+                'reference_id' => $referenceId,
+                'owner_id' => $owner->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
     private function payload(VenueCourtApprovalRequest $r): array
     {
         return [
@@ -126,6 +181,7 @@ class VenueCourtApprovalController extends Controller
             'status_reason'           => $r->status_reason,
             'evidence_image'          => $r->evidence_image,
             'evidence_image_url'      => $r->evidence_image ? asset('storage/' . $r->evidence_image) : null,
+            'supplementary_documents' => $r->supplementary_documents ?: [],
             'court_type'              => $r->courtType ? ['id' => $r->courtType->id, 'name' => $r->courtType->name] : null,
             'requested_by'            => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
             'reviewed_by'             => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,
@@ -133,5 +189,13 @@ class VenueCourtApprovalController extends Controller
             'reviewed_at'             => $r->reviewed_at,
             'created_at'              => $r->created_at,
         ];
+    }
+
+    private function filesArray(mixed $files): array
+    {
+        return collect(\Illuminate\Support\Arr::wrap($files))
+            ->filter(fn ($file) => $file instanceof \Illuminate\Http\UploadedFile)
+            ->values()
+            ->all();
     }
 }

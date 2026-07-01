@@ -9,7 +9,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class PartnerApplicationReceivedMail extends Mailable
+class PartnerApplicationSupplementRequiredMail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -19,11 +19,11 @@ class PartnerApplicationReceivedMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: '[SportGo] Đã nhận đơn đăng ký đối tác');
+        return new Envelope(subject: '[SportGo] Hồ sơ đăng ký đối tác cần bổ sung');
     }
 
     public function content(): Content
     {
-        return new Content(view: 'emails.partner.partner-application-received');
+        return new Content(view: 'emails.partner.partner-application-supplement-required');
     }
 }

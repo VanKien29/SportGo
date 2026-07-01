@@ -65,7 +65,7 @@ class PartnerApplicationController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Đã tạo đơn đăng ký. Vui lòng xem và ký đơn trước khi gửi hồ sơ.',
-            'data' => $application,
+            'data' => $this->userApplicationPayload($application->fresh($this->partners->detailRelations())),
         ], 201);
     }
 

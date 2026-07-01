@@ -26,6 +26,7 @@ class VenueLocationChangeRequest extends Model
         'new_latitude',
         'new_longitude',
         'new_map_url',
+        'supplementary_documents',
         'reviewed_at',
     ];
 
@@ -35,6 +36,7 @@ class VenueLocationChangeRequest extends Model
             'new_latitude'  => 'decimal:7',
             'new_longitude' => 'decimal:7',
             'reviewed_at'   => 'datetime',
+            'supplementary_documents' => 'array',
         ];
     }
 

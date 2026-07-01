@@ -49,6 +49,15 @@
             Từ chối
           </button>
           <button
+            v-if="isReviewable(application.status)"
+            class="btn warning"
+            type="button"
+            @click="actionMode = 'supplement'"
+          >
+            <AppIcon name="fileText" size="16" />
+            Bổ sung
+          </button>
+          <button
             v-if="pendingSportgoDocument"
             class="btn primary"
             type="button"
@@ -106,11 +115,11 @@
         </form>
       </section>
 
-      <section v-if="actionMode === 'reject'" class="review-panel danger-panel">
+      <section v-if="actionMode === 'reject' || actionMode === 'supplement'" class="review-panel" :class="{ 'danger-panel': actionMode === 'reject' }">
         <div class="panel-head">
           <div>
-            <h3>Từ chối hồ sơ</h3>
-            <p>Bắt buộc nhập lý do. Lý do này sẽ được gửi cho người đăng ký qua email.</p>
+            <h3>{{ actionMode === 'supplement' ? 'Yêu cầu bổ sung hồ sơ' : 'Từ chối hồ sơ' }}</h3>
+            <p>{{ actionMode === 'supplement' ? 'Nhập rõ giấy tờ/thông tin cần bổ sung. Nội dung này sẽ được gửi cho người đăng ký qua email.' : 'Bắt buộc nhập lý do. Lý do này sẽ được gửi cho người đăng ký qua email.' }}</p>
           </div>
           <button class="icon-btn" type="button" title="Đóng" @click="clearAction">
             <AppIcon name="x" size="16" />
@@ -119,8 +128,8 @@
 
         <form class="review-form" @submit.prevent="submitReject">
           <label class="field full" :class="{ invalid: fieldErrors.reason }">
-            <span>Lý do từ chối</span>
-            <textarea v-model.trim="rejectForm.reason" rows="5" placeholder="Nêu rõ nội dung cần bổ sung hoặc lý do hồ sơ chưa đạt"></textarea>
+            <span>{{ actionMode === 'supplement' ? 'Nội dung cần bổ sung' : 'Lý do từ chối' }}</span>
+            <textarea v-model.trim="rejectForm.reason" rows="5" :placeholder="actionMode === 'supplement' ? 'Ví dụ: bổ sung ảnh mặt sau CCCD, hợp đồng thuê mặt bằng còn hiệu lực...' : 'Nêu rõ lý do hồ sơ chưa đạt'"></textarea>
             <small v-if="fieldErrors.reason">{{ fieldErrors.reason }}</small>
           </label>
 
@@ -128,9 +137,9 @@
 
           <div class="form-actions full">
             <button class="btn ghost" type="button" @click="clearAction">Hủy</button>
-            <button class="btn danger" type="submit" :disabled="saving">
+            <button class="btn" :class="actionMode === 'supplement' ? 'primary' : 'danger'" type="submit" :disabled="saving">
               <AppIcon name="x" size="16" />
-              {{ saving ? 'Đang từ chối...' : 'Từ chối hồ sơ' }}
+              {{ saving ? 'Đang xử lý...' : (actionMode === 'supplement' ? 'Gửi yêu cầu bổ sung' : 'Từ chối hồ sơ') }}
             </button>
           </div>
         </form>
@@ -450,14 +459,17 @@ async function submitReject() {
   clearFieldErrors();
 
   if (!rejectForm.reason) {
-    fieldErrors.reason = 'Vui lòng nhập lý do từ chối.';
+    fieldErrors.reason = actionMode.value === 'supplement' ? 'Vui lòng nhập nội dung cần bổ sung.' : 'Vui lòng nhập lý do từ chối.';
     return;
   }
 
   saving.value = true;
   try {
-    const response = await adminPartnerApplicationService.reject(application.value.id, { reason: rejectForm.reason });
-    message.value = response.message || 'Đã từ chối hồ sơ.';
+    const response = await adminPartnerApplicationService.reject(application.value.id, {
+      reason: rejectForm.reason,
+      action_type: actionMode.value === 'supplement' ? 'need_supplement' : 'reject',
+    });
+    message.value = response.message || (actionMode.value === 'supplement' ? 'Đã yêu cầu bổ sung hồ sơ.' : 'Đã từ chối hồ sơ.');
     application.value = response.data;
     clearAction();
   } catch (err) {
@@ -987,6 +999,12 @@ dd {
   background: #fee2e2;
   color: #b91c1c;
   border-color: #fecaca;
+}
+
+.btn.warning {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
 }
 
 .btn:disabled {

@@ -7,6 +7,7 @@ use App\Jobs\SendRevocationReminderJob;
 use App\Mail\Partner\PartnerApplicationApprovedMail;
 use App\Mail\Partner\PartnerApplicationReceivedMail;
 use App\Mail\Partner\PartnerApplicationRejectedMail;
+use App\Mail\Partner\PartnerApplicationSupplementRequiredMail;
 use App\Mail\Partner\PartnerContractSignedByOwnerMail;
 use App\Mail\Partner\PartnerTerminationConfirmedMail;
 use App\Mail\Partner\PartnerTerminationReceivedMail;
@@ -277,6 +278,37 @@ class PartnerApplicationService
             $this->notifyUser($application->user, 'partner_application_rejected', 'Hồ sơ đối tác bị từ chối', 'Lý do: ' . $reason, $application->id);
 
             $this->mail->queue($application->venue_email ?? $application->user->email, new PartnerApplicationRejectedMail($application));
+
+            return $application->fresh($this->detailRelations());
+        });
+    }
+
+    public function requireSupplement(PartnerApplication $application, User $admin, string $reason, ?Request $request = null): PartnerApplication
+    {
+        if (! in_array($application->status, self::REVIEWABLE_STATUSES, true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Hồ sơ này đã được xử lý, không thể yêu cầu bổ sung.',
+            ]);
+        }
+
+        if (trim($reason) === '') {
+            throw ValidationException::withMessages(['reason' => 'Vui lòng nhập nội dung cần bổ sung.']);
+        }
+
+        return DB::transaction(function () use ($application, $admin, $reason, $request): PartnerApplication {
+            $application->loadMissing('user');
+            $oldStatus = $application->status;
+            $application->forceFill([
+                'status' => 'need_supplement',
+                'reviewed_by' => $admin->id,
+                'reviewed_at' => now(),
+                'status_reason' => $reason,
+            ])->save();
+
+            $this->applicationHistory($application, $oldStatus, 'need_supplement', $admin, 'admin', $reason);
+            $this->audit('partner_application_need_supplement', $application, $admin, 'admin', ['status' => $oldStatus], ['status' => 'need_supplement'], $request, $reason);
+            $this->notifyUser($application->user, 'partner_application_need_supplement', 'Hồ sơ đối tác cần bổ sung', 'Nội dung cần bổ sung: ' . $reason, $application->id);
+            $this->mail->queue($application->venue_email ?? $application->user->email, new PartnerApplicationSupplementRequiredMail($application));
 
             return $application->fresh($this->detailRelations());
         });

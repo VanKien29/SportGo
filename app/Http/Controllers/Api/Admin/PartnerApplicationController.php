@@ -125,18 +125,18 @@ class PartnerApplicationController extends Controller
     {
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
+            'action_type' => ['nullable', Rule::in(['reject', 'need_supplement'])],
         ]);
 
-        $application = $this->partners->reject(
-            PartnerApplication::with('user')->findOrFail($id),
-            $request->user(),
-            $data['reason'],
-            $request
-        );
+        $source = PartnerApplication::with('user')->findOrFail($id);
+        $isSupplement = ($data['action_type'] ?? 'reject') === 'need_supplement';
+        $application = $isSupplement
+            ? $this->partners->requireSupplement($source, $request->user(), $data['reason'], $request)
+            : $this->partners->reject($source, $request->user(), $data['reason'], $request);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Từ chối hồ sơ thành công.',
+            'message' => $isSupplement ? 'Đã yêu cầu người dùng bổ sung hồ sơ.' : 'Từ chối hồ sơ thành công.',
             'data' => $this->payload($application, true),
         ]);
     }

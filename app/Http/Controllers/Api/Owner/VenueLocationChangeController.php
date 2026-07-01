@@ -3,13 +3,22 @@
 namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
+use App\Mail\Partner\VenueLocationChangeRequestReceivedMail;
 use App\Models\VenueCluster;
 use App\Models\VenueLocationChangeRequest;
+use App\Services\Partner\PartnerProfileDocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Mailable;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class VenueLocationChangeController extends Controller
 {
+    public function __construct(private readonly PartnerProfileDocumentService $profileDocuments)
+    {
+    }
+
     /**
      * Lấy lịch sử yêu cầu thay đổi vị trí của cụm sân.
      */
@@ -70,6 +79,8 @@ class VenueLocationChangeController extends Controller
             'new_longitude' => ['required', 'numeric', 'between:-180,180'],
             'new_map_url'   => ['nullable', 'url', 'max:2000'],
             'note'          => ['required', 'string', 'max:1000'],
+            'supplementary_documents' => ['nullable', 'array', 'max:10'],
+            'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
         ], [
             'new_address.required'   => 'Vui lòng nhập địa chỉ mới.',
             'new_province.required'  => 'Vui lòng nhập tỉnh/thành phố mới.',
@@ -79,6 +90,8 @@ class VenueLocationChangeController extends Controller
             'new_longitude.required' => 'Vui lòng nhập kinh độ.',
             'new_longitude.between'  => 'Kinh độ không hợp lệ.',
             'note.required'          => 'Vui lòng nhập lý do muốn thay đổi vị trí.',
+            'supplementary_documents.*.mimes' => 'Giấy tờ bổ sung phải có định dạng: jpg, jpeg, png, webp, pdf, doc, docx.',
+            'supplementary_documents.*.max' => 'Mỗi giấy tờ bổ sung không được quá 10MB.',
         ]);
 
         $locationRequest = VenueLocationChangeRequest::create([
@@ -93,6 +106,24 @@ class VenueLocationChangeController extends Controller
             'new_longitude'    => $data['new_longitude'],
             'new_map_url'      => $data['new_map_url'] ?? null,
         ]);
+        $documents = $this->profileDocuments->attachVenueRequestDocuments(
+            $cluster,
+            $this->filesArray($request->file('supplementary_documents', [])),
+            $locationRequest->id,
+            'location_change_supplement',
+            'location_change_documents',
+            'Giấy tờ bổ sung yêu cầu thay đổi vị trí sân',
+            'Giấy tờ chủ sân gửi kèm yêu cầu thay đổi vị trí sân.'
+        );
+        if ($documents !== []) {
+            $locationRequest->forceFill(['supplementary_documents' => $documents])->save();
+        }
+        $this->sendOwnerMail($cluster, new VenueLocationChangeRequestReceivedMail([
+            'cluster_name' => $cluster->name,
+            'new_address' => trim($locationRequest->new_address . ', ' . $locationRequest->new_ward . ', ' . $locationRequest->new_province, ', '),
+            'coordinates' => $locationRequest->new_latitude . ', ' . $locationRequest->new_longitude,
+            'submitted_at' => now()->format('H:i d/m/Y'),
+        ]), $locationRequest->id);
 
         return response()->json([
             'message' => 'Gửi yêu cầu thành công. Vui lòng chờ Admin xét duyệt.',
@@ -127,6 +158,29 @@ class VenueLocationChangeController extends Controller
         ]);
     }
 
+    private function sendOwnerMail(VenueCluster $cluster, Mailable $mail, ?string $referenceId = null): void
+    {
+        $owner = $cluster->owner()->first();
+        if (! $owner?->email) {
+            Log::warning('Venue location request mail skipped: owner has no email.', [
+                'venue_cluster_id' => $cluster->id,
+                'reference_id' => $referenceId,
+            ]);
+            return;
+        }
+
+        try {
+            Mail::to($owner->email)->send($mail);
+        } catch (\Throwable $exception) {
+            Log::error('Venue location request mail failed.', [
+                'venue_cluster_id' => $cluster->id,
+                'reference_id' => $referenceId,
+                'owner_id' => $owner->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
     private function payload(VenueLocationChangeRequest $r): array
     {
         return [
@@ -140,6 +194,7 @@ class VenueLocationChangeController extends Controller
             'new_latitude'  => $r->new_latitude,
             'new_longitude' => $r->new_longitude,
             'new_map_url'   => $r->new_map_url,
+            'supplementary_documents' => $r->supplementary_documents ?: [],
             'requested_by'  => $r->requestedBy ? [
                 'id'        => $r->requestedBy->id,
                 'full_name' => $r->requestedBy->full_name,
@@ -151,5 +206,13 @@ class VenueLocationChangeController extends Controller
             'reviewed_at'   => $r->reviewed_at,
             'created_at'    => $r->created_at,
         ];
+    }
+
+    private function filesArray(mixed $files): array
+    {
+        return collect(\Illuminate\Support\Arr::wrap($files))
+            ->filter(fn ($file) => $file instanceof \Illuminate\Http\UploadedFile)
+            ->values()
+            ->all();
     }
 }

@@ -23,6 +23,7 @@ class VenueCourtApprovalRequest extends Model
         'reviewed_by',
         'status_reason',
         'evidence_image',
+        'supplementary_documents',
         'approved_venue_court_id',
         'reviewed_at',
     ];
@@ -32,6 +33,7 @@ class VenueCourtApprovalRequest extends Model
         return [
             'court_type_id' => 'integer',
             'reviewed_at' => 'datetime',
+            'supplementary_documents' => 'array',
         ];
     }
 
