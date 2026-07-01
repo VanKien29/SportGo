@@ -105,11 +105,11 @@ export default {
 }
 
 .filter-button:hover:not(:disabled) {
-  border-color: var(--admin-border);
+  border-color: rgba(47, 158, 68, 0.32);
   background-color: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 18px rgba(47, 158, 68, 0.08);
 }
 
 .filter-button:active:not(:disabled) {
@@ -174,7 +174,7 @@ export default {
   padding-left: 14px;
   padding-right: 16px;
   gap: 8px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 16px rgba(47, 158, 68, 0.25);
   background-color: var(--admin-primary-soft);
 }
 

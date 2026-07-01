@@ -330,7 +330,7 @@
 }
 
 .sg-shell-admin .content-area :is(input:not([type='checkbox']):not([type='radio']):focus, select:focus, textarea:focus, .form-control:focus, .search-box:focus-within, .search-field:focus-within) {
-  border-color: var(--admin-primary) !important;
+  border-color: rgba(47, 158, 68, 0.62) !important;
   outline: none !important;
   box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
 }
@@ -350,8 +350,8 @@
 }
 
 .sg-shell-admin .content-area :is(.search-field:focus-within, .search-box:focus-within) {
-  border-color: var(--admin-primary) !important;
-  box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
+  border-color: rgba(47, 158, 68, 0.72) !important;
+  box-shadow: 0 0 0 3px rgba(47, 158, 68, 0.14) !important;
 }
 
 .sg-shell-admin .content-area :is(label, .field, .form-group label, .form-label) {
@@ -405,6 +405,10 @@
   content: "×";
 }
 
+.sg-shell-admin .content-area :is(.btn-close):has(*)::before {
+  content: none !important;
+}
+
 .sg-shell-admin .content-area :is(.btn:hover, .mini-btn:hover, .icon-btn:hover, .icon-action:hover, .icon-close:hover, .btn-action:hover, .btn-action-icon:hover, .btn-switch:hover, .tab-btn:hover, .tabs button:hover, .sort-btn:hover, .btn-back:hover, .primary-btn:hover, .secondary-btn:hover, .primary-link:hover, .ghost-btn:hover, .export-btn:hover, .icon-only:hover, .icon-command:hover, .pay-command:hover) {
   transform: translateY(-1px) !important;
 }
@@ -423,18 +427,18 @@
 .sg-shell-admin .content-area :is(.primary, .btn.primary, .btn-primary, .btn-success, .primary-btn:not(.danger), .primary-link, .pay-command, button.primary, a.primary) {
   border-color: var(--admin-primary) !important;
   background: var(--admin-primary) !important;
-  color: var(--admin-bg) !important;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 22px rgba(47, 158, 68, 0.18) !important;
 }
 
 .sg-shell-admin .content-area :is(.primary:hover, .btn.primary:hover, .btn-primary:hover, .btn-success:hover, .primary-btn:not(.danger):hover, .primary-link:hover, .pay-command:hover, button.primary:hover, a.primary:hover) {
   border-color: var(--admin-primary-dark) !important;
   background: var(--admin-primary-dark) !important;
-  color: var(--admin-bg) !important;
+  color: #fff !important;
 }
 
 .sg-shell-admin .content-area :is(.success, .icon-action.success, .btn-action.success, .btn-success-soft) {
-  border-color: var(--admin-border) !important;
+  border-color: rgba(34, 166, 83, 0.24) !important;
   background: var(--admin-primary-soft) !important;
   color: var(--admin-primary-dark) !important;
 }
@@ -446,17 +450,17 @@
 }
 
 .sg-shell-admin .content-area :is(.secondary:hover, .btn.secondary:hover, .btn-outline:hover, .secondary-btn:hover, .ghost:hover, .ghost-btn:hover, .mini-btn:hover, .icon-btn:hover, .icon-action:hover, .icon-close:hover, .icon-only:hover, .icon-command:hover, .export-btn:hover, .btn-back:hover, .tab-btn:hover, .tabs button:hover, .sort-btn:hover, .btn-action:hover, .btn-action-icon:hover, .btn-map-link:hover, .btn-edit-link:hover) {
-  border-color: var(--admin-border) !important;
+  border-color: rgba(47, 158, 68, 0.32) !important;
   background: var(--admin-primary-soft) !important;
   color: var(--admin-primary-dark) !important;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 8px 18px rgba(47, 158, 68, 0.08) !important;
 }
 
 .sg-shell-admin .content-area :is(.icon-only.primary, .icon-command.primary, .btn-action.primary, .action-icon-button.variant-primary) {
   border-color: var(--admin-primary) !important;
   background: var(--admin-primary) !important;
-  color: var(--admin-bg) !important;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 22px rgba(34, 166, 83, 0.2) !important;
 }
 
 .sg-shell-admin .content-area .icon-btn.approve {
@@ -482,14 +486,14 @@
 .sg-shell-admin .content-area :is(.icon-only.primary:hover, .icon-command.primary:hover, .btn-action.primary:hover, .action-icon-button.variant-primary:hover) {
   border-color: var(--admin-primary-dark) !important;
   background: var(--admin-primary-dark) !important;
-  color: var(--admin-bg) !important;
+  color: #fff !important;
 }
 
 .sg-shell-admin .content-area :is(.tabs button.active, .tab-btn.active, .tab-sm.active, .segmented button.active, .btn-switch.active) {
   border-color: var(--admin-primary) !important;
   background: var(--admin-primary) !important;
-  color: var(--admin-bg) !important;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 22px rgba(34, 166, 83, 0.2) !important;
 }
 
 .sg-shell-admin .content-area :is(.danger, .btn.danger, .btn-danger, .btn-danger-outline, .btn-delete, .btn-delete-mini, .btn-action.danger, .btn-action.btn-delete, .btn-action-mini.btn-delete-mini, .primary-btn.danger, button.danger, a.danger) {
@@ -541,7 +545,7 @@
 }
 
 .sg-shell-admin .content-area :is(.notice.success, .alert.success, .global-alert.success, .toast.success) {
-  border-color: var(--admin-border) !important;
+  border-color: rgba(47, 158, 68, 0.2) !important;
   background: var(--admin-primary-soft) !important;
   color: var(--admin-primary-dark) !important;
 }
@@ -578,7 +582,7 @@
 .sg-shell-admin .content-area :is(.spinner) {
   width: 34px !important;
   height: 34px !important;
-  border: 3px solid var(--admin-border-soft) !important;
+  border: 3px solid rgba(47, 158, 68, 0.14) !important;
   border-top-color: var(--admin-primary) !important;
   border-radius: 999px !important;
 }
@@ -640,10 +644,10 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background-color: var(--admin-primary) !important;
-  color: var(--admin-bg) !important;
+  background-color: #10b981 !important;
+  color: #fff !important;
   border: none !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   overflow: hidden;
@@ -658,14 +662,14 @@
   font-size: 13px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-block;
-  color: var(--admin-bg) !important;
+  color: #fff !important;
 }
 .btn-float-add:hover {
   width: 145px !important;
   justify-content: flex-start !important;
   padding-left: 14px !important;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25) !important;
-  background-color: var(--admin-primary-light) !important;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+  background-color: #059669 !important;
 }
 .btn-float-add:hover .btn-float-text {
   max-width: 100px;
@@ -693,102 +697,5 @@
   .btn-float-add:hover .btn-float-text {
     max-width: 80px;
   }
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════
-   DARK MODE — Global surface override
-   Fixes all hardcoded #fff / #ffffff / #f8fafc backgrounds that
-   individual Vue component <style> blocks haven't converted yet.
-═══════════════════════════════════════════════════════════════════ */
-[data-theme="dark"] .sg-shell-admin .content-area :is(
-  /* Generic layout surfaces */
-  .card, .table-card, .panel, .preview-card, .stat-card, .summary-card,
-  .form-card, .record-card, .detail-section, .side-panel, .state-card,
-  .preview-box, .modal, .modal-box, .action-modal, .receipt-modal,
-  .payout-modal, .detail-modal, .confirm-modal, .modal-panel,
-  .booking-side, .schedule-panel, .court-card,
-
-  /* Owner / Admin specific panels */
-  .policy-card, .notice-card, .sidebar-panel, .fee-page .card,
-  .approval-form-card, .approval-card, .layout-toggle-tabs,
-  .editor-toolbar, .sidebar-section, .unplaced-court-item,
-  .zoom-controls, .btn-zoom,
-
-  /* Inputs / selects / dropdowns */
-  .custom-select-trigger, .custom-options-container,
-  .searchable-select-dropdown,
-  .form-control:not(:focus), textarea:not(:focus),
-
-  /* Table rows / cells */
-  .tiers-table td, .unlock-history-table th,
-  .affiliate-table th,
-
-  /* Tab bars */
-  .detail-tabs, .layout-toggle-tabs, .approval-filter-tabs,
-
-  /* Upload zones */
-  .owner-upload-zone, .evidence-dropzone,
-
-  /* List row items */
-  .unplaced-court-item, .cluster-item, .court-item,
-
-  /* Misc */
-  .pending-reason-preview, .modal-footer,
-  .btn-add-decor, .tool-switcher, .tool-btn.active,
-  .scale-type-tag, .product-img-box, .border-rounded
-) {
-  background-color: var(--admin-surface) !important;
-  background: var(--admin-surface) !important;
-}
-
-/* Muted surface (slightly lighter than bg, for nested sections) */
-[data-theme="dark"] .sg-shell-admin .content-area :is(
-  .modal-footer,
-  .location-readonly-header,
-  .location-readonly-body,
-  .editor-toolbar,
-  .sidebar-section,
-  .owner-gallery-empty,
-  .btn-add-decor,
-  .scale-type-tag,
-  .product-img-box,
-  .alert-success,
-  .tool-switcher,
-  .canvas-viewport
-) {
-  background-color: var(--admin-surface-muted) !important;
-  background: var(--admin-surface-muted) !important;
-}
-
-/* Fix text colors in dark mode surfaces */
-[data-theme="dark"] .sg-shell-admin .content-area :is(
-  .tab-btn:not(.active), .tabs button:not(.active),
-  .tab-sm:not(.active), .btn-switch:not(.active),
-  .info-label, .location-label, .section-desc,
-  .field-group label, .info-badge, .scale-stat-label,
-  .empty-unplaced, .item-add-hint, .item-type,
-  .approval-meta, .scale-stat-label, .approval-evidence-label,
-  .tab-header .subtitle, .option-details, .custom-optgroup-label,
-  .zoom-level, .upload-status-text, .btn-close, .char-counter
-) {
-  color: var(--admin-muted) !important;
-}
-
-/* Fix borders */
-[data-theme="dark"] .sg-shell-admin .content-area :is(
-  .btn-zoom, .toolbar-divider, .detail-tabs, .layout-toggle-tabs,
-  .approval-filter-tabs, .tool-switcher, .border-rounded,
-  .approval-evidence-thumb
-) {
-  border-color: var(--admin-border) !important;
-}
-
-/* Fix spinner colors in dark mode */
-[data-theme="dark"] .sg-shell-admin .content-area :is(
-  .spinner, .spinner-sm
-) {
-  border-color: rgba(255, 255, 255, 0.15) !important;
-  border-top-color: var(--admin-primary) !important;
 }
 

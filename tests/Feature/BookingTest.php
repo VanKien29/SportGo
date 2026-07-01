@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Booking;
 use App\Models\BookingConfig;
+use App\Models\CourtMembershipTier;
 use App\Models\CourtType;
 use App\Models\Role;
 use App\Models\SlotLock;
@@ -14,6 +15,8 @@ use App\Models\VenueCourt;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class BookingTest extends TestCase
@@ -49,7 +52,7 @@ class BookingTest extends TestCase
             'status' => 'active',
         ]);
 
-        UserRole::create([
+        UserRole::query()->firstOrCreate([
             'user_id' => $this->player->id,
             'role_id' => $role->id,
             'scope_type' => 'system',
@@ -124,6 +127,108 @@ class BookingTest extends TestCase
             ->assertJson([
                 'available' => true,
             ]);
+    }
+
+    public function test_check_availability_returns_membership_discount_preview(): void
+    {
+        CourtMembershipTier::query()->create([
+            'venue_cluster_id' => $this->cluster->id,
+            'tier' => 'silver',
+            'discount_percent' => 10,
+            'min_bookings' => 1,
+            'min_spent_amount' => 1000,
+        ]);
+
+        Booking::query()->create([
+            'booking_code' => 'BKMEMBERPREVIEW',
+            'customer_id' => $this->player->id,
+            'venue_court_id' => $this->court->id,
+            'requested_venue_court_id' => $this->court->id,
+            'venue_cluster_id' => $this->cluster->id,
+            'booking_date' => now()->subDay()->toDateString(),
+            'start_time' => '08:00:00',
+            'end_time' => '09:00:00',
+            'duration_minutes' => 60,
+            'total_price' => 100000.00,
+            'original_amount' => 100000.00,
+            'final_amount' => 100000.00,
+            'payment_option' => 'full_payment',
+            'required_payment_amount' => 100000.00,
+            'source' => 'online',
+            'booking_type' => 'single',
+            'status' => 'completed',
+            'created_by' => $this->player->id,
+        ]);
+
+        app(\App\Services\Memberships\VenueMembershipService::class)
+            ->syncUserVenue($this->player->id, $this->cluster->id, 'booking_completed');
+
+        $response = $this->actingAs($this->player, 'sanctum')
+            ->getJson("/api/bookings/check-availability?" . http_build_query([
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->bookingDate,
+                'start_time' => '08:00:00',
+                'end_time' => '09:00:00',
+            ]));
+
+        $response->assertOk()
+            ->assertJsonPath('membership_discount.tier', 'silver')
+            ->assertJsonPath('membership_discount.discount_percent', 10)
+            ->assertJsonPath('price_preview.membership_discount_amount', 1000)
+            ->assertJsonPath('price_preview.final_amount', 9000);
+    }
+
+    public function test_booking_applies_venue_and_vip_vouchers_together(): void
+    {
+        $venueVoucherId = $this->createVoucher('VENUE1K', 'venue', 1000);
+        $vipVoucherId = $this->createVoucher('VIP2K', 'system', 2000);
+
+        $response = $this->actingAs($this->player, 'sanctum')
+            ->postJson('/api/bookings', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->bookingDate,
+                'start_time' => '10:00:00',
+                'end_time' => '11:00:00',
+                'payment_option' => 'no_prepay',
+                'venue_voucher_id' => $venueVoucherId,
+                'vip_voucher_id' => $vipVoucherId,
+            ]);
+
+        $response->assertCreated();
+
+        $booking = Booking::query()->findOrFail($response->json('id'));
+
+        $this->assertEquals(10000.0, (float) $booking->original_amount);
+        $this->assertEquals(1000.0, (float) $booking->venue_discount_amount);
+        $this->assertEquals(2000.0, (float) $booking->system_discount_amount);
+        $this->assertEquals(3000.0, (float) $booking->discount_amount);
+        $this->assertEquals(7000.0, (float) $booking->final_amount);
+        $this->assertSame($venueVoucherId, $booking->venue_voucher_id);
+        $this->assertSame($vipVoucherId, $booking->vip_voucher_id);
+        $this->assertSame(2, DB::table('voucher_usages')->where('booking_id', $booking->id)->count());
+    }
+
+    /**
+     * Test API lấy voucher đủ điều kiện cho màn player booking.
+     */
+    public function test_player_can_fetch_eligible_venue_and_vip_vouchers(): void
+    {
+        $venueVoucherId = $this->createVoucher('VENUE1K', 'venue', 1000);
+        $vipVoucherId = $this->createVoucher('VIP2K', 'system', 2000);
+
+        $response = $this->actingAs($this->player, 'sanctum')
+            ->getJson('/api/bookings/eligible-vouchers?' . http_build_query([
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->bookingDate,
+                'start_time' => '12:00:00',
+                'end_time' => '13:00:00',
+            ]));
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'venue_vouchers')
+            ->assertJsonCount(1, 'vip_vouchers')
+            ->assertJsonPath('venue_vouchers.0.id', $venueVoucherId)
+            ->assertJsonPath('vip_vouchers.0.id', $vipVoucherId);
     }
 
     /**
@@ -414,6 +519,47 @@ class BookingTest extends TestCase
                     ]
                 ]
             ]);
+    }
+
+    private function createVoucher(string $code, string $ownerType, float $discountAmount): string
+    {
+        $voucherId = (string) Str::uuid();
+
+        DB::table('vouchers')->insert([
+            'id' => $voucherId,
+            'code' => $code,
+            'name' => $code,
+            'description' => null,
+            'owner_type' => $ownerType,
+            'owner_id' => $ownerType === 'venue' ? $this->cluster->id : null,
+            'funded_by' => $ownerType === 'venue' ? 'venue' : 'system',
+            'stacking_rule' => $ownerType === 'venue' ? 'allow_with_system' : 'allow_with_venue',
+            'discount_type' => 'fixed',
+            'discount_value' => $discountAmount,
+            'max_discount_amount' => null,
+            'min_order_amount' => 0,
+            'total_quantity' => null,
+            'used_quantity' => 0,
+            'per_user_limit' => 1,
+            'valid_from' => now()->subDay(),
+            'valid_to' => now()->addMonth(),
+            'status' => 'active',
+            'created_by' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('voucher_scopes')->insert([
+            'id' => (string) Str::uuid(),
+            'voucher_id' => $voucherId,
+            'scope_type' => 'all',
+            'scope_id' => null,
+            'scope_key' => 'all:all',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $voucherId;
     }
 
 }

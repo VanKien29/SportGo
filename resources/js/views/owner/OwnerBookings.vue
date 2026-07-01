@@ -1122,9 +1122,9 @@ export default {
 .state-card,
 .modal-panel,
 .alert {
-  border: 1px solid var(--admin-border);
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: var(--admin-surface);
+  background: #fff;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
@@ -1163,14 +1163,14 @@ export default {
 .schedule-head h2,
 .timeline-inspector h3 {
   margin: 0;
-  color: var(--admin-text);
+  color: #0f172a;
   font-weight: 900;
 }
 
 .schedule-head p,
 .inspector-subtitle {
   margin: 5px 0 0;
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 13px;
   line-height: 1.45;
 }
@@ -1180,7 +1180,7 @@ export default {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 12px;
   font-weight: 800;
 }
@@ -1218,7 +1218,7 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  border-bottom: 1px solid var(--admin-border);
+  border-bottom: 1px solid #e2e8f0;
   padding-bottom: 12px;
 }
 
@@ -1230,8 +1230,8 @@ export default {
   padding: 8px 12px;
   border: 1px solid #d7e4d7;
   border-radius: 8px;
-  background: var(--admin-surface);
-  color: var(--admin-text);
+  background: #fff;
+  color: #334155;
   font: inherit;
   cursor: pointer;
 }
@@ -1252,7 +1252,7 @@ export default {
 .metric-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--admin-border);
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -1267,17 +1267,17 @@ export default {
 }
 
 .metric-card + .metric-card {
-  border-left: 1px solid var(--admin-border);
+  border-left: 1px solid #e2e8f0;
 }
 
 .metric-card span {
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 12px;
   font-weight: 800;
 }
 
 .metric-card strong {
-  color: var(--admin-text);
+  color: #0f172a;
   font-size: 22px;
 }
 
@@ -1290,10 +1290,10 @@ export default {
 
 .timeline-board {
   min-width: 0;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   overflow: hidden;
-  background: var(--admin-surface);
+  background: #fff;
 }
 
 .timeline-scroller {
@@ -1321,14 +1321,14 @@ export default {
   position: sticky;
   left: 0;
   z-index: 3;
-  border-right: 1px solid var(--admin-border);
+  border-right: 1px solid #e2e8f0;
   background: inherit;
 }
 
 .axis-court {
   display: grid;
   place-items: center;
-  color: var(--admin-text);
+  color: #334238;
   font-size: 12px;
   font-weight: 900;
 }
@@ -1342,7 +1342,7 @@ export default {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  color: var(--admin-faint);
+  color: #475569;
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
@@ -1350,8 +1350,8 @@ export default {
 
 .timeline-row {
   min-height: 76px;
-  border-bottom: 1px solid var(--admin-border);
-  background: var(--admin-surface);
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
 }
 
 .timeline-row:last-child {
@@ -1363,16 +1363,16 @@ export default {
   align-content: center;
   gap: 4px;
   padding: 10px 12px;
-  background: var(--admin-surface);
+  background: #fff;
 }
 
 .court-meta strong {
-  color: var(--admin-text);
+  color: #0f172a;
   font-size: 13px;
 }
 
 .court-meta span {
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 11px;
   font-weight: 750;
   line-height: 1.35;
@@ -1395,7 +1395,7 @@ export default {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--admin-faint);
+  color: #94a3b8;
   font-size: 12px;
   font-weight: 800;
 }
@@ -1411,7 +1411,7 @@ export default {
   padding: 8px 10px;
   border: 1px solid transparent;
   border-radius: 7px;
-  color: var(--admin-text);
+  color: #0f172a;
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -1421,7 +1421,7 @@ export default {
 
 .timeline-block:hover,
 .timeline-block.active {
-  outline: 2px solid var(--admin-primary, #000000);
+  outline: 2px solid rgba(22, 163, 74, 0.28);
   outline-offset: 2px;
 }
 
@@ -1469,9 +1469,9 @@ export default {
 }
 
 .block-muted {
-  background: var(--admin-surface-muted);
-  border-color: var(--admin-border);
-  color: var(--admin-faint);
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
 }
 
 .block-lock {
@@ -1486,9 +1486,9 @@ export default {
   display: grid;
   gap: 14px;
   padding: 16px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: var(--admin-surface);
+  background: #fff;
 }
 
 .inspector-eyebrow {
@@ -1509,7 +1509,7 @@ export default {
   display: grid;
   gap: 0;
   margin: 0;
-  border-top: 1px solid var(--admin-border);
+  border-top: 1px solid #e2e8f0;
 }
 
 .inspector-list div {
@@ -1521,7 +1521,7 @@ export default {
 }
 
 .inspector-list dt {
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 12px;
   font-weight: 850;
 }
@@ -1529,7 +1529,7 @@ export default {
 .inspector-list dd {
   min-width: 0;
   margin: 0;
-  color: var(--admin-text);
+  color: #0f172a;
   font-size: 13px;
   font-weight: 850;
   overflow-wrap: anywhere;
@@ -1547,10 +1547,10 @@ export default {
   align-items: center;
   gap: 7px;
   padding: 0 10px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #d9e8d9;
   border-radius: 7px;
-  background: var(--admin-surface);
-  color: var(--admin-text);
+  background: #fff;
+  color: #334155;
   font: inherit;
   font-size: 12px;
   font-weight: 900;
@@ -1569,7 +1569,7 @@ label {
 }
 
 label span {
-  color: var(--admin-text);
+  color: #334155;
   font-size: 13px;
   font-weight: 900;
 }
@@ -1579,10 +1579,10 @@ select,
 textarea {
   width: 100%;
   padding: 11px 12px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
-  background: var(--admin-surface);
-  color: var(--admin-text);
+  background: #fff;
+  color: #0f172a;
   font: inherit;
 }
 
@@ -1604,9 +1604,9 @@ textarea {
 }
 
 .ghost-btn {
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface);
-  color: var(--admin-text);
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
 }
 
 .alert,
@@ -1629,7 +1629,7 @@ textarea {
 
 .state-card {
   text-align: center;
-  color: var(--admin-muted);
+  color: #64748b;
 }
 
 .table-card {
@@ -1646,7 +1646,7 @@ textarea {
 .bookings-page th,
 .bookings-page td {
   padding: 10px 12px !important;
-  border-bottom: 1px solid var(--admin-border);
+  border-bottom: 1px solid #e2e8f0;
   text-align: left;
   vertical-align: top !important;
   font-size: 14px;
@@ -1674,15 +1674,15 @@ td small {
 
 .strong,
 td strong {
-  color: var(--admin-text);
+  color: #0f172a;
   font-weight: 900;
 }
 
 .status-chip {
   padding: 5px 9px;
   border-radius: 999px;
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f1f5f9;
+  color: #334155;
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
@@ -1698,8 +1698,8 @@ td strong {
   min-height: 26px;
   padding: 4px 9px;
   border-radius: 999px;
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f1f5f9;
+  color: #334155;
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
@@ -1782,9 +1782,9 @@ td strong {
   display: grid;
   gap: 4px;
   padding: 6px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #d9e8d9;
   border-radius: 8px;
-  background: var(--admin-surface);
+  background: #fff;
   box-shadow: 0 16px 40px rgba(22, 35, 26, 0.16);
 }
 
@@ -1798,7 +1798,7 @@ td strong {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--admin-text);
+  color: #2f3d33;
   font: inherit;
   font-size: 13px;
   font-weight: 800;
@@ -1807,7 +1807,7 @@ td strong {
 }
 
 .row-action-menu button:hover {
-  background: var(--admin-surface-muted);
+  background: #eef8ef;
   color: #216b34;
 }
 
@@ -1873,7 +1873,7 @@ td strong {
 
 .modal-panel header p {
   margin: 4px 0 0;
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 13px;
   font-weight: 700;
 }
@@ -1891,9 +1891,9 @@ td strong {
 
 .collect-summary div {
   padding: 12px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #d9e8d9;
   border-radius: 8px;
-  background: var(--admin-surface-muted);
+  background: #f7fbf5;
 }
 
 .collect-summary dt {
@@ -1904,13 +1904,13 @@ td strong {
 
 .collect-summary dd {
   margin: 6px 0 0;
-  color: var(--admin-text);
+  color: #16231a;
   font-weight: 900;
 }
 
 .collect-summary .highlight {
-  border-color: var(--admin-primary, #000000);
-  background: var(--admin-primary-soft, #f3f4f6);
+  border-color: rgba(47, 158, 68, 0.45);
+  background: #e8f7ec;
 }
 
 .method-row {
@@ -1925,16 +1925,16 @@ td strong {
   justify-content: center;
   gap: 8px;
   min-height: 42px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #d9e8d9;
   border-radius: 8px;
-  background: var(--admin-surface);
+  background: #fff;
   color: #344238;
   font-weight: 900;
 }
 
 .method-row button.active {
-  border-color: var(--admin-primary, #000000);
-  background: var(--admin-primary, #000000);
+  border-color: #2f9e44;
+  background: #2f9e44;
   color: #fff;
 }
 
@@ -1943,17 +1943,17 @@ td strong {
   gap: 10px;
   justify-items: start;
   padding: 14px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #d9e8d9;
   border-radius: 8px;
-  background: var(--admin-surface-muted);
+  background: #f7fbf5;
 }
 
 .collect-qr img {
   width: 220px;
   max-width: 100%;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #d9e8d9;
   border-radius: 8px;
-  background: var(--admin-surface);
+  background: #fff;
 }
 
 .collect-qr div {
@@ -1973,7 +1973,7 @@ td strong {
 }
 
 .collect-qr strong {
-  color: var(--admin-text);
+  color: #16231a;
 }
 
 .collect-qr small {
@@ -2009,7 +2009,7 @@ td strong {
 
   .metric-card + .metric-card {
     border-left: 0;
-    border-top: 1px solid var(--admin-border);
+    border-top: 1px solid #e2e8f0;
   }
 
   .timeline-inspector {

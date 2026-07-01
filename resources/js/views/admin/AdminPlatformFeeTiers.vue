@@ -3,14 +3,22 @@
         <PlatformFeeSubnav />
 
         <!-- Action bar with secondary actions -->
-        <div class="action-bar-layout" style="margin-bottom: 12px; display: flex; justify-content: flex-end; gap: 12px;">
+        <div
+            class="action-bar-layout"
+            style="
+                margin-bottom: 12px;
+                display: flex;
+                justify-content: flex-end;
+                gap: 12px;
+            "
+        >
             <button
                 class="btn secondary icon-text"
                 type="button"
                 @click="openDiscountSettings"
             >
                 <AppIcon name="settings" size="18" />
-                <span>Cấu hình giảm kỳ</span>
+                <span>Giảm kỳ 12 tháng</span>
             </button>
             <button
                 class="btn secondary icon-text"
@@ -23,8 +31,16 @@
         </div>
 
         <!-- Floating Add Button -->
-        <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
-            <button class="btn-float-add" type="button" @click="openCreate" title="Thêm bậc phí">
+        <div
+            class="floating-add-container"
+            :class="{ 'has-scroll': showScrollTop }"
+        >
+            <button
+                class="btn-float-add"
+                type="button"
+                @click="openCreate"
+                title="Thêm bậc phí"
+            >
                 <AppIcon name="plus" size="20" />
                 <span class="btn-float-text">Thêm bậc phí</span>
             </button>
@@ -42,10 +58,9 @@
             <button
                 class="btn secondary icon-text"
                 type="button"
-                @click="resetStore"
+                @click="reloadFromDb"
             >
                 <AppIcon name="refresh" size="18" />
-                <span>Khôi phục dữ liệu mẫu</span>
             </button>
         </section>
 
@@ -64,11 +79,7 @@
                             <th>Tên bậc</th>
                             <th>Khoảng số sân</th>
                             <th>Giá / sân / tháng</th>
-                            <th>1 tháng</th>
-                            <th>3 tháng</th>
-                            <th>6 tháng</th>
-                            <th>9 tháng</th>
-                            <th>12 tháng</th>
+                            <th>Giảm 12 tháng</th>
                             <th>Trạng thái</th>
                             <th>Ledger dùng</th>
                             <th>Cập nhật</th>
@@ -78,17 +89,13 @@
                     <tbody>
                         <tr v-for="tier in filteredTiers" :key="tier.id">
                             <td>
-                                {{ tier.name }}
+                                <strong>{{ tier.name }}</strong>
                                 <small>{{
                                     tier.note || "Không có ghi chú"
                                 }}</small>
                             </td>
                             <td>{{ rangeLabel(tier) }}</td>
                             <td>{{ money(tier.price_per_court_month) }}</td>
-                            <td>{{ percent(tier.discount_1_month) }}</td>
-                            <td>{{ percent(tier.discount_3_months) }}</td>
-                            <td>{{ percent(tier.discount_6_months) }}</td>
-                            <td>{{ percent(tier.discount_9_months) }}</td>
                             <td>{{ percent(tier.discount_12_months) }}</td>
                             <td>
                                 <span
@@ -178,108 +185,6 @@
             </div>
         </section>
 
-        <section class="panel preview-panel">
-            <div class="panel-title">
-                <strong>Xem trước tính phí</strong>
-                <span>Sử dụng đúng hàm calculatePlatformFee()</span>
-            </div>
-            <div class="preview-form">
-                <label>
-                    Chọn cụm sân
-                    <select
-                        v-model="preview.venue_cluster_id"
-                        @change="syncPreviewCourtCount"
-                    >
-                        <option value="">Nhập số sân giả lập</option>
-                        <option
-                            v-for="venue in venues"
-                            :key="venue.id"
-                            :value="venue.id"
-                        >
-                            {{ venue.name }} - {{ venue.court_count }} sân
-                        </option>
-                    </select>
-                </label>
-                <label>
-                    Số sân giả lập
-                    <input
-                        v-model.number="preview.court_count"
-                        type="number"
-                        min="1"
-                    />
-                </label>
-                <label>
-                    Kỳ đóng
-                    <select v-model.number="preview.period_months">
-                        <option
-                            v-for="month in periods"
-                            :key="month"
-                            :value="month"
-                        >
-                            {{ month }} tháng
-                        </option>
-                    </select>
-                </label>
-                <button
-                    class="btn primary icon-text"
-                    type="button"
-                    @click="runPreview"
-                >
-                    <AppIcon name="eye" size="18" />
-                    <span>Tính thử</span>
-                </button>
-            </div>
-
-            <div v-if="previewError" class="alert error">
-                {{ previewError }}
-            </div>
-            <div v-if="previewResult" class="preview-result">
-                <div>
-                    <span>Số sân</span
-                    ><strong>{{ previewResult.court_count }}</strong>
-                </div>
-                <div>
-                    <span>Bậc phí</span
-                    ><strong>{{ previewResult.tier.name }}</strong>
-                </div>
-                <div>
-                    <span>Giá/sân/tháng</span
-                    ><strong>{{
-                        money(previewResult.tier.price_per_court_month)
-                    }}</strong>
-                </div>
-                <div>
-                    <span>Số tháng</span
-                    ><strong>{{ previewResult.period_months }}</strong>
-                </div>
-                <div>
-                    <span>Giảm giá</span
-                    ><strong>{{
-                        percent(previewResult.discount_percent)
-                    }}</strong>
-                </div>
-                <div>
-                    <span>Tổng trước giảm</span
-                    ><strong>{{ money(previewResult.base_amount) }}</strong>
-                </div>
-                <div>
-                    <span>Số tiền giảm</span
-                    ><strong>{{ money(previewResult.discount_amount) }}</strong>
-                </div>
-                <div>
-                    <span>Tổng phải đóng</span
-                    ><strong>{{ money(previewResult.amount_due) }}</strong>
-                </div>
-            </div>
-            <div
-                v-for="warning in previewWarnings"
-                :key="warning"
-                class="alert warning"
-            >
-                {{ warning }}
-            </div>
-        </section>
-
         <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
             <form class="modal" @submit.prevent="saveTier">
                 <header class="modal-head">
@@ -346,27 +251,22 @@
                         <small>Tự động cân theo bậc kế tiếp.</small>
                     </label>
                     <label class="full">
-                        Mẫu giảm giá theo kỳ *
-                        <select
-                            v-model="form.discount_profile_id"
-                            @change="applySelectedDiscountProfile"
-                        >
-                            <option value="">Chọn mẫu giảm giá</option>
-                            <option
-                                v-for="profile in discountProfiles"
-                                :key="profile.id"
-                                :value="profile.id"
-                            >
-                                {{ discountProfileLabel(profile) }}
-                            </option>
-                        </select>
+                        Giảm kỳ 12 tháng (%)
+                        <input
+                            v-model.number="form.discount_12_months"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                        />
                         <small
-                            v-if="fieldError('discount_profile_id')"
+                            v-if="fieldError('discount_12_months')"
                             class="field-error"
-                            >{{ fieldError("discount_profile_id") }}</small
+                            >{{ fieldError("discount_12_months") }}</small
                         >
                         <small v-else>
-                            {{ selectedDiscountSummary }}
+                            DB hiện chỉ lưu mức giảm khi đóng 12 tháng; các kỳ
+                            1/3/6/9 tháng không áp dụng giảm.
                         </small>
                     </label>
                     <label class="check-row">
@@ -411,8 +311,8 @@
                     <div>
                         <h3>Cấu hình giảm giá theo kỳ</h3>
                         <p>
-                            Mức giảm phải tăng dần:
-                            1 tháng &lt; 3 tháng &lt; 6 tháng &lt; 9 tháng &lt; 12 tháng.
+                            Mức giảm phải tăng dần: 1 tháng &lt; 3 tháng &lt; 6
+                            tháng &lt; 9 tháng &lt; 12 tháng.
                         </p>
                     </div>
                     <button
@@ -426,7 +326,10 @@
                     </button>
                 </header>
 
-                <form class="discount-form" @submit.prevent="saveDiscountProfile">
+                <form
+                    class="discount-form"
+                    @submit.prevent="saveDiscountProfile"
+                >
                     <div
                         v-if="discountFieldError('_form')"
                         class="alert error full"
@@ -445,10 +348,7 @@
                             >{{ discountFieldError("name") }}</small
                         >
                     </label>
-                    <label
-                        v-for="field in discountFields"
-                        :key="field.key"
-                    >
+                    <label v-for="field in discountFields" :key="field.key">
                         {{ field.label }}
                         <input
                             v-model.number="discountForm[field.key]"
@@ -570,9 +470,9 @@
 </template>
 
 <script>
-import { platformFeeStore } from "../../stores/platformFee.store.js";
 import AppIcon from "../../components/AppIcon.vue";
 import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
+import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
 import {
     calculatePlatformFee,
     createDiscountProfile,
@@ -604,12 +504,13 @@ const defaultForm = (profile = null, minCourts = 1) => ({
     min_courts: minCourts,
     max_courts: "",
     price_per_court_month: 50000,
-    discount_profile_id: profile?.id || "",
+    discount_profile_id: profile?.id || "db-annual",
     discount_1_month: profile?.discount_1_month ?? 0,
-    discount_3_months: profile?.discount_3_months ?? 5,
-    discount_6_months: profile?.discount_6_months ?? 10,
-    discount_9_months: profile?.discount_9_months ?? 12,
-    discount_12_months: profile?.discount_12_months ?? 15,
+    discount_3_months: profile?.discount_3_months ?? 0,
+    discount_6_months: profile?.discount_6_months ?? 0,
+    discount_9_months: profile?.discount_9_months ?? 0,
+    discount_12_months: profile?.discount_12_months ?? 0,
+    annual_discount_percent: profile?.discount_12_months ?? 0,
     is_active: true,
     note: "",
 });
@@ -621,7 +522,7 @@ export default {
         return {
             tiers: [],
             discountProfiles: [],
-            venues: platformFeeStore.state.venues,
+            venues: [],
             keyword: "",
             statusFilter: "",
             showModal: false,
@@ -691,19 +592,31 @@ export default {
     },
     mounted() {
         this.loadDiscountProfiles();
+        this.loadVenues();
         this.loadTiers();
-        this.runPreview();
         window.addEventListener("scroll", this.handleScroll);
     },
     beforeUnmount() {
         window.removeEventListener("scroll", this.handleScroll);
     },
     methods: {
-        loadTiers() {
-            this.tiers = getTiers();
+        async loadTiers() {
+            this.tiers = await getTiers();
+            this.runPreview();
         },
-        loadDiscountProfiles() {
-            this.discountProfiles = getDiscountProfiles();
+        async loadDiscountProfiles() {
+            this.discountProfiles = await getDiscountProfiles();
+        },
+        async loadVenues() {
+            const response = await adminVenueClusterService.list();
+            const clusters = Array.isArray(response)
+                ? response
+                : response.data || [];
+            this.venues = clusters.map((cluster) => ({
+                id: cluster.id,
+                name: cluster.name,
+                court_count: cluster.court_count || 0,
+            }));
         },
         suggestedMinimum() {
             const activeTiers = this.tiers
@@ -745,24 +658,18 @@ export default {
             this.formErrors = {};
         },
         async saveTier() {
-            if (!this.form.discount_profile_id) {
-                this.formErrors = {
-                    discount_profile_id: ["Vui lòng chọn mẫu giảm giá."],
-                };
-                return;
-            }
-            this.applySelectedDiscountProfile();
+            this.form.annual_discount_percent = this.form.discount_12_months;
             try {
                 if (this.editingId) await updateTier(this.editingId, this.form);
                 else await createTier(this.form);
                 this.showMessage("Đã lưu bậc phí.");
                 this.closeModal();
-                this.loadTiers();
-                this.runPreview();
+                await this.loadTiers();
             } catch (error) {
-                this.formErrors = error.validation?.errors || {
-                    _coverage: [error.message],
-                };
+                this.formErrors = error.validation?.errors ||
+                    error.data?.errors || {
+                        _coverage: [error.message],
+                    };
                 this.showMessage(error.message, "error");
             }
         },
@@ -772,8 +679,7 @@ export default {
                     await deactivateTier(tier.id, "Admin tắt trạng thái");
                 else await reactivateTier(tier.id);
                 this.showMessage("Đã cập nhật trạng thái bậc phí.");
-                this.loadTiers();
-                this.runPreview();
+                await this.loadTiers();
             } catch (error) {
                 this.showMessage(error.message, "error");
             }
@@ -789,7 +695,7 @@ export default {
                 this.showMessage(
                     "Đã nhân bản bậc phí ở trạng thái ngưng dùng.",
                 );
-                this.loadTiers();
+                await this.loadTiers();
             } catch (error) {
                 this.showMessage(error.message, "error");
             }
@@ -798,14 +704,17 @@ export default {
             const profile = this.discountProfiles.find(
                 (item) => item.id === this.form.discount_profile_id,
             );
-            if (!profile) return;
+            if (!profile || profile.readonly) return;
             this.discountFields.forEach((field) => {
                 this.form[field.key] = profile[field.key];
             });
+            this.form.annual_discount_percent = this.form.discount_12_months;
         },
         openDiscountSettings() {
-            this.resetDiscountForm();
-            this.showDiscountModal = true;
+            this.showMessage(
+                "DB hiện chỉ lưu giảm kỳ 12 tháng trực tiếp trên từng bậc phí. Chưa có bảng riêng cho mẫu giảm kỳ.",
+                "error",
+            );
         },
         closeDiscountSettings() {
             this.showDiscountModal = false;
@@ -831,15 +740,15 @@ export default {
                 } else {
                     await createDiscountProfile(this.discountForm);
                 }
-                this.loadDiscountProfiles();
-                this.loadTiers();
+                await this.loadDiscountProfiles();
+                await this.loadTiers();
                 this.resetDiscountForm();
-                this.runPreview();
                 this.showMessage("Đã lưu mẫu giảm giá.");
             } catch (error) {
-                this.discountErrors = error.validation?.errors || {
-                    _form: [error.message],
-                };
+                this.discountErrors = error.validation?.errors ||
+                    error.data?.errors || {
+                        _form: [error.message],
+                    };
                 this.showMessage(error.message, "error");
             }
         },
@@ -847,7 +756,7 @@ export default {
             if (!confirm(`Xóa mẫu giảm giá "${profile.name}"?`)) return;
             try {
                 await deleteDiscountProfile(profile.id);
-                this.loadDiscountProfiles();
+                await this.loadDiscountProfiles();
                 this.showMessage("Đã xóa mẫu giảm giá.");
             } catch (error) {
                 this.showMessage(error.message, "error");
@@ -865,7 +774,7 @@ export default {
             try {
                 await deleteTier(tier.id);
                 this.showMessage("Đã ngừng dùng bậc phí.");
-                this.loadTiers();
+                await this.loadTiers();
             } catch (error) {
                 this.showMessage(error.message, "error");
             }
@@ -899,7 +808,10 @@ export default {
                     "Cấu hình bậc phí hiện chưa hợp lệ, vui lòng sửa trước khi tạo kỳ phí.";
                 return;
             }
-            const found = findTierForCourtCount(this.preview.court_count);
+            const found = findTierForCourtCount(
+                this.preview.court_count,
+                this.tiers,
+            );
             if (!found.tier) {
                 this.previewError = "Chưa có bậc phí phù hợp cho cụm sân này.";
                 return;
@@ -911,20 +823,19 @@ export default {
             });
             this.previewWarnings = this.previewResult.warnings;
         },
-        resetStore() {
-            if (!confirm("Khôi phục dữ liệu mẫu phí nền tảng?")) return;
-            platformFeeStore.reset();
-            this.venues = platformFeeStore.state.venues;
-            this.loadDiscountProfiles();
-            this.loadTiers();
-            this.runPreview();
-            this.showMessage("Đã khôi phục dữ liệu mẫu.");
+        async reloadFromDb() {
+            await Promise.all([
+                this.loadDiscountProfiles(),
+                this.loadVenues(),
+                this.loadTiers(),
+            ]);
+            this.showMessage("Đã tải lại dữ liệu phí nền tảng từ DB.");
         },
         fieldError(field) {
             return this.formErrors[field]?.[0] || "";
         },
         usageCount(id) {
-            return getTierUsageCount(id);
+            return getTierUsageCount(id, this.tiers);
         },
         rangeLabel(tier) {
             return tier.max_courts === null || tier.max_courts === ""
@@ -994,8 +905,8 @@ p {
 .notice-card,
 .info-card,
 .modal {
-    background: var(--admin-surface, #fff);
-    border: 1px solid var(--admin-border);
+    background: #fff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
 }
 .panel {
@@ -1014,7 +925,7 @@ p {
 }
 .info-card {
     padding: 12px;
-    color: var(--admin-text);
+    color: #334155;
     font-weight: 800;
 }
 .filter-panel {
@@ -1024,7 +935,7 @@ input,
 select,
 textarea {
     width: 100%;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #cbd5e1;
     border-radius: 8px;
     padding: 10px 12px;
     font: inherit;
@@ -1042,7 +953,7 @@ textarea {
 }
 .panel-title span,
 small {
-    color: var(--admin-muted);
+    color: #64748b;
 }
 .table-wrap {
     overflow-x: auto;
@@ -1055,13 +966,13 @@ table {
 th,
 td {
     padding: 12px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
     text-align: left;
     vertical-align: top;
 }
 th {
-    background: var(--admin-surface-muted);
-    color: var(--admin-faint);
+    background: #f8fafc;
+    color: #475569;
     font-size: 12px;
     text-transform: uppercase;
 }
@@ -1077,7 +988,8 @@ td small {
     width: 14px;
     height: 14px;
     border-radius: 999px;
-    background: var(--admin-primary); box-shadow: 0 0 0 3px var(--admin-primary-ring);
+    background: #10b981;
+    box-shadow: 0 0 0 3px #d1fae5;
 }
 .status-dot.inactive {
     background: #ef4444;
@@ -1094,8 +1006,8 @@ td small {
     place-items: center;
     border: 1px solid #dbe3ea;
     border-radius: 8px;
-    background: var(--admin-surface-muted);
-    color: var(--admin-text);
+    background: #f8fafc;
+    color: #334155;
     cursor: pointer;
 }
 .icon-btn {
@@ -1126,11 +1038,12 @@ td small {
     cursor: pointer;
 }
 .btn.primary {
-    background: var(--admin-primary); color: var(--admin-bg);
+    background: #16a34a;
+    color: #fff;
 }
 .btn.secondary {
-    background: var(--admin-border);
-    color: var(--admin-text);
+    background: #e2e8f0;
+    color: #334155;
 }
 .icon-text {
     align-items: center;
@@ -1146,7 +1059,7 @@ label {
     flex-direction: column;
     gap: 6px;
     font-weight: 800;
-    color: var(--admin-text);
+    color: #334155;
 }
 .preview-result,
 .detail-grid {
@@ -1157,14 +1070,14 @@ label {
 }
 .preview-result div,
 .detail-grid div {
-    background: var(--admin-surface-muted);
+    background: #f8fafc;
     border-radius: 8px;
     padding: 12px;
 }
 .preview-result span,
 .detail-grid span {
     display: block;
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 12px;
 }
 .alert {
@@ -1184,7 +1097,7 @@ label {
 }
 .toast.success {
     background: #ecfdf5;
-    color: var(--admin-primary);
+    color: #047857;
 }
 .toast {
     border-radius: 8px;
@@ -1194,7 +1107,7 @@ label {
 .empty {
     padding: 36px;
     text-align: center;
-    color: var(--admin-muted);
+    color: #64748b;
 }
 .modal-backdrop {
     position: fixed;
@@ -1215,7 +1128,7 @@ label {
 }
 .modal-head p {
     margin-top: 5px;
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 13px;
 }
 .discount-form {
@@ -1223,7 +1136,7 @@ label {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 12px;
     padding: 18px 22px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
 }
 .discount-form-actions {
     display: flex;
@@ -1239,7 +1152,7 @@ label {
     justify-content: space-between;
     gap: 14px;
     padding: 12px 0;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
 }
 .discount-profile-row:last-child {
     border-bottom: 0;
@@ -1251,7 +1164,7 @@ label {
 .modal-head {
     justify-content: space-between;
     padding: 18px 22px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
 }
 .modal-head button {
     border: 0;
@@ -1282,8 +1195,8 @@ label {
 .modal-actions {
     justify-content: flex-end;
     padding: 16px 22px;
-    border-top: 1px solid var(--admin-border);
-    background: var(--admin-surface-muted);
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
 }
 @media (max-width: 900px) {
     .info-grid,

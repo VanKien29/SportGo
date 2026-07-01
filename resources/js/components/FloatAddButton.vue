@@ -69,10 +69,10 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--admin-primary, #000000);
-  color: var(--admin-bg, #ffffff);
+  background-color: #10b981;
+  color: #fff;
   border: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
@@ -89,15 +89,15 @@ export default {
   font-size: 13px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-block;
-  color: var(--admin-bg, #ffffff);
+  color: #fff;
 }
 
 .sg-btn-float-add:hover:not(:disabled) {
   max-width: 300px;
   padding-left: 14px;
   padding-right: 16px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
-  background-color: var(--admin-primary-light, #1f2937);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  background-color: #059669;
 }
 
 .sg-btn-float-add:hover:not(:disabled) .btn-float-text {

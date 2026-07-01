@@ -1,21 +1,17 @@
-import { createId, cloneValue, platformFeeStore } from '../stores/platformFee.store.js';
-
 export function addAuditLog(action, entityType, entityId, oldValues = null, newValues = null, context = 'platform_fee') {
-  const log = {
-    id: createId('audit'),
-    actor_id: 'admin-mock',
+  return {
+    id: null,
+    actor_id: null,
     action,
     entity_type: entityType,
     entity_id: entityId,
-    old_values: cloneValue(oldValues),
-    new_values: cloneValue(newValues),
+    old_values: oldValues,
+    new_values: newValues,
     context,
     created_at: new Date().toISOString(),
+    persisted: false,
+    message: 'Audit phí nền tảng không còn ghi local. Cần dùng audit_logs từ API DB nếu bật lại chức năng này.',
   };
-
-  platformFeeStore.state.auditLogs.unshift(log);
-  platformFeeStore.save();
-  return log;
 }
 
 export const auditService = { addAuditLog };

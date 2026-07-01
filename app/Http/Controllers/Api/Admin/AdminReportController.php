@@ -52,6 +52,7 @@ class AdminReportController extends Controller
             'status' => ['nullable', Rule::in(['pending', 'reviewing', 'resolved', 'dismissed'])],
             'reason' => ['nullable', Rule::in(['spam', 'offensive', 'fake', 'harassment', 'other'])],
             'target_type' => ['nullable', Rule::in(array_keys(self::TARGET_TYPES))],
+            'target_group' => ['nullable', Rule::in(['content', 'user', 'venue'])],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'keyword' => ['nullable', 'string', 'max:100'],
@@ -61,6 +62,21 @@ class AdminReportController extends Controller
             ->with(['reporter:id,username,full_name,email', 'reviewedBy:id,username,full_name'])
             ->when($request->filled('status'), fn ($builder) => $builder->where('status', $request->query('status')))
             ->when($request->filled('reason'), fn ($builder) => $builder->where('reason', $request->query('reason')))
+            ->when($request->filled('target_group'), function ($builder) use ($request): void {
+                $group = $request->query('target_group');
+                if ($group === 'content') {
+                    $builder->whereIn('reportable_type', [
+                        CommunityPost::class,
+                        CommunityPostComment::class,
+                        VenuePost::class,
+                        PlayerPost::class,
+                    ]);
+                } elseif ($group === 'user') {
+                    $builder->where('reportable_type', User::class);
+                } elseif ($group === 'venue') {
+                    $builder->where('reportable_type', VenueCluster::class);
+                }
+            })
             ->when($request->filled('target_type'), function ($builder) use ($request): void {
                 $type = self::TARGET_TYPES[$request->query('target_type')] ?? null;
                 if ($type) {
@@ -576,6 +592,10 @@ class AdminReportController extends Controller
     private function listPayload(Report $report): array
     {
         $target = $this->resolveTarget($report);
+        $parentId = null;
+        if ($target instanceof CommunityPostComment) {
+            $parentId = $target->post_id;
+        }
 
         return [
             'id' => $report->id,
@@ -584,6 +604,8 @@ class AdminReportController extends Controller
             'status' => $report->status,
             'action_taken' => $report->action_taken,
             'target_type' => $this->targetAlias($report->reportable_type),
+            'target_id' => $report->reportable_id,
+            'parent_id' => $parentId,
             'target_label' => $target ? $this->targetLabel($target) : 'Đối tượng không còn tồn tại',
             'reporter' => $this->userPayload($report->reporter),
             'reviewed_by' => $this->userPayload($report->reviewedBy),

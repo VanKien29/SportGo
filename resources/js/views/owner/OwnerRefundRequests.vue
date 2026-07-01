@@ -60,16 +60,16 @@
                 <small>{{ customerName(refund) }} · {{ refund.customer?.phone || refund.customer?.email || '-' }}</small>
               </td>
               <td data-label="Thời gian chơi">
-                {{ formatDate(refund.booking?.booking_date) }}
+                <strong>{{ formatDate(refund.booking?.booking_date) }}</strong>
                 <small>{{ formatTime(refund.booking?.start_time) }} - {{ formatTime(refund.booking?.end_time) }}</small>
               </td>
               <td data-label="Thanh toán">
-                {{ formatCurrency(refund.payment?.amount) }}
+                <strong>{{ formatCurrency(refund.payment?.amount) }}</strong>
                 <small>{{ paymentMethod(refund.payment?.method) }} · {{ refund.payment?.payment_code || '-' }}</small>
               </td>
               <td class="reason-cell" data-label="Lý do hủy">{{ refund.reason || refund.booking?.status_reason || '-' }}</td>
               <td data-label="Mức hoàn">
-                {{ formatCurrency(refundAmount(refund)) }}
+                <strong>{{ formatCurrency(refundAmount(refund)) }}</strong>
                 <small>{{ policyText(refund) }}</small>
               </td>
               <td data-label="Trạng thái">
@@ -380,25 +380,19 @@ export default {
 .status-tabs button {
   min-height: 38px;
   padding: 0 14px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #d5e3d6;
   border-radius: 7px;
-  background: var(--admin-surface);
-  color: var(--admin-muted);
+  background: #fff;
+  color: #344238;
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.status-tabs button:hover:not(.active) {
-  background: var(--admin-hover);
-  color: var(--admin-text);
 }
 
 .status-tabs button.active {
-  border-color: var(--admin-primary);
-  background: var(--admin-primary);
-  color: var(--admin-bg);
+  border-color: #2f9e44;
+  background: #2f9e44;
+  color: #fff;
 }
 
 .filters {
@@ -437,31 +431,35 @@ td small {
 
 .status-note {
   max-width: 240px;
-  color: var(--admin-warning);
+  color: #9a3412;
   line-height: 1.45;
   white-space: normal;
 }
 
 .pending_owner_confirmation {
-  background: var(--admin-warning-soft) !important;
-  color: var(--admin-warning) !important;
+  background: #fff4d6;
+  color: #8a4b08;
 }
 
 .owner_confirmed,
 .processing,
-.admin_processing,
+.admin_processing {
+  background: #e8f7ec;
+  color: #216b34;
+}
+
 .completed,
 .completed_cash {
-  background: var(--admin-primary-soft) !important;
-  color: var(--admin-primary-dark) !important;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .owner_rejected,
 .rejected,
 .failed,
 .cancelled {
-  background: var(--admin-danger-soft) !important;
-  color: var(--admin-danger) !important;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
 .actions-col {
@@ -483,10 +481,10 @@ td small {
   max-height: calc(100vh - 40px);
   overflow-y: auto;
   padding: 0;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #d7e4d7;
   border-radius: 8px;
-  background: var(--admin-surface);
-  box-shadow: var(--admin-shadow-lg);
+  background: #fff;
+  box-shadow: 0 22px 60px rgba(24, 42, 29, .18);
 }
 
 .modal-backdrop {
@@ -507,7 +505,7 @@ td small {
 }
 
 .modal-header {
-  border-bottom: 1px solid var(--admin-border);
+  border-bottom: 1px solid #e1eae1;
 }
 
 .modal-header h2,
@@ -529,7 +527,7 @@ td small {
 
 .detail-grid div {
   padding: 12px 0;
-  border-bottom: 1px solid var(--admin-border-soft);
+  border-bottom: 1px solid #edf2ed;
 }
 
 .detail-grid dt {
@@ -547,15 +545,13 @@ td small {
 .reason-block {
   margin: 12px 18px;
   padding: 14px;
-  border-left: 3px solid var(--admin-primary);
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  border-left: 3px solid #2f9e44;
+  background: #f3faf4;
 }
 
 .warning-block {
-  border-left-color: var(--admin-danger);
-  background: var(--admin-danger-soft);
-  color: var(--admin-danger-text);
+  border-left-color: #dc2626;
+  background: #fff5f5;
 }
 
 .policy-band p,
@@ -567,14 +563,14 @@ td small {
 .policy-band small {
   display: block;
   margin-top: 6px;
-  color: var(--admin-warning);
+  color: #9a3412;
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  border-top: 1px solid var(--admin-border);
+  border-top: 1px solid #e1eae1;
 }
 
 .decision-modal .field {
@@ -589,12 +585,12 @@ td small {
   align-items: center;
   margin: 16px 18px 0;
   padding: 12px 14px;
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface-muted);
+  border: 1px solid #cfe3d1;
+  background: #f3faf4;
 }
 
 .amount-summary strong {
-  color: var(--admin-text);
+  color: #216b34;
   font-size: 18px;
 }
 
@@ -609,7 +605,7 @@ td small {
 }
 
 .amount-summary.fixed-amount small {
-  color: var(--admin-faint);
+  color: #536257;
   line-height: 1.45;
 }
 
@@ -625,31 +621,31 @@ td small {
 }
 
 .primary-btn {
-  border: 1px solid var(--admin-primary);
-  background: var(--admin-primary);
-  color: var(--admin-bg);
+  border: 1px solid #2f9e44;
+  background: #2f9e44;
+  color: #fff;
 }
 
 .secondary-btn {
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface);
-  color: var(--admin-text);
+  border: 1px solid #d5e3d6;
+  background: #fff;
+  color: #344238;
 }
 
 .danger-btn {
-  border: 1px solid var(--admin-danger);
-  background: var(--admin-danger);
+  border: 1px solid #dc2626;
+  background: #dc2626;
   color: #fff;
 }
 
 .cash-btn {
-  border: 1px solid var(--admin-primary);
-  background: transparent;
-  color: var(--admin-primary);
+  border: 1px solid #0f766e;
+  background: #0f766e;
+  color: #fff;
 }
 
 .danger-text {
-  color: var(--admin-danger);
+  color: #991b1b;
 }
 
 @media (max-width: 720px) {
@@ -700,7 +696,7 @@ td small {
 
   .refund-table tr {
     padding: 12px 14px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #dce8dc;
   }
 
   .refund-table td {
@@ -715,7 +711,7 @@ td small {
 
   .refund-table td::before {
     content: attr(data-label);
-    color: var(--admin-faint);
+    color: #536257;
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;

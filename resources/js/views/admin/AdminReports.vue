@@ -5,24 +5,34 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
+    <nav class="page-tabs" style="margin-bottom: 20px; display: flex; gap: 12px;">
+      <button class="tab-btn" :class="{ active: filters.target_group === 'content' }" @click="setTargetGroup('content')">Bài viết & Bình luận</button>
+      <button class="tab-btn" :class="{ active: filters.target_group === 'user' }" @click="setTargetGroup('user')">Tài khoản</button>
+      <button class="tab-btn" :class="{ active: filters.target_group === 'venue' }" @click="setTargetGroup('venue')">Cụm sân</button>
+    </nav>
+
     <section class="filter-panel">
       <div class="filter-bar">
         <label class="search-box">
           <AppIcon name="search" size="17" />
           <input v-model.trim="filters.keyword" placeholder="Tìm người gửi, nội dung hoặc mã đối tượng" @keyup.enter="loadReports" />
         </label>
-        <select v-model="filters.target_type" @change="loadReports">
-          <option value="">Tất cả đối tượng</option>
-          <option v-for="item in targetTypes" :key="item.value" :value="item.value">{{ item.label }}</option>
-        </select>
-        <select v-model="filters.reason" @change="loadReports">
-          <option value="">Tất cả lý do</option>
-          <option v-for="item in reasons" :key="item.value" :value="item.value">{{ item.label }}</option>
-        </select>
-        <select v-model="filters.status" @change="loadReports">
-          <option value="">Tất cả trạng thái</option>
-          <option v-for="item in statuses" :key="item.value" :value="item.value">{{ item.label }}</option>
-        </select>
+        <CustomSelect 
+          v-if="filters.target_group === 'content'"
+          v-model="filters.target_type" 
+          :options="[{value: '', label: 'Tất cả đối tượng'}, ...filteredTargetTypes]" 
+          @change="loadReports" 
+        />
+        <CustomSelect 
+          v-model="filters.reason" 
+          :options="[{value: '', label: 'Tất cả lý do'}, ...reasons]" 
+          @change="loadReports" 
+        />
+        <CustomSelect 
+          v-model="filters.status" 
+          :options="[{value: '', label: 'Tất cả trạng thái'}, ...statuses]" 
+          @change="loadReports" 
+        />
         <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadReports" />
         <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadReports" />
         <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadReports" />
@@ -40,7 +50,12 @@
         <header class="card-head">
           <div class="card-title">
             <strong :title="report.target_label">{{ report.target_label }}</strong>
-            <span>{{ targetLabel(report.target_type) }} · {{ shortId(report.id) }}</span>
+            <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
+              <span>{{ targetLabel(report.target_type) }} · {{ shortId(report.id) }}</span>
+              <a v-if="getTargetUrl(report)" :href="getTargetUrl(report)" target="_blank" style="color: #2563eb; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                <AppIcon name="external-link" size="14" /> Xem nội dung
+              </a>
+            </div>
           </div>
           <div class="badge-row">
             <span class="badge" :class="report.reason">{{ reasonLabel(report.reason) }}</span>
@@ -93,6 +108,11 @@
             <section class="detail-section">
               <h4>Đối tượng bị báo cáo</h4>
               <p class="content-box">{{ selected.target?.title || selected.target?.content || selected.target?.label || 'Đối tượng không còn tồn tại.' }}</p>
+              <div v-if="getTargetUrl(selected)" style="margin-top: 10px;">
+                <a :href="getTargetUrl(selected)" target="_blank" class="btn primary" style="text-decoration: none; display: inline-flex; gap: 8px; font-weight: 700; background: #2563eb; color: white;">
+                  <AppIcon name="external-link" size="16" /> Xem chi tiết đối tượng vi phạm
+                </a>
+              </div>
             </section>
 
             <section class="detail-section">
@@ -148,9 +168,9 @@
     <div v-if="showAutoResolveModal" class="detail-backdrop" @click.self="closeAutoResolveModal">
       <div class="modal" style="max-width: 650px; background: #fff; border-radius: 12px; padding: 22px; display: grid; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
         <h3 style="margin: 0;">Cấu hình tự động xử lý báo cáo</h3>
-        <p class="muted" style="margin: 0; color: var(--admin-muted); font-size: 14px;">Thiết lập tự động ẩn nội dung hoặc khóa cụm sân khi đạt ngưỡng báo cáo vi phạm.</p>
+        <p class="muted" style="margin: 0; color: #64748b; font-size: 14px;">Thiết lập tự động ẩn nội dung hoặc khóa cụm sân khi đạt ngưỡng báo cáo vi phạm.</p>
         
-        <div v-if="autoResolveLoading" class="state" style="padding: 20px; text-align: center; color: var(--admin-muted);">Đang tải cấu hình...</div>
+        <div v-if="autoResolveLoading" class="state" style="padding: 20px; text-align: center; color: #64748b;">Đang tải cấu hình...</div>
         <template v-else-if="autoResolveConfigData">
           <!-- Chọn Đối Tượng Tab cấu hình -->
           <div class="auto-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
@@ -160,7 +180,7 @@
               type="button"
               :class="{ active: activeAutoTab === cfg.target_type }"
               @click="activeAutoTab = cfg.target_type"
-              style="border: 0; background: transparent; padding: 8px 12px; font-weight: 800; cursor: pointer; border-bottom: 2px solid transparent; color: var(--admin-muted); font-size: 14px;"
+              style="border: 0; background: transparent; padding: 8px 12px; font-weight: 800; cursor: pointer; border-bottom: 2px solid transparent; color: #64748b; font-size: 14px;"
               :style="activeAutoTab === cfg.target_type ? 'color: #166534; border-bottom-color: #22c55e;' : ''"
             >
               {{ cfg.target_type_label }}
@@ -169,23 +189,23 @@
 
           <div v-if="currentAutoConfig" class="auto-config-body" style="display: grid; gap: 14px;">
             <!-- Thông tin chính sách (chỉ đọc) -->
-            <div style="background: var(--admin-surface-muted); border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
+            <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
               <div style="font-weight: 700; color: #334155; margin-bottom: 10px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.3px;">Ngưỡng từ chính sách</div>
               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: var(--admin-muted); font-size: 0.9rem;">Ngưỡng cảnh báo:</span>
+                  <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng cảnh báo:</span>
                   <strong style="color: #d97706;">{{ currentAutoConfig.warning_threshold }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: var(--admin-muted); font-size: 0.9rem;">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
+                  <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
                   <strong style="color: #dc2626;">{{ currentAutoConfig.action_threshold }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: var(--admin-muted); font-size: 0.9rem;">Số người báo cáo khác nhau:</span>
+                  <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo khác nhau:</span>
                   <strong style="color: #2563eb;">{{ currentAutoConfig.unique_reporters_threshold }} người</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: var(--admin-muted); font-size: 0.9rem;">Thời gian theo dõi:</span>
+                  <span style="color: #64748b; font-size: 0.9rem;">Thời gian theo dõi:</span>
                   <strong style="color: #334155;">{{ currentAutoConfig.window_days }} ngày</strong>
                 </div>
               </div>
@@ -200,7 +220,7 @@
                   class="toggle-slider" 
                   :class="{ on: currentAutoConfig.is_auto_resolve_enabled }" 
                   @click="currentAutoConfig.is_auto_resolve_enabled = !currentAutoConfig.is_auto_resolve_enabled"
-                  style="width: 48px; height: 26px; border-radius: 13px; background: var(--admin-border); cursor: pointer; transition: background 0.2s; position: relative;"
+                  style="width: 48px; height: 26px; border-radius: 13px; background: #e2e8f0; cursor: pointer; transition: background 0.2s; position: relative;"
                   :style="currentAutoConfig.is_auto_resolve_enabled ? 'background: #16a34a;' : ''"
                 >
                   <div 
@@ -211,7 +231,7 @@
               </div>
               <div v-if="currentAutoConfig.is_auto_resolve_enabled" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
                 <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 800; font-size: 13px; color: #334155;">
-                  <span style="color: var(--admin-muted);">Lý do xử lý tự động:</span>
+                  <span style="color: #64748b;">Lý do xử lý tự động:</span>
                   <input type="text" v-model="currentAutoConfig.reason" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 500;" placeholder="Ví dụ: Vi phạm tiêu chuẩn cộng đồng" />
                 </label>
               </div>
@@ -226,17 +246,25 @@
           </div>
           
           <div style="text-align: center; margin-top: 8px;">
-            <router-link v-if="autoResolveConfigData.policy_id" :to="`/admin/policies/${autoResolveConfigData.policy_id}`" class="btn secondary" style="text-decoration: none; display: inline-block; font-size: 0.85rem; padding: 8px 12px; font-weight: 800; border-radius: 6px; background: var(--admin-surface-muted); color: #334155;">
+            <router-link v-if="autoResolveConfigData.policy_id" :to="`/admin/policies/${autoResolveConfigData.policy_id}`" class="btn secondary" style="text-decoration: none; display: inline-block; font-size: 0.85rem; padding: 8px 12px; font-weight: 800; border-radius: 6px; background: #f1f5f9; color: #334155;">
               Chỉnh ngưỡng tại Chính sách hệ thống →
             </router-link>
           </div>
         </template>
 
         <footer style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
-          <button type="button" class="btn secondary" @click="closeAutoResolveModal" style="border: 0; background: var(--admin-surface-muted); color: #334155; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;">Hủy</button>
-          <button type="button" class="btn primary" style="background: var(--admin-primary); color: var(--admin-bg); border: 0; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;" @click="saveAutoResolveConfig" :disabled="autoResolveSaving">Lưu cấu hình</button>
+          <button type="button" class="btn secondary" @click="closeAutoResolveModal" style="border: 0; background: #f1f5f9; color: #334155; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;">Hủy</button>
+          <button type="button" class="btn primary" style="background: #10b981; color: white; border: 0; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;" @click="saveAutoResolveConfig" :disabled="autoResolveSaving">Lưu cấu hình</button>
         </footer>
       </div>
+    </div>
+
+    <!-- Nút cấu hình nổi (Floating Action Button) -->
+    <div class="floating-config-container" :class="{ 'has-scroll': showScrollTop }">
+      <button class="floating-config-btn" @click="openAutoResolveModal" title="Cấu hình tự động xử lý báo cáo">
+        <AppIcon name="settings" size="20" />
+        <span class="floating-config-text">Cấu hình tự động xử lý</span>
+      </button>
     </div>
   </section>
 </template>
@@ -244,16 +272,17 @@
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import ActionIconButton from '../../components/ActionIconButton.vue';
+import CustomSelect from '../../components/CustomSelect.vue';
 import { adminReportService } from '../../services/adminModeration.js';
 
 export default {
   name: 'AdminReports',
-  components: { AppIcon, ActionIconButton },
+  components: { AppIcon, ActionIconButton, CustomSelect },
   data() {
     return {
       reports: [],
       summary: {},
-      filters: { keyword: '', target_type: '', reason: '', status: '', date_from: '', date_to: '' },
+      filters: { keyword: '', target_type: '', reason: '', status: '', date_from: '', date_to: '', target_group: 'content' },
       targetTypes: [
         { value: 'post', label: 'Bài viết cộng đồng' },
         { value: 'comment', label: 'Bình luận' },
@@ -289,9 +318,16 @@ export default {
       autoResolveSaving: false,
       autoResolveConfigData: null,
       activeAutoTab: 'community_post',
+      showScrollTop: false,
     };
   },
   computed: {
+    filteredTargetTypes() {
+      if (this.filters.target_group === 'content') {
+        return this.targetTypes.filter(t => ['post', 'comment', 'venue_post', 'player_post'].includes(t.value));
+      }
+      return [];
+    },
     currentAutoConfig() {
       if (!this.autoResolveConfigData || !this.autoResolveConfigData.configs) {
         return null;
@@ -301,8 +337,39 @@ export default {
   },
   mounted() {
     this.loadReports();
+    window.addEventListener('scroll', this.handleScroll);
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
+    setTargetGroup(group) {
+      this.filters.target_group = group;
+      this.filters.target_type = ''; // Reset specific target type
+      this.loadReports();
+    },
+    getTargetUrl(report) {
+      if (!report || !report.target_id) return null;
+      const id = report.target_id;
+      
+      switch (report.target_type) {
+        case 'post':
+        case 'venue_post':
+        case 'player_post':
+          return this.$router.resolve({ name: 'admin-post-detail', params: { id } }).href;
+        case 'comment':
+          return report.parent_id ? this.$router.resolve({ name: 'admin-post-detail', params: { id: report.parent_id } }).href : null;
+        case 'user':
+          return this.$router.resolve({ name: 'admin-user-detail', params: { id } }).href;
+        case 'venue':
+          return this.$router.resolve({ name: 'admin-venue-cluster-detail', params: { id } }).href;
+        default:
+          return null;
+      }
+    },
+    handleScroll() {
+      this.showScrollTop = window.scrollY > 250;
+    },
     async loadReports() {
       this.loading = true;
       this.error = '';
@@ -454,3 +521,60 @@ export default {
 </script>
 
 <style src="../../../css/admin/moderation.css" scoped></style>
+
+<style scoped>
+.floating-config-container {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 999;
+  transition: right 0.3s ease;
+}
+
+.floating-config-container.has-scroll {
+  right: 84px;
+}
+
+.floating-config-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 11px;
+}
+
+.floating-config-btn .floating-config-text {
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+  font-weight: 700;
+  font-size: 13px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+}
+
+.floating-config-btn:hover {
+  width: 215px;
+  justify-content: flex-start;
+  padding-left: 14px;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  background-color: #f8fafc;
+}
+
+.floating-config-btn:hover .floating-config-text {
+  max-width: 170px;
+  opacity: 1;
+  margin-left: 6px;
+}
+</style>

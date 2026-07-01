@@ -675,7 +675,7 @@
                 <div class="approval-name fw-bold">Yêu cầu mở khóa từ chủ sân</div>
                 <div class="muted" style="margin-top: 6px;">
                   <strong>Lý do giải trình của chủ sân:</strong>
-                  <p style="margin: 4px 0; line-height: 1.5; white-space: pre-wrap; background: var(--admin-surface, #fff); padding: 10px; border: 1px solid var(--admin-border); border-radius: 6px;">
+                  <p style="margin: 4px 0; line-height: 1.5; white-space: pre-wrap; background: #fff; padding: 10px; border: 1px solid var(--sg-border); border-radius: 6px;">
                     {{ req.reason }}
                   </p>
                 </div>
@@ -1254,9 +1254,9 @@ export default {
 }
 
 .card {
-  background: var(--admin-surface, #fff);
+  background: #fff;
   border-radius: 12px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--sg-border);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   padding: 20px 24px;
 }
@@ -1303,7 +1303,7 @@ export default {
 .tab-btn {
   padding: 8px 16px;
   border-radius: 8px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--sg-border);
   background: var(--sg-surface, #f8fafc);
   color: rgba(15, 23, 42, 0.6);
   font-size: 13px;
@@ -1313,10 +1313,10 @@ export default {
 }
 .tab-btn.active {
   background: #0f172a;
-  border-color: var(--admin-text);
+  border-color: #0f172a;
   color: #fff;
 }
-.tab-btn:not(.active):hover { background: var(--admin-surface-muted); }
+.tab-btn:not(.active):hover { background: #f1f5f9; }
 
 /* Card */
 .avcd-card {}
@@ -1338,9 +1338,9 @@ export default {
   flex: 1.6; /* Chiếm khoảng 62% */
   display: flex;
   flex-direction: column;
-  background: var(--admin-surface, #fff);
+  background: #fff;
   border-radius: 12px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--sg-border);
   padding: 24px;
 }
 .info-side-col {
@@ -1396,8 +1396,8 @@ export default {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: var(--admin-surface-muted);
-  color: var(--admin-faint);
+  background: #f1f5f9;
+  color: #475569;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1421,7 +1421,7 @@ export default {
 
 .info-detail-value {
   font-size: 14px;
-  color: var(--admin-text);
+  color: #1e293b;
   line-height: 1.4;
 }
 
@@ -1521,7 +1521,7 @@ export default {
 .side-value {
   font-size: 14px;
   font-weight: 600;
-  color: var(--admin-text);
+  color: #1e293b;
 }
 
 .status-action-row {
@@ -1577,11 +1577,11 @@ export default {
 .amenity-chip-premium {
   display: inline-block;
   padding: 5px 12px;
-  background: var(--admin-surface-muted);
+  background: #f1f5f9;
   border-radius: 20px;
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--admin-text);
+  color: #334155;
   border: 1px solid rgba(15, 23, 42, 0.05);
 }
 
@@ -1596,7 +1596,7 @@ export default {
   font-size: 14px;
   font-weight: bold;
   cursor: pointer;
-  color: var(--admin-muted);
+  color: #64748b;
   padding: 0 2px;
   transition: color 0.15s;
 }
@@ -1613,17 +1613,17 @@ export default {
 .info-item { display: flex; flex-direction: column; gap: 4px; }
 .full-width { grid-column: 1 / -1; }
 .info-label { font-size: 12px; font-weight: 700; color: rgba(15, 23, 42, 0.4); text-transform: uppercase; letter-spacing: 0.5px; }
-.info-value { font-size: 14px; color: var(--admin-text); }
+.info-value { font-size: 14px; color: var(--sg-text); }
 .muted { color: rgba(15, 23, 42, 0.45); font-size: 13px; }
 .lock-reason { color: #dc2626; font-weight: 600; }
 .amenity-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .amenity-chip {
   padding: 4px 10px;
-  background: var(--admin-surface-muted);
+  background: #f1f5f9;
   border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--admin-text);
+  color: #334155;
 }
 .map-link { margin-top: 18px; }
 
@@ -1645,7 +1645,7 @@ export default {
 .status-approved { background: #dcfce7; color: #166534; }
 .status-need_supplement { background: #fffbeb; color: #92400e; }
 .status-rejected { background: #fee2e2; color: #991b1b; }
-.status-cancelled { background: var(--admin-surface-muted); color: #6b7280; }
+.status-cancelled { background: #f3f4f6; color: #6b7280; }
 
 /* Custom Status badges for Venue Cluster status box */
 .custom-status-badge {
@@ -1667,7 +1667,7 @@ export default {
 .custom-status-approved { background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; }
 .custom-status-need_supplement { background: #fffbeb !important; color: #92400e !important; border: 1px solid #fde68a !important; }
 .custom-status-rejected { background: #fef2f2 !important; color: #b91c1c !important; border: 1px solid #fecaca !important; }
-.custom-status-cancelled { background: var(--admin-surface-muted) !important; color: var(--admin-faint) !important; border: 1px solid var(--admin-border) !important; }
+.custom-status-cancelled { background: #f8fafc !important; color: #475569 !important; border: 1px solid #e2e8f0 !important; }
 .fee-paid { background: #dcfce7; color: #166534; }
 .fee-unpaid, .fee-overdue { background: #fee2e2; color: #991b1b; }
 .fee-partial { background: #fef3c7; color: #92400e; }
@@ -1746,19 +1746,19 @@ export default {
   justify-content: center;
   padding: 60px 24px;
   gap: 14px;
-  background: var(--admin-surface, #fff);
+  background: #fff;
   border-radius: 14px;
-  border: 1px dashed var(--admin-border);
+  border: 1px dashed #cbd5e1;
 }
 .fees-empty-icon {
   width: 72px;
   height: 72px;
-  background: var(--admin-surface-muted);
+  background: #f1f5f9;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--admin-faint);
+  color: #94a3b8;
 }
 .fees-empty-text {
   font-size: 14px;
@@ -1783,7 +1783,7 @@ export default {
   padding: 20px;
   border-radius: 14px;
   border: 1px solid transparent;
-  background: var(--admin-surface, #fff);
+  background: #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   transition: transform 0.18s, box-shadow 0.18s;
   position: relative;
@@ -1842,7 +1842,7 @@ export default {
 .fees-stat-value {
   font-size: 16px;
   font-weight: 800;
-  color: var(--admin-text);
+  color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1892,7 +1892,7 @@ export default {
   margin: 0;
   font-size: 15px;
   font-weight: 800;
-  color: var(--admin-text);
+  color: #0f172a;
   line-height: 1.2;
 }
 .fees-card-subtitle {
@@ -1917,7 +1917,7 @@ export default {
   grid-template-columns: 160px 170px 110px 130px 130px 1fr 140px;
   gap: 0;
   padding: 10px 24px;
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
   border-bottom: 1px solid var(--sg-border);
   font-size: 10.5px;
   font-weight: 700;
@@ -1960,7 +1960,7 @@ export default {
   gap: 8px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--admin-text);
+  color: #1e293b;
 }
 .fee-pkg-dot {
   width: 8px;
@@ -1990,7 +1990,7 @@ export default {
 }
 .fee-period-text {
   font-size: 12px;
-  color: var(--admin-faint);
+  color: #475569;
   font-weight: 600;
 }
 .fee-period-sep {
@@ -2008,7 +2008,7 @@ export default {
 .fee-due-date {
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--admin-text);
+  color: #334155;
 }
 .fee-due-date.text-red-600 { color: #dc2626; }
 .fee-overdue-chip {
@@ -2028,14 +2028,14 @@ export default {
 .fee-col-amount .fee-amount-num {
   font-size: 13px;
   font-weight: 800;
-  color: var(--admin-text);
+  color: #0f172a;
 }
 
 /* Column: Paid */
 .fee-col-paid .fee-paid-num {
   font-size: 13px;
   font-weight: 700;
-  color: var(--admin-muted);
+  color: #64748b;
 }
 .fee-col-paid .fee-paid-num.text-green { color: #16a34a; }
 
@@ -2049,7 +2049,7 @@ export default {
 .fee-progress-track {
   width: 100%;
   height: 5px;
-  background: var(--admin-border);
+  background: #e2e8f0;
   border-radius: 99px;
   overflow: hidden;
 }
@@ -2108,8 +2108,8 @@ export default {
   transition: all 0.18s;
 }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
-.btn-outline { background: transparent; border-color: var(--sg-border); color: var(--admin-text); }
-.btn-outline:hover { background: var(--admin-surface-muted); }
+.btn-outline { background: transparent; border-color: var(--sg-border); color: var(--sg-text); }
+.btn-outline:hover { background: #f1f5f9; }
 .btn-danger { background: #dc2626; color: #fff; }
 .btn-danger:hover:not(:disabled) { background: #b91c1c; }
 .btn-danger:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -2147,8 +2147,8 @@ export default {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f1f5f9;
+  color: #334155;
 }
 .bs-confirmed { background: #dcfce7; color: #166534; }
 .bs-pending { background: #fef3c7; color: #92400e; }
@@ -2171,7 +2171,7 @@ export default {
   width: 36px;
   height: 36px;
   border: 3px solid rgba(0, 0, 0, 0.08);
-  border-top-color: var(--admin-text);
+  border-top-color: #0f172a;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -2196,7 +2196,7 @@ export default {
   top: 8px;
   bottom: 8px;
   width: 2px;
-  background: var(--admin-border);
+  background: #e2e8f0;
 }
 
 .timeline-item {
@@ -2213,8 +2213,8 @@ export default {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--admin-surface, #fff);
-  border: 2px solid var(--admin-border);
+  background: #fff;
+  border: 2px solid #cbd5e1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2248,16 +2248,16 @@ export default {
 }
 
 .badge-default {
-  border-color: var(--admin-border);
-  background: var(--admin-surface-muted);
-  color: var(--admin-faint);
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #475569;
 }
 
 /* Timeline content card */
 .timeline-content {
   flex: 1;
-  background: var(--admin-surface, #fff);
-  border: 1px solid var(--sg-border, var(--admin-border));
+  background: #fff;
+  border: 1px solid var(--sg-border, #e2e8f0);
   border-radius: 12px;
   padding: 16px 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
@@ -2270,7 +2270,7 @@ export default {
 .timeline-content:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
-  border-color: var(--admin-border);
+  border-color: #cbd5e1;
 }
 
 /* Header inside content card */
@@ -2290,7 +2290,7 @@ export default {
 .text-lock { color: #dc2626; }
 .text-unlock { color: #16a34a; }
 .text-update { color: #2563eb; }
-.text-default { color: var(--admin-faint); }
+.text-default { color: #475569; }
 
 .timeline-meta {
   display: flex;
@@ -2312,8 +2312,8 @@ export default {
 
 /* Reason box stylings */
 .timeline-reason-box {
-  background: var(--admin-surface-muted);
-  border-left: 3px solid var(--admin-border);
+  background: #f8fafc;
+  border-left: 3px solid #cbd5e1;
   padding: 8px 12px;
   border-radius: 0 6px 6px 0;
 }
@@ -2329,7 +2329,7 @@ export default {
 .reason-content {
   margin: 4px 0 0 0;
   font-size: 13px;
-  color: var(--admin-text);
+  color: var(--sg-text);
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -2337,7 +2337,7 @@ export default {
 /* Sub-details (Lock dates) */
 .timeline-sub-details {
   font-size: 13px;
-  color: var(--admin-faint);
+  color: #475569;
   display: flex;
   align-items: center;
 }
@@ -2345,7 +2345,7 @@ export default {
 .duration-label {
   display: inline-flex;
   align-items: center;
-  background: var(--admin-surface-muted);
+  background: #f1f5f9;
   padding: 4px 8px;
   border-radius: 6px;
 }
@@ -2374,8 +2374,8 @@ export default {
 .timeline-amenity-chip {
   font-size: 12px;
   font-weight: 600;
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
+  background: #f1f5f9;
+  color: #334155;
   padding: 4px 10px;
   border-radius: 20px;
   border: 1px solid rgba(15, 23, 42, 0.05);
@@ -2392,20 +2392,20 @@ export default {
 .tab-sm {
   padding: 6px 12px;
   border-radius: 6px;
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface-muted);
+  border: 1px solid var(--sg-border);
+  background: #f8fafc;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
-.tab-sm.active { background: #0f172a; border-color: var(--admin-text); color: #fff; }
+.tab-sm.active { background: #0f172a; border-color: #0f172a; color: #fff; }
 .approval-list { display: flex; flex-direction: column; gap: 12px; }
 .approval-card {
   padding: 16px;
   border-radius: 10px;
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface-muted);
+  border: 1px solid var(--sg-border);
+  background: #f8fafc;
   transition: box-shadow 0.18s;
 }
 .approval-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
@@ -2462,7 +2462,7 @@ export default {
   display: grid;
   place-items: center;
 }
-.btn-close:hover { background: var(--admin-surface-muted); }
+.btn-close:hover { background: #f1f5f9; }
 .modal-body {
   padding: 20px 24px;
   display: flex;
@@ -2483,20 +2483,20 @@ export default {
   gap: 6px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--admin-text);
+  color: var(--sg-text);
 }
 .form-control {
   padding: 10px 14px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--sg-border);
   border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
   outline: none;
-  color: var(--admin-text);
-  background: var(--admin-surface, #fff);
+  color: var(--sg-text);
+  background: #fff;
   transition: border-color 0.18s;
 }
-.form-control:focus { border-color: var(--admin-text); }
+.form-control:focus { border-color: #0f172a; }
 .required { color: #ef4444; }
 .alert-error {
   padding: 10px 14px;
@@ -2527,7 +2527,7 @@ export default {
 
 .empty-gallery {
   padding: 24px;
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
   border: 1px dashed var(--sg-border);
   border-radius: 8px;
   text-align: center;
@@ -2546,8 +2546,8 @@ export default {
   aspect-ratio: 4 / 3;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface-muted);
+  border: 1px solid var(--sg-border);
+  background: #f8fafc;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 .gallery-item:hover {

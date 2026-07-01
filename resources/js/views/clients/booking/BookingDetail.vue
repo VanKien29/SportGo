@@ -1,6 +1,6 @@
 <template>
     <div class="detail-container">
-        <PublicNavbar />
+        <PublicNavbar theme="dark" />
 
         <main class="detail-main" v-if="!loading">
             <div class="detail-content" v-if="booking">
@@ -560,7 +560,8 @@ export default {
 <style scoped>
 .detail-container {
     min-height: 100vh;
-    background: var(--sg-surface);
+    background: #09090b;
+    color: #ffffff;
 }
 
 .detail-main {
@@ -582,43 +583,43 @@ export default {
     gap: 20px;
     padding: 24px;
     border-radius: var(--sg-radius);
-    border: 1px solid var(--sg-border);
-    box-shadow: var(--sg-shadow);
-    background: var(--sg-white);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .status-banner.confirmed {
-    border-left: 6px solid var(--sg-green);
+    border-left: 4px solid #ffffff;
 }
 .status-banner.confirmed .banner-icon {
-    background: var(--sg-green-pale);
-    color: var(--sg-green-dark);
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
 }
 
 .status-banner.pending_payment {
-    border-left: 6px solid #eab308;
+    border-left: 4px solid #facc15;
 }
 .status-banner.pending_payment .banner-icon {
-    background: #fef9c3;
-    color: #a16207;
+    background: rgba(250, 204, 21, 0.1);
+    color: #facc15;
 }
 
 .status-banner.pending_approval {
-    border-left: 6px solid #2563eb;
+    border-left: 4px solid #3b82f6;
 }
 .status-banner.pending_approval .banner-icon {
-    background: #dbeafe;
-    color: #1d4ed8;
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
 }
 
 .status-banner.expired,
 .status-banner.cancelled {
-    border-left: 6px solid var(--sg-danger);
+    border-left: 4px solid #ef4444;
 }
 .status-banner.expired .banner-icon,
 .status-banner.cancelled .banner-icon {
-    background: #fef2f2;
-    color: var(--sg-danger);
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
 }
 
 .banner-icon {
@@ -634,12 +635,12 @@ export default {
 .banner-text h2 {
     font-size: 20px;
     font-weight: 800;
-    color: var(--sg-dark);
+    color: #ffffff;
 }
 
 .banner-text p {
     font-size: 14px;
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
     margin-top: 4px;
 }
 
@@ -652,11 +653,11 @@ export default {
 }
 
 .card {
-    background: var(--sg-white);
+    background: rgba(255, 255, 255, 0.03);
     border-radius: var(--sg-radius);
-    border: 1px solid var(--sg-border);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     padding: 24px;
-    box-shadow: var(--sg-shadow);
+    box-shadow: none;
 }
 
 .card-header-simple {
@@ -668,7 +669,7 @@ export default {
 .card-header-simple h2 {
     font-size: 18px;
     font-weight: 800;
-    color: var(--sg-dark);
+    color: #ffffff;
 }
 
 .badge {
@@ -679,29 +680,29 @@ export default {
 }
 
 .badge.confirmed {
-    background: var(--sg-green-pale);
-    color: var(--sg-green-dark);
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
 }
 .badge.pending_payment {
-    background: #fef9c3;
-    color: #a16207;
+    background: rgba(250, 204, 21, 0.1);
+    color: #facc15;
 }
 .badge.pending_approval {
-    background: #dbeafe;
-    color: #1d4ed8;
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
 }
 .badge.expired {
-    background: #fef2f2;
-    color: var(--sg-danger);
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
 }
 .badge.cancelled {
-    background: #fef2f2;
-    color: var(--sg-danger);
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
 }
 
 .divider {
     height: 1px;
-    background: var(--sg-border);
+    background: rgba(255, 255, 255, 0.08);
     margin: 16px 0;
 }
 
@@ -718,11 +719,11 @@ export default {
 }
 
 .info-item .label {
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .info-item .val {
-    color: var(--sg-dark);
+    color: #ffffff;
     font-weight: 500;
     max-width: 60%;
     text-align: right;
@@ -737,13 +738,13 @@ export default {
 
 .countdown-card {
     text-align: center;
-    border: 1px solid #fef08a;
-    background: #fffbeb;
+    border: 1px solid rgba(250, 204, 21, 0.2);
+    background: rgba(250, 204, 21, 0.05);
 }
 
 .countdown-card h3 {
     font-size: 14px;
-    color: #a16207;
+    color: #facc15;
     font-weight: 700;
     text-transform: uppercase;
 }
@@ -751,20 +752,20 @@ export default {
 .countdown-card .timer {
     font-size: 36px;
     font-weight: 900;
-    color: #b45309;
+    color: #facc15;
     margin: 10px 0;
     font-family: monospace;
 }
 
 .countdown-card .timer-desc {
     font-size: 12px;
-    color: #d97706;
+    color: rgba(250, 204, 21, 0.7);
 }
 
 .price-card h3 {
     font-size: 16px;
     font-weight: 700;
-    color: var(--sg-dark);
+    color: #ffffff;
 }
 
 .price-rows {
@@ -777,25 +778,25 @@ export default {
     display: flex;
     justify-content: space-between;
     font-size: 14px;
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .price-row .val {
-    color: var(--sg-dark);
+    color: #ffffff;
     font-weight: 600;
 }
 
 .price-row.highlighted {
     margin-top: 8px;
     padding-top: 12px;
-    border-top: 1px dashed var(--sg-border);
-    color: var(--sg-dark);
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+    color: #ffffff;
     font-weight: 700;
 }
 
 .price-row.highlighted .price {
     font-size: 22px;
-    color: var(--sg-green-dark);
+    color: #ffffff;
     font-weight: 800;
 }
 
@@ -808,25 +809,31 @@ export default {
     width: 100%;
     min-height: 44px;
     border-radius: var(--sg-radius-sm);
-    color: #fff;
+    color: #09090b;
     font-size: 14px;
     font-weight: 800;
     transition: var(--sg-transition);
 }
 
 .btn-sepay {
-    background: var(--sg-green);
+    background: #ffffff;
+    color: #09090b;
 }
 
 .btn-cancel-payment {
-    background: var(--sg-danger);
+    background: #ef4444;
+    color: #ffffff;
 }
 
 .btn-cancel-standalone {
     margin-top: 12px;
 }
 
-.btn-sepay:hover:not(:disabled),
+.btn-sepay:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.88);
+    transform: translateY(-1px);
+}
+
 .btn-cancel-payment:hover:not(:disabled) {
     filter: brightness(1.05);
     transform: translateY(-1px);
@@ -848,9 +855,9 @@ export default {
     display: flex;
     justify-content: center;
     padding: 12px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--sg-radius-sm);
-    background: #fff;
+    background: #ffffff;
 }
 
 .qr-wrap img {
@@ -871,18 +878,18 @@ export default {
     align-items: center;
     gap: 12px;
     font-size: 13px;
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .transfer-row strong {
-    color: var(--sg-dark);
+    color: #ffffff;
     text-align: right;
     word-break: break-word;
 }
 
 .copy-value {
     max-width: 60%;
-    color: var(--sg-green-dark);
+    color: #ffffff;
     font-weight: 900;
     text-align: right;
     word-break: break-word;
@@ -896,8 +903,8 @@ export default {
     gap: 10px;
     padding: 12px;
     border-radius: var(--sg-radius-sm);
-    background: var(--sg-green-pale);
-    color: var(--sg-green-dark);
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
     font-size: 13px;
     font-weight: 700;
     line-height: 1.45;
@@ -906,8 +913,8 @@ export default {
 .mini-spinner {
     width: 18px;
     height: 18px;
-    border: 2px solid rgba(22, 163, 74, 0.22);
-    border-top-color: var(--sg-green);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #ffffff;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     flex: 0 0 auto;
@@ -923,15 +930,15 @@ export default {
 .detail-empty {
     text-align: center;
     padding: 60px 0;
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .btn-back {
     display: inline-block;
     margin-top: 16px;
     padding: 10px 24px;
-    background: var(--sg-green);
-    color: #fff;
+    background: #ffffff;
+    color: #09090b;
     border-radius: var(--sg-radius);
     font-weight: 600;
 }
@@ -943,14 +950,14 @@ export default {
     align-items: center;
     justify-content: center;
     padding: 120px 0;
-    color: var(--sg-text-muted);
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .spinner {
     width: 44px;
     height: 44px;
-    border: 3px solid var(--sg-border);
-    border-top-color: var(--sg-green);
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #ffffff;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin-bottom: 16px;

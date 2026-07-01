@@ -16,7 +16,9 @@ class Payment extends Model
 
     protected $fillable = [
         'payment_code',
+        'payment_context',
         'booking_id',
+        'subscription_id',
         'system_bank_account_id',
         'amount',
         'wallet_amount',
@@ -45,6 +47,11 @@ class Payment extends Model
     public function booking()
     {
         return $this->belongsTo(Booking::class, 'booking_id');
+    }
+
+    public function subscription()
+    {
+        return $this->belongsTo(UserSubscription::class, 'subscription_id');
     }
 
     public function logs()

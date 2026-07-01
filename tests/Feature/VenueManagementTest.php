@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserRole;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
+use App\Models\VenuePost;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -166,6 +167,81 @@ class VenueManagementTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $this->cluster1->id);
+    }
+
+    public function test_owner_can_view_compact_clusters_for_fast_select_lists(): void
+    {
+        $response = $this->actingAs($this->owner1, 'sanctum')
+            ->getJson('/api/owner/venue-clusters?compact=1');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $this->cluster1->id)
+            ->assertJsonPath('data.0.name', $this->cluster1->name);
+
+        $cluster = $response->json('data.0');
+        $this->assertArrayNotHasKey('media', $cluster);
+        $this->assertArrayNotHasKey('amenity_catalog', $cluster);
+        $this->assertArrayNotHasKey('description', $cluster);
+    }
+
+    public function test_owner_dashboard_lists_only_owned_published_venue_posts(): void
+    {
+        VenuePost::query()->create([
+            'venue_cluster_id' => $this->cluster1->id,
+            'author_id' => $this->owner1->id,
+            'title' => 'Bài đã xuất bản',
+            'slug' => 'bai-da-xuat-ban',
+            'content' => 'Nội dung bài đã xuất bản',
+            'short_description' => 'Mô tả ngắn',
+            'post_type' => 'news',
+            'status' => 'published',
+            'reviewed_by' => $this->admin->id,
+            'reviewed_at' => now(),
+            'view_count' => 15,
+            'like_count' => 2,
+            'comment_count' => 1,
+        ]);
+
+        VenuePost::query()->create([
+            'venue_cluster_id' => $this->cluster1->id,
+            'author_id' => $this->owner1->id,
+            'title' => 'Bài chờ duyệt',
+            'slug' => 'bai-cho-duyet',
+            'content' => 'Nội dung bài chờ duyệt',
+            'short_description' => 'Mô tả bài chờ duyệt',
+            'post_type' => 'news',
+            'status' => 'pending_review',
+        ]);
+
+        $otherCluster = VenueCluster::query()->create([
+            'owner_id' => $this->owner2->id,
+            'name' => 'Owner 2 Cluster',
+            'slug' => 'owner-2-cluster',
+            'address' => 'Hanoi',
+            'latitude' => 21.0285,
+            'longitude' => 105.8542,
+            'status' => 'active',
+        ]);
+
+        VenuePost::query()->create([
+            'venue_cluster_id' => $otherCluster->id,
+            'author_id' => $this->owner2->id,
+            'title' => 'Bài owner khác',
+            'slug' => 'bai-owner-khac',
+            'content' => 'Nội dung bài owner khác',
+            'short_description' => 'Mô tả bài owner khác',
+            'post_type' => 'news',
+            'status' => 'published',
+        ]);
+
+        $response = $this->actingAs($this->owner1, 'sanctum')
+            ->getJson('/api/owner/dashboard');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'published_posts')
+            ->assertJsonPath('published_posts.0.title', 'Bài đã xuất bản')
+            ->assertJsonPath('published_posts.0.venue_cluster_name', $this->cluster1->name);
     }
 
     public function test_owner_can_update_own_cluster(): void

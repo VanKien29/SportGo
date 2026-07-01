@@ -1114,15 +1114,15 @@
                                 <span class="group-code">{{
                                     group.recurring_group_code
                                 }}</span>
-                                {{
+                                <strong>{{
                                     recurringGroupCustomer(group)
-                                }}
+                                }}</strong>
                                 <small>{{ recurringGroupPhone(group) }}</small>
                             </td>
                             <td>
-                                {{
+                                <strong>{{
                                     recurringGroupPatternText(group)
-                                }}
+                                }}</strong>
                                 <small>
                                     {{ group.booking_count }} buổi ·
                                     {{ formatDate(group.start_date) }} -
@@ -1160,9 +1160,9 @@
                                 </div>
                             </td>
                             <td>
-                                {{
+                                <strong>{{
                                     recurringGroupTimeText(group)
-                                }}
+                                }}</strong>
                                 <small>
                                     {{
                                         (group.court_names || []).join(", ") ||
@@ -1171,9 +1171,9 @@
                                 </small>
                             </td>
                             <td>
-                                {{
+                                <strong>{{
                                     paymentOptionLabel(group.payment_option)
-                                }}
+                                }}</strong>
                                 <small>{{
                                     recurringGroupStatusSummary(group) ||
                                     "Chưa có trạng thái"
@@ -4017,6 +4017,9 @@ export default {
         },
         occurrenceStatusLabel(occurrence) {
             if (occurrence.status === "cancelled") {
+                if (occurrence.has_interrupted_by_emergency) {
+                    return "Dừng do sự cố sân";
+                }
                 return occurrence.has_cancelled_by_maintenance
                     ? "Hủy do khóa sân"
                     : "Đã hủy";
@@ -4030,6 +4033,9 @@ export default {
             }
 
             if (Number(occurrence.cancelled_item_count || 0) > 0) {
+                if (occurrence.has_interrupted_by_emergency) {
+                    return "Dừng do sự cố sân";
+                }
                 return occurrence.has_cancelled_by_maintenance
                     ? "Hủy do khóa sân"
                     : "Đã hủy";
@@ -4057,11 +4063,13 @@ export default {
             return items
                 .map((item) => {
                     const time = `${this.formatTime(item.start_time)} - ${this.formatTime(item.end_time)}`;
-                    const status = String(item.status || "active").startsWith(
-                        "cancelled_",
-                    )
-                        ? " · hủy"
-                        : "";
+                    const itemStatus = String(item.status || "active");
+                    const status =
+                        itemStatus === "interrupted_by_emergency"
+                            ? " · dừng do sự cố"
+                            : itemStatus.startsWith("cancelled_")
+                              ? " · hủy"
+                              : "";
 
                     return `${item.court_name || "Sân"} ${time}${status}`;
                 })
@@ -4349,9 +4357,9 @@ export default {
     display: grid;
     gap: 14px;
     padding: 18px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .list-toolbar {
@@ -4363,14 +4371,14 @@ export default {
 
 .list-toolbar h2 {
     margin: 0;
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 18px;
     font-weight: 850;
 }
 
 .list-toolbar p {
     margin: 4px 0 0;
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 13px;
 }
 
@@ -4390,9 +4398,9 @@ export default {
 
 .recurring-table-card {
     overflow: auto;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .recurring-table-card table {
@@ -4442,7 +4450,7 @@ export default {
 
 .recurring-table-card td > small {
     margin-top: 4px;
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     line-height: 1.35;
 }
@@ -4482,7 +4490,7 @@ export default {
 
 .fixed-date-chips em {
     background: #eef2f7;
-    color: var(--admin-faint);
+    color: #475569;
 }
 
 .recurring-occurrence-panel {
@@ -4491,7 +4499,7 @@ export default {
     gap: 10px;
     min-height: 0;
     padding: 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 9px;
     background: #fbfefc;
 }
@@ -4504,13 +4512,13 @@ export default {
 }
 
 .occurrence-head strong {
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 13px;
     font-weight: 900;
 }
 
 .occurrence-head span {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     font-weight: 750;
 }
@@ -4530,9 +4538,9 @@ export default {
     justify-content: space-between;
     gap: 12px;
     padding: 10px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .occurrence-list article.cancelled {
@@ -4558,7 +4566,7 @@ export default {
 }
 
 .occurrence-list small {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     line-height: 1.35;
 }
@@ -4603,7 +4611,7 @@ export default {
     gap: 12px 18px;
     align-items: start;
     padding: 14px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
     background: #fbfdfb;
 }
@@ -4643,20 +4651,20 @@ export default {
 
 .group-money-grid > div {
     padding: 9px 10px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .recurring-group-card span {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     font-weight: 750;
 }
 
 .recurring-group-card strong {
     overflow-wrap: anywhere;
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 14px;
     font-weight: 850;
 }
@@ -4666,7 +4674,7 @@ export default {
 }
 
 .recurring-group-card small {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     line-height: 1.35;
 }
@@ -4724,9 +4732,9 @@ export default {
     gap: 14px;
     min-width: 0;
     padding: 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface-muted);
+    background: #f7fbf5;
 }
 
 .recurring-detail-modal .confirm-summary {
@@ -4745,7 +4753,7 @@ export default {
     padding: 10px;
     border: 1px solid #e1ece1;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .recurring-detail-modal .confirm-summary dt,
@@ -4798,19 +4806,19 @@ export default {
 }
 
 .detail-hero span:not(.status-badge) {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     font-weight: 800;
 }
 
 .detail-hero strong {
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 15px;
     font-weight: 850;
 }
 
 .detail-hero small {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
 }
 
@@ -4819,9 +4827,9 @@ export default {
 .form-card,
 .preview-box,
 .alert {
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .schedule-panel,
@@ -4840,7 +4848,7 @@ export default {
     display: grid;
     gap: 12px;
     padding: 14px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
     background: #fbfdfb;
 }
@@ -4856,26 +4864,26 @@ export default {
     gap: 4px;
     min-height: 58px;
     padding: 10px 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .schedule-summary span {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     font-weight: 750;
 }
 
 .schedule-summary strong {
     overflow-wrap: anywhere;
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 14px;
     font-weight: 850;
 }
 
 .recurring-slot-matrix {
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .panel-head.compact {
@@ -4885,20 +4893,20 @@ export default {
 .panel-head h2,
 .section-title h2 {
     margin: 0;
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 17px;
     font-weight: 800;
 }
 
 .panel-head p {
     margin: 4px 0 0;
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 13px;
 }
 
 .section-title p {
     margin: 4px 0 0;
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 13px;
     line-height: 1.45;
 }
@@ -4920,9 +4928,9 @@ export default {
     align-items: end;
     margin-top: 12px;
     padding: 14px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface-muted);
+    background: #f7fbf5;
 }
 
 .duration-pill {
@@ -4930,9 +4938,9 @@ export default {
     gap: 6px;
     min-height: 42px;
     padding: 9px 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .selection-help {
@@ -4940,38 +4948,38 @@ export default {
     gap: 5px;
     min-height: 42px;
     padding: 9px 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .selection-help span {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 11px;
     font-weight: 800;
 }
 
 .selection-help strong {
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 14px;
     font-weight: 850;
 }
 
 .selection-help small {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     font-weight: 650;
     line-height: 1.35;
 }
 
 .duration-pill span {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 11px;
     font-weight: 800;
 }
 
 .duration-pill strong {
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 14px;
     font-weight: 850;
 }
@@ -5031,7 +5039,7 @@ input.invalid {
     height: 12px;
     border: 1px solid #b9cbbb;
     border-radius: 3px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .legend i.selected {
@@ -5041,8 +5049,8 @@ input.invalid {
 
 .day-grid label {
     border: 1px solid #d0d7de;
-    background: var(--admin-surface, #fff);
-    color: var(--admin-text);
+    background: #fff;
+    color: #334155;
     border-radius: 8px;
     padding: 8px 12px;
     cursor: pointer;
@@ -5105,9 +5113,9 @@ input.invalid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
     padding: 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface-muted);
+    background: #f7fbf5;
     margin-top: 12px;
 }
 
@@ -5117,13 +5125,13 @@ input.invalid {
 }
 
 .selected-court-strip span {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     font-weight: 750;
 }
 
 .selected-court-strip strong {
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 14px;
     font-weight: 850;
 }
@@ -5205,9 +5213,9 @@ input.invalid {
     gap: 4px;
     min-height: 38px;
     padding: 8px 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     color: #344238;
     font-weight: 850;
 }
@@ -5227,9 +5235,9 @@ input.invalid {
 .slot-matrix {
     display: grid;
     overflow-x: auto;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .matrix-head,
@@ -5244,7 +5252,7 @@ input.invalid {
     display: grid;
     place-items: center;
     background: #f2f7ef;
-    color: var(--admin-text);
+    color: #334238;
     font-size: 11px;
     font-weight: 850;
 }
@@ -5254,17 +5262,17 @@ input.invalid {
     align-content: center;
     gap: 2px;
     padding: 6px 10px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .matrix-court strong {
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 12px;
     font-weight: 850;
 }
 
 .matrix-court span {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 11px;
     font-weight: 700;
 }
@@ -5282,7 +5290,7 @@ input.invalid {
 .time-slot {
     padding: 0;
     border-radius: 0;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     transition:
         background 0.16s ease,
         box-shadow 0.16s ease;
@@ -5353,7 +5361,7 @@ input.invalid {
     overflow: auto;
     padding: 20px;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     box-shadow: 0 18px 60px rgba(15, 23, 42, 0.22);
 }
 
@@ -5364,7 +5372,7 @@ input.invalid {
     gap: 14px;
     padding: 20px;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     box-shadow: 0 18px 60px rgba(15, 23, 42, 0.22);
 }
 
@@ -5375,16 +5383,16 @@ input.invalid {
 .qr-modal > img {
     width: min(260px, 100%);
     justify-self: center;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .confirm-summary {
     padding: 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface-muted);
+    background: #f7fbf5;
 }
 
 .copy-value {
@@ -5399,7 +5407,7 @@ input.invalid {
 
 .qr-waiting {
     margin: 0;
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 13px;
     line-height: 1.45;
     text-align: center;
@@ -5416,7 +5424,7 @@ input.invalid {
     justify-content: space-between;
     gap: 12px;
     padding-bottom: 12px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #d9e8d9;
 }
 
 .modal-head span {
@@ -5427,7 +5435,7 @@ input.invalid {
 
 .modal-head h2 {
     margin: 4px 0 0;
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 20px;
     font-weight: 900;
 }
@@ -5462,14 +5470,14 @@ input.invalid {
 }
 
 .conflict-list strong {
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 14px;
     font-weight: 850;
 }
 
 .conflict-list span,
 .conflict-list small {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     line-height: 1.4;
     overflow-wrap: anywhere;
@@ -5492,7 +5500,7 @@ input.invalid {
     justify-content: flex-end;
     gap: 10px;
     padding-top: 8px;
-    border-top: 1px solid var(--admin-border);
+    border-top: 1px solid #d9e8d9;
 }
 
 .modal-actions .primary-btn,
@@ -5512,7 +5520,7 @@ input.invalid {
 
 .modal-actions .secondary-btn {
     border: 1px solid var(--admin-border, #e5e7eb);
-    background: var(--admin-surface, #fff);
+    background: #fff;
     color: var(--admin-text, #000000);
 }
 
@@ -5532,15 +5540,15 @@ input.invalid {
 }
 
 .confirm-reason-field span {
-    color: var(--admin-text);
+    color: #334155;
     font-size: 13px;
     font-weight: 800;
 }
 
 .confirm-reason-field textarea {
-    border: 1px solid var(--admin-border);
+    border: 1px solid #cbd5e1;
     border-radius: 10px;
-    color: var(--admin-text);
+    color: #0f172a;
     font: inherit;
     line-height: 1.5;
     min-height: 92px;
@@ -5555,7 +5563,7 @@ input.invalid {
 }
 
 .confirm-reason-field small {
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 12px;
     line-height: 1.45;
 }
@@ -5646,7 +5654,7 @@ input.invalid {
     padding: 14px;
     border: 1px dashed #b9cbbb;
     border-radius: 8px;
-    color: var(--admin-faint);
+    color: #607267;
     text-align: center;
 }
 
@@ -5664,7 +5672,7 @@ input.invalid {
 
 .summary-list dd {
     margin: 0;
-    color: var(--admin-text);
+    color: #16231a;
     font-weight: 800;
     text-align: right;
 }
@@ -5769,14 +5777,14 @@ input.invalid {
 
 .status-badge.tone-cancelled {
     border-color: #e5e7eb;
-    background: var(--admin-surface-muted);
+    background: #f3f4f6;
     color: #4b5563;
 }
 
 .status-badge.tone-locked,
 .status-badge.tone-neutral {
-    border-color: var(--admin-border);
-    background: var(--admin-surface-muted);
+    border-color: #d9e8d9;
+    background: #f7fbf5;
     color: #475b4d;
 }
 
@@ -5791,9 +5799,9 @@ input.invalid {
     align-items: center;
     gap: 10px;
     padding: 11px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .payment-card.active {
@@ -5814,7 +5822,7 @@ input.invalid {
 .payment-card small {
     display: block;
     margin-top: 4px;
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     font-weight: 650;
     line-height: 1.35;
@@ -5822,9 +5830,9 @@ input.invalid {
 
 .inline-note {
     padding: 10px 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface-muted);
+    background: #f7fbf5;
     color: #475b4d;
     font-size: 13px;
     font-weight: 700;
@@ -5834,9 +5842,9 @@ input.invalid {
     display: grid;
     gap: 12px;
     padding: 14px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface-muted);
+    background: #f7fbf5;
 }
 
 .recurring-payment-list {
@@ -5845,11 +5853,11 @@ input.invalid {
 
 .recurring-payment-list .payment-card {
     grid-template-columns: auto minmax(0, 1fr);
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .voucher-section {
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .voucher-picker {
@@ -5865,7 +5873,7 @@ input.invalid {
 
 .voucher-code-row input {
     min-width: 0;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
     padding: 10px 12px;
     color: #1f2f25;
@@ -5883,9 +5891,9 @@ input.invalid {
     align-items: center;
     gap: 10px;
     width: 100%;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     padding: 10px 11px;
     text-align: left;
     cursor: pointer;
@@ -5905,7 +5913,7 @@ input.invalid {
 
 .voucher-list small,
 .voucher-empty {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     font-weight: 700;
 }
@@ -5930,7 +5938,7 @@ input.invalid {
     gap: 8px;
     border: 1px solid #16a34a;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     color: #15803d;
     font-size: 14px;
     font-weight: 850;
@@ -5947,9 +5955,9 @@ input.invalid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
     padding: 12px;
-    /* border: 1px solid var(--admin-border); */
+    /* border: 1px solid #d9e8d9; */
     border-radius: 8px;
-    /* background: var(--admin-surface, #fff); */
+    /* background: #fff; */
 }
 
 .segmented-field {
@@ -5976,9 +5984,9 @@ input.invalid {
     gap: 7px;
     min-height: 38px;
     padding: 8px 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     color: #344238;
     font-weight: 850;
 }
@@ -5996,9 +6004,9 @@ input.invalid {
 
 .qr-section img {
     width: min(210px, 100%);
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .qr-info {
@@ -6023,7 +6031,7 @@ input.invalid {
 }
 
 .qr-info strong {
-    color: var(--admin-text);
+    color: #16231a;
 }
 
 .day-grid {
@@ -6040,9 +6048,9 @@ input.invalid {
     min-height: 38px;
     min-width: 48px;
     padding: 8px 14px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 999px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     color: #425246;
     font-weight: 900;
     cursor: pointer;
@@ -6085,7 +6093,7 @@ input.invalid {
 
 .recurring-helper {
     margin: -6px 0 4px;
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 13px;
     line-height: 1.45;
 }
@@ -6106,7 +6114,7 @@ input.invalid {
     display: grid;
     gap: 4px;
     padding-bottom: 10px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #d9e8d9;
 }
 
 .preview-head > span {
@@ -6116,14 +6124,14 @@ input.invalid {
 }
 
 .preview-box strong {
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 18px;
     font-weight: 850;
 }
 
 .preview-box span,
 .preview-box small {
-    color: var(--admin-faint);
+    color: #607267;
 }
 
 .recurring-summary-list {
@@ -6137,7 +6145,7 @@ input.invalid {
 }
 
 .recurring-summary-list dt {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
 }
 
@@ -6178,7 +6186,7 @@ input.invalid {
 }
 
 .preview-panel-head span {
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 12px;
     font-weight: 800;
 }
@@ -6196,17 +6204,17 @@ input.invalid {
     padding: 9px;
     border: 1px solid #dce8de;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .preview-stat-grid span {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 11px;
     font-weight: 750;
 }
 
 .preview-stat-grid strong {
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 18px;
     font-weight: 900;
 }
@@ -6252,7 +6260,7 @@ input.invalid {
     padding: 9px 10px;
     border: 1px solid #dfeade;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 
 .recurring-preview-list article > div {
@@ -6268,7 +6276,7 @@ input.invalid {
 }
 
 .recurring-preview-list small {
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 11px;
     line-height: 1.35;
 }
@@ -6278,7 +6286,7 @@ input.invalid {
     border-radius: 999px;
     padding: 4px 8px;
     background: #eef2f7;
-    color: var(--admin-faint);
+    color: #475569;
     font-size: 11px;
     font-weight: 900;
 }
@@ -6324,7 +6332,7 @@ input.invalid {
 
 .state-card {
     padding: 22px;
-    color: var(--admin-faint);
+    color: #607267;
     text-align: center;
 }
 

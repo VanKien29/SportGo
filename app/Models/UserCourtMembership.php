@@ -51,4 +51,9 @@ class UserCourtMembership extends Model
     {
         return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
     }
+
+    public function histories()
+    {
+        return $this->hasMany(UserCourtMembershipHistory::class, 'membership_id');
+    }
 }

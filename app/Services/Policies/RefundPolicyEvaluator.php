@@ -15,7 +15,21 @@ use Illuminate\Support\Facades\Schema;
 
 class RefundPolicyEvaluator
 {
-    private const REFUND_RULE_TYPES = ['refund_by_cancel_time', 'refund_time_window', 'owner_fault_full_refund'];
+    private const CANCELLATION_RULE_TYPE = 'cancel_before_hours';
+
+    private const REFUND_RULE_TYPE = 'refund_percent_by_cancel_time';
+
+    private const REFUND_RULE_TYPES = [
+        self::CANCELLATION_RULE_TYPE,
+        self::REFUND_RULE_TYPE,
+        'refund_by_cancel_time',
+        'refund_time_window',
+        'owner_fault_full_refund',
+    ];
+
+    public function __construct(private readonly RefundCancellationPolicyService $tierPolicies)
+    {
+    }
 
     public function evaluate(Refund $refund, bool $log = false, string $actorType = 'system', ?string $actorId = null): array
     {
@@ -64,7 +78,7 @@ class RefundPolicyEvaluator
         }
 
         $matched = $this->matchVenueRule($refund, $input)
-            ?: $this->matchSystemRule($refund, $input)
+            ?: $this->matchSystemRule($input)
             ?: $this->matchBookingConfig($refund, $input);
 
         if (! $matched) {
@@ -178,70 +192,170 @@ class RefundPolicyEvaluator
             return null;
         }
 
-        $rule = VenuePolicyRule::query()
+        return VenuePolicyRule::query()
             ->with('baseRule.policy.actionBindings')
             ->where('venue_cluster_id', $refund->booking->venue_cluster_id)
             ->where('status', 'active')
             ->whereIn('rule_type', self::REFUND_RULE_TYPES)
             ->get()
-            ->filter(fn (VenuePolicyRule $rule): bool => $this->ruleBelongsToActiveRefundPolicy($rule->baseRule)
-                && $this->conditionsMatch($rule->condition_json ?? [], $input))
-            ->sortByDesc(fn (VenuePolicyRule $rule): int => (int) ($rule->baseRule?->priority ?? 0))
+            ->map(function (VenuePolicyRule $rule) use ($input): ?array {
+                $baseRule = $rule->baseRule;
+                if (! $this->ruleBelongsToActiveRefundPolicy($baseRule)
+                    || ! $this->venueRuleIsEffective($rule)
+                    || ! $this->policyHasActiveAction($baseRule?->policy, $rule->action_code ?: $baseRule?->action_code)) {
+                    return null;
+                }
+
+                $matched = $this->matchedRuleResult($rule, $input, $baseRule);
+                if (! $matched) {
+                    return null;
+                }
+
+                return [
+                    'source' => 'venue_policy_rule',
+                    'sort' => ((int) ($baseRule?->priority ?? 0) * 10) + $this->ruleTypeWeight($rule->rule_type),
+                    'action_code' => $rule->action_code ?: $baseRule?->action_code,
+                    'result' => $matched['result'],
+                    'policy' => $this->policyPayload($baseRule?->policy),
+                    'rule' => [
+                        'id' => $rule->id,
+                        'code' => $rule->rule_code,
+                        'name' => $rule->rule_name,
+                        'type' => $rule->rule_type,
+                        'venue_rule_id' => $rule->id,
+                        'base_rule_id' => $rule->base_policy_rule_id,
+                        'matched_tier' => $matched['tier'],
+                    ],
+                ];
+            })
+            ->filter()
+            ->sortByDesc('sort')
             ->first();
-
-        if (! $rule) {
-            return null;
-        }
-
-        $rule->loadMissing('baseRule.policy');
-
-        return [
-            'source' => 'venue_policy_rule',
-            'action_code' => $rule->action_code,
-            'result' => $rule->result_json ?? [],
-            'policy' => $this->policyPayload($rule->baseRule?->policy),
-            'rule' => [
-                'id' => $rule->id,
-                'code' => $rule->rule_code,
-                'name' => $rule->rule_name,
-                'type' => $rule->rule_type,
-                'venue_rule_id' => $rule->id,
-                'base_rule_id' => $rule->base_policy_rule_id,
-            ],
-        ];
     }
 
-    private function matchSystemRule(Refund $refund, array $input): ?array
+    private function matchSystemRule(array $input): ?array
     {
         if (! Schema::hasTable('policy_rules')) {
             return null;
         }
 
-        $rule = PolicyRule::query()
+        return PolicyRule::query()
             ->with('policy.actionBindings')
             ->where('is_active', true)
             ->whereIn('rule_type', self::REFUND_RULE_TYPES)
             ->whereHas('policy', fn ($query) => $this->activeRefundPolicyQuery($query))
             ->orderByDesc('priority')
             ->get()
-            ->first(fn (PolicyRule $rule): bool => $this->policyHasActiveAction($rule->policy, $rule->action_code)
-                && $this->conditionsMatch($rule->condition_json ?? [], $input));
+            ->map(function (PolicyRule $rule) use ($input): ?array {
+                if (! $this->policyHasActiveAction($rule->policy, $rule->action_code)) {
+                    return null;
+                }
 
-        if (! $rule) {
+                $matched = $this->matchedRuleResult($rule, $input);
+                if (! $matched) {
+                    return null;
+                }
+
+                return [
+                    'source' => 'system_policy_rule',
+                    'sort' => ((int) $rule->priority * 10) + $this->ruleTypeWeight($rule->rule_type),
+                    'action_code' => $rule->action_code,
+                    'result' => $matched['result'],
+                    'policy' => $this->policyPayload($rule->policy),
+                    'rule' => [
+                        'id' => $rule->id,
+                        'code' => $rule->rule_code,
+                        'name' => $rule->rule_name,
+                        'type' => $rule->rule_type,
+                        'matched_tier' => $matched['tier'],
+                    ],
+                ];
+            })
+            ->filter()
+            ->sortByDesc('sort')
+            ->first();
+    }
+
+    private function matchedRuleResult(PolicyRule|VenuePolicyRule $rule, array $input, ?PolicyRule $baseRule = null): ?array
+    {
+        $hoursBeforeStart = $input['hours_before_start'] ?? null;
+
+        if ($rule->rule_type === self::CANCELLATION_RULE_TYPE) {
+            if ($hoursBeforeStart === null) {
+                return null;
+            }
+
+            $systemTiers = $baseRule
+                ? $this->tierPolicies->cancelRefundTiersFromRule($baseRule)
+                : $this->tierPolicies->cancelRefundTiersFromRule($rule instanceof PolicyRule ? $rule : null);
+            $tiers = $rule instanceof VenuePolicyRule
+                ? $this->tierPolicies->cancelRefundTiersFromVenueRule($rule, $systemTiers)
+                : $systemTiers;
+            $tier = $this->matchTier($tiers, (float) $hoursBeforeStart);
+
+            if (! $tier) {
+                return null;
+            }
+
+            $result = $rule->result_json ?? [];
+            $refundPercent = (float) ($tier['allow_cancel'] ?? true)
+                ? (float) ($tier['refund_percent'] ?? 0)
+                : 0.0;
+
+            return [
+                'tier' => $tier,
+                'result' => [
+                    ...$result,
+                    'refund_percent' => $refundPercent,
+                    'allow_cancel' => (bool) ($tier['allow_cancel'] ?? true),
+                    'requires_owner_confirm' => (bool) ($tier['require_owner_confirm'] ?? $result['requires_owner_confirm'] ?? true),
+                    'requires_admin_review' => (bool) ($tier['require_admin_confirm'] ?? $result['requires_admin_review'] ?? true),
+                    'matched_tier' => $tier,
+                    'summary_vi' => $tier['business_sentence'] ?? $result['summary_vi'] ?? null,
+                ],
+            ];
+        }
+
+        if ($rule->rule_type === self::REFUND_RULE_TYPE) {
+            if ($hoursBeforeStart === null) {
+                return null;
+            }
+
+            $systemTiers = $baseRule
+                ? $this->tierPolicies->tiersFromRule($baseRule)
+                : $this->tierPolicies->tiersFromRule($rule instanceof PolicyRule ? $rule : null);
+            $tiers = $rule instanceof VenuePolicyRule
+                ? $this->tierPolicies->tiersFromVenueRule($rule, $systemTiers)
+                : $systemTiers;
+            $tier = $this->matchTier($tiers, (float) $hoursBeforeStart);
+
+            if (! $tier) {
+                return null;
+            }
+
+            $result = $rule->result_json ?? [];
+
+            return [
+                'tier' => $tier,
+                'result' => [
+                    ...$result,
+                    'refund_percent' => (float) ($tier['refund_percent'] ?? 0),
+                    'allow_cancel' => (bool) ($tier['allow_cancel'] ?? true),
+                    'requires_owner_confirm' => (bool) ($result['requires_owner_confirm'] ?? true),
+                    'requires_admin_review' => (bool) ($result['requires_admin_review'] ?? true),
+                    'matched_tier' => $tier,
+                    'summary_vi' => $tier['business_sentence'] ?? $result['summary_vi'] ?? null,
+                ],
+            ];
+        }
+
+        if (! $this->conditionsMatch($rule->condition_json ?? [], $input)) {
             return null;
         }
 
         return [
-            'source' => 'system_policy_rule',
-            'action_code' => $rule->action_code,
+            'tier' => null,
             'result' => $rule->result_json ?? [],
-            'policy' => $this->policyPayload($rule->policy),
-            'rule' => [
-                'id' => $rule->id,
-                'code' => $rule->rule_code,
-                'name' => $rule->rule_name,
-                'type' => $rule->rule_type,
-            ],
         ];
     }
 
@@ -316,7 +430,9 @@ class RefundPolicyEvaluator
         $query
             ->where('is_active', true)
             ->where(function ($inner): void {
-                $inner->where('policy_type', 'refund')->orWhere('type', 'refund');
+                $inner
+                    ->whereIn('policy_type', ['booking_cancellation', 'refund'])
+                    ->orWhereIn('type', ['booking_cancellation', 'refund']);
             });
 
         if (Schema::hasColumn('system_policies', 'status')) {
@@ -433,8 +549,7 @@ class RefundPolicyEvaluator
         return $rule->is_active
             && in_array($rule->rule_type, self::REFUND_RULE_TYPES, true)
             && $rule->policy
-            && $this->policyIsActiveRefundPolicy($rule->policy)
-            && $this->policyHasActiveAction($rule->policy, $rule->action_code);
+            && $this->policyIsActiveForTypes($rule->policy, ['booking_cancellation', 'refund']);
     }
 
     private function policyIsActiveRefundPolicy(Model $policy): bool
@@ -480,12 +595,54 @@ class RefundPolicyEvaluator
         return $bindings->contains(fn ($binding): bool => $binding->is_active && $binding->action_code === $actionCode);
     }
 
+    private function venueRuleIsEffective(VenuePolicyRule $rule): bool
+    {
+        if ($rule->effective_from && $rule->effective_from->isFuture()) {
+            return false;
+        }
+
+        if ($rule->effective_to && $rule->effective_to->isPast()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function ruleTypeWeight(?string $ruleType): int
+    {
+        return match ($ruleType) {
+            self::CANCELLATION_RULE_TYPE => 3,
+            self::REFUND_RULE_TYPE => 2,
+            default => 1,
+        };
+    }
+
+    private function matchTier(array $tiers, float $hoursBeforeStart): ?array
+    {
+        foreach ($tiers as $tier) {
+            $from = array_key_exists('from_hours', $tier) && $tier['from_hours'] !== null ? (float) $tier['from_hours'] : null;
+            $to = array_key_exists('to_hours', $tier) && $tier['to_hours'] !== null ? (float) $tier['to_hours'] : null;
+
+            if (($from === null || $hoursBeforeStart >= $from) && ($to === null || $hoursBeforeStart < $to)) {
+                return $tier;
+            }
+        }
+
+        return null;
+    }
+
     private function summary(array $matched, float $refundPercent, float $suggestedAmount, bool $compliant): string
     {
         $ruleName = $matched['rule']['name'] ?? 'quy tắc hoàn tiền';
         $amount = number_format($suggestedAmount, 0, ',', '.').'đ';
         $status = $compliant ? 'đúng chính sách' : 'vượt chính sách';
+        $source = match ($matched['source'] ?? null) {
+            'venue_policy_rule' => 'Chính sách riêng của cụm sân',
+            'system_policy_rule' => 'Chính sách mặc định hệ thống',
+            'booking_config' => 'Cấu hình đặt sân',
+            default => 'Chính sách',
+        };
 
-        return "{$ruleName}: hoàn {$refundPercent}%, tối đa {$amount} ({$status}).";
+        return "{$source} - {$ruleName}: hoàn {$refundPercent}%, tối đa {$amount} ({$status}).";
     }
 }

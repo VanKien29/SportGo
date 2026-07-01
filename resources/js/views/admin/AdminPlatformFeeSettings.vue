@@ -42,7 +42,7 @@
 </template>
 
 <script>
-import { platformFeeStore } from "../../stores/platformFee.store.js";
+import { api } from "../../services/api.js";
 import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
 
 export default {
@@ -50,15 +50,39 @@ export default {
     components: { PlatformFeeSubnav },
     data() {
         return {
-            settings: { ...platformFeeStore.state.settings },
+            settings: {
+                default_due_days: 7,
+                auto_mark_overdue: true,
+                lock_reason: "Quá hạn phí duy trì hệ thống",
+            },
             toast: "",
+            error: "",
         };
     },
+    mounted() {
+        this.loadSettings();
+    },
     methods: {
-        saveSettings() {
-            platformFeeStore.state.settings = { ...this.settings };
-            platformFeeStore.save();
-            this.show("Đã lưu cài đặt phí duy trì.");
+        async loadSettings() {
+            try {
+                this.settings = await api("/api/admin/platform-fee-settings");
+            } catch (error) {
+                this.error = error.message || "Không thể tải cài đặt phí duy trì.";
+                this.show(this.error);
+            }
+        },
+        async saveSettings() {
+            try {
+                const response = await api("/api/admin/platform-fee-settings", {
+                    method: "PUT",
+                    body: JSON.stringify(this.settings),
+                });
+                this.settings = response.data || this.settings;
+                this.show(response.message || "Đã lưu cài đặt phí duy trì.");
+            } catch (error) {
+                this.error = error.message || "Không thể lưu cài đặt phí duy trì.";
+                this.show(this.error);
+            }
         },
         reset() {
             this.settings = {
@@ -85,8 +109,8 @@ export default {
     gap: 16px;
 }
 .panel {
-    background: var(--admin-surface, #fff);
-    border: 1px solid var(--admin-border);
+    background: #fff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 16px;
 }
@@ -112,12 +136,12 @@ label {
     flex-direction: column;
     gap: 6px;
     font-weight: 800;
-    color: var(--admin-text);
+    color: #334155;
 }
 input,
 textarea {
     width: 100%;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #cbd5e1;
     border-radius: 8px;
     padding: 10px 12px;
     font: inherit;
@@ -145,8 +169,8 @@ textarea {
     color: #fff;
 }
 .btn.secondary {
-    background: var(--admin-border);
-    color: var(--admin-text);
+    background: #e2e8f0;
+    color: #334155;
 }
 .toast {
     border-radius: 8px;

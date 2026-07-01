@@ -79,9 +79,10 @@ class OwnerBookingCancellationService
         ?float $refundRatioOverride = null,
         string $source = 'maintenance_item_cancelled',
         bool $completeAsCashRefund = false,
+        ?string $itemStatusOverride = null,
     ): array
     {
-        return DB::transaction(function () use ($booking, $bookingItemIds, $actor, $reason, $maintenanceLockId, $refundRatioOverride, $source, $completeAsCashRefund): array {
+        return DB::transaction(function () use ($booking, $bookingItemIds, $actor, $reason, $maintenanceLockId, $refundRatioOverride, $source, $completeAsCashRefund, $itemStatusOverride): array {
             $booking = Booking::query()
                 ->with(['items', 'payments'])
                 ->whereKey($booking->id)
@@ -102,7 +103,7 @@ class OwnerBookingCancellationService
             BookingItem::query()
                 ->whereIn('id', $items->pluck('id')->all())
                 ->update([
-                    'status' => 'cancelled_by_maintenance',
+                    'status' => $itemStatusOverride ?: 'cancelled_by_maintenance',
                     'status_reason' => $reason,
                     'cancelled_by' => $actor->id,
                     'cancelled_at' => now(),
@@ -168,7 +169,7 @@ class OwnerBookingCancellationService
             ->orderBy('paid_at')
             ->lockForUpdate()
             ->get()
-            ->each(function (Payment $payment) use ($booking, $actor, $reason, $source, $ratio, &$created): void {
+            ->each(function (Payment $payment) use ($booking, $actor, $reason, $source, $ratio, $completeAsCashRefund, &$created): void {
                 $targetAmount = round((float) $payment->amount * $ratio, 2);
                 $existingAmount = (float) Refund::query()
                     ->where('payment_id', $payment->id)

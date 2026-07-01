@@ -36,4 +36,22 @@ class Media extends Model
             'sort_order' => 'integer',
         ];
     }
+
+    /**
+     * Accessor: tự động thêm prefix /storage/ cho file_path
+     * để ảnh có thể truy cập qua symlink public/storage.
+     */
+    public function getFilePathAttribute(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+
+        // Nếu đã là URL đầy đủ hoặc đã có prefix /storage/ thì giữ nguyên
+        if (str_starts_with($value, 'http') || str_starts_with($value, '/storage/')) {
+            return $value;
+        }
+
+        return '/storage/' . ltrim($value, '/');
+    }
 }

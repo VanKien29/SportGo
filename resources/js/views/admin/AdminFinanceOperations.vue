@@ -233,7 +233,7 @@
                                     <template
                                         v-if="hasRefundBankAccount(refund)"
                                     >
-                                        
+                                        <strong>
                                             {{
                                                 refund.refund_destination
                                                     ?.label || "-"
@@ -243,7 +243,7 @@
                                                 refund.refund_destination
                                                     ?.account_number
                                             }}
-                                        
+                                        </strong>
                                         <span class="sub-line">{{
                                             refund.refund_destination
                                                 ?.account_holder || "-"
@@ -257,19 +257,19 @@
                                         </span>
                                     </template>
                                     <template v-else>
-                                        {{
+                                        <strong>{{
                                             refund.refund_destination?.label ||
                                             "Tài khoản ngân hàng"
-                                        }}
+                                        }}</strong>
                                         <span class="inline-warning">
                                             Thiếu tài khoản nhận tiền
                                         </span>
                                     </template>
                                 </template>
                                 <template v-else>
-                                    {{
+                                    <strong>{{
                                         refund.refund_destination?.label || "-"
-                                    }}
+                                    }}</strong>
                                     <!-- <span class="sub-line">{{
                                     refund.refund_destination?.type ===
                                     "user_wallet"
@@ -309,9 +309,9 @@
                                 }}</span>
                             </td>
                             <td>
-                                {{
+                                <strong>{{
                                     formatCurrency(refund.amount)
-                                }}
+                                }}</strong>
                                 <span class="sub-line">{{
                                     refund.reason || "-"
                                 }}</span>
@@ -425,31 +425,31 @@
                                         class="policy-detail-grid"
                                     >
                                         <span>Nguồn</span
-                                        >{{
+                                        ><strong>{{
                                             refund.policy_evaluation.detail
                                                 .source_label || "-"
-                                        }}
+                                        }}</strong>
                                         <span>Rule</span
-                                        >{{
+                                        ><strong>{{
                                             refund.policy_evaluation.detail
                                                 .rule_name || "-"
-                                        }}
+                                        }}</strong>
                                         <span>Đã thanh toán</span
-                                        >{{
+                                        ><strong>{{
                                             formatCurrency(
                                                 refund.policy_evaluation.detail
                                                     .paid_amount,
                                             )
-                                        }}
+                                        }}</strong>
                                         <span>Giờ trước sân</span
-                                        >{{
+                                        ><strong>{{
                                             refund.policy_evaluation.detail
                                                 .hours_before_start != null
                                                 ? refund.policy_evaluation
                                                       .detail
                                                       .hours_before_start + "h"
                                                 : "-"
-                                        }}
+                                        }}</strong>
                                     </div>
                                     <div
                                         v-for="(v, vi) in refund
@@ -633,7 +633,11 @@
                                         v-if="canOpenPayout(withdrawal)"
                                         class="pay-command"
                                         type="button"
-                                        title="Tạo QR chuyển khoản"
+                                        :title="
+                                            withdrawalScope === 'user'
+                                                ? 'Chi trả rút tiền người dùng'
+                                                : 'Tạo QR chuyển khoản'
+                                        "
                                         @click="openPayout(withdrawal)"
                                     >
                                         <AppIcon
@@ -783,13 +787,19 @@
                         "-"
                     }}</strong>
                     <span>Cụm sân</span
-                    ><strong>{{ refundDetail.venue_cluster?.name || "-" }}</strong>
+                    ><strong>{{
+                        refundDetail.venue_cluster?.name || "-"
+                    }}</strong>
                     <span>Payment</span
-                    ><strong>{{ refundDetail.payment?.payment_code || "-" }}</strong>
+                    ><strong>{{
+                        refundDetail.payment?.payment_code || "-"
+                    }}</strong>
                     <span>Số tiền hoàn</span
                     ><strong>{{ formatCurrency(refundDetail.amount) }}</strong>
                     <span>Hình thức hoàn</span
-                    ><strong>{{ refundDetail.refund_destination?.label || "-" }}</strong>
+                    ><strong>{{
+                        refundDetail.refund_destination?.label || "-"
+                    }}</strong>
                     <span>Trạng thái</span
                     ><strong>{{ refundStatusLabel(refundDetail) }}</strong>
                     <span>Phản hồi chủ sân</span
@@ -801,13 +811,18 @@
                         <strong>Lý do yêu cầu</strong>
                         <p>{{ refundDetail.reason || "-" }}</p>
                     </section>
-                    <section v-if="refundDetail.owner_confirmation?.note || refundDetail.status_reason">
+                    <section
+                        v-if="
+                            refundDetail.owner_confirmation?.note ||
+                            refundDetail.status_reason
+                        "
+                    >
                         <strong>{{
                             refundDetail.status === "owner_rejected"
                                 ? "Lý do từ chối"
                                 : refundDetail.status === "cancelled"
                                   ? "Lý do hủy"
-                                : "Ghi chú xử lý"
+                                  : "Ghi chú xử lý"
                         }}</strong>
                         <p>
                             {{
@@ -854,13 +869,22 @@
         </div>
 
         <div v-if="payoutOpen" class="modal-backdrop" @click.self="closePayout">
-            <section class="payout-modal">
+            <section
+                class="payout-modal"
+                :class="{ 'user-payment-modal': isUserWithdrawalPayout() }"
+            >
                 <header>
                     <div>
                         <span class="eyebrow">{{
                             tab === "refunds" ? "Hoàn tiền" : "Rút tiền"
                         }}</span>
-                        <h3>Thanh toán QR</h3>
+                        <h3>
+                            {{
+                                isUserWithdrawalPayout()
+                                    ? "Chi trả rút tiền"
+                                    : "Thanh toán QR"
+                            }}
+                        </h3>
                     </div>
                     <button
                         class="icon-only"
@@ -878,6 +902,125 @@
                 <div v-else-if="payoutError && !payout" class="alert error">
                     {{ payoutError }}
                 </div>
+                <template v-else-if="isUserWithdrawalPayout() && payout">
+                    <div class="user-payout-body">
+                        <dl class="collect-summary">
+                            <div>
+                                <dt>Người nhận</dt>
+                                <dd>{{ personName(payoutItem?.owner) }}</dd>
+                            </div>
+                            <div>
+                                <dt>Đang giữ trong ví</dt>
+                                <dd>
+                                    {{
+                                        formatCurrency(
+                                            payoutItem?.wallet
+                                                ?.pending_withdrawal_balance,
+                                        )
+                                    }}
+                                </dd>
+                            </div>
+                            <div class="highlight">
+                                <dt>Số tiền chi trả</dt>
+                                <dd>{{ formatCurrency(payout.amount) }}</dd>
+                            </div>
+                        </dl>
+
+                        <div class="method-row single">
+                            <button
+                                type="button"
+                                :class="{
+                                    active: payoutMethod === 'bank_transfer',
+                                }"
+                                :disabled="
+                                    payingUserWithdrawal ||
+                                    !payoutItem?.can_pay_bank_transfer
+                                "
+                                @click="selectPayoutMethod('bank_transfer')"
+                            >
+                                <AppIcon name="creditCard" size="16" />
+                                <span>Chuyển khoản</span>
+                            </button>
+                        </div>
+
+                        <div
+                            v-if="payoutMethod === 'bank_transfer'"
+                            class="bank-transfer-review"
+                        >
+                            <div
+                                v-if="payoutLoading"
+                                class="empty compact-empty"
+                            >
+                                Đang tạo QR chuyển khoản...
+                            </div>
+                            <template v-else-if="payout.qr_url">
+                                <div class="user-transfer-layout">
+                                    <img
+                                        class="user-payout-qr"
+                                        :src="payout.qr_url"
+                                        alt="QR chuyển khoản rút tiền"
+                                    />
+                                    <div class="user-transfer-info">
+                                        <dl class="receipt-facts compact">
+                                            <span>Ngân hàng</span
+                                            ><strong>{{
+                                                payout.recipient.bank_name
+                                            }}</strong>
+                                            <span>Số tài khoản</span
+                                            ><strong>{{
+                                                payout.recipient.account_number
+                                            }}</strong>
+                                            <span>Chủ tài khoản</span
+                                            ><strong>{{
+                                                payout.recipient.account_holder
+                                            }}</strong>
+                                            <span>Số tiền</span
+                                            ><strong>{{
+                                                formatCurrency(payout.amount)
+                                            }}</strong>
+                                            <span>Nội dung</span>
+                                            <button
+                                                class="copy-value"
+                                                type="button"
+                                                @click="
+                                                    copyText(
+                                                        payout.transfer_code,
+                                                    )
+                                                "
+                                            >
+                                                {{ payout.transfer_code }}
+                                            </button>
+                                        </dl>
+                                        <div class="payout-waiting">
+                                            <span
+                                                class="spinner"
+                                                aria-hidden="true"
+                                            ></span>
+                                            <span
+                                                >Đang chờ SePay xác nhận giao
+                                                dịch tiền ra...</span
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <p v-if="payoutError" class="inline-error">
+                            {{ payoutError }}
+                        </p>
+                        <footer class="user-payout-footer">
+                            <button
+                                class="secondary-btn"
+                                type="button"
+                                :disabled="payingUserWithdrawal"
+                                @click="closePayout"
+                            >
+                                Đóng
+                            </button>
+                        </footer>
+                    </div>
+                </template>
                 <template v-else-if="payout">
                     <div class="payout-content">
                         <img :src="payout.qr_url" alt="QR chuyển khoản" />
@@ -973,6 +1116,9 @@ export default {
             payoutError: "",
             payoutPollTimer: null,
             payoutPolling: false,
+            payoutMethod: "bank_transfer",
+            payoutNote: "",
+            payingUserWithdrawal: false,
             copyMessage: "",
             expandedPolicies: {},
             requestSeq: 0,
@@ -1129,11 +1275,32 @@ export default {
         },
         async openPayout(item) {
             this.payoutOpen = true;
-            this.payoutLoading = true;
+            this.payoutLoading = false;
             this.payout = null;
             this.payoutItem = item;
             this.payoutError = "";
             this.copyMessage = "";
+            this.payoutMethod = "bank_transfer";
+            this.payoutNote = "";
+
+            if (this.isUserWithdrawalPayout()) {
+                this.payout = {
+                    amount: item.amount,
+                    recipient: {
+                        bank_name: item.bank_account?.bank_name || "-",
+                        account_number:
+                            item.bank_account?.account_number || "-",
+                        account_holder:
+                            item.bank_account?.account_holder_name || "-",
+                    },
+                };
+                if (this.payoutMethod === "bank_transfer") {
+                    await this.loadUserWithdrawalQr();
+                }
+                return;
+            }
+
+            this.payoutLoading = true;
             try {
                 const response =
                     this.tab === "refunds"
@@ -1159,6 +1326,9 @@ export default {
             this.payoutItem = null;
             this.payoutError = "";
             this.copyMessage = "";
+            this.payoutMethod = "bank_transfer";
+            this.payoutNote = "";
+            this.payingUserWithdrawal = false;
         },
         startPayoutPolling() {
             this.stopPayoutPolling();
@@ -1178,6 +1348,40 @@ export default {
             if (!this.payoutItem || this.payoutPolling) return;
             this.payoutPolling = true;
             try {
+                if (this.isUserWithdrawalPayout()) {
+                    let completed = false;
+                    let message = "";
+
+                    if (this.payout?.sepay_check_available) {
+                        const response =
+                            await adminFinanceOperationsService.checkUserWithdrawalPayout(
+                                this.payoutItem.id,
+                            );
+                        completed = Boolean(response.completed);
+                        message = response.message || "";
+                    } else {
+                        const response =
+                            await adminFinanceOperationsService.userWithdrawals(
+                                this.operationFilterParams(
+                                    this.meta.current_page,
+                                ),
+                            );
+                        const updated = (response.data || []).find(
+                            (item) => item.id === this.payoutItem.id,
+                        );
+                        completed = updated?.status === "paid";
+                    }
+
+                    if (completed) {
+                        this.success =
+                            message ||
+                            "SePay đã xác nhận chi trả rút tiền người dùng.";
+                        this.closePayout();
+                        await this.loadData(this.meta.current_page);
+                    }
+                    return;
+                }
+
                 const service =
                     this.tab === "refunds"
                         ? adminFinanceOperationsService.refunds
@@ -1218,6 +1422,70 @@ export default {
                     error.message || "Không cập nhật được trạng thái mới nhất.";
             } finally {
                 this.payoutPolling = false;
+            }
+        },
+        async selectPayoutMethod(method) {
+            if (this.isUserWithdrawalPayout() && method !== "bank_transfer") {
+                return;
+            }
+            this.payoutMethod = method;
+            this.payoutError = "";
+            if (
+                method === "bank_transfer" &&
+                this.isUserWithdrawalPayout() &&
+                !this.payout?.qr_url
+            ) {
+                await this.loadUserWithdrawalQr();
+            }
+        },
+        async loadUserWithdrawalQr() {
+            if (!this.payoutItem || !this.isUserWithdrawalPayout()) return;
+
+            this.payoutLoading = true;
+            this.payoutError = "";
+            try {
+                const response =
+                    await adminFinanceOperationsService.userWithdrawalPayoutQr(
+                        this.payoutItem.id,
+                    );
+                this.payout = response.data;
+                this.startPayoutPolling();
+            } catch (error) {
+                this.payoutError =
+                    error.message || "Không tạo được QR chuyển khoản.";
+            } finally {
+                this.payoutLoading = false;
+            }
+        },
+        async submitUserWithdrawalPayment(method) {
+            if (!this.payoutItem || !this.isUserWithdrawalPayout()) return;
+
+            if (method !== "cash") {
+                return;
+            }
+
+            this.payingUserWithdrawal = true;
+            this.payoutError = "";
+            try {
+                const response =
+                    await adminFinanceOperationsService.payUserWithdrawal(
+                        this.payoutItem.id,
+                        {
+                            payment_method: method,
+                            transfer_reference: null,
+                            note: this.payoutNote.trim() || null,
+                        },
+                    );
+                this.success =
+                    response.message ||
+                    "Đã ghi nhận chi trả rút tiền người dùng.";
+                this.closePayout();
+                await this.loadData(this.meta.current_page);
+            } catch (error) {
+                this.payoutError =
+                    error.message || "Không thể ghi nhận chi trả.";
+            } finally {
+                this.payingUserWithdrawal = false;
             }
         },
         openAction(item) {
@@ -1319,8 +1587,19 @@ export default {
         },
         canOpenPayout(item) {
             if (this.tab === "refunds") return false;
-            if (this.withdrawalScope === "user") return false;
+            if (this.withdrawalScope === "user") {
+                return Boolean(
+                    item.can_pay_cash ||
+                    item.can_pay_bank_transfer ||
+                    item.can_pay_by_qr,
+                );
+            }
             return Boolean(item.can_pay_by_qr) || this.isExportable(item);
+        },
+        isUserWithdrawalPayout() {
+            return (
+                this.tab === "withdrawals" && this.withdrawalScope === "user"
+            );
         },
         isOwnerFaultRefund(refund) {
             return Boolean(refund?.policy_evaluation?.is_owner_fault_refund);
@@ -1629,11 +1908,11 @@ export default {
 .page-header h2,
 .receipt-modal h3 {
     margin: 0 0 4px;
-    color: var(--admin-text);
+    color: #0f172a;
 }
 .page-header p {
     margin: 0;
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 13px;
 }
 .tabs {
@@ -1646,7 +1925,7 @@ export default {
     border-bottom: 3px solid transparent;
     background: transparent;
     padding: 10px 18px;
-    color: var(--admin-muted);
+    color: #64748b;
     font-weight: 800;
     cursor: pointer;
 }
@@ -1679,7 +1958,7 @@ export default {
 }
 .sub-line {
     display: block;
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 12px;
 }
 .transfer-subline {
@@ -1719,8 +1998,8 @@ export default {
 .action-modal textarea {
     border: 1px solid #dbe2ea;
     border-radius: 7px;
-    background: var(--admin-surface);
-    color: var(--admin-text);
+    background: #fff;
+    color: #0f172a;
     padding: 9px 10px;
     font: inherit;
 }
@@ -1732,7 +2011,7 @@ export default {
     border: 1px solid #dbe2ea;
     border-radius: 7px;
     padding: 0 10px;
-    background: var(--admin-surface);
+    background: #fff;
 }
 .search-field input {
     flex: 1;
@@ -1747,13 +2026,13 @@ export default {
     padding: 0 8px;
     border: 1px solid #dbe2ea;
     border-radius: 7px;
-    background: var(--admin-surface-muted);
-    color: var(--admin-muted);
+    background: #f8fafc;
+    color: #64748b;
 }
 .date-range-fields input {
     width: 142px;
     border-color: transparent;
-    background: var(--admin-surface);
+    background: #fff;
 }
 .primary-btn,
 .secondary-btn,
@@ -1781,8 +2060,8 @@ export default {
 .secondary-btn,
 .export-btn {
     border: 1px solid #dbe2ea;
-    background: var(--admin-surface-muted);
-    color: var(--admin-text);
+    background: #f8fafc;
+    color: #334155;
     padding: 9px 12px;
 }
 .export-btn {
@@ -1807,8 +2086,8 @@ export default {
     width: 34px;
     height: 34px;
     border: 1px solid #dbe2ea;
-    background: var(--admin-surface);
-    color: var(--admin-faint);
+    background: #fff;
+    color: #475569;
 }
 button:disabled {
     opacity: 0.55;
@@ -1829,9 +2108,9 @@ button:disabled {
 }
 .table-wrap {
     overflow: auto;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    background: var(--admin-surface);
+    background: #fff;
 }
 table {
     width: 100%;
@@ -1841,27 +2120,27 @@ table {
 th,
 td {
     padding: 12px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
     text-align: left;
     vertical-align: top;
     font-size: 13px;
 }
 th {
-    background: var(--admin-surface-muted);
-    color: var(--admin-text);
+    background: #f8fafc;
+    color: #334155;
     font-weight: 800;
 }
 .empty {
     padding: 28px;
     text-align: center;
-    color: var(--admin-muted);
+    color: #64748b;
 }
 .status-pill {
     display: inline-flex;
     padding: 4px 8px;
     border-radius: 999px;
-    background: var(--admin-border);
-    color: var(--admin-text);
+    background: #e2e8f0;
+    color: #334155;
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
@@ -1923,8 +2202,8 @@ th {
     color: #92400e;
 }
 .policy-badge.muted {
-    background: var(--admin-surface-muted);
-    color: var(--admin-muted);
+    background: #f1f5f9;
+    color: #64748b;
 }
 .policy-icon {
     display: inline-flex;
@@ -1957,18 +2236,18 @@ th {
     margin-top: 6px;
     padding: 8px 10px;
     border-radius: 6px;
-    background: var(--admin-surface-muted);
-    border: 1px solid var(--admin-border);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     font-size: 12px;
 }
 .policy-detail-grid {
     display: grid;
     grid-template-columns: 90px 1fr;
     gap: 4px 10px;
-    color: var(--admin-muted);
+    color: #64748b;
 }
 .policy-detail-grid strong {
-    color: var(--admin-text);
+    color: #0f172a;
     font-weight: 700;
 }
 .policy-violation {
@@ -2003,15 +2282,15 @@ th {
     min-height: 30px;
     padding: 0 10px;
     border-radius: 999px;
-    background: var(--admin-surface-muted);
-    color: var(--admin-muted);
+    background: #f1f5f9;
+    color: #64748b;
     font-size: 12px;
     font-weight: 800;
 }
 .pagination {
     justify-content: flex-end;
     gap: 12px;
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 13px;
 }
 .modal-backdrop {
@@ -2029,10 +2308,15 @@ th {
     width: min(540px, calc(100vw - 32px));
     padding: 22px;
     border-radius: 8px;
-    background: var(--admin-surface);
+    background: #fff;
 }
 .payout-modal {
     width: min(760px, calc(100vw - 32px));
+}
+.payout-modal.user-payment-modal {
+    width: min(820px, calc(100vw - 32px));
+    max-height: calc(100vh - 40px);
+    overflow: auto;
 }
 .action-modal {
     display: flex;
@@ -2052,7 +2336,7 @@ th {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    color: var(--admin-text);
+    color: #334155;
     font-size: 13px;
     font-weight: 700;
 }
@@ -2061,7 +2345,7 @@ th {
     gap: 8px;
 }
 .eyebrow {
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
@@ -2071,11 +2355,11 @@ th {
     grid-template-columns: 130px 1fr;
     gap: 8px 14px;
     margin: 18px 0;
-    color: var(--admin-faint);
+    color: #475569;
     font-size: 13px;
 }
 .receipt-facts strong {
-    color: var(--admin-text);
+    color: #0f172a;
 }
 .receipt-facts.compact {
     margin: 0;
@@ -2097,13 +2381,13 @@ th {
 .detail-note-grid strong {
     display: block;
     margin-bottom: 6px;
-    color: var(--admin-text);
+    color: #334155;
     font-size: 12px;
     text-transform: uppercase;
 }
 .detail-note-grid p {
     margin: 0;
-    color: var(--admin-text);
+    color: #0f172a;
     line-height: 1.5;
 }
 .transfer-code {
@@ -2120,18 +2404,160 @@ th {
 .payout-content img {
     width: 280px;
     max-width: 100%;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    background: var(--admin-surface);
+    background: #fff;
 }
 .payout-info {
     display: flex;
     flex-direction: column;
     gap: 14px;
 }
+.user-payout-body {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+}
+.collect-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+}
+.collect-summary > div {
+    display: grid;
+    gap: 5px;
+    padding: 12px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+.collect-summary > div.highlight {
+    border-color: #86efac;
+    background: #ecfdf5;
+}
+.collect-summary dt {
+    color: #607267;
+    font-size: 11px;
+    font-weight: 800;
+}
+.collect-summary dd {
+    margin: 0;
+    color: #16231a;
+    font-size: 14px;
+    font-weight: 900;
+}
+.collect-summary .highlight dd {
+    color: #047857;
+    font-size: 18px;
+}
+.method-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+.method-row button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+    color: #475b4d;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+.method-row button.active {
+    border-color: #16a34a;
+    background: #ecfdf5;
+    color: #15803d;
+    box-shadow: inset 0 0 0 1px #16a34a;
+}
+.method-row button:disabled {
+    opacity: 0.5;
+}
+.bank-transfer-review {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #f7fbf5;
+}
+.user-transfer-layout {
+    display: grid;
+    grid-template-columns: minmax(240px, 300px) minmax(280px, 1fr);
+    gap: 22px;
+    align-items: center;
+}
+.user-payout-qr {
+    width: 100%;
+    max-width: 300px;
+    justify-self: center;
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+.user-transfer-info {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+.user-transfer-info .receipt-facts.compact {
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 11px 16px;
+}
+.user-transfer-info .receipt-facts strong,
+.user-transfer-info .copy-value {
+    overflow-wrap: anywhere;
+}
+.compact-empty {
+    padding: 18px;
+}
+.bank-transfer-review label,
+.payout-note-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 800;
+}
+.bank-transfer-review input,
+.payout-note-field textarea {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #fff;
+    color: #0f172a;
+    padding: 9px 10px;
+    font: inherit;
+    font-weight: 500;
+}
+.review-note {
+    margin: 0;
+    padding: 11px 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #52635a;
+    font-size: 13px;
+    line-height: 1.45;
+}
+.user-payout-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 2px;
+}
 .payout-actions {
     gap: 8px;
     flex-wrap: wrap;
+}
+.payout-actions.wrap {
+    display: flex;
 }
 .payout-waiting {
     display: flex;
@@ -2188,6 +2614,15 @@ pre {
     }
     .payout-content img {
         width: 100%;
+    }
+    .collect-summary {
+        grid-template-columns: 1fr;
+    }
+    .user-transfer-layout {
+        grid-template-columns: 1fr;
+    }
+    .user-payout-qr {
+        max-width: 280px;
     }
 }
 @media (max-width: 600px) {

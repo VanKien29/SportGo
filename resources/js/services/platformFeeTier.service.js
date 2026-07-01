@@ -1,5 +1,4 @@
-import { addAuditLog } from './audit.service.js';
-import { createId, cloneValue, platformFeeStore } from '../stores/platformFee.store.js';
+import { api } from './api.js';
 
 export const ALLOWED_PERIOD_MONTHS = [1, 3, 6, 9, 12];
 export const DISCOUNT_FIELDS = [
@@ -18,22 +17,22 @@ function toNumber(value, fallback = 0) {
 
 function normalizeTier(payload) {
   return {
-    ...payload,
     name: String(payload.name || '').trim(),
     min_courts: Number.parseInt(payload.min_courts, 10),
-    max_courts: payload.max_courts === '' || payload.max_courts === null || payload.max_courts === undefined
-      ? null
-      : Number.parseInt(payload.max_courts, 10),
     price_per_court_month: toNumber(payload.price_per_court_month),
-    discount_profile_id: payload.discount_profile_id || null,
-    discount_1_month: toNumber(payload.discount_1_month),
-    discount_3_months: toNumber(payload.discount_3_months),
-    discount_6_months: toNumber(payload.discount_6_months),
-    discount_9_months: toNumber(payload.discount_9_months),
-    discount_12_months: toNumber(payload.discount_12_months),
+    annual_discount_percent: toNumber(payload.annual_discount_percent ?? payload.discount_12_months),
     is_active: Boolean(payload.is_active),
-    note: String(payload.note || '').trim(),
   };
+}
+
+function query(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== '' && value !== null && value !== undefined && value !== false) {
+      search.set(key, value);
+    }
+  });
+  return search.toString() ? `?${search.toString()}` : '';
 }
 
 function addFieldError(errors, field, message) {
@@ -41,472 +40,194 @@ function addFieldError(errors, field, message) {
   errors[field].push(message);
 }
 
-function sortedActiveTiers(tiers) {
-  return tiers
-    .filter((tier) => tier.is_active)
-    .sort((left, right) => left.min_courts - right.min_courts);
+function decorateTier(tier) {
+  const annualDiscount = Number(tier.annual_discount_percent || tier.discount_12_months || 0);
+  return {
+    ...tier,
+    discount_profile_id: tier.discount_profile_id || 'db-annual',
+    discount_1_month: Number(tier.discount_1_month || 0),
+    discount_3_months: Number(tier.discount_3_months || 0),
+    discount_6_months: Number(tier.discount_6_months || 0),
+    discount_9_months: Number(tier.discount_9_months || 0),
+    discount_12_months: annualDiscount,
+    annual_discount_percent: annualDiscount,
+    usage_count: Number(tier.usage_count || 0),
+  };
 }
 
-function rangeLabel(tier) {
-  return tier.max_courts === null
-    ? `từ ${tier.min_courts} sân trở lên`
-    : `${tier.min_courts} - ${tier.max_courts} sân`;
+export async function getTiers(filters = {}) {
+  const response = await api(`/api/admin/platform-fee-tiers${query(filters)}`);
+  const tiers = Array.isArray(response) ? response : response.data || [];
+  return tiers.map(decorateTier);
 }
 
-function rebalanceTierRanges(tiers) {
-  const activeTiers = sortedActiveTiers(tiers);
-  const adjustments = [];
-  if (!activeTiers.length) return adjustments;
-
-  activeTiers.forEach((tier, index) => {
-    const oldMin = tier.min_courts;
-    const oldMax = tier.max_courts;
-    if (index === 0) tier.min_courts = 1;
-    tier.max_courts = index === activeTiers.length - 1
-      ? null
-      : activeTiers[index + 1].min_courts - 1;
-
-    if (oldMin !== tier.min_courts || oldMax !== tier.max_courts) {
-      tier.updated_at = new Date().toISOString();
-      adjustments.push(`${tier.name}: ${rangeLabel(tier)}`);
-    }
-  });
-
-  return adjustments;
+export async function getActiveTiers() {
+  const tiers = await getTiers({ status: 'active' });
+  return tiers.filter((tier) => tier.is_active);
 }
 
-function proposedRebalancedTiers(tiers) {
-  const proposed = cloneValue(tiers);
-  rebalanceTierRanges(proposed);
-  return proposed;
+export function getTierUsageCount(tierId, tiers = []) {
+  return Number(tiers.find((tier) => tier.id === tierId)?.usage_count || 0);
+}
+
+export function getDiscountProfiles() {
+  return Promise.resolve([
+    {
+      id: 'db-annual',
+      name: 'Giảm theo DB hiện tại',
+      discount_1_month: 0,
+      discount_3_months: 0,
+      discount_6_months: 0,
+      discount_9_months: 0,
+      discount_12_months: 0,
+      readonly: true,
+    },
+  ]);
+}
+
+export function createDiscountProfile() {
+  return Promise.reject(new Error('Mẫu giảm kỳ chưa có bảng DB riêng. Hiện chỉ lưu giảm 12 tháng trực tiếp trên bậc phí.'));
+}
+
+export function updateDiscountProfile() {
+  return createDiscountProfile();
+}
+
+export function deleteDiscountProfile() {
+  return createDiscountProfile();
 }
 
 export function validateDiscountSchedule(payload) {
   const errors = {};
-  const values = DISCOUNT_FIELDS.map((field) => toNumber(payload[field], Number.NaN));
-
-  DISCOUNT_FIELDS.forEach((field, index) => {
-    const value = values[index];
-    if (!Number.isFinite(value) || value < 0 || value > 100) {
-      addFieldError(errors, field, 'Giảm giá phải nằm trong khoảng 0 - 100%.');
-    }
-    if (index > 0 && Number.isFinite(value) && Number.isFinite(values[index - 1]) && value <= values[index - 1]) {
-      addFieldError(
-        errors,
-        field,
-        `Giảm kỳ ${ALLOWED_PERIOD_MONTHS[index]} tháng phải lớn hơn kỳ ${ALLOWED_PERIOD_MONTHS[index - 1]} tháng.`,
-      );
-    }
-  });
+  const annualDiscount = toNumber(payload.annual_discount_percent ?? payload.discount_12_months);
+  if (annualDiscount < 0 || annualDiscount > 100) {
+    addFieldError(errors, 'discount_12_months', 'Giảm kỳ 12 tháng phải nằm trong khoảng 0 - 100%.');
+  }
 
   return {
     isValid: Object.keys(errors).length === 0,
     errors,
-    normalized: Object.fromEntries(DISCOUNT_FIELDS.map((field, index) => [field, values[index]])),
+    normalized: {
+      discount_1_month: 0,
+      discount_3_months: 0,
+      discount_6_months: 0,
+      discount_9_months: 0,
+      discount_12_months: annualDiscount,
+    },
   };
 }
 
-export function validateTier(payload, existingTiers = getTiers(), options = {}) {
+export function validateTier(payload, existingTiers = []) {
   const tier = normalizeTier(payload);
   const errors = {};
   const editingId = payload.id || null;
-  const skipCoverage = Boolean(options.skipCoverage);
 
   if (!tier.name) addFieldError(errors, 'name', 'Vui lòng nhập tên bậc phí.');
-  if (tier.name && existingTiers.some((item) => item.id !== editingId && item.is_active && item.name.trim().toLowerCase() === tier.name.toLowerCase())) {
-    addFieldError(errors, 'name', 'Tên bậc phí đang trùng với bậc đang dùng khác.');
+  if (tier.name && existingTiers.some((item) => item.id !== editingId && item.name.trim().toLowerCase() === tier.name.toLowerCase())) {
+    addFieldError(errors, 'name', 'Tên bậc phí đang trùng với bậc khác.');
   }
-
-  if (!Number.isInteger(tier.min_courts)) addFieldError(errors, 'min_courts', 'Vui lòng nhập số sân tối thiểu.');
-  if (Number.isInteger(tier.min_courts) && tier.min_courts < 1) {
+  if (!Number.isInteger(tier.min_courts) || tier.min_courts < 1) {
     addFieldError(errors, 'min_courts', 'Số sân tối thiểu phải lớn hơn hoặc bằng 1.');
   }
-
-  if (tier.max_courts !== null && !Number.isInteger(tier.max_courts)) {
-    addFieldError(errors, 'max_courts', 'Số sân tối đa phải là số nguyên.');
-  }
-  if (Number.isInteger(tier.max_courts) && tier.max_courts < tier.min_courts) {
-    addFieldError(errors, 'max_courts', 'Số sân tối đa phải lớn hơn hoặc bằng số sân tối thiểu.');
-  }
-
   if (!Number.isFinite(tier.price_per_court_month) || tier.price_per_court_month <= 0) {
     addFieldError(errors, 'price_per_court_month', 'Giá/sân/tháng phải lớn hơn 0.');
   }
-
-  const discountValidation = validateDiscountSchedule(tier);
-  Object.entries(discountValidation.errors).forEach(([field, messages]) => {
-    messages.forEach((message) => addFieldError(errors, field, message));
-  });
-
-  const proposed = existingTiers.map((item) => (item.id === editingId ? { ...item, ...tier, id: editingId } : item));
-  if (!editingId) proposed.push({ ...tier, id: '__new__' });
-  const unlimitedActive = proposed.filter((item) => item.is_active && item.max_courts === null);
-  if (tier.is_active && unlimitedActive.length > 1 && !skipCoverage) {
-    addFieldError(errors, 'max_courts', 'Chỉ được có một bậc không giới hạn.');
+  if (tier.annual_discount_percent < 0 || tier.annual_discount_percent > 100) {
+    addFieldError(errors, 'discount_12_months', 'Giảm kỳ 12 tháng phải nằm trong khoảng 0 - 100%.');
   }
-
-  const initialCoverage = validateTierCoverage(proposed);
-  if (tier.is_active && !initialCoverage.isValid && !skipCoverage) errors._coverage = initialCoverage.errors;
-  const otherActiveTiers = existingTiers.filter((item) => item.id !== editingId && item.is_active);
-
-  if (tier.is_active && otherActiveTiers.some((item) => item.min_courts === tier.min_courts)) {
-    addFieldError(errors, 'min_courts', 'Số sân tối thiểu đang trùng với một bậc khác.');
+  if (tier.is_active && existingTiers.some((item) => item.id !== editingId && item.is_active && Number(item.min_courts) === tier.min_courts)) {
+    addFieldError(errors, 'min_courts', 'Số sân tối thiểu đang trùng với một bậc đang dùng khác.');
   }
-
-  if (!editingId && tier.is_active && otherActiveTiers.length) {
-    const lastTier = sortedActiveTiers(otherActiveTiers).at(-1);
-    if (tier.min_courts <= lastTier.min_courts) {
-      addFieldError(
-        errors,
-        'min_courts',
-        `Bậc mới phải bắt đầu từ số sân lớn hơn ${lastTier.min_courts}.`,
-      );
-    }
-  }
-
-  const rebalancedCoverage = validateTierCoverage(proposedRebalancedTiers(proposed));
-  if (tier.is_active && !rebalancedCoverage.isValid) errors._coverage = rebalancedCoverage.errors;
 
   return {
     isValid: Object.keys(errors).length === 0,
     errors,
     normalized: tier,
-    coverage: rebalancedCoverage,
   };
 }
 
-export function autoAdjustTierRanges(tiers, editedId) {
-  const adjusted = cloneValue(tiers);
-  const adjustments = [];
-  const editedIndex = adjusted.findIndex((tier) => tier.id === editedId);
-
-  if (editedIndex === -1 || !adjusted[editedIndex].is_active) {
-    return { tiers: adjusted, adjustments };
-  }
-
-  const now = new Date().toISOString();
-  const edited = adjusted[editedIndex];
-
-  const previousActive = adjusted
-    .slice(0, editedIndex)
-    .filter((tier) => tier.is_active)
-    .at(-1);
-
-  if (previousActive?.max_courts !== null && previousActive?.max_courts !== undefined) {
-    const nextMin = previousActive.max_courts + 1;
-    if (edited.min_courts !== nextMin) {
-      adjustments.push(`${edited.name}: tự chuyển số sân tối thiểu từ ${edited.min_courts} sang ${nextMin}.`);
-      edited.min_courts = nextMin;
-      edited.updated_at = now;
-    }
-  }
-
-  if (edited.max_courts === null) {
-    adjusted.slice(editedIndex + 1).forEach((tier) => {
-      if (!tier.is_active) return;
-      tier.is_active = false;
-      tier.inactive_reason = `Tự ngưng dùng vì ${edited.name} đã là bậc không giới hạn.`;
-      tier.updated_at = now;
-      adjustments.push(`${tier.name}: tự ngưng dùng vì bậc trước đã bao phủ từ ${edited.min_courts} sân trở lên.`);
-    });
-    return { tiers: adjusted, adjustments };
-  }
-
-  let expectedMin = edited.max_courts + 1;
-
-  for (let index = editedIndex + 1; index < adjusted.length; index += 1) {
-    const tier = adjusted[index];
-    if (!tier.is_active) continue;
-
-    if (tier.max_courts !== null && tier.max_courts < expectedMin) {
-      tier.is_active = false;
-      tier.inactive_reason = 'Tự ngưng dùng vì khoảng sân đã được bậc trước bao phủ.';
-      tier.updated_at = now;
-      adjustments.push(`${tier.name}: tự ngưng dùng vì khoảng ${tier.min_courts} - ${tier.max_courts} đã bị bậc trước bao phủ.`);
-      continue;
-    }
-
-    if (tier.min_courts !== expectedMin) {
-      adjustments.push(`${tier.name}: tự chuyển số sân tối thiểu từ ${tier.min_courts} sang ${expectedMin}.`);
-      tier.min_courts = expectedMin;
-      tier.updated_at = now;
-    }
-
-    if (tier.max_courts === null) break;
-    expectedMin = tier.max_courts + 1;
-  }
-
-  return { tiers: adjusted, adjustments };
-}
-
 export function validateTierCoverage(tiers) {
-  const activeTiers = cloneValue(tiers)
+  const activeTiers = [...tiers]
     .filter((tier) => tier.is_active)
-    .sort((left, right) => left.min_courts - right.min_courts);
+    .sort((left, right) => Number(left.min_courts) - Number(right.min_courts));
   const errors = [];
-  const warnings = [];
   const missingRanges = [];
   const overlappingRanges = [];
 
-  if (activeTiers.length === 0) {
+  if (!activeTiers.length) {
     errors.push('Chưa có bậc phí đang dùng nào.');
     missingRanges.push({ from: 1, to: null });
-    return { isValid: false, errors, warnings, missingRanges, overlappingRanges };
+    return { isValid: false, errors, warnings: [], missingRanges, overlappingRanges };
   }
 
-  let expectedMin = 1;
-  let hasUnlimited = false;
+  if (Number(activeTiers[0].min_courts) !== 1) {
+    errors.push('Bậc đang dùng đầu tiên nên bắt đầu từ 1 sân.');
+    missingRanges.push({ from: 1, to: Number(activeTiers[0].min_courts) - 1 });
+  }
 
   activeTiers.forEach((tier, index) => {
-    if (hasUnlimited) {
-      errors.push('Bậc không giới hạn phải là bậc cuối.');
-      overlappingRanges.push({ from: tier.min_courts, to: tier.max_courts });
-      return;
+    const next = activeTiers[index + 1];
+    if (next && Number(next.min_courts) <= Number(tier.min_courts)) {
+      errors.push(`Bậc ${next.name} đang trùng khoảng bắt đầu với bậc trước.`);
+      overlappingRanges.push({ from: Number(next.min_courts), to: Number(tier.min_courts) });
     }
-
-    if (index === 0 && tier.min_courts !== 1) {
-      errors.push('Bậc đang dùng đầu tiên phải bắt đầu từ 1 sân.');
-      missingRanges.push({ from: 1, to: tier.min_courts - 1 });
-    }
-
-    if (tier.min_courts < expectedMin) {
-      const previous = activeTiers[index - 1];
-      errors.push(`Khoảng ${tier.min_courts} - ${tier.max_courts || 'không giới hạn'} bị trùng với khoảng ${previous?.min_courts} - ${previous?.max_courts || 'không giới hạn'}.`);
-      overlappingRanges.push({ from: tier.min_courts, to: Math.min(tier.max_courts || expectedMin, expectedMin - 1) });
-    }
-
-    if (tier.min_courts > expectedMin) {
-      errors.push(`Thiếu bậc phí cho cụm có ${expectedMin} sân.`);
-      missingRanges.push({ from: expectedMin, to: tier.min_courts - 1 });
-    }
-
-    if (tier.max_courts === null) {
-      hasUnlimited = true;
-      return;
-    }
-
-    expectedMin = Math.max(expectedMin, tier.max_courts + 1);
   });
-
-  if (!hasUnlimited) {
-    errors.push('Thiếu bậc phí không giới hạn cho các cụm lớn hơn.');
-    missingRanges.push({ from: expectedMin, to: null });
-  }
 
   return {
     isValid: errors.length === 0,
     errors,
-    warnings,
+    warnings: [],
     missingRanges,
     overlappingRanges,
   };
 }
 
-export function getTiers() {
-  return cloneValue(platformFeeStore.state.tiers);
-}
-
-export function getActiveTiers() {
-  return getTiers().filter((tier) => tier.is_active);
-}
-
-export function getTierUsageCount(tierId) {
-  return platformFeeStore.state.ledgers.filter((ledger) => ledger.tier_id === tierId).length;
-}
-
-export function getDiscountProfiles() {
-  return cloneValue(platformFeeStore.state.discount_profiles || []);
-}
-
-export function createDiscountProfile(payload) {
-  const name = String(payload.name || '').trim();
-  const validation = validateDiscountSchedule(payload);
-  if (!name) addFieldError(validation.errors, 'name', 'Vui lòng nhập tên mẫu giảm giá.');
-  if (platformFeeStore.state.discount_profiles.some((profile) => profile.name.toLowerCase() === name.toLowerCase())) {
-    addFieldError(validation.errors, 'name', 'Tên mẫu giảm giá đã tồn tại.');
-  }
-  validation.isValid = Object.keys(validation.errors).length === 0;
-  if (!validation.isValid) {
-    return Promise.reject(Object.assign(new Error('Mẫu giảm giá chưa hợp lệ.'), { validation }));
-  }
-
-  const profile = {
-    id: createId('discount'),
-    name,
-    ...validation.normalized,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-  platformFeeStore.state.discount_profiles.push(profile);
-  platformFeeStore.save();
-  addAuditLog('platform_fee_discount_profile.created', 'platform_fee_discount_profile', profile.id, null, profile, 'platform_fee_tier');
-  return Promise.resolve(cloneValue(profile));
-}
-
-export function updateDiscountProfile(id, payload) {
-  const profile = platformFeeStore.state.discount_profiles.find((item) => item.id === id);
-  if (!profile) return Promise.reject(new Error('Không tìm thấy mẫu giảm giá.'));
-
-  const name = String(payload.name || '').trim();
-  const validation = validateDiscountSchedule(payload);
-  if (!name) addFieldError(validation.errors, 'name', 'Vui lòng nhập tên mẫu giảm giá.');
-  if (platformFeeStore.state.discount_profiles.some((item) => item.id !== id && item.name.toLowerCase() === name.toLowerCase())) {
-    addFieldError(validation.errors, 'name', 'Tên mẫu giảm giá đã tồn tại.');
-  }
-  validation.isValid = Object.keys(validation.errors).length === 0;
-  if (!validation.isValid) {
-    return Promise.reject(Object.assign(new Error('Mẫu giảm giá chưa hợp lệ.'), { validation }));
-  }
-
-  const oldProfile = cloneValue(profile);
-  Object.assign(profile, {
-    name,
-    ...validation.normalized,
-    updated_at: new Date().toISOString(),
+export async function createTier(payload) {
+  const validation = validateTier(payload);
+  if (!validation.isValid) return Promise.reject(Object.assign(new Error('Dữ liệu bậc phí chưa hợp lệ.'), { validation }));
+  const response = await api('/api/admin/platform-fee-tiers', {
+    method: 'POST',
+    body: JSON.stringify(validation.normalized),
   });
-  platformFeeStore.state.tiers
-    .filter((tier) => tier.discount_profile_id === id)
-    .forEach((tier) => {
-      Object.assign(tier, validation.normalized, { updated_at: new Date().toISOString() });
-    });
-  platformFeeStore.save();
-  addAuditLog('platform_fee_discount_profile.updated', 'platform_fee_discount_profile', id, oldProfile, profile, 'platform_fee_tier');
-  return Promise.resolve(cloneValue(profile));
+  return decorateTier(response.data || response);
 }
 
-export function deleteDiscountProfile(id) {
-  if (platformFeeStore.state.tiers.some((tier) => tier.discount_profile_id === id)) {
-    return Promise.reject(new Error('Mẫu giảm giá đang được bậc phí sử dụng.'));
-  }
-  const index = platformFeeStore.state.discount_profiles.findIndex((profile) => profile.id === id);
-  if (index === -1) return Promise.reject(new Error('Không tìm thấy mẫu giảm giá.'));
-  const [profile] = platformFeeStore.state.discount_profiles.splice(index, 1);
-  platformFeeStore.save();
-  addAuditLog('platform_fee_discount_profile.deleted', 'platform_fee_discount_profile', id, profile, null, 'platform_fee_tier');
-  return Promise.resolve({ deleted: true });
-}
-
-export function createTier(payload) {
-  const validation = validateTier(payload, getTiers(), { skipCoverage: true });
+export async function updateTier(id, payload) {
+  const validation = validateTier({ ...payload, id });
   if (!validation.isValid) return Promise.reject(Object.assign(new Error('Dữ liệu bậc phí chưa hợp lệ.'), { validation }));
-
-  const now = new Date().toISOString();
-  const tier = {
-    ...validation.normalized,
-    id: createId('tier'),
-    created_at: now,
-    updated_at: now,
-  };
-  const proposed = [...cloneValue(platformFeeStore.state.tiers), tier];
-  const rangeAdjustments = rebalanceTierRanges(proposed);
-  const coverage = validateTierCoverage(proposed);
-
-  if (tier.is_active && !coverage.isValid) {
-    return Promise.reject(Object.assign(new Error('Cấu hình bậc phí sau khi tự cân khoảng chưa hợp lệ.'), {
-      validation: { isValid: false, errors: { _coverage: coverage.errors }, normalized: tier, coverage },
-    }));
-  }
-
-  platformFeeStore.state.tiers = proposed;
-  platformFeeStore.save();
-  addAuditLog('platform_fee_tier.created', 'platform_fee_tier', tier.id, null, tier, 'platform_fee_tier');
-  return Promise.resolve(cloneValue({ ...tier, range_adjustments: rangeAdjustments }));
+  const response = await api(`/api/admin/platform-fee-tiers/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(validation.normalized),
+  });
+  return decorateTier(response.data || response);
 }
 
-export function updateTier(id, payload) {
-  const index = platformFeeStore.state.tiers.findIndex((tier) => tier.id === id);
-  if (index === -1) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
-
-  const oldTiers = cloneValue(platformFeeStore.state.tiers);
-  const oldTier = cloneValue(platformFeeStore.state.tiers[index]);
-  const validation = validateTier({ ...oldTier, ...payload, id }, platformFeeStore.state.tiers, { skipCoverage: true });
-  if (!validation.isValid) return Promise.reject(Object.assign(new Error('Dữ liệu bậc phí chưa hợp lệ.'), { validation }));
-
-  const updated = { ...oldTier, ...validation.normalized, id, updated_at: new Date().toISOString() };
-  const proposed = cloneValue(platformFeeStore.state.tiers);
-  proposed.splice(index, 1, updated);
-  const adjusted = autoAdjustTierRanges(proposed, id);
-  const coverage = validateTierCoverage(adjusted.tiers);
-
-  if (updated.is_active && !coverage.isValid) {
-    return Promise.reject(Object.assign(new Error('Cấu hình bậc phí sau khi tự căn chỉnh vẫn chưa hợp lệ.'), {
-      validation: { isValid: false, errors: { _coverage: coverage.errors }, normalized: updated, coverage },
-    }));
-  }
-
-  platformFeeStore.state.tiers = adjusted.tiers;
-  platformFeeStore.save();
-  const finalTier = platformFeeStore.state.tiers.find((tier) => tier.id === id);
-  addAuditLog('platform_fee_tier.updated', 'platform_fee_tier', id, oldTiers, platformFeeStore.state.tiers, 'platform_fee_tier');
-  return Promise.resolve({ ...cloneValue(finalTier), range_adjustments: adjusted.adjustments });
+export async function deactivateTier(id, reason = 'Ngừng sử dụng') {
+  const response = await api(`/api/admin/platform-fee-tiers/${encodeURIComponent(id)}/deactivate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  });
+  return decorateTier(response.data || response);
 }
 
-export function deactivateTier(id, reason = 'Ngừng sử dụng') {
-  const oldTiers = cloneValue(platformFeeStore.state.tiers);
-  const proposed = cloneValue(platformFeeStore.state.tiers);
-  const tier = proposed.find((item) => item.id === id);
-  if (!tier) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
-
-  const oldTier = oldTiers.find((item) => item.id === id);
-  tier.is_active = false;
-  tier.inactive_reason = reason;
-  tier.updated_at = new Date().toISOString();
-  const rangeAdjustments = rebalanceTierRanges(proposed);
-  const coverage = validateTierCoverage(proposed);
-  if (!coverage.isValid) {
-    return Promise.reject(Object.assign(new Error('Ngừng dùng bậc phí sẽ làm thiếu khoảng áp dụng.'), { coverage }));
-  }
-
-  platformFeeStore.state.tiers = proposed;
-  platformFeeStore.save();
-  addAuditLog('platform_fee_tier.deactivated', 'platform_fee_tier', id, oldTier, tier, 'platform_fee_tier');
-  return Promise.resolve(cloneValue({ ...tier, range_adjustments: rangeAdjustments }));
+export async function reactivateTier(id) {
+  const response = await api(`/api/admin/platform-fee-tiers/${encodeURIComponent(id)}/reactivate`, {
+    method: 'PATCH',
+  });
+  return decorateTier(response.data || response);
 }
 
-export function reactivateTier(id) {
-  const oldTiers = cloneValue(platformFeeStore.state.tiers);
-  const proposed = cloneValue(platformFeeStore.state.tiers);
-  const tier = proposed.find((item) => item.id === id);
-  if (!tier) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
-
-  const oldTier = oldTiers.find((item) => item.id === id);
-  tier.is_active = true;
-  tier.updated_at = new Date().toISOString();
-  const activeWithSameMinimum = proposed.some(
-    (item) => item.id !== id && item.is_active && item.min_courts === tier.min_courts,
-  );
-  if (activeWithSameMinimum) {
-    return Promise.reject(new Error('Không thể bật vì số sân tối thiểu đang trùng với bậc khác.'));
-  }
-  const rangeAdjustments = rebalanceTierRanges(proposed);
-  const coverage = validateTierCoverage(proposed);
-  if (!coverage.isValid) {
-    return Promise.reject(Object.assign(new Error('Kích hoạt lại bậc phí sẽ làm khoảng áp dụng chưa hợp lệ.'), { coverage }));
-  }
-
-  platformFeeStore.state.tiers = proposed;
-  platformFeeStore.save();
-  addAuditLog('platform_fee_tier.reactivated', 'platform_fee_tier', id, oldTier, tier, 'platform_fee_tier');
-  return Promise.resolve(cloneValue({ ...tier, range_adjustments: rangeAdjustments }));
+export async function deleteTier(id) {
+  return api(`/api/admin/platform-fee-tiers/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
 }
 
-export function deleteTier(id) {
-  const usageCount = getTierUsageCount(id);
-  if (usageCount > 0) return deactivateTier(id, 'Đã có ledger sử dụng nên chỉ ngừng dùng.');
-
-  const index = platformFeeStore.state.tiers.findIndex((tier) => tier.id === id);
-  if (index === -1) return Promise.reject(new Error('Không tìm thấy bậc phí.'));
-  const oldTier = platformFeeStore.state.tiers[index];
-  platformFeeStore.state.tiers.splice(index, 1);
-  rebalanceTierRanges(platformFeeStore.state.tiers);
-  platformFeeStore.save();
-  addAuditLog('platform_fee_tier.deactivated', 'platform_fee_tier', id, oldTier, null, 'platform_fee_tier');
-  return Promise.resolve({ deleted: true });
-}
-
-export function findTierForCourtCount(courtCount) {
+export function findTierForCourtCount(courtCount, tiers = []) {
   const count = Number.parseInt(courtCount, 10);
-  const matches = getActiveTiers().filter((tier) => count >= tier.min_courts && (tier.max_courts === null || count <= tier.max_courts));
+  const matches = tiers
+    .filter((tier) => tier.is_active)
+    .filter((tier) => count >= Number(tier.min_courts) && (tier.max_courts === null || count <= Number(tier.max_courts)));
 
   if (matches.length === 0) {
     return {
@@ -541,18 +262,13 @@ export function calculatePlatformFee({ court_count, period_months, tier }) {
     throw new Error('Giá phí theo sân mỗi tháng phải lớn hơn 0.');
   }
 
-  const field = months === 1
-    ? 'discount_1_month'
-    : `discount_${months}_months`;
-  const discountPercent = toNumber(tier[field]);
-  if (discountPercent < 0 || discountPercent > 100) {
-    throw new Error('Mức giảm giá phải nằm trong khoảng 0 - 100%.');
-  }
+  const discountPercent = months === 12 ? toNumber(tier.annual_discount_percent ?? tier.discount_12_months) : 0;
   const baseAmount = courtCount * monthlyPrice * months;
-  const discountAmount = Math.round(baseAmount * discountPercent / 100);
+  const discountAmount = Math.round((baseAmount * discountPercent) / 100);
   const amountDue = Math.max(0, Math.round(baseAmount - discountAmount));
   const warnings = [];
 
+  if (months !== 12) warnings.push('DB hiện chỉ cấu hình giảm kỳ 12 tháng; kỳ này không áp dụng giảm.');
   if (discountPercent > 50) warnings.push('Mức giảm giá cao, vui lòng kiểm tra lại.');
   if (discountPercent === 100 || amountDue === 0) warnings.push('Giảm giá 100%, số tiền phải đóng bằng 0.');
 
@@ -578,7 +294,6 @@ export const platformFeeTierService = {
   deleteTier,
   validateTier,
   validateTierCoverage,
-  autoAdjustTierRanges,
   findTierForCourtCount,
   calculatePlatformFee,
   getTierUsageCount,

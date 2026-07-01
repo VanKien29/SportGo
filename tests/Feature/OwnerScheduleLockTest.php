@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\BookingItem;
 use App\Models\CourtType;
+use App\Models\Payment;
 use App\Models\Role;
 use App\Models\SlotLock;
 use App\Models\User;
@@ -12,6 +14,7 @@ use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class OwnerScheduleLockTest extends TestCase
@@ -244,6 +247,101 @@ class OwnerScheduleLockTest extends TestCase
             'reason' => 'Bảo trì đồng loạt.',
         ]);
         $this->assertCount(2, $response->json('data'));
+    }
+
+    public function test_emergency_lock_interrupts_active_booking_and_refunds_remaining_rounded_time(): void
+    {
+        Carbon::setTestNow(Carbon::parse(today()->toDateString().' 10:40:00'));
+        $date = today()->toDateString();
+
+        $booking = Booking::query()->create([
+            'booking_code' => 'BKEMERGENCY01',
+            'customer_id' => $this->otherOwner->id,
+            'venue_court_id' => $this->court->id,
+            'requested_venue_court_id' => $this->court->id,
+            'venue_cluster_id' => $this->cluster->id,
+            'booking_date' => $date,
+            'start_time' => '10:00:00',
+            'end_time' => '12:00:00',
+            'duration_minutes' => 120,
+            'total_price' => 120000,
+            'payment_option' => 'full_payment',
+            'required_payment_amount' => 120000,
+            'source' => 'online',
+            'booking_type' => 'single',
+            'status' => 'checked_in',
+        ]);
+        $item = BookingItem::query()->create([
+            'booking_id' => $booking->id,
+            'venue_court_id' => $this->court->id,
+            'requested_venue_court_id' => $this->court->id,
+            'start_time' => '10:00:00',
+            'end_time' => '12:00:00',
+            'duration_minutes' => 120,
+            'unit_price' => 60000,
+            'subtotal' => 120000,
+            'status' => 'active',
+            'sort_order' => 1,
+        ]);
+        $payment = Payment::query()->create([
+            'payment_code' => 'PMEMERGENCY01',
+            'booking_id' => $booking->id,
+            'amount' => 120000,
+            'wallet_amount' => 0,
+            'gateway_amount' => 120000,
+            'payment_kind' => 'full',
+            'method' => 'sepay',
+            'status' => 'paid',
+            'paid_at' => now()->subHour(),
+        ]);
+
+        $preview = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/schedule-locks/preview', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $date,
+                'start_time' => '10:30:00',
+                'end_time' => '12:00:00',
+                'lock_type' => 'emergency',
+                'reason' => 'Mặt sân hỏng đột xuất.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.items.0.is_playing', true)
+            ->assertJsonPath('data.items.0.incident.played_minutes', 30)
+            ->assertJsonPath('data.items.0.incident.remaining_minutes', 90)
+            ->assertJsonPath('data.items.0.incident.estimated_refund_amount', 90000);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/schedule-locks', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $date,
+                'start_time' => '10:30:00',
+                'end_time' => '12:00:00',
+                'lock_type' => 'emergency',
+                'reason' => 'Mặt sân hỏng đột xuất.',
+                'resolutions' => [[
+                    'booking_item_id' => $item->id,
+                    'action' => 'cancel',
+                ]],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.lock_type', 'emergency');
+
+        $this->assertDatabaseHas('booking_items', [
+            'id' => $item->id,
+            'status' => 'interrupted_by_emergency',
+            'played_minutes' => 30,
+            'remaining_minutes' => 90,
+            'incident_resolution' => 'wallet_refund',
+        ]);
+        $this->assertDatabaseHas('refunds', [
+            'payment_id' => $payment->id,
+            'booking_id' => $booking->id,
+            'amount' => 90000,
+            'refund_destination' => 'user_wallet',
+            'status' => 'owner_confirmed',
+        ]);
+
+        Carbon::setTestNow();
     }
 
     public function test_batch_lock_is_rolled_back_when_one_range_is_unavailable(): void

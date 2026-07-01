@@ -492,14 +492,14 @@ export default {
 }
 
 .success-icon {
-  color: #000000;
+  color: #10b981;
   margin-bottom: 16px;
 }
 
 .success-box h3 {
   font-size: 24px;
   margin-bottom: 8px;
-  color: #000000;
+  color: #065f46;
 }
 
 .mt-4 {

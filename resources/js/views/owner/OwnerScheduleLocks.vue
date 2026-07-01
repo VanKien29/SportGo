@@ -78,6 +78,21 @@
                                         : "Chưa thanh toán"
                                 }}
                             </small>
+                            <small
+                                v-if="item.is_playing"
+                                class="incident-summary"
+                            >
+                                Đang chơi · đã dùng
+                                {{ item.incident?.played_minutes || 0 }} phút ·
+                                còn {{ item.incident?.remaining_minutes || 0 }}
+                                phút · dự kiến hoàn
+                                {{
+                                    currency(
+                                        item.incident
+                                            ?.estimated_refund_amount,
+                                    )
+                                }}
+                            </small>
                         </div>
 
                         <div class="conflict-actions">
@@ -125,7 +140,10 @@
                                 />
                                 Hủy/hoàn ví
                             </label>
-                            <label class="radio-line cash">
+                            <label
+                                v-if="item.payment_status === 'paid'"
+                                class="radio-line cash"
+                            >
                                 <input
                                     v-model="
                                         lockResolutions[item.booking_item_id]
@@ -189,6 +207,32 @@
                                 Theo ngày
                             </button>
                         </div>
+
+                        <div class="lock-type-switch">
+                            <button
+                                type="button"
+                                :class="{ active: form.lock_type === 'manual' }"
+                                @click="form.lock_type = 'manual'"
+                            >
+                                Khóa thường
+                            </button>
+                            <button
+                                type="button"
+                                :class="{
+                                    active: form.lock_type === 'emergency',
+                                }"
+                                @click="form.lock_type = 'emergency'"
+                            >
+                                Khóa đột xuất
+                            </button>
+                        </div>
+                        <p
+                            v-if="form.lock_type === 'emergency'"
+                            class="emergency-hint"
+                        >
+                            Có thể chọn ô đang có booking để đổi sân hoặc xử lý
+                            phần thời gian còn lại.
+                        </p>
 
                         <div class="date-grid">
                             <label>
@@ -480,7 +524,7 @@
                                 :class="slotClass(court.id, slot)"
                                 :title="slotTitle(court.id, slot)"
                                 type="button"
-                                :disabled="isBusy(court.id, slot)"
+                                :disabled="!canSelectSlot(court.id, slot)"
                                 :aria-pressed="isSelected(court.id, slot)"
                                 @click="pickSlot(court, slot)"
                             />
@@ -517,6 +561,7 @@ export default {
                 start_date: today,
                 end_date: today,
                 lock_mode: "slots",
+                lock_type: "manual",
                 reason: "",
             },
             selectedSlots: [],
@@ -842,6 +887,7 @@ export default {
             return {
                 start_date: this.form.start_date,
                 end_date: this.form.end_date,
+                lock_type: this.form.lock_type,
                 reason: this.form.reason,
                 slots:
                     this.form.lock_mode === "whole_day"
@@ -942,6 +988,15 @@ export default {
         isBusy(courtId, slot) {
             return !this.statusFor(courtId, slot)?.is_available;
         },
+        canSelectSlot(courtId, slot) {
+            const status = this.statusFor(courtId, slot);
+            if (!status || status.is_available) return true;
+
+            return (
+                this.form.lock_type === "emergency" &&
+                status.busy_source === "booking"
+            );
+        },
         isRangeBusy(courtId, range) {
             const start = this.minutes(range.start_time);
             const end = this.minutes(range.end_time);
@@ -962,7 +1017,8 @@ export default {
             if (this.isSelected(courtId, slot)) return "selected";
             if (!status || status.is_available) return "available";
             if (status.busy_source === "booking") return "booking";
-            if (status.busy_status === "manual") return "manual";
+            if (["manual", "emergency"].includes(status.busy_status))
+                return "manual";
             return "holding";
         },
         slotTitle(courtId, slot) {
@@ -971,8 +1027,12 @@ export default {
                 return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} · Đã chọn`;
             if (!status || status.is_available)
                 return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} · Trống`;
-            if (status.busy_source === "booking") return "Đã có booking";
-            if (status.busy_status === "manual")
+            if (status.busy_source === "booking") {
+                return this.form.lock_type === "emergency"
+                    ? "Đã có booking · có thể chọn để xử lý đột xuất"
+                    : "Đã có booking";
+            }
+            if (["manual", "emergency"].includes(status.busy_status))
                 return `Đã khóa: ${status.lock_reason || "Không có lý do"}`;
             return "Đang được giữ chỗ";
         },
@@ -1085,6 +1145,13 @@ export default {
                 new Date(`${value}T00:00:00`),
             );
         },
+        currency(value) {
+            return new Intl.NumberFormat("vi-VN", {
+                style: "currency",
+                currency: "VND",
+                maximumFractionDigits: 0,
+            }).format(Number(value || 0));
+        },
     },
 };
 </script>
@@ -1103,7 +1170,7 @@ export default {
 }
 .card-head h3 {
     margin: 0;
-    color: var(--admin-text);
+    color: #0f172a;
 }
 .header-actions {
     display: flex;
@@ -1135,9 +1202,9 @@ export default {
 .form-card,
 .schedule-card,
 .locks-card {
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
     border-radius: 14px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
 }
 .form-card,
@@ -1153,7 +1220,7 @@ export default {
 .compact-head span {
     display: inline-flex;
     margin-top: 4px;
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 12px;
     font-weight: 750;
 }
@@ -1167,23 +1234,59 @@ export default {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     padding: 4px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 10px;
-    background: var(--admin-surface-muted);
+    background: #f7fbf5;
+}
+.lock-type-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 4px;
+    border: 1px solid #d7e5d7;
+    border-radius: 8px;
+    background: #f7fbf5;
+}
+.lock-type-switch button {
+    min-height: 38px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #52635a;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+.lock-type-switch button.active {
+    background: #16a34a;
+    color: #fff;
+}
+.emergency-hint {
+    margin: -4px 0 0;
+    padding: 9px 10px;
+    border-left: 3px solid #f59e0b;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.incident-summary {
+    color: #b45309 !important;
+    font-weight: 800;
 }
 .mode-switch button {
     min-height: 42px;
     border: 0;
     border-radius: 8px;
     background: transparent;
-    color: var(--admin-faint);
+    color: #475b4d;
     font: inherit;
     font-weight: 900;
     cursor: pointer;
 }
 .mode-switch button.active {
     background: var(--admin-primary, #000000);
-    color: var(--admin-bg);
+    color: #fff;
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 .date-grid {
@@ -1194,7 +1297,7 @@ export default {
 .form-card label {
     display: grid;
     gap: 7px;
-    color: var(--admin-text);
+    color: #334155;
     font-size: 13px;
     font-weight: 850;
 }
@@ -1202,11 +1305,11 @@ export default {
 .form-card select,
 .form-card textarea {
     width: 100%;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #cbd5e1;
     border-radius: 9px;
     padding: 10px 11px;
-    background: var(--admin-surface, #fff);
-    color: var(--admin-text);
+    background: #fff;
+    color: #0f172a;
     font: inherit;
 }
 .form-card textarea {
@@ -1221,8 +1324,8 @@ export default {
 .form-note {
     padding: 11px;
     border-radius: 9px;
-    background: var(--admin-surface-muted);
-    color: var(--admin-muted);
+    background: #f8fafc;
+    color: #64748b;
     font-size: 12px;
     line-height: 1.5;
 }
@@ -1230,16 +1333,16 @@ export default {
     display: grid;
     gap: 12px;
     padding: 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 10px;
-    background: var(--admin-surface-muted);
+    background: linear-gradient(180deg, #fbfefb, #f4fbf5);
 }
 .picker-head {
     display: grid;
     grid-template-columns: 1fr auto auto;
     align-items: center;
     gap: 10px;
-    color: var(--admin-text);
+    color: #14532d;
 }
 .picker-head span {
     padding: 4px 8px;
@@ -1270,9 +1373,9 @@ export default {
     gap: 10px;
     min-height: 68px;
     padding: 11px 34px 11px 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 10px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     cursor: pointer;
     transition:
         border-color 0.16s ease,
@@ -1287,10 +1390,10 @@ export default {
     right: 12px;
     width: 16px;
     height: 16px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #cbd5e1;
     border-radius: 999px;
-    background: var(--admin-surface, #fff);
-    box-shadow: inset 0 0 0 3px var(--admin-bg);
+    background: #fff;
+    box-shadow: inset 0 0 0 3px #fff;
 }
 .court-chip-grid label:hover {
     border-color: var(--admin-border);
@@ -1318,11 +1421,11 @@ export default {
     gap: 2px;
 }
 .court-chip-grid strong {
-    color: var(--admin-text);
+    color: #1f2f25;
     font-size: 13px;
 }
 .court-chip-grid small {
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 12px;
     font-weight: 700;
 }
@@ -1343,7 +1446,7 @@ export default {
 }
 .secondary-btn {
     border: 1px solid var(--admin-border, #e5e7eb);
-    background: var(--admin-surface, #fff);
+    background: #fff;
     color: var(--admin-text, #000000);
 }
 .danger-btn {
@@ -1375,14 +1478,14 @@ export default {
 }
 .schedule-headline {
     padding: 16px 18px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
 }
 .legend {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 12px;
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 11px;
     font-weight: 800;
 }
@@ -1395,10 +1498,10 @@ export default {
     width: 11px;
     height: 11px;
     border-radius: 3px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #cbd5e1;
 }
 .legend .available {
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 .legend .booking {
     background: #cbd5e1;
@@ -1412,7 +1515,7 @@ export default {
 .state {
     padding: 36px;
     text-align: center;
-    color: var(--admin-muted);
+    color: #64748b;
 }
 .compact-state {
     padding: 18px 6px 4px;
@@ -1422,7 +1525,7 @@ export default {
 .schedule-wrap {
     max-width: 100%;
     overflow-x: auto;
-    border-top: 1px solid var(--admin-border);
+    border-top: 1px solid #e2e8f0;
 }
 .schedule-grid {
     display: grid;
@@ -1433,14 +1536,14 @@ export default {
 .court-cell,
 .slot-cell {
     min-height: 48px;
-    border-right: 1px solid var(--admin-border);
-    border-bottom: 1px solid var(--admin-border);
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
 }
 .grid-head {
     display: grid;
     place-items: center;
-    background: var(--admin-surface-muted);
-    color: var(--admin-faint);
+    background: #f2f7ef;
+    color: #334238;
     font-size: 11px;
     font-weight: 900;
 }
@@ -1461,14 +1564,14 @@ export default {
     align-content: center;
     gap: 3px;
     padding: 8px 10px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 .court-cell strong {
-    color: var(--admin-text);
+    color: #0f172a;
     font-size: 12px;
 }
 .court-cell span {
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 11px;
 }
 .slot-cell {
@@ -1476,7 +1579,7 @@ export default {
     padding: 0;
     border-top: 0;
     border-left: 0;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     cursor: pointer;
 }
 .slot-cell.available:hover {
@@ -1497,7 +1600,7 @@ export default {
 }
 .locks-card .card-head {
     padding-bottom: 12px;
-    border-bottom: 1px solid var(--admin-border);
+    border-bottom: 1px solid #e2e8f0;
 }
 .count-badge {
     min-width: 28px;
@@ -1517,9 +1620,9 @@ export default {
     display: grid;
     gap: 10px;
     padding: 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
-    background: var(--admin-surface-muted);
+    background: #f8fafc;
 }
 .lock-group-head {
     display: flex;
@@ -1532,11 +1635,11 @@ export default {
     gap: 2px;
 }
 .lock-group-head strong {
-    color: var(--admin-text);
+    color: #0f172a;
     font-size: 14px;
 }
 .lock-group-head span {
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 12px;
     font-weight: 750;
 }
@@ -1562,7 +1665,7 @@ export default {
     border: 1px solid #fecaca;
     border-radius: 999px;
     padding: 7px 9px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     color: #991b1b;
     font: inherit;
     cursor: pointer;
@@ -1648,15 +1751,15 @@ export default {
     display: grid;
     gap: 5px;
     padding: 12px;
-    border: 1px solid var(--admin-blue);
+    border: 1px solid #6ee7b7;
     border-radius: 9px;
-    background: var(--admin-blue-soft);
-    color: var(--admin-blue);
+    background: #ecfdf5;
+    color: #047857;
 }
 .selection-box.empty {
-    border-color: var(--admin-border);
-    background: var(--admin-surface-muted);
-    color: var(--admin-faint);
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    color: #64748b;
 }
 .selection-box span {
     font-size: 12px;
@@ -1677,9 +1780,9 @@ export default {
     display: grid;
     gap: 10px;
     padding: 12px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 10px;
-    background: var(--admin-surface-muted);
+    background: #fbfefc;
 }
 .preview-headline {
     display: flex;
@@ -1692,19 +1795,19 @@ export default {
     gap: 2px;
 }
 .preview-headline strong {
-    color: var(--admin-text);
+    color: #16231a;
     font-size: 13px;
     font-weight: 900;
 }
 .preview-headline span,
 .preview-headline em {
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 12px;
     font-style: normal;
     font-weight: 750;
 }
 .preview-headline em {
-    color: var(--admin-warning);
+    color: #b45309;
 }
 .lock-preview-list {
     display: grid;
@@ -1718,13 +1821,13 @@ export default {
     justify-content: space-between;
     gap: 10px;
     padding: 9px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
 }
 .lock-preview-list article.busy {
-    border-color: var(--admin-warning);
-    background: var(--admin-warning-soft);
+    border-color: #fed7aa;
+    background: #fff7ed;
 }
 .lock-preview-list article > div {
     display: grid;
@@ -1732,12 +1835,12 @@ export default {
     min-width: 0;
 }
 .lock-preview-list strong {
-    color: var(--admin-text);
+    color: #1f2937;
     font-size: 13px;
     font-weight: 900;
 }
 .lock-preview-list small {
-    color: var(--admin-muted);
+    color: #64748b;
     font-size: 12px;
     line-height: 1.35;
 }
@@ -1745,19 +1848,19 @@ export default {
     flex: 0 0 auto;
     border-radius: 999px;
     padding: 4px 8px;
-    background: var(--admin-hover);
-    color: var(--admin-text);
+    background: #eef2ff;
+    color: #475569;
     font-size: 11px;
     font-weight: 900;
 }
 .lock-preview-list article.busy > span {
-    background: var(--admin-warning);
-    color: var(--admin-bg);
+    background: #ffedd5;
+    color: #c2410c;
 }
 .preview-note,
 .preview-more {
     margin: 0;
-    color: var(--admin-faint);
+    color: #607267;
     font-size: 12px;
     line-height: 1.45;
 }
@@ -1775,8 +1878,8 @@ export default {
     flex-wrap: wrap;
     gap: 8px;
     padding: 14px 20px;
-    border-bottom: 1px solid var(--admin-border);
-    background: var(--admin-surface, #fff);
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
 }
 .quick-ranges button {
     appearance: none;
@@ -1787,11 +1890,11 @@ export default {
     gap: 4px;
     min-height: 38px;
     margin: 0;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d9e8d9;
     border-radius: 8px;
     padding: 8px 12px;
-    background: var(--admin-surface, #fff);
-    color: var(--admin-faint);
+    background: #fff;
+    color: #344238;
     font-family: inherit;
     font-weight: 850;
     line-height: 1;
@@ -1834,12 +1937,12 @@ export default {
 .quick-ranges button.active {
     border-color: var(--admin-primary);
     background: var(--admin-primary);
-    color: var(--admin-bg);
+    color: #fff;
     box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08);
 }
 .quick-ranges button.active strong,
 .quick-ranges button.active small {
-    color: var(--admin-bg) !important;
+    color: #fff !important;
 }
 .quick-ranges button.active small {
     opacity: 0.88;
@@ -1869,8 +1972,8 @@ export default {
     gap: 14px;
     overflow: hidden;
     border-radius: 12px;
-    border: 1px solid var(--admin-border);
-    background: var(--admin-surface, #fff);
+    border: 1px solid #d7ead7;
+    background: #fff;
     box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
 }
 .conflict-modal header,
@@ -1886,16 +1989,16 @@ export default {
 }
 .conflict-modal h3 {
     margin: 0;
-    color: var(--admin-text);
+    color: #163222;
     font-size: 22px;
 }
 .icon-close {
     width: 36px;
     height: 36px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d8e8d8;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
-    color: var(--admin-text);
+    background: #fff;
+    color: #334155;
     font-size: 24px;
     line-height: 1;
     cursor: pointer;
@@ -1905,7 +2008,7 @@ export default {
     padding: 12px 14px;
     border-radius: 8px;
     background: #f0fdf4;
-    color: var(--admin-faint);
+    color: #496355;
     line-height: 1.45;
 }
 .conflict-list {
@@ -1921,9 +2024,9 @@ export default {
     gap: 14px;
     align-items: center;
     padding: 14px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #e2eadf;
     border-radius: 10px;
-    background: var(--admin-surface-muted);
+    background: #fbfffb;
 }
 .conflict-main {
     display: grid;
@@ -1931,12 +2034,12 @@ export default {
     min-width: 0;
 }
 .conflict-main strong {
-    color: var(--admin-text);
+    color: #12301f;
     font-size: 15px;
 }
 .conflict-main span,
 .conflict-main small {
-    color: var(--admin-faint);
+    color: #5d7165;
     line-height: 1.35;
 }
 .conflict-actions {
@@ -1948,10 +2051,10 @@ export default {
 .conflict-actions select {
     min-width: 0;
     height: 38px;
-    border: 1px solid var(--admin-border);
+    border: 1px solid #d8e8d8;
     border-radius: 8px;
     padding: 0 10px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     color: #1f2937;
     font-weight: 750;
 }
@@ -1959,7 +2062,7 @@ export default {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: var(--admin-text);
+    color: #2f5a3a;
     font-weight: 850;
     white-space: nowrap;
 }

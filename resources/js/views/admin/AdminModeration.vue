@@ -1,56 +1,6 @@
 <template>
   <div class="moderation-page">
-    <header class="page-head" style="margin-bottom: 20px;">
-      <div>
-        <h2>Kiểm duyệt & Báo cáo</h2>
-        <p>Quản lý kiểm duyệt nội dung và giải quyết các báo cáo vi phạm cộng đồng.</p>
-      </div>
-      <!-- Nút hành động tương ứng với tab đang hoạt động -->
-      <div class="head-actions" style="display: flex; gap: 10px; align-items: center;">
-        <div v-if="activeModuleTab === 'moderation'" class="auto-approve-wrapper">
-          <label class="switch">
-            <input type="checkbox" :checked="autoApproveEnabled" @change="toggleModerationAutoApprove" />
-            <span class="slider"></span>
-          </label>
-          <span class="switch-label">Duyệt tự động (5s)</span>
-        </div>
-        <button
-          v-if="activeModuleTab === 'reports'"
-          type="button"
-          class="btn"
-          style="display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e2e8f0; background: #fff; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
-          @click="triggerReportsAutoResolve"
-        >
-          <AppIcon name="settings" size="16" /> Cấu hình tự động xử lý báo cáo
-        </button>
-        <ActionIconButton
-          v-if="activeModuleTab === 'reports'"
-          icon="refresh"
-          label="Tải lại"
-          @click="triggerReportsRefresh"
-        />
-        <ActionIconButton
-          v-if="activeModuleTab === 'complaints'"
-          icon="refresh"
-          label="Tải lại"
-          @click="triggerComplaintsRefresh"
-        />
-      </div>
-    </header>
-
-    <nav class="module-tabs" aria-label="Nhóm chức năng kiểm duyệt">
-      <button
-        v-for="tab in moduleTabs"
-        :key="tab.value"
-        type="button"
-        class="tab-btn"
-        :class="{ active: activeModuleTab === tab.value }"
-        @click="selectModuleTab(tab.value)"
-      >
-        <AppIcon :name="tab.icon" size="16" />
-        <span>{{ tab.label }}</span>
-      </button>
-    </nav>
+    <!-- page-head removed completely -->
 
     <!-- Render tab tương ứng -->
     <keep-alive>
@@ -126,6 +76,9 @@ export default {
     triggerReportsRefresh() {
       this.$refs.reportsTab?.loadReports();
     },
+    triggerComplaintsAutoResolve() {
+      this.$refs.complaintsTab?.openAutoResolveModal();
+    },
     triggerComplaintsRefresh() {
       this.$refs.complaintsTab?.loadComplaints();
     },
@@ -153,53 +106,16 @@ export default {
   width: 100%;
 }
 
-.module-tabs .tab-btn:hover:not(.active) {
-  background: var(--admin-surface-muted);
-  color: var(--admin-text);
-}
-
-.module-tabs {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-  margin-bottom: 18px;
-  padding: 5px;
-  border: 1px solid #dbe3ef;
-  border-radius: 10px;
-  background: var(--admin-surface);
-}
-
-.module-tabs .tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 38px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--admin-muted);
-  padding: 8px 12px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 850;
-  cursor: pointer;
-}
-
-.module-tabs .tab-btn.active {
-  background: #dcfce7;
-  color: var(--admin-primary);
-}
 
 /* AUTO APPROVE TOGGLE */
 .auto-approve-wrapper {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--admin-surface-muted);
+  background: #f8fafc;
   padding: 6px 12px;
   border-radius: 8px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid #cbd5e1;
 }
 
 .switch {
@@ -240,10 +156,12 @@ export default {
 }
 
 input:checked + .slider {
-  background-color: var(--admin-primary);
+  background-color: #10b981;
 }
 
-input:focus + .slider { box-shadow: 0 0 1px var(--admin-primary); }
+input:focus + .slider {
+  box-shadow: 0 0 1px #10b981;
+}
 
 input:checked + .slider:before {
   transform: translateX(18px);
@@ -252,6 +170,6 @@ input:checked + .slider:before {
 .switch-label {
   font-size: 13px;
   font-weight: 700;
-  color: var(--admin-text);
+  color: #334155;
 }
 </style>

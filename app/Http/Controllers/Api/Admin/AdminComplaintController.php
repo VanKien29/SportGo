@@ -72,6 +72,7 @@ class AdminComplaintController extends Controller
                         ->orWhereHas('venueCluster', fn ($venue) => $venue->where('name', 'like', $keyword));
                 });
             })
+            ->orderByDesc('is_vip_priority')
             ->latest()
             ->get();
 
@@ -214,6 +215,7 @@ class AdminComplaintController extends Controller
             'complaint_type' => $complaint->complaint_type,
             'content' => $complaint->content,
             'status' => $complaint->status,
+            'is_vip_priority' => (bool) $complaint->is_vip_priority,
             'customer' => $this->userPayload($complaint->customer),
             'assigned_to' => $this->userPayload($complaint->assignedTo),
             'resolved_by' => $this->userPayload($complaint->resolvedBy),
@@ -325,6 +327,101 @@ class AdminComplaintController extends Controller
             'data' => ['status' => $complaint->status],
             'is_read' => false,
         ]);
+    }
+
+    public function autoResolveConfig(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'policy.rule.manage');
+
+        $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
+        if (!$activePolicy) {
+            $activePolicy = \App\Models\SystemPolicy::where('key', 'moderation')->orderByDesc('version')->first();
+        }
+
+        $rules = $activePolicy ? $activePolicy->rules()->get() : collect();
+
+        $types = ['venue', 'system'];
+        $configs = [];
+
+        foreach ($types as $type) {
+            $rule = $rules->firstWhere('rule_code', 'complaint_auto_resolve_' . $type);
+            $isAutoResolveEnabled = false;
+            $reason = $type === 'venue' 
+                ? 'Hệ thống tự động giải quyết khiếu nại cụm sân và thông báo tới chủ sân.' 
+                : 'Hệ thống tự động giải quyết khiếu nại hệ thống.';
+
+            if ($rule) {
+                $r = $rule->result_json ?? [];
+                $isAutoResolveEnabled = $r['is_auto_resolve_enabled'] ?? false;
+                $reason = $r['reason'] ?? $reason;
+            }
+
+            $configs[$type] = [
+                'target_type' => $type,
+                'target_type_label' => $type === 'venue' ? 'Khiếu nại cụm sân' : 'Khiếu nại hệ thống',
+                'reason' => $reason,
+                'is_auto_resolve_enabled' => $isAutoResolveEnabled,
+            ];
+        }
+
+        return response()->json([
+            'data' => [
+                'policy_id' => $activePolicy?->id,
+                'configs' => $configs,
+            ]
+        ]);
+    }
+
+    public function saveAutoResolveConfig(Request $request): JsonResponse
+    {
+        $this->authorizePermission($request, 'policy.rule.manage');
+
+        $data = $request->validate([
+            'configs' => ['required', 'array'],
+            'configs.*.target_type' => ['required', 'string', 'in:venue,system'],
+            'configs.*.is_auto_resolve_enabled' => ['required', 'boolean'],
+            'configs.*.reason' => ['required', 'string', 'max:255'],
+        ]);
+
+        $activePolicy = \App\Models\SystemPolicy::where('policy_type', 'moderation')->where('status', 'active')->first();
+        if (!$activePolicy) {
+            $activePolicy = \App\Models\SystemPolicy::where('key', 'moderation')->orderByDesc('version')->first();
+        }
+
+        if (!$activePolicy) {
+            throw ValidationException::withMessages(['policy' => 'Không có chính sách kiểm duyệt nào đang hoạt động.']);
+        }
+
+        foreach ($data['configs'] as $config) {
+            $targetType = $config['target_type'];
+            
+            $rule = \App\Models\PolicyRule::query()->updateOrCreate(
+                [
+                    'system_policy_id' => $activePolicy->id,
+                    'rule_code' => 'complaint_auto_resolve_' . $targetType,
+                ],
+                [
+                    'rule_name' => 'Tự động xử lý khiếu nại: ' . ($targetType === 'venue' ? 'Cụm sân' : 'Hệ thống'),
+                    'rule_type' => 'complaint_auto_resolve',
+                    'action_code' => 'complaint.created',
+                    'decision_key' => 'complaint_auto_resolve',
+                    'conflict_group' => 'complaint_auto_resolve_' . $targetType,
+                    'condition_json' => ['complaint_type' => $targetType],
+                    'priority' => $activePolicy->priority ?? 100,
+                    'is_active' => true,
+                ]
+            );
+
+            $r = $rule->result_json ?? [];
+            $r['is_auto_resolve_enabled'] = $config['is_auto_resolve_enabled'];
+            $r['reason'] = $config['reason'];
+            
+            $rule->update([
+                'result_json' => $r,
+            ]);
+        }
+
+        return response()->json(['message' => 'Lưu cấu hình tự động xử lý khiếu nại thành công.']);
     }
 
     private function authorizePermission(Request $request, string $permission): void

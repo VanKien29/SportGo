@@ -144,7 +144,7 @@ export default {
 }
 
 .theme-toggle-btn:hover {
-  border-color: var(--admin-border);
+  border-color: rgba(47, 158, 68, 0.32);
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
   transform: translateY(-1px);

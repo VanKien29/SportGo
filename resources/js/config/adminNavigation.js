@@ -87,6 +87,12 @@ export const adminNavigationSections = [
         to: '/admin/vouchers',
         activeNames: ['admin-vouchers', 'admin-voucher-detail'],
       },
+      {
+        label: 'Gói VIP hệ thống',
+        icon: 'star',
+        to: '/admin/membership-packages',
+        activeNames: ['admin-membership-packages'],
+      },
     ],
   },
   {
@@ -122,6 +128,12 @@ export const adminNavigationSections = [
     label: 'Kiểm duyệt & hỗ trợ',
     items: [
       {
+        label: 'Kiểm duyệt bài viết',
+        icon: 'fileText',
+        to: '/admin/venue-posts',
+        activeNames: ['admin-venue-posts'],
+      },
+      {
         label: 'Kiểm duyệt nội dung',
         icon: 'eye',
         to: '/admin/moderation',
@@ -152,9 +164,11 @@ export const adminRouteTitles = {
   'admin-payments': 'Theo dõi thanh toán booking',
   'admin-finance-operations': 'Hoàn tiền và rút tiền',
   'admin-vouchers': 'Voucher hệ thống',
+  'admin-membership-packages': 'Gói VIP hệ thống',
   'admin-partner-applications': 'Quản lý hồ sơ đối tác',
   'admin-banners': 'Quản lý banner',
   'admin-moderation': 'Kiểm duyệt nội dung',
+  'admin-venue-posts': 'Kiểm duyệt bài viết',
   'admin-roles': 'Quản lý nhóm quyền',
   'admin-role-detail': 'Chi tiết nhóm quyền',
   'admin-policies': 'Quản lý chính sách',
