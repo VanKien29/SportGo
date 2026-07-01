@@ -41,7 +41,7 @@
               inputmode="numeric"
               maxlength="5"
               placeholder="08:00"
-              pattern="(?:[01]\d|2[0-3]):[0-5]\d"
+              @input="normalizeTimeInput('fixed_open_time')"
             >
           </label>
           <span class="range-arrow">→</span>
@@ -53,13 +53,13 @@
               inputmode="numeric"
               maxlength="5"
               placeholder="22:00"
-              pattern="(?:(?:[01]\d|2[0-3]):[0-5]\d|24:00)"
+              @input="normalizeTimeInput('fixed_close_time')"
             >
           </label>
           <label>
             <span>Thời lượng 1 booking</span>
             <div class="input-unit">
-              <input v-model.number="form.min_duration_minutes" type="number" min="30" max="120" step="30" required>
+              <input v-model.trim="form.min_duration_minutes" type="text" inputmode="numeric" @input="normalizeIntegerInput('min_duration_minutes')">
               <span>phút</span>
             </div>
           </label>
@@ -112,14 +112,14 @@
             <label>
               <span>Đặt trước tối thiểu</span>
               <div class="input-unit">
-                <input v-model.number="form.min_advance_booking_minutes" type="number" min="30" step="1" required>
+                <input v-model.trim="form.min_advance_booking_minutes" type="text" inputmode="numeric" @input="normalizeIntegerInput('min_advance_booking_minutes')">
                 <span>phút</span>
               </div>
             </label>
             <label>
               <span>Thời lượng tối đa</span>
               <div class="input-unit">
-                <input v-model.number="form.max_duration_minutes" type="number" min="30" max="1440" step="30" placeholder="Không giới hạn">
+                <input v-model.trim="form.max_duration_minutes" type="text" inputmode="numeric" placeholder="Không giới hạn" @input="normalizeIntegerInput('max_duration_minutes', true)">
                 <span>phút</span>
               </div>
             </label>
@@ -132,14 +132,14 @@
             <label>
               <span>Thời gian giữ chỗ</span>
               <div class="input-unit">
-                <input v-model.number="form.slot_hold_minutes" type="number" min="5" max="120" step="5" required>
+                <input v-model.trim="form.slot_hold_minutes" type="text" inputmode="numeric" @input="normalizeIntegerInput('slot_hold_minutes')">
                 <span>phút</span>
               </div>
             </label>
             <label>
               <span>Nhắc trước giờ chơi</span>
               <div class="input-unit">
-                <input v-model.number="form.reminder_before_minutes" type="number" min="0" max="10080" step="5" required>
+                <input v-model.trim="form.reminder_before_minutes" type="text" inputmode="numeric" @input="normalizeIntegerInput('reminder_before_minutes')">
                 <span>phút</span>
               </div>
             </label>
@@ -158,7 +158,7 @@
             <input v-model="form.allow_deposit" type="checkbox">
                <strong>Đặt cọc</strong>
             <div v-if="form.allow_deposit" class="deposit-field" @click.stop>
-              <input v-model.number="form.deposit_percent" type="number" min="1" max="100" required>
+              <input v-model.trim="form.deposit_percent" type="text" inputmode="numeric" @input="normalizeIntegerInput('deposit_percent')">
               <span>%</span>
             </div>
           </label>
@@ -269,19 +269,26 @@ export default {
       if (!this.form) return [];
 
       const messages = [];
-      if (!Number.isInteger(this.form.min_advance_booking_minutes) || this.form.min_advance_booking_minutes < 30) {
+      const minAdvance = this.integerInputValue(this.form.min_advance_booking_minutes);
+      const minDuration = this.integerInputValue(this.form.min_duration_minutes);
+      const maxDuration = this.nullableIntegerInputValue(this.form.max_duration_minutes);
+      const slotHold = this.integerInputValue(this.form.slot_hold_minutes);
+      const reminderBefore = this.integerInputValue(this.form.reminder_before_minutes);
+      const depositPercent = this.integerInputValue(this.form.deposit_percent);
+
+      if (!Number.isInteger(minAdvance) || minAdvance < 30) {
         messages.push('Thời gian đặt trước tối thiểu là 30 phút.');
       }
-      if (!Number.isInteger(this.form.min_duration_minutes) || this.form.min_duration_minutes < 30 || this.form.min_duration_minutes > 120 || this.form.min_duration_minutes % 30 !== 0) {
+      if (!Number.isInteger(minDuration) || minDuration < 30 || minDuration > 120 || minDuration % 30 !== 0) {
         messages.push('Thời lượng tối thiểu phải từ 30 phút đến 2 giờ, theo bước 30 phút.');
       }
-      if (this.form.max_duration_minutes && (this.form.max_duration_minutes > 1440 || this.form.max_duration_minutes % 30 !== 0 || this.form.max_duration_minutes < this.form.min_duration_minutes)) {
+      if (maxDuration !== null && (!Number.isInteger(maxDuration) || maxDuration > 1440 || maxDuration % 30 !== 0 || maxDuration < minDuration)) {
         messages.push('Thời lượng tối đa phải từ mức tối thiểu đến 24 giờ, theo bước 30 phút.');
       }
-      if (!Number.isInteger(this.form.slot_hold_minutes) || this.form.slot_hold_minutes < 5 || this.form.slot_hold_minutes > 120 || this.form.slot_hold_minutes % 5 !== 0) {
+      if (!Number.isInteger(slotHold) || slotHold < 5 || slotHold > 120 || slotHold % 5 !== 0) {
         messages.push('Thời gian giữ chỗ phải từ 5 đến 120 phút, theo bước 5 phút.');
       }
-      if (!Number.isInteger(this.form.reminder_before_minutes) || this.form.reminder_before_minutes < 0 || this.form.reminder_before_minutes > 10080 || this.form.reminder_before_minutes % 5 !== 0) {
+      if (!Number.isInteger(reminderBefore) || reminderBefore < 0 || reminderBefore > 10080 || reminderBefore % 5 !== 0) {
         messages.push('Thời gian nhắc lịch phải từ 0 đến 7 ngày, theo bước 5 phút.');
       }
 
@@ -310,7 +317,7 @@ export default {
       if (!this.form.allow_full_payment && !this.form.allow_deposit && !this.form.allow_no_prepay) {
         messages.push('Phải bật ít nhất một hình thức thanh toán.');
       }
-      if (this.form.allow_deposit && (!this.form.deposit_percent || this.form.deposit_percent < 1 || this.form.deposit_percent > 100)) {
+      if (this.form.allow_deposit && (!Number.isInteger(depositPercent) || depositPercent < 1 || depositPercent > 100)) {
         messages.push('Phần trăm cọc phải từ 1 đến 100.');
       }
 
@@ -416,7 +423,7 @@ export default {
           messages.push(`${label}: Số lượng booking duy trì phải là số nguyên không âm.`);
         }
         if (!this.isBlank(tier.maintain_min_spend_amount) && (!Number.isFinite(maintainSpend) || maintainSpend < 0)) {
-          messages.push(`${label}: Chi tiêu duy trì phải là số không âm.`);
+          messages.push(`${label}: Chi tiêu duy trì phải là số không âm và không phải chữ.`);
         }
       });
 
@@ -439,6 +446,27 @@ export default {
   methods: {
     isBlank(value) {
       return value === null || value === undefined || String(value).trim() === '';
+    },
+    normalizeIntegerInput(field, allowBlank = false) {
+      const digits = String(this.form[field] ?? '').replace(/\D/g, '');
+      this.form[field] = allowBlank && digits === '' ? '' : digits;
+    },
+    normalizeTimeInput(field) {
+      const digits = String(this.form[field] ?? '').replace(/\D/g, '').slice(0, 4);
+      if (digits.length <= 2) {
+        this.form[field] = digits;
+        return;
+      }
+      this.form[field] = `${digits.slice(0, 2)}:${digits.slice(2)}`;
+    },
+    integerInputValue(value) {
+      if (this.isBlank(value)) return NaN;
+      if (typeof value === 'number') return Number.isInteger(value) ? value : NaN;
+      const normalized = String(value).trim();
+      return /^\d+$/.test(normalized) ? Number(normalized) : NaN;
+    },
+    nullableIntegerInputValue(value) {
+      return this.isBlank(value) ? null : this.integerInputValue(value);
     },
     numberInputValue(value) {
       if (this.isBlank(value)) return NaN;
@@ -584,8 +612,12 @@ export default {
       try {
         const response = await ownerBookingConfigService.update(this.selectedClusterId, {
           ...this.form,
-          max_duration_minutes: this.form.max_duration_minutes || null,
-          deposit_percent: this.form.allow_deposit ? this.form.deposit_percent : null,
+          min_duration_minutes: this.integerInputValue(this.form.min_duration_minutes),
+          max_duration_minutes: this.nullableIntegerInputValue(this.form.max_duration_minutes),
+          min_advance_booking_minutes: this.integerInputValue(this.form.min_advance_booking_minutes),
+          slot_hold_minutes: this.integerInputValue(this.form.slot_hold_minutes),
+          reminder_before_minutes: this.integerInputValue(this.form.reminder_before_minutes),
+          deposit_percent: this.form.allow_deposit ? this.integerInputValue(this.form.deposit_percent) : null,
           membership_tiers: this.form.membership_tiers.map((tier) => ({
             tier_key: tier.tier_key,
             tier_label: tier.tier_label || tier.label,

@@ -65,11 +65,11 @@
               <option value="fixed">Số tiền</option>
             </select>
           </label>
-          <label>{{ discountValueLabel }}<span class="suffix-field"><input v-model.number="form.discount_value" type="number" min="0.01" :max="form.discount_type === 'percent' ? 100 : null" :step="form.discount_type === 'percent' ? 0.01 : 1000" @input="clearFieldError('discount_value')" @change="normalizeDiscountFields" /><span>{{ discountValueUnit }}</span></span><small v-if="validationErrors.discount_value" class="field-error">{{ validationErrors.discount_value }}</small></label>
-          <label v-if="form.discount_type === 'percent'">Giảm tối đa bao nhiêu tiền<span class="suffix-field"><input v-model.number="form.max_discount_amount" type="number" min="0" step="1000" @input="clearFieldError('max_discount_amount')" @change="normalizeDiscountFields" /><span>VNĐ</span></span><small v-if="validationErrors.max_discount_amount" class="field-error">{{ validationErrors.max_discount_amount }}</small></label>
-          <label>Đơn tối thiểu<span class="suffix-field"><input v-model.number="form.min_order_amount" type="number" min="0" step="1000" @input="clearFieldError('min_order_amount')" @change="normalizeDiscountFields" /><span>VNĐ</span></span><small v-if="validationErrors.min_order_amount" class="field-error">{{ validationErrors.min_order_amount }}</small></label>
-          <label>Tổng số lượng<input v-model.number="form.total_quantity" type="number" min="1" @input="clearFieldError('total_quantity')" /><small v-if="validationErrors.total_quantity" class="field-error">{{ validationErrors.total_quantity }}</small></label>
-          <label>Giới hạn mỗi khách<input v-model.number="form.per_user_limit" type="number" min="1" @input="clearFieldError('per_user_limit')" /><small v-if="validationErrors.per_user_limit" class="field-error">{{ validationErrors.per_user_limit }}</small></label>
+          <label>{{ discountValueLabel }}<span class="suffix-field"><input v-model.trim="form.discount_value" type="text" :inputmode="form.discount_type === 'percent' ? 'decimal' : 'numeric'" @input="clearFieldError('discount_value')" @change="normalizeDiscountFields" /><span>{{ discountValueUnit }}</span></span><small v-if="validationErrors.discount_value" class="field-error">{{ validationErrors.discount_value }}</small></label>
+          <label v-if="form.discount_type === 'percent'">Giảm tối đa bao nhiêu tiền<span class="suffix-field"><input v-model.trim="form.max_discount_amount" type="text" inputmode="numeric" @input="clearFieldError('max_discount_amount')" @change="normalizeDiscountFields" /><span>VNĐ</span></span><small v-if="validationErrors.max_discount_amount" class="field-error">{{ validationErrors.max_discount_amount }}</small></label>
+          <label>Đơn tối thiểu<span class="suffix-field"><input v-model.trim="form.min_order_amount" type="text" inputmode="numeric" @input="clearFieldError('min_order_amount')" @change="normalizeDiscountFields" /><span>VNĐ</span></span><small v-if="validationErrors.min_order_amount" class="field-error">{{ validationErrors.min_order_amount }}</small></label>
+          <label>Tổng số lượng<input v-model.trim="form.total_quantity" type="text" inputmode="numeric" @input="clearFieldError('total_quantity')" /><small v-if="validationErrors.total_quantity" class="field-error">{{ validationErrors.total_quantity }}</small></label>
+          <label>Giới hạn mỗi khách<input v-model.trim="form.per_user_limit" type="text" inputmode="numeric" @input="clearFieldError('per_user_limit')" /><small v-if="validationErrors.per_user_limit" class="field-error">{{ validationErrors.per_user_limit }}</small></label>
           <label>Bắt đầu<input v-model="form.valid_from" type="datetime-local" @input="clearFieldError('valid_from')" /><small v-if="validationErrors.valid_from" class="field-error">{{ validationErrors.valid_from }}</small></label>
           <label>Kết thúc<input v-model="form.valid_to" type="datetime-local" @input="clearFieldError('valid_to')" /><small v-if="validationErrors.valid_to" class="field-error">{{ validationErrors.valid_to }}</small></label>
           <label>Trạng thái
@@ -89,17 +89,17 @@
             </select>
           </label>
           <label v-if="form.scopes[0].scope_type === 'court_type'">Loại sân áp dụng
-            <select v-model="form.scopes[0].scope_id" required>
+            <select v-model="form.scopes[0].scope_id">
               <option v-for="item in scopeOptions.court_types" :key="item.id" :value="String(item.id)">{{ item.name }}</option>
             </select>
           </label>
           <label v-else-if="form.scopes[0].scope_type === 'membership_tier'">Hạng sân áp dụng
-            <select v-model="form.scopes[0].scope_id" required>
+            <select v-model="form.scopes[0].scope_id">
               <option v-for="item in scopeOptions.membership_tiers" :key="item.id" :value="item.id">{{ item.name }}</option>
             </select>
           </label>
           <label v-else-if="form.scopes[0].scope_type === 'booking_type'">Loại booking
-            <select v-model="form.scopes[0].scope_id" required>
+            <select v-model="form.scopes[0].scope_id">
               <option v-for="item in scopeOptions.booking_types" :key="item.id" :value="item.id">{{ item.name }}</option>
             </select>
           </label>
@@ -229,8 +229,8 @@ export default {
       this.validationErrors = {};
     },
     async save() {
-      this.normalizeDiscountFields();
       if (!this.validateForm()) return;
+      this.normalizeDiscountFields();
 
       this.saving = true;
       try {
@@ -253,11 +253,15 @@ export default {
     },
     validateForm() {
       const errors = {};
-      const discountValue = Number(this.form.discount_value);
-      const maxDiscountAmount = Number(this.form.max_discount_amount || 0);
-      const minOrderAmount = Number(this.form.min_order_amount || 0);
-      const totalQuantity = Number(this.form.total_quantity);
-      const perUserLimit = Number(this.form.per_user_limit);
+      const discountValue = this.form.discount_type === 'percent'
+        ? this.decimalInputValue(this.form.discount_value)
+        : this.vndIntegerInputValue(this.form.discount_value);
+      const maxDiscountAmount = this.form.max_discount_amount === null || this.form.max_discount_amount === ''
+        ? 0
+        : this.vndIntegerInputValue(this.form.max_discount_amount);
+      const minOrderAmount = this.vndIntegerInputValue(this.form.min_order_amount || 0);
+      const totalQuantity = this.integerInputValue(this.form.total_quantity);
+      const perUserLimit = this.integerInputValue(this.form.per_user_limit);
 
       if (!this.form.code) errors.code = 'Vui lòng nhập mã voucher.';
       if (!this.form.name) errors.name = 'Vui lòng nhập tên voucher.';
@@ -269,11 +273,18 @@ export default {
         errors.discount_value = 'Phần trăm giảm không được vượt quá 100%.';
       }
 
-      if (this.form.discount_type === 'percent' && maxDiscountAmount < 0) {
+      if (!errors.discount_value && this.form.discount_type === 'fixed' && !Number.isInteger(discountValue)) {
+        errors.discount_value = 'Số tiền giảm phải là số nguyên VND, không nhập phần thập phân.';
+      }
+      if (!errors.discount_value && this.form.discount_type === 'percent' && !this.hasAtMostTwoDecimals(this.form.discount_value)) {
+        errors.discount_value = 'Phần trăm giảm chỉ được tối đa 2 chữ số thập phân.';
+      }
+
+      if (this.form.discount_type === 'percent' && (!Number.isInteger(maxDiscountAmount) || maxDiscountAmount < 0)) {
         errors.max_discount_amount = 'Số tiền giảm tối đa không được âm.';
       }
 
-      if (minOrderAmount < 0) errors.min_order_amount = 'Đơn tối thiểu không được âm.';
+      if (!Number.isInteger(minOrderAmount) || minOrderAmount < 0) errors.min_order_amount = 'Đơn tối thiểu phải là số nguyên VND không âm.';
       if (!Number.isInteger(totalQuantity) || totalQuantity < 1) errors.total_quantity = 'Tổng số lượng phải từ 1 trở lên.';
       if (!Number.isInteger(perUserLimit) || perUserLimit < 1) errors.per_user_limit = 'Giới hạn mỗi khách phải từ 1 trở lên.';
       if (Number.isInteger(totalQuantity) && Number.isInteger(perUserLimit) && perUserLimit > totalQuantity) {
@@ -287,6 +298,24 @@ export default {
 
       this.validationErrors = errors;
       return Object.keys(errors).length === 0;
+    },
+    normalizedNumericText(value) {
+      return String(value ?? '').trim().replace(',', '.');
+    },
+    decimalInputValue(value) {
+      const normalized = this.normalizedNumericText(value);
+      return /^-?\d+(?:\.\d+)?$/.test(normalized) ? Number(normalized) : NaN;
+    },
+    integerInputValue(value) {
+      const normalized = String(value ?? '').trim();
+      return /^\d+$/.test(normalized) ? Number(normalized) : NaN;
+    },
+    vndIntegerInputValue(value) {
+      return this.integerInputValue(value);
+    },
+    hasAtMostTwoDecimals(value) {
+      const normalized = this.normalizedNumericText(value);
+      return /^\d+(?:\.\d{1,2})?$/.test(normalized);
     },
     clearFieldError(field) {
       if (!this.validationErrors[field]) return;
@@ -307,7 +336,6 @@ export default {
       };
     },
     async turnOff(voucher) {
-      if (!confirm(`Tắt voucher ${voucher.code}?`)) return;
       const response = await ownerVoucherService.deactivate(voucher.id, 'Chủ sân tắt voucher.');
       this.success = response.message;
       await this.load();
@@ -328,20 +356,35 @@ export default {
     },
     normalizeDiscountFields() {
       if (this.form.discount_type === 'percent') {
-        const percent = Number(this.form.discount_value || 0);
-        this.form.discount_value = Math.min(Math.max(Number(percent.toFixed(2)), 0.01), 100);
-        this.form.max_discount_amount = this.form.max_discount_amount === null || this.form.max_discount_amount === ''
-          ? null
-          : this.toVndInteger(this.form.max_discount_amount);
+        const percent = this.decimalInputValue(this.form.discount_value);
+        if (Number.isFinite(percent)) {
+          this.form.discount_value = Math.min(Math.max(Number(percent.toFixed(2)), 0.01), 100);
+        }
+
+        if (this.form.max_discount_amount === null || this.form.max_discount_amount === '') {
+          this.form.max_discount_amount = null;
+        } else {
+          const maxDiscountAmount = this.toVndInteger(this.form.max_discount_amount);
+          if (Number.isInteger(maxDiscountAmount)) {
+            this.form.max_discount_amount = maxDiscountAmount;
+          }
+        }
       } else {
-        this.form.discount_value = Math.max(this.toVndInteger(this.form.discount_value), 1);
+        const discountValue = this.toVndInteger(this.form.discount_value);
+        if (Number.isInteger(discountValue)) {
+          this.form.discount_value = Math.max(discountValue, 1);
+        }
         this.form.max_discount_amount = null;
       }
 
-      this.form.min_order_amount = this.toVndInteger(this.form.min_order_amount);
+      const minOrderAmount = this.toVndInteger(this.form.min_order_amount);
+      if (Number.isInteger(minOrderAmount)) {
+        this.form.min_order_amount = minOrderAmount;
+      }
     },
     toVndInteger(value) {
-      return Math.max(Math.round(Number(value || 0)), 0);
+      const parsed = this.vndIntegerInputValue(value);
+      return Number.isInteger(parsed) ? Math.max(parsed, 0) : NaN;
     },
     formatPercent(value) {
       return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(Number(value || 0));

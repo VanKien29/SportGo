@@ -278,6 +278,27 @@ class AdminPlatformFeeLedgerTest extends TestCase
             );
     }
 
+    public function test_platform_fee_tier_validation_cannot_be_bypassed(): void
+    {
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/admin/platform-fee-tiers', [
+                'name' => 'Bac rui ro',
+                'min_courts' => 4,
+                'price_per_court_month' => 120000,
+                'annual_discount_percent' => 10,
+                'is_active' => true,
+                'strict_validation' => false,
+                'validation_bypass_reason' => 'Admin chap nhan cau hinh dac biet',
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors('price_per_court_month');
+
+        $this->assertDatabaseMissing('platform_fee_tiers', [
+            'name' => 'Bac rui ro',
+        ]);
+    }
+
     public function test_admin_can_cancel_only_an_unpaid_platform_fee_ledger(): void
     {
         $ledger = VenuePlatformFeeLedger::query()->create([

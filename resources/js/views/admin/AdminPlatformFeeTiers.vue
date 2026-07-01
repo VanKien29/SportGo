@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <section class="pf-page">
         <PlatformFeeSubnav />
 
@@ -12,14 +12,6 @@
                 gap: 12px;
             "
         >
-            <button
-                class="btn secondary icon-text"
-                type="button"
-                @click="openDiscountSettings"
-            >
-                <AppIcon name="settings" size="18" />
-                <span>Giảm kỳ 12 tháng</span>
-            </button>
             <button
                 class="btn secondary icon-text"
                 type="button"
@@ -52,8 +44,8 @@
             <input v-model.trim="keyword" placeholder="Tìm theo tên bậc phí" />
             <select v-model="statusFilter">
                 <option value="">Tất cả trạng thái</option>
-                <option value="active">Đang dùng</option>
-                <option value="inactive">Ngưng dùng</option>
+                <option value="active">Đang áp dụng</option>
+                <option value="inactive">Ngừng áp dụng</option>
             </select>
             <button
                 class="btn secondary icon-text"
@@ -107,13 +99,13 @@
                                     :class="{ inactive: !tier.is_active }"
                                     :title="
                                         tier.is_active
-                                            ? 'Đang dùng'
-                                            : 'Ngưng dùng'
+                                            ? 'Đang áp dụng'
+                                            : 'Ngừng áp dụng'
                                     "
                                     :aria-label="
                                         tier.is_active
-                                            ? 'Đang dùng'
-                                            : 'Ngưng dùng'
+                                            ? 'Đang áp dụng'
+                                            : 'Ngừng áp dụng'
                                     "
                                 ></span>
                             </td>
@@ -219,11 +211,10 @@
                     <label>
                         Giá / sân / tháng *
                         <input
-                            v-model.number="form.price_per_court_month"
-                            type="number"
-                            min="1"
-                            max="9999999999"
-                            step="1"
+                            :value="form.price_per_court_month"
+                            type="text"
+                            inputmode="numeric"
+                            @input="handleIntegerFieldInput('price_per_court_month', $event)"
                         />
                         <div
                             v-if="fieldError('price_per_court_month')"
@@ -237,10 +228,10 @@
                     <label>
                         Số sân tối thiểu *
                         <input
-                            v-model.number="form.min_courts"
-                            type="number"
-                            min="1"
-                            step="1"
+                            :value="form.min_courts"
+                            type="text"
+                            inputmode="numeric"
+                            @input="handleIntegerFieldInput('min_courts', $event)"
                         />
                         <small
                             v-if="fieldError('min_courts')"
@@ -260,25 +251,20 @@
                     <label class="full">
                         Giảm kỳ 12 tháng (%)
                         <input
-                            v-model.number="form.discount_12_months"
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
+                            :value="form.discount_12_months"
+                            type="text"
+                            inputmode="decimal"
+                            @input="handleDecimalFieldInput('discount_12_months', $event)"
                         />
                         <small
                             v-if="fieldError('discount_12_months')"
                             class="field-error"
                             >{{ fieldError("discount_12_months") }}</small
                         >
-                        <small v-else>
-                            DB hiện chỉ lưu mức giảm khi đóng 12 tháng; các kỳ
-                            1/3/6/9 tháng không áp dụng giảm.
-                        </small>
                     </label>
                     <label class="check-row">
                         <input v-model="form.is_active" type="checkbox" />
-                        <span>Đang dùng</span>
+                        <span>Áp dụng cho kỳ phí mới</span>
                     </label>
                     <label class="full">
                         Ghi chú nội bộ
@@ -358,11 +344,9 @@
                     <label v-for="field in discountFields" :key="field.key">
                         {{ field.label }}
                         <input
-                            v-model.number="discountForm[field.key]"
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
+                            v-model.trim="discountForm[field.key]"
+                            type="text"
+                            inputmode="decimal"
                         />
                         <small
                             v-if="discountFieldError(field.key)"
@@ -840,6 +824,29 @@ export default {
             this.form.name = event.target.value;
             this.autoSyncTierName = false;
         },
+        handleIntegerFieldInput(field, event) {
+            const value = String(event.target.value || "").replace(/\D/g, "");
+            this.form[field] = value;
+            event.target.value = value;
+            delete this.formErrors[field];
+
+            if (field === "min_courts") this.syncAutomaticTierName();
+        },
+        handleDecimalFieldInput(field, event) {
+            const rawValue = String(event.target.value || "")
+                .replace(",", ".")
+                .replace(/[^\d.]/g, "");
+            const [integerPart = "", ...decimalParts] = rawValue.split(".");
+            const hasDecimalSeparator = rawValue.includes(".");
+            const decimalPart = decimalParts.join("").slice(0, 2);
+            const value = hasDecimalSeparator
+                ? `${integerPart}.${decimalPart}`
+                : integerPart;
+
+            this.form[field] = value;
+            event.target.value = value;
+            delete this.formErrors[field];
+        },
         syncAutomaticTierName() {
             const minCourts = Number(this.form.min_courts);
             if (
@@ -893,12 +900,6 @@ export default {
                 this.form[field.key] = profile[field.key];
             });
             this.form.annual_discount_percent = this.form.discount_12_months;
-        },
-        openDiscountSettings() {
-            this.showMessage(
-                "DB hiện chỉ lưu giảm kỳ 12 tháng trực tiếp trên từng bậc phí. Chưa có bảng riêng cho mẫu giảm kỳ.",
-                "error",
-            );
         },
         closeDiscountSettings() {
             this.showDiscountModal = false;

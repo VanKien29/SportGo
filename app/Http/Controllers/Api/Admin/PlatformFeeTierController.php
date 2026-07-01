@@ -41,6 +41,7 @@ class PlatformFeeTierController extends Controller
         $data = $request->validate($this->tierRules(), $this->tierValidationMessages());
 
         $tier = DB::transaction(function () use ($data): PlatformFeeTier {
+            $this->validateUniqueName(null, (string) $data['name']);
             $this->validateUniqueMinimum(null, (int) $data['min_courts']);
             $this->validateProposedActiveCoverage(null, (bool) $data['is_active'], (int) $data['min_courts']);
             $this->validateProposedActivePrice(
@@ -67,6 +68,7 @@ class PlatformFeeTierController extends Controller
         $data = $request->validate($this->tierRules($tier->id), $this->tierValidationMessages());
 
         $tier = DB::transaction(function () use ($tier, $data): PlatformFeeTier {
+            $this->validateUniqueName($tier->id, (string) $data['name']);
             $this->validateUniqueMinimum($tier->id, (int) $data['min_courts']);
             $this->validateProposedActiveCoverage($tier->id, (bool) $data['is_active'], (int) $data['min_courts']);
             $this->validateProposedActivePrice(
@@ -214,13 +216,11 @@ class PlatformFeeTierController extends Controller
                 'required',
                 'string',
                 'max:50',
-                Rule::unique('platform_fee_tiers', 'name')->ignore($ignoreId),
             ],
             'min_courts' => [
                 'required',
                 'integer',
                 'min:1',
-                Rule::unique('platform_fee_tiers', 'min_courts')->ignore($ignoreId),
             ],
             'price_per_court_month' => ['required', 'integer', 'min:1', 'max:9999999999'],
             'annual_discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -246,6 +246,21 @@ class PlatformFeeTierController extends Controller
             'annual_discount_percent.min' => 'Mức giảm kỳ 12 tháng không được nhỏ hơn 0%.',
             'annual_discount_percent.max' => 'Mức giảm kỳ 12 tháng không được lớn hơn 100%.',
         ];
+    }
+
+    private function validateUniqueName(?int $ignoreId, string $name): void
+    {
+        $hasDuplicate = PlatformFeeTier::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($name))])
+            ->when($ignoreId !== null, fn ($query) => $query->whereKeyNot($ignoreId))
+            ->lockForUpdate()
+            ->exists();
+
+        if ($hasDuplicate) {
+            throw ValidationException::withMessages([
+                'name' => ['Tên bậc phí đang trùng với một bậc phí khác.'],
+            ]);
+        }
     }
 
     private function validateUniqueMinimum(?int $ignoreId, int $minCourts): void
@@ -390,7 +405,7 @@ class PlatformFeeTierController extends Controller
             'discount_9_months' => 0,
             'discount_12_months' => $annualDiscount,
             'is_active' => (bool) $tier->is_active,
-            'note' => 'Dữ liệu từ DB. Hiện DB chỉ lưu giảm kỳ 12 tháng.',
+            'note' => null,
             'usage_count' => (int) ($tier->usage_count ?? 0),
             'created_at' => $tier->created_at?->toISOString(),
             'updated_at' => $tier->updated_at?->toISOString(),

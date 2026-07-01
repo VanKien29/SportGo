@@ -11,7 +11,7 @@ export const DISCOUNT_FIELDS = [
 
 function toNumber(value, fallback = 0) {
   if (value === '' || value === null || value === undefined) return fallback;
-  const number = Number(value);
+  const number = Number(String(value).trim().replace(',', '.'));
   return Number.isFinite(number) ? number : fallback;
 }
 
@@ -74,7 +74,7 @@ export function getDiscountProfiles() {
   return Promise.resolve([
     {
       id: 'db-annual',
-      name: 'Giảm theo DB hiện tại',
+      name: 'Mức giảm kỳ 12 tháng',
       discount_1_month: 0,
       discount_3_months: 0,
       discount_6_months: 0,
@@ -86,7 +86,7 @@ export function getDiscountProfiles() {
 }
 
 export function createDiscountProfile() {
-  return Promise.reject(new Error('Mẫu giảm kỳ chưa có bảng DB riêng. Hiện chỉ lưu giảm 12 tháng trực tiếp trên bậc phí.'));
+  return Promise.reject(new Error('Tính năng mẫu giảm theo kỳ chưa được hỗ trợ.'));
 }
 
 export function updateDiscountProfile() {
@@ -300,7 +300,6 @@ export function calculatePlatformFee({ court_count, period_months, tier }) {
   const amountDue = Math.max(0, Math.round(baseAmount - discountAmount));
   const warnings = [];
 
-  if (months !== 12) warnings.push('DB hiện chỉ cấu hình giảm kỳ 12 tháng; kỳ này không áp dụng giảm.');
   if (discountPercent > 50) warnings.push('Mức giảm giá cao, vui lòng kiểm tra lại.');
   if (discountPercent === 100 || amountDue === 0) warnings.push('Giảm giá 100%, số tiền phải đóng bằng 0.');
 
