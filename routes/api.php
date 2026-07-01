@@ -357,6 +357,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/platform-fees/prepay', [OwnerPlatformFeeController::class, 'createAdvancePayment']);
         Route::get('/platform-fees/{id}', [OwnerPlatformFeeController::class, 'show']);
         Route::post('/platform-fees/{id}/payment', [OwnerPlatformFeeController::class, 'createPayment']);
+        Route::patch('/platform-fees/{id}/cancel', [OwnerPlatformFeeController::class, 'cancel']);
         Route::get('/schedule-locks', [OwnerScheduleLockController::class, 'index']);
         Route::post('/schedule-locks/preview', [OwnerScheduleLockController::class, 'preview']);
         Route::post('/schedule-locks', [OwnerScheduleLockController::class, 'store']);

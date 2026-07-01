@@ -27,8 +27,11 @@
           <div><span>Bậc phí snapshot</span><strong>{{ ledger.tier_name }}</strong></div>
           <div><span>Kỳ đóng</span><strong>{{ ledger.period_months }} tháng</strong></div>
           <div><span>Thời gian kỳ phí</span><strong>{{ date(ledger.period_start) }} - {{ date(ledger.period_end) }}</strong></div>
+          <div><span>Trạng thái hiệu lực</span><strong :class="ledger.period_warning_level">{{ periodStatusLabel(ledger) }}</strong></div>
+          <div><span>Khoảng sân snapshot</span><strong>{{ tierRangeLabel(ledger) }}</strong></div>
           <div><span>Giá/sân/tháng snapshot</span><strong>{{ money(ledger.price_per_court_month) }}</strong></div>
           <div><span>Giảm giá snapshot</span><strong>{{ percent(ledger.discount_percent) }}</strong></div>
+          <div><span>Thời điểm chốt giá</span><strong>{{ dateTime(ledger.pricing_snapshotted_at) }}</strong></div>
           <div><span>Tổng trước giảm</span><strong>{{ money(ledger.base_amount) }}</strong></div>
           <div><span>Số tiền giảm</span><strong>{{ money(ledger.discount_amount) }}</strong></div>
           <div><span>Ngày thanh toán</span><strong>{{ ledger.paid_at ? date(ledger.paid_at) : '-' }}</strong></div>
@@ -54,6 +57,10 @@
           <button class="btn secondary icon-text" type="button" :disabled="ledger.status !== 'paid'" @click="unlockVenue">
             <AppIcon name="unlock" size="18" />
             <span>Mở khóa sau thanh toán</span>
+          </button>
+          <button class="btn danger icon-text" type="button" :disabled="!canCancelLedger" @click="cancelCurrentLedger">
+            <AppIcon name="trash" size="18" />
+            <span>Hủy kỳ phí</span>
           </button>
         </div>
       </section>
@@ -116,12 +123,36 @@
       </div>
     </div>
 
+    <div v-if="cancelDialogOpen" class="modal-backdrop" @click.self="closeCancelDialog">
+      <form class="modal cancel-modal" @submit.prevent="submitCancellation">
+        <header class="modal-head">
+          <h3>Xác nhận hủy kỳ phí</h3>
+          <button class="icon-close" type="button" title="Đóng" aria-label="Đóng" @click="closeCancelDialog">
+            <AppIcon name="x" size="18" />
+          </button>
+        </header>
+        <p class="cancel-warning">Chỉ kỳ chưa ghi nhận tiền mới được hủy. Dữ liệu kỳ đã thanh toán sẽ không bị thay đổi.</p>
+        <label>
+          Lý do hủy *
+          <textarea v-model.trim="cancelReason" rows="4" maxlength="500" required></textarea>
+        </label>
+        <footer class="cancel-actions">
+          <button class="btn secondary" type="button" @click="closeCancelDialog">Quay lại</button>
+          <button class="btn danger icon-text" type="submit" :disabled="!cancelReason">
+            <AppIcon name="trash" size="18" />
+            <span>Xác nhận hủy</span>
+          </button>
+        </footer>
+      </form>
+    </div>
+
     <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
   </section>
 </template>
 
 <script>
 import {
+  cancelLedger,
   confirmLedgerPayment,
   getLedgerById,
   lockVenueForOverdueLedger,
@@ -142,12 +173,19 @@ export default {
       ledger: null,
       emailLogs: [],
       selectedEmail: null,
+      cancelDialogOpen: false,
+      cancelReason: '',
       toast: '',
       toastType: 'success',
     };
   },
   mounted() {
     this.loadDetail();
+  },
+  computed: {
+    canCancelLedger() {
+      return this.ledger && ['pending', 'overdue'].includes(this.ledger.status) && Number(this.ledger.amount_paid || 0) <= 0;
+    },
   },
   methods: {
     async loadDetail() {
@@ -169,6 +207,21 @@ export default {
     },
     async unlockVenue() {
       await this.run(() => unlockVenueAfterPayment(this.ledger.id), 'Đã mở khóa cụm sân.');
+    },
+    async cancelCurrentLedger() {
+      if (!this.canCancelLedger) return;
+      this.cancelReason = 'Admin hủy kỳ phí chưa xử lý';
+      this.cancelDialogOpen = true;
+    },
+    closeCancelDialog() {
+      this.cancelDialogOpen = false;
+      this.cancelReason = '';
+    },
+    async submitCancellation() {
+      if (!this.canCancelLedger || !this.cancelReason) return;
+      const reason = this.cancelReason;
+      this.closeCancelDialog();
+      await this.run(() => cancelLedger(this.ledger.id, reason), 'Đã hủy kỳ phí.');
     },
     async sendCurrentReminder() {
       const type = getReminderTypeForDate(this.ledger) || 'manual';
@@ -203,8 +256,33 @@ export default {
     percent(value) {
       return `${Number(value || 0).toLocaleString('vi-VN')}%`;
     },
+    periodRemainingLabel(ledger) {
+      if (ledger.period_state === 'upcoming') return 'Chưa bắt đầu';
+      if (ledger.period_state === 'expired') return 'Đã hết hạn ' + Math.abs(ledger.period_days_remaining || 0) + ' ngày';
+      if (ledger.period_days_remaining === 0) return 'Hết hạn hôm nay';
+      if (ledger.period_days_remaining !== null && ledger.period_days_remaining !== undefined) return 'Còn ' + ledger.period_days_remaining + ' ngày';
+      return 'Chưa cập nhật';
+    },
+    periodStatusLabel(ledger) {
+      const state = {
+        active: 'Đang hiệu lực',
+        upcoming: 'Sắp áp dụng',
+        expired: 'Đã hết hạn',
+        unknown: 'Chưa rõ thời gian',
+      }[ledger.period_state] || '';
+      return state ? state + ' · ' + this.periodRemainingLabel(ledger) : this.periodRemainingLabel(ledger);
+    },
+    tierRangeLabel(ledger) {
+      const min = ledger.tier_min_courts_snapshot;
+      const max = ledger.tier_max_courts_snapshot;
+      if (min === null || min === undefined) return 'Chưa lưu';
+      return max === null || max === undefined ? `Từ ${min} sân` : `${min} - ${max} sân`;
+    },
     date(value) {
       return value ? new Date(value).toLocaleDateString('vi-VN') : '-';
+    },
+    dateTime(value) {
+      return value ? new Date(value).toLocaleString('vi-VN') : '-';
     },
     showMessage(message, type = 'success') {
       this.toast = message;
@@ -253,8 +331,15 @@ th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: upper
 .toast { border-radius: 8px; padding: 11px 13px; font-weight: 800; }
 .toast.success { background: #ecfdf5; color: #047857; }
 .toast.error { background: #fef2f2; color: #991b1b; }
+.expiring_soon { color: #92400e; }
+.overdue { color: #b91c1c; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: 20px; background: rgba(15,23,42,.55); }
 .modal { width: min(560px, calc(100vw - 32px)); background: #fff; border-radius: 8px; padding: 18px; }
+.cancel-modal { display: grid; gap: 16px; }
+.cancel-modal label { display: grid; gap: 7px; color: #334155; font-weight: 800; }
+.cancel-modal textarea { width: 100%; resize: vertical; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; font: inherit; }
+.cancel-warning { padding: 12px; border-radius: 8px; background: #fff7ed; color: #9a3412; line-height: 1.5; }
+.cancel-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .icon-close {
   display: inline-grid;
   width: 32px;

@@ -81,7 +81,11 @@
                             <th>Giá / sân / tháng</th>
                             <th>Giảm 12 tháng</th>
                             <th>Trạng thái</th>
-                            <th>Ledger dùng</th>
+                            <th
+                                title="Số kỳ phí đã được tạo và tham chiếu bậc phí này"
+                            >
+                                Kỳ phí tham chiếu
+                            </th>
                             <th>Cập nhật</th>
                             <th class="actions-header">Thao tác</th>
                         </tr>
@@ -137,43 +141,35 @@
                                     </button>
                                     <button
                                         class="icon-btn"
+                                        :class="{ danger: tier.is_active }"
                                         type="button"
                                         :title="
                                             tier.is_active
-                                                ? 'Tắt trạng thái'
-                                                : 'Bật trạng thái'
+                                                ? 'Ngừng dùng bậc phí'
+                                                : 'Bật lại bậc phí'
                                         "
                                         :aria-label="
                                             tier.is_active
-                                                ? 'Tắt trạng thái'
-                                                : 'Bật trạng thái'
+                                                ? 'Ngừng dùng bậc phí'
+                                                : 'Bật lại bậc phí'
                                         "
                                         @click="toggleTier(tier)"
                                     >
                                         <AppIcon
                                             :name="
                                                 tier.is_active
-                                                    ? 'archive'
+                                                    ? 'power'
                                                     : 'refresh'
                                             "
                                             size="18"
                                         />
                                     </button>
                                     <button
-                                        class="icon-btn"
-                                        type="button"
-                                        title="Nhân bản bậc phí"
-                                        aria-label="Nhân bản bậc phí"
-                                        @click="cloneTier(tier)"
-                                    >
-                                        <AppIcon name="copy" size="18" />
-                                    </button>
-                                    <button
                                         class="icon-btn danger"
                                         type="button"
-                                        title="Ngừng dùng"
-                                        aria-label="Ngừng dùng"
-                                        @click="removeTier(tier)"
+                                        :title="usageCount(tier.id) > 0 ? 'Ngừng dùng bậc phí' : 'Xóa bậc phí'"
+                                        :aria-label="usageCount(tier.id) > 0 ? 'Ngừng dùng bậc phí' : 'Xóa bậc phí'"
+                                        @click="openRemoveTier(tier)"
                                     >
                                         <AppIcon name="trash" size="18" />
                                     </button>
@@ -185,7 +181,7 @@
             </div>
         </section>
 
-        <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
+        <div v-if="showModal" class="modal-backdrop" @click.self="requestCloseModal">
             <form class="modal" @submit.prevent="saveTier">
                 <header class="modal-head">
                     <h3>
@@ -200,7 +196,7 @@
                         type="button"
                         title="Đóng"
                         aria-label="Đóng"
-                        @click="closeModal"
+                        @click="requestCloseModal"
                     >
                         <AppIcon name="x" size="18" />
                     </button>
@@ -209,7 +205,13 @@
                 <div class="form-grid">
                     <label>
                         Tên bậc phí *
-                        <input v-model.trim="form.name" />
+                        <input
+                            :value="form.name"
+                            @input="handleTierNameInput"
+                        />
+                        <small v-if="autoSyncTierName">
+                            Tự động cập nhật theo khoảng số sân.
+                        </small>
                         <small v-if="fieldError('name')" class="field-error">{{
                             fieldError("name")
                         }}</small>
@@ -220,6 +222,8 @@
                             v-model.number="form.price_per_court_month"
                             type="number"
                             min="1"
+                            max="9999999999"
+                            step="1"
                         />
                         <small
                             v-if="fieldError('price_per_court_month')"
@@ -289,7 +293,7 @@
                     <button
                         class="btn secondary"
                         type="button"
-                        @click="closeModal"
+                        @click="requestCloseModal"
                     >
                         Hủy
                     </button>
@@ -412,7 +416,7 @@
                                 type="button"
                                 title="Xóa mẫu giảm giá"
                                 aria-label="Xóa mẫu giảm giá"
-                                @click="removeDiscountProfile(profile)"
+                                @click="requestRemoveDiscountProfile(profile)"
                             >
                                 <AppIcon name="trash" size="18" />
                             </button>
@@ -456,7 +460,7 @@
                         }}</strong>
                     </div>
                     <div>
-                        <span>Ledger đang dùng</span
+                        <span>Kỳ phí tham chiếu</span
                         ><strong>{{ usageCount(viewingTier.id) }}</strong>
                     </div>
                     <div class="full">
@@ -464,6 +468,124 @@
                         ><strong>{{ viewingTier.note || "-" }}</strong>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div
+            v-if="removingTier"
+            class="modal-backdrop"
+            @click.self="closeRemoveTier"
+        >
+            <div
+                class="modal confirm-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="remove-tier-title"
+            >
+                <header class="modal-head">
+                    <h3 id="remove-tier-title">
+                        {{ removingTierHasUsage ? "Ngừng dùng bậc phí" : "Xóa bậc phí" }}
+                    </h3>
+                    <button
+                        class="icon-close"
+                        type="button"
+                        title="Đóng"
+                        aria-label="Đóng"
+                        :disabled="removingTierBusy"
+                        @click="closeRemoveTier"
+                    >
+                        <AppIcon name="x" size="18" />
+                    </button>
+                </header>
+
+                <div class="confirm-content">
+                    <strong>{{ removingTier.name }}</strong>
+                    <p v-if="removingTierHasUsage">
+                        Bậc phí này đã được {{ usageCount(removingTier.id) }} kỳ phí
+                        tham chiếu nên sẽ chỉ được ngừng dùng. Lịch sử kỳ phí vẫn được giữ nguyên.
+                    </p>
+                    <p v-else>
+                        Bậc phí chưa được kỳ phí nào tham chiếu và sẽ bị xóa khỏi cấu hình.
+                    </p>
+                </div>
+
+                <footer class="modal-actions">
+                    <button
+                        class="btn secondary"
+                        type="button"
+                        :disabled="removingTierBusy"
+                        @click="closeRemoveTier"
+                    >
+                        Hủy
+                    </button>
+                    <button
+                        class="btn danger"
+                        type="button"
+                        :disabled="removingTierBusy"
+                        @click="confirmRemoveTier"
+                    >
+                        <AppIcon :name="removingTierHasUsage ? 'power' : 'trash'" size="18" />
+                        <span>
+                            {{ removingTierBusy ? "Đang xử lý..." : removingTierHasUsage ? "Ngừng dùng" : "Xóa bậc phí" }}
+                        </span>
+                    </button>
+                </footer>
+            </div>
+        </div>
+
+        <div
+            v-if="confirmationDialog"
+            class="modal-backdrop confirmation-backdrop"
+            @click.self="closeConfirmationDialog"
+        >
+            <div
+                class="modal confirm-modal"
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="confirmation-dialog-title"
+                aria-describedby="confirmation-dialog-message"
+            >
+                <header class="modal-head">
+                    <h3 id="confirmation-dialog-title">
+                        {{ confirmationDialog.title }}
+                    </h3>
+                    <button
+                        class="icon-close"
+                        type="button"
+                        title="Đóng"
+                        aria-label="Đóng"
+                        :disabled="confirmationBusy"
+                        @click="closeConfirmationDialog"
+                    >
+                        <AppIcon name="x" size="18" />
+                    </button>
+                </header>
+
+                <div class="confirm-content">
+                    <p id="confirmation-dialog-message">
+                        {{ confirmationDialog.message }}
+                    </p>
+                </div>
+
+                <footer class="modal-actions">
+                    <button
+                        class="btn secondary"
+                        type="button"
+                        :disabled="confirmationBusy"
+                        @click="closeConfirmationDialog"
+                    >
+                        Quay lại
+                    </button>
+                    <button
+                        class="btn danger"
+                        type="button"
+                        :disabled="confirmationBusy"
+                        @click="confirmDialogAction"
+                    >
+                        <AppIcon name="check" size="18" />
+                        <span>{{ confirmationBusy ? "Đang xử lý..." : confirmationDialog.confirmLabel }}</span>
+                    </button>
+                </footer>
             </div>
         </div>
     </section>
@@ -515,6 +637,16 @@ const defaultForm = (profile = null, minCourts = 1) => ({
     note: "",
 });
 
+const rangeTierNamePattern = /^(?:\d+\s*[-–]\s*\d+\s*sân|từ\s+\d+\s+sân\s+trở\s+lên)$/iu;
+
+const usesRangeAsTierName = (name) =>
+    rangeTierNamePattern.test(String(name || "").trim());
+
+const rangeTierName = (minCourts, maxCourts) =>
+    maxCourts === null
+        ? `Từ ${minCourts} sân trở lên`
+        : `${minCourts}-${maxCourts} sân`;
+
 export default {
     name: "AdminPlatformFeeTiers",
     components: { AppIcon, PlatformFeeSubnav },
@@ -528,7 +660,13 @@ export default {
             showModal: false,
             editingId: null,
             viewingTier: null,
+            removingTier: null,
+            removingTierBusy: false,
+            confirmationDialog: null,
+            confirmationBusy: false,
             form: defaultForm(),
+            autoSyncTierName: true,
+            initialFormSnapshot: "",
             formErrors: {},
             showDiscountModal: false,
             editingDiscountId: null,
@@ -569,6 +707,11 @@ export default {
         },
         automaticMaxLabel() {
             if (!this.form.is_active) return "Không áp dụng khi đang tắt";
+            return this.automaticMaxCourts === null
+                ? `Từ ${Number(this.form.min_courts)} sân trở lên`
+                : `${Number(this.form.min_courts)} - ${this.automaticMaxCourts} sân`;
+        },
+        automaticMaxCourts() {
             const nextTier = this.tiers
                 .filter(
                     (tier) =>
@@ -577,9 +720,12 @@ export default {
                         tier.min_courts > Number(this.form.min_courts),
                 )
                 .sort((left, right) => left.min_courts - right.min_courts)[0];
-            return nextTier
-                ? `${Number(this.form.min_courts)} - ${nextTier.min_courts - 1} sân`
-                : `Từ ${Number(this.form.min_courts)} sân trở lên`;
+            return nextTier ? nextTier.min_courts - 1 : null;
+        },
+        removingTierHasUsage() {
+            return this.removingTier
+                ? this.usageCount(this.removingTier.id) > 0
+                : false;
         },
         selectedDiscountSummary() {
             const profile = this.discountProfiles.find(
@@ -588,6 +734,14 @@ export default {
             return profile
                 ? this.discountProfileLabel(profile)
                 : "Chọn mẫu để tự động áp dụng giảm giá theo từng kỳ.";
+        },
+    },
+    watch: {
+        "form.min_courts"() {
+            this.syncAutomaticTierName();
+        },
+        automaticMaxCourts() {
+            this.syncAutomaticTierName();
         },
     },
     mounted() {
@@ -628,12 +782,16 @@ export default {
         openCreate() {
             this.editingId = null;
             const profile = this.discountProfiles[0] || null;
+            this.autoSyncTierName = true;
             this.form = defaultForm(profile, this.suggestedMinimum());
+            this.syncAutomaticTierName();
             this.formErrors = {};
+            this.initialFormSnapshot = JSON.stringify(this.form);
             this.showModal = true;
         },
         openEdit(tier) {
             this.editingId = tier.id;
+            this.autoSyncTierName = usesRangeAsTierName(tier.name);
             const matchedProfile =
                 this.discountProfiles.find(
                     (profile) => profile.id === tier.discount_profile_id,
@@ -650,18 +808,57 @@ export default {
                 discount_profile_id: matchedProfile?.id || "",
                 max_courts: tier.max_courts ?? "",
             };
+            this.syncAutomaticTierName();
             this.formErrors = {};
+            this.initialFormSnapshot = JSON.stringify(this.form);
             this.showModal = true;
+        },
+        requestCloseModal() {
+            const hasChanges =
+                JSON.stringify(this.form) !== this.initialFormSnapshot;
+            if (hasChanges) {
+                this.confirmationDialog = {
+                    type: "discard-tier-form",
+                    title: "Hủy thay đổi?",
+                    message:
+                        "Các thay đổi chưa lưu trong cấu hình bậc phí sẽ bị bỏ.",
+                    confirmLabel: "Hủy thay đổi",
+                };
+                return;
+            }
+            this.closeModal();
         },
         closeModal() {
             this.showModal = false;
             this.formErrors = {};
+            this.initialFormSnapshot = "";
+        },
+        handleTierNameInput(event) {
+            this.form.name = event.target.value;
+            this.autoSyncTierName = false;
+        },
+        syncAutomaticTierName() {
+            const minCourts = Number(this.form.min_courts);
+            if (
+                !this.autoSyncTierName ||
+                !this.form.is_active ||
+                !Number.isInteger(minCourts) ||
+                minCourts < 1
+            ) {
+                return;
+            }
+
+            this.form.name = rangeTierName(
+                minCourts,
+                this.automaticMaxCourts,
+            );
         },
         async saveTier() {
             this.form.annual_discount_percent = this.form.discount_12_months;
             try {
-                if (this.editingId) await updateTier(this.editingId, this.form);
-                else await createTier(this.form);
+                if (this.editingId)
+                    await updateTier(this.editingId, this.form, this.tiers);
+                else await createTier(this.form, this.tiers);
                 this.showMessage("Đã lưu bậc phí.");
                 this.closeModal();
                 await this.loadTiers();
@@ -679,22 +876,6 @@ export default {
                     await deactivateTier(tier.id, "Admin tắt trạng thái");
                 else await reactivateTier(tier.id);
                 this.showMessage("Đã cập nhật trạng thái bậc phí.");
-                await this.loadTiers();
-            } catch (error) {
-                this.showMessage(error.message, "error");
-            }
-        },
-        async cloneTier(tier) {
-            try {
-                await createTier({
-                    ...tier,
-                    name: `${tier.name} bản sao`,
-                    is_active: false,
-                    max_courts: tier.max_courts ?? "",
-                });
-                this.showMessage(
-                    "Đã nhân bản bậc phí ở trạng thái ngưng dùng.",
-                );
                 await this.loadTiers();
             } catch (error) {
                 this.showMessage(error.message, "error");
@@ -752,14 +933,41 @@ export default {
                 this.showMessage(error.message, "error");
             }
         },
-        async removeDiscountProfile(profile) {
-            if (!confirm(`Xóa mẫu giảm giá "${profile.name}"?`)) return;
+        requestRemoveDiscountProfile(profile) {
+            this.confirmationDialog = {
+                type: "delete-discount-profile",
+                profile,
+                title: "Xóa mẫu giảm giá?",
+                message: `Mẫu “${profile.name}” sẽ bị xóa khỏi cấu hình.`,
+                confirmLabel: "Xóa mẫu",
+            };
+        },
+        closeConfirmationDialog() {
+            if (this.confirmationBusy) return;
+            this.confirmationDialog = null;
+        },
+        async confirmDialogAction() {
+            if (!this.confirmationDialog || this.confirmationBusy) return;
+
+            const dialog = this.confirmationDialog;
+            if (dialog.type === "discard-tier-form") {
+                this.confirmationDialog = null;
+                this.closeModal();
+                return;
+            }
+
+            this.confirmationBusy = true;
             try {
-                await deleteDiscountProfile(profile.id);
-                await this.loadDiscountProfiles();
-                this.showMessage("Đã xóa mẫu giảm giá.");
+                if (dialog.type === "delete-discount-profile") {
+                    await deleteDiscountProfile(dialog.profile.id);
+                    await this.loadDiscountProfiles();
+                    this.showMessage("Đã xóa mẫu giảm giá.");
+                }
+                this.confirmationDialog = null;
             } catch (error) {
                 this.showMessage(error.message, "error");
+            } finally {
+                this.confirmationBusy = false;
             }
         },
         discountFieldError(field) {
@@ -768,15 +976,33 @@ export default {
         discountProfileLabel(profile) {
             return `1T ${this.percent(profile.discount_1_month)} · 3T ${this.percent(profile.discount_3_months)} · 6T ${this.percent(profile.discount_6_months)} · 9T ${this.percent(profile.discount_9_months)} · 12T ${this.percent(profile.discount_12_months)}`;
         },
-        async removeTier(tier) {
-            const reason = prompt("Nhập lý do ngừng dùng bậc phí:");
-            if (!reason) return;
+        openRemoveTier(tier) {
+            this.removingTier = tier;
+        },
+        closeRemoveTier() {
+            if (this.removingTierBusy) return;
+            this.removingTier = null;
+        },
+        async confirmRemoveTier() {
+            if (!this.removingTier || this.removingTierBusy) return;
+
+            const tier = this.removingTier;
+            const hasUsage = this.usageCount(tier.id) > 0;
+            this.removingTierBusy = true;
             try {
-                await deleteTier(tier.id);
-                this.showMessage("Đã ngừng dùng bậc phí.");
+                const response = await deleteTier(tier.id);
+                this.removingTier = null;
+                this.showMessage(
+                    response?.message ||
+                        (hasUsage
+                            ? "Đã ngừng dùng bậc phí."
+                            : "Đã xóa bậc phí."),
+                );
                 await this.loadTiers();
             } catch (error) {
                 this.showMessage(error.message, "error");
+            } finally {
+                this.removingTierBusy = false;
             }
         },
         viewTier(tier) {
@@ -1045,6 +1271,18 @@ td small {
     background: #e2e8f0;
     color: #334155;
 }
+.btn.danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #dc2626;
+    color: #fff;
+}
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
 .icon-text {
     align-items: center;
     justify-content: center;
@@ -1118,6 +1356,9 @@ label {
     padding: 20px;
     background: rgba(15, 23, 42, 0.55);
 }
+.confirmation-backdrop {
+    z-index: 950;
+}
 .modal {
     width: min(840px, calc(100vw - 32px));
     max-height: calc(100vh - 40px);
@@ -1125,6 +1366,18 @@ label {
 }
 .discount-modal {
     width: min(980px, calc(100vw - 32px));
+}
+.confirm-modal {
+    width: min(500px, calc(100vw - 32px));
+}
+.confirm-content {
+    display: grid;
+    gap: 10px;
+    padding: 20px 22px;
+}
+.confirm-content p {
+    color: #475569;
+    line-height: 1.55;
 }
 .modal-head p {
     margin-top: 5px;

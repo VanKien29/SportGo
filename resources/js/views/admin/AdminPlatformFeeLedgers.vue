@@ -140,7 +140,7 @@
                             <th>Kỳ đóng</th>
                             <th>Thời gian kỳ phí</th>
                             <th>Hạn thanh toán</th>
-                            <th>Gia snapshot</th>
+                            <th>Giá snapshot</th>
                             <th>Giảm</th>
                             <th>Phải đóng</th>
                             <th>Đã đóng</th>
@@ -162,6 +162,9 @@
                             <td>
                                 {{ date(ledger.period_start) }} -
                                 {{ date(ledger.period_end) }}
+                                <small class="period-note" :class="ledger.period_warning_level">
+                                    {{ periodStatusLabel(ledger) }}
+                                </small>
                             </td>
                             <td
                                 :class="{
@@ -236,10 +239,7 @@
                                         type="button"
                                         title="Hủy kỳ phí"
                                         aria-label="Hủy kỳ phí"
-                                        :disabled="
-                                            ledger.status === 'paid' ||
-                                            ledger.status === 'cancelled'
-                                        "
+                                        :disabled="!canCancelLedger(ledger)"
                                         @click="openCancel(ledger)"
                                     >
                                         <AppIcon name="trash" size="18" />
@@ -409,6 +409,9 @@
                     </button>
                 </header>
                 <div class="form-grid one">
+                    <p v-if="dialog.type === 'cancel'" class="cancel-warning">
+                        Kỳ phí sẽ chuyển sang trạng thái “Đã hủy”. Kỳ đã thanh toán hoặc đã ghi nhận một phần tiền không thể hủy.
+                    </p>
                     <label v-if="dialog.type === 'pay'">
                         Số tiền thanh toán *
                         <input
@@ -619,6 +622,13 @@ export default {
             this.showCreate = true;
         },
         closeCreate() {
+            if (
+                this.showCreate &&
+                this.form.venue_cluster_id &&
+                !window.confirm("Hủy thao tác tạo kỳ phí? Dữ liệu đang nhập sẽ không được lưu.")
+            ) {
+                return;
+            }
             this.showCreate = false;
         },
         async refreshPreview() {
@@ -639,7 +649,7 @@ export default {
             try {
                 await createLedger(this.form);
                 this.showMessage("Đã tạo kỳ phí chờ thanh toán.");
-                this.closeCreate();
+                this.showCreate = false;
                 await this.loadLedgers();
             } catch (error) {
                 this.previewError = error.message;
@@ -656,6 +666,9 @@ export default {
         },
         openCancel(ledger) {
             this.dialog = { type: "cancel", ledger, amount: 0, reason: "" };
+        },
+        canCancelLedger(ledger) {
+            return ledger.can_cancel === true;
         },
         openLock(ledger) {
             this.dialog = {
@@ -684,7 +697,11 @@ export default {
                         this.dialog.ledger.id,
                         this.dialog.reason,
                     );
-                this.showMessage("Thao tác thành công.");
+                this.showMessage(
+                    this.dialog.type === "cancel"
+                        ? "Đã hủy kỳ phí."
+                        : "Thao tác thành công.",
+                );
                 this.closeDialog();
                 await this.loadLedgers();
             } catch (error) {
@@ -728,6 +745,29 @@ export default {
             if (!logs.length) return "Chưa gửi";
             if (logs.some((log) => log.status === "failed")) return "Có lỗi";
             return `${logs.filter((log) => log.status === "sent").length} đã gửi`;
+        },
+        periodRemainingLabel(ledger) {
+            if (ledger.period_state === "upcoming") return "Chưa bắt đầu";
+            if (ledger.period_state === "expired")
+                return "Đã hết hạn " + Math.abs(ledger.period_days_remaining || 0) + " ngày";
+            if (ledger.period_days_remaining === 0) return "Hết hạn hôm nay";
+            if (
+                ledger.period_days_remaining !== null &&
+                ledger.period_days_remaining !== undefined
+            )
+                return "Còn " + ledger.period_days_remaining + " ngày";
+            return "Chưa cập nhật";
+        },
+        periodStatusLabel(ledger) {
+            const state = {
+                active: "Đang hiệu lực",
+                upcoming: "Sắp áp dụng",
+                expired: "Đã hết hạn",
+                unknown: "Chưa rõ thời gian",
+            }[ledger.period_state] || "";
+            return state
+                ? state + " · " + this.periodRemainingLabel(ledger)
+                : this.periodRemainingLabel(ledger);
         },
         statusLabel(status) {
             return (
@@ -869,6 +909,15 @@ th {
     color: #b91c1c;
     font-weight: 900;
 }
+.period-note {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+}
+.period-note.expiring_soon { color: #92400e; }
+.period-note.overdue { color: #b91c1c; }
 .status-dot {
     display: inline-grid;
     width: 14px;
@@ -981,6 +1030,14 @@ th {
 .alert.warning {
     background: #fef3c7;
     color: #92400e;
+}
+.cancel-warning {
+    margin: 0;
+    padding: 12px;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #9a3412;
+    line-height: 1.5;
 }
 .modal-backdrop {
     position: fixed;

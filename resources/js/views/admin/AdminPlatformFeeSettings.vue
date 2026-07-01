@@ -31,6 +31,9 @@
             </label>
             <div class="actions">
                 <button class="btn primary" type="submit">Lưu cài đặt</button>
+                <button class="btn secondary" type="button" :disabled="!hasUnsavedChanges" @click="cancelChanges">
+                    Hủy thay đổi
+                </button>
                 <button class="btn secondary" type="button" @click="reset">
                     Khôi phục mặc định
                 </button>
@@ -55,6 +58,7 @@ export default {
                 auto_mark_overdue: true,
                 lock_reason: "Quá hạn phí duy trì hệ thống",
             },
+            savedSettings: null,
             toast: "",
             error: "",
         };
@@ -62,10 +66,19 @@ export default {
     mounted() {
         this.loadSettings();
     },
+    computed: {
+        hasUnsavedChanges() {
+            return (
+                this.savedSettings !== null &&
+                JSON.stringify(this.settings) !== JSON.stringify(this.savedSettings)
+            );
+        },
+    },
     methods: {
         async loadSettings() {
             try {
                 this.settings = await api("/api/admin/platform-fee-settings");
+                this.savedSettings = { ...this.settings };
             } catch (error) {
                 this.error = error.message || "Không thể tải cài đặt phí duy trì.";
                 this.show(this.error);
@@ -78,13 +91,27 @@ export default {
                     body: JSON.stringify(this.settings),
                 });
                 this.settings = response.data || this.settings;
+                this.savedSettings = { ...this.settings };
                 this.show(response.message || "Đã lưu cài đặt phí duy trì.");
             } catch (error) {
                 this.error = error.message || "Không thể lưu cài đặt phí duy trì.";
                 this.show(this.error);
             }
         },
+        cancelChanges() {
+            if (
+                !this.hasUnsavedChanges ||
+                !window.confirm("Hủy các thay đổi cấu hình chưa lưu?")
+            ) {
+                return;
+            }
+            this.settings = { ...this.savedSettings };
+            this.show("Đã hủy các thay đổi chưa lưu.");
+        },
         reset() {
+            if (!window.confirm("Khôi phục và lưu cấu hình phí nền tảng về mặc định?")) {
+                return;
+            }
             this.settings = {
                 default_due_days: 7,
                 auto_mark_overdue: true,
@@ -171,6 +198,10 @@ textarea {
 .btn.secondary {
     background: #e2e8f0;
     color: #334155;
+}
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 .toast {
     border-radius: 8px;
