@@ -23,6 +23,18 @@
         
         <RouterLink
           class="nav-item"
+          :class="{ 'nav-active': activeRouteName === 'admin-chat' }"
+          to="/admin/chat"
+          @click="$emit('navigate')"
+        >
+          <span class="nav-item-left">
+            <AppIcon name="messageSquare" size="17" />
+            <span v-if="!collapsed" class="nav-item-label">Hộp thư hỗ trợ</span>
+          </span>
+        </RouterLink>
+
+        <RouterLink
+          class="nav-item"
           :class="{ 'nav-active': activeRouteName === 'admin-settings' }"
           to="/admin/settings"
           @click="$emit('navigate')"
@@ -62,6 +74,14 @@
           </div>
 
           <div class="rail-bottom">
+            <RouterLink
+              class="rail-icon-btn"
+              :class="{ active: activeRouteName === 'admin-chat' }"
+              to="/admin/chat"
+              title="Hộp thư hỗ trợ"
+            >
+              <AppIcon name="messageSquare" size="18" />
+            </RouterLink>
             <RouterLink
               class="rail-icon-btn"
               :class="{ active: activeRouteName === 'admin-settings' }"

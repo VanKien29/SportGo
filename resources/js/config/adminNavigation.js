@@ -157,12 +157,6 @@ export const adminNavigationSections = [
         to: '/admin/complaints',
         activeNames: ['admin-complaints'],
       },
-      {
-        label: 'Hộp thư hỗ trợ',
-        icon: 'messageSquare',
-        to: '/admin/chat',
-        activeNames: ['admin-chat'],
-      },
     ],
   },
 ];

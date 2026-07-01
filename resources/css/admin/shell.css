@@ -413,6 +413,12 @@
   flex-direction: column;
 }
 
+.sg-shell-admin .content-area > .admin-chat-page {
+  max-width: none !important;
+  margin-inline: 0 !important;
+  width: 100% !important;
+}
+
 .admin-footer {
   display: flex;
   justify-content: space-between;

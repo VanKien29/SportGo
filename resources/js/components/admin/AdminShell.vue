@@ -32,9 +32,6 @@
             <div class="content-area">
                 <slot />
             </div>
-            <footer class="admin-footer">
-                <span>SportGo Admin</span>
-            </footer>
         </main>
     </div>
 </template>
