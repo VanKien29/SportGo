@@ -353,6 +353,8 @@ class SepayPaymentService
             $booking->cancelled_at = now();
             $booking->save();
 
+            $this->bookingService->releaseVoucherUsageForBooking($booking, 'cancelled');
+
             SlotLock::query()
                 ->where('booking_id', $booking->id)
                 ->delete();

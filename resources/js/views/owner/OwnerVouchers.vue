@@ -61,14 +61,14 @@
           <label>Mã voucher<input v-model.trim="form.code" required /></label>
           <label>Tên voucher<input v-model.trim="form.name" required /></label>
           <label>Loại giảm
-            <select v-model="form.discount_type">
+            <select v-model="form.discount_type" @change="normalizeDiscountFields">
               <option value="percent">Phần trăm</option>
               <option value="fixed">Số tiền</option>
             </select>
           </label>
-          <label>Giá trị giảm<input v-model.number="form.discount_value" type="number" min="0.01" step="0.01" required /></label>
-          <label>Giảm tối đa<input v-model.number="form.max_discount_amount" type="number" min="0" step="1000" /></label>
-          <label>Đơn tối thiểu<input v-model.number="form.min_order_amount" type="number" min="0" step="1000" /></label>
+          <label>Giá trị giảm<input v-model.number="form.discount_value" type="number" min="0.01" :max="form.discount_type === 'percent' ? 100 : null" :step="form.discount_type === 'percent' ? 0.01 : 1000" required @change="normalizeDiscountFields" /></label>
+          <label>Giảm tối đa<input v-model.number="form.max_discount_amount" type="number" min="0" step="1000" :disabled="form.discount_type === 'fixed'" @change="normalizeDiscountFields" /></label>
+          <label>Đơn tối thiểu<input v-model.number="form.min_order_amount" type="number" min="0" step="1000" @change="normalizeDiscountFields" /></label>
           <label>Tổng số lượng<input v-model.number="form.total_quantity" type="number" min="1" /></label>
           <label>Giới hạn mỗi khách<input v-model.number="form.per_user_limit" type="number" min="1" /></label>
           <label>Bắt đầu<input v-model="form.valid_from" type="datetime-local" required /></label>
@@ -228,6 +228,7 @@ export default {
     async save() {
       this.saving = true;
       try {
+        this.normalizeDiscountFields();
         const response = this.form.id
           ? await ownerVoucherService.update(this.form.id, this.form)
           : await ownerVoucherService.create(this.form);
@@ -247,7 +248,28 @@ export default {
       await this.load();
     },
     discountText(voucher) {
-      return voucher.discount_type === 'percent' ? `${Number(voucher.discount_value)}%` : this.money(voucher.discount_value);
+      if (voucher.discount_label) return voucher.discount_label;
+      return voucher.discount_type === 'percent' ? `${this.formatPercent(voucher.discount_value)}%` : this.money(voucher.discount_value);
+    },
+    normalizeDiscountFields() {
+      if (this.form.discount_type === 'percent') {
+        const percent = Number(this.form.discount_value || 0);
+        this.form.discount_value = Math.min(Math.max(Number(percent.toFixed(2)), 0.01), 100);
+        this.form.max_discount_amount = this.form.max_discount_amount === null || this.form.max_discount_amount === ''
+          ? null
+          : this.toVndInteger(this.form.max_discount_amount);
+      } else {
+        this.form.discount_value = Math.max(this.toVndInteger(this.form.discount_value), 1);
+        this.form.max_discount_amount = null;
+      }
+
+      this.form.min_order_amount = this.toVndInteger(this.form.min_order_amount);
+    },
+    toVndInteger(value) {
+      return Math.max(Math.round(Number(value || 0)), 0);
+    },
+    formatPercent(value) {
+      return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(Number(value || 0));
     },
     resetScopeId() {
       this.form.scopes[0].scope_id = null;

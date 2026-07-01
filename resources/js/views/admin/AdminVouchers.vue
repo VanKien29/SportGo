@@ -263,7 +263,7 @@
                     /></label>
                     <label
                         >Loại giảm
-                        <select v-model="form.discount_type">
+                        <select v-model="form.discount_type" @change="normalizeDiscountFields">
                             <option value="percent">Phần trăm</option>
                             <option value="fixed">Số tiền</option>
                         </select>
@@ -273,8 +273,10 @@
                             v-model.number="form.discount_value"
                             type="number"
                             min="0.01"
-                            step="0.01"
+                            :max="form.discount_type === 'percent' ? 100 : null"
+                            :step="form.discount_type === 'percent' ? 0.01 : 1000"
                             required
+                            @change="normalizeDiscountFields"
                     /></label>
                     <label
                         >Giảm tối đa<input
@@ -282,6 +284,8 @@
                             type="number"
                             min="0"
                             step="1000"
+                            :disabled="form.discount_type === 'fixed'"
+                            @change="normalizeDiscountFields"
                     /></label>
                     <label
                         >Đơn tối thiểu<input
@@ -289,6 +293,7 @@
                             type="number"
                             min="0"
                             step="1000"
+                            @change="normalizeDiscountFields"
                     /></label>
                     <label
                         >Tổng số lượng<input
@@ -647,6 +652,7 @@ export default {
         async save() {
             this.saving = true;
             try {
+                this.normalizeDiscountFields();
                 const payload = {
                     ...this.form,
                     scopes: this.normalizeScopes(this.form.scopes),
@@ -673,9 +679,42 @@ export default {
             await this.load();
         },
         discountText(voucher) {
+            if (voucher.discount_label) return voucher.discount_label;
             return voucher.discount_type === "percent"
-                ? `${Number(voucher.discount_value)}%`
+                ? `${this.formatPercent(voucher.discount_value)}%`
                 : this.money(voucher.discount_value);
+        },
+        normalizeDiscountFields() {
+            if (this.form.discount_type === "percent") {
+                const percent = Number(this.form.discount_value || 0);
+                this.form.discount_value = Math.min(
+                    Math.max(Number(percent.toFixed(2)), 0.01),
+                    100,
+                );
+                this.form.max_discount_amount =
+                    this.form.max_discount_amount === null ||
+                    this.form.max_discount_amount === ""
+                        ? null
+                        : this.toVndInteger(this.form.max_discount_amount);
+            } else {
+                this.form.discount_value = Math.max(
+                    this.toVndInteger(this.form.discount_value),
+                    1,
+                );
+                this.form.max_discount_amount = null;
+            }
+
+            this.form.min_order_amount = this.toVndInteger(
+                this.form.min_order_amount,
+            );
+        },
+        toVndInteger(value) {
+            return Math.max(Math.round(Number(value || 0)), 0);
+        },
+        formatPercent(value) {
+            return new Intl.NumberFormat("vi-VN", {
+                maximumFractionDigits: 2,
+            }).format(Number(value || 0));
         },
         normalizeScopes(scopes) {
             const first = Array.isArray(scopes) && scopes.length
