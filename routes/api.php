@@ -48,6 +48,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Public\LocationController;
 use App\Http\Controllers\Api\Public\VenueController;
 use App\Http\Controllers\Api\Public\PublicAffiliateProductController;
+use App\Http\Controllers\Api\Common\ChatController;
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
 Route::get('/locations/provinces', [LocationController::class, 'provinces']);
@@ -462,6 +463,16 @@ Route::middleware('auth:sanctum')
         Route::post('/venue-posts/{id}/comments', [PlayerVenuePostController::class, 'comment']);
         Route::post('/venue-posts/{id}/likes', [PlayerVenuePostController::class, 'toggleLike']);
         Route::post('/partner-applications', [\App\Http\Controllers\Api\Player\PartnerApplicationController::class, 'store']);
+
+        // Chat routes
+        Route::prefix('chat')->group(function (): void {
+            Route::get('/conversations', [ChatController::class, 'getConversations']);
+            Route::post('/conversations', [ChatController::class, 'startConversation']);
+            Route::get('/conversations/{id}/messages', [ChatController::class, 'getMessages']);
+            Route::post('/conversations/{id}/messages', [ChatController::class, 'sendMessage']);
+            Route::post('/conversations/{id}/read', [ChatController::class, 'markAsRead']);
+            Route::get('/users/search', [ChatController::class, 'searchUsers']);
+        });
     });
 
 // Public Player Venue Posts

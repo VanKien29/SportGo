@@ -9,6 +9,7 @@
         <div class="nav-links">
           <router-link to="/" class="nav-link" exact-active-class="active-link">Trang chủ</router-link>
           <router-link to="/booking" class="nav-link" active-class="active-link" v-if="user && user.role === 'user'">Lịch & Đặt sân</router-link>
+          <router-link to="/chat" class="nav-link" active-class="active-link" v-if="user">Trò chuyện</router-link>
         </div>
       </div>
 
@@ -60,6 +61,13 @@
                   <circle cx="12" cy="7" r="4"/>
                 </svg>
                 Thông tin cá nhân
+              </router-link>
+
+              <router-link to="/chat" class="dd-item" @click="showDropdown = false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                Trò chuyện
               </router-link>
 
               <router-link v-if="user.role === 'user'" to="/partner-application" class="dd-item dd-partner" @click="showDropdown = false">
