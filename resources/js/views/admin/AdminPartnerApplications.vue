@@ -182,7 +182,7 @@ export default {
       });
     },
     isReviewable(status) {
-      return ['pending', 'reviewing', 'submitted', 'need_supplement'].includes(status);
+      return ['pending', 'reviewing', 'submitted'].includes(status);
     },
     statusLabel(status) {
       return {

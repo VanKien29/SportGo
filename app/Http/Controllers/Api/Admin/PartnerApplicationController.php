@@ -13,6 +13,7 @@ use App\Services\Partner\PartnerApplicationService;
 use App\Services\Partner\PartnerDocumentSigningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -295,18 +296,25 @@ class PartnerApplicationController extends Controller
             ->where('partner_application_id', $application->id)
             ->latest()
             ->get()
-            ->map(fn (GeneratedDocument $document) => [
-                'id' => $document->id,
-                'partner_application_id' => $document->partner_application_id,
-                'partner_contract_id' => $document->partner_contract_id,
-                'document_code' => $document->document_code,
-                'document_type' => $document->document_type,
-                'title' => $document->title,
-                'status' => $document->status,
-                'generated_at' => $document->generated_at,
-                'download_url' => '/api/files/documents/' . $document->id . '/download',
-                'signatures' => $document->signatures,
-            ]);
+            ->map(function (GeneratedDocument $document) {
+                $path = $document->final_file_path ?: $document->generated_file_path;
+                $fileAvailable = (bool) ($path && Storage::disk('local')->exists($path));
+
+                return [
+                    'id' => $document->id,
+                    'partner_application_id' => $document->partner_application_id,
+                    'partner_contract_id' => $document->partner_contract_id,
+                    'document_code' => $document->document_code,
+                    'document_type' => $document->document_type,
+                    'title' => $document->title,
+                    'status' => $document->status,
+                    'generated_at' => $document->generated_at,
+                    'file_available' => $fileAvailable,
+                    'file_size' => $fileAvailable ? Storage::disk('local')->size($path) : 0,
+                    'download_url' => $fileAvailable ? '/api/files/documents/' . $document->id . '/download' : null,
+                    'signatures' => $document->signatures,
+                ];
+            });
         $payload['uploaded_documents'] = $application->documents
             ->values()
             ->map(fn ($document) => [

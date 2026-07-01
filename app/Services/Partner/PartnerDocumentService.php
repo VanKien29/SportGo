@@ -73,6 +73,7 @@ class PartnerDocumentService
         $targetPath = Storage::disk('local')->path($filePath);
         $this->ensureLocalDirectory($targetPath);
         $this->renderDocxTemplate($sourcePath, $targetPath, $renderData, $documentType);
+        $this->normalizeRequiredDocxParts($targetPath);
         if (! $this->isUsableDocx($targetPath)) {
             throw new RuntimeException("Không thể sinh file DOCX hợp lệ cho {$documentType}.");
         }
@@ -150,7 +151,10 @@ class PartnerDocumentService
                     ]);
                     $processor->setValue($signerSide . '_signer_name', $signature->signer_full_name);
                     $processor->saveAs($filePath);
+                    $this->normalizeRequiredDocxParts($filePath);
                     $this->polishSignedDocumentFile($document->fresh());
+                    $this->injectSignatureFallback($document->fresh(), $signature->fresh(), $signerSide, $media);
+                    $this->normalizeRequiredDocxParts($filePath);
                     $document->forceFill([
                         'file_hash' => hash_file('sha256', $filePath),
                     ])->save();
@@ -169,6 +173,7 @@ class PartnerDocumentService
             if ($document->generated_file_path) {
                 $filePath = Storage::disk('local')->path($document->generated_file_path);
                 if (file_exists($filePath)) {
+                    $this->normalizeRequiredDocxParts($filePath);
                     $document->forceFill([
                         'file_hash' => hash_file('sha256', $filePath),
                     ])->save();
@@ -234,6 +239,9 @@ class PartnerDocumentService
         if (! $path || ! Storage::disk('local')->exists($path)) {
             abort(404, 'Không tìm thấy file văn bản.');
         }
+
+        $this->normalizeRequiredDocxParts(Storage::disk('local')->path($path));
+        $this->repairSignedDocumentPlaceholders($document);
 
         return $path;
     }
@@ -317,6 +325,7 @@ class PartnerDocumentService
     {
         $tempPath = $targetPath . '.tmp.docx';
         copy($sourcePath, $tempPath);
+        $this->normalizeRequiredDocxParts($tempPath);
         $this->fixSplitMacrosInDocx($tempPath);
 
         try {
@@ -350,6 +359,205 @@ class PartnerDocumentService
 
         $this->fillKnownTemplateBodyFields($targetPath, $data, $documentType);
         $this->appendDocumentDataAppendixToFile($targetPath, $data, $documentType);
+        $this->normalizeRequiredDocxParts($targetPath);
+    }
+
+    private function normalizeRequiredDocxParts(string $docxPath): void
+    {
+        if (! is_file($docxPath) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $styles = $zip->getFromName('word/styles.xml');
+        if ($styles === false || trim($styles) === '') {
+            $fallbackStyles = $zip->getFromName('word/stylesWithEffects.xml');
+            $zip->addFromString(
+                'word/styles.xml',
+                is_string($fallbackStyles) && trim($fallbackStyles) !== ''
+                    ? $fallbackStyles
+                    : $this->minimalStylesXml()
+            );
+        }
+
+        $settings = $zip->getFromName('word/settings.xml');
+        if ($settings === false || trim($settings) === '') {
+            $zip->addFromString('word/settings.xml', $this->minimalSettingsXml());
+        }
+
+        $zip->close();
+    }
+
+    private function minimalStylesXml(): string
+    {
+        return <<<'XML'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>
+    </w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+</w:styles>
+XML;
+    }
+
+    private function minimalSettingsXml(): string
+    {
+        return <<<'XML'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>
+XML;
+    }
+
+    private function repairSignedDocumentPlaceholders(GeneratedDocument $document): void
+    {
+        if (! $document->generated_file_path || ! Storage::disk('local')->exists($document->generated_file_path)) {
+            return;
+        }
+
+        $document->loadMissing('signatures');
+        foreach ($document->signatures->where('status', 'signed') as $signature) {
+            if (! $signature->signature_media_id) {
+                continue;
+            }
+
+            $media = Media::query()->find($signature->signature_media_id);
+            if (! $media) {
+                continue;
+            }
+
+            $this->injectSignatureFallback($document, $signature, $signature->signer_side, $media);
+        }
+
+        $filePath = Storage::disk('local')->path($document->generated_file_path);
+        if (is_file($filePath)) {
+            $document->forceFill(['file_hash' => hash_file('sha256', $filePath)])->save();
+        }
+    }
+
+    private function injectSignatureFallback(GeneratedDocument $document, GeneratedDocumentSignature $signature, string $signerSide, Media $media): void
+    {
+        $path = $document->generated_file_path;
+        if (! $path || ! Storage::disk('local')->exists($path) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $imagePath = $this->publicMediaPath($media);
+        if (! $imagePath || ! is_file($imagePath)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        $filePath = Storage::disk('local')->path($path);
+        if ($zip->open($filePath) !== true) {
+            return;
+        }
+
+        $documentXml = $zip->getFromName('word/document.xml');
+        if ($documentXml === false) {
+            $zip->close();
+            return;
+        }
+
+        $changed = false;
+        $namePlaceholder = '{{' . $signerSide . '_signer_name}}';
+        $signaturePlaceholder = '{{signature_' . $signerSide . '}}';
+
+        if (str_contains($documentXml, $namePlaceholder)) {
+            $documentXml = str_replace($namePlaceholder, $this->xmlText($signature->signer_full_name ?: ''), $documentXml);
+            $changed = true;
+        }
+
+        if (str_contains($documentXml, $signaturePlaceholder)) {
+            $mediaFileName = 'signature-' . $signerSide . '-' . $signature->id . '.png';
+            $mediaTarget = 'word/media/' . $mediaFileName;
+            $zip->addFromString($mediaTarget, file_get_contents($imagePath));
+
+            $relationshipId = $this->ensureImageRelationship($zip, 'media/' . $mediaFileName);
+            if ($relationshipId) {
+                $drawingRun = $this->signatureDrawingRunXml($relationshipId, $mediaFileName, $imagePath);
+                $pattern = '~<w:r\b[^>]*>(?:(?!</w:r>).)*<w:t\b[^>]*>\{\{signature_' . preg_quote($signerSide, '~') . '\}\}</w:t>(?:(?!</w:r>).)*</w:r>~s';
+                $documentXml = preg_replace($pattern, $drawingRun, $documentXml, 1, $count);
+                if (! $count) {
+                    $documentXml = str_replace($signaturePlaceholder, '', $documentXml);
+                    $documentXml = preg_replace('~(<w:p\b[^>]*>)~', '$1' . $drawingRun, $documentXml, 1);
+                }
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            $zip->addFromString('word/document.xml', $documentXml);
+        }
+
+        $zip->close();
+    }
+
+    private function ensureImageRelationship(ZipArchive $zip, string $target): ?string
+    {
+        $entry = 'word/_rels/document.xml.rels';
+        $relsXml = $zip->getFromName($entry);
+        if ($relsXml === false || trim($relsXml) === '') {
+            $relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+        }
+
+        if (preg_match('~<Relationship\s+[^>]*Id="([^"]+)"[^>]*Target="' . preg_quote($target, '~') . '"~', $relsXml, $match)) {
+            return $match[1];
+        }
+
+        preg_match_all('~Id="rId(\d+)"~', $relsXml, $matches);
+        $next = $matches[1] ? (max(array_map('intval', $matches[1])) + 1) : 1;
+        $relationshipId = 'rId' . $next;
+        $relationship = '<Relationship Id="' . $relationshipId . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="' . $this->xmlAttr($target) . '"/>';
+        $relsXml = str_replace('</Relationships>', $relationship . '</Relationships>', $relsXml);
+        $zip->addFromString($entry, $relsXml);
+
+        return $relationshipId;
+    }
+
+    private function signatureDrawingRunXml(string $relationshipId, string $name, string $imagePath): string
+    {
+        [$width, $height] = getimagesize($imagePath) ?: [360, 160];
+        $widthEmu = 1524000;
+        $heightEmu = max(300000, (int) round($widthEmu * max(1, $height) / max(1, $width)));
+        $docPrId = random_int(10000, 999999);
+
+        return '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+            . '<wp:extent cx="' . $widthEmu . '" cy="' . $heightEmu . '"/>'
+            . '<wp:effectExtent l="0" t="0" r="0" b="0"/>'
+            . '<wp:docPr id="' . $docPrId . '" name="' . $this->xmlAttr($name) . '"/>'
+            . '<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/></wp:cNvGraphicFramePr>'
+            . '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            . '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            . '<pic:nvPicPr><pic:cNvPr id="0" name="' . $this->xmlAttr($name) . '"/><pic:cNvPicPr/></pic:nvPicPr>'
+            . '<pic:blipFill><a:blip r:embed="' . $this->xmlAttr($relationshipId) . '" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+            . '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $widthEmu . '" cy="' . $heightEmu . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
+            . '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
+    }
+
+    private function publicMediaPath(Media $media): ?string
+    {
+        $path = $media->getRawOriginal('file_path') ?: $media->file_path;
+        $path = preg_replace('~^/storage/~', '', (string) $path);
+
+        return $path ? Storage::disk('public')->path(ltrim($path, '/')) : null;
+    }
+
+    private function xmlText(string $value): string
+    {
+        return htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
+    }
+
+    private function xmlAttr(string $value): string
+    {
+        return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
     }
 
     private function fixSplitMacrosInDocx(string $docxPath): void

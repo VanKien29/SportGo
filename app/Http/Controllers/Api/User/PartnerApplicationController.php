@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class PartnerApplicationController extends Controller
@@ -74,6 +75,7 @@ class PartnerApplicationController extends Controller
         $data = $this->validatedApplicationData($request, false);
         $data = $this->enrichLocationNames($data);
         $data = $this->enrichBankVerification($data);
+        $data['document_files'] = $this->documentFiles($request);
 
         $application = PartnerApplication::query()
             ->where('user_id', $request->user()->id)
@@ -544,9 +546,14 @@ class PartnerApplicationController extends Controller
 
     private function generatedDocumentPayload(GeneratedDocument $document): array
     {
+        $path = $document->final_file_path ?: $document->generated_file_path;
+        $fileAvailable = (bool) ($path && Storage::disk('local')->exists($path));
+
         return [
             ...$document->toArray(),
-            'download_url' => '/api/files/documents/' . $document->id . '/download',
+            'file_available' => $fileAvailable,
+            'file_size' => $fileAvailable ? Storage::disk('local')->size($path) : 0,
+            'download_url' => $fileAvailable ? '/api/files/documents/' . $document->id . '/download' : null,
             'signatures' => $document->signatures->values(),
         ];
     }
@@ -637,6 +644,20 @@ class PartnerApplicationController extends Controller
             ];
         } else {
             $rules['attachments_summary'] = ['nullable', 'string', 'max:1000'];
+            $rules += [
+                'identity_documents' => ['nullable', 'array', 'max:5'],
+                'identity_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'business_license_documents' => ['nullable', 'array', 'max:5'],
+                'business_license_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'facility_images' => ['nullable', 'array', 'max:12'],
+                'facility_images.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'bank_documents' => ['nullable', 'array', 'max:5'],
+                'bank_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'lease_documents' => ['nullable', 'array', 'max:5'],
+                'lease_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'additional_documents' => ['nullable', 'array', 'max:10'],
+                'additional_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+            ];
         }
 
         $data = $request->validate($rules, $this->messages(), $this->attributes());

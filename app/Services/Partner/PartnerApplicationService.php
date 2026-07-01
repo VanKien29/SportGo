@@ -159,13 +159,14 @@ class PartnerApplicationService
             abort(403, 'Bạn không có quyền sửa hồ sơ này.');
         }
 
-        if ($application->status !== 'draft') {
+        if (! in_array($application->status, ['draft', 'need_supplement'], true)) {
             throw ValidationException::withMessages([
-                'status' => 'Chỉ có hồ sơ nháp/chờ ký đơn mới được sửa và tạo lại đơn đăng ký.',
+                'status' => 'Chỉ có hồ sơ nháp hoặc hồ sơ đang cần bổ sung mới được sửa và tạo lại đơn đăng ký.',
             ]);
         }
 
         return DB::transaction(function () use ($application, $user, $data, $request): PartnerApplication {
+            $oldStatus = $application->status;
             $application->forceFill([
                 'applicant_full_name' => $data['applicant_full_name'] ?? $user->full_name,
                 'applicant_phone' => $data['applicant_phone'] ?? $user->phone,
@@ -205,6 +206,7 @@ class PartnerApplicationService
                 'amenities' => $data['amenities'] ?? [],
                 'court_count_total' => $data['court_count_total'] ?? count($data['courts'] ?? []),
                 'base_price_per_hour' => (int) ($data['base_price_per_hour'] ?? 0),
+                'status' => 'draft',
                 'status_reason' => null,
             ])->save();
 
@@ -232,6 +234,11 @@ class PartnerApplicationService
                 ]);
             }
 
+            $documentFiles = $data['document_files'] ?? [];
+            if (collect($documentFiles)->flatten()->isNotEmpty()) {
+                $this->storeApplicationDocuments($application, $documentFiles, 'draft_update_' . now()->format('YmdHis'));
+            }
+
             $application->generatedDocuments()
                 ->where('document_type', 'partner_application_form')
                 ->where('status', 'pending_owner_signature')
@@ -240,8 +247,8 @@ class PartnerApplicationService
             $this->storeBankAccountFromApplication($application, null, 'pending');
             $this->generateApplicationForm($application->fresh(['courts.courtType', 'documents']), $user, $data, true);
 
-            $this->applicationHistory($application, 'draft', 'draft', $user, 'user', 'Cập nhật thông tin hồ sơ nháp và tạo lại đơn đăng ký đối tác.');
-            $this->audit('partner_application_draft_updated', $application, $user, 'user', null, ['status' => 'draft'], $request);
+            $this->applicationHistory($application, $oldStatus, 'draft', $user, 'user', 'Cập nhật thông tin hồ sơ và tạo lại đơn đăng ký đối tác.');
+            $this->audit('partner_application_draft_updated', $application, $user, 'user', ['status' => $oldStatus], ['status' => 'draft'], $request);
 
             return $application->fresh($this->detailRelations());
         });

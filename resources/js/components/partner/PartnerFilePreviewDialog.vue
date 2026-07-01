@@ -116,15 +116,16 @@ async function loadDocument() {
     if (!blob.size) throw new Error('File đang rỗng. Vui lòng tạo lại văn bản từ hồ sơ.');
 
     const mimeType = (blob.type || '').toLowerCase();
+    const detectedType = detectFileType(mimeType, response);
     await nextTick();
 
-    if (mimeType === 'application/pdf') {
+    if (detectedType === 'pdf') {
       fileType.value = 'pdf';
       fileUrl.value = URL.createObjectURL(blob);
-    } else if (mimeType.startsWith('image/')) {
+    } else if (detectedType === 'image') {
       fileType.value = 'image';
       fileUrl.value = URL.createObjectURL(blob);
-    } else if (mimeType.includes('officedocument.wordprocessingml') || mimeType.includes('msword')) {
+    } else if (detectedType === 'docx') {
       fileType.value = 'docx';
       await nextTick();
       if (!docxContainer.value) throw new Error('Không khởi tạo được vùng xem DOCX.');
@@ -148,6 +149,27 @@ async function loadDocument() {
   } finally {
     loading.value = false;
   }
+}
+
+function detectFileType(mimeType, response) {
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const source = [
+    mimeType,
+    disposition,
+    props.document?.download_url,
+    props.document?.file_name,
+    props.document?.title,
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (source.includes('application/pdf') || source.includes('.pdf')) return 'pdf';
+  if (source.includes('image/') || /\.(png|jpe?g|webp|gif)(\?|$|\s|")/.test(source)) return 'image';
+  if (
+    source.includes('officedocument.wordprocessingml')
+    || source.includes('application/msword')
+    || /\.(docx?|dotx)(\?|$|\s|")/.test(source)
+  ) return 'docx';
+
+  return 'unsupported';
 }
 
 function cleanup() {
