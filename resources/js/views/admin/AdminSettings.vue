@@ -141,11 +141,11 @@
           <!-- Color Customizer Section -->
           <div class="settings-section-title">Chỉnh sửa bảng màu</div>
           
-          <!-- Mode Tabs -->
-          <div class="mode-tabs">
+          <!-- Mode Tabs (Segmented Toggle Control) -->
+          <div class="mode-toggle-group">
             <button
               type="button"
-              class="tab-btn"
+              class="toggle-tab-btn"
               :class="{ active: activeModeTab === 'light' }"
               @click="activeModeTab = 'light'"
             >
@@ -153,7 +153,7 @@
             </button>
             <button
               type="button"
-              class="tab-btn"
+              class="toggle-tab-btn"
               :class="{ active: activeModeTab === 'dark' }"
               @click="activeModeTab = 'dark'"
             >
@@ -905,37 +905,43 @@ export default {
   border-color: var(--admin-primary);
 }
 
-/* Mode tabs for color picker */
-.mode-tabs {
-  display: flex;
-  margin-bottom: 12px;
-  gap: 16px;
+/* Mode Segmented Toggle Group */
+.mode-toggle-group {
+  display: inline-flex !important;
+  width: fit-content !important;
+  background: var(--admin-bg-soft) !important;
+  border-radius: var(--admin-radius) !important;
+  padding: 3px !important;
+  gap: 2px !important;
+  margin-bottom: 16px !important;
+  border: 1px solid var(--admin-border-soft) !important;
 }
 
-.tab-btn {
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  padding: 8px 4px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--admin-muted);
-  cursor: pointer;
-  transition: all 120ms ease;
-  height: 36px;
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.toggle-tab-btn {
+  background: transparent !important;
+  border: 0 !important;
+  width: 120px !important;
+  height: 30px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--admin-muted) !important;
+  cursor: pointer !important;
+  border-radius: calc(var(--admin-radius) - 2px) !important;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  user-select: none !important;
 }
 
-.tab-btn:hover {
+.toggle-tab-btn:hover {
   color: var(--admin-text);
 }
 
-.tab-btn.active {
+.toggle-tab-btn.active {
+  background: var(--admin-surface);
   color: var(--admin-primary);
-  border-bottom-color: var(--admin-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 /* Figma Color Rows Styles */
