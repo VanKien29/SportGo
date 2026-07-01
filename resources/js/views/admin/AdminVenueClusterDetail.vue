@@ -605,12 +605,24 @@
                     <img :src="req.evidence_image_url" alt="Ảnh minh chứng" style="max-width:200px; max-height:140px; border-radius:8px; border:1px solid var(--border-color); object-fit:cover; cursor:pointer; transition: transform 0.2s;" @mouseover="$event.target.style.transform='scale(1.05)'" @mouseout="$event.target.style.transform='scale(1)'" />
                   </a>
                 </div>
+                <div v-if="req.supplementary_documents?.length" class="supplement-documents-admin">
+                  <strong>Giấy tờ bổ sung:</strong>
+                  <a
+                    v-for="doc in req.supplementary_documents"
+                    :key="doc.id || doc.download_url || doc.file_name"
+                    :href="doc.download_url"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {{ doc.file_name || doc.title || 'Tài liệu' }}
+                  </a>
+                </div>
               </div>
               <div class="approval-right">
                 <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
                 <div v-if="req.status === 'pending'" class="approval-btns">
                   <button class="btn btn-success btn-sm" :disabled="processingId === req.id" @click="handleApprove(req)">{{ processingId === req.id ? '...' : 'Duyệt' }}</button>
-                  <button class="btn btn-warning btn-sm" :disabled="processingId === req.id" @click="handleRequestSupplement(req)">Bổ sung</button>
+                  <button class="btn btn-warning btn-sm" :disabled="processingId === req.id" @click="openSupplementModal(req)">Bổ sung</button>
                   <button class="btn btn-danger btn-sm" :disabled="processingId === req.id" @click="openRejectModal(req)">Từ chối</button>
                 </div>
               </div>
@@ -638,6 +650,18 @@
                 <div class="muted">Địa chỉ mới: {{ req.new_address }}, {{ req.new_ward }}, {{ req.new_province }}</div>
                 <div class="muted">Tọa độ mới: {{ req.new_latitude }}, {{ req.new_longitude }}</div>
                 <div v-if="req.new_map_url" class="muted">Map URL: <a :href="req.new_map_url" target="_blank" style="color:#2563eb">Xem bản đồ</a></div>
+                <div v-if="req.supplementary_documents?.length" class="supplement-documents-admin">
+                  <strong>Giấy tờ bổ sung:</strong>
+                  <a
+                    v-for="doc in req.supplementary_documents"
+                    :key="doc.id || doc.download_url || doc.file_name"
+                    :href="doc.download_url"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {{ doc.file_name || doc.title || 'Tài liệu' }}
+                  </a>
+                </div>
                 <div class="muted">Lý do: {{ req.note }}</div>
                 <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
                 <div v-if="req.reviewed_by" class="muted">Xử lý bởi: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
@@ -649,7 +673,7 @@
                   <button class="btn btn-success btn-sm" :disabled="processingLocationId === req.id" @click="handleApproveLocation(req)">
                     {{ processingLocationId === req.id ? '...' : 'Duyệt' }}
                   </button>
-                  <button class="btn btn-warning btn-sm" :disabled="processingLocationId === req.id" @click="handleRequestLocationSupplement(req)">Bổ sung</button>
+                  <button class="btn btn-warning btn-sm" :disabled="processingLocationId === req.id" @click="openLocationSupplementModal(req)">Bổ sung</button>
                   <button class="btn btn-danger btn-sm" :disabled="processingLocationId === req.id" @click="openRejectLocationModal(req)">Từ chối</button>
                 </div>
               </div>
@@ -772,6 +796,76 @@
           <button type="button" class="btn btn-outline" @click="closeRejectModal">Hủy</button>
           <button type="submit" class="btn btn-danger" :disabled="rejecting">
             {{ rejecting ? 'Đang từ chối...' : 'Xác nhận từ chối' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Modal: Yêu cầu bổ sung hồ sơ quy mô ── -->
+    <div v-if="supplementTarget" class="modal-backdrop" @click.self="closeSupplementModal">
+      <form class="modal-box card" @submit.prevent="handleRequestSupplement">
+        <div class="modal-header">
+          <h3>Yêu cầu bổ sung</h3>
+          <button type="button" class="btn-close" @click="closeSupplementModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="muted">Yêu cầu: <strong>{{ supplementTarget.name }}</strong></p>
+          <div v-if="supplementError" class="alert-error">{{ supplementError }}</div>
+          <label class="form-label">
+            Nội dung cần bổ sung <span class="required">*</span>
+            <textarea
+              v-model="supplementReason"
+              rows="5"
+              required
+              placeholder="Ghi rõ giấy tờ/thông tin cần chủ sân bổ sung..."
+              class="form-control"
+            ></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" @click="closeSupplementModal">Hủy</button>
+          <button type="submit" class="btn btn-warning" :disabled="supplementing">
+            {{ supplementing ? 'Đang gửi...' : 'Gửi yêu cầu bổ sung' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Modal: Yêu cầu bổ sung hồ sơ vị trí ── -->
+    <div v-if="supplementLocationTarget" class="modal-backdrop" @click.self="closeLocationSupplementModal">
+      <form class="modal-box card" @submit.prevent="handleRequestLocationSupplement">
+        <div class="modal-header">
+          <h3>Yêu cầu bổ sung vị trí</h3>
+          <button type="button" class="btn-close" @click="closeLocationSupplementModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="muted">Địa chỉ mới: <strong>{{ supplementLocationTarget.new_address }}, {{ supplementLocationTarget.new_province }}</strong></p>
+          <div v-if="supplementLocationError" class="alert-error">{{ supplementLocationError }}</div>
+          <label class="form-label">
+            Nội dung cần bổ sung <span class="required">*</span>
+            <textarea
+              v-model="supplementLocationReason"
+              rows="5"
+              required
+              placeholder="Ghi rõ giấy tờ/thông tin cần chủ sân bổ sung..."
+              class="form-control"
+            ></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" @click="closeLocationSupplementModal">Hủy</button>
+          <button type="submit" class="btn btn-warning" :disabled="supplementingLocation">
+            {{ supplementingLocation ? 'Đang gửi...' : 'Gửi yêu cầu bổ sung' }}
           </button>
         </div>
       </form>
@@ -911,6 +1005,16 @@ export default {
       rejectError: '',
       rejecting: false,
 
+      supplementTarget: null,
+      supplementReason: '',
+      supplementError: '',
+      supplementing: false,
+
+      supplementLocationTarget: null,
+      supplementLocationReason: '',
+      supplementLocationError: '',
+      supplementingLocation: false,
+
 
 
       // Unlock requests state
@@ -1035,19 +1139,36 @@ export default {
         this.processingId = null;
       }
     },
-    async handleRequestSupplement(req) {
-      const reason = prompt('Nhập nội dung giấy tờ/thông tin cần chủ sân bổ sung:');
-      if (!reason || !reason.trim()) return;
-      this.processingId = req.id;
+    openSupplementModal(req) {
+      this.supplementTarget = req;
+      this.supplementReason = req.status_reason || '';
+      this.supplementError = '';
+    },
+    closeSupplementModal() {
+      this.supplementTarget = null;
+      this.supplementReason = '';
+      this.supplementError = '';
+    },
+    async handleRequestSupplement() {
+      const reason = this.supplementReason.trim();
+      if (!reason) {
+        this.supplementError = 'Vui lòng nhập nội dung cần bổ sung.';
+        return;
+      }
+      this.supplementing = true;
+      this.processingId = this.supplementTarget.id;
       try {
-        const res = await adminVenueClusterService.requestScaleSupplement(this.cluster.id, req.id, {
-          status_reason: reason.trim(),
+        const res = await adminVenueClusterService.requestScaleSupplement(this.cluster.id, this.supplementTarget.id, {
+          status_reason: reason,
         });
-        const idx = this.approvalRequests.findIndex((r) => r.id === req.id);
+        const idx = this.approvalRequests.findIndex((r) => r.id === this.supplementTarget.id);
         if (idx !== -1) this.approvalRequests.splice(idx, 1, res.request);
+        this.closeSupplementModal();
+        this.showMsg('Đã gửi yêu cầu bổ sung.', 'msg-success');
       } catch (err) {
-        alert(err.message || 'Không gửi được yêu cầu bổ sung.');
+        this.supplementError = err.message || 'Không gửi được yêu cầu bổ sung.';
       } finally {
+        this.supplementing = false;
         this.processingId = null;
       }
     },
@@ -1095,19 +1216,36 @@ export default {
         this.processingLocationId = null;
       }
     },
-    async handleRequestLocationSupplement(req) {
-      const reason = prompt('Nhập nội dung giấy tờ/thông tin cần chủ sân bổ sung:');
-      if (!reason || !reason.trim()) return;
-      this.processingLocationId = req.id;
+    openLocationSupplementModal(req) {
+      this.supplementLocationTarget = req;
+      this.supplementLocationReason = req.status_reason || '';
+      this.supplementLocationError = '';
+    },
+    closeLocationSupplementModal() {
+      this.supplementLocationTarget = null;
+      this.supplementLocationReason = '';
+      this.supplementLocationError = '';
+    },
+    async handleRequestLocationSupplement() {
+      const reason = this.supplementLocationReason.trim();
+      if (!reason) {
+        this.supplementLocationError = 'Vui lòng nhập nội dung cần bổ sung.';
+        return;
+      }
+      this.supplementingLocation = true;
+      this.processingLocationId = this.supplementLocationTarget.id;
       try {
-        const res = await adminVenueClusterService.requestLocationSupplement(this.cluster.id, req.id, {
-          status_reason: reason.trim(),
+        const res = await adminVenueClusterService.requestLocationSupplement(this.cluster.id, this.supplementLocationTarget.id, {
+          status_reason: reason,
         });
-        const idx = this.locationChangeRequests.findIndex((r) => r.id === req.id);
+        const idx = this.locationChangeRequests.findIndex((r) => r.id === this.supplementLocationTarget.id);
         if (idx !== -1) this.locationChangeRequests.splice(idx, 1, res.request);
+        this.closeLocationSupplementModal();
+        this.showMsg('Đã gửi yêu cầu bổ sung vị trí.', 'msg-success');
       } catch (err) {
-        alert(err.message || 'Không gửi được yêu cầu bổ sung.');
+        this.supplementLocationError = err.message || 'Không gửi được yêu cầu bổ sung.';
       } finally {
+        this.supplementingLocation = false;
         this.processingLocationId = null;
       }
     },
@@ -2497,6 +2635,29 @@ export default {
   transition: border-color 0.18s;
 }
 .form-control:focus { border-color: #0f172a; }
+
+.supplement-documents-admin {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.supplement-documents-admin a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 700;
+  text-decoration: none;
+}
 .required { color: #ef4444; }
 .alert-error {
   padding: 10px 14px;

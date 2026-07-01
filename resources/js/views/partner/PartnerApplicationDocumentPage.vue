@@ -5,6 +5,7 @@
       :application-id="route.params.id"
       :document-id="route.params.documentId"
       :document-kind="route.query.type"
+      :back-label="route.query.from === 'registration' ? 'Quay lại form nhập' : 'Quay lại hồ sơ'"
       @close="goBack"
       @signed="onSigned"
     />
@@ -20,6 +21,10 @@ const route = useRoute();
 const router = useRouter();
 
 function goBack() {
+  if (route.query.from === 'registration') {
+    router.push({ name: 'partner-application', query: { editDraft: route.params.id } });
+    return;
+  }
   router.push({ name: 'partner-application-detail', params: { id: route.params.id } });
 }
 

@@ -123,6 +123,54 @@ class VenueCourtApprovalController extends Controller
     /**
      * Hủy yêu cầu đang ở trạng thái chờ duyệt.
      */
+    public function supplement(Request $request, string $clusterId, string $requestId): JsonResponse
+    {
+        $cluster = VenueCluster::findOrFail($clusterId);
+
+        if ($cluster->owner_id !== $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền bổ sung yêu cầu này.'], 403);
+        }
+
+        $approvalRequest = VenueCourtApprovalRequest::query()
+            ->where('venue_cluster_id', $clusterId)
+            ->findOrFail($requestId);
+
+        if ($approvalRequest->status !== 'need_supplement') {
+            return response()->json(['message' => 'Chỉ có yêu cầu đang cần bổ sung mới được nộp thêm giấy tờ.'], 422);
+        }
+
+        $data = $request->validate([
+            'note' => ['nullable', 'string', 'max:1000'],
+            'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
+            'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+        ], [
+            'supplementary_documents.required' => 'Vui lòng tải lên ít nhất một giấy tờ bổ sung.',
+            'supplementary_documents.*.mimes' => 'Giấy tờ bổ sung phải có định dạng: jpg, jpeg, png, webp, pdf, doc, docx.',
+            'supplementary_documents.*.max' => 'Mỗi giấy tờ bổ sung không được quá 10MB.',
+        ]);
+
+        $documents = $this->profileDocuments->attachVenueRequestDocuments(
+            $cluster,
+            $this->filesArray($request->file('supplementary_documents', [])),
+            $approvalRequest->id,
+            'scale_request_supplement',
+            'scale_request_documents',
+            'Giấy tờ bổ sung yêu cầu mở rộng quy mô',
+            'Giấy tờ chủ sân bổ sung theo yêu cầu của SportGo.'
+        );
+
+        $approvalRequest->forceFill([
+            'status' => 'pending',
+            'status_reason' => $data['note'] ?? 'Chủ sân đã bổ sung giấy tờ theo yêu cầu.',
+            'supplementary_documents' => array_values(array_merge($approvalRequest->supplementary_documents ?: [], $documents)),
+        ])->save();
+
+        return response()->json([
+            'message' => 'Đã nộp giấy tờ bổ sung. Yêu cầu được chuyển lại về trạng thái chờ duyệt.',
+            'data' => $this->payload($approvalRequest->fresh(['courtType:id,name', 'requestedBy:id,full_name,username', 'reviewedBy:id,full_name,username'])),
+        ]);
+    }
+
     public function cancel(Request $request, string $clusterId, string $requestId): JsonResponse
     {
         $cluster = VenueCluster::findOrFail($clusterId);

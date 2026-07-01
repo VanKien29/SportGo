@@ -16,6 +16,8 @@
 
     <div v-show="fileType === 'docx'" ref="docxContainer" class="docx-surface"></div>
 
+    <div v-if="fileType === 'html'" class="html-preview" v-html="htmlPreview"></div>
+
     <iframe v-if="fileType === 'pdf'" :src="fileUrl" class="file-frame" title="PDF preview"></iframe>
 
     <div v-if="fileType === 'image'" class="image-frame">
@@ -48,6 +50,7 @@ const loading = ref(false);
 const error = ref('');
 const fileType = ref('');
 const fileUrl = ref('');
+const htmlPreview = ref('');
 
 watch(() => props.document?.download_url, () => {
   loadDocument();
@@ -72,6 +75,7 @@ async function loadDocument() {
     if (!response.ok) throw new Error(`Không tải được file (${response.status}).`);
 
     const blob = await response.blob();
+    if (!blob.size) throw new Error('File văn bản đang rỗng.');
     const mimeType = (blob.type || '').toLowerCase();
     await nextTick();
 
@@ -97,7 +101,13 @@ async function loadDocument() {
       fileType.value = 'unsupported';
     }
   } catch (err) {
-    error.value = err.message || 'Không thể hiển thị văn bản.';
+    if (props.document?.render_data) {
+      fileType.value = 'html';
+      htmlPreview.value = buildHtmlPreview(props.document);
+      error.value = '';
+    } else {
+      error.value = err.message || 'Không thể hiển thị văn bản.';
+    }
   } finally {
     loading.value = false;
   }
@@ -107,7 +117,43 @@ function cleanup() {
   if (fileUrl.value) URL.revokeObjectURL(fileUrl.value);
   fileUrl.value = '';
   fileType.value = '';
+  htmlPreview.value = '';
   if (docxContainer.value) docxContainer.value.innerHTML = '';
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function buildHtmlPreview(document) {
+  const data = document.render_data || {};
+  const rows = Object.entries(data)
+    .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
+    .map(([key, value]) => `<tr><th>${escapeHtml(label(key))}</th><td>${escapeHtml(formatValue(value))}</td></tr>`)
+    .join('');
+
+  return `
+    <article class="preview-paper">
+      <h1>${escapeHtml(document.title || document.document_code || 'Văn bản SportGo')}</h1>
+      <p class="preview-note">Bản xem trước được tạo từ dữ liệu hệ thống. File Word vẫn có thể tải bằng nút Tải file.</p>
+      <table><tbody>${rows}</tbody></table>
+    </article>
+  `;
+}
+
+function label(key) {
+  return String(key).replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatValue(value) {
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'object') return JSON.stringify(value);
+  return value;
 }
 
 function downloadDocument() {
@@ -143,6 +189,55 @@ onUnmounted(cleanup);
   border: 0;
   background: #fff;
   border-radius: 8px;
+}
+
+.html-preview {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+:deep(.preview-paper) {
+  width: min(100%, 820px);
+  min-height: 760px;
+  background: #fff;
+  padding: 36px 42px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  color: #111827;
+}
+
+:deep(.preview-paper h1) {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: 22px;
+}
+
+:deep(.preview-note) {
+  margin: 0 0 18px;
+  color: #64748b;
+  text-align: center;
+  font-size: 13px;
+}
+
+:deep(.preview-paper table) {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+:deep(.preview-paper th),
+:deep(.preview-paper td) {
+  border: 1px solid #cbd5e1;
+  padding: 9px 10px;
+  vertical-align: top;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+:deep(.preview-paper th) {
+  width: 34%;
+  background: #f8fafc;
+  font-weight: 800;
 }
 
 .image-frame {

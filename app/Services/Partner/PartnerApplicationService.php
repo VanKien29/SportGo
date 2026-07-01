@@ -153,6 +153,100 @@ class PartnerApplicationService
         });
     }
 
+    public function updateDraftApplication(PartnerApplication $application, User $user, array $data, ?Request $request = null): PartnerApplication
+    {
+        if ($application->user_id !== $user->id) {
+            abort(403, 'Bạn không có quyền sửa hồ sơ này.');
+        }
+
+        if ($application->status !== 'draft') {
+            throw ValidationException::withMessages([
+                'status' => 'Chỉ có hồ sơ nháp/chờ ký đơn mới được sửa và tạo lại đơn đăng ký.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($application, $user, $data, $request): PartnerApplication {
+            $application->forceFill([
+                'applicant_full_name' => $data['applicant_full_name'] ?? $user->full_name,
+                'applicant_phone' => $data['applicant_phone'] ?? $user->phone,
+                'applicant_email' => $data['applicant_email'] ?? $user->email,
+                'applicant_birth_date' => $data['applicant_birth_date'] ?? null,
+                'applicant_address' => $data['applicant_address'] ?? null,
+                'applicant_type' => $data['applicant_type'] ?? 'individual',
+                'representative_name' => $data['representative_name'] ?? ($data['applicant_full_name'] ?? $user->full_name),
+                'representative_identity_type' => $data['representative_identity_type'] ?? 'cccd',
+                'representative_identity_number' => $data['representative_identity_number'] ?? null,
+                'representative_identity_issued_date' => $data['representative_identity_issued_date'] ?? null,
+                'representative_identity_issued_place' => $data['representative_identity_issued_place'] ?? null,
+                'representative_position' => $data['representative_position'] ?? null,
+                'business_name' => $data['business_name'],
+                'business_code' => $data['business_code'] ?? null,
+                'tax_code' => $data['tax_code'] ?? null,
+                'business_license_number' => $data['business_license_number'] ?? null,
+                'business_address' => $data['business_address'] ?? ($data['venue_address'] ?? null),
+                'business_representative_name' => $data['business_representative_name'] ?? ($data['representative_name'] ?? $user->full_name),
+                'business_representative_position' => $data['business_representative_position'] ?? null,
+                'venue_name' => $data['venue_name'],
+                'venue_address' => $data['venue_address'],
+                'venue_province' => $data['venue_province'] ?? null,
+                'venue_province_code' => $data['venue_province_code'] ?? null,
+                'venue_district' => $data['venue_district'] ?? null,
+                'venue_district_code' => $data['venue_district_code'] ?? null,
+                'venue_ward' => $data['venue_ward'] ?? null,
+                'venue_ward_code' => $data['venue_ward_code'] ?? null,
+                'venue_map_url' => $data['venue_map_url'] ?? null,
+                'venue_latitude' => $data['venue_latitude'],
+                'venue_longitude' => $data['venue_longitude'],
+                'venue_phone' => $data['venue_phone'] ?? $user->phone,
+                'venue_email' => $data['venue_email'] ?? $user->email,
+                'venue_description' => $data['venue_description'] ?? null,
+                'expected_opening_hours' => $data['expected_opening_hours'] ?? null,
+                'parking_info' => $data['parking_info'] ?? null,
+                'amenities' => $data['amenities'] ?? [],
+                'court_count_total' => $data['court_count_total'] ?? count($data['courts'] ?? []),
+                'base_price_per_hour' => (int) ($data['base_price_per_hour'] ?? 0),
+                'status_reason' => null,
+            ])->save();
+
+            $application->forceFill([
+                'bank_name' => $data['bank_name'] ?? null,
+                'bank_code' => $data['bank_code'] ?? null,
+                'account_number' => $data['account_number'] ?? null,
+                'account_holder_name' => $data['account_holder_name'] ?? null,
+                'bank_branch' => $data['bank_branch'] ?? null,
+                'bank_verification_status' => $data['bank_verification_status'] ?? 'pending',
+                'bank_verified_at' => ($data['bank_verification_status'] ?? null) === 'verified' ? now() : null,
+            ])->save();
+
+            $application->courts()->delete();
+            foreach ($data['courts'] ?? [] as $index => $court) {
+                $courtType = CourtType::query()->find($court['court_type_id']);
+                PartnerApplicationCourt::create([
+                    'partner_application_id' => $application->id,
+                    'court_type_id' => $court['court_type_id'],
+                    'court_type_name_snapshot' => $courtType?->name,
+                    'expected_court_count' => $court['expected_court_count'] ?? 1,
+                    'name' => $court['name'],
+                    'note' => $court['note'] ?? null,
+                    'sort_order' => $court['sort_order'] ?? ($index + 1),
+                ]);
+            }
+
+            $application->generatedDocuments()
+                ->where('document_type', 'partner_application_form')
+                ->where('status', 'pending_owner_signature')
+                ->update(['status' => 'cancelled']);
+
+            $this->storeBankAccountFromApplication($application, null, 'pending');
+            $this->generateApplicationForm($application->fresh(['courts.courtType', 'documents']), $user, $data, true);
+
+            $this->applicationHistory($application, 'draft', 'draft', $user, 'user', 'Cập nhật thông tin hồ sơ nháp và tạo lại đơn đăng ký đối tác.');
+            $this->audit('partner_application_draft_updated', $application, $user, 'user', null, ['status' => 'draft'], $request);
+
+            return $application->fresh($this->detailRelations());
+        });
+    }
+
     public function submitSignedApplication(PartnerApplication $application, User $user, ?Request $request = null): PartnerApplication
     {
         if ($application->user_id !== $user->id) {
@@ -309,6 +403,50 @@ class PartnerApplicationService
             $this->audit('partner_application_need_supplement', $application, $admin, 'admin', ['status' => $oldStatus], ['status' => 'need_supplement'], $request, $reason);
             $this->notifyUser($application->user, 'partner_application_need_supplement', 'Hồ sơ đối tác cần bổ sung', 'Nội dung cần bổ sung: ' . $reason, $application->id);
             $this->mail->queue($application->venue_email ?? $application->user->email, new PartnerApplicationSupplementRequiredMail($application));
+
+            return $application->fresh($this->detailRelations());
+        });
+    }
+
+    /**
+     * @param array<int, UploadedFile> $files
+     */
+    public function submitSupplementDocuments(PartnerApplication $application, User $user, array $files, ?string $note = null, ?Request $request = null): PartnerApplication
+    {
+        if ($application->user_id !== $user->id) {
+            abort(403, 'Bạn không có quyền bổ sung hồ sơ này.');
+        }
+
+        if ($application->status !== 'need_supplement') {
+            throw ValidationException::withMessages([
+                'status' => 'Chỉ có hồ sơ đang cần bổ sung mới được nộp thêm giấy tờ.',
+            ]);
+        }
+
+        if (count($files) === 0) {
+            throw ValidationException::withMessages([
+                'additional_documents' => 'Vui lòng tải lên ít nhất một giấy tờ bổ sung.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($application, $user, $files, $note, $request): PartnerApplication {
+            $oldStatus = $application->status;
+            $this->storeApplicationDocuments($application, ['additional' => $files], 'supplement_' . now()->format('YmdHis'));
+
+            $reason = trim((string) $note);
+            $application->forceFill([
+                'status' => 'submitted',
+                'submitted_at' => now(),
+                'status_reason' => $reason !== '' ? $reason : 'Người dùng đã bổ sung giấy tờ theo yêu cầu.',
+            ])->save();
+
+            $historyReason = $reason !== ''
+                ? 'Người dùng bổ sung hồ sơ: ' . $reason
+                : 'Người dùng đã bổ sung giấy tờ theo yêu cầu.';
+
+            $this->applicationHistory($application, $oldStatus, 'submitted', $user, 'user', $historyReason);
+            $this->audit('partner_application_supplement_submitted', $application, $user, 'user', ['status' => $oldStatus], ['status' => 'submitted'], $request, $historyReason);
+            $this->notifyAdmins('partner_application_supplement_submitted', 'Hồ sơ đối tác đã được bổ sung', $application->venue_name . ' vừa nộp giấy tờ bổ sung.', $application->id);
 
             return $application->fresh($this->detailRelations());
         });
@@ -830,7 +968,7 @@ class PartnerApplicationService
         return $contract;
     }
 
-    private function storeApplicationDocuments(PartnerApplication $application, array $documentFiles): void
+    private function storeApplicationDocuments(PartnerApplication $application, array $documentFiles, ?string $batch = null): void
     {
         $definitions = [
             'identity' => [
@@ -871,7 +1009,8 @@ class PartnerApplicationService
                     continue;
                 }
 
-                $path = $file->store('partner-applications/' . $application->id . '/' . $type, 'public');
+                $folder = 'partner-applications/' . $application->id . '/' . $type . ($batch ? '/' . $batch : '');
+                $path = $file->store($folder, 'public');
                 $media = Media::query()->create([
                     'mediable_type' => PartnerApplication::class,
                     'mediable_id' => $application->id,
@@ -1423,15 +1562,17 @@ class PartnerApplicationService
             return;
         }
 
+        $bankCode = $application->bank_code ?: Str::upper(Str::slug($application->bank_name, '_'));
+
         OwnerBankAccount::updateOrCreate(
             [
                 'owner_id' => $application->user_id,
-                'partner_application_id' => $application->id,
+                'bank_code' => $bankCode,
                 'account_number' => $application->account_number,
             ],
             [
+                'partner_application_id' => $application->id,
                 'bank_name' => $application->bank_name,
-                'bank_code' => $application->bank_code ?: Str::upper(Str::slug($application->bank_name, '_')),
                 'account_holder_name' => $application->account_holder_name,
                 'branch_name' => $application->bank_branch,
                 'status' => $status,

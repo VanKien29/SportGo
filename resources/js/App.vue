@@ -1,5 +1,5 @@
 <template>
-  <router-view />
+  <router-view :key="$route.fullPath" />
   <SetPasswordModal v-if="showSetPasswordModal" @done="handlePasswordSetupDone" />
   <PolicyAcceptanceModal
     v-else-if="requiredPolicies.length"

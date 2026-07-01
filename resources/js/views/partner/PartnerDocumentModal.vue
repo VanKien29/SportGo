@@ -102,6 +102,7 @@ const props = defineProps({
   applicationId: { type: [String, Number], required: true },
   documentId: { type: [String, Number], required: true },
   documentKind: { type: String, default: '' },
+  backLabel: { type: String, default: '' },
 });
 
 const emit = defineEmits(['close', 'signed']);
@@ -121,6 +122,7 @@ const otpSent = ref(false);
 const otp = ref('');
 const signingRequestId = ref('');
 const otpExpiresAt = ref(null);
+const DRAFT_KEY = 'sportgo_partner_application_draft_v3';
 
 const isGeneratedDocument = computed(() => document.value?.source !== 'uploaded');
 const isApplicationForm = computed(() => document.value?.document_type === 'partner_application_form');
@@ -302,6 +304,7 @@ async function verifySignatureOtp() {
         method: 'POST',
         body: JSON.stringify({ signing_request_id: signingRequestId.value, otp: otp.value }),
       });
+      localStorage.removeItem(DRAFT_KEY);
     }
     resetOtpState();
     await loadData();
@@ -325,6 +328,7 @@ async function submitApplication() {
   saving.value = true;
   try {
     await api(`/api/user/partner-application/${application.value.id}/submit`, { method: 'POST' });
+    localStorage.removeItem(DRAFT_KEY);
     alert('Hồ sơ đã được gửi để SportGo xét duyệt thành công!');
     emit('signed');
     emit('close');

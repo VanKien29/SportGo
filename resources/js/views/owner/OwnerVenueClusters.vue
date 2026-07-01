@@ -1225,6 +1225,13 @@
                                                     : "Hủy yêu cầu"
                                             }}
                                         </button>
+                                        <button
+                                            v-if="req.status === 'need_supplement'"
+                                            class="btn btn-primary btn-sm"
+                                            @click="openSupplementRequestModal('scale', req)"
+                                        >
+                                            Bổ sung giấy tờ
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -1419,6 +1426,13 @@
                                                     ? "..."
                                                     : "Hủy yêu cầu"
                                             }}
+                                        </button>
+                                        <button
+                                            v-if="req.status === 'need_supplement'"
+                                            class="btn btn-primary btn-sm"
+                                            @click="openSupplementRequestModal('location', req)"
+                                        >
+                                            Bổ sung giấy tờ
                                         </button>
                                     </div>
                                 </div>
@@ -2219,6 +2233,56 @@
                 </form>
             </div>
         </div>
+        <div v-if="supplementRequestTarget" class="modal-overlay" @click.self="closeSupplementRequestModal">
+            <div class="modal-content">
+                <form @submit.prevent="submitSupplementRequest">
+                    <div class="modal-header">
+                        <h3>Bổ sung giấy tờ</h3>
+                        <button type="button" class="modal-close" @click="closeSupplementRequestModal">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Nội dung SportGo yêu cầu</label>
+                            <div class="readonly-note">
+                                {{ supplementRequestTarget.status_reason || 'SportGo yêu cầu bổ sung thêm giấy tờ/thông tin cho yêu cầu này.' }}
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Phản hồi của bạn</label>
+                            <textarea
+                                v-model="supplementRequestNote"
+                                class="form-control"
+                                rows="4"
+                                placeholder="Nhập nội dung giải trình hoặc ghi chú cho giấy tờ bổ sung..."
+                            ></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Giấy tờ bổ sung <span class="required">*</span></label>
+                            <input
+                                ref="supplementRequestInput"
+                                type="file"
+                                class="form-control"
+                                multiple
+                                accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx"
+                                @change="handleSupplementRequestFiles"
+                            />
+                            <div v-if="supplementRequestFiles.length" class="supplement-file-list">
+                                <span v-for="file in supplementRequestFiles" :key="`${file.name}-${file.size}`">{{ file.name }}</span>
+                            </div>
+                        </div>
+                        <div v-if="supplementRequestError" class="error-message">
+                            {{ supplementRequestError }}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" @click="closeSupplementRequestModal">Hủy</button>
+                        <button type="submit" class="btn btn-primary" :disabled="supplementRequestSubmitting">
+                            {{ supplementRequestSubmitting ? "Đang gửi..." : "Gửi bổ sung" }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
         <!-- Nut noi hanh dong cum san -->
         <ClusterActionFloating :is-locked="isClusterLocked" @action="triggerAction" />
     </div>
@@ -2396,6 +2460,13 @@ export default {
             unlockSubmitting: false,
             unlockError: "",
             unlockSuccess: "",
+
+            supplementRequestType: "",
+            supplementRequestTarget: null,
+            supplementRequestNote: "",
+            supplementRequestFiles: [],
+            supplementRequestError: "",
+            supplementRequestSubmitting: false,
         };
     },
 
@@ -3096,8 +3167,8 @@ export default {
             if (!this.map) {
                 this.map = window.L.map("cluster-map", { scrollWheelZoom: false }).setView([lat, lng], 15);
                 window.L.tileLayer(
-                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                    { attribution: "&copy; OpenStreetMap contributors" },
+                    "http://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}",
+                    { attribution: "&copy; Google Maps" },
                 ).addTo(this.map);
                 this.marker = window.L.marker([lat, lng], {
                     draggable: false,
@@ -3165,30 +3236,20 @@ export default {
                     "location-change-modal-map",
                 ).setView([lat, lng], 15);
                 window.L.tileLayer(
-                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                    { attribution: "&copy; OpenStreetMap contributors" },
+                    "http://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}",
+                    { attribution: "&copy; Google Maps" },
                 ).addTo(this.locationMap);
                 this.locationMarker = window.L.marker([lat, lng], {
                     draggable: true,
                 }).addTo(this.locationMap);
                 this.locationMarker.on("dragend", (e) => {
                     const p = e.target.getLatLng();
-                    this.locationForm.new_latitude = parseFloat(
-                        p.lat.toFixed(7),
-                    );
-                    this.locationForm.new_longitude = parseFloat(
-                        p.lng.toFixed(7),
-                    );
+                    this.applyLocationPoint(p);
                 });
                 this.locationMap.on("click", (e) => {
                     const p = e.latlng;
                     this.locationMarker.setLatLng(p);
-                    this.locationForm.new_latitude = parseFloat(
-                        p.lat.toFixed(7),
-                    );
-                    this.locationForm.new_longitude = parseFloat(
-                        p.lng.toFixed(7),
-                    );
+                    this.applyLocationPoint(p);
                 });
             } else {
                 this.locationMap.setView([lat, lng], 15);
@@ -3197,6 +3258,22 @@ export default {
             setTimeout(() => {
                 if (this.locationMap) this.locationMap.invalidateSize();
             }, 100);
+        },
+
+        applyLocationPoint(point) {
+            const lat = parseFloat(point.lat.toFixed(7));
+            const lng = parseFloat(point.lng.toFixed(7));
+            this.locationForm.new_latitude = lat;
+            this.locationForm.new_longitude = lng;
+            this.locationForm.new_map_url = this.googleMapsPointUrl(lat, lng);
+            this.locationMapMsg = {
+                type: "success",
+                text: `Đã chọn vị trí mới: ${lat}, ${lng}`,
+            };
+        },
+
+        googleMapsPointUrl(lat, lng) {
+            return `https://www.google.com/maps?q=${lat},${lng}`;
         },
 
         updateLocationModalMapMarker() {
@@ -4128,6 +4205,61 @@ export default {
                 this.$refs.locationSupplementInput.value = '';
             }
         },
+        openSupplementRequestModal(type, req) {
+            this.supplementRequestType = type;
+            this.supplementRequestTarget = req;
+            this.supplementRequestNote = "";
+            this.supplementRequestFiles = [];
+            this.supplementRequestError = "";
+            this.$nextTick(() => {
+                if (this.$refs.supplementRequestInput) {
+                    this.$refs.supplementRequestInput.value = "";
+                }
+            });
+        },
+        closeSupplementRequestModal() {
+            this.supplementRequestTarget = null;
+            this.supplementRequestType = "";
+            this.supplementRequestNote = "";
+            this.supplementRequestFiles = [];
+            this.supplementRequestError = "";
+        },
+        handleSupplementRequestFiles(e) {
+            this.supplementRequestFiles = Array.from(e.target.files || []);
+            this.supplementRequestError = "";
+        },
+        async submitSupplementRequest() {
+            if (!this.supplementRequestTarget || !this.selectedCluster) return;
+            if (!this.supplementRequestFiles.length) {
+                this.supplementRequestError = "Vui lòng chọn ít nhất một giấy tờ bổ sung.";
+                return;
+            }
+
+            this.supplementRequestSubmitting = true;
+            this.supplementRequestError = "";
+            try {
+                const formData = new FormData();
+                if (this.supplementRequestNote.trim()) {
+                    formData.append("note", this.supplementRequestNote.trim());
+                }
+                this.supplementRequestFiles.forEach((file) => {
+                    formData.append("supplementary_documents[]", file);
+                });
+
+                const res = this.supplementRequestType === "location"
+                    ? await venueClusterService.supplementLocationChangeRequest(this.selectedCluster.id, this.supplementRequestTarget.id, formData)
+                    : await venueClusterService.supplementApprovalRequest(this.selectedCluster.id, this.supplementRequestTarget.id, formData);
+
+                const list = this.supplementRequestType === "location" ? this.locationRequests : this.approvalRequests;
+                const idx = list.findIndex((item) => item.id === this.supplementRequestTarget.id);
+                if (idx !== -1) list.splice(idx, 1, res.data);
+                this.closeSupplementRequestModal();
+            } catch (err) {
+                this.supplementRequestError = err.message || "Không gửi được giấy tờ bổ sung.";
+            } finally {
+                this.supplementRequestSubmitting = false;
+            }
+        },
 
         openCreateApprovalModal() {
             this.newReqForm = { court_type_id: "", name: "", note: "" };
@@ -4335,8 +4467,10 @@ export default {
                     const res = await venueClusterService.resolveMapUrl(url);
                     const d = res.data;
                     if (d?.latitude && d?.longitude) {
-                        this.locationForm.new_latitude = d.latitude;
-                        this.locationForm.new_longitude = d.longitude;
+                        this.applyLocationPoint({
+                            lat: Number(d.latitude),
+                            lng: Number(d.longitude),
+                        });
                         this.locationMapMsg = {
                             type: "success",
                             text: `Trích xuất thành công: ${d.latitude}, ${d.longitude}`,
@@ -4354,8 +4488,10 @@ export default {
             }
             let match = targetUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (match) {
-                this.locationForm.new_latitude = parseFloat(match[1]);
-                this.locationForm.new_longitude = parseFloat(match[2]);
+                this.applyLocationPoint({
+                    lat: parseFloat(match[1]),
+                    lng: parseFloat(match[2]),
+                });
                 this.locationMapMsg = {
                     type: "success",
                     text: `Trích xuất thành công: ${match[1]}, ${match[2]}`,
@@ -4364,8 +4500,10 @@ export default {
             }
             match = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
             if (match) {
-                this.locationForm.new_latitude = parseFloat(match[1]);
-                this.locationForm.new_longitude = parseFloat(match[2]);
+                this.applyLocationPoint({
+                    lat: parseFloat(match[1]),
+                    lng: parseFloat(match[2]),
+                });
                 this.locationMapMsg = {
                     type: "success",
                     text: `Trích xuất thành công: ${match[1]}, ${match[2]}`,
@@ -6120,6 +6258,40 @@ export default {
     border-radius: 10px;
     border: 1px solid #e2e8f0;
     display: block;
+}
+
+.supplement-file-list,
+.supplement-documents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.supplement-file-list span,
+.supplement-documents a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid #c7d2fe;
+    background: #eef2ff;
+    color: #3730a3;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.readonly-note {
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    background: #fffbeb;
+    padding: 10px 12px;
+    color: #92400e;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
 }
 
 /* ─── Tab Headers ─── */

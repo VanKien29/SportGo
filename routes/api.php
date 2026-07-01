@@ -326,10 +326,12 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         // Venue Court Approval Requests (Owner gửi yêu cầu quy mô)
         Route::get('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'index']);
         Route::post('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'store']);
+        Route::post('/venue-clusters/{clusterId}/approval-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'supplement']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/cancel', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'cancel']);
         // Venue Location Change Requests (Owner gửi yêu cầu thay đổi vị trí)
         Route::get('/venue-clusters/{clusterId}/location-change-requests', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'index']);
         Route::post('/venue-clusters/{clusterId}/location-change-requests', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'store']);
+        Route::post('/venue-clusters/{clusterId}/location-change-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'supplement']);
         Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/cancel', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'cancel']);
 
         Route::get('/venue-policies', [OwnerVenuePolicyController::class, 'index']);
@@ -420,9 +422,12 @@ Route::middleware('auth:sanctum')
         Route::get('/user/partner-application/provinces', [UserPartnerApplicationController::class, 'provinces']);
         Route::get('/user/partner-application/provinces/{provinceCode}/wards', [UserPartnerApplicationController::class, 'wards']);
         Route::post('/user/partner-application/resolve-map', [UserPartnerApplicationController::class, 'resolveMap']);
+        Route::post('/user/partner-application/reverse-map', [UserPartnerApplicationController::class, 'reverseMap']);
         Route::post('/user/partner-application/preview', [UserPartnerApplicationController::class, 'preview']);
         Route::post('/user/partner-application', [UserPartnerApplicationController::class, 'store']);
+        Route::post('/user/partner-application/{id}/draft', [UserPartnerApplicationController::class, 'updateDraft']);
         Route::post('/user/partner-application/{id}/submit', [UserPartnerApplicationController::class, 'submitSigned']);
+        Route::post('/user/partner-application/{id}/supplement-documents', [UserPartnerApplicationController::class, 'supplementDocuments']);
         Route::post('/user/partner-application/{id}/cancel', [UserPartnerApplicationController::class, 'cancel']);
         Route::get('/user/partner-application/documents', [UserPartnerApplicationController::class, 'documents']);
         Route::get('/user/partner-application/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);

@@ -69,6 +69,25 @@ class PartnerApplicationController extends Controller
         ], 201);
     }
 
+    public function updateDraft(Request $request, string $id): JsonResponse
+    {
+        $data = $this->validatedApplicationData($request, false);
+        $data = $this->enrichLocationNames($data);
+        $data = $this->enrichBankVerification($data);
+
+        $application = PartnerApplication::query()
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $application = $this->partners->updateDraftApplication($application, $request->user(), $data, $request);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã cập nhật bản nháp và tạo lại đơn đăng ký. Vui lòng xem lại trước khi ký.',
+            'data' => $this->userApplicationPayload($application),
+        ]);
+    }
+
     public function submitSigned(Request $request, string $id): JsonResponse
     {
         $application = PartnerApplication::with('generatedDocuments.signatures')
@@ -155,6 +174,22 @@ class PartnerApplicationController extends Controller
         ]);
     }
 
+    public function reverseMap(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ], $this->messages(), [
+            'latitude' => 'Vĩ độ',
+            'longitude' => 'Kinh độ',
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->maps->reverse((float) $data['latitude'], (float) $data['longitude']),
+        ]);
+    }
+
     public function cancel(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
@@ -169,6 +204,37 @@ class PartnerApplicationController extends Controller
             'status' => 'success',
             'message' => 'Đã hủy hồ sơ đăng ký đối tác.',
             'data' => $this->partners->cancelApplication($application, $request->user(), $data['reason'] ?? null, $request),
+        ]);
+    }
+
+    public function supplementDocuments(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'note' => ['nullable', 'string', 'max:2000'],
+            'additional_documents' => ['required', 'array', 'min:1', 'max:10'],
+            'additional_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+        ], $this->messages(), [
+            ...$this->attributes(),
+            'note' => 'Nội dung phản hồi bổ sung',
+            'additional_documents' => 'Giấy tờ bổ sung',
+        ]);
+
+        $application = PartnerApplication::query()
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $application = $this->partners->submitSupplementDocuments(
+            $application,
+            $request->user(),
+            $this->filesArray($request->file('additional_documents', [])),
+            $data['note'] ?? null,
+            $request
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã nộp giấy tờ bổ sung. Hồ sơ được chuyển lại về trạng thái chờ xét duyệt.',
+            'data' => $this->userApplicationPayload($application),
         ]);
     }
 
@@ -451,6 +517,7 @@ class PartnerApplicationController extends Controller
         $payload = $application->toArray();
 
         $payload['generated_documents'] = $application->generatedDocuments
+            ->sortByDesc('created_at')
             ->map(fn (GeneratedDocument $document) => $this->generatedDocumentPayload($document))
             ->values();
 
@@ -566,7 +633,7 @@ class PartnerApplicationController extends Controller
                 'lease_documents' => ['required', 'array', 'min:1', 'max:5'],
                 'lease_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
                 'additional_documents' => ['nullable', 'array', 'max:10'],
-                'additional_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'additional_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
             ];
         } else {
             $rules['attachments_summary'] = ['nullable', 'string', 'max:1000'];
@@ -585,6 +652,8 @@ class PartnerApplicationController extends Controller
                 'venue_ward_code' => 'Phường/Xã không thuộc Tỉnh/Thành phố đã chọn.',
             ]);
         }
+
+        $this->assertCoordinatesMatchAddress($data);
 
         $this->assertIdentityNumber($data['representative_identity_type'], $data['representative_identity_number']);
 
@@ -635,6 +704,38 @@ class PartnerApplicationController extends Controller
                     "courts.$index.court_type_id" => 'Vui lòng chọn loại sân con đang hoạt động và là loại sử dụng cuối.',
                 ]);
             }
+        }
+    }
+
+    private function assertCoordinatesMatchAddress(array $data): void
+    {
+        try {
+            $resolved = $this->maps->reverse((float) $data['venue_latitude'], (float) $data['venue_longitude']);
+        } catch (\Throwable) {
+            throw ValidationException::withMessages([
+                'venue_coordinates' => 'Không xác minh được Tỉnh/Thành phố và Phường/Xã từ tọa độ đã chọn. Vui lòng chọn lại vị trí trên bản đồ.',
+            ]);
+        }
+
+        $resolvedProvince = (string) ($resolved['province_code'] ?? '');
+        $resolvedWard = (string) ($resolved['ward_code'] ?? '');
+
+        if ($resolvedProvince === '' || $resolvedWard === '') {
+            throw ValidationException::withMessages([
+                'venue_coordinates' => 'Không xác định được Tỉnh/Thành phố và Phường/Xã từ tọa độ đã chọn. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.',
+            ]);
+        }
+
+        if ($resolvedProvince !== '' && $resolvedProvince !== (string) $data['venue_province_code']) {
+            throw ValidationException::withMessages([
+                'venue_province_code' => 'Tỉnh/Thành phố không khớp với tọa độ đã chọn trên bản đồ.',
+            ]);
+        }
+
+        if ($resolvedWard !== '' && $resolvedWard !== (string) $data['venue_ward_code']) {
+            throw ValidationException::withMessages([
+                'venue_ward_code' => 'Phường/Xã không khớp với tọa độ đã chọn trên bản đồ.',
+            ]);
         }
     }
 
@@ -727,7 +828,7 @@ class PartnerApplicationController extends Controller
             'between' => ':attribute không nằm trong giới hạn hợp lệ.',
             'before_or_equal' => ':attribute phải cho thấy người đăng ký đã đủ 18 tuổi.',
             'accepted' => 'Bạn cần xác nhận đã đọc đơn đăng ký trước khi gửi.',
-            'mimes' => ':attribute chỉ hỗ trợ JPG, PNG, WEBP hoặc PDF.',
+            'mimes' => ':attribute chỉ hỗ trợ JPG, PNG, WEBP, PDF, DOC hoặc DOCX.',
             'file' => ':attribute phải là file hợp lệ.',
             'exists' => ':attribute không tồn tại trong danh mục.',
             'in' => ':attribute không hợp lệ.',

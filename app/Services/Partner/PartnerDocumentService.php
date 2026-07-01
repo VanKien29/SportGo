@@ -62,17 +62,20 @@ class PartnerDocumentService
         $title = $context['title'] ?? $this->defaultTitle($documentType, $renderData);
 
         $sourcePath = $template ? Storage::disk($template->storage_disk)->path($template->file_path) : null;
-        if (! $sourcePath || ! is_file($sourcePath)) {
+        if (! $sourcePath || ! $this->isUsableDocx($sourcePath)) {
             $sourcePath = $this->fallbackTemplatePath($documentType);
         }
 
-        if (! $sourcePath || ! is_file($sourcePath)) {
+        if (! $sourcePath || ! $this->isUsableDocx($sourcePath)) {
             throw new RuntimeException("Không tìm thấy template DOCX cho {$documentType}.");
         }
 
         $targetPath = Storage::disk('local')->path($filePath);
         $this->ensureLocalDirectory($targetPath);
         $this->renderDocxTemplate($sourcePath, $targetPath, $renderData, $documentType);
+        if (! $this->isUsableDocx($targetPath)) {
+            throw new RuntimeException("Không thể sinh file DOCX hợp lệ cho {$documentType}.");
+        }
 
         $document = GeneratedDocument::create([
             'document_code' => $documentCode,
@@ -284,6 +287,23 @@ class PartnerDocumentService
         return $fileName ? base_path('database/seeders/templates/partner-documents/' . $fileName) : null;
     }
 
+    private function isUsableDocx(?string $path): bool
+    {
+        if (! $path || ! is_file($path) || filesize($path) < 1024 || ! class_exists(ZipArchive::class)) {
+            return false;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($path) !== true) {
+            return false;
+        }
+
+        $usable = $zip->getFromName('word/document.xml') !== false;
+        $zip->close();
+
+        return $usable;
+    }
+
     private function ensureLocalDirectory(string $targetPath): void
     {
         $directory = dirname($targetPath);
@@ -476,6 +496,9 @@ class PartnerDocumentService
         }
 
         $this->fillTwoColumnTemplateBodyFields($docxPath, $fields);
+        if (in_array($documentType, ['partner_application_form', 'partner_contract'], true)) {
+            $this->normalizeTwoColumnTableWidths($docxPath);
+        }
         $this->fillKnownTemplateInlineText($docxPath, $data, $documentType);
         $this->ensureDocumentSignaturePlaceholders($docxPath, $documentType);
         $this->replaceResidualTemplateBlanks($docxPath, $documentType);
@@ -575,6 +598,8 @@ class PartnerDocumentService
     private function replaceResidualTemplateBlanks(string $docxPath, string $documentType): void
     {
         if (! in_array($documentType, [
+            'partner_application_form',
+            'partner_contract',
             'termination_request',
             'mutual_liquidation_minutes',
             'unilateral_termination_notice',
@@ -819,6 +844,144 @@ class PartnerDocumentService
         }
 
         $zip->close();
+    }
+
+    private function normalizeTwoColumnTableWidths(string $docxPath): void
+    {
+        if (! class_exists(ZipArchive::class) || ! class_exists(\DOMDocument::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            return;
+        }
+
+        $dom = new \DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $loaded = $dom->loadXML($xml);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+
+        if (! $loaded) {
+            $zip->close();
+            return;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+        $namespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+        $changed = false;
+
+        foreach ($xpath->query('//w:tbl') as $table) {
+            $hasTwoColumnRow = false;
+            foreach ($xpath->query('./w:tr', $table) as $row) {
+                if ($xpath->query('./w:tc', $row)->length === 2) {
+                    $hasTwoColumnRow = true;
+                    break;
+                }
+            }
+
+            if (! $hasTwoColumnRow) {
+                continue;
+            }
+
+            $changed = $this->setDocxTableGridWidths($table, $namespace, ['2600', '6500']) || $changed;
+            foreach ($xpath->query('./w:tr', $table) as $row) {
+                $cells = $xpath->query('./w:tc', $row);
+                if ($cells->length !== 2) {
+                    continue;
+                }
+
+                $changed = $this->setDocxCellWidth($cells->item(0), $namespace, '2600') || $changed;
+                $changed = $this->setDocxCellWidth($cells->item(1), $namespace, '6500') || $changed;
+            }
+        }
+
+        if ($changed) {
+            $zip->addFromString($entry, $dom->saveXML());
+        }
+
+        $zip->close();
+    }
+
+    private function setDocxTableGridWidths(\DOMNode $table, string $namespace, array $widths): bool
+    {
+        $document = $table->ownerDocument;
+        if (! $document) {
+            return false;
+        }
+
+        foreach (iterator_to_array($table->childNodes) as $child) {
+            if ($child instanceof \DOMElement && $child->localName === 'tblGrid') {
+                $table->removeChild($child);
+            }
+        }
+
+        $grid = $document->createElementNS($namespace, 'w:tblGrid');
+        foreach ($widths as $width) {
+            $column = $document->createElementNS($namespace, 'w:gridCol');
+            $column->setAttributeNS($namespace, 'w:w', $width);
+            $grid->appendChild($column);
+        }
+
+        $insertBefore = null;
+        foreach ($table->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->localName === 'tr') {
+                $insertBefore = $child;
+                break;
+            }
+        }
+
+        $insertBefore ? $table->insertBefore($grid, $insertBefore) : $table->appendChild($grid);
+
+        return true;
+    }
+
+    private function setDocxCellWidth(\DOMNode $cell, string $namespace, string $width): bool
+    {
+        $document = $cell->ownerDocument;
+        if (! $document) {
+            return false;
+        }
+
+        $tcPr = null;
+        foreach ($cell->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->localName === 'tcPr') {
+                $tcPr = $child;
+                break;
+            }
+        }
+
+        if (! $tcPr) {
+            $tcPr = $document->createElementNS($namespace, 'w:tcPr');
+            $cell->insertBefore($tcPr, $cell->firstChild);
+        }
+
+        $tcW = null;
+        foreach ($tcPr->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->localName === 'tcW') {
+                $tcW = $child;
+                break;
+            }
+        }
+
+        if (! $tcW) {
+            $tcW = $document->createElementNS($namespace, 'w:tcW');
+            $tcPr->appendChild($tcW);
+        }
+
+        $tcW->setAttributeNS($namespace, 'w:w', $width);
+        $tcW->setAttributeNS($namespace, 'w:type', 'dxa');
+
+        return true;
     }
 
     private function normalizeDocxFieldGroups(array $fields): array

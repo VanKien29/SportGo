@@ -35,6 +35,23 @@ class PartnerMapResolver
         ];
     }
 
+    public function reverse(float $latitude, float $longitude): array
+    {
+        $address = $this->reverseGeocode($latitude, $longitude);
+        $location = $this->locations->matchFromAddress($address['address'] ?? null);
+
+        return [
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'address' => $address['address'] ?? null,
+            'province_code' => $location['province_code'] ?? null,
+            'province' => $location['province'] ?? $address['province'] ?? null,
+            'ward_code' => $location['ward_code'] ?? null,
+            'ward' => $location['ward'] ?? $address['ward'] ?? null,
+            'district' => null,
+        ];
+    }
+
     private function finalUrl(string $url): string
     {
         if (! function_exists('curl_init')) {

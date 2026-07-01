@@ -18,6 +18,49 @@
       <div v-else-if="error" class="state error">{{ error }}</div>
 
       <template v-else-if="application">
+        <section v-if="application.status === 'need_supplement'" class="section supplement-card">
+          <div class="section-head">
+            <div>
+              <h2>Bổ sung hồ sơ</h2>
+              <p>SportGo cần bạn bổ sung thêm giấy tờ hoặc thông tin trước khi xét duyệt tiếp.</p>
+            </div>
+          </div>
+          <div v-if="application.status_reason" class="supplement-reason">
+            <strong>Nội dung cần bổ sung</strong>
+            <p>{{ application.status_reason }}</p>
+          </div>
+          <form class="supplement-form" @submit.prevent="submitSupplement">
+            <label>
+              Phản hồi của bạn
+              <textarea
+                v-model="supplementNote"
+                rows="4"
+                placeholder="Nhập nội dung giải trình hoặc ghi chú cho giấy tờ bổ sung..."
+              ></textarea>
+            </label>
+            <label>
+              Giấy tờ bổ sung
+              <input
+                ref="supplementFileInput"
+                type="file"
+                multiple
+                accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx"
+                @change="handleSupplementFiles"
+              />
+            </label>
+            <div v-if="supplementFiles.length" class="file-list">
+              <span v-for="file in supplementFiles" :key="`${file.name}-${file.size}`">{{ file.name }}</span>
+            </div>
+            <p v-if="supplementError" class="field-error">{{ supplementError }}</p>
+            <div class="form-actions">
+              <button type="button" class="btn ghost" @click="clearSupplementFiles">Xóa file</button>
+              <button type="submit" class="btn primary" :disabled="submittingSupplement">
+                {{ submittingSupplement ? 'Đang gửi...' : 'Gửi bổ sung' }}
+              </button>
+            </div>
+          </form>
+        </section>
+
         <section class="summary-grid">
           <InfoPanel title="Người đăng ký" :items="[
             ['Họ tên', application.applicant_full_name],
@@ -133,13 +176,18 @@ import { computed, defineComponent, h, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PublicNavbar from '../../components/PublicNavbar.vue';
 import AppIcon from '../../components/AppIcon.vue';
-import { api, apiDownload } from '../../services/api.js';
+import { api, apiDownload, apiFormData } from '../../services/api.js';
 
 const route = useRoute();
 const router = useRouter();
 const loading = ref(true);
 const error = ref('');
 const application = ref(null);
+const supplementNote = ref('');
+const supplementFiles = ref([]);
+const supplementError = ref('');
+const submittingSupplement = ref(false);
+const supplementFileInput = ref(null);
 
 const generatedDocuments = computed(() => {
   const docs = [...(application.value?.generated_documents || application.value?.generatedDocuments || [])];
@@ -189,6 +237,40 @@ async function downloadFile(url) {
     await apiDownload(url);
   } catch (err) {
     error.value = err.message || 'Không tải được file.';
+  }
+}
+
+function handleSupplementFiles(event) {
+  supplementFiles.value = Array.from(event.target.files || []);
+  supplementError.value = '';
+}
+
+function clearSupplementFiles() {
+  supplementFiles.value = [];
+  if (supplementFileInput.value) supplementFileInput.value.value = '';
+}
+
+async function submitSupplement() {
+  if (!application.value) return;
+  if (!supplementFiles.value.length) {
+    supplementError.value = 'Vui lòng chọn ít nhất một giấy tờ bổ sung.';
+    return;
+  }
+
+  submittingSupplement.value = true;
+  supplementError.value = '';
+  try {
+    const formData = new FormData();
+    if (supplementNote.value.trim()) formData.append('note', supplementNote.value.trim());
+    supplementFiles.value.forEach((file) => formData.append('additional_documents[]', file));
+    const response = await apiFormData(`/api/user/partner-application/${application.value.id}/supplement-documents`, formData);
+    application.value = response.data;
+    supplementNote.value = '';
+    clearSupplementFiles();
+  } catch (err) {
+    supplementError.value = err.message || 'Không gửi được giấy tờ bổ sung.';
+  } finally {
+    submittingSupplement.value = false;
   }
 }
 
@@ -264,6 +346,20 @@ dt { color: #64748b; font-size: 13px; }
 dd { margin: 0; color: #111827; font-weight: 700; overflow-wrap: anywhere; }
 .section { margin-top: 16px; }
 .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.section-head p { margin: 6px 0 0; color: #64748b; font-size: 13px; }
+.supplement-card { border-color: #f59e0b; background: #fffbeb; }
+.supplement-reason { border: 1px solid #fde68a; border-radius: 8px; background: #fff; padding: 12px; margin-bottom: 14px; }
+.supplement-reason p { margin: 6px 0 0; color: #92400e; white-space: pre-wrap; }
+.supplement-form { display: grid; gap: 12px; }
+.supplement-form label { display: grid; gap: 7px; color: #334155; font-size: 13px; font-weight: 800; }
+.supplement-form textarea,
+.supplement-form input[type="file"] { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; padding: 10px 12px; font: inherit; color: #0f172a; }
+.supplement-form textarea:focus,
+.supplement-form input[type="file"]:focus { outline: none; border-color: #0f172a; box-shadow: 0 0 0 3px rgba(15, 23, 42, .08); }
+.file-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.file-list span { display: inline-flex; align-items: center; min-height: 30px; border-radius: 999px; background: #fff; border: 1px solid #fde68a; padding: 0 10px; color: #92400e; font-size: 12px; font-weight: 800; }
+.field-error { margin: 0; color: #b91c1c; font-size: 13px; font-weight: 800; }
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 .doc-list { display: flex; flex-direction: column; gap: 10px; }
 .doc-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; }
 .row-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
