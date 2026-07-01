@@ -1208,6 +1208,7 @@ export default {
   --tg-header-bg: #ffffff;
   --tg-border: #e2e8f0;
   --tg-ticks: #4fae4e;
+  --tg-accent: #3390ec;
 }
 
 /* Dark Theme - if class bg-zinc-950 (client dark) or data-theme="dark" (admin dark) */
@@ -1228,6 +1229,7 @@ export default {
   --tg-header-bg: #17212b;
   --tg-border: #101921;
   --tg-ticks: #2481cc;
+  --tg-accent: #2481cc;
 }
 
 /* Explicit light override when user toggles chat to light on dark admin */
@@ -1246,6 +1248,23 @@ export default {
   --tg-header-bg: #ffffff;
   --tg-border: #e2e8f0;
   --tg-ticks: #4fae4e;
+  --tg-accent: #3390ec;
+}
+
+/* Dynamic admin custom theme adaptation when no local override is set */
+[data-admin-chat] .chat-page:not(.chat-dark):not(.chat-light) {
+  --tg-chat-bg: var(--admin-bg) !important;
+  --tg-sidebar-bg: var(--admin-surface) !important;
+  --tg-header-bg: var(--admin-surface) !important;
+  --tg-received-bg: var(--admin-surface) !important;
+  --tg-input-bg: var(--admin-surface) !important;
+  --tg-border: var(--admin-border) !important;
+  --tg-active-row: var(--admin-hover) !important;
+  --tg-received-text: var(--admin-text) !important;
+  --tg-input-text: var(--admin-text) !important;
+  --tg-meta: var(--admin-faint) !important;
+  --tg-accent: var(--admin-primary) !important;
+  --tg-ticks: var(--admin-primary) !important;
 }
 
 [data-admin-chat] {
