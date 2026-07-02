@@ -252,59 +252,55 @@
                 </h3>
                 <div class="grid">
                     <label
-                        >Mã voucher<input v-model.trim="form.code" @input="clearFieldError('code')"
+                        >Mã voucher<input v-model.trim="form.code" @input="validateVoucherField('code')"
                     /><small v-if="validationErrors.code" class="field-error">{{ validationErrors.code }}</small></label>
                     <label
-                        >Tên voucher<input v-model.trim="form.name" @input="clearFieldError('name')"
+                        >Tên voucher<input v-model.trim="form.name" @input="validateVoucherField('name')"
                     /><small v-if="validationErrors.name" class="field-error">{{ validationErrors.name }}</small></label>
                     <label
                         >Loại giảm
-                        <select v-model="form.discount_type" @change="normalizeDiscountFields">
+                        <select v-model="form.discount_type" @change="handleDiscountTypeChange">
                             <option value="percent">Phần trăm</option>
                             <option value="fixed">Số tiền</option>
                         </select>
                     </label>
                     <label
                         >{{ discountValueLabel }}<span class="suffix-field"><input
-                            v-model.number="form.discount_value"
-                            type="number"
-                            min="0.01"
-                            :max="form.discount_type === 'percent' ? 100 : null"
-                            :step="form.discount_type === 'percent' ? 0.01 : 1"
-                            @input="clearFieldError('discount_value')"
+                            v-model.trim="form.discount_value"
+                            type="text"
+                            :inputmode="form.discount_type === 'percent' ? 'decimal' : 'numeric'"
+                            @input="validateVoucherField('discount_value')"
                             @change="normalizeDiscountFields"
                     /><span>{{ discountValueUnit }}</span></span><small v-if="validationErrors.discount_value" class="field-error">{{ validationErrors.discount_value }}</small></label>
                     <label v-if="form.discount_type === 'percent'"
                         >Giảm tối đa bao nhiêu tiền<span class="suffix-field"><input
-                            v-model.number="form.max_discount_amount"
-                            type="number"
-                            min="0"
-                            step="1"
-                            @input="clearFieldError('max_discount_amount')"
+                            v-model.trim="form.max_discount_amount"
+                            type="text"
+                            inputmode="numeric"
+                            @input="validateVoucherField('max_discount_amount')"
                             @change="normalizeDiscountFields"
                     /><span>VNĐ</span></span><small v-if="validationErrors.max_discount_amount" class="field-error">{{ validationErrors.max_discount_amount }}</small></label>
                     <label
                         >Đơn tối thiểu<span class="suffix-field"><input
-                            v-model.number="form.min_order_amount"
-                            type="number"
-                            min="0"
-                            step="1"
-                            @input="clearFieldError('min_order_amount')"
+                            v-model.trim="form.min_order_amount"
+                            type="text"
+                            inputmode="numeric"
+                            @input="validateVoucherField('min_order_amount')"
                             @change="normalizeDiscountFields"
                     /><span>VNĐ</span></span><small v-if="validationErrors.min_order_amount" class="field-error">{{ validationErrors.min_order_amount }}</small></label>
                     <label
                         >Tổng số lượng<input
-                            v-model.number="form.total_quantity"
-                            type="number"
-                            min="1"
-                            @input="clearFieldError('total_quantity')"
+                            v-model.trim="form.total_quantity"
+                            type="text"
+                            inputmode="numeric"
+                            @input="validateVoucherField('total_quantity')"
                     /><small v-if="validationErrors.total_quantity" class="field-error">{{ validationErrors.total_quantity }}</small></label>
                     <label
                         >Giới hạn mỗi khách<input
-                            v-model.number="form.per_user_limit"
-                            type="number"
-                            min="1"
-                            @input="clearFieldError('per_user_limit')"
+                            v-model.trim="form.per_user_limit"
+                            type="text"
+                            inputmode="numeric"
+                            @input="validateVoucherField('per_user_limit')"
                     /><small v-if="validationErrors.per_user_limit" class="field-error">{{ validationErrors.per_user_limit }}</small></label>
                     <label
                         >Bắt đầu<input
@@ -437,6 +433,18 @@
                 </footer>
             </form>
         </div>
+        <div v-if="pendingDeactivateVoucher" class="modal-backdrop" @click.self="pendingDeactivateVoucher = null">
+            <div class="confirm-modal">
+                <h3>Tắt voucher hệ thống?</h3>
+                <p>Voucher {{ pendingDeactivateVoucher.code }} sẽ ngừng áp dụng cho các lượt sử dụng mới.</p>
+                <footer>
+                    <button class="btn secondary" type="button" @click="pendingDeactivateVoucher = null">Hủy</button>
+                    <button class="btn danger" type="button" :disabled="saving" @click="confirmTurnOff">
+                        {{ saving ? "Đang xử lý..." : "Tắt voucher" }}
+                    </button>
+                </footer>
+            </div>
+        </div>
         <!-- Floating Add Button -->
         <div
             class="floating-add-container"
@@ -471,6 +479,7 @@ export default {
             success: "",
             form: this.emptyForm(),
             validationErrors: {},
+            pendingDeactivateVoucher: null,
             scopeOptions: this.emptyScopeOptions(),
             showHistoryPanel: false,
             showScrollTop: false,
@@ -670,8 +679,8 @@ export default {
             this.validationErrors = {};
         },
         async save() {
-            this.normalizeDiscountFields();
             if (!this.validateForm()) return;
+            this.normalizeDiscountFields();
 
             this.saving = true;
             try {
@@ -694,15 +703,34 @@ export default {
             }
         },
         validateForm() {
+            const errors = this.voucherFormErrors();
+            this.validationErrors = errors;
+
+            if (Object.keys(errors).length > 0) {
+                this.error = "Vui lòng kiểm tra lại thông tin voucher được đánh dấu đỏ.";
+                return false;
+            }
+
+            this.error = "";
+            return true;
+        },
+        voucherFormErrors() {
             const errors = {};
-            const discountValue = Number(this.form.discount_value);
-            const maxDiscountAmount = Number(this.form.max_discount_amount || 0);
-            const minOrderAmount = Number(this.form.min_order_amount || 0);
-            const totalQuantity = Number(this.form.total_quantity);
-            const perUserLimit = Number(this.form.per_user_limit);
+            const discountValue = this.form.discount_type === "percent"
+                ? this.decimalInputValue(this.form.discount_value)
+                : this.vndIntegerInputValue(this.form.discount_value);
+            const maxDiscountAmount = this.form.max_discount_amount === null || this.form.max_discount_amount === ""
+                ? 0
+                : this.vndIntegerInputValue(this.form.max_discount_amount);
+            const minOrderAmount = this.vndIntegerInputValue(this.form.min_order_amount || 0);
+            const totalQuantity = this.integerInputValue(this.form.total_quantity);
+            const perUserLimit = this.integerInputValue(this.form.per_user_limit);
             const scope = this.form.scopes?.[0] || { scope_type: "all", scope_id: null };
 
             if (!this.form.code) errors.code = "Vui lòng nhập mã voucher.";
+            else if (!/^[A-Z0-9_-]+$/.test(String(this.form.code).trim().toUpperCase())) {
+                errors.code = "Mã voucher chỉ gồm chữ không dấu, số, dấu gạch ngang hoặc gạch dưới.";
+            }
             if (!this.form.name) errors.name = "Vui lòng nhập tên voucher.";
             if (!discountValue || discountValue <= 0) {
                 errors.discount_value =
@@ -712,21 +740,27 @@ export default {
             } else if (this.form.discount_type === "percent" && discountValue > 100) {
                 errors.discount_value = "Phần trăm giảm không được vượt quá 100%.";
             }
-
-            if (this.form.discount_type === "percent" && maxDiscountAmount < 0) {
-                errors.max_discount_amount = "Số tiền giảm tối đa không được âm.";
+            if (!errors.discount_value && this.form.discount_type === "percent" && !this.hasAtMostTwoDecimals(this.form.discount_value)) {
+                errors.discount_value = "Phần trăm giảm chỉ được tối đa 2 chữ số thập phân.";
             }
 
-            if (minOrderAmount < 0) errors.min_order_amount = "Đơn tối thiểu không được âm.";
+            if (this.form.discount_type === "percent" && (!Number.isInteger(maxDiscountAmount) || maxDiscountAmount < 0)) {
+                errors.max_discount_amount = "Số tiền giảm tối đa phải là số nguyên VND không âm.";
+            }
+
+            if (!Number.isInteger(minOrderAmount) || minOrderAmount < 0) {
+                errors.min_order_amount = "Đơn tối thiểu phải là số nguyên VND không âm.";
+            }
             if (!Number.isInteger(totalQuantity) || totalQuantity < 1) {
                 errors.total_quantity = "Tổng số lượng phải từ 1 trở lên.";
             }
-            if (!Number.isInteger(perUserLimit) || perUserLimit < 1) {
-                errors.per_user_limit = "Giới hạn mỗi khách phải từ 1 trở lên.";
+            if (!Number.isInteger(perUserLimit) || perUserLimit === 0 || perUserLimit < -1) {
+                errors.per_user_limit = "Chỉ nhập -1 hoặc số nguyên từ 1 trở lên; -1 là không giới hạn.";
             }
             if (
                 Number.isInteger(totalQuantity)
                 && Number.isInteger(perUserLimit)
+                && perUserLimit !== -1
                 && perUserLimit > totalQuantity
             ) {
                 errors.per_user_limit = "Giới hạn mỗi khách không được lớn hơn tổng số lượng.";
@@ -744,8 +778,20 @@ export default {
                 errors.scope_id = "Vui lòng chọn phạm vi áp dụng.";
             }
 
-            this.validationErrors = errors;
-            return Object.keys(errors).length === 0;
+            return errors;
+        },
+        validateVoucherField(field) {
+            if (field === "code") {
+                this.form.code = String(this.form.code || "").toUpperCase();
+            }
+
+            const errors = this.voucherFormErrors();
+            const nextErrors = { ...this.validationErrors };
+
+            if (errors[field]) nextErrors[field] = errors[field];
+            else delete nextErrors[field];
+
+            this.validationErrors = nextErrors;
         },
         clearFieldError(field) {
             if (!this.validationErrors[field]) return;
@@ -766,13 +812,25 @@ export default {
             };
         },
         async turnOff(voucher) {
-            if (!confirm(`Tắt voucher hệ thống ${voucher.code}?`)) return;
-            const response = await adminVoucherService.deactivate(
-                voucher.id,
-                "Admin tắt voucher hệ thống.",
-            );
-            this.success = response.message;
-            await this.load();
+            this.pendingDeactivateVoucher = voucher;
+        },
+        async confirmTurnOff() {
+            if (!this.pendingDeactivateVoucher) return;
+
+            this.saving = true;
+            try {
+                const response = await adminVoucherService.deactivate(
+                    this.pendingDeactivateVoucher.id,
+                    "Admin tắt voucher hệ thống.",
+                );
+                this.pendingDeactivateVoucher = null;
+                this.success = response.message;
+                await this.load();
+            } catch (error) {
+                this.error = error.message || "Không thể tắt voucher hệ thống.";
+            } finally {
+                this.saving = false;
+            }
         },
         discountText(voucher) {
             if (voucher.discount_label) return voucher.discount_label;
@@ -780,32 +838,63 @@ export default {
                 ? `${this.formatPercent(voucher.discount_value)}%`
                 : this.money(voucher.discount_value);
         },
+        handleDiscountTypeChange() {
+            if (this.form.discount_type === "fixed") {
+                this.form.max_discount_amount = null;
+            }
+            this.validateVoucherField("discount_value");
+            this.validateVoucherField("max_discount_amount");
+        },
         normalizeDiscountFields() {
             if (this.form.discount_type === "percent") {
-                const percent = Number(this.form.discount_value || 0);
-                this.form.discount_value = Math.min(
-                    Math.max(Number(percent.toFixed(2)), 0.01),
-                    100,
-                );
-                this.form.max_discount_amount =
-                    this.form.max_discount_amount === null ||
-                    this.form.max_discount_amount === ""
-                        ? null
-                        : this.toVndInteger(this.form.max_discount_amount);
+                const percent = this.decimalInputValue(this.form.discount_value);
+                if (Number.isFinite(percent)) {
+                    this.form.discount_value = Math.min(
+                        Math.max(Number(percent.toFixed(2)), 0.01),
+                        100,
+                    );
+                }
+                if (this.form.max_discount_amount === null || this.form.max_discount_amount === "") {
+                    this.form.max_discount_amount = null;
+                } else {
+                    const maxDiscount = this.toVndInteger(this.form.max_discount_amount);
+                    if (Number.isInteger(maxDiscount)) this.form.max_discount_amount = maxDiscount;
+                }
             } else {
-                this.form.discount_value = Math.max(
-                    this.toVndInteger(this.form.discount_value),
-                    1,
-                );
+                const discount = this.toVndInteger(this.form.discount_value);
+                if (Number.isInteger(discount)) this.form.discount_value = Math.max(discount, 1);
                 this.form.max_discount_amount = null;
             }
 
-            this.form.min_order_amount = this.toVndInteger(
-                this.form.min_order_amount,
-            );
+            const minOrder = this.toVndInteger(this.form.min_order_amount);
+            if (Number.isInteger(minOrder)) this.form.min_order_amount = minOrder;
+            const totalQuantity = this.integerInputValue(this.form.total_quantity);
+            if (Number.isInteger(totalQuantity)) this.form.total_quantity = totalQuantity;
+            const perUserLimit = this.integerInputValue(this.form.per_user_limit);
+            if (Number.isInteger(perUserLimit)) this.form.per_user_limit = perUserLimit;
         },
         toVndInteger(value) {
-            return Math.max(Math.round(Number(value || 0)), 0);
+            const parsed = this.vndIntegerInputValue(value);
+            return Number.isInteger(parsed) ? Math.max(parsed, 0) : NaN;
+        },
+        normalizedNumericText(value) {
+            return String(value ?? "").trim().replace(",", ".");
+        },
+        decimalInputValue(value) {
+            const normalized = this.normalizedNumericText(value);
+            return /^\d+(?:\.\d+)?$/.test(normalized) ? Number(normalized) : NaN;
+        },
+        integerInputValue(value) {
+            const normalized = String(value ?? "").trim();
+            return /^-?\d+$/.test(normalized) ? Number(normalized) : NaN;
+        },
+        vndIntegerInputValue(value) {
+            const normalized = String(value ?? "").trim();
+            return /^\d+$/.test(normalized) ? Number(normalized) : NaN;
+        },
+        hasAtMostTwoDecimals(value) {
+            const normalized = this.normalizedNumericText(value);
+            return /^\d+(?:\.\d{1,2})?$/.test(normalized);
         },
         formatPercent(value) {
             return new Intl.NumberFormat("vi-VN", {
@@ -997,6 +1086,30 @@ td {
     padding: 22px;
     display: grid;
     gap: 16px;
+}
+.confirm-modal {
+    width: min(440px, calc(100vw - 32px));
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+.confirm-modal h3,
+.confirm-modal p {
+    margin: 0;
+}
+.confirm-modal p {
+    color: #475569;
+    font-weight: 700;
+    line-height: 1.5;
+}
+.confirm-modal footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
 }
 .grid {
     display: grid;
