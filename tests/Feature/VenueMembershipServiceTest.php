@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\BookingConfig;
 use App\Models\CourtMembershipTier;
 use App\Models\Notification;
 use App\Models\User;
 use App\Models\UserCourtMembership;
 use App\Models\VenueCluster;
 use App\Services\Memberships\VenueMembershipService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -50,6 +52,24 @@ class VenueMembershipServiceTest extends TestCase
         $this->assertSame(['standard', 'silver', 'gold', 'diamond'], array_column($payload[0]['tiers'], 'tier'));
     }
 
+    public function test_profile_membership_counts_confirmed_successful_booking(): void
+    {
+        [$user, $cluster] = $this->createUserAndCluster();
+        $service = app(VenueMembershipService::class);
+
+        $this->createBooking($user, $cluster, 120000, 'BK-MEMBER-CONFIRMED', 'confirmed');
+
+        $payload = $service->membershipsForUser($user);
+
+        $this->assertCount(1, $payload);
+        $this->assertSame('standard', $payload[0]['tier']['tier']);
+        $this->assertSame(1, $payload[0]['completed_bookings']);
+        $this->assertEquals(120000.0, $payload[0]['total_spend_amount']);
+        $this->assertSame('silver', $payload[0]['next_tier']['tier']);
+        $this->assertSame(4, $payload[0]['remaining_bookings']);
+        $this->assertEquals(380000.0, $payload[0]['remaining_spend_amount']);
+    }
+
     public function test_profile_recalculation_does_not_restore_a_maintenance_downgrade(): void
     {
         [$user, $cluster] = $this->createUserAndCluster();
@@ -65,12 +85,126 @@ class VenueMembershipServiceTest extends TestCase
             'period_bookings' => 0,
             'period_spent' => 0,
             'period_start' => now()->toDateString(),
+            'last_downgraded_at' => now(),
         ]);
 
         $recalculated = $service->syncUserVenue($user->id, $cluster->id)->fresh();
 
         $this->assertSame($membership->id, $recalculated->id);
         $this->assertSame('silver', $recalculated->tier);
+    }
+
+    public function test_profile_recalculation_upgrades_when_member_meets_next_tier_without_maintenance_downgrade(): void
+    {
+        [$user, $cluster] = $this->createUserAndCluster();
+        $service = app(VenueMembershipService::class);
+
+        CourtMembershipTier::query()->create([
+            'venue_cluster_id' => $cluster->id,
+            'tier' => 'gold',
+            'discount_percent' => 5,
+            'min_bookings' => 1,
+            'min_spent_amount' => 1000000,
+        ]);
+
+        $this->createCompletedBooking($user, $cluster, 3000000, 'BK-MEMBER-UPGRADE-1');
+        UserCourtMembership::query()->create([
+            'user_id' => $user->id,
+            'venue_cluster_id' => $cluster->id,
+            'tier' => 'silver',
+            'total_bookings' => 20,
+            'total_spent' => 3000000,
+            'period_bookings' => 20,
+            'period_spent' => 3000000,
+            'period_start' => now()->toDateString(),
+        ]);
+
+        $recalculated = $service->syncUserVenue($user->id, $cluster->id)->fresh();
+
+        $this->assertSame('gold', $recalculated->tier);
+    }
+
+    public function test_inactive_tier_is_skipped_when_user_meets_its_thresholds(): void
+    {
+        [$user, $cluster] = $this->createUserAndCluster();
+        $service = app(VenueMembershipService::class);
+
+        CourtMembershipTier::query()->create([
+            'venue_cluster_id' => $cluster->id,
+            'tier' => 'silver',
+            'tier_label' => 'Silver',
+            'is_active' => true,
+            'discount_percent' => 3,
+            'min_bookings' => 1,
+            'min_spent_amount' => 100000,
+        ]);
+
+        CourtMembershipTier::query()->create([
+            'venue_cluster_id' => $cluster->id,
+            'tier' => 'gold',
+            'tier_label' => 'Gold',
+            'is_active' => false,
+            'discount_percent' => 5,
+            'min_bookings' => 2,
+            'min_spent_amount' => 200000,
+        ]);
+
+        $this->createCompletedBooking($user, $cluster, 100000, 'BK-INACTIVE-1');
+        $this->createCompletedBooking($user, $cluster, 100000, 'BK-INACTIVE-2');
+
+        $membership = $service->syncUserVenue($user->id, $cluster->id, 'booking_completed')->fresh();
+
+        $this->assertSame('silver', $membership->tier);
+    }
+
+    public function test_reset_progress_setting_starts_booking_and_spend_from_zero_after_upgrade(): void
+    {
+        [$user, $cluster] = $this->createUserAndCluster();
+        $service = app(VenueMembershipService::class);
+
+        BookingConfig::query()->create([
+            'venue_cluster_id' => $cluster->id,
+            'reset_membership_progress_on_upgrade' => true,
+        ]);
+
+        CourtMembershipTier::query()->create([
+            'venue_cluster_id' => $cluster->id,
+            'tier' => 'silver',
+            'discount_percent' => 3,
+            'min_bookings' => 1,
+            'min_spent_amount' => 100000,
+        ]);
+
+        CourtMembershipTier::query()->create([
+            'venue_cluster_id' => $cluster->id,
+            'tier' => 'gold',
+            'discount_percent' => 5,
+            'min_bookings' => 2,
+            'min_spent_amount' => 200000,
+        ]);
+
+        Carbon::setTestNow('2026-06-01 10:00:00');
+        $this->createCompletedBooking($user, $cluster, 100000, 'BK-RESET-1');
+        $membership = $service->syncUserVenue($user->id, $cluster->id, 'booking_completed')->fresh();
+        $this->assertSame('silver', $membership->tier);
+        $this->assertSame(0, $membership->total_bookings);
+        $this->assertEquals(0.0, (float) $membership->total_spent);
+
+        Carbon::setTestNow('2026-06-01 11:00:00');
+        $this->createCompletedBooking($user, $cluster, 100000, 'BK-RESET-2');
+        $membership = $service->syncUserVenue($user->id, $cluster->id, 'booking_completed')->fresh();
+        $this->assertSame('silver', $membership->tier);
+        $this->assertSame(1, $membership->total_bookings);
+        $this->assertEquals(100000.0, (float) $membership->total_spent);
+
+        Carbon::setTestNow('2026-06-01 12:00:00');
+        $this->createCompletedBooking($user, $cluster, 100000, 'BK-RESET-3');
+        $membership = $service->syncUserVenue($user->id, $cluster->id, 'booking_completed')->fresh();
+        $this->assertSame('gold', $membership->tier);
+        $this->assertSame(0, $membership->total_bookings);
+        $this->assertEquals(0.0, (float) $membership->total_spent);
+
+        Carbon::setTestNow();
     }
 
     public function test_maintenance_evaluation_downgrades_one_tier_and_notifies_user(): void
@@ -154,6 +288,11 @@ class VenueMembershipServiceTest extends TestCase
 
     private function createCompletedBooking(User $user, VenueCluster $cluster, float $amount, string $code): Booking
     {
+        return $this->createBooking($user, $cluster, $amount, $code, 'completed');
+    }
+
+    private function createBooking(User $user, VenueCluster $cluster, float $amount, string $code, string $status): Booking
+    {
         return Booking::query()->create([
             'booking_code' => $code,
             'customer_id' => $user->id,
@@ -166,7 +305,7 @@ class VenueMembershipServiceTest extends TestCase
             'required_payment_amount' => $amount,
             'source' => 'online',
             'booking_type' => 'single',
-            'status' => 'completed',
+            'status' => $status,
             'created_by' => $user->id,
         ]);
     }
