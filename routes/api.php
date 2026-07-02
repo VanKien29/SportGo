@@ -471,6 +471,8 @@ Route::middleware('auth:sanctum')
             Route::get('/conversations/{id}/messages', [ChatController::class, 'getMessages']);
             Route::post('/conversations/{id}/messages', [ChatController::class, 'sendMessage']);
             Route::post('/conversations/{id}/read', [ChatController::class, 'markAsRead']);
+            Route::delete('/conversations/{id}', [ChatController::class, 'deleteConversation']);
+            Route::post('/conversations/{id}/clear', [ChatController::class, 'clearMessages']);
             Route::get('/users/search', [ChatController::class, 'searchUsers']);
         });
     });

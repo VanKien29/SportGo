@@ -11,6 +11,7 @@
   --admin-muted: #2f3d34;
   --admin-faint: #45564a;
   --admin-primary: #22a653;
+  --admin-primary-text: #ffffff;
   --admin-primary-light: #52b788;
   --admin-primary-dark: #15733a;
   --admin-primary-soft: #e2f6e8;
@@ -54,6 +55,7 @@
   --admin-muted: #a1a1aa;
   --admin-faint: #71717a;
   --admin-primary: #3f3f46;
+  --admin-primary-text: #ffffff;
   --admin-primary-light: #52525b;
   --admin-primary-dark: #27272a;
   --admin-primary-soft: rgba(255, 255, 255, 0.08);

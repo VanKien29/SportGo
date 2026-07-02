@@ -155,7 +155,8 @@ class ChatController extends Controller
 
         $imagePath = null;
         if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('chats', 'public');
+            $file = $request->file('image');
+            $imagePath = $file->store('chats', 'public');
         }
 
         $message = DB::transaction(function () use ($conversationId, $userId, $request, $imagePath) {
@@ -439,5 +440,49 @@ class ChatController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Delete a conversation and all its messages
+     */
+    public function deleteConversation(Request $request, $id)
+    {
+        $userId = $request->user()->id;
+
+        $participant = ConversationParticipant::where('conversation_id', $id)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$participant) {
+            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+        }
+
+        DB::transaction(function () use ($id) {
+            Message::where('conversation_id', $id)->delete();
+            ConversationParticipant::where('conversation_id', $id)->delete();
+            Conversation::where('id', $id)->delete();
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Clear all messages in a conversation
+     */
+    public function clearMessages(Request $request, $id)
+    {
+        $userId = $request->user()->id;
+
+        $isParticipant = ConversationParticipant::where('conversation_id', $id)
+            ->where('user_id', $userId)
+            ->exists();
+
+        if (!$isParticipant) {
+            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+        }
+
+        Message::where('conversation_id', $id)->delete();
+
+        return response()->json(['success' => true]);
     }
 }

@@ -246,14 +246,17 @@
           <div class="chat-empty-main__sub">Chọn từ danh sách bên trái hoặc tìm kiếm thành viên để bắt đầu nhắn tin</div>
         </div>
 
-        <!-- Active Conversation Area -->
-        <div v-else class="flex-1 flex flex-col h-full bg-zinc-950 relative">
+        <!-- Main Chat Area -->
+        <div v-else class="flex-1 flex h-full relative overflow-hidden">
+          
+          <!-- Chat Messages Pane -->
+          <div class="flex-1 flex flex-col h-full bg-zinc-950 relative min-w-0">
           <!-- Active Conversation Header -->
           <div class="tg-chat-header flex items-center justify-between shrink-0">
-            <div class="flex items-center gap-3 min-w-0">
+            <div @click="showProfileSidebar = !showProfileSidebar" class="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-90 select-none">
               <!-- Back button on Mobile -->
               <button 
-                @click="backToList" 
+                @click.stop="backToList" 
                 class="p-2 -ml-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 md:hidden transition-colors"
                 aria-label="Back to conversations list"
               >
@@ -280,12 +283,94 @@
             </div>
 
             <!-- Header Action Controls -->
-            <div class="flex items-center gap-1">
-              <button class="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30 transition-colors">
+            <div class="flex items-center gap-1 relative">
+              <!-- Sidebar Toggle Button -->
+              <button 
+                @click="showProfileSidebar = !showProfileSidebar"
+                class="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30 transition-colors"
+                :class="{ 'text-zinc-200 bg-zinc-800/40': showProfileSidebar }"
+                title="Thông tin hội thoại"
+              >
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14 3v18" />
+                </svg>
+              </button>
+
+              <button 
+                @click="showChatMenu = !showChatMenu"
+                class="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30 transition-colors"
+                title="Tùy chọn cuộc trò chuyện"
+              >
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                 </svg>
               </button>
+
+              <!-- Chat Options Menu Dropdown -->
+              <div 
+                v-if="showChatMenu" 
+                class="tg-dropdown-menu absolute right-0 top-11 w-56 z-50 py-1"
+              >
+                <!-- Mute notifications -->
+                <button @click="muteNotifications" class="tg-dropdown-item">
+                  <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                  </svg>
+                  <span>Tắt thông báo</span>
+                </button>
+
+                <!-- View profile -->
+                <button @click="viewProfile" class="tg-dropdown-item">
+                  <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span>Xem thông tin hội thoại</span>
+                </button>
+
+                <!-- Set Wallpaper -->
+                <button @click="notImplemented('Đặt hình nền')" class="tg-dropdown-item">
+                  <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.344l3.657-3.657a1 1 0 011.414 0l3.657 3.657a1 1 0 010 1.414l-3.657 3.657a1 1 0 01-1.414 0L11 7.344z" />
+                  </svg>
+                  <span>Đặt hình nền</span>
+                </button>
+
+                <!-- Disable Sharing -->
+                <button @click="notImplemented('Tắt chia sẻ')" class="tg-dropdown-item">
+                  <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                  <span>Tắt chia sẻ liên kết</span>
+                </button>
+
+                <!-- Export chat history -->
+                <button @click="notImplemented('Xuất lịch sử chat')" class="tg-dropdown-item">
+                  <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Xuất lịch sử chat</span>
+                </button>
+
+                <div class="tg-dropdown-divider"></div>
+
+                <!-- Clear history -->
+                <button @click="clearChatHistory" class="tg-dropdown-item">
+                  <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span>Xóa lịch sử tin nhắn</span>
+                </button>
+
+                <!-- Delete chat -->
+                <button @click="deleteActiveConversation" class="tg-dropdown-item tg-dropdown-item-danger">
+                  <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span>Xóa cuộc trò chuyện</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -355,67 +440,227 @@
             </div>
           </div>
 
-          <!-- Bottom Message Input Editor (Telegram Style) -->
+          <!-- Bottom Message Input Editor -->
           <div class="tg-input-bar-container p-3 shrink-0 flex flex-col items-center bg-transparent">
             <!-- Hidden Image File Input -->
             <input 
               type="file" 
               ref="imageInput" 
               accept="image/*" 
+              multiple
               class="hidden" 
-              @change="handleImageSelected" 
+              @change="handleImagesSelected" 
             />
 
-            <!-- Image Preview Row -->
-            <div v-if="imagePreviewUrl" class="w-full max-w-3xl mb-2 px-3 py-2 bg-zinc-900/80 border border-zinc-800 rounded-xl flex items-center gap-3 relative shadow-md">
-              <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-zinc-700/60 shrink-0">
-                <img :src="imagePreviewUrl" class="w-full h-full object-cover" />
-                <button type="button" @click="clearSelectedImage" class="absolute top-0.5 right-0.5 bg-black/60 hover:bg-red-600 text-white p-0.5 rounded-full transition-all">
-                  <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div class="text-xs text-zinc-300 truncate">
-                {{ selectedImageFile?.name }}
-              </div>
-            </div>
-
-            <form @submit.prevent="submitMessage" class="flex gap-2 items-center w-full max-w-3xl">
-              
-              <!-- Left Action: File Attachment -->
-              <button 
-                type="button"
-                @click="clickAttachment"
-                class="tg-attach-btn p-2 rounded-full hover:bg-black/10 transition-colors shrink-0 flex items-center justify-center text-zinc-400 hover:text-zinc-600"
-              >
-                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                </svg>
-              </button>
-
-              <!-- Main Input Area (Pill shape) -->
-              <div class="flex-1 relative flex items-center">
+            <form @submit.prevent="submitMessage" class="zalo-chat-box w-full max-w-3xl flex flex-col">
+              <!-- Text input row -->
+              <div class="zalo-input-row flex items-center px-4 py-2.5">
                 <input 
                   v-model="newMessage"
                   type="text" 
-                  placeholder="Viết tin nhắn..." 
+                  placeholder="Nhập tin nhắn..." 
                   @paste="handlePaste"
-                  class="tg-input w-full pl-4 pr-10 py-2.5 bg-white border border-zinc-200 text-zinc-900 rounded-2xl text-sm focus:outline-none focus:border-zinc-300 transition-all shadow-sm"
+                  class="zalo-input w-full bg-transparent text-sm focus:outline-none"
                 />
+                
+                <!-- Left Action: File Attachment -->
+                <button 
+                  type="button"
+                  @click="clickAttachment"
+                  class="zalo-attach-btn p-1.5 rounded-full transition-colors shrink-0 mr-1"
+                  title="Thêm ảnh"
+                >
+                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                </button>
+
+                <!-- Right Action: Circular Send Button -->
+                <button 
+                  type="submit"
+                  :disabled="!newMessage.trim() && selectedImageFiles.length === 0"
+                  class="zalo-send-btn h-8 w-8 rounded-full transition-all shrink-0 flex items-center justify-center"
+                >
+                  <svg class="h-4 w-4 fill-white text-white" viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                  </svg>
+                </button>
               </div>
 
-              <!-- Right Action: Circular Send Button -->
-              <button 
-                type="submit"
-                :disabled="!newMessage.trim() && !selectedImageFile"
-                class="tg-send-btn h-10 w-10 bg-green-500 disabled:opacity-40 disabled:hover:bg-green-500 hover:bg-green-600 text-white rounded-full transition-all shadow-sm shrink-0 flex items-center justify-center"
-              >
-                <svg class="h-5 w-5 fill-white text-white" viewBox="0 0 24 24">
-                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
-              </button>
+              <!-- Divider -->
+              <div v-if="selectedImageFiles.length > 0" class="zalo-divider mx-4"></div>
+
+              <!-- Image Preview area (below text input) -->
+              <div v-if="selectedImageFiles.length > 0" class="zalo-preview-area px-4 py-3 flex flex-col gap-2">
+                <!-- Header of preview area -->
+                <div class="flex items-center justify-between text-xs font-medium zalo-preview-header">
+                  <span>{{ selectedImageFiles.length }} ảnh</span>
+                  <button type="button" @click="clearSelectedImages" class="zalo-clear-all hover:text-red-500 transition-colors bg-transparent border-0 p-0 text-xs font-medium">
+                    Xóa tất cả
+                  </button>
+                </div>
+                
+                <!-- Thumbnails list -->
+                <div class="flex flex-wrap gap-2.5 items-center mt-1">
+                  <div 
+                    v-for="(file, index) in selectedImageFiles" 
+                    :key="index"
+                    class="relative w-14 h-14 rounded-lg overflow-hidden border zalo-thumb-item shrink-0 bg-black/20 group"
+                  >
+                    <img :src="imagePreviewUrls[index]" class="w-full h-full object-cover" />
+                    <!-- Delete button -->
+                    <button 
+                      type="button" 
+                      @click="removeSelectedImage(index)" 
+                      class="absolute top-0.5 right-0.5 bg-black/60 hover:bg-red-650 text-white p-0.5 rounded-full transition-all md:opacity-0 md:group-hover:opacity-100"
+                      title="Xóa ảnh"
+                    >
+                      <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <!-- Dashed Plus button to add more images -->
+                  <button 
+                    type="button"
+                    @click="clickAttachment"
+                    class="w-14 h-14 border border-dashed zalo-plus-btn rounded-lg flex items-center justify-center transition-all shrink-0"
+                    title="Thêm ảnh"
+                  >
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </form>
+          </div>
+          </div>
+
+          <!-- Right Sidebar (Profile Info Panel) -->
+          <div 
+            v-if="showProfileSidebar" 
+            class="tg-profile-sidebar w-80 flex flex-col h-full shrink-0 relative transition-all duration-200 border-l border-zinc-800"
+          >
+            <!-- Absolute Close Button -->
+            <button 
+              @click="showProfileSidebar = false" 
+              class="absolute right-4 top-4 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30 p-1.5 rounded-full transition-colors bg-transparent border-none cursor-pointer z-10"
+              title="Đóng thông tin"
+            >
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <!-- Profile Info Body -->
+            <div class="tg-profile-body flex-1 overflow-y-auto pb-5">
+              <!-- Header Section -->
+              <div class="flex flex-col items-center px-6 pb-5">
+                <div class="tg-profile-avatar">
+                  {{ activeConversation.title.charAt(0).toUpperCase() }}
+                </div>
+                <h3 class="tg-profile-value text-base font-semibold text-center truncate w-full mb-1">{{ activeConversation.title }}</h3>
+                <p class="text-[11px] text-zinc-500 font-medium">
+                  {{ activeConversation.type === 'venue_contact' ? 'Hội thoại Sân đấu' : 'trực tuyến' }}
+                </p>
+              </div>
+
+              <!-- Quick Actions Row -->
+              <div class="flex items-center justify-center gap-3 px-6 pb-6 border-b border-zinc-800/30">
+                <button @click="showProfileSidebar = false" class="tg-profile-action-btn">
+                  <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <span>Nhắn tin</span>
+                </button>
+                <button @click="muteNotifications" class="tg-profile-action-btn">
+                  <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  <span>Tắt âm</span>
+                </button>
+                <button @click="notImplemented('Chia sẻ')" class="tg-profile-action-btn">
+                  <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 00-6 6v3" />
+                  </svg>
+                  <span>Chia sẻ</span>
+                </button>
+              </div>
+
+              <!-- Info Details (Padded left to align with sections below) -->
+              <div class="flex flex-col gap-4 py-1">
+                <!-- Phone -->
+                <div class="tg-profile-info-block">
+                  <span class="tg-profile-value">+84 982838383</span>
+                  <span class="tg-profile-label">Di động</span>
+                </div>
+                
+                <!-- Username -->
+                <div v-if="activeConversation.other_user" class="tg-profile-info-block relative">
+                  <div class="flex flex-col">
+                    <span class="tg-profile-value text-blue-400">{{ activeConversation.other_user.username ? '@' + activeConversation.other_user.username : '@systemstaff' }}</span>
+                    <span class="tg-profile-label">Tên tài khoản</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Shared Items -->
+              <div class="tg-profile-section border-t border-zinc-800/30 pt-5">
+                <div class="tg-profile-item cursor-default">
+                  <svg class="tg-profile-item-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <div class="tg-profile-item-content">
+                    <span class="tg-profile-value text-sm">{{ sharedImageCount }} ảnh</span>
+                  </div>
+                </div>
+                <div class="tg-profile-item cursor-default">
+                  <svg class="tg-profile-item-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  <div class="tg-profile-item-content">
+                    <span class="tg-profile-value text-sm">0 liên kết đã chia sẻ</span>
+                  </div>
+                </div>
+                <div class="tg-profile-item cursor-default">
+                  <svg class="tg-profile-item-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                  </svg>
+                  <div class="tg-profile-item-content">
+                    <span class="tg-profile-value text-sm">0 ảnh GIF</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Actions Section -->
+              <div class="tg-profile-section border-t border-zinc-800/30 pt-5 pb-8">
+                <!-- Share contact -->
+                <button @click="notImplemented('Chia sẻ liên hệ')" class="tg-profile-action-row">
+                  <svg class="tg-profile-item-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 00-6 6v3" />
+                  </svg>
+                  <span>Chia sẻ liên hệ này</span>
+                </button>
+                
+                <!-- Delete conversation -->
+                <button @click="deleteActiveConversation" class="tg-profile-action-row">
+                  <svg class="tg-profile-item-icon text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span>Xóa cuộc trò chuyện</span>
+                </button>
+
+                <!-- Block user -->
+                <button @click="notImplemented('Chặn người dùng')" class="tg-profile-action-row tg-profile-action-row-danger">
+                  <svg class="tg-profile-item-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                  <span>Chặn người dùng</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -474,9 +719,11 @@ export default {
       messagesTimer: null,
       showTelegramMenu: false,
       isNightMode: false,
-      selectedImageFile: null,
-      imagePreviewUrl: null,
-      lightboxImage: null
+      selectedImageFiles: [],
+      imagePreviewUrls: [],
+      lightboxImage: null,
+      showChatMenu: false,
+      showProfileSidebar: false
     };
   },
   computed: {
@@ -489,6 +736,13 @@ export default {
     },
     isAdmin() {
       return this.$route.path.startsWith('/admin');
+    },
+    activeConversationParticipants() {
+      if (!this.activeConversation) return [];
+      return this.conversationParticipants[this.activeConversation.id] || [];
+    },
+    sharedImageCount() {
+      return this.messages.filter(m => m.reference_type === 'image' || m.image_url).length;
     }
   },
   created() {
@@ -651,17 +905,25 @@ export default {
     },
 
     async submitMessage() {
-      if ((!this.newMessage.trim() && !this.selectedImageFile) || !this.activeConversation) return;
+      if ((!this.newMessage.trim() && this.selectedImageFiles.length === 0) || !this.activeConversation) return;
       
       const content = this.newMessage.trim();
-      const imageFile = this.selectedImageFile;
+      const filesToSend = [...this.selectedImageFiles];
       
       this.newMessage = ''; // clear input instantly for native feel
-      this.clearSelectedImage();
+      this.clearSelectedImages();
       
       try {
-        const response = await chatService.sendMessage(this.activeConversation.id, content, imageFile);
-        this.messages.push(response);
+        if (filesToSend.length > 0) {
+          for (let i = 0; i < filesToSend.length; i++) {
+            const currentContent = (i === 0) ? content : '';
+            const response = await chatService.sendMessage(this.activeConversation.id, currentContent, filesToSend[i]);
+            this.messages.push(response);
+          }
+        } else {
+          const response = await chatService.sendMessage(this.activeConversation.id, content, null);
+          this.messages.push(response);
+        }
         
         // Update last message in the conversations list locally
         const conv = this.conversations.find(c => c.id === this.activeConversation.id);
@@ -744,20 +1006,58 @@ export default {
       this.$refs.imageInput.click();
     },
 
-    handleImageSelected(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+    convertToWebP(file) {
+      if (file.type === 'image/webp') return Promise.resolve(file);
 
-      if (file.size > 10 * 1024 * 1024) {
-        alert('Dung lượng ảnh tối đa là 10MB.');
-        return;
-      }
-
-      this.selectedImageFile = file;
-      this.imagePreviewUrl = URL.createObjectURL(file);
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                const webpFile = new File([blob], `${nameWithoutExt}.webp`, { type: 'image/webp' });
+                resolve(webpFile);
+              } else {
+                resolve(file);
+              }
+            }, 'image/webp', 0.8);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
     },
 
-    handlePaste(event) {
+    async handleImagesSelected(event) {
+      const files = Array.from(event.target.files);
+      if (!files.length) return;
+
+      for (const file of files) {
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`Dung lượng ảnh ${file.name} vượt quá 10MB.`);
+          continue;
+        }
+        try {
+          const webpFile = await this.convertToWebP(file);
+          this.selectedImageFiles.push(webpFile);
+          this.imagePreviewUrls.push(URL.createObjectURL(webpFile));
+        } catch (err) {
+          this.selectedImageFiles.push(file);
+          this.imagePreviewUrls.push(URL.createObjectURL(file));
+        }
+      }
+    },
+
+    async handlePaste(event) {
       const items = (event.clipboardData || event.originalEvent.clipboardData)?.items;
       if (!items) return;
       
@@ -769,30 +1069,100 @@ export default {
               alert('Dung lượng ảnh tối đa là 10MB.');
               return;
             }
-            this.clearSelectedImage();
             
-            // Create a fake name for the clipboard image file
             const extension = file.type.split('/')[1] || 'png';
             const namedFile = new File([file], `paste_${Date.now()}.${extension}`, { type: file.type });
 
-            this.selectedImageFile = namedFile;
-            this.imagePreviewUrl = URL.createObjectURL(namedFile);
+            try {
+              const webpFile = await this.convertToWebP(namedFile);
+              this.selectedImageFiles.push(webpFile);
+              this.imagePreviewUrls.push(URL.createObjectURL(webpFile));
+            } catch (err) {
+              this.selectedImageFiles.push(namedFile);
+              this.imagePreviewUrls.push(URL.createObjectURL(namedFile));
+            }
             event.preventDefault();
-            break;
           }
         }
       }
     },
 
-    clearSelectedImage() {
-      this.selectedImageFile = null;
-      if (this.imagePreviewUrl) {
-        URL.revokeObjectURL(this.imagePreviewUrl);
-        this.imagePreviewUrl = null;
+    removeSelectedImage(index) {
+      const url = this.imagePreviewUrls[index];
+      if (url) {
+        URL.revokeObjectURL(url);
       }
+      this.selectedImageFiles.splice(index, 1);
+      this.imagePreviewUrls.splice(index, 1);
+      if (this.selectedImageFiles.length === 0 && this.$refs.imageInput) {
+        this.$refs.imageInput.value = '';
+      }
+    },
+
+    clearSelectedImages() {
+      this.imagePreviewUrls.forEach(url => URL.revokeObjectURL(url));
+      this.selectedImageFiles = [];
+      this.imagePreviewUrls = [];
       if (this.$refs.imageInput) {
         this.$refs.imageInput.value = '';
       }
+    },
+
+    async deleteActiveConversation() {
+      if (!this.activeConversation) return;
+      if (!confirm('Bạn có chắc chắn muốn xóa cuộc trò chuyện này? Tất cả tin nhắn sẽ bị xóa vĩnh viễn.')) return;
+      
+      const targetId = this.activeConversation.id;
+      this.showChatMenu = false;
+      
+      try {
+        await chatService.deleteConversation(targetId);
+        
+        // Remove from local list
+        this.conversations = this.conversations.filter(c => c.id !== targetId);
+        
+        // Deselect conversation
+        this.activeConversation = null;
+        this.messages = [];
+      } catch (err) {
+        alert(err.message || 'Không thể xóa cuộc trò chuyện.');
+      }
+    },
+
+    async clearChatHistory() {
+      if (!this.activeConversation) return;
+      if (!confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử tin nhắn của cuộc trò chuyện này?')) return;
+
+      const targetId = this.activeConversation.id;
+      this.showChatMenu = false;
+
+      try {
+        await chatService.clearConversation(targetId);
+        this.messages = [];
+
+        // Clear last message in sidebar locally
+        const conv = this.conversations.find(c => c.id === targetId);
+        if (conv) {
+          conv.last_message = null;
+        }
+      } catch (err) {
+        alert(err.message || 'Không thể xóa lịch sử tin nhắn.');
+      }
+    },
+
+    muteNotifications() {
+      this.showChatMenu = false;
+      alert('Đã tắt thông báo cho cuộc trò chuyện này.');
+    },
+
+    viewProfile() {
+      this.showChatMenu = false;
+      alert(`Thông tin hội thoại: ${this.activeConversation.title}`);
+    },
+
+    notImplemented(featureName) {
+      this.showChatMenu = false;
+      alert(`Tính năng "${featureName}" đang được phát triển.`);
     },
 
     openLightbox(url) {
@@ -1303,6 +1673,323 @@ export default {
 }
 .tg-knob-off {
   transform: translateX(0) !important;
+}
+
+/* Zalo style input box styling */
+.zalo-chat-box {
+  background-color: var(--tg-received-bg) !important;
+  border: 1px solid var(--tg-border) !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  transition: border-color 150ms ease;
+}
+
+.zalo-chat-box:focus-within {
+  border-color: var(--tg-accent) !important;
+}
+
+.zalo-input-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px !important;
+  box-sizing: border-box;
+}
+
+.sg-shell-admin .content-area input.zalo-input {
+  color: var(--tg-received-text) !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  min-height: auto !important;
+  padding: 8px 0 !important;
+  width: 100% !important;
+}
+
+.sg-shell-admin .content-area input.zalo-input:focus {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.zalo-input::placeholder {
+  color: var(--tg-meta) !important;
+}
+
+.zalo-attach-btn {
+  color: var(--tg-meta) !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+}
+.zalo-attach-btn:hover {
+  color: var(--tg-received-text) !important;
+  background-color: var(--tg-active-row) !important;
+}
+
+.zalo-send-btn {
+  background-color: var(--tg-accent) !important;
+  color: #ffffff !important;
+  border: none !important;
+  cursor: pointer !important;
+}
+
+.zalo-send-btn:hover:not(:disabled) {
+  opacity: 0.95;
+}
+
+.zalo-divider {
+  border-top: 1px solid var(--tg-border) !important;
+  margin: 0 16px !important;
+}
+
+.zalo-preview-area {
+  background-color: color-mix(in srgb, var(--tg-chat-bg) 25%, var(--tg-received-bg)) !important;
+  padding: 12px 16px !important;
+}
+
+.zalo-preview-header {
+  color: var(--tg-meta) !important;
+}
+
+.zalo-clear-all {
+  color: var(--tg-meta) !important;
+  background: transparent !important;
+  cursor: pointer !important;
+}
+
+.zalo-clear-all:hover {
+  color: var(--admin-danger, #dc2626) !important;
+}
+
+.zalo-thumb-item {
+  border-color: var(--tg-border) !important;
+}
+
+.zalo-plus-btn {
+  border-color: var(--tg-border) !important;
+  color: var(--tg-meta) !important;
+  background-color: transparent !important;
+  cursor: pointer !important;
+}
+
+.zalo-plus-btn:hover {
+  background-color: var(--tg-active-row) !important;
+  color: var(--tg-received-text) !important;
+  border-color: var(--tg-meta) !important;
+}
+
+/* Telegram Dropdown Menu styling */
+.tg-dropdown-menu {
+  background-color: var(--tg-header-bg) !important;
+  border: 1px solid var(--tg-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+  overflow: hidden !important;
+}
+
+.tg-dropdown-item {
+  color: var(--tg-received-text) !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: background-color 150ms ease !important;
+  box-sizing: border-box !important;
+}
+
+.tg-dropdown-item:hover {
+  background-color: var(--tg-active-row) !important;
+  color: var(--tg-received-text) !important;
+}
+
+.tg-dropdown-icon {
+  color: var(--tg-meta) !important;
+  width: 16px !important;
+  height: 16px !important;
+  flex-shrink: 0 !important;
+  margin-right: 12px !important;
+}
+
+.tg-dropdown-item-danger {
+  color: #ef4444 !important;
+}
+
+.tg-dropdown-item-danger:hover {
+  background-color: #ef4444/10 !important;
+}
+
+.tg-dropdown-item-danger .tg-dropdown-icon {
+  color: #ef4444 !important;
+}
+
+.tg-dropdown-divider {
+  height: 1px !important;
+  background-color: var(--tg-border) !important;
+  margin: 4px 0 !important;
+}
+
+/* Profile Sidebar Styling */
+.tg-profile-sidebar {
+  background-color: var(--tg-sidebar-bg) !important;
+  border-left: 1px solid var(--tg-border) !important;
+  color: var(--tg-received-text) !important;
+}
+
+.tg-profile-body {
+  padding-top: 48px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 24px !important;
+}
+
+.tg-profile-title {
+  color: var(--tg-received-text) !important;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tg-profile-section-title {
+  color: var(--tg-meta) !important;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px !important;
+}
+
+.tg-profile-section {
+  padding: 0 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.tg-profile-item {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 16px !important;
+  width: 100% !important;
+}
+
+.tg-profile-item-icon {
+  color: var(--tg-meta) !important;
+  width: 18px !important;
+  height: 18px !important;
+  flex-shrink: 0 !important;
+  margin-top: 2px !important;
+}
+
+.tg-profile-item-content {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+  flex: 1 !important;
+}
+
+.tg-profile-label {
+  color: var(--tg-meta) !important;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.tg-profile-value {
+  color: var(--tg-received-text) !important;
+  font-size: 14px;
+  font-weight: 500;
+  word-wrap: break-word !important;
+  word-break: break-all !important;
+}
+
+/* Dynamic theme avatar in profile info panel */
+.tg-profile-avatar {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 50% !important;
+  background-color: var(--tg-accent) !important;
+  color: var(--admin-primary-text, #ffffff) !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12) !important;
+  margin-bottom: 12px !important;
+  user-select: none !important;
+}
+
+/* Quick action buttons row */
+.tg-profile-action-btn {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background-color: var(--tg-active-row) !important;
+  color: var(--tg-accent) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 8px 0 !important;
+  width: 72px !important;
+  cursor: pointer !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  transition: background-color 150ms ease !important;
+}
+.tg-profile-action-btn:hover {
+  background-color: color-mix(in srgb, var(--tg-active-row) 80%, var(--tg-received-text)) !important;
+}
+.tg-profile-action-btn span {
+  color: var(--tg-received-text) !important;
+}
+
+/* Indented details block */
+.tg-profile-info-block {
+  padding-left: 56px !important;
+  padding-right: 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Action Rows */
+.tg-profile-action-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  width: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--tg-received-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  box-sizing: border-box !important;
+}
+.tg-profile-action-row:hover {
+  color: var(--tg-accent) !important;
+}
+.tg-profile-action-row-danger {
+  color: #ef4444 !important;
+}
+.tg-profile-action-row-danger .tg-profile-item-icon {
+  color: #ef4444 !important;
+}
+.tg-profile-action-row-danger:hover {
+  color: #f87171 !important;
 }
 </style>
 

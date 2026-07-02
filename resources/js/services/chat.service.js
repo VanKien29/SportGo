@@ -29,6 +29,16 @@ export const chatService = {
       method: 'POST'
     });
   },
+  deleteConversation(conversationId) {
+    return api(`/api/chat/conversations/${conversationId}`, {
+      method: 'DELETE'
+    });
+  },
+  clearConversation(conversationId) {
+    return api(`/api/chat/conversations/${conversationId}/clear`, {
+      method: 'POST'
+    });
+  },
   searchUsers(query) {
     return api(`/api/chat/users/search?query=${encodeURIComponent(query)}`);
   },

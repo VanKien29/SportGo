@@ -231,14 +231,25 @@
               placeholder="Tên chủ đề tùy chỉnh của bạn..."
               class="theme-name-input"
             />
-            <button
-              type="button"
-              class="btn-secondary save-preset-btn"
-              @click="saveAsNewPreset"
-              :disabled="!newThemeName.trim()"
-            >
-              Lưu thành chủ đề mới
-            </button>
+            <div class="preset-action-buttons">
+              <button
+                v-if="isCustomPresetActive"
+                type="button"
+                class="btn-primary update-preset-btn"
+                @click="updateActivePreset"
+                :disabled="!newThemeName.trim()"
+              >
+                Cập nhật chủ đề
+              </button>
+              <button
+                type="button"
+                class="btn-secondary save-preset-btn"
+                @click="saveAsNewPreset"
+                :disabled="!newThemeName.trim()"
+              >
+                Lưu thành chủ đề mới
+              </button>
+            </div>
           </div>
         </div>
 
@@ -492,6 +503,10 @@ export default {
     allPresets() {
       return [...this.defaultPresets, ...this.userPresets];
     },
+    isCustomPresetActive() {
+      const activePreset = this.allPresets.find(p => p.id === this.selectedPresetId);
+      return !!(activePreset && activePreset.isUserPreset);
+    },
     lightPreviewStyle() {
       const l = this.theme.light;
       return {
@@ -522,16 +537,20 @@ export default {
       };
     },
     lightBtnPrimaryStyle() {
-      return { background: this.theme.light.primary, borderRadius: `calc(${this.selectedRadius} - 4px)` };
+      const p = this.theme.light.primary;
+      const r = this.getContrastColor(p);
+      return { background: p, color: r, borderRadius: `calc(${this.selectedRadius} - 4px)` };
     },
     lightBtnDestructiveStyle() {
-      return { background: this.theme.light.destructive, borderRadius: `calc(${this.selectedRadius} - 4px)` };
+      return { background: this.theme.light.destructive, color: '#ffffff', borderRadius: `calc(${this.selectedRadius} - 4px)` };
     },
     darkBtnPrimaryStyle() {
-      return { background: this.theme.dark.primary, borderRadius: `calc(${this.selectedRadius} - 4px)` };
+      const p = this.theme.dark.primary;
+      const r = this.getContrastColor(p);
+      return { background: p, color: r, borderRadius: `calc(${this.selectedRadius} - 4px)` };
     },
     darkBtnDestructiveStyle() {
-      return { background: this.theme.dark.destructive, borderRadius: `calc(${this.selectedRadius} - 4px)` };
+      return { background: this.theme.dark.destructive, color: '#ffffff', borderRadius: `calc(${this.selectedRadius} - 4px)` };
     },
   },
   created() {
@@ -542,6 +561,18 @@ export default {
     document.removeEventListener('click', this.closeCustomPicker);
   },
   methods: {
+    getContrastColor(hex) {
+      if (!hex) return '#ffffff';
+      let c = hex.replace(/^#/, '');
+      if (c.length === 3) {
+        c = c.split('').map(x => x + x).join('');
+      }
+      const r = parseInt(c.slice(0, 2), 16);
+      const g = parseInt(c.slice(2, 4), 16);
+      const b = parseInt(c.slice(4, 6), 16);
+      const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+      return (yiq >= 150) ? '#18181b' : '#ffffff';
+    },
     hexToHsv(hex) {
       let c = hex.replace(/^#/, '');
       if (c.length === 3) {
@@ -664,6 +695,20 @@ export default {
       this.selectedPresetId = preset.id;
       this.theme.light = { ...preset.light };
       this.theme.dark = { ...preset.dark };
+      this.newThemeName = preset.name;
+    },
+    updateActivePreset() {
+      if (!this.newThemeName.trim()) return;
+      const index = this.userPresets.findIndex(p => p.id === this.selectedPresetId);
+      if (index !== -1) {
+        this.userPresets[index].name = this.newThemeName.trim();
+        this.userPresets[index].color = this.theme.light.primary;
+        this.userPresets[index].light = { ...this.theme.light };
+        this.userPresets[index].dark = { ...this.theme.dark };
+        
+        localStorage.setItem('admin-user-presets', JSON.stringify(this.userPresets));
+        alert('Đã cập nhật chủ đề tùy chỉnh thành công!');
+      }
     },
     saveAsNewPreset() {
       if (!this.newThemeName.trim()) return;
@@ -771,6 +816,9 @@ export default {
     grid-template-columns: 1fr;
     gap: 24px;
   }
+  .preview-column {
+    position: static;
+  }
 }
 
 .controls-column {
@@ -804,8 +852,9 @@ export default {
 
 .preset-card {
   position: relative;
-  width: 36px;
   height: 36px;
+  padding: 0 12px;
+  gap: 8px;
   border: 2px solid var(--admin-border-soft);
   border-radius: var(--admin-radius);
   cursor: pointer;
@@ -820,18 +869,18 @@ export default {
 
 .preset-card:hover {
   border-color: var(--admin-primary);
-  transform: scale(1.08);
+  transform: scale(1.04);
 }
 
 .preset-card.active {
   border-color: var(--admin-primary);
   box-shadow: 0 0 0 3px var(--admin-primary-ring);
-  transform: scale(1.04);
+  transform: scale(1.02);
 }
 
 .preset-color-dot {
-  width: 20px;
-  height: 20px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
@@ -843,7 +892,10 @@ export default {
 }
 
 .preset-name {
-  display: none;
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--admin-text);
 }
 
 .delete-preset-btn {
@@ -873,6 +925,7 @@ export default {
 /* Radius selector */
 .radius-selector-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 20px;
 }
@@ -901,7 +954,7 @@ export default {
 
 .radius-btn.active {
   background: var(--admin-primary);
-  color: #ffffff;
+  color: var(--admin-primary-text, #ffffff);
   border-color: var(--admin-primary);
 }
 
@@ -1056,6 +1109,18 @@ export default {
   user-select: none;
 }
 
+@media (max-width: 576px) {
+  .figma-popover {
+    position: fixed;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: calc(100% - 32px);
+    max-width: 260px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.25);
+  }
+}
+
 .sv-canvas {
   position: relative;
   width: 100%;
@@ -1184,7 +1249,41 @@ export default {
   border-top: 1px solid var(--admin-border-soft);
 }
 
-.theme-name-input {
+.preset-action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.update-preset-btn,
+.save-preset-btn {
+  height: 36px;
+  padding: 0 16px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 576px) {
+  .save-preset-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .preset-action-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  .update-preset-btn,
+  .save-preset-btn {
+    width: 100%;
+  }
+}
+
+.sg-shell-admin .content-area input.theme-name-input {
   flex: 1;
   height: 36px;
   padding: 0 12px;
@@ -1193,9 +1292,14 @@ export default {
   border-radius: var(--admin-radius);
   background: var(--admin-surface);
   color: var(--admin-text);
-  font-size: 12px;
+  font-size: 12px !important;
   outline: none;
   transition: border-color 120ms ease;
+}
+
+.sg-shell-admin .content-area input.theme-name-input::placeholder {
+  font-size: 12px !important;
+  opacity: 0.65;
 }
 
 .theme-name-input:focus {
@@ -1218,6 +1322,12 @@ export default {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+@media (max-width: 576px) {
+  .preview-container {
+    grid-template-columns: 1fr;
+  }
 }
 
 .preview-item {
@@ -1290,9 +1400,33 @@ export default {
 .settings-card-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
   padding: 16px 24px;
   background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.02));
   border-top: none !important;
+}
+
+.settings-card-footer button {
+  min-width: 160px;
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .settings-card-footer button {
+    width: auto !important;
+    flex: 1;
+  }
+}
+
+@media (max-width: 576px) {
+  .settings-card-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    padding: 16px 0;
+  }
+  .settings-card-footer button {
+    width: 100% !important;
+    max-width: none;
+  }
 }
 </style>

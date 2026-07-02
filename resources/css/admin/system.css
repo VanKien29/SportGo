@@ -425,14 +425,14 @@
 .sg-shell-admin .content-area :is(.primary, .btn.primary, .btn-primary, .btn-success, .primary-btn:not(.danger), .primary-link, .pay-command, button.primary, a.primary) {
   border-color: var(--admin-primary) !important;
   background: var(--admin-primary) !important;
-  color: #fff !important;
+  color: var(--admin-primary-text, #ffffff) !important;
   box-shadow: 0 10px 22px rgba(47, 158, 68, 0.18) !important;
 }
 
 .sg-shell-admin .content-area :is(.primary:hover, .btn.primary:hover, .btn-primary:hover, .btn-success:hover, .primary-btn:not(.danger):hover, .primary-link:hover, .pay-command:hover, button.primary:hover, a.primary:hover) {
   border-color: var(--admin-primary-dark) !important;
   background: var(--admin-primary-dark) !important;
-  color: #fff !important;
+  color: var(--admin-primary-text, #ffffff) !important;
 }
 
 .sg-shell-admin .content-area :is(.success, .icon-action.success, .btn-action.success, .btn-success-soft) {
