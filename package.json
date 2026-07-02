@@ -16,9 +16,11 @@
         "vite": "^8.0.0"
     },
     "dependencies": {
+        "@ckeditor/ckeditor5-build-classic": "^41.4.2",
+        "@ckeditor/ckeditor5-vue": "^8.1.1",
         "@vitejs/plugin-vue": "^6.0.7",
-        "axios": "^1.18.1",
         "@vueup/vue-quill": "^1.5.5",
+        "axios": "^1.18.1",
         "chart.js": "^4.5.1",
         "docx-preview": "^0.3.7",
         "leaflet": "^1.9.4",

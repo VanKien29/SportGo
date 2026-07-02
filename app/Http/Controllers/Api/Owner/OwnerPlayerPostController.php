@@ -45,7 +45,8 @@ class OwnerPlayerPostController extends Controller
                 'author:id,username,full_name,email,phone,avatar_url',
                 'booking:id,booking_code,booking_date,start_time,end_time,venue_cluster_id,venue_court_id',
                 'booking.venueCluster:id,name',
-                'booking.venueCourt:id,name',
+                'booking.venueCourt:id,name,court_type_id',
+                'booking.venueCourt.courtType:id,name',
             ])
             ->when($request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->query('status'));
@@ -74,6 +75,75 @@ class OwnerPlayerPostController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $posts,
+        ]);
+    }
+
+    /**
+     * Store a new matchmaking post by owner.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $clusterIds = $this->getOwnerClusterIds($request);
+
+        $data = $request->validate([
+            'booking_id' => ['required', 'string', 'exists:bookings,id'],
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'needed_players' => ['required', 'integer', 'min:1'],
+            'cost_per_player' => ['nullable', 'numeric', 'min:0'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'], // Max 5MB
+        ]);
+
+        // Validate booking belongs to owner's cluster
+        $booking = \App\Models\Booking::findOrFail($data['booking_id']);
+        if (!$clusterIds->contains($booking->venue_cluster_id)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lịch đặt sân không thuộc quyền quản lý của bạn.',
+            ], 403);
+        }
+
+        // Check if booking already has an active post
+        $existingPost = PlayerPost::where('booking_id', $booking->id)
+            ->whereIn('status', ['open', 'full'])
+            ->first();
+
+        if ($existingPost) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lịch đặt sân này đã có bài giao lưu đang mở.',
+            ], 422);
+        }
+
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('matchmaking-posts', 'public');
+        }
+
+        $post = PlayerPost::create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'booking_id' => $booking->id,
+            'author_id' => $request->user()->id,
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'image_path' => $imagePath,
+            'needed_players' => $data['needed_players'],
+            'cost_per_player' => $data['cost_per_player'] ?? 0,
+            'status' => 'open',
+        ]);
+
+        // Trả về post kèm relation để append vào list trên UI
+        $post->load([
+            'author:id,username,full_name,email,phone,avatar_url',
+            'booking:id,booking_code,booking_date,start_time,end_time,venue_cluster_id,venue_court_id',
+            'booking.venueCluster:id,name',
+            'booking.venueCourt:id,name',
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã đăng bài giao lưu thành công.',
+            'data' => $post,
         ]);
     }
  
@@ -106,6 +176,40 @@ class OwnerPlayerPostController extends Controller
             'status' => 'success',
             'message' => 'Đã ẩn bài giao lưu thành công.',
             'data' => $post,
+        ]);
+    }
+
+    /**
+     * Get eligible bookings for creating a new matchmaking post.
+     */
+    public function eligibleBookings(Request $request): JsonResponse
+    {
+        $clusterIds = $this->getOwnerClusterIds($request);
+        $venueClusterId = $request->query('venue_cluster_id');
+
+        if ($venueClusterId && !$clusterIds->contains($venueClusterId)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Cụm sân không thuộc quyền quản lý của bạn.',
+            ], 403);
+        }
+
+        $queryClusterIds = $venueClusterId ? [$venueClusterId] : $clusterIds;
+
+        $bookings = \App\Models\Booking::query()
+            ->whereIn('venue_cluster_id', $queryClusterIds)
+            ->whereIn('status', ['confirmed', 'checked_in'])
+            ->where('booking_date', '>=', date('Y-m-d'))
+            ->whereNotIn('id', \App\Models\PlayerPost::whereIn('status', ['open', 'full'])->pluck('booking_id'))
+            ->with(['venueCourt:id,name,court_type_id', 'venueCourt.courtType:id,name'])
+            ->orderBy('booking_date')
+            ->orderBy('start_time')
+            ->limit(50) // Giới hạn 50 lịch sắp tới để chọn cho dễ
+            ->get(['id', 'booking_code', 'booking_date', 'start_time', 'end_time', 'venue_cluster_id', 'venue_court_id']);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $bookings,
         ]);
     }
  

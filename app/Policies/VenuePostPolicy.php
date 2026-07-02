@@ -80,7 +80,11 @@ class VenuePostPolicy
      */
     public function restore(User $user, VenuePost $venuePost): bool
     {
-        return $this->hasRole($user, ['admin', 'super_admin']);
+        if ($this->hasRole($user, ['admin', 'super_admin'])) {
+            return true;
+        }
+
+        return $user->id === $venuePost->author_id;
     }
 
     /**

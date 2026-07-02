@@ -379,6 +379,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
 
         // Owner Venue Posts
         Route::post('/venue-posts/upload-editor-image', [OwnerVenuePostController::class, 'uploadEditorImage']);
+        Route::post('/venue-posts/{id}/restore', [OwnerVenuePostController::class, 'restore']);
         Route::apiResource('venue-posts', OwnerVenuePostController::class);
 
         // Booking Management
@@ -392,6 +393,8 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
 
         // Matchmaking Posts (Giao lưu tại sân)
         Route::get('/matchmaking-posts', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'index']);
+        Route::get('/matchmaking-posts/eligible-bookings', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'eligibleBookings']);
+        Route::post('/matchmaking-posts', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'store']);
         Route::patch('/matchmaking-posts/{id}/hide', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'hide']);
         Route::post('/matchmaking-posts/{id}/report', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'report']);
 
