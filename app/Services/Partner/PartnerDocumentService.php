@@ -28,6 +28,8 @@ class PartnerDocumentService
         'mutual_liquidation_minutes' => 'Mau_04_Bien_ban_thanh_ly_hop_dong_hai_ben_SportGo_DA_SUA.docx',
         'unilateral_termination_notice' => 'Mau_05_Cong_van_cham_dut_hop_dong_don_phuong_SportGo_DA_SUA.docx',
         'settlement_minutes' => 'Mau_06_Bien_ban_quyet_toan_cham_dut_hop_tac_SportGo_DA_SUA.docx',
+        'venue_scale_request' => 'Don_yeu_cau_thay_doi_quy_mo_san_SportGo.docx',
+        'venue_location_change_request' => 'Don_yeu_cau_thay_doi_vi_tri_cum_san_SportGo.docx',
     ];
 
     private const DOCUMENT_PREFIXES = [
@@ -37,6 +39,8 @@ class PartnerDocumentService
         'mutual_liquidation_minutes' => 'BBTL',
         'unilateral_termination_notice' => 'CVCD',
         'settlement_minutes' => 'BBQT',
+        'venue_scale_request' => 'YCQM',
+        'venue_location_change_request' => 'YCVT',
     ];
 
     public function generateDocument(
@@ -199,7 +203,7 @@ class PartnerDocumentService
             ->pluck('signer_side')
             ->all();
 
-        if ($document->document_type === 'partner_application_form') {
+        if (in_array($document->document_type, ['partner_application_form', 'venue_scale_request', 'venue_location_change_request'], true)) {
             return in_array('owner', $signedSides, true);
         }
 
@@ -213,6 +217,10 @@ class PartnerDocumentService
         }
 
         if ($document->document_type === 'partner_application_form' && $signerSide === 'owner') {
+            return 'completed';
+        }
+
+        if (in_array($document->document_type, ['venue_scale_request', 'venue_location_change_request'], true) && $signerSide === 'owner') {
             return 'completed';
         }
 
@@ -696,6 +704,8 @@ XML;
             'mutual_liquidation_minutes',
             'unilateral_termination_notice',
             'settlement_minutes' => $this->workflowTemplateBodyValues($data, $documentType),
+            'venue_scale_request',
+            'venue_location_change_request' => $this->venueChangeRequestTemplateBodyValues($data, $documentType),
             default => [],
         };
 
@@ -704,7 +714,7 @@ XML;
         }
 
         $this->fillTwoColumnTemplateBodyFields($docxPath, $fields);
-        if (in_array($documentType, ['partner_application_form', 'partner_contract'], true)) {
+        if (in_array($documentType, ['partner_application_form', 'partner_contract', 'venue_scale_request', 'venue_location_change_request'], true)) {
             $this->normalizeTwoColumnTableWidths($docxPath);
         }
         $this->fillKnownTemplateInlineText($docxPath, $data, $documentType);
@@ -765,6 +775,19 @@ XML;
             }
         }
 
+        if (in_array($documentType, ['venue_scale_request', 'venue_location_change_request'], true)) {
+            foreach ($xpath->query('//w:p') as $paragraph) {
+                $ascii = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($paragraph, $xpath)));
+                if (str_contains($ascii, 'nguoilamdon') || str_contains($ascii, 'kyghirohoten')) {
+                    if (! str_contains($xml, '{{signature_owner}}')) {
+                        $changed = $this->insertDocxParagraphAfter($paragraph, '{{owner_signer_name}}') || $changed;
+                        $changed = $this->insertDocxParagraphAfter($paragraph, '{{signature_owner}}') || $changed;
+                    }
+                    break;
+                }
+            }
+        }
+
         if ($documentType === 'partner_contract') {
             $tables = $xpath->query('//w:tbl');
             $signatureTable = $tables->item(max(0, $tables->length - 1));
@@ -812,6 +835,8 @@ XML;
             'mutual_liquidation_minutes',
             'unilateral_termination_notice',
             'settlement_minutes',
+            'venue_scale_request',
+            'venue_location_change_request',
         ], true) || ! class_exists(ZipArchive::class) || ! class_exists(\DOMDocument::class)) {
             return;
         }
@@ -959,6 +984,10 @@ XML;
             }
         }
 
+        if (in_array($documentType, ['venue_scale_request', 'venue_location_change_request'], true)) {
+            return $this->venueChangeInlineReplacementText($text, $data, $documentType);
+        }
+
         return null;
     }
 
@@ -1038,11 +1067,9 @@ XML;
                     continue;
                 }
 
-                foreach ($normalizedFields as $needle => $value) {
-                    if ($needle !== '' && str_contains($label, $needle)) {
-                        $changed = $this->replaceDocxCellText($cells->item(1), $xpath, $value) || $changed;
-                        break;
-                    }
+                $matchedValue = $this->matchedDocxFieldValue($label, $normalizedFields);
+                if ($matchedValue !== null) {
+                    $changed = $this->replaceDocxCellText($cells->item(1), $xpath, $matchedValue) || $changed;
                 }
             }
         }
@@ -1052,6 +1079,29 @@ XML;
         }
 
         $zip->close();
+    }
+
+    /**
+     * Prefer exact DOCX labels and longer labels first so short labels cannot
+     * fill more specific owner/applicant rows by accident.
+     *
+     * @param  array<string, string>  $normalizedFields
+     */
+    private function matchedDocxFieldValue(string $label, array $normalizedFields): ?string
+    {
+        if (array_key_exists($label, $normalizedFields)) {
+            return $normalizedFields[$label];
+        }
+
+        uksort($normalizedFields, fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+
+        foreach ($normalizedFields as $needle => $value) {
+            if ($needle !== '' && str_contains($label, $needle)) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     private function normalizeTwoColumnTableWidths(string $docxPath): void
@@ -1345,6 +1395,122 @@ XML;
         ];
     }
 
+    private function venueChangeRequestTemplateBodyValues(array $data, string $documentType): array
+    {
+        $ownerName = $this->venueChangeOwnerDisplayName($data);
+        $legalId = $this->venueChangeLegalId($data);
+        $clusterAddress = $this->joinFilled([
+            $this->firstFilled($data, ['venue_address', 'current_address']),
+            $this->firstFilled($data, ['venue_ward', 'current_ward']),
+            $this->firstFilled($data, ['venue_province', 'current_province']),
+        ]);
+
+        $common = [
+            'Họ tên/Tên tổ chức' => $ownerName,
+            'Số CCCD/CMND/Hộ chiếu hoặc mã số kinh doanh' => $legalId,
+            'Số điện thoại' => $this->firstFilled($data, ['owner_phone', 'phone', 'venue_phone']),
+            'Email' => $this->firstFilled($data, ['owner_email', 'email']),
+            'Địa chỉ liên hệ' => $this->firstFilled($data, ['owner_address', 'business_address', 'contact_address']),
+            'Tên chi nhánh/cụm sân' => $this->firstFilled($data, ['venue_name', 'cluster_name']),
+            'Mã chi nhánh/cụm sân trên hệ thống' => $this->firstFilled($data, ['venue_cluster_code', 'venue_cluster_id', 'cluster_code']),
+            'Số hợp đồng hợp tác' => $this->firstFilled($data, ['contract_code', 'contract_number']) ?: 'Chưa có/không áp dụng',
+            'Ngày ký hợp đồng' => $this->formatDateForDocument($this->firstFilled($data, ['contract_signed_at', 'contract_signed_date'])) ?: 'Chưa cung cấp',
+        ];
+
+        if ($documentType === 'venue_scale_request') {
+            return [
+                ...$common,
+                'Quy mô/số lượng sân con hiện tại' => $this->firstFilled($data, ['current_court_count', 'court_count_total', 'court_count']),
+                'Hình thức thay đổi' => $this->firstFilled($data, ['change_action', 'change_type']) ?: 'Mở rộng quy mô/thêm sân con',
+                'Số lượng sân con tăng/giảm' => $this->firstFilled($data, ['change_court_count', 'requested_court_count']) ?: '1',
+                'Loại sân/môn thể thao thay đổi' => $this->firstFilled($data, ['requested_court_type_name', 'court_type_name', 'court_types_summary']),
+                'Tên/danh sách sân con dự kiến' => $this->firstFilled($data, ['requested_court_names', 'new_court_name', 'court_name', 'courts_summary']),
+                'Thời điểm dự kiến áp dụng' => $this->formatDateForDocument($this->firstFilled($data, ['expected_effective_date', 'submitted_at', 'rendered_at'])),
+            ];
+        }
+
+        return [
+            ...$common,
+            'Địa chỉ/tọa độ hiện tại' => $this->joinFilled([
+                $clusterAddress,
+                $this->coordinatesAndMap([
+                    'venue_latitude' => $this->firstFilled($data, ['current_latitude', 'venue_latitude']),
+                    'venue_longitude' => $this->firstFilled($data, ['current_longitude', 'venue_longitude']),
+                    'venue_map_url' => $this->firstFilled($data, ['current_map_url', 'venue_map_url']),
+                ]),
+            ], ' - '),
+            'Địa chỉ mới' => $this->joinFilled([
+                $this->firstFilled($data, ['new_address']),
+                $this->firstFilled($data, ['new_ward']),
+                $this->firstFilled($data, ['new_province']),
+            ]),
+            'Tọa độ/đường dẫn bản đồ mới' => $this->coordinatesAndMap([
+                'venue_latitude' => $this->firstFilled($data, ['new_latitude']),
+                'venue_longitude' => $this->firstFilled($data, ['new_longitude']),
+                'venue_map_url' => $this->firstFilled($data, ['new_map_url']),
+            ]),
+            'Số điện thoại liên hệ tại vị trí mới' => $this->firstFilled($data, ['new_phone', 'venue_phone', 'owner_phone']),
+            'Thời điểm dự kiến áp dụng' => $this->formatDateForDocument($this->firstFilled($data, ['expected_effective_date', 'submitted_at', 'rendered_at'])),
+            'Phạm vi ảnh hưởng đến lịch đặt sân/booking hiện có' => $this->firstFilled($data, ['booking_impact']) ?: 'Chủ sân cam kết tự xử lý các lịch đặt bị ảnh hưởng và thông báo cho khách hàng nếu phát sinh.',
+        ];
+    }
+
+    private function venueChangeInlineReplacementText(string $text, array $data, string $documentType): ?string
+    {
+        $normalized = $this->normalizeDocxLabel($text);
+        $ascii = Str::ascii($normalized);
+
+        if (str_contains($ascii, 'kinhgui')) {
+            return 'Kính gửi: Công ty/Đơn vị vận hành nền tảng SportGo';
+        }
+
+        if (str_contains($ascii, 'lydoyeucauthaydoiquymo')) {
+            return '5. Lý do yêu cầu thay đổi quy mô: ' . ($this->firstFilled($data, ['reason', 'note', 'status_reason']) ?: 'Chưa cung cấp');
+        }
+
+        if (str_contains($ascii, 'lydoyeucauthaydoivitri')) {
+            return '4. Lý do yêu cầu thay đổi vị trí: ' . ($this->firstFilled($data, ['reason', 'note', 'status_reason']) ?: 'Chưa cung cấp');
+        }
+
+        $fields = $this->venueChangeRequestTemplateBodyValues($data, $documentType);
+        $lookup = [];
+        foreach ($fields as $label => $value) {
+            $key = Str::ascii($this->normalizeDocxLabel((string) $label));
+            $lookup[$key] = [(string) $label, $this->cellPlainValue($value) ?: 'Chưa cung cấp'];
+        }
+
+        uksort($lookup, fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+        foreach ($lookup as $key => [$label, $value]) {
+            if ($key !== '' && str_starts_with($ascii, $key)) {
+                $prefix = str_starts_with(ltrim($text), '-') ? '- ' : '';
+                return $prefix . $label . ': ' . $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function venueChangeOwnerDisplayName(array $data): ?string
+    {
+        return $this->firstFilled($data, [
+            'business_name',
+            'partner_name',
+            'owner_full_name',
+            'owner_signer_name',
+            'representative_name',
+            'full_name',
+        ]);
+    }
+
+    private function venueChangeLegalId(array $data): ?string
+    {
+        return $this->joinFilled([
+            $this->firstFilled($data, ['identity_number', 'representative_identity_number']),
+            $this->firstFilled($data, ['tax_code']),
+            $this->firstFilled($data, ['business_license_number', 'business_code']),
+        ], '; ');
+    }
+
     private function workflowTemplateBodyValues(array $data, string $documentType): array
     {
         $fallback = 'Chưa cung cấp';
@@ -1354,13 +1520,18 @@ XML;
         $sportgoRep = $this->firstFilled($data, ['party_a_rep', 'issuer_representative_name', 'sportgo_representative_name']) ?: 'Đại diện SportGo';
         $sportgoRole = $this->firstFilled($data, ['sportgo_representative_title']) ?: 'Đại diện được ủy quyền';
 
-        $ownerName = $this->firstFilled($data, [
+        $ownerRepresentativeName = $this->firstFilled($data, [
+            'owner_signer_full_name',
+            'representative_name',
             'owner_full_name',
-            'party_b_name',
-            'receiver_name',
             'venue_owner_name',
             'full_name',
         ]) ?: $fallback;
+        $ownerDisplayName = $this->firstFilled($data, [
+            'business_name',
+            'party_b_name',
+            'receiver_name',
+        ]) ?: $ownerRepresentativeName;
         $ownerLegalId = $this->firstFilled($data, [
             'party_b_id',
             'identity_number',
@@ -1383,10 +1554,10 @@ XML;
         ], ' - ') ?: $fallback;
 
         $commonOwner = [
-            'Họ tên/Tên tổ chức' => $ownerName,
+            'Họ tên/Tên tổ chức' => $ownerDisplayName,
             'Số CCCD/CMND/Hộ chiếu/MST/ĐKKD' => $ownerLegalId,
-            'Người đại diện nếu là tổ chức' => $ownerName,
-            'Người đại diện nếu có' => $ownerName,
+            'Người đại diện nếu là tổ chức' => $ownerDisplayName !== $ownerRepresentativeName ? $ownerRepresentativeName : 'Không áp dụng',
+            'Người đại diện nếu có' => $ownerRepresentativeName,
             'Chức vụ/Quan hệ đại diện' => $this->firstFilled($data, ['representative_position']) ?: 'Chủ sân/đối tác',
             'Số điện thoại' => $this->firstFilled($data, ['owner_phone', 'phone']) ?: $fallback,
             'Email' => $this->firstFilled($data, ['owner_email', 'email']) ?: $fallback,
@@ -1426,9 +1597,9 @@ XML;
                 'Thời điểm thu hồi quyền chủ sân' => $this->firstFilled($data, ['owner_access_revocation_date']) ?: $effectiveDate,
             ],
             'unilateral_termination_notice' => [
-                'Tên đối tác/chủ sân' => $ownerName,
+                'Tên đối tác/chủ sân' => $ownerDisplayName,
                 'Số CCCD/CMND/Hộ chiếu/MST/ĐKKD' => $ownerLegalId,
-                'Người đại diện nếu có' => $ownerName,
+                'Người đại diện nếu có' => $ownerRepresentativeName,
                 'Số hợp đồng hợp tác' => $contractCode,
                 'Tên cụm sân' => $venueName,
                 'Mã cụm sân trên hệ thống' => $venueCode,
@@ -1444,8 +1615,8 @@ XML;
                 'Bên A' => $sportgoName,
                 'Đại diện Bên A' => $sportgoRep,
                 'Chức vụ/Căn cứ đại diện' => $sportgoRole,
-                'Bên B' => $ownerName,
-                'Đại diện Bên B' => $ownerName,
+                'Bên B' => $ownerDisplayName,
+                'Đại diện Bên B' => $ownerRepresentativeName,
                 'Cụm sân liên quan' => $venueName,
                 'Số hợp đồng' => $contractCode,
                 'Kỳ/Thời điểm quyết toán' => $this->firstFilled($data, ['calculation_date', 'settlement_date']) ?: now()->format('d/m/Y'),
@@ -2191,6 +2362,8 @@ XML;
     private function defaultTitle(string $documentType, array $renderData): string
     {
         return match ($documentType) {
+            'venue_scale_request' => 'Đơn yêu cầu mở rộng quy mô sân ' . ($renderData['venue_name'] ?? $renderData['cluster_name'] ?? ''),
+            'venue_location_change_request' => 'Đơn yêu cầu thay đổi vị trí cụm sân ' . ($renderData['venue_name'] ?? $renderData['cluster_name'] ?? ''),
             'partner_application_form' => 'Đơn đăng ký đối tác ' . ($renderData['venue_name'] ?? ''),
             'partner_contract' => 'Hợp đồng hợp tác ' . ($renderData['venue_name'] ?? ''),
             'termination_request' => 'Đơn yêu cầu chấm dứt hợp tác',

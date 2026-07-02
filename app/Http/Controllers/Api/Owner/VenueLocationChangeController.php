@@ -4,18 +4,25 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Mail\Partner\VenueLocationChangeRequestReceivedMail;
+use App\Models\PartnerApplication;
 use App\Models\VenueCluster;
 use App\Models\VenueLocationChangeRequest;
+use App\Services\Partner\PartnerDocumentService;
 use App\Services\Partner\PartnerProfileDocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class VenueLocationChangeController extends Controller
 {
-    public function __construct(private readonly PartnerProfileDocumentService $profileDocuments)
+    public function __construct(
+        private readonly PartnerProfileDocumentService $profileDocuments,
+        private readonly PartnerDocumentService $documents,
+    )
     {
     }
 
@@ -32,7 +39,7 @@ class VenueLocationChangeController extends Controller
 
         $query = VenueLocationChangeRequest::query()
             ->where('venue_cluster_id', $clusterId)
-            ->with(['requestedBy:id,full_name,username', 'reviewedBy:id,full_name,username'])
+            ->with(['requestedBy:id,full_name,username,email,phone', 'reviewedBy:id,full_name,username', 'generatedDocument.signatures'])
             ->latest();
 
         if ($request->filled('status')) {
@@ -79,8 +86,9 @@ class VenueLocationChangeController extends Controller
             'new_longitude' => ['required', 'numeric', 'between:-180,180'],
             'new_map_url'   => ['nullable', 'url', 'max:2000'],
             'note'          => ['required', 'string', 'max:1000'],
-            'supplementary_documents' => ['nullable', 'array', 'max:10'],
+            'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+            'signature_image' => ['required', 'string', 'max:600000'],
         ], [
             'new_address.required'   => 'Vui lòng nhập địa chỉ mới.',
             'new_province.required'  => 'Vui lòng nhập tỉnh/thành phố mới.',
@@ -90,8 +98,10 @@ class VenueLocationChangeController extends Controller
             'new_longitude.required' => 'Vui lòng nhập kinh độ.',
             'new_longitude.between'  => 'Kinh độ không hợp lệ.',
             'note.required'          => 'Vui lòng nhập lý do muốn thay đổi vị trí.',
+            'supplementary_documents.required' => 'Vui lòng tải lên giấy ĐKKD/giấy cập nhật kinh doanh hoặc hình ảnh minh chứng vị trí mới.',
             'supplementary_documents.*.mimes' => 'Giấy tờ bổ sung phải có định dạng: jpg, jpeg, png, webp, pdf, doc, docx.',
             'supplementary_documents.*.max' => 'Mỗi giấy tờ bổ sung không được quá 10MB.',
+            'signature_image.required' => 'Vui lòng ký xác nhận yêu cầu trước khi gửi.',
         ]);
 
         $locationRequest = VenueLocationChangeRequest::create([
@@ -118,6 +128,16 @@ class VenueLocationChangeController extends Controller
         if ($documents !== []) {
             $locationRequest->forceFill(['supplementary_documents' => $documents])->save();
         }
+
+        $signature = $this->storeSignatureImage($data['signature_image'], 'venue-change-signatures/location/' . $clusterId, $locationRequest->id);
+        $locationRequest->forceFill([
+            'signature_image' => $signature['path'],
+            'signature_hash' => $signature['hash'],
+            'signed_at' => now(),
+        ])->save();
+
+        $this->generateAndSignLocationDocument($cluster, $locationRequest, $request, $data['signature_image']);
+
         $this->sendOwnerMail($cluster, new VenueLocationChangeRequestReceivedMail([
             'cluster_name' => $cluster->name,
             'new_address' => trim($locationRequest->new_address . ', ' . $locationRequest->new_ward . ', ' . $locationRequest->new_province, ', '),
@@ -127,7 +147,7 @@ class VenueLocationChangeController extends Controller
 
         return response()->json([
             'message' => 'Gửi yêu cầu thành công. Vui lòng chờ Admin xét duyệt.',
-            'data'    => $this->payload($locationRequest->load(['requestedBy:id,full_name,username'])),
+            'data'    => $this->payload($locationRequest->load(['requestedBy:id,full_name,username,email,phone', 'generatedDocument.signatures'])),
         ], 201);
     }
 
@@ -154,10 +174,12 @@ class VenueLocationChangeController extends Controller
             'note' => ['nullable', 'string', 'max:1000'],
             'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+            'signature_image' => ['required', 'string', 'max:600000'],
         ], [
             'supplementary_documents.required' => 'Vui lòng tải lên ít nhất một giấy tờ bổ sung.',
             'supplementary_documents.*.mimes' => 'Giấy tờ bổ sung phải có định dạng: jpg, jpeg, png, webp, pdf, doc, docx.',
             'supplementary_documents.*.max' => 'Mỗi giấy tờ bổ sung không được quá 10MB.',
+            'signature_image.required' => 'Vui lòng ký xác nhận yêu cầu trước khi gửi.',
         ]);
 
         $documents = $this->profileDocuments->attachVenueRequestDocuments(
@@ -170,15 +192,22 @@ class VenueLocationChangeController extends Controller
             'Giấy tờ chủ sân bổ sung theo yêu cầu của SportGo.'
         );
 
+        $signature = $this->storeSignatureImage($data['signature_image'], 'venue-change-signatures/location/' . $clusterId, $locationRequest->id);
+
         $locationRequest->forceFill([
             'status' => 'pending',
             'status_reason' => $data['note'] ?? 'Chủ sân đã bổ sung giấy tờ theo yêu cầu.',
             'supplementary_documents' => array_values(array_merge($locationRequest->supplementary_documents ?: [], $documents)),
+            'signature_image' => $signature['path'],
+            'signature_hash' => $signature['hash'],
+            'signed_at' => now(),
         ])->save();
+
+        $this->generateAndSignLocationDocument($cluster, $locationRequest->refresh(), $request, $data['signature_image']);
 
         return response()->json([
             'message' => 'Đã nộp giấy tờ bổ sung. Yêu cầu được chuyển lại về trạng thái chờ duyệt.',
-            'data' => $this->payload($locationRequest->fresh(['requestedBy:id,full_name,username', 'reviewedBy:id,full_name,username'])),
+            'data' => $this->payload($locationRequest->fresh(['requestedBy:id,full_name,username,email,phone', 'reviewedBy:id,full_name,username', 'generatedDocument.signatures'])),
         ]);
     }
 
@@ -243,6 +272,11 @@ class VenueLocationChangeController extends Controller
             'new_longitude' => $r->new_longitude,
             'new_map_url'   => $r->new_map_url,
             'supplementary_documents' => $r->supplementary_documents ?: [],
+            'signature_image' => $r->signature_image,
+            'signature_image_url' => $r->signature_image ? asset('storage/' . $r->signature_image) : null,
+            'signature_hash' => $r->signature_hash,
+            'signed_at' => $r->signed_at,
+            'generated_document' => $this->documentPayload($r->generatedDocument),
             'requested_by'  => $r->requestedBy ? [
                 'id'        => $r->requestedBy->id,
                 'full_name' => $r->requestedBy->full_name,
@@ -256,11 +290,128 @@ class VenueLocationChangeController extends Controller
         ];
     }
 
+    private function storeSignatureImage(string $dataUrl, string $folder, string $requestId): array
+    {
+        if (! preg_match('/^data:image\/(png|jpeg);base64,/', $dataUrl)) {
+            throw ValidationException::withMessages([
+                'signature_image' => 'Chữ ký không đúng định dạng. Vui lòng ký lại.',
+            ]);
+        }
+
+        $payload = preg_replace('/^data:image\/(png|jpeg);base64,/', '', $dataUrl);
+        $binary = base64_decode(str_replace(' ', '+', $payload), true);
+
+        if ($binary === false || strlen($binary) < 100) {
+            throw ValidationException::withMessages([
+                'signature_image' => 'Chữ ký chưa hợp lệ. Vui lòng ký lại.',
+            ]);
+        }
+
+        $hash = hash('sha256', $binary);
+        $path = trim($folder, '/') . '/' . $requestId . '-' . $hash . '.png';
+        Storage::disk('public')->put($path, $binary);
+
+        return ['path' => $path, 'hash' => $hash];
+    }
+
     private function filesArray(mixed $files): array
     {
         return collect(\Illuminate\Support\Arr::wrap($files))
             ->filter(fn ($file) => $file instanceof \Illuminate\Http\UploadedFile)
             ->values()
             ->all();
+    }
+
+    private function generateAndSignLocationDocument(VenueCluster $cluster, VenueLocationChangeRequest $locationRequest, Request $request, string $signatureImage): void
+    {
+        $locationRequest->loadMissing(['requestedBy', 'venueCluster.owner']);
+        $renderData = $this->locationRequestRenderData($cluster, $locationRequest);
+        $document = $this->documents->generateDocument('venue_location_change_request', $locationRequest, $renderData, $request->user(), [
+            'owner_id' => $cluster->owner_id,
+            'venue_cluster_id' => $cluster->id,
+            'entity_type' => VenueCluster::class,
+            'entity_id' => $cluster->id,
+            'status' => 'pending_owner_signature',
+            'title' => 'Đơn yêu cầu thay đổi vị trí cụm sân ' . $cluster->name,
+        ]);
+
+        $this->documents->signDocument($document, $request->user(), 'owner', $signatureImage, $request, [
+            'signer_full_name' => $renderData['owner_signer_name'],
+            'signer_title' => 'Chủ sân/Đối tác',
+            'signature_method' => 'drawn',
+        ]);
+
+        $locationRequest->forceFill(['generated_document_id' => $document->id])->save();
+    }
+
+    private function locationRequestRenderData(VenueCluster $cluster, VenueLocationChangeRequest $locationRequest): array
+    {
+        $owner = $cluster->owner()->first();
+        $application = $this->partnerApplication($cluster);
+        $contract = $cluster->partnerContracts()->latest('created_at')->first();
+        $ownerSigner = $application?->representative_name ?: ($owner?->full_name ?: $owner?->username ?: 'Chủ sân');
+
+        return [
+            'owner_full_name' => $ownerSigner,
+            'owner_signer_name' => $ownerSigner,
+            'business_name' => $application?->business_name ?: $ownerSigner,
+            'identity_number' => $application?->representative_identity_number,
+            'tax_code' => $application?->tax_code,
+            'business_license_number' => $application?->business_license_number ?: $application?->business_code,
+            'owner_phone' => $application?->applicant_phone ?: $owner?->phone ?: $cluster->phone_contact,
+            'owner_email' => $application?->applicant_email ?: $owner?->email,
+            'owner_address' => $application?->business_address ?: $application?->applicant_address ?: $cluster->address,
+            'venue_name' => $cluster->name,
+            'cluster_name' => $cluster->name,
+            'venue_cluster_id' => $cluster->id,
+            'venue_cluster_code' => $cluster->slug ?: $cluster->id,
+            'contract_code' => $contract?->contract_code,
+            'contract_signed_at' => $contract?->completed_at ?: $contract?->created_at,
+            'current_address' => $cluster->address,
+            'current_province' => $cluster->province,
+            'current_ward' => $cluster->ward,
+            'current_latitude' => $cluster->latitude,
+            'current_longitude' => $cluster->longitude,
+            'current_map_url' => $cluster->map_url,
+            'new_address' => $locationRequest->new_address,
+            'new_province' => $locationRequest->new_province,
+            'new_ward' => $locationRequest->new_ward,
+            'new_latitude' => $locationRequest->new_latitude,
+            'new_longitude' => $locationRequest->new_longitude,
+            'new_map_url' => $locationRequest->new_map_url,
+            'new_phone' => $cluster->phone_contact,
+            'reason' => $locationRequest->note ?: $locationRequest->status_reason,
+            'booking_impact' => 'Chủ sân cam kết rà soát và xử lý các booking bị ảnh hưởng trước khi SportGo cập nhật vị trí.',
+            'submitted_at' => optional($locationRequest->created_at)->format('d/m/Y H:i'),
+            'expected_effective_date' => optional($locationRequest->created_at)->format('d/m/Y'),
+        ];
+    }
+
+    private function partnerApplication(VenueCluster $cluster): ?PartnerApplication
+    {
+        return PartnerApplication::query()
+            ->where('approved_venue_cluster_id', $cluster->id)
+            ->latest('reviewed_at')
+            ->latest('created_at')
+            ->first();
+    }
+
+    private function documentPayload($document): ?array
+    {
+        if (! $document) {
+            return null;
+        }
+
+        return [
+            'id' => $document->id,
+            'document_code' => $document->document_code,
+            'document_type' => $document->document_type,
+            'document_version' => $document->document_version,
+            'title' => $document->title,
+            'status' => $document->status,
+            'file_hash' => $document->file_hash,
+            'generated_at' => $document->generated_at,
+            'download_url' => url('/api/files/documents/' . $document->id . '/download'),
+        ];
     }
 }

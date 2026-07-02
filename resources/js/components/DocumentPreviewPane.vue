@@ -63,6 +63,7 @@ async function loadDocument() {
   try {
     const token = readToken();
     const response = await fetch(props.document.download_url, {
+      cache: 'no-store',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
 

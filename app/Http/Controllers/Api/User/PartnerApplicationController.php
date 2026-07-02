@@ -473,13 +473,19 @@ class PartnerApplicationController extends Controller
 
         $verifiedRequest = $this->signing->verifyOtp($signingRequest, $request->user(), $data['otp']);
 
+        $ownerSignerName = $application->representative_name ?: $application->applicant_full_name ?: ($request->user()->full_name ?: $request->user()->username);
         $signature = $this->documents->signDocument(
             $document,
             $request->user(),
             'owner',
             $verifiedRequest->signature_image,
             $request,
-            ['signature_method' => 'otp_confirm']
+            [
+                'signature_method' => 'otp_confirm',
+                'signer_full_name' => $ownerSignerName,
+                'signer_title' => $application->representative_position ?: 'Chủ sân',
+                'signer_organization' => $application->business_name,
+            ]
         );
         $this->signing->markSigned($verifiedRequest, $signature);
 

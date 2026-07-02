@@ -24,6 +24,10 @@ class VenueCourtApprovalRequest extends Model
         'status_reason',
         'evidence_image',
         'supplementary_documents',
+        'signature_image',
+        'signature_hash',
+        'signed_at',
+        'generated_document_id',
         'approved_venue_court_id',
         'reviewed_at',
     ];
@@ -33,6 +37,7 @@ class VenueCourtApprovalRequest extends Model
         return [
             'court_type_id' => 'integer',
             'reviewed_at' => 'datetime',
+            'signed_at' => 'datetime',
             'supplementary_documents' => 'array',
         ];
     }
@@ -55,5 +60,10 @@ class VenueCourtApprovalRequest extends Model
     public function venueCluster()
     {
         return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
+    }
+
+    public function generatedDocument()
+    {
+        return $this->belongsTo(GeneratedDocument::class, 'generated_document_id');
     }
 }

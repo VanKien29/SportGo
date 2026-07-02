@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class RefundController extends Controller
 {
@@ -44,7 +45,7 @@ class RefundController extends Controller
         $query = Refund::query()
             ->with([
                 'booking.customer:id,username,full_name,email,phone',
-                'booking.venueCluster:id,name,owner_id',
+                'booking.venueCluster:id,name,owner_id,status',
                 'payment:id,payment_code,booking_id,amount,method,payment_kind,status',
                 'ownerConfirmedBy:id,username,full_name',
                 'statusHistories.changedBy:id,username,full_name',
@@ -90,6 +91,16 @@ class RefundController extends Controller
             'amount' => ['nullable', 'numeric', 'min:1'],
             'note' => ['nullable', 'string', 'max:2000', 'required_if:decision,reject'],
         ]);
+        if ($data['decision'] === 'approve') {
+            $refund->loadMissing('booking.venueCluster');
+            $clusterStatus = $refund->booking?->venueCluster?->status;
+            if (in_array($clusterStatus, ['locked', 'terminated', 'inactive'], true)) {
+                throw ValidationException::withMessages([
+                    'decision' => 'Cụm sân đã bị khóa/chấm dứt. Chủ sân chỉ được xác nhận hoàn tiền mặt cho các booking còn lại.',
+                ]);
+            }
+        }
+
         $oldValues = $refund->toArray();
 
         $updated = $this->refunds->decide(
@@ -128,6 +139,9 @@ class RefundController extends Controller
     private function payload(Refund $refund): array
     {
         $policy = $this->refundPolicies->evaluate($refund);
+        $clusterStatus = $refund->booking?->venueCluster?->status;
+        $cashOnlyAfterTermination = in_array($clusterStatus, ['locked', 'terminated', 'inactive'], true);
+        $canDecide = $refund->status === 'pending_owner_confirmation';
 
         return [
             'id' => $refund->id,
@@ -158,9 +172,11 @@ class RefundController extends Controller
                     'created_at' => $history->created_at,
                 ])
                 ->all(),
-            'can_decide' => $refund->status === 'pending_owner_confirmation',
-            'can_refund_cash' => $refund->status === 'pending_owner_confirmation'
-                && (in_array($refund->refund_destination, ['cash', 'user_wallet'], true))
+            'can_decide' => $canDecide,
+            'can_refund_wallet' => $canDecide && ! $cashOnlyAfterTermination,
+            'cash_only_after_partner_termination' => $cashOnlyAfterTermination,
+            'can_refund_cash' => $canDecide
+                && ($cashOnlyAfterTermination || in_array($refund->refund_destination, ['cash', 'user_wallet'], true))
                 && (float) $refund->amount > 0,
         ];
     }

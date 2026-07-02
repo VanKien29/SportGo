@@ -145,7 +145,7 @@
 
         <footer v-if="detailRefund.can_decide" class="modal-actions">
           <button class="secondary-btn danger-text" type="button" @click="openDecision(detailRefund, 'reject')">Từ chối</button>
-          <button class="primary-btn" type="button" @click="openDecision(detailRefund, 'approve')">Hoàn ví</button>
+          <button v-if="detailRefund.can_refund_wallet" class="primary-btn" type="button" @click="openDecision(detailRefund, 'approve')">Hoàn ví</button>
           <button v-if="detailRefund.can_refund_cash" class="cash-btn" type="button" @click="openDecision(detailRefund, 'approve_cash')">Hoàn tiền mặt</button>
         </footer>
       </article>

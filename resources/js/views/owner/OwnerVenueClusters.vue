@@ -1192,6 +1192,28 @@
                                                 {{ doc.file_name || 'Tải file' }}
                                             </a>
                                         </div>
+                                        <div v-if="req.generated_document" class="request-document-actions">
+                                            <span>Đơn yêu cầu:</span>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.generated_document)">
+                                                <AppIcon name="eye" size="14" />
+                                                Xem
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.generated_document)">
+                                                <AppIcon name="download" size="14" />
+                                                Tải
+                                            </button>
+                                        </div>
+                                        <div v-if="req.generated_document" class="request-document-actions">
+                                            <span>Đơn yêu cầu:</span>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.generated_document)">
+                                                <AppIcon name="eye" size="14" />
+                                                Xem
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.generated_document)">
+                                                <AppIcon name="download" size="14" />
+                                                Tải
+                                            </button>
+                                        </div>
                                         <div
                                             v-if="
                                                 req.reviewed_by &&
@@ -1753,9 +1775,9 @@
                             ></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Ảnh minh chứng <span class="text-muted">(không bắt buộc)</span></label>
+                            <label>Ảnh minh chứng <span class="required">*</span></label>
                             <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
-                                Gửi ảnh chụp thực tế sân (hỗ trợ: JPG, PNG, WebP — tối đa 5MB)
+                                Bắt buộc gửi ảnh chụp thực tế sân hoặc khu vực mở rộng (JPG, PNG, WebP - tối đa 5MB).
                             </p>
                             <div class="evidence-upload-area">
                                 <div
@@ -1784,9 +1806,9 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>Giấy tờ bổ sung <span class="text-muted">(không bắt buộc)</span></label>
+                            <label>Giấy ĐKKD/cập nhật kinh doanh và minh chứng <span class="required">*</span></label>
                             <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
-                                Tải lên file PDF/DOC/DOCX hoặc ảnh liên quan đến yêu cầu mở rộng.
+                                Bắt buộc tải giấy ĐKKD hoặc giấy cập nhật kinh doanh liên quan đến yêu cầu mở rộng.
                             </p>
                             <input
                                 ref="scaleSupplementInput"
@@ -1798,6 +1820,26 @@
                             />
                             <div v-if="scaleSupplementFiles.length" class="supplement-file-list">
                                 <span v-for="file in scaleSupplementFiles" :key="file.name + file.size">{{ file.name }}</span>
+                            </div>
+                        </div>
+                        <div class="form-group request-signature-group">
+                            <label>Ký xác nhận yêu cầu <span class="required">*</span></label>
+                            <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
+                                Chủ sân ký xác nhận thông tin và giấy tờ đính kèm trong yêu cầu mở rộng quy mô là chính xác.
+                            </p>
+                            <canvas
+                                ref="scaleSignatureCanvas"
+                                class="request-signature-pad"
+                                @pointerdown="startSignatureDraw($event, 'scaleSignatureCanvas', 'scaleSignatureDirty')"
+                                @pointermove="drawSignature"
+                                @pointerup="stopSignatureDraw"
+                                @pointerleave="stopSignatureDraw"
+                            ></canvas>
+                            <div class="request-signature-actions">
+                                <span :class="scaleSignatureDirty ? 'signature-ok' : 'signature-missing'">
+                                    {{ scaleSignatureDirty ? 'Đã có chữ ký' : 'Chưa có chữ ký' }}
+                                </span>
+                                <button type="button" class="btn btn-outline btn-sm" @click="clearSignature('scaleSignatureCanvas', 'scaleSignatureDirty')">Ký lại</button>
                             </div>
                         </div>
                     </div>
@@ -2013,9 +2055,9 @@
                             ></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Giấy tờ bổ sung <span class="text-muted">(không bắt buộc)</span></label>
+                            <label>Giấy ĐKKD/cập nhật kinh doanh và minh chứng <span class="required">*</span></label>
                             <p class="map-help-text">
-                                Tải lên giấy tờ, hình ảnh hoặc xác nhận liên quan đến vị trí mới.
+                                Bắt buộc tải giấy ĐKKD/giấy cập nhật kinh doanh hoặc hình ảnh minh chứng vị trí mới.
                             </p>
                             <input
                                 ref="locationSupplementInput"
@@ -2027,6 +2069,26 @@
                             />
                             <div v-if="locationSupplementFiles.length" class="supplement-file-list">
                                 <span v-for="file in locationSupplementFiles" :key="file.name + file.size">{{ file.name }}</span>
+                            </div>
+                        </div>
+                        <div class="form-group request-signature-group">
+                            <label>Ký xác nhận yêu cầu <span class="required">*</span></label>
+                            <p class="map-help-text">
+                                Chủ sân ký xác nhận thông tin vị trí mới và giấy tờ đính kèm là chính xác.
+                            </p>
+                            <canvas
+                                ref="locationSignatureCanvas"
+                                class="request-signature-pad"
+                                @pointerdown="startSignatureDraw($event, 'locationSignatureCanvas', 'locationSignatureDirty')"
+                                @pointermove="drawSignature"
+                                @pointerup="stopSignatureDraw"
+                                @pointerleave="stopSignatureDraw"
+                            ></canvas>
+                            <div class="request-signature-actions">
+                                <span :class="locationSignatureDirty ? 'signature-ok' : 'signature-missing'">
+                                    {{ locationSignatureDirty ? 'Đã có chữ ký' : 'Chưa có chữ ký' }}
+                                </span>
+                                <button type="button" class="btn btn-outline btn-sm" @click="clearSignature('locationSignatureCanvas', 'locationSignatureDirty')">Ký lại</button>
                             </div>
                         </div>
                     </div>
@@ -2270,6 +2332,26 @@
                                 <span v-for="file in supplementRequestFiles" :key="`${file.name}-${file.size}`">{{ file.name }}</span>
                             </div>
                         </div>
+                        <div class="form-group request-signature-group">
+                            <label>Ký xác nhận bổ sung <span class="required">*</span></label>
+                            <p class="map-help-text">
+                                Chủ sân ký xác nhận các tài liệu bổ sung mới là đúng và được phép nộp cho SportGo.
+                            </p>
+                            <canvas
+                                ref="supplementSignatureCanvas"
+                                class="request-signature-pad"
+                                @pointerdown="startSignatureDraw($event, 'supplementSignatureCanvas', 'supplementSignatureDirty')"
+                                @pointermove="drawSignature"
+                                @pointerup="stopSignatureDraw"
+                                @pointerleave="stopSignatureDraw"
+                            ></canvas>
+                            <div class="request-signature-actions">
+                                <span :class="supplementSignatureDirty ? 'signature-ok' : 'signature-missing'">
+                                    {{ supplementSignatureDirty ? 'Đã có chữ ký' : 'Chưa có chữ ký' }}
+                                </span>
+                                <button type="button" class="btn btn-outline btn-sm" @click="clearSignature('supplementSignatureCanvas', 'supplementSignatureDirty')">Ký lại</button>
+                            </div>
+                        </div>
                         <div v-if="supplementRequestError" class="error-message">
                             {{ supplementRequestError }}
                         </div>
@@ -2285,6 +2367,11 @@
         </div>
         <!-- Nut noi hanh dong cum san -->
         <ClusterActionFloating :is-locked="isClusterLocked" @action="triggerAction" />
+        <PartnerFilePreviewDialog
+            :show="documentPreviewOpen"
+            :document="previewDocument"
+            @close="closeRequestDocument"
+        />
     </div>
 </template>
 
@@ -2295,14 +2382,16 @@ import CourtVisual from "../../components/CourtVisual.vue";
 import DecorationVisual from "../../components/DecorationVisual.vue";
 import FloatAddButton from "../../components/FloatAddButton.vue";
 import ClusterActionFloating from "../../components/owner/ClusterActionFloating.vue";
+import PartnerFilePreviewDialog from "../../components/partner/PartnerFilePreviewDialog.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
 import { ownerUnlockRequestsService } from "../../services/ownerUnlockRequests";
+import { apiDownload } from "../../services/api";
 
 export default {
     name: "OwnerVenueClusters",
-    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual, FloatAddButton, ClusterActionFloating },
+    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual, FloatAddButton, ClusterActionFloating, PartnerFilePreviewDialog },
     data() {
         return {
             // Cluster list
@@ -2310,6 +2399,8 @@ export default {
             selectedCluster: null,
             loading: true,
             error: null,
+            documentPreviewOpen: false,
+            previewDocument: null,
  
             // Tabs
             activeTab: "info",
@@ -2417,6 +2508,7 @@ export default {
             evidenceFile: null,
             evidencePreview: null,
             scaleSupplementFiles: [],
+            scaleSignatureDirty: false,
             newReqSuccess: null,
             newReqError: null,
             creatingReq: false,
@@ -2433,6 +2525,7 @@ export default {
             locationSubmitting: false,
             locationModalError: null,
             locationSupplementFiles: [],
+            locationSignatureDirty: false,
             resolvingLocationMap: false,
             locationMapMsg: null,
             locationForm: {
@@ -2465,6 +2558,8 @@ export default {
             supplementRequestTarget: null,
             supplementRequestNote: "",
             supplementRequestFiles: [],
+            supplementSignatureDirty: false,
+            signatureDrawing: null,
             supplementRequestError: "",
             supplementRequestSubmitting: false,
         };
@@ -4205,16 +4300,79 @@ export default {
                 this.$refs.locationSupplementInput.value = '';
             }
         },
+        prepareSignatureCanvas(refName, force = false) {
+            const canvas = this.$refs[refName];
+            if (!canvas) return;
+            const width = Math.max(360, Math.floor(canvas.clientWidth || canvas.offsetWidth || 620));
+            const height = Math.max(160, Math.floor(canvas.clientHeight || canvas.offsetHeight || 180));
+            if (force || canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = '#0f172a';
+            }
+        },
+        signaturePoint(event, canvas) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+                y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+            };
+        },
+        startSignatureDraw(event, refName, dirtyKey) {
+            const canvas = this.$refs[refName];
+            if (!canvas) return;
+            event.preventDefault();
+            this.prepareSignatureCanvas(refName);
+            const point = this.signaturePoint(event, canvas);
+            const ctx = canvas.getContext('2d');
+            ctx.beginPath();
+            ctx.moveTo(point.x, point.y);
+            this.signatureDrawing = { refName, dirtyKey, x: point.x, y: point.y };
+            this[dirtyKey] = true;
+            event.currentTarget?.setPointerCapture?.(event.pointerId);
+        },
+        drawSignature(event) {
+            if (!this.signatureDrawing) return;
+            const canvas = this.$refs[this.signatureDrawing.refName];
+            if (!canvas) return;
+            event.preventDefault();
+            const point = this.signaturePoint(event, canvas);
+            const ctx = canvas.getContext('2d');
+            ctx.lineTo(point.x, point.y);
+            ctx.stroke();
+            this.signatureDrawing.x = point.x;
+            this.signatureDrawing.y = point.y;
+        },
+        stopSignatureDraw() {
+            this.signatureDrawing = null;
+        },
+        clearSignature(refName, dirtyKey) {
+            this.prepareSignatureCanvas(refName, true);
+            this[dirtyKey] = false;
+        },
+        signatureData(refName) {
+            const canvas = this.$refs[refName];
+            return canvas ? canvas.toDataURL('image/png') : null;
+        },
+
         openSupplementRequestModal(type, req) {
             this.supplementRequestType = type;
             this.supplementRequestTarget = req;
             this.supplementRequestNote = "";
             this.supplementRequestFiles = [];
+            this.supplementSignatureDirty = false;
             this.supplementRequestError = "";
             this.$nextTick(() => {
                 if (this.$refs.supplementRequestInput) {
                     this.$refs.supplementRequestInput.value = "";
                 }
+                this.prepareSignatureCanvas('supplementSignatureCanvas', true);
             });
         },
         closeSupplementRequestModal() {
@@ -4222,6 +4380,7 @@ export default {
             this.supplementRequestType = "";
             this.supplementRequestNote = "";
             this.supplementRequestFiles = [];
+            this.supplementSignatureDirty = false;
             this.supplementRequestError = "";
         },
         handleSupplementRequestFiles(e) {
@@ -4235,6 +4394,11 @@ export default {
                 return;
             }
 
+            if (!this.supplementSignatureDirty) {
+                this.supplementRequestError = "Vui lòng ký xác nhận trước khi gửi bổ sung.";
+                return;
+            }
+
             this.supplementRequestSubmitting = true;
             this.supplementRequestError = "";
             try {
@@ -4245,6 +4409,7 @@ export default {
                 this.supplementRequestFiles.forEach((file) => {
                     formData.append("supplementary_documents[]", file);
                 });
+                formData.append("signature_image", this.signatureData('supplementSignatureCanvas'));
 
                 const res = this.supplementRequestType === "location"
                     ? await venueClusterService.supplementLocationChangeRequest(this.selectedCluster.id, this.supplementRequestTarget.id, formData)
@@ -4261,13 +4426,35 @@ export default {
             }
         },
 
+        openRequestDocument(document) {
+            if (!document) return;
+            this.previewDocument = {
+                ...document,
+                title: document.title || "Đơn yêu cầu thay đổi hồ sơ",
+                download_url: document.download_url || `/api/files/documents/${document.id}/download`,
+            };
+            this.documentPreviewOpen = true;
+        },
+
+        closeRequestDocument() {
+            this.documentPreviewOpen = false;
+            this.previewDocument = null;
+        },
+
+        downloadRequestDocument(document) {
+            const url = document?.download_url || (document?.id ? `/api/files/documents/${document.id}/download` : "");
+            if (url) apiDownload(url);
+        },
+
         openCreateApprovalModal() {
             this.newReqForm = { court_type_id: "", name: "", note: "" };
             this.removeEvidence();
             this.clearScaleSupplementFiles();
+            this.scaleSignatureDirty = false;
             this.showCreateApprovalModal = true;
             this.newReqSuccess = null;
             this.newReqError = null;
+            this.$nextTick(() => this.prepareSignatureCanvas('scaleSignatureCanvas', true));
         },
 
         closeCreateApprovalModal() {
@@ -4277,6 +4464,18 @@ export default {
         async handleCreateApproval() {
             if (!this.newReqForm.court_type_id) {
                 this.newReqError = "Vui lòng chọn loại sân.";
+                return;
+            }
+            if (!this.evidenceFile) {
+                this.newReqError = "Vui lòng tải lên ảnh minh chứng quy mô sân.";
+                return;
+            }
+            if (!this.scaleSupplementFiles.length) {
+                this.newReqError = "Vui lòng tải lên giấy ĐKKD hoặc giấy cập nhật kinh doanh.";
+                return;
+            }
+            if (!this.scaleSignatureDirty) {
+                this.newReqError = "Vui lòng ký xác nhận yêu cầu trước khi gửi.";
                 return;
             }
             this.creatingReq = true;
@@ -4295,6 +4494,7 @@ export default {
                 this.scaleSupplementFiles.forEach((file) => {
                     formData.append('supplementary_documents[]', file);
                 });
+                formData.append('signature_image', this.signatureData('scaleSignatureCanvas'));
                 const res = await venueClusterService.createApprovalRequest(
                     this.selectedCluster.id,
                     formData,
@@ -4372,6 +4572,7 @@ export default {
             this.locationModalError = null;
             this.locationMapMsg = null;
             this.clearLocationSupplementFiles();
+            this.locationSignatureDirty = false;
             this.locationForm = {
                 new_province: this.selectedCluster.province || "",
                 new_ward: this.selectedCluster.ward || "",
@@ -4400,6 +4601,7 @@ export default {
 
             this.$nextTick(() => {
                 this.initLocationModalMap();
+                this.prepareSignatureCanvas('locationSignatureCanvas', true);
             });
         },
 
@@ -4407,11 +4609,20 @@ export default {
             this.showLocationModal = false;
             this.destroyLocationMap();
             this.clearLocationSupplementFiles();
+            this.locationSignatureDirty = false;
         },
 
         async handleLocationChangeSubmit() {
-            this.locationSubmitting = true;
             this.locationModalError = null;
+            if (!this.locationSupplementFiles.length) {
+                this.locationModalError = "Vui lòng tải lên giấy tờ/hình ảnh minh chứng vị trí mới.";
+                return;
+            }
+            if (!this.locationSignatureDirty) {
+                this.locationModalError = "Vui lòng ký xác nhận yêu cầu trước khi gửi.";
+                return;
+            }
+            this.locationSubmitting = true;
             try {
                 const formData = new FormData();
                 Object.entries(this.locationForm).forEach(([key, value]) => {
@@ -4422,6 +4633,7 @@ export default {
                 this.locationSupplementFiles.forEach((file) => {
                     formData.append('supplementary_documents[]', file);
                 });
+                formData.append('signature_image', this.signatureData('locationSignatureCanvas'));
                 const res =
                     await venueClusterService.createLocationChangeRequest(
                         this.selectedCluster.id,
@@ -6281,6 +6493,60 @@ export default {
     font-size: 12px;
     font-weight: 700;
     text-decoration: none;
+}
+
+.request-document-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.request-document-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    border-color: #0f172a;
+    color: #0f172a;
+    background: #fff;
+}
+
+.request-signature-group {
+    margin-top: 14px;
+}
+
+.request-signature-pad {
+    width: 100%;
+    min-height: 170px;
+    border: 1px dashed #94a3b8;
+    border-radius: 10px;
+    background: #fff;
+    touch-action: none;
+}
+
+.request-signature-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.signature-ok {
+    color: #047857;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.signature-missing {
+    color: #b45309;
+    font-size: 13px;
+    font-weight: 800;
 }
 
 .readonly-note {

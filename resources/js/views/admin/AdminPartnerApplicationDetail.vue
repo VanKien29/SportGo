@@ -31,7 +31,7 @@
 
         <div class="action-buttons">
           <button
-            v-if="isReviewable(application.status)"
+            v-if="canReviewApplication"
             class="btn primary"
             type="button"
             @click="actionMode = 'approve'"
@@ -40,7 +40,7 @@
             Duyệt
           </button>
           <button
-            v-if="isReviewable(application.status)"
+            v-if="canReviewApplication"
             class="btn danger"
             type="button"
             @click="actionMode = 'reject'"
@@ -49,7 +49,7 @@
             Từ chối
           </button>
           <button
-            v-if="isReviewable(application.status)"
+            v-if="canReviewApplication"
             class="btn warning"
             type="button"
             @click="actionMode = 'supplement'"
@@ -69,7 +69,16 @@
         </div>
       </section>
 
-      <section v-if="actionMode === 'approve'" class="review-panel">
+      <section v-if="!canReviewApplication && !pendingSportgoDocument" class="review-panel readonly-panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{ readonlyActionTitle }}</h3>
+            <p>{{ readonlyActionText }}</p>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="actionMode === 'approve' && canReviewApplication" class="review-panel">
         <div class="panel-head">
           <div>
             <h3>Duyệt hồ sơ và tạo hợp đồng</h3>
@@ -115,7 +124,7 @@
         </form>
       </section>
 
-      <section v-if="actionMode === 'reject' || actionMode === 'supplement'" class="review-panel" :class="{ 'danger-panel': actionMode === 'reject' }">
+      <section v-if="(actionMode === 'reject' || actionMode === 'supplement') && canReviewApplication" class="review-panel" :class="{ 'danger-panel': actionMode === 'reject' }">
         <div class="panel-head">
           <div>
             <h3>{{ actionMode === 'supplement' ? 'Yêu cầu bổ sung hồ sơ' : 'Từ chối hồ sơ' }}</h3>
@@ -362,6 +371,21 @@ const leafCourtTypes = computed(() => courtTypes.value.filter((type) => type.is_
 const pendingSportgoDocument = computed(() => generatedDocuments.value.find((document) => (
   document.document_type === 'partner_contract' && document.status === 'pending_sportgo_signature'
 )) || null);
+const canReviewApplication = computed(() => isReviewable(application.value?.status));
+const readonlyActionTitle = computed(() => {
+  if (application.value?.status === 'need_supplement') return 'Đang chờ người dùng bổ sung';
+  if (application.value?.status === 'rejected') return 'Hồ sơ đã bị từ chối';
+  if (application.value?.status === 'cancelled') return 'Hồ sơ đã hủy';
+  if (application.value?.status === 'completed') return 'Hồ sơ đã hoàn tất';
+  return 'Không có thao tác xét duyệt';
+});
+const readonlyActionText = computed(() => {
+  if (application.value?.status === 'need_supplement') return 'Admin đã gửi yêu cầu bổ sung. Chỉ xử lý tiếp sau khi người dùng cập nhật hồ sơ và ký lại đơn đăng ký.';
+  if (application.value?.status === 'rejected') return 'Hồ sơ đã dừng ở trạng thái từ chối. Người dùng có thể tạo bản sao hồ sơ để đăng ký lại.';
+  if (application.value?.status === 'cancelled') return 'Hồ sơ đã bị hủy và không thể duyệt.';
+  if (application.value?.status === 'completed') return 'Hồ sơ đã hoàn tất ký hợp đồng và kích hoạt đối tác.';
+  return 'Trạng thái hiện tại không cho phép duyệt, từ chối hoặc yêu cầu bổ sung.';
+});
 
 onMounted(async () => {
   await Promise.all([loadApplication(), loadCourtTypes()]);
@@ -373,7 +397,7 @@ watch(() => route.params.id, () => {
 });
 
 watch(() => route.query.action, (action) => {
-  actionMode.value = action || '';
+  actionMode.value = canReviewApplication.value ? (action || '') : '';
 });
 
 async function loadApplication() {
@@ -383,6 +407,9 @@ async function loadApplication() {
   try {
     const response = await adminPartnerApplicationService.show(route.params.id);
     application.value = response.data;
+    if (!isReviewable(application.value?.status) && ['approve', 'reject', 'supplement'].includes(actionMode.value)) {
+      actionMode.value = '';
+    }
   } catch (err) {
     error.value = err.message || 'Không tải được hồ sơ đối tác.';
   } finally {
@@ -513,7 +540,7 @@ function applyActionError(err, fallback) {
 }
 
 function isReviewable(status) {
-  return ['pending', 'reviewing', 'submitted', 'need_supplement'].includes(status);
+  return ['pending', 'reviewing', 'submitted'].includes(status);
 }
 
 const InfoPanel = defineComponent({

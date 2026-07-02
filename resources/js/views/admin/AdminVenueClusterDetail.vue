@@ -617,6 +617,11 @@
                     {{ doc.file_name || doc.title || 'Tài liệu' }}
                   </a>
                 </div>
+                <div v-if="req.generated_document" class="request-document-actions">
+                  <strong>Đơn yêu cầu:</strong>
+                  <button type="button" class="btn ghost small" @click="openRequestDocument(req.generated_document)">Xem</button>
+                  <button type="button" class="btn ghost small" @click="downloadRequestDocument(req.generated_document)">Tải</button>
+                </div>
               </div>
               <div class="approval-right">
                 <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
@@ -661,6 +666,11 @@
                   >
                     {{ doc.file_name || doc.title || 'Tài liệu' }}
                   </a>
+                </div>
+                <div v-if="req.generated_document" class="request-document-actions">
+                  <strong>Đơn yêu cầu:</strong>
+                  <button type="button" class="btn ghost small" @click="openRequestDocument(req.generated_document)">Xem</button>
+                  <button type="button" class="btn ghost small" @click="downloadRequestDocument(req.generated_document)">Tải</button>
                 </div>
                 <div class="muted">Lý do: {{ req.note }}</div>
                 <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
@@ -949,14 +959,22 @@
         {{ globalMsg }}
       </div>
     </transition>
+    <PartnerFilePreviewDialog
+      :show="documentPreviewOpen"
+      :document="previewDocument"
+      @close="closeRequestDocument"
+    />
   </div>
 </template>
 
 <script>
 import { adminVenueClusterService } from '../../services/adminVenueClusterService.js';
+import PartnerFilePreviewDialog from '../../components/partner/PartnerFilePreviewDialog.vue';
+import { apiDownload } from '../../services/api.js';
 
 export default {
   name: 'AdminVenueClusterDetail',
+  components: { PartnerFilePreviewDialog },
   data() {
     return {
       cluster: null,
@@ -966,6 +984,8 @@ export default {
       approvalRequests: [],
       loading: true,
       error: '',
+      documentPreviewOpen: false,
+      previewDocument: null,
 
       activeTab: 'info',
       tabs: [
@@ -1056,6 +1076,26 @@ export default {
     this.loadDetail();
   },
   methods: {
+    openRequestDocument(document) {
+      if (!document) return;
+      this.previewDocument = {
+        ...document,
+        title: document.title || 'Đơn yêu cầu thay đổi hồ sơ',
+        download_url: document.download_url || `/api/files/documents/${document.id}/download`,
+      };
+      this.documentPreviewOpen = true;
+    },
+
+    closeRequestDocument() {
+      this.documentPreviewOpen = false;
+      this.previewDocument = null;
+    },
+
+    downloadRequestDocument(document) {
+      const url = document?.download_url || (document?.id ? `/api/files/documents/${document.id}/download` : '');
+      if (url) apiDownload(url);
+    },
+
     async loadDetail() {
       this.loading = true;
       this.error = '';
@@ -2657,6 +2697,23 @@ export default {
   color: #3730a3;
   font-weight: 700;
   text-decoration: none;
+}
+.request-document-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #475569;
+}
+.request-document-actions .btn {
+  min-height: 30px;
+  border: 1px solid #0f172a;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 8px;
+  font-weight: 800;
 }
 .required { color: #ef4444; }
 .alert-error {

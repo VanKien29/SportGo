@@ -336,12 +336,12 @@
 
                 <FormSection title="Tài liệu đính kèm" style="margin-top: 24px;">
                   <div class="form-grid">
-                    <UploadBox title="CCCD/CMND người đại diện" required :files="files.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
-                    <UploadBox title="Giấy ĐKKD/Pháp lý" required :files="files.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
-                    <UploadBox title="Hình ảnh cơ sở/sân" required :files="files.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
-                    <UploadBox title="Chứng từ ngân hàng" required :files="files.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
-                    <UploadBox title="Hợp đồng thuê mặt bằng" required :files="files.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
-                    <UploadBox title="Giấy tờ khác" :files="files.additional" :error="fieldErrors.additional_documents" @change="setFiles('additional', $event)" @remove="removeFile('additional', $event)" />
+                    <UploadBox :key="`identity-${uploadResetKey}`" title="CCCD/CMND người đại diện" required :files="files.identity" :existing-files="existingDocuments.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
+                    <UploadBox :key="`business-${uploadResetKey}`" title="Giấy ĐKKD/Pháp lý" required :files="files.business_license" :existing-files="existingDocuments.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
+                    <UploadBox :key="`facility-${uploadResetKey}`" title="Hình ảnh cơ sở/sân" required :files="files.facility" :existing-files="existingDocuments.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
+                    <UploadBox :key="`bank-${uploadResetKey}`" title="Chứng từ ngân hàng" required :files="files.bank" :existing-files="existingDocuments.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
+                    <UploadBox :key="`lease-${uploadResetKey}`" title="Hợp đồng thuê mặt bằng" required :files="files.lease" :existing-files="existingDocuments.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
+                    <UploadBox :key="`additional-${uploadResetKey}`" title="Giấy tờ khác" :files="files.additional" :existing-files="existingDocuments.additional" :error="fieldErrors.additional_documents" @change="setFiles('additional', $event)" @remove="removeFile('additional', $event)" />
                   </div>
                 </FormSection>
 
@@ -546,6 +546,8 @@ const banks = ref([]);
 const courtTypes = ref([]);
 const amenities = ref([]);
 const files = reactive(blankFiles());
+const existingDocuments = reactive(blankExistingDocuments());
+const uploadResetKey = ref(0);
 const confirmed = ref(false);
 const submitting = ref(false);
 const mapError = ref('');
@@ -607,6 +609,11 @@ watch(formOpen, async (open) => {
   destroyMapPicker();
 });
 watch(() => [form.venue_latitude, form.venue_longitude], updateMapPickerMarker);
+watch(() => route.query.editDraft, async () => {
+  if (route.name === 'partner-application') {
+    await openDraftFromRoute();
+  }
+});
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function defaultForm(authUser) {
@@ -628,6 +635,7 @@ function defaultForm(authUser) {
 }
 
 function blankFiles() { return { identity: [], business_license: [], facility: [], bank: [], lease: [], additional: [] }; }
+function blankExistingDocuments() { return { identity: [], business_license: [], facility: [], bank: [], lease: [], additional: [] }; }
 function localId() { return `local-${Math.random().toString(36).slice(2)}-${Date.now()}`; }
 
 function normalizeList(data) {
@@ -671,6 +679,8 @@ function startNewApplication() {
 function resetForm(next) {
   Object.assign(form, next);
   Object.assign(files, blankFiles());
+  Object.assign(existingDocuments, blankExistingDocuments());
+  uploadResetKey.value += 1;
   clearErrors();
   formBanner.value = '';
   confirmed.value = false;
@@ -748,6 +758,8 @@ async function duplicateApplication(application) {
   editingApplicationId.value = '';
   loadApplicationIntoForm(application);
   existingDocumentTypes.value = new Set();
+  Object.assign(existingDocuments, blankExistingDocuments());
+  uploadResetKey.value += 1;
   confirmed.value = false;
   formOpen.value = true;
   if (form.venue_province_code) await loadWards(form.venue_province_code);
@@ -756,7 +768,8 @@ async function duplicateApplication(application) {
 }
 
 function loadApplicationIntoForm(application) {
-  existingDocumentTypes.value = new Set((application.documents || application.uploaded_documents || []).map((doc) => doc.document_type));
+  const savedDocuments = application.documents || application.uploaded_documents || [];
+  existingDocumentTypes.value = new Set(savedDocuments.map((doc) => doc.document_type));
   resetForm({
     ...defaultForm(user),
     applicant_full_name: application.applicant_full_name || '',
@@ -800,7 +813,17 @@ function loadApplicationIntoForm(application) {
     account_holder_name: application.account_holder_name || '',
     bank_branch: application.bank_branch || '',
   });
+  Object.assign(existingDocuments, groupExistingDocuments(savedDocuments));
   confirmed.value = true;
+}
+
+function groupExistingDocuments(documents = []) {
+  const groups = blankExistingDocuments();
+  documents.forEach((document) => {
+    const group = document.document_type || document.document_group;
+    if (groups[group]) groups[group].push(document);
+  });
+  return groups;
 }
 
 function dateInputValue(value) {
@@ -1173,6 +1196,24 @@ function isValidIdentity() {
 
 function clearErrors() { Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k]); }
 
+async function navigateToApplicationRoute(target) {
+  const href = router.resolve(target).href;
+  try {
+    formOpen.value = false;
+    await router.push(target);
+    await nextTick();
+    window.setTimeout(() => {
+      const targetUrl = new URL(href, window.location.origin);
+      const stillPortalMounted = Boolean(document.querySelector('.partner-portal-page'));
+      if (stillPortalMounted && window.location.pathname === targetUrl.pathname) {
+        window.location.assign(href);
+      }
+    }, 80);
+  } catch (error) {
+    window.location.assign(href);
+  }
+}
+
 // ─── Submit ───────────────────────────────────────────────────────────────────
 async function submit() {
   formBanner.value = '';
@@ -1202,7 +1243,7 @@ async function submit() {
     editingApplicationId.value = application.id;
     const doc = applicationWord(application);
     if (doc) {
-      router.push({ name: 'partner-application-document', params: { id: application.id, documentId: doc.id }, query: { from: 'registration' } });
+      await navigateToApplicationRoute({ name: 'partner-application-document', params: { id: application.id, documentId: doc.id }, query: { from: 'registration' } });
       return;
     }
     formOpen.value = false; await loadApplications();
@@ -1232,12 +1273,12 @@ async function cancelApplication(application) {
 }
 
 function openApplicationDetail(application) {
-  router.push({ name: 'partner-application-detail', params: { id: application.id } });
+  navigateToApplicationRoute({ name: 'partner-application-detail', params: { id: application.id } });
 }
 
 function openApplicationDocument(document, application) {
   if (!document || !application) return;
-  router.push({ name: 'partner-application-document', params: { id: application.id, documentId: document.id } });
+  navigateToApplicationRoute({ name: 'partner-application-document', params: { id: application.id, documentId: document.id } });
 }
 
 function canSubmitSignedApplication(application) {

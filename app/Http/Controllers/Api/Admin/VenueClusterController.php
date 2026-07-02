@@ -152,6 +152,7 @@ class VenueClusterController extends Controller
                 'courtType:id,name',
                 'requestedBy:id,full_name,username',
                 'reviewedBy:id,full_name,username',
+                'generatedDocument.signatures',
             ])
             ->latest()
             ->get()
@@ -163,6 +164,7 @@ class VenueClusterController extends Controller
             ->with([
                 'requestedBy:id,full_name,username',
                 'reviewedBy:id,full_name,username',
+                'generatedDocument.signatures',
             ])
             ->latest()
             ->get()
@@ -363,7 +365,7 @@ class VenueClusterController extends Controller
 
         return response()->json([
             'message' => 'Duyệt yêu cầu thành công. Sân con mới đã được tạo.',
-            'request' => $this->approvalPayload($approvalRequest->fresh(['courtType', 'requestedBy', 'reviewedBy'])),
+            'request' => $this->approvalPayload($approvalRequest->fresh(['courtType', 'requestedBy', 'reviewedBy', 'generatedDocument.signatures'])),
         ]);
     }
 
@@ -408,7 +410,7 @@ class VenueClusterController extends Controller
 
         return response()->json([
             'message' => 'Đã từ chối yêu cầu.',
-            'request' => $this->approvalPayload($approvalRequest->fresh(['courtType', 'requestedBy', 'reviewedBy'])),
+            'request' => $this->approvalPayload($approvalRequest->fresh(['courtType', 'requestedBy', 'reviewedBy', 'generatedDocument.signatures'])),
         ]);
     }
 
@@ -455,7 +457,7 @@ class VenueClusterController extends Controller
 
         return response()->json([
             'message' => 'Đã yêu cầu chủ sân bổ sung hồ sơ.',
-            'request' => $this->approvalPayload($approvalRequest->fresh(['courtType', 'requestedBy', 'reviewedBy'])),
+            'request' => $this->approvalPayload($approvalRequest->fresh(['courtType', 'requestedBy', 'reviewedBy', 'generatedDocument.signatures'])),
         ]);
     }
 
@@ -523,7 +525,7 @@ class VenueClusterController extends Controller
 
         return response()->json([
             'message' => 'Duyệt yêu cầu thành công. Vị trí cụm sân đã được cập nhật.',
-            'request' => $this->locationChangePayload($locationRequest->fresh(['requestedBy', 'reviewedBy'])),
+            'request' => $this->locationChangePayload($locationRequest->fresh(['requestedBy', 'reviewedBy', 'generatedDocument.signatures'])),
         ]);
     }
 
@@ -574,7 +576,7 @@ class VenueClusterController extends Controller
 
         return response()->json([
             'message' => 'Đã từ chối yêu cầu.',
-            'request' => $this->locationChangePayload($locationRequest->fresh(['requestedBy', 'reviewedBy'])),
+            'request' => $this->locationChangePayload($locationRequest->fresh(['requestedBy', 'reviewedBy', 'generatedDocument.signatures'])),
         ]);
     }
 
@@ -621,7 +623,7 @@ class VenueClusterController extends Controller
 
         return response()->json([
             'message' => 'Đã yêu cầu chủ sân bổ sung hồ sơ.',
-            'request' => $this->locationChangePayload($locationRequest->fresh(['requestedBy', 'reviewedBy'])),
+            'request' => $this->locationChangePayload($locationRequest->fresh(['requestedBy', 'reviewedBy', 'generatedDocument.signatures'])),
         ]);
     }
 
@@ -815,6 +817,11 @@ class VenueClusterController extends Controller
             'evidence_image'          => $r->evidence_image,
             'evidence_image_url'      => $r->evidence_image ? asset('storage/' . $r->evidence_image) : null,
             'supplementary_documents' => $r->supplementary_documents ?: [],
+            'signature_image'         => $r->signature_image,
+            'signature_image_url'     => $r->signature_image ? asset('storage/' . $r->signature_image) : null,
+            'signature_hash'          => $r->signature_hash,
+            'signed_at'               => $r->signed_at,
+            'generated_document'       => $this->documentPayload($r->generatedDocument),
             'court_type'              => $r->courtType ? ['id' => $r->courtType->id, 'name' => $r->courtType->name] : null,
             'requested_by'            => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
             'reviewed_by'             => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,
@@ -838,10 +845,34 @@ class VenueClusterController extends Controller
             'new_longitude' => $r->new_longitude,
             'new_map_url'   => $r->new_map_url,
             'supplementary_documents' => $r->supplementary_documents ?: [],
+            'signature_image' => $r->signature_image,
+            'signature_image_url' => $r->signature_image ? asset('storage/' . $r->signature_image) : null,
+            'signature_hash' => $r->signature_hash,
+            'signed_at' => $r->signed_at,
+            'generated_document' => $this->documentPayload($r->generatedDocument),
             'requested_by'  => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
             'reviewed_by'   => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,
             'reviewed_at'   => $r->reviewed_at,
             'created_at'    => $r->created_at,
+        ];
+    }
+
+    private function documentPayload($document): ?array
+    {
+        if (! $document) {
+            return null;
+        }
+
+        return [
+            'id' => $document->id,
+            'document_code' => $document->document_code,
+            'document_type' => $document->document_type,
+            'document_version' => $document->document_version,
+            'title' => $document->title,
+            'status' => $document->status,
+            'file_hash' => $document->file_hash,
+            'generated_at' => $document->generated_at,
+            'download_url' => url('/api/files/documents/' . $document->id . '/download'),
         ];
     }
 

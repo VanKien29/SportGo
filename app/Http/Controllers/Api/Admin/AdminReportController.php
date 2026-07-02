@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\CommunityPost;
 use App\Models\CommunityPostComment;
 use App\Models\Notification;
+use App\Models\PartnerContract;
 use App\Models\PlayerPost;
 use App\Models\Report;
 use App\Models\User;
@@ -16,6 +17,7 @@ use App\Models\ViolationRecord;
 use App\Services\Admin\AdminAuditService;
 use App\Services\Moderation\PenaltyEscalationService;
 use App\Services\Moderation\ViolationScoreService;
+use App\Services\Partner\PartnerApplicationService;
 use App\Mail\VenueComplaintMail;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
@@ -40,7 +42,8 @@ class AdminReportController extends Controller
     public function __construct(
         private readonly AdminAuditService $audit,
         private readonly PenaltyEscalationService $penalties,
-        private readonly ViolationScoreService $violationScores
+        private readonly ViolationScoreService $violationScores,
+        private readonly PartnerApplicationService $partners
     )
     {
     }
@@ -254,10 +257,16 @@ class AdminReportController extends Controller
                         throw ValidationException::withMessages(['use_suggested' => 'Chưa có cấu hình hình phạt đề xuất cho đối tượng này.']);
                     }
                     $this->penalties->applyPenalty($penaltyTargetType, $penaltyTargetId, $suggested->action_type, $suggested->duration_days, $request->user(), $note);
+                    if ($suggested->action_type === 'terminate_contract') {
+                        $this->terminateContractFromReportPenalty($request, $report, $note);
+                    }
                     $appliedReportAction = $this->legacyActionFromPenalty($suggested->action_type);
                 } elseif (! empty($data['action_type'])) {
                     [$penaltyTargetType, $penaltyTargetId] = $this->penaltyTarget($report);
                     $this->penalties->applyPenalty($penaltyTargetType, $penaltyTargetId, $data['action_type'], $data['duration_days'] ?? null, $request->user(), $note);
+                    if ($data['action_type'] === 'terminate_contract') {
+                        $this->terminateContractFromReportPenalty($request, $report, $note);
+                    }
                     $appliedReportAction = $this->legacyActionFromPenalty($data['action_type']);
                 } elseif (! empty($data['action_taken'])) {
                     $this->applyAction($request, $report, $data['action_taken'], $note, $data['lock_days'] ?? null);
@@ -559,6 +568,54 @@ class AdminReportController extends Controller
         $this->audit->log($request, 'report', 'venue.locked_by_report', 'venue_clusters', $venue->id, $old, $venue->fresh()->toArray(), ['reason' => $reason, 'severity' => 'warning']);
     }
 
+    private function terminateContractFromReportPenalty(Request $request, Report $report, string $reason): void
+    {
+        $venue = $this->reportedVenueCluster($report);
+        if (! $venue) {
+            throw ValidationException::withMessages([
+                'action_type' => 'Không xác định được cụm sân để chấm dứt hợp đồng đối tác.',
+            ]);
+        }
+
+        $contract = PartnerContract::query()
+            ->with(['application.user', 'terminations'])
+            ->where('venue_cluster_id', $venue->id)
+            ->where('status', 'signed_active')
+            ->latest()
+            ->first();
+
+        if (! $contract) {
+            throw ValidationException::withMessages([
+                'action_type' => 'Cụm sân chưa có hợp đồng đối tác đang hiệu lực để chấm dứt.',
+            ]);
+        }
+
+        $hasOpenTermination = $contract->terminations
+            ->whereIn('status', ['submitted', 'reviewing', 'transition_period'])
+            ->isNotEmpty();
+
+        if ($hasOpenTermination) {
+            return;
+        }
+
+        $this->partners->initiateUnilateralTermination(
+            $contract,
+            $request->user(),
+            $request,
+            $reason ?: 'Cụm sân bị xử lý chấm dứt hợp đồng do báo cáo vi phạm đạt ngưỡng.'
+        );
+    }
+
+    private function reportedVenueCluster(Report $report): ?VenueCluster
+    {
+        $target = $report->reportable ?: $this->resolveTarget($report);
+
+        return match (true) {
+            $target instanceof VenueCluster => $target,
+            $target instanceof VenuePost => $target->venueCluster,
+            default => null,
+        };
+    }
     private function penaltyTarget(Report $report): array
     {
         $target = $report->reportable;
