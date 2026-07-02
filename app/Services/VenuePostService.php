@@ -7,6 +7,9 @@ use App\Models\AuditLog;
 use Illuminate\Support\Str;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
 
 class VenuePostService
 {
@@ -54,13 +57,25 @@ class VenuePostService
                 $post->hashtags()->syncWithPivotValues($hashtagIds, ['post_type' => 'venue_posts']);
             }
 
-            // Save thumbnail to polymorphic media table
+            // Convert and save thumbnail to WebP using Intervention Image
+            $manager = new ImageManager(new Driver());
+            $image = $manager->decodePath($thumbnail->getPathname());
+            
+            $filename = uniqid('thumb_', true) . '.webp';
+            $path = 'venue_posts/' . $filename;
+            
+            if (!Storage::disk('public')->exists('venue_posts')) {
+                Storage::disk('public')->makeDirectory('venue_posts');
+            }
+            
+            $image->save(storage_path('app/public/' . $path), quality: 80);
+
             $post->media()->create([
                 'collection' => 'thumbnail',
-                'file_name' => $thumbnail->getClientOriginalName(),
-                'file_path' => $thumbnail->store('venue_posts', 'public'),
-                'mime_type' => $thumbnail->getMimeType(),
-                'file_size' => $thumbnail->getSize(),
+                'file_name' => $thumbnail->getClientOriginalName() . '.webp',
+                'file_path' => $path,
+                'mime_type' => 'image/webp',
+                'file_size' => filesize(storage_path('app/public/' . $path)),
             ]);
 
             $this->logAction($user->id, 'venue_post.created', $post, null, $post->toArray(), 'Tạo bài viết mới');
@@ -126,13 +141,26 @@ class VenuePostService
             if ($thumbnail) {
                 // Remove old
                 $post->media()->where('collection', 'thumbnail')->delete();
-                // Add new
+                
+                // Convert and save thumbnail to WebP using Intervention Image
+                $manager = new ImageManager(new Driver());
+                $image = $manager->decodePath($thumbnail->getPathname());
+                
+                $filename = uniqid('thumb_', true) . '.webp';
+                $path = 'venue_posts/' . $filename;
+                
+                if (!Storage::disk('public')->exists('venue_posts')) {
+                    Storage::disk('public')->makeDirectory('venue_posts');
+                }
+                
+                $image->save(storage_path('app/public/' . $path), quality: 80);
+
                 $post->media()->create([
                     'collection' => 'thumbnail',
-                    'file_name' => $thumbnail->getClientOriginalName(),
-                    'file_path' => $thumbnail->store('venue_posts', 'public'),
-                    'mime_type' => $thumbnail->getMimeType(),
-                    'file_size' => $thumbnail->getSize(),
+                    'file_name' => $thumbnail->getClientOriginalName() . '.webp',
+                    'file_path' => $path,
+                    'mime_type' => 'image/webp',
+                    'file_size' => filesize(storage_path('app/public/' . $path)),
                 ]);
             }
 
@@ -165,9 +193,13 @@ class VenuePostService
 
     public function deletePost(VenuePost $post, $user)
     {
-        // Removed restriction so they can delete pending posts if they want, or we keep it. The user only asked about view/edit. Let's keep the delete restriction or remove it? Removing it is better UX.
-        $post->delete();
-        $this->logAction($user->id, 'venue_post.deleted', $post, null, null, 'Xóa bài viết (soft delete)');
+        if ($post->status === 'published') {
+            $post->delete();
+            $this->logAction($user->id, 'venue_post.deleted', $post, null, null, 'Xóa bài viết (soft delete)');
+        } else {
+            $post->forceDelete();
+            $this->logAction($user->id, 'venue_post.force_deleted', $post, null, null, 'Xóa bài viết vĩnh viễn');
+        }
     }
 
     public function restorePost(VenuePost $post, $user)

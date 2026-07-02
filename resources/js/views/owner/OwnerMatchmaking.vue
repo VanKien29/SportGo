@@ -1,6 +1,22 @@
 <template>
   <div class="matchmaking-page">
 
+    <div class="page-header sg-page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <div class="header-left sg-page-heading">
+        <nav class="sg-breadcrumbs" aria-label="Breadcrumb">
+          <router-link to="/owner/dashboard">Dashboard</router-link>
+          <span>/</span>
+          <span>Giao lưu tại sân</span>
+        </nav>
+        <h2 style="margin: 8px 0;">Giao lưu tại sân</h2>
+        <p class="muted" style="margin: 0;">Quản lý và đăng tải các bài viết ghép kèo, tìm người chơi.</p>
+      </div>
+      <button class="btn btn-create primary sg-primary-action" type="button" @click="openCreateModal">
+        <AppIcon name="plus" size="16" />
+        <span>Tạo bài giao lưu</span>
+      </button>
+    </div>
+
     <!-- Alerts -->
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
@@ -24,7 +40,7 @@
       <!-- Filter and Search -->
       <div class="filters-row">
         <label class="field compact search-field">
-          <span>Tìm kiếm</span>
+          <AppIcon name="search" size="16" />
           <input
             v-model="searchQuery"
             type="search"
@@ -244,6 +260,145 @@
         </form>
       </div>
     </div>
+
+    <!-- MODAL TẠO BÀI GIAO LƯU (STYLE FACEBOOK LIGHT MODE) -->
+    <div v-if="createModal.open" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeCreateModal)">
+      <div class="modal fb-post-modal" @mousedown.stop style="max-width: 500px; width: 100%; border-radius: 8px; padding: 0; background: #ffffff; color: #050505; font-family: inherit; box-shadow: 0 12px 28px 0 rgba(0,0,0,0.2), 0 2px 4px 0 rgba(0,0,0,0.1); border: none;">
+        <!-- Header -->
+        <div class="fb-modal-header" style="border-bottom: 1px solid #ced0d4; padding: 16px; position: relative; text-align: center;">
+          <h3 style="margin: 0; font-size: 20px; font-weight: 700; color: #050505;">Tạo bài viết</h3>
+          <button class="icon-btn" type="button" title="Đóng" @click="closeCreateModal" style="position: absolute; right: 16px; top: 16px; background: #e4e6eb; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: #606770; border: none; cursor: pointer; transition: background 0.2s;">
+            <AppIcon name="x" size="20" />
+          </button>
+        </div>
+
+        <form @submit.prevent="submitCreate">
+          <div class="fb-modal-body" style="padding: 16px; max-height: calc(100vh - 200px); overflow-y: auto;">
+            <!-- User Info -->
+            <div class="fb-user-info" style="display: flex; align-items: center; margin-bottom: 16px; gap: 10px; position: relative; z-index: 101;">
+              <div class="fb-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: #e4e6eb; display: flex; align-items: center; justify-content: center;">
+                <AppIcon name="user" size="24" color="#606770" />
+              </div>
+              <div class="fb-user-name">
+                <div style="font-weight: 600; font-size: 15px; color: #050505;">Chủ sân (Quản trị viên)</div>
+                <div class="fb-tags" style="display: flex; gap: 6px; margin-top: 4px;">
+                  <!-- Custom Select Cluster -->
+                  <div style="position: relative;">
+                    <div v-if="clusterDropdownOpen" @click="clusterDropdownOpen = false" style="position: fixed; inset: 0; z-index: 99;"></div>
+                    <div @click="clusterDropdownOpen = !clusterDropdownOpen" style="background: #e4e6eb; border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; color: #050505; cursor: pointer; user-select: none; position: relative; z-index: 100;">
+                      <AppIcon name="building" size="12" />
+                      <span>{{ selectedClusterName || 'Chọn cụm sân' }}</span>
+                      <AppIcon name="chevronDown" size="12" />
+                    </div>
+                    
+                    <div v-if="clusterDropdownOpen" style="position: absolute; top: 100%; left: 0; margin-top: 6px; background: #ffffff; border: 1px solid #ced0d4; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; min-width: 200px; max-height: 250px; overflow-y: auto; padding: 4px;">
+                      <div v-if="clusters.length === 0" style="padding: 8px 12px; font-size: 13px; color: #65676b; text-align: center;">Không có dữ liệu</div>
+                      <div v-for="cluster in clusters" :key="cluster.id" @click="selectCluster(cluster.id)" class="custom-dropdown-item" :class="{ active: createForm.venue_cluster_id === cluster.id }">
+                        {{ cluster.name }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Content Area -->
+            <textarea
+              v-model="createForm.description"
+              rows="2"
+              placeholder="Bạn muốn chia sẻ điều gì về trận giao lưu này?"
+              style="width: 100%; border: none; outline: none; resize: none; font-size: 24px; margin-bottom: 8px; font-family: inherit; background: transparent; color: #050505;"
+            ></textarea>
+            
+            <!-- Title is auto-generated on submit -->
+
+            <!-- Image Preview -->
+            <div v-if="createForm.imagePreview" class="fb-image-preview" style="position: relative; margin-bottom: 16px; border-radius: 8px; overflow: hidden; border: 1px solid #ced0d4;">
+              <img :src="createForm.imagePreview" style="width: 100%; display: block;" />
+              <button type="button" @click="removeImage" style="position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.2); color: #050505;">
+                <AppIcon name="x" size="16" />
+              </button>
+            </div>
+
+            <!-- Extra Fields Area (Collapsed into nicely styled inputs) -->
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
+              <!-- Select Booking Area -->
+              <div class="fb-booking-select" style="background: #f0f2f5; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; border: 1px solid #ced0d4;">
+                <div style="font-weight: 600; font-size: 13px; color: #050505; display: flex; align-items: center; gap: 6px;">
+                  <AppIcon name="calendar" size="16" color="#f5533d" /> Lịch đặt sân <span class="required" style="color: #f02849;">*</span>
+                </div>
+                
+                <!-- Custom Booking Select -->
+                <div style="position: relative;" :style="{ opacity: (!createForm.venue_cluster_id || eligibleBookingsLoading) ? 0.6 : 1, pointerEvents: (!createForm.venue_cluster_id || eligibleBookingsLoading) ? 'none' : 'auto' }">
+                  <div v-if="bookingDropdownOpen" @click="bookingDropdownOpen = false" style="position: fixed; inset: 0; z-index: 99;"></div>
+                  <div @click="bookingDropdownOpen = !bookingDropdownOpen" style="width: 100%; border: 1px solid #ced0d4; border-radius: 6px; padding: 10px 12px; font-size: 14px; background: #ffffff; color: #050505; display: flex; align-items: center; justify-content: space-between; cursor: pointer; position: relative; z-index: 100;">
+                    <span :style="{ color: createForm.booking_id ? '#050505' : '#65676b' }">{{ selectedBookingText || '-- Chọn lịch sắp tới (chưa có người ghép) --' }}</span>
+                    <AppIcon name="chevronDown" size="16" color="#65676b" />
+                  </div>
+
+                  <div v-if="bookingDropdownOpen" style="position: absolute; top: 100%; left: 0; right: 0; margin-top: 6px; background: #ffffff; border: 1px solid #ced0d4; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; max-height: 250px; overflow-y: auto; padding: 4px;">
+                    <div v-if="eligibleBookings.length === 0" style="padding: 12px; font-size: 13px; color: #65676b; text-align: center;">Không có lịch nào phù hợp</div>
+                    <div v-for="bk in eligibleBookings" :key="bk.id" @click="selectBooking(bk.id)" class="custom-dropdown-item" :class="{ active: createForm.booking_id === bk.id }">
+                      {{ bk.venueCourt?.name || 'Sân trống' }} {{ bk.venueCourt?.courtType ? '(' + bk.venueCourt.courtType.name + ')' : '' }} | {{ formatDate(bk.booking_date) }} ({{ formatTime(bk.start_time) }} - {{ formatTime(bk.end_time) }})
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="eligibleBookingsLoading" style="font-size: 12px; color: #65676b; margin-top: 4px;">Đang tải danh sách lịch...</div>
+                <div v-else-if="createForm.venue_cluster_id && eligibleBookings.length === 0" style="font-size: 12px; color: #f02849; margin-top: 4px; white-space: normal; line-height: 1.4;">
+                  Không có lịch đặt sân nào sắp diễn ra có thể dùng để tạo bài giao lưu.
+                </div>
+              </div>
+
+              <!-- Players & Cost -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <label style="background: #f0f2f5; border-radius: 8px; padding: 8px 12px; border: 1px solid #ced0d4; cursor: text; display: block;">
+                  <div style="font-size: 12px; font-weight: 600; color: #65676b; display: flex; align-items: center; gap: 6px;">
+                    <AppIcon name="users" size="14" color="#1877f2" /> Số người cần <span style="color: #f02849;">*</span>
+                  </div>
+                  <input v-model.number="createForm.needed_players" type="number" min="1" required style="width: 100%; border: none; outline: none; font-size: 14px; margin-top: 4px; padding: 4px 0; font-family: inherit; background: transparent; color: #050505;" />
+                </label>
+                <label style="background: #f0f2f5; border-radius: 8px; padding: 8px 12px; border: 1px solid #ced0d4; cursor: text; display: block;">
+                  <div style="font-size: 12px; font-weight: 600; color: #65676b; display: flex; align-items: center; gap: 6px;">
+                    <AppIcon name="banknote" size="14" color="#f7b928" /> Chi phí (VND)
+                  </div>
+                  <input v-model.number="createForm.cost_per_player" type="number" min="0" placeholder="0 = Miễn phí" style="width: 100%; border: none; outline: none; font-size: 14px; margin-top: 4px; padding: 4px 0; font-family: inherit; background: transparent; color: #050505;" />
+                </label>
+              </div>
+            </div>
+
+            <!-- Add to Post -->
+            <div class="fb-add-to-post" style="border: 1px solid #ced0d4; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <span style="font-weight: 600; font-size: 15px; color: #050505;">Thêm vào bài viết của bạn</span>
+              <div style="display: flex; gap: 16px; align-items: center;">
+                <label style="cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s;" title="Thêm ảnh">
+                  <AppIcon name="image" size="24" color="#45bd62" />
+                  <input type="file" accept="image/jpeg,image/png,image/jpg,image/webp" @change="onImageSelected" style="display: none;" />
+                </label>
+                <div style="cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Số người cần tuyển">
+                  <AppIcon name="users" size="24" color="#1877f2" />
+                </div>
+                <div style="cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Cảm xúc">
+                  <AppIcon name="star" size="24" color="#f7b928" />
+                </div>
+                <div style="cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Lịch đặt sân">
+                  <AppIcon name="calendar" size="24" color="#f5533d" />
+                </div>
+                <div style="cursor: pointer; display: flex; align-items: center; justify-content: center; background: #e4e6eb; border-radius: 50%; width: 24px; height: 24px;" title="Thêm">
+                  <AppIcon name="moreHorizontal" size="16" color="#606770" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="fb-modal-footer" style="padding: 0 16px 16px;">
+            <button class="btn primary fb-submit-btn" type="submit" :disabled="saving || !createForm.booking_id" style="width: 100%; font-size: 15px; font-weight: 600; padding: 10px; border-radius: 6px; background: var(--admin-primary, #1b74e4); border: none; color: #fff; cursor: pointer; transition: background 0.2s;">
+              <span>{{ saving ? 'Đang tạo...' : 'Đăng' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
  
@@ -255,6 +410,28 @@ import { venueClusterService } from '../../services/venueClusters.js';
 export default {
   name: 'OwnerMatchmaking',
   components: { AppIcon },
+  computed: {
+    selectedClusterName() {
+      const cluster = this.clusters.find(c => c.id === this.createForm.venue_cluster_id);
+      return cluster ? cluster.name : '';
+    },
+    selectedBookingText() {
+      const bk = this.eligibleBookings.find(b => b.id === this.createForm.booking_id);
+      if (!bk) return '';
+      const courtName = bk.venueCourt?.name || 'Sân trống';
+      const sportName = bk.venueCourt?.courtType ? ` (${bk.venueCourt.courtType.name})` : '';
+      return `${courtName}${sportName} | ${this.formatDate(bk.booking_date)} (${this.formatTime(bk.start_time)} - ${this.formatTime(bk.end_time)})`;
+    },
+    reportReasons() {
+      return [
+        { value: 'spam', label: 'Spam quảng cáo' },
+        { value: 'offensive', label: 'Nội dung phản cảm' },
+        { value: 'fake', label: 'Thông tin giả mạo' },
+        { value: 'harassment', label: 'Quấy rối / Đả kích' },
+        { value: 'other', label: 'Lý do khác' }
+      ];
+    }
+  },
   data() {
     return {
       posts: [],
@@ -294,6 +471,23 @@ export default {
         reason: '',
         description: '',
       },
+      createModal: {
+        open: false,
+      },
+      clusterDropdownOpen: false,
+      bookingDropdownOpen: false,
+      createForm: {
+        venue_cluster_id: '',
+        booking_id: '',
+        title: '',
+        description: '',
+        needed_players: 1,
+        cost_per_player: 0,
+        imageFile: null,
+        imagePreview: null,
+      },
+      eligibleBookings: [],
+      eligibleBookingsLoading: false,
       mousedownWasOnBackdrop: false,
     };
   },
@@ -458,6 +652,107 @@ export default {
         this.saving = false;
       }
     },
+
+    // Modal Create logic
+    openCreateModal() {
+      this.clearAlerts();
+      this.createForm = {
+        venue_cluster_id: this.clusters.length === 1 ? this.clusters[0].id : '',
+        booking_id: '',
+        title: '',
+        description: '',
+        needed_players: 1,
+        cost_per_player: 0,
+        imageFile: null,
+        imagePreview: null,
+      };
+      this.eligibleBookings = [];
+      this.createModal.open = true;
+      if (this.createForm.venue_cluster_id) {
+        this.loadEligibleBookings();
+      }
+    },
+    selectCluster(id) {
+      this.createForm.venue_cluster_id = id;
+      this.clusterDropdownOpen = false;
+      this.loadEligibleBookings();
+    },
+    selectBooking(id) {
+      this.createForm.booking_id = id;
+      this.bookingDropdownOpen = false;
+    },
+    closeCreateModal() {
+      this.createModal.open = false;
+      this.clusterDropdownOpen = false;
+      this.bookingDropdownOpen = false;
+      this.removeImage(); // Dọn dẹp URL object URL
+    },
+    onImageSelected(event) {
+      const file = event.target.files[0];
+      if (file) {
+        if (file.size > 5 * 1024 * 1024) {
+          alert('Vui lòng chọn ảnh nhỏ hơn 5MB.');
+          return;
+        }
+        this.createForm.imageFile = file;
+        this.createForm.imagePreview = URL.createObjectURL(file);
+      }
+      event.target.value = null; // Reset input
+    },
+    removeImage() {
+      this.createForm.imageFile = null;
+      if (this.createForm.imagePreview) {
+        URL.revokeObjectURL(this.createForm.imagePreview);
+        this.createForm.imagePreview = null;
+      }
+    },
+    async loadEligibleBookings() {
+      if (!this.createForm.venue_cluster_id) {
+        this.eligibleBookings = [];
+        return;
+      }
+      this.eligibleBookingsLoading = true;
+      try {
+        const response = await ownerMatchmakingService.getEligibleBookings(this.createForm.venue_cluster_id);
+        this.eligibleBookings = response.data || [];
+        this.createForm.booking_id = '';
+      } catch (err) {
+        this.error = 'Lỗi tải danh sách lịch đặt sân: ' + err.message;
+        this.eligibleBookings = [];
+      } finally {
+        this.eligibleBookingsLoading = false;
+      }
+    },
+    async submitCreate() {
+      this.saving = true;
+      this.clearAlerts();
+      try {
+        const formData = new FormData();
+        formData.append('venue_cluster_id', this.createForm.venue_cluster_id);
+        formData.append('booking_id', this.createForm.booking_id);
+        
+        // Tự động tạo Tiêu đề vì giao diện FB không có tiêu đề
+        const autoTitle = this.createForm.description ? this.createForm.description.substring(0, 50) + (this.createForm.description.length > 50 ? '...' : '') : 'Tìm trận giao lưu';
+        formData.append('title', autoTitle);
+        
+        formData.append('description', this.createForm.description);
+        formData.append('needed_players', this.createForm.needed_players);
+        formData.append('cost_per_player', this.createForm.cost_per_player);
+        
+        if (this.createForm.imageFile) {
+          formData.append('image', this.createForm.imageFile);
+        }
+
+        await ownerMatchmakingService.create(formData);
+        this.message = 'Tạo bài giao lưu thành công. Bài viết đã được hiển thị ở khu vực cộng đồng.';
+        this.closeCreateModal();
+        await this.loadPosts(1);
+      } catch (err) {
+        this.error = err.message || 'Tạo bài giao lưu thất bại.';
+      } finally {
+        this.saving = false;
+      }
+    },
   },
 };
 </script>
@@ -529,47 +824,17 @@ export default {
  
 .tabs-header {
   display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--admin-border);
-  padding: 12px 16px 0;
+  gap: 8px;
+  padding: 12px 16px;
   flex-wrap: wrap;
   background: var(--admin-surface);
-}
- 
-.tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 14px;
-  border: 0;
-  background: transparent;
-  color: var(--admin-faint);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  border-radius: 8px 8px 0 0;
-  transition: color 0.18s, background 0.18s;
-  position: relative;
-  bottom: -1px;
-  border-bottom: 2px solid transparent;
-}
- 
-.tab-btn:hover {
-  background: var(--admin-hover);
-  color: var(--admin-text);
-}
- 
-.tab-btn.active {
-  color: var(--admin-text);
-  font-weight: 900;
-  border-bottom-color: var(--admin-text);
-  background: transparent;
 }
  
 .filters-row {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
   padding: 12px 16px;
   background: var(--admin-surface-muted);
   border-top: 1px solid var(--admin-border);
@@ -584,6 +849,7 @@ export default {
   color: var(--admin-faint);
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
  
 .field.compact {
@@ -592,24 +858,34 @@ export default {
   gap: 10px;
 }
  
-.search-field input {
-  min-width: 260px;
-  height: 36px;
+.search-field {
+  background: var(--admin-surface);
   border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 0 12px;
-  font-size: 13px;
-  font-weight: 500;
-  background: var(--admin-surface);
-  color: var(--admin-text);
-  outline: none;
+  min-width: 260px;
+  height: 36px;
+  gap: 8px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
- 
-.search-field input:focus {
+
+.search-field:focus-within {
   border-color: var(--admin-blue);
   box-shadow: 0 0 0 3px var(--admin-primary-ring);
 }
+
+.search-field input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-text);
+  padding: 0;
+  height: 100%;
+}
+
  
 .select-field select {
   min-width: 180px;
@@ -1076,9 +1352,33 @@ tbody tr:last-child td {
   gap: 10px;
   background: var(--admin-surface-muted);
 }
-
+ 
 .small {
   font-size: 12px;
 }
+ 
+.fb-submit-btn:disabled {
+  background: #505151 !important;
+  color: #bcc0c4 !important;
+  cursor: not-allowed !important;
+}
 
+.custom-dropdown-item {
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #050505;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.1s ease;
+}
+
+.custom-dropdown-item:hover {
+  background: #f0f2f5;
+}
+
+.custom-dropdown-item.active {
+  background: var(--admin-primary-soft, #e6f2ff);
+  color: var(--admin-primary, #1877f2);
+  font-weight: 600;
+}
 </style>

@@ -1,9 +1,13 @@
 <template>
-  <div class="custom-select" :class="{ 'is-open': isOpen }" v-click-outside="closeDropdown">
+  <div class="custom-select" :class="{ 'is-open': isOpen, 'disabled': disabled }" v-click-outside="closeDropdown">
     <div class="select-trigger" @click="toggleDropdown">
       <span class="selected-text">{{ selectedLabel }}</span>
-      <svg class="chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg v-if="!disabled" class="chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+      <svg v-else class="lock-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.7;">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
       </svg>
     </div>
     <transition name="dropdown-fade">
@@ -37,6 +41,10 @@ export default {
     placeholder: {
       type: String,
       default: 'Chọn...'
+    },
+    disabled: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['update:modelValue', 'change'],
@@ -60,6 +68,7 @@ export default {
   },
   methods: {
     toggleDropdown() {
+      if (this.disabled) return;
       this.isOpen = !this.isOpen;
     },
     closeDropdown() {
@@ -112,12 +121,19 @@ export default {
   box-sizing: border-box;
 }
 
-.custom-select.is-open .select-trigger,
-.select-trigger:hover {
-  border-color: #94a3b8;
+.custom-select.is-open .select-trigger {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.custom-select.disabled .select-trigger {
+  background-color: #f1f5f9;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .selected-text {
+  font-size: 14px;
   color: #0f172a;
   white-space: nowrap;
   overflow: hidden;

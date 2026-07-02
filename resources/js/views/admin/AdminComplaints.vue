@@ -291,8 +291,8 @@
                                     v-for="file in selected.evidence"
                                     :key="file.id"
                                     class="evidence-item"
-                                    :href="mediaUrl(file.file_path)"
-                                    target="_blank"
+                                    href="#"
+                                    @click.prevent="file.mime_type?.startsWith('image/') ? openImagePreview(mediaUrl(file.file_path)) : window.open(mediaUrl(file.file_path), '_blank')"
                                 >
                                     <strong>{{ file.file_name }}</strong>
                                     <span
@@ -312,22 +312,45 @@
                             <h4>Lịch sử xử lý</h4>
                             <div v-if="auditLogs.length" class="timeline">
                                 <article
-                                    v-for="log in auditLogs"
-                                    :key="log.id"
+                                    v-for="item in auditLogs"
+                                    :key="item.type + item.id"
                                     class="timeline-item"
+                                    :class="item.type"
                                 >
-                                    <strong>{{
-                                        auditLabel(log.action)
-                                    }}</strong>
-                                    <span
-                                        >{{
-                                            log.actor?.full_name || "Hệ thống"
-                                        }}
-                                        ·
-                                        {{
-                                            formatDateTime(log.created_at)
-                                        }}</span
-                                    >
+                                    <template v-if="item.type === 'log'">
+                                        <strong>{{ auditLabel(item.action) }}</strong>
+                                        <span>
+                                            {{ item.user?.full_name || "Hệ thống" }} ·
+                                            {{ formatDateTime(item.created_at) }}
+                                        </span>
+                                        <div v-if="item.details?.reason" class="system-note" style="margin-top: 4px; font-size: 13px; color: var(--admin-muted);">
+                                            <strong>Ghi chú:</strong> {{ item.details.reason }}
+                                        </div>
+                                    </template>
+                                    <template v-else-if="item.type === 'reply'">
+                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                            <span style="background: var(--admin-primary); color: white; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;">
+                                                <AppIcon name="building" size="14" />
+                                            </span>
+                                            <strong>{{ item.user?.full_name || 'Chủ sân' }}</strong>
+                                            <span style="color: var(--admin-muted)">đã phản hồi giải trình · {{ formatDateTime(item.created_at) }}</span>
+                                        </div>
+                                        <div style="margin-top: 8px; padding: 12px; background: var(--admin-surface-muted); border-radius: 6px;">
+                                            <p style="margin: 0; white-space: pre-wrap; font-size: 14px;">{{ item.content }}</p>
+                                            
+                                            <div v-if="item.evidence?.length" style="margin-top: 12px;">
+                                                <strong style="font-size: 13px; display: block; margin-bottom: 8px;">Bằng chứng đính kèm:</strong>
+                                                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                                    <a v-for="media in item.evidence" :key="media.id" href="#" @click.prevent="media.file_name?.match(/\.(jpg|jpeg|png)$/i) ? openImagePreview(media.file_path) : window.open(media.file_path, '_blank')" style="display: block; width: 60px; height: 60px; border-radius: 4px; overflow: hidden; border: 1px solid var(--admin-border);">
+                                                        <img v-if="media.file_name?.match(/\.(jpg|jpeg|png)$/i)" :src="media.file_path" :alt="media.file_name" style="width: 100%; height: 100%; object-fit: cover;" />
+                                                        <div v-else style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #f8fafc; color: #64748b;">
+                                                            <AppIcon name="fileText" size="20" />
+                                                        </div>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </article>
                             </div>
                             <p v-else class="content-box">
@@ -337,7 +360,7 @@
                     </main>
 
                     <aside class="side-panel">
-                        <h4>Xử lý và kết quả</h4>
+                        <h4>Thao tác xử lý</h4>
 
                         <p
                             v-if="isTerminalStatus(selected.status)"
@@ -349,94 +372,37 @@
                         </p>
 
                         <div
-                            class="handler-info"
-                            style="
-                                margin-bottom: 12px;
-                                font-size: 13px;
-                                color: #475569;
-                            "
-                        >
-                            <span
-                                style="
-                                    font-weight: 800;
-                                    display: block;
-                                    margin-bottom: 4px;
-                                "
-                                >Người xử lý:</span
-                            >
-                            <span
-                                style="
-                                    background: #f1f5f9;
-                                    padding: 6px 10px;
-                                    border-radius: 6px;
-                                    display: block;
-                                    font-weight: 500;
-                                "
-                            >
-                                {{
-                                    selected.assigned_to?.full_name ||
-                                    "Hệ thống tự động gán khi cập nhật"
-                                }}
-                            </span>
-                        </div>
-
-                        <div
                             v-if="!isTerminalStatus(selected.status)"
                             class="form-stack"
                         >
                             <label>
-                                Phân công người xử lý
-                                <select v-model="form.assigned_to">
-                                    <option value="">Chọn người xử lý</option>
-                                    <option
-                                        v-for="member in staff"
-                                        :key="member.id"
-                                        :value="member.id"
-                                    >
-                                        {{ member.full_name }}
-                                    </option>
-                                </select>
-                            </label>
-
-                            <button
-                                class="btn secondary"
-                                type="button"
-                                :disabled="saving || !form.assigned_to"
-                                @click="assignComplaint"
-                            >
-                                Lưu phân công
-                            </button>
-                            <label>
-                                Kết quả
-                                <select v-model="form.status">
-                                    <option value="processing">
-                                        Đang xử lý
-                                    </option>
-                                    <option value="resolved">
-                                        Đã giải quyết
-                                    </option>
-                                    <option value="rejected">Từ chối</option>
-                                    <option value="closed">
-                                        Đóng khiếu nại
-                                    </option>
-                                </select>
-                            </label>
-                            <label>
-                                Phản hồi xử lý
+                                Ghi chú xử lý
                                 <textarea
                                     v-model.trim="form.resolve_note"
-                                    rows="7"
-                                    placeholder="Nêu kết quả, căn cứ và hướng xử lý cho khách hàng"
+                                    rows="6"
+                                    placeholder="Nêu kết quả kiểm tra và căn cứ xử lý"
                                 ></textarea>
                             </label>
-                            <button
-                                class="btn primary"
-                                type="button"
-                                :disabled="saving || !form.resolve_note"
-                                @click="resolveComplaint"
-                            >
-                                Cập nhật kết quả
-                            </button>
+
+                            <div class="modal-actions">
+                                <button
+                                    class="btn secondary"
+                                    type="button"
+                                    :disabled="saving || !form.resolve_note"
+                                    @click="resolveComplaintWithStatus('rejected')"
+                                >
+                                    Từ chối
+                                </button>
+                                <button
+                                    class="btn danger"
+                                    type="button"
+                                    style="color: white; border: 0;"
+                                    :disabled="saving || !form.resolve_note"
+                                    @click="resolveComplaintWithStatus('resolved')"
+                                >
+                                    Xác nhận
+                                </button>
+                            </div>
                         </div>
                     </aside>
                 </div>
@@ -720,6 +686,41 @@
                 <span class="floating-config-text">Cấu hình tự động xử lý</span>
             </button>
         </div>
+
+        <!-- Image Preview Modal -->
+        <div
+            v-if="previewImage"
+            style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; cursor: default; overflow: hidden;"
+            @click="closeImagePreview"
+        >
+            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;" @click.self="closeImagePreview">
+                <img 
+                    :src="previewImage" 
+                    draggable="false"
+                    :style="{
+                        maxWidth: '90%', 
+                        maxHeight: '90%', 
+                        objectFit: 'contain', 
+                        transformOrigin: '0 0',
+                        cursor: zoomState.scale > 1 ? (zoomState.isDragging ? 'grabbing' : 'grab') : 'zoom-in',
+                        transform: `translate(${zoomState.x}px, ${zoomState.y}px) scale(${zoomState.scale})`,
+                        transition: zoomState.isDragging ? 'none' : 'transform 0.1s ease-out'
+                    }" 
+                    @wheel.stop="handleWheelZoom"
+                    @mousedown.stop.prevent="startPan"
+                    @mousemove.stop.prevent="doPan"
+                    @mouseup.stop.prevent="endPan"
+                    @mouseleave.stop.prevent="endPan"
+                    @click.stop="zoomState.scale === 1 ? handleWheelZoom({ clientX: $event.clientX, clientY: $event.clientY, deltaY: -1, target: $event.target, preventDefault: () => {} }) : null"
+                />
+            </div>
+            <button
+                @click="closeImagePreview"
+                style="position: absolute; top: 24px; right: 24px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer;"
+            >
+                <AppIcon name="x" size="24" />
+            </button>
+        </div>
     </section>
 </template>
 
@@ -766,6 +767,15 @@ export default {
             autoResolveConfigData: null,
             activeAutoTab: "venue",
             showScrollTop: false,
+            previewImage: null,
+            zoomState: {
+                scale: 1,
+                x: 0,
+                y: 0,
+                isDragging: false,
+                startX: 0,
+                startY: 0
+            },
         };
     },
     computed: {
@@ -824,6 +834,54 @@ export default {
             this.detailOpen = false;
             this.selected = null;
         },
+        openImagePreview(url) {
+            this.previewImage = url;
+            this.resetZoom();
+        },
+        closeImagePreview() {
+            this.previewImage = null;
+            this.resetZoom();
+        },
+        resetZoom() {
+            this.zoomState = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0 };
+        },
+        handleWheelZoom(e) {
+            e.preventDefault();
+            const zoomFactor = 0.15;
+            const direction = e.deltaY < 0 ? 1 : -1;
+            const newScale = Math.max(1, Math.min(this.zoomState.scale + direction * zoomFactor, 5));
+            
+            if (newScale === 1) {
+                this.resetZoom();
+                return;
+            }
+
+            const rect = e.target.getBoundingClientRect();
+            const cursorX = e.clientX - rect.left;
+            const cursorY = e.clientY - rect.top;
+            
+            const ratio = newScale / this.zoomState.scale;
+            const diffX = cursorX * ratio - cursorX;
+            const diffY = cursorY * ratio - cursorY;
+
+            this.zoomState.x -= diffX;
+            this.zoomState.y -= diffY;
+            this.zoomState.scale = newScale;
+        },
+        startPan(e) {
+            if (this.zoomState.scale <= 1) return;
+            this.zoomState.isDragging = true;
+            this.zoomState.startX = e.clientX - this.zoomState.x;
+            this.zoomState.startY = e.clientY - this.zoomState.y;
+        },
+        doPan(e) {
+            if (!this.zoomState.isDragging) return;
+            this.zoomState.x = e.clientX - this.zoomState.startX;
+            this.zoomState.y = e.clientY - this.zoomState.startY;
+        },
+        endPan() {
+            this.zoomState.isDragging = false;
+        },
         syncForm() {
             this.form = {
                 assigned_to: this.selected.assigned_to?.id || "",
@@ -835,12 +893,16 @@ export default {
                 resolve_note: this.selected.resolve_note || "",
             };
         },
+        async resolveComplaintWithStatus(status) {
+            this.form.status = status;
+            await this.resolveComplaint();
+        },
         async assignComplaint() {
             this.saving = true;
             try {
                 const response = await adminComplaintService.assign(
                     this.selected.id,
-                    this.form.assigned_to,
+                    null
                 );
                 this.success = response.message;
                 await this.loadComplaints();
