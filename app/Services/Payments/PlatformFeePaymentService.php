@@ -17,7 +17,7 @@ class PlatformFeePaymentService
 {
     public function createAdvancePayment(VenueCluster $cluster, int $months, string $actorId): array
     {
-        if (! in_array($months, [1, 3, 6, 9], true)) {
+        if (! in_array($months, [1, 3, 6, 9, 12], true)) {
             throw new RuntimeException('Số tháng thanh toán trước không hợp lệ.');
         }
 
@@ -73,19 +73,26 @@ class PlatformFeePaymentService
             }
 
             $periodEnd = $periodStart->copy()->addMonthsNoOverflow($months)->subDay();
-            $amountDue = round($courtCount * (float) $tier->price_per_court_month * $months, 2);
+            $baseAmount = round($courtCount * (float) $tier->price_per_court_month * $months, 2);
+            $discountPercent = $months === 12 ? (float) $tier->annual_discount_percent : 0.0;
+            $amountDue = round($baseAmount - ($baseAmount * $discountPercent / 100), 2);
 
             return VenuePlatformFeeLedger::query()->create([
                 'venue_cluster_id' => $cluster->id,
+                'creation_source' => 'owner_prepay',
                 'tier_id' => $tier->id,
+                'tier_name_snapshot' => $tier->name,
+                'tier_min_courts_snapshot' => $tier->min_courts,
+                'tier_max_courts_snapshot' => $tier->max_courts,
                 'court_count' => $courtCount,
-                'billing_cycle' => 'monthly',
+                'billing_cycle' => $months === 12 ? 'yearly' : 'monthly',
                 'period_months' => $months,
                 'period_start' => $periodStart,
                 'period_end' => $periodEnd,
                 'due_date' => today()->addDays(7),
                 'price_per_court_month' => $tier->price_per_court_month,
-                'discount_percent' => 0,
+                'discount_percent' => $discountPercent,
+                'pricing_snapshotted_at' => now(),
                 'amount_due' => $amountDue,
                 'amount_paid' => 0,
                 'payment_proof_status' => 'none',
@@ -94,6 +101,54 @@ class PlatformFeePaymentService
         });
 
         return $this->createPayment($ledger, $actorId);
+    }
+
+    public function cancelPendingLedger(VenuePlatformFeeLedger $ledger, ?string $actorId, string $actorType, string $reason): VenuePlatformFeeLedger
+    {
+        return DB::transaction(function () use ($ledger, $actorId, $actorType, $reason): VenuePlatformFeeLedger {
+            $ledger = VenuePlatformFeeLedger::query()
+                ->whereKey($ledger->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($ledger->status === 'paid' || (float) $ledger->amount_paid > 0) {
+                throw new RuntimeException('Kỳ phí đã ghi nhận thanh toán nên không được hủy.');
+            }
+
+            if ($ledger->status === 'cancelled') {
+                throw new RuntimeException('Kỳ phí đã được hủy trước đó.');
+            }
+
+            if ($actorType === 'owner' && $ledger->creation_source !== 'owner_prepay') {
+                throw new RuntimeException('Chủ sân chỉ có thể hủy yêu cầu thanh toán trước do mình tạo.');
+            }
+
+            $oldValues = $ledger->only(['status', 'payment_code', 'payment_reject_reason']);
+
+            $ledger->forceFill([
+                'status' => 'cancelled',
+                'payment_rejected_by' => $actorId,
+                'payment_rejected_at' => now(),
+                'payment_reject_reason' => $reason,
+            ])->save();
+
+            AuditLog::query()->create([
+                'actor_id' => $actorId,
+                'actor_type' => $actorType,
+                'module' => 'platform_fee',
+                'action' => 'platform_fee.ledger_cancelled',
+                'entity_type' => 'venue_platform_fee_ledgers',
+                'entity_id' => $ledger->id,
+                'old_values' => $oldValues,
+                'new_values' => $ledger->fresh()->only(['status', 'payment_code', 'payment_reject_reason']),
+                'context' => $actorType,
+                'metadata' => ['venue_cluster_id' => $ledger->venue_cluster_id],
+            ]);
+
+            $this->unlockVenueIfFeeWasOnlyLock($ledger);
+
+            return $ledger->fresh(['tier', 'systemBankAccount']);
+        });
     }
 
     public function createPayment(VenuePlatformFeeLedger $ledger, string $actorId): array
@@ -180,6 +235,16 @@ class PlatformFeePaymentService
                         ? null
                         : 'platform_fee_already_paid',
                     'message' => 'Kỳ phí đã được thanh toán.',
+                ];
+            }
+
+            if ($ledger->status === 'cancelled') {
+                $this->auditIpn($ledger, $payload, $gatewayTxnId, 'cancelled_ledger');
+
+                return [
+                    'success' => false,
+                    'error_code' => 'cancelled_ledger',
+                    'message' => $this->ipnErrorMessage('cancelled_ledger'),
                 ];
             }
 
@@ -300,6 +365,7 @@ class PlatformFeePaymentService
             'invalid_amount' => 'Số tiền chuyển khoản không khớp số phí còn phải đóng.',
             'invalid_bank_account' => 'Tài khoản nhận tiền không khớp tài khoản đã tạo QR.',
             'duplicate_gateway_txn_id' => 'Mã giao dịch SePay đã được sử dụng.',
+            'cancelled_ledger' => 'Kỳ phí đã hủy, giao dịch cần được đối soát thủ công.',
             default => 'Không thể xác nhận thanh toán phí nền tảng.',
         };
     }

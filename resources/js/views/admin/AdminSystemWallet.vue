@@ -131,10 +131,6 @@
         <section class="settings-card">
             <div>
                 <h3>Ngân sách khuyến mãi</h3>
-                <p>
-                    Ngân sách chỉ dùng để cảnh báo, không chặn khách dùng
-                    voucher hệ thống.
-                </p>
             </div>
             <form class="settings-form" @submit.prevent="saveSettings">
                 <label class="toggle-row">

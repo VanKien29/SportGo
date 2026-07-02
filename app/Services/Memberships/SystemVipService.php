@@ -23,6 +23,17 @@ class SystemVipService
         'yearly' => 12,
     ];
 
+    private const PACKAGE_DISCOUNTS = [
+        'saving' => [
+            'quarterly' => 15.0,
+            'yearly' => 25.0,
+        ],
+        'pro' => [
+            'quarterly' => 15.0,
+            'yearly' => 25.0,
+        ],
+    ];
+
     public function packagesPayload(): array
     {
         return MembershipPackage::query()
@@ -55,7 +66,27 @@ class SystemVipService
             'badge' => $this->badgePayload($package),
             'is_active' => (bool) $package->is_active,
             'sort_order' => (int) $package->sort_order,
+            'pricing_discounts' => $this->pricingDiscounts($package),
             'available_cycles' => $this->availableCycles($package),
+        ];
+    }
+
+    public function pricesFromMonthly(MembershipPackage $package, int $monthlyPrice): array
+    {
+        if ($package->type === 'free') {
+            return [
+                'monthly_price' => 0,
+                'quarterly_price' => null,
+                'yearly_price' => null,
+            ];
+        }
+
+        $discounts = $this->pricingDiscounts($package);
+
+        return [
+            'monthly_price' => $monthlyPrice,
+            'quarterly_price' => $this->discountedPeriodPrice($monthlyPrice, 3, $discounts['quarterly']),
+            'yearly_price' => $this->discountedPeriodPrice($monthlyPrice, 12, $discounts['yearly']),
         ];
     }
 
@@ -560,6 +591,21 @@ class SystemVipService
         };
 
         return $value !== null ? (float) $value : null;
+    }
+
+    private function pricingDiscounts(MembershipPackage $package): array
+    {
+        return self::PACKAGE_DISCOUNTS[$package->type] ?? [
+            'quarterly' => 0.0,
+            'yearly' => 0.0,
+        ];
+    }
+
+    private function discountedPeriodPrice(int $monthlyPrice, int $months, float $discountPercent): int
+    {
+        $price = $monthlyPrice * $months * (100 - $discountPercent) / 100;
+
+        return (int) round($price, -3);
     }
 
     private function badgePayload(MembershipPackage $package): ?array

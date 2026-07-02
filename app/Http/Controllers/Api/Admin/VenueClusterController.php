@@ -174,6 +174,17 @@ class VenueClusterController extends Controller
             ->get()
             ->map(fn ($r) => $this->unlockRequestPayload($r));
 
+        // Yêu cầu thay đổi thông tin cụm sân
+        $informationChangeRequests = \App\Models\VenueInformationChangeRequest::query()
+            ->where('venue_cluster_id', $id)
+            ->with([
+                'requestedBy:id,full_name,username',
+                'reviewedBy:id,full_name,username',
+            ])
+            ->latest()
+            ->get()
+            ->map(fn ($r) => $this->informationChangePayload($r));
+
         return response()->json([
             'data' => [
                 'cluster'                  => $this->detailPayload($cluster),
@@ -183,6 +194,7 @@ class VenueClusterController extends Controller
                 'approval_requests'        => $approvalRequests,
                 'location_change_requests' => $locationChangeRequests,
                 'unlock_requests'          => $unlockRequests,
+                'information_change_requests' => $informationChangeRequests,
             ],
         ]);
     }
@@ -753,6 +765,156 @@ class VenueClusterController extends Controller
             'reviewed_by'      => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,
             'reviewed_at'      => $r->reviewed_at,
             'created_at'       => $r->created_at,
+        ];
+    }
+
+    public function approveInformationChange(Request $request, string $clusterId, string $requestId): JsonResponse
+    {
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
+
+        $infoRequest = \App\Models\VenueInformationChangeRequest::query()
+            ->where('venue_cluster_id', $clusterId)
+            ->findOrFail($requestId);
+
+        if ($infoRequest->status !== 'pending') {
+            return response()->json(['message' => 'Yêu cầu này đã được xử lý.'], 422);
+        }
+
+        $cluster = VenueCluster::findOrFail($clusterId);
+
+        $oldValues = [
+            'name'          => $cluster->name,
+            'phone_contact' => $cluster->phone_contact,
+            'description'   => $cluster->description,
+        ];
+
+        // 1. Áp dụng thông tin mới
+        $cluster->forceFill([
+            'name'          => $infoRequest->new_name,
+            'phone_contact' => $infoRequest->new_phone_contact,
+            'description'   => $infoRequest->new_description,
+            'slug'          => \Illuminate\Support\Str::slug($infoRequest->new_name) . '-' . substr($clusterId, 0, 8),
+        ])->save();
+
+        // 2. Áp dụng hình ảnh mới nếu có
+        if (is_array($infoRequest->new_images) && count($infoRequest->new_images) > 0) {
+            // Xóa ảnh cũ
+            $oldMedia = \App\Models\Media::where('mediable_type', VenueCluster::class)
+                ->where('mediable_id', $clusterId)
+                ->get();
+            foreach ($oldMedia as $m) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($m->file_path);
+                $m->delete();
+            }
+
+            // Tạo các bản ghi media mới từ ảnh tạm
+            foreach ($infoRequest->new_images as $tempPath) {
+                $fileName = basename($tempPath);
+                $newPath = 'clusters/' . $fileName;
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($tempPath)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->move($tempPath, $newPath);
+
+                    \App\Models\Media::create([
+                        'id' => (string) \Illuminate\Support\Str::uuid(),
+                        'mediable_type' => VenueCluster::class,
+                        'mediable_id' => $clusterId,
+                        'collection' => 'gallery',
+                        'file_name' => $fileName,
+                        'file_path' => $newPath,
+                        'mime_type' => \Illuminate\Support\Facades\Storage::disk('public')->mimeType($newPath) ?: 'image/jpeg',
+                        'file_size' => \Illuminate\Support\Facades\Storage::disk('public')->size($newPath) ?: 0,
+                    ]);
+                }
+            }
+        }
+
+        $infoRequest->forceFill([
+            'status'      => 'approved',
+            'reviewed_by' => $actor->id,
+            'reviewed_at' => now(),
+            'status_reason' => null,
+        ])->save();
+
+        $this->audit(
+            $request, $actor,
+            'venue_cluster.information_changed',
+            $cluster,
+            $oldValues,
+            [
+                'name'          => $infoRequest->new_name,
+                'phone_contact' => $infoRequest->new_phone_contact,
+                'description'   => $infoRequest->new_description,
+            ]
+        );
+
+        return response()->json([
+            'message' => 'Duyệt yêu cầu thành công. Thông tin cụm sân đã được cập nhật.',
+            'request' => $this->informationChangePayload($infoRequest->fresh(['requestedBy', 'reviewedBy'])),
+        ]);
+    }
+
+    public function rejectInformationChange(Request $request, string $clusterId, string $requestId): JsonResponse
+    {
+        $data = $request->validate([
+            'status_reason' => ['required', 'string', 'max:2000'],
+        ], [
+            'status_reason.required' => 'Vui lòng nhập lý do từ chối.',
+        ]);
+
+        /** @var \App\Models\User $actor */
+        $actor = $request->user();
+
+        $infoRequest = \App\Models\VenueInformationChangeRequest::query()
+            ->where('venue_cluster_id', $clusterId)
+            ->findOrFail($requestId);
+
+        if ($infoRequest->status !== 'pending') {
+            return response()->json(['message' => 'Yêu cầu này đã được xử lý.'], 422);
+        }
+
+        $infoRequest->forceFill([
+            'status'        => 'rejected',
+            'reviewed_by'   => $actor->id,
+            'reviewed_at'   => now(),
+            'status_reason' => $data['status_reason'],
+        ])->save();
+
+        $this->audit(
+            $request, $actor,
+            'venue_cluster.information_change_rejected',
+            VenueCluster::findOrFail($clusterId),
+            [],
+            ['reason' => $data['status_reason']]
+        );
+
+        return response()->json([
+            'message' => 'Đã từ chối yêu cầu chỉnh sửa thông tin.',
+            'request' => $this->informationChangePayload($infoRequest->fresh(['requestedBy', 'reviewedBy'])),
+        ]);
+    }
+
+    private function informationChangePayload(\App\Models\VenueInformationChangeRequest $r): array
+    {
+        return [
+            'id'                => $r->id,
+            'status'            => $r->status,
+            'note'              => $r->note,
+            'status_reason'     => $r->status_reason,
+            'new_name'          => $r->new_name,
+            'new_phone_contact' => $r->new_phone_contact,
+            'new_description'   => $r->new_description,
+            'new_images'        => $r->new_images,
+            'requested_by'      => $r->requestedBy ? [
+                'id'        => $r->requestedBy->id,
+                'full_name' => $r->requestedBy->full_name,
+            ] : null,
+            'reviewed_by'       => $r->reviewedBy ? [
+                'id'        => $r->reviewedBy->id,
+                'full_name' => $r->reviewedBy->full_name,
+            ] : null,
+            'reviewed_at'       => $r->reviewed_at,
+            'created_at'        => $r->created_at,
         ];
     }
 }

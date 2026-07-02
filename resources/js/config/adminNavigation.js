@@ -32,8 +32,13 @@ export const adminNavigationSections = [
           'admin-platform-fee-ledgers',
           'admin-platform-fee-ledger-detail',
           'admin-platform-fee-policies',
-          'admin-platform-fee-settings',
         ],
+      },
+      {
+        label: 'Cài đặt nhắc phí',
+        icon: 'bell',
+        to: '/admin/settings/platform-fee',
+        activeNames: ['admin-platform-fee-settings'],
       },
       {
         label: 'Hồ sơ đối tác',
@@ -122,6 +127,12 @@ export const adminNavigationSections = [
         to: '/admin/banners',
         activeNames: ['admin-banners'],
       },
+      {
+        label: 'Cài đặt giao diện',
+        icon: 'palette',
+        to: '/admin/settings',
+        activeNames: ['admin-settings'],
+      },
     ],
   },
   {
@@ -171,7 +182,8 @@ export const adminRouteTitles = {
   'admin-platform-fee-ledgers': 'Quản lý phí duy trì hệ thống',
   'admin-platform-fee-ledger-detail': 'Chi tiết kỳ phí duy trì',
   'admin-venue-platform-fees': 'Phí duy trì cụm sân',
-  'admin-platform-fee-settings': 'Cài đặt phí duy trì',
+  'admin-platform-fee-settings': 'Cài đặt nhắc phí',
+  'admin-settings': 'Cấu hình giao diện',
 };
 
 export function findAdminNavigationSection(routeName) {
