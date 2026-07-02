@@ -16,7 +16,11 @@ class VenuePlatformFeeLedger extends Model
 
     protected $fillable = [
         'venue_cluster_id',
+        'creation_source',
         'tier_id',
+        'tier_name_snapshot',
+        'tier_min_courts_snapshot',
+        'tier_max_courts_snapshot',
         'court_count',
         'billing_cycle',
         'period_months',
@@ -25,6 +29,7 @@ class VenuePlatformFeeLedger extends Model
         'due_date',
         'price_per_court_month',
         'discount_percent',
+        'pricing_snapshotted_at',
         'amount_due',
         'amount_paid',
         'system_bank_account_id',
@@ -49,6 +54,8 @@ class VenuePlatformFeeLedger extends Model
     {
         return [
             'tier_id' => 'integer',
+            'tier_min_courts_snapshot' => 'integer',
+            'tier_max_courts_snapshot' => 'integer',
             'court_count' => 'integer',
             'period_months' => 'integer',
             'period_start' => 'date',
@@ -56,6 +63,7 @@ class VenuePlatformFeeLedger extends Model
             'due_date' => 'date',
             'price_per_court_month' => 'decimal:2',
             'discount_percent' => 'decimal:2',
+            'pricing_snapshotted_at' => 'datetime',
             'amount_due' => 'decimal:2',
             'amount_paid' => 'decimal:2',
             'gateway_response' => 'array',

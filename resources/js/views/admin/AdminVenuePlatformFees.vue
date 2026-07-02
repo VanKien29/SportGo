@@ -1,28 +1,28 @@
-<template>
+﻿<template>
   <section class="venue-fees">
-    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-venue-clusters' })">Quay lại cụm sân</button>
+    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-venue-clusters' })">Quay láº¡i cá»¥m sÃ¢n</button>
 
-    <div v-if="!venue" class="panel empty">Không tìm thấy cụm sân.</div>
+    <div v-if="!venue" class="panel empty">KhÃ´ng tÃ¬m tháº¥y cá»¥m sÃ¢n.</div>
     <template v-else>
       <div class="venue-info-bar">
         <h2>{{ venue.name }}</h2>
-        <span class="status-dot" :class="venue.status" :title="venue.status === 'locked' ? 'Đã khóa' : 'Hoạt động'" :aria-label="venue.status === 'locked' ? 'Đã khóa' : 'Hoạt động'"></span>
+        <span class="status-dot" :class="venue.status" :title="venue.status === 'locked' ? 'ÄÃ£ khÃ³a' : 'Hoáº¡t Ä‘á»™ng'" :aria-label="venue.status === 'locked' ? 'ÄÃ£ khÃ³a' : 'Hoáº¡t Ä‘á»™ng'"></span>
       </div>
 
       <div v-if="snapshotChanged" class="notice">
-        Số sân của cụm đã thay đổi. Các kỳ phí đã tạo giữ nguyên snapshot cũ. Kỳ phí tiếp theo sẽ dùng số sân mới.
+        Sá»‘ sÃ¢n cá»§a cá»¥m Ä‘Ã£ thay Ä‘á»•i. CÃ¡c ká»³ phÃ­ Ä‘Ã£ táº¡o giá»¯ nguyÃªn snapshot cÅ©. Ká»³ phÃ­ tiáº¿p theo sáº½ dÃ¹ng sá»‘ sÃ¢n má»›i.
       </div>
 
       <section class="panel">
-        <h3>Xem trước phí theo kỳ</h3>
+        <h3>Xem trÆ°á»›c phÃ­ theo ká»³</h3>
         <div class="preview-grid">
           <div v-for="month in periods" :key="month" class="preview-card">
-            <span>{{ month }} tháng</span>
+            <span>{{ month }} thÃ¡ng</span>
             <strong>{{ previewFor(month).error || money(previewFor(month).fee.amount_due) }}</strong>
             <small>{{ previewFor(month).tier?.name || '' }}</small>
             <button class="btn primary icon-text" type="button" :disabled="Boolean(previewFor(month).error)" @click="createFor(month)">
               <AppIcon name="plus" size="18" />
-              <span>Tạo kỳ phí</span>
+              <span>Táº¡o ká»³ phÃ­</span>
             </button>
           </div>
         </div>
@@ -30,30 +30,30 @@
 
       <section class="panel">
         <div class="panel-head">
-          <h3>Ledger của cụm sân</h3>
+          <h3>Ledger cá»§a cá»¥m sÃ¢n</h3>
           <div class="actions">
             <button class="btn danger icon-text" type="button" :disabled="!canLock" @click="lockVenue">
               <AppIcon name="lock" size="18" />
-              <span>Khóa cụm</span>
+              <span>KhÃ³a cá»¥m</span>
             </button>
             <button class="btn secondary icon-text" type="button" :disabled="!canUnlock" @click="unlockVenue">
               <AppIcon name="unlock" size="18" />
-              <span>Mở khóa</span>
+              <span>Má»Ÿ khÃ³a</span>
             </button>
           </div>
         </div>
-        <div v-if="ledgers.length === 0" class="empty compact">Chưa có kỳ phí. Hãy tạo kỳ phí mới.</div>
+        <div v-if="ledgers.length === 0" class="empty compact">ChÆ°a cÃ³ ká»³ phÃ­. HÃ£y táº¡o ká»³ phÃ­ má»›i.</div>
         <table v-else>
           <thead>
             <tr>
-              <th>Mã</th>
-              <th>Kỳ</th>
-              <th>Số sân snapshot</th>
-              <th>Bậc phí</th>
-              <th>Hạn thanh toán</th>
-              <th>Còn thiếu</th>
-              <th>Trạng thái</th>
-              <th>Email gần nhất</th>
+              <th>MÃ£</th>
+              <th>Ká»³</th>
+              <th>Sá»‘ sÃ¢n snapshot</th>
+              <th>Báº­c phÃ­</th>
+              <th>Háº¡n thanh toÃ¡n</th>
+              <th>CÃ²n thiáº¿u</th>
+              <th>Tráº¡ng thÃ¡i</th>
+              <th>Email gáº§n nháº¥t</th>
             </tr>
           </thead>
           <tbody>
@@ -144,7 +144,7 @@ export default {
     previewFor(month) {
       return this.previews[month] || {
         isValid: false,
-        error: 'Đang tải...',
+        error: 'Äang táº£i...',
         fee: { amount_due: 0 },
       };
     },
@@ -155,7 +155,7 @@ export default {
           period_months: month,
           period_start: new Date().toISOString().slice(0, 10),
         });
-        this.showMessage('Đã tạo kỳ phí mới.');
+        this.showMessage('ÄÃ£ táº¡o ká»³ phÃ­ má»›i.');
         await this.loadData();
       } catch (error) {
         this.showMessage(error.message, 'error');
@@ -163,14 +163,13 @@ export default {
     },
     async lockVenue() {
       const ledger = this.ledgers.find((item) => item.status === 'overdue');
-      const reason = prompt('Nhập lý do khóa:', 'Quá hạn phí duy trì hệ thống');
-      if (!ledger || !reason) return;
+      const reason = 'Quá hạn phí duy trì hệ thống';
+      if (!ledger) return;
       await this.run(() => lockVenueForOverdueLedger(ledger.id, reason), 'Đã khóa cụm sân.');
-    },
-    async unlockVenue() {
+    },    async unlockVenue() {
       const ledger = this.ledgers.find((item) => item.status === 'paid');
       if (!ledger) return;
-      await this.run(() => unlockVenueAfterPayment(ledger.id), 'Đã mở khóa cụm sân.');
+      await this.run(() => unlockVenueAfterPayment(ledger.id), 'ÄÃ£ má»Ÿ khÃ³a cá»¥m sÃ¢n.');
     },
     async run(action, message) {
       try {
@@ -183,20 +182,20 @@ export default {
     },
     latestEmail(ledger) {
       const log = ledger.email_logs?.[0];
-      return log ? `${this.reminderLabel(log.type)} - ${this.emailStatusLabel(log.status)}` : 'Chưa gửi';
+      return log ? `${this.reminderLabel(log.type)} - ${this.emailStatusLabel(log.status)}` : 'ChÆ°a gá»­i';
     },
     statusLabel(status) {
-      return { pending: 'Chờ thanh toán', paid: 'Đã thanh toán', overdue: 'Quá hạn', cancelled: 'Đã hủy', active: 'Hoạt động', locked: 'Đã khóa' }[status] || status;
+      return { pending: 'Chá» thanh toÃ¡n', paid: 'ÄÃ£ thanh toÃ¡n', overdue: 'QuÃ¡ háº¡n', cancelled: 'ÄÃ£ há»§y', active: 'Hoáº¡t Ä‘á»™ng', locked: 'ÄÃ£ khÃ³a' }[status] || status;
     },
     reminderLabel(type) {
       return {
-        due_soon_7_days: 'Nhắc trước hạn 7 ngày',
-        due_today: 'Nhắc đúng hạn',
-        overdue_3_days: 'Cảnh báo quá hạn 3 ngày',
+        due_soon_7_days: 'Nháº¯c trÆ°á»›c háº¡n 7 ngÃ y',
+        due_today: 'Nháº¯c Ä‘Ãºng háº¡n',
+        overdue_3_days: 'Cáº£nh bÃ¡o quÃ¡ háº¡n 3 ngÃ y',
       }[type] || type;
     },
     emailStatusLabel(status) {
-      return { sent: 'đã gửi', failed: 'lỗi', queued: 'đang chờ' }[status] || status;
+      return { sent: 'Ä‘Ã£ gá»­i', failed: 'lá»—i', queued: 'Ä‘ang chá»' }[status] || status;
     },
     money(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);

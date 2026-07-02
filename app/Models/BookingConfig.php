@@ -31,6 +31,7 @@ class BookingConfig extends Model
         'allow_no_prepay',
         'auto_approve_full_payment',
         'deposit_percent',
+        'reset_membership_progress_on_upgrade',
         'cancel_before_hours',
         'refund_percent',
     ];
@@ -50,6 +51,7 @@ class BookingConfig extends Model
             'allow_no_prepay' => 'boolean',
             'auto_approve_full_payment' => 'boolean',
             'deposit_percent' => 'decimal:2',
+            'reset_membership_progress_on_upgrade' => 'boolean',
             'cancel_before_hours' => 'integer',
             'refund_percent' => 'integer',
         ];

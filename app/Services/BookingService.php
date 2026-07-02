@@ -681,9 +681,16 @@ class BookingService
 
     public function syncMembershipForCompletedBooking(Booking $booking): void
     {
+        $fresh = $this->syncVenueMembershipForSuccessfulBooking($booking);
+        $this->systemVip->creditCashbackForCompletedBooking($fresh);
+    }
+
+    public function syncVenueMembershipForSuccessfulBooking(Booking $booking): Booking
+    {
         $fresh = $booking->fresh();
         $this->venueMemberships->syncBooking($fresh);
-        $this->systemVip->creditCashbackForCompletedBooking($fresh);
+
+        return $fresh;
     }
 
     public function collectRecurringGroupPayment(string $groupCode, User $actor, string $method, ?float $amount = null): array
@@ -1641,7 +1648,7 @@ class BookingService
         $inScope = $scopes->contains(function (object $scope) use ($venueClusterId, $courtTypeId, $bookingType, $userTierKey, $usageUserId): bool {
             return match ($scope->scope_type) {
                 'venue_cluster' => (string) $scope->scope_id === (string) $venueClusterId,
-                'court_type' => (string) $scope->scope_id === (string) $courtTypeId,
+                'court_type' => $this->courtTypeScopeMatches($scope->scope_id, $courtTypeId),
                 'booking_type' => (string) $scope->scope_id === (string) $bookingType,
                 'membership_tier' => (string) $scope->scope_id === (string) $userTierKey,
                 'vip_package' => $this->systemVip->userHasVipPackage($usageUserId, (string) $scope->scope_id),
@@ -1650,6 +1657,37 @@ class BookingService
         });
 
         return $inScope ? null : 'Voucher không áp dụng cho sân, loại sân hoặc hình thức đặt này.';
+    }
+
+    private function courtTypeScopeMatches(mixed $scopeId, string $courtTypeId): bool
+    {
+        if ($scopeId === null || $scopeId === '') {
+            return false;
+        }
+
+        return in_array((string) $scopeId, $this->courtTypeScopeIdsForBooking($courtTypeId), true);
+    }
+
+    private function courtTypeScopeIdsForBooking(string $courtTypeId): array
+    {
+        $ids = [];
+        $currentId = $courtTypeId;
+
+        for ($depth = 0; $depth < 8 && $currentId; $depth++) {
+            $ids[] = (string) $currentId;
+
+            $parentId = DB::table('court_types')
+                ->where('id', $currentId)
+                ->value('parent_id');
+
+            if (! $parentId) {
+                break;
+            }
+
+            $currentId = (string) $parentId;
+        }
+
+        return array_values(array_unique($ids));
     }
 
     private function voucherDiscountAmount(object $voucher, float $amount): float

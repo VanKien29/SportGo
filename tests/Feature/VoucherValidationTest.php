@@ -65,6 +65,33 @@ class VoucherValidationTest extends TestCase
             ->assertJsonValidationErrors(['discount_value']);
     }
 
+    public function test_admin_voucher_required_code_message_is_in_vietnamese(): void
+    {
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/admin/vouchers', [
+                ...$this->adminVoucherPayload(),
+                'code' => '',
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonPath('errors.code.0', 'Vui lòng nhập mã voucher.');
+    }
+
+    public function test_admin_rejects_invalid_voucher_code_and_date_range(): void
+    {
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/admin/vouchers', [
+                ...$this->adminVoucherPayload(),
+                'code' => 'VIP CÓ DẤU',
+                'valid_from' => now()->addDays(2)->format('Y-m-d H:i:s'),
+                'valid_to' => now()->addDay()->format('Y-m-d H:i:s'),
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonPath('errors.code.0', 'Mã voucher chỉ gồm chữ không dấu, số, dấu gạch ngang hoặc gạch dưới.')
+            ->assertJsonPath('errors.valid_to.0', 'Thời gian kết thúc phải sau thời gian bắt đầu.');
+    }
+
     public function test_admin_rejects_percent_voucher_over_one_hundred(): void
     {
         $response = $this->actingAs($this->admin, 'sanctum')

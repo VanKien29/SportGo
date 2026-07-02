@@ -199,9 +199,17 @@ class VoucherController extends Controller
 
     private function voucherData(Request $request, ?string $ignoreId = null): array
     {
+        $request->merge([
+            'code' => Str::upper(trim((string) $request->input('code', ''))),
+            'name' => trim((string) $request->input('name', '')),
+            'description' => $request->filled('description')
+                ? trim((string) $request->input('description'))
+                : null,
+        ]);
+
         $data = $request->validate([
-            'code' => ['required', 'string', 'max:50', Rule::unique('vouchers', 'code')->ignore($ignoreId)],
-            'name' => ['required', 'string', 'max:255'],
+            'code' => ['bail', 'required', 'string', 'min:3', 'max:50', 'regex:/^[A-Z0-9_-]+$/', Rule::unique('vouchers', 'code')->ignore($ignoreId)],
+            'name' => ['bail', 'required', 'string', 'min:3', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'discount_type' => ['required', Rule::in(['percent', 'fixed'])],
             'discount_value' => ['required', 'numeric', 'min:0.01', 'max:9999999999.99'],
@@ -209,12 +217,55 @@ class VoucherController extends Controller
             'min_order_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
             'total_quantity' => ['nullable', 'integer', 'min:1'],
             'per_user_limit' => ['nullable', 'integer', 'min:-1'],
-            'valid_from' => ['required', 'date'],
-            'valid_to' => ['required', 'date', 'after:valid_from'],
+            'valid_from' => ['bail', 'required', 'date'],
+            'valid_to' => ['bail', 'required', 'date', 'after:valid_from'],
             'status' => ['required', Rule::in(['draft', 'active', 'inactive', 'expired'])],
-            'scopes' => ['array'],
+            'scopes' => ['required', 'array', 'min:1'],
             'scopes.*.scope_type' => ['required_with:scopes', Rule::in(['all', 'venue_cluster', 'court_type', 'booking_type', 'membership_tier', 'vip_package'])],
             'scopes.*.scope_id' => ['nullable', 'string', 'max:100'],
+        ], [
+            'code.required' => 'Vui lòng nhập mã voucher.',
+            'code.string' => 'Mã voucher phải là chuỗi ký tự.',
+            'code.min' => 'Mã voucher phải có ít nhất 3 ký tự.',
+            'code.max' => 'Mã voucher không được vượt quá 50 ký tự.',
+            'code.regex' => 'Mã voucher chỉ gồm chữ không dấu, số, dấu gạch ngang hoặc gạch dưới.',
+            'code.unique' => 'Mã voucher này đã tồn tại.',
+            'name.required' => 'Vui lòng nhập tên voucher.',
+            'name.string' => 'Tên voucher phải là chuỗi ký tự.',
+            'name.min' => 'Tên voucher phải có ít nhất 3 ký tự.',
+            'name.max' => 'Tên voucher không được vượt quá 255 ký tự.',
+            'description.max' => 'Mô tả không được vượt quá 2.000 ký tự.',
+            'description.string' => 'Mô tả phải là chuỗi ký tự.',
+            'discount_type.required' => 'Vui lòng chọn loại giảm giá.',
+            'discount_type.in' => 'Loại giảm giá không hợp lệ.',
+            'discount_value.required' => 'Vui lòng nhập giá trị giảm.',
+            'discount_value.numeric' => 'Giá trị giảm phải là số.',
+            'discount_value.min' => 'Giá trị giảm phải lớn hơn 0.',
+            'discount_value.max' => 'Giá trị giảm vượt quá giới hạn cho phép.',
+            'max_discount_amount.numeric' => 'Trần giảm phải là số tiền hợp lệ.',
+            'max_discount_amount.min' => 'Trần giảm không được là số âm.',
+            'max_discount_amount.max' => 'Trần giảm vượt quá giới hạn cho phép.',
+            'min_order_amount.numeric' => 'Đơn tối thiểu phải là số tiền hợp lệ.',
+            'min_order_amount.min' => 'Đơn tối thiểu không được là số âm.',
+            'min_order_amount.max' => 'Đơn tối thiểu vượt quá giới hạn cho phép.',
+            'total_quantity.integer' => 'Tổng số lượng voucher phải là số nguyên.',
+            'total_quantity.min' => 'Tổng số lượng voucher phải từ 1 trở lên.',
+            'per_user_limit.integer' => 'Giới hạn mỗi khách phải là số nguyên.',
+            'per_user_limit.min' => 'Giới hạn mỗi khách phải là -1 hoặc từ 1 trở lên.',
+            'valid_from.required' => 'Vui lòng chọn thời gian bắt đầu.',
+            'valid_from.date' => 'Thời gian bắt đầu không hợp lệ.',
+            'valid_to.required' => 'Vui lòng chọn thời gian kết thúc.',
+            'valid_to.date' => 'Thời gian kết thúc không hợp lệ.',
+            'valid_to.after' => 'Thời gian kết thúc phải sau thời gian bắt đầu.',
+            'status.required' => 'Vui lòng chọn trạng thái voucher.',
+            'status.in' => 'Trạng thái voucher không hợp lệ.',
+            'scopes.required' => 'Vui lòng chọn phạm vi áp dụng.',
+            'scopes.array' => 'Phạm vi áp dụng không hợp lệ.',
+            'scopes.min' => 'Vui lòng chọn ít nhất một phạm vi áp dụng.',
+            'scopes.*.scope_type.required_with' => 'Vui lòng chọn loại phạm vi áp dụng.',
+            'scopes.*.scope_type.in' => 'Loại phạm vi áp dụng không hợp lệ.',
+            'scopes.*.scope_id.string' => 'Mã phạm vi áp dụng không hợp lệ.',
+            'scopes.*.scope_id.max' => 'Mã phạm vi áp dụng không được vượt quá 100 ký tự.',
         ]);
 
         if ($data['discount_type'] === 'percent' && (float) $data['discount_value'] > 100) {
@@ -251,7 +302,7 @@ class VoucherController extends Controller
         if ($data['discount_type'] === 'percent') {
             if ($discountValue <= 0 || $discountValue > 100) {
                 throw ValidationException::withMessages([
-                    'discount_value' => 'Voucher phan tram phai nam trong khoang tren 0 den 100.',
+                    'discount_value' => 'Phần trăm giảm phải lớn hơn 0 và không vượt quá 100%.',
                 ]);
             }
 
@@ -259,13 +310,13 @@ class VoucherController extends Controller
             $data['max_discount_amount'] = $this->normalizeNullableMoneyValue(
                 $data['max_discount_amount'] ?? null,
                 'max_discount_amount',
-                'Muc giam toi da'
+                'Mức giảm tối đa'
             );
         } else {
             $data['discount_value'] = $this->normalizeRequiredMoneyValue(
                 $discountValue,
                 'discount_value',
-                'So tien giam'
+                'Số tiền giảm'
             );
             $data['max_discount_amount'] = null;
         }
@@ -273,7 +324,7 @@ class VoucherController extends Controller
         $data['min_order_amount'] = $this->normalizeRequiredMoneyValue(
             $data['min_order_amount'] ?? 0,
             'min_order_amount',
-            'Don toi thieu'
+            'Đơn tối thiểu'
         );
 
         return $data;
@@ -285,7 +336,7 @@ class VoucherController extends Controller
 
         if (abs($value - $rounded) > 0.00001) {
             throw ValidationException::withMessages([
-                'discount_value' => 'Phan tram giam chi duoc toi da 2 chu so thap phan.',
+                'discount_value' => 'Phần trăm giảm chỉ được có tối đa 2 chữ số thập phân.',
             ]);
         }
 
@@ -298,7 +349,7 @@ class VoucherController extends Controller
 
         if ($amount < 0 || abs($amount - round($amount)) > 0.00001) {
             throw ValidationException::withMessages([
-                $field => "{$label} phai la so tien VND nguyen, khong nhap phan thap phan.",
+                $field => "{$label} phải là số tiền VND nguyên, không nhập phần thập phân.",
             ]);
         }
 
@@ -338,7 +389,7 @@ class VoucherController extends Controller
 
             if ($scopeType === 'vip_package' && ! in_array($scopeId, ['saving', 'pro'], true)) {
                 throw ValidationException::withMessages([
-                    'scopes' => 'Goi VIP cua voucher khong hop le.',
+                    'scopes' => 'Gói VIP của voucher không hợp lệ.',
                 ]);
             }
 

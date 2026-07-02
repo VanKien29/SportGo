@@ -25,9 +25,7 @@ class MembershipPackageController extends Controller
         $package = MembershipPackage::query()->findOrFail($id);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'monthly_price' => ['nullable', 'numeric', 'min:0'],
-            'quarterly_price' => ['nullable', 'numeric', 'min:0'],
-            'yearly_price' => ['nullable', 'numeric', 'min:0'],
+            'monthly_price' => [Rule::requiredIf($package->type !== 'free'), 'nullable', 'integer', 'min:1000'],
             'voucher_count_per_month' => ['required', 'integer', 'min:0', 'max:50'],
             'voucher_discount_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'voucher_min_order_amount' => ['required', 'numeric', 'min:0'],
@@ -41,9 +39,10 @@ class MembershipPackageController extends Controller
         ]);
 
         if ($package->type === 'free') {
-            $data['monthly_price'] = 0;
-            $data['quarterly_price'] = null;
-            $data['yearly_price'] = null;
+            $data = [
+                ...$data,
+                ...$this->vip->pricesFromMonthly($package, 0),
+            ];
             $data['voucher_count_per_month'] = 0;
             $data['voucher_discount_percent'] = 0;
             $data['voucher_min_order_amount'] = 0;
@@ -51,6 +50,11 @@ class MembershipPackageController extends Controller
             $data['cashback_percent'] = 0;
             $data['priority_complaint'] = false;
             $data['badge_name'] = null;
+        } else {
+            $data = [
+                ...$data,
+                ...$this->vip->pricesFromMonthly($package, (int) $data['monthly_price']),
+            ];
         }
 
         $package->update($data);
