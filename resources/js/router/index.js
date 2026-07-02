@@ -60,6 +60,18 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: "/news",
+        name: "ClientNewsList",
+        component: () => import("@/views/clients/news/NewsList.vue"),
+        meta: { requiresAuth: false, title: "Tin tức" },
+    },
+    {
+        path: "/news/:slug",
+        name: "ClientNewsDetail",
+        component: () => import("@/views/clients/news/NewsDetail.vue"),
+        meta: { requiresAuth: false, title: "Chi tiết tin tức" },
+    },
+    {
         path: "/chat",
         name: "chat",
         component: () => import("../views/Chat.vue"),
@@ -183,6 +195,11 @@ const routes = [
                 path: "moderation",
                 name: "admin-moderation",
                 component: () => import("../views/admin/AdminModeration.vue"),
+            },
+            {
+                path: "system-posts",
+                name: "admin-system-posts",
+                component: () => import("../views/admin/AdminSystemPosts.vue"),
             },
             { path: "policies", name: "admin-policies", component: AdminPolicies },
             {

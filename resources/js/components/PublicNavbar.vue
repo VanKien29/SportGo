@@ -1,5 +1,5 @@
 <template>
-  <nav :class="['navbar', isDark ? 'navbar-dark' : 'navbar-light']">
+  <nav :class="['navbar', appliedTheme === 'dark' ? 'navbar-dark' : 'navbar-light']">
     <div class="navbar-inner">
       <!-- Brand + Nav links -->
       <div class="navbar-left">
@@ -8,6 +8,7 @@
         </router-link>
         <div class="nav-links">
           <router-link to="/" class="nav-link" exact-active-class="active-link">Trang chủ</router-link>
+          <router-link to="/news" class="nav-link" active-class="active-link">Tin tức</router-link>
           <router-link to="/booking" class="nav-link" active-class="active-link" v-if="user && user.role === 'user'">Lịch & Đặt sân</router-link>
         </div>
       </div>
@@ -133,7 +134,7 @@ import { getAuth, logout } from '../stores/auth.js';
 export default {
   name: 'PublicNavbar',
   props: {
-    theme: { type: String, default: 'light' },
+    theme: { type: String, default: 'auto' },
   },
   data() {
     return {
@@ -149,6 +150,11 @@ export default {
     this.applyTheme();
   },
   computed: {
+    appliedTheme() {
+      if (this.theme === 'dark') return 'dark';
+      if (this.theme === 'light') return 'light';
+      return this.isDark ? 'dark' : 'light';
+    },
     userInitial() {
       return this.user?.fullName?.charAt(0)?.toUpperCase() || '?';
     },
@@ -410,15 +416,15 @@ export default {
 /* Dark Theme Support (strictly black & white/gray) */
 .navbar.navbar-dark {
   background: rgba(9, 9, 11, 0.8) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 .navbar.navbar-dark .brand-text {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 .navbar.navbar-dark .brand-accent {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 .navbar.navbar-dark .brand-icon svg circle,
 .navbar.navbar-dark .brand-icon svg path,
@@ -426,60 +432,60 @@ export default {
   stroke: #ffffff !important;
 }
 .navbar.navbar-dark .nav-link {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.6) !important;
 }
 .navbar.navbar-dark .nav-link:hover,
 .navbar.navbar-dark .active-link {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 .navbar.navbar-dark .login-btn {
-  background: #ffffff;
-  color: #09090b;
+  background: #ffffff !important;
+  color: #09090b !important;
 }
 .navbar.navbar-dark .login-btn:hover {
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15) !important;
 }
 .navbar.navbar-dark .user-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 .navbar.navbar-dark .dropdown {
-  background: #09090b;
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 16px -6px rgba(0, 0, 0, 0.3);
+  background: #09090b !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 16px -6px rgba(0, 0, 0, 0.3) !important;
 }
 .navbar.navbar-dark .dd-name {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 .navbar.navbar-dark .dd-role {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.5) !important;
 }
 .navbar.navbar-dark .dd-divider {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 .navbar.navbar-dark .dd-item {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.8) !important;
 }
 .navbar.navbar-dark .dd-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
 }
 .navbar.navbar-dark .dd-manage {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 .navbar.navbar-dark .dd-manage:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
 }
 .navbar.navbar-dark .dd-logout {
-  color: #fca5a5;
+  color: #fca5a5 !important;
 }
 .navbar.navbar-dark .dd-logout:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #ef4444 !important;
 }
 
 /* Theme Toggle Button */

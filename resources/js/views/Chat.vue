@@ -4,7 +4,7 @@
     :data-admin-chat="isAdmin ? '' : undefined"
   >
     <!-- Navbar -->
-    <PublicNavbar v-if="!isAdmin" theme="dark" />
+    <PublicNavbar v-if="!isAdmin" />
 
     <!-- Chat Workspace -->
     <div 

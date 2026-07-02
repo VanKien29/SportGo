@@ -1,6 +1,6 @@
 <template>
   <div class="venue-list-page">
-    <PublicNavbar theme="dark" />
+    <PublicNavbar />
 
     <!-- Search & Filter Bar -->
     <div class="search-bar-wrapper">

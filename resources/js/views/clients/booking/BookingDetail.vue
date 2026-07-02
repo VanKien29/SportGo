@@ -1,6 +1,6 @@
 <template>
     <div class="detail-container">
-        <PublicNavbar theme="dark" />
+        <PublicNavbar />
 
         <main class="detail-main" v-if="!loading">
             <div class="detail-content" v-if="booking">

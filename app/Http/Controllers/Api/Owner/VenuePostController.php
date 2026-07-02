@@ -120,7 +120,7 @@ class VenuePostController extends Controller
             $file = $request->file('image');
             
             // Convert to webp
-            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+            $manager = \Intervention\Image\ImageManager::usingDriver(new \Intervention\Image\Drivers\Gd\Driver());
             $image = $manager->decodePath($file->getPathname());
             
             $filename = uniqid('editor_', true) . '.webp';
@@ -130,7 +130,7 @@ class VenuePostController extends Controller
                 \Illuminate\Support\Facades\Storage::disk('public')->makeDirectory('editor');
             }
             
-            $image->save(storage_path('app/public/' . $path), quality: 80);
+            $image->save(storage_path('app/public/' . $path), 80);
             
             return response()->json([
                 'url' => asset('storage/' . $path)

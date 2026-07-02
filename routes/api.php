@@ -42,6 +42,7 @@ use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
 use App\Http\Controllers\Api\Admin\VenuePostController as AdminVenuePostController;
+use App\Http\Controllers\Api\Admin\SystemPostController as AdminSystemPostController;
 use App\Http\Controllers\Api\Owner\VenuePostController as OwnerVenuePostController;
 use App\Http\Controllers\Api\Player\VenuePostController as PlayerVenuePostController;
 use Illuminate\Support\Facades\Route;
@@ -273,6 +274,10 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::delete('/venue-posts/{id}', [AdminVenuePostController::class, 'destroy']);
         Route::post('/venue-posts/{id}/restore', [AdminVenuePostController::class, 'restore']);
 
+        // Admin System Posts
+        Route::post('/system-posts/upload-editor-image', [AdminSystemPostController::class, 'uploadEditorImage']);
+        Route::apiResource('system-posts', AdminSystemPostController::class);
+
         // User Lock Management
         Route::post('/user-lock-policy', [\App\Http\Controllers\Api\Admin\UserController::class, 'saveAutoLockConfig']);
         Route::post('/users/{user}/lock', [\App\Http\Controllers\Api\Admin\UserLockController::class, 'lock']);
@@ -487,5 +492,9 @@ Route::middleware('auth:sanctum')
 // Public Player Venue Posts
 Route::get('/venue-posts', [PlayerVenuePostController::class, 'index']);
 Route::get('/venue-posts/{slug}', [PlayerVenuePostController::class, 'show']);
+
+// Public System News
+Route::get('/system-news', [\App\Http\Controllers\Api\Public\SystemPostController::class, 'index']);
+Route::get('/system-news/{slug}', [\App\Http\Controllers\Api\Public\SystemPostController::class, 'show']);
 
 Route::post('/sepay/ipn', [SepayPaymentController::class, 'ipn']);
