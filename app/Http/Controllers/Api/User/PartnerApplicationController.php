@@ -660,15 +660,15 @@ class PartnerApplicationController extends Controller
         if ($includeFiles) {
             $rules += [
                 'identity_documents' => ['required', 'array', 'min:1', 'max:5'],
-                'identity_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'identity_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'business_license_documents' => ['required', 'array', 'min:1', 'max:5'],
-                'business_license_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'business_license_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'facility_images' => ['required', 'array', 'min:1', 'max:12'],
-                'facility_images.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'facility_images.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'bank_documents' => ['required', 'array', 'min:1', 'max:5'],
-                'bank_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'bank_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'lease_documents' => ['required', 'array', 'min:1', 'max:5'],
-                'lease_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'lease_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'additional_documents' => ['nullable', 'array', 'max:10'],
                 'additional_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
             ];
@@ -676,15 +676,15 @@ class PartnerApplicationController extends Controller
             $rules['attachments_summary'] = ['nullable', 'string', 'max:1000'];
             $rules += [
                 'identity_documents' => ['nullable', 'array', 'max:5'],
-                'identity_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'identity_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'business_license_documents' => ['nullable', 'array', 'max:5'],
-                'business_license_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'business_license_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'facility_images' => ['nullable', 'array', 'max:12'],
-                'facility_images.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'facility_images.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'bank_documents' => ['nullable', 'array', 'max:5'],
-                'bank_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'bank_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'lease_documents' => ['nullable', 'array', 'max:5'],
-                'lease_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'lease_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'additional_documents' => ['nullable', 'array', 'max:10'],
                 'additional_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
             ];
