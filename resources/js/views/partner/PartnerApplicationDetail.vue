@@ -298,8 +298,8 @@ async function loadApplication() {
   error.value = '';
 
   try {
-    const response = await api('/api/user/partner-application');
-    application.value = (response.data?.history || []).find((item) => String(item.id) === String(route.params.id)) || null;
+    const response = await api(`/api/user/partner-application/${route.params.id}`);
+    application.value = response.data || null;
     if (!application.value) error.value = 'Không tìm thấy hồ sơ.';
   } catch (err) {
     error.value = err.message || 'Không tải được hồ sơ.';

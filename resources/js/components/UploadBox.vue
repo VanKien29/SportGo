@@ -5,7 +5,9 @@
         <p class="upload-box__label">
           {{ title }}<span v-if="required">*</span>
         </p>
-        <p class="upload-box__hint">JPG, PNG, WEBP, PDF, DOC hoặc DOCX. Tài liệu đã nộp vẫn được giữ; chỉ chọn file mới khi cần bổ sung.</p>
+        <p class="upload-box__hint">
+          JPG, PNG, WEBP, PDF, DOC hoặc DOCX. File cũ chỉ để đối chiếu; chọn file mới để thay thế/bổ sung.
+        </p>
       </div>
 
       <button type="button" class="upload-box__button" @click="openPicker">
@@ -31,12 +33,17 @@
     <p v-if="error" class="upload-box__error">{{ error }}</p>
 
     <div v-if="existingFiles.length" class="upload-box__saved">
-      <p>Đã lưu trong hồ sơ</p>
+      <p>File đã nộp trước</p>
       <ul>
-        <li v-for="file in existingFiles" :key="file.id || file.file_name || file.title">
+        <li
+          v-for="file in existingFiles"
+          :key="file.id || file.file_name || file.title"
+          :class="{ 'upload-box__saved-old': file.status === 'rejected' }"
+        >
           <span>{{ file.file_name || file.title || 'Tài liệu đã lưu' }}</span>
           <div>
             <small v-if="savedFileSize(file)">{{ savedFileSize(file) }}</small>
+            <small v-if="file.status === 'rejected'">{{ file.reject_reason || 'Bản cũ đã được thay thế' }}</small>
             <a v-if="file.download_url" :href="file.download_url" target="_blank" rel="noopener">Xem/tải</a>
           </div>
         </li>
@@ -209,6 +216,14 @@ const savedFileSize = (file) => {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.upload-box__saved-old {
+  color: #92400e;
+}
+
+.upload-box__saved-old span {
+  text-decoration: line-through;
 }
 
 .upload-box__saved span,

@@ -558,6 +558,7 @@ const mapInstance = ref(null);
 const mapMarker = ref(null);
 const mapReverseBusy = ref(false);
 const editingApplicationId = ref('');
+const editingApplicationStatus = ref('');
 const existingDocumentTypes = ref(new Set());
 
 // ─── Static options ───────────────────────────────────────────────────────────
@@ -671,6 +672,7 @@ async function loadAmenities() { const r = await api('/api/amenities?active_only
 // ─── Form lifecycle ───────────────────────────────────────────────────────────
 function startNewApplication() {
   editingApplicationId.value = '';
+  editingApplicationStatus.value = '';
   existingDocumentTypes.value = new Set();
   resetForm(defaultForm(user));
   formOpen.value = true;
@@ -717,6 +719,7 @@ function clearDraft() {
   localStorage.removeItem(DRAFT_KEY);
   draft.value = null;
   editingApplicationId.value = '';
+  editingApplicationStatus.value = '';
   existingDocumentTypes.value = new Set();
 }
 
@@ -756,7 +759,9 @@ async function editApplication(application) {
 async function duplicateApplication(application) {
   if (!application) return;
   editingApplicationId.value = '';
+  editingApplicationStatus.value = '';
   loadApplicationIntoForm(application);
+  editingApplicationStatus.value = '';
   existingDocumentTypes.value = new Set();
   Object.assign(existingDocuments, blankExistingDocuments());
   uploadResetKey.value += 1;
@@ -769,7 +774,9 @@ async function duplicateApplication(application) {
 
 function loadApplicationIntoForm(application) {
   const savedDocuments = application.documents || application.uploaded_documents || [];
-  existingDocumentTypes.value = new Set(savedDocuments.map((doc) => doc.document_type));
+  const activeSavedDocuments = savedDocuments.filter((doc) => doc.status !== 'rejected');
+  editingApplicationStatus.value = application.status || '';
+  existingDocumentTypes.value = new Set(activeSavedDocuments.map((doc) => doc.document_type));
   resetForm({
     ...defaultForm(user),
     applicant_full_name: application.applicant_full_name || '',
@@ -1111,6 +1118,10 @@ function removeCourt(index) { if (form.courts.length <= 1) return; form.courts.s
 function setFiles(group, event) { files[group] = Array.from(event.target.files || []); }
 function removeFile(group, index) { files[group].splice(index, 1); }
 function hasDocumentForGroup(group) {
+  if (editingApplicationStatus.value === 'need_supplement' && group !== 'additional') {
+    return files[group]?.length > 0;
+  }
+
   return files[group]?.length > 0 || existingDocumentTypes.value.has(group);
 }
 
@@ -1182,7 +1193,7 @@ function validateForm() {
 
 async function focusFirstError() {
   await nextTick();
-  const first = document.querySelector('.border-red-400, .border-red-300, .has-error');
+  const first = document.querySelector('.border-red-400, .border-red-300, .has-error, .upload-box--error, .form-error');
   if (first && typeof first.focus === 'function') first.focus({ preventScroll: false });
   first?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
 }
@@ -1198,6 +1209,11 @@ function clearErrors() { Object.keys(fieldErrors).forEach((k) => delete fieldErr
 
 async function navigateToApplicationRoute(target) {
   const href = router.resolve(target).href;
+  if (target?.name && target.name !== 'partner-application') {
+    window.location.assign(href);
+    return;
+  }
+
   try {
     formOpen.value = false;
     await router.push(target);
@@ -1250,7 +1266,10 @@ async function submit() {
   } catch (e) {
     clearErrors();
     const errors = e.data?.errors || {};
-    Object.entries(errors).forEach(([f, m]) => { fieldErrors[f] = Array.isArray(m) ? m[0] : m; });
+    Object.entries(errors).forEach(([f, m]) => {
+      const key = f.replace(/\.\d+$/, '');
+      fieldErrors[key] = Array.isArray(m) ? m[0] : m;
+    });
     if (Object.keys(errors).length) {
       await focusFirstError();
     } else {
@@ -1262,7 +1281,13 @@ async function submit() {
 
 // ─── Application actions ──────────────────────────────────────────────────────
 async function cancelApplication(application) {
-  if (!window.confirm(`Hủy hồ sơ đăng ký cho ${application.venue_name}?`)) return;
+  const ok = window.confirm([
+    `Hủy hồ sơ đăng ký cho ${application.venue_name}?`,
+    '',
+    'Sau khi hủy, hồ sơ sẽ ngừng xử lý và không được cấp quyền chủ sân từ hồ sơ này.',
+    'Các file đã nộp vẫn được lưu trong lịch sử để tra cứu khi cần.',
+  ].join('\n'));
+  if (!ok) return;
   try {
     await api(`/api/user/partner-application/${application.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Người dùng hủy hồ sơ từ trang đăng ký đối tác.' }) });
     alert('Đã hủy hồ sơ thành công.');

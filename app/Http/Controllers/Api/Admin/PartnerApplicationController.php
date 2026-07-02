@@ -12,6 +12,7 @@ use App\Models\PartnerTerminationRequest;
 use App\Services\Partner\PartnerApplicationService;
 use App\Services\Partner\PartnerDocumentSigningService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -38,10 +39,14 @@ class PartnerApplicationController extends Controller
 
         if ($request->filled('tab')) {
             match ($request->input('tab')) {
-                'pending' => $query->whereIn('status', ['pending', 'reviewing', 'submitted', 'need_supplement']),
-                'active' => $query->whereIn('status', ['contract_pending_owner_signature', 'contract_pending_sportgo_signature', 'completed']),
+                'all' => null,
+                'pending',
+                'pending_review' => $query->whereIn('status', ['pending', 'reviewing', 'submitted', 'need_supplement']),
+                'pending_signature' => $query->whereIn('status', ['contract_pending_owner_signature', 'contract_pending_sportgo_signature']),
+                'active' => $query->where('status', 'completed'),
                 'terminating' => $query->whereHas('terminationRequests', fn ($q) => $q->whereIn('status', ['submitted', 'reviewing', 'transition_period'])),
                 'terminated' => $query->whereNotNull('terminated_at'),
+                'rejected' => $query->whereIn('status', ['rejected', 'cancelled']),
                 default => null,
             };
         }
@@ -74,12 +79,91 @@ class PartnerApplicationController extends Controller
         }
 
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
-        $applications = $query
+        $page = max((int) $request->integer('page', 1), 1);
+        $partners = $query
+            ->with(['contracts', 'terminationRequests'])
             ->orderByDesc('submitted_at')
-            ->paginate($perPage)
-            ->through(fn (PartnerApplication $application) => $this->payload($application));
+            ->get()
+            ->groupBy('user_id')
+            ->map(fn ($items) => $this->partnerRowPayload($items))
+            ->values();
+
+        $applications = new LengthAwarePaginator(
+            $partners->forPage($page, $perPage)->values(),
+            $partners->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         return response()->json(['status' => 'success', 'data' => $applications]);
+    }
+
+    private function partnerRowPayload($applications): array
+    {
+        $items = collect($applications);
+        /** @var PartnerApplication $latest */
+        $latest = $items
+            ->sortByDesc(fn (PartnerApplication $item) => $item->submitted_at ?: $item->created_at)
+            ->first();
+        $user = $latest->user;
+        $contracts = $items
+            ->flatMap(fn (PartnerApplication $item) => $item->contracts ?: collect())
+            ->sortByDesc(fn (PartnerContract $contract) => $contract->created_at);
+        $terminations = $items
+            ->flatMap(fn (PartnerApplication $item) => $item->terminationRequests ?: collect())
+            ->sortByDesc(fn (PartnerTerminationRequest $termination) => $termination->created_at);
+        $clusterIds = $items
+            ->pluck('approved_venue_cluster_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        return [
+            ...$this->payload($latest),
+            'partner_code' => 'PTN-' . strtoupper(substr(str_replace('-', '', (string) $latest->user_id), 0, 8)),
+            'partner_name' => $user?->full_name ?: $latest->applicant_full_name,
+            'partner_phone' => $user?->phone ?: $latest->applicant_phone,
+            'partner_email' => $user?->email ?: $latest->applicant_email,
+            'latest_application_id' => $latest->id,
+            'application_count' => $items->count(),
+            'managed_clusters_count' => $clusterIds->count(),
+            'partner_status' => $this->aggregatePartnerStatus($items, $terminations->first()),
+            'contract_status' => $contracts->first()?->status,
+            'latest_registered_at' => $latest->submitted_at ?: $latest->created_at,
+            'venue_names' => $items->pluck('venue_name')->filter()->unique()->values(),
+        ];
+    }
+
+    private function aggregatePartnerStatus($applications, ?PartnerTerminationRequest $termination): string
+    {
+        $statuses = collect($applications)->pluck('status');
+
+        if ($termination && in_array($termination->status, ['submitted', 'reviewing', 'transition_period'], true)) {
+            return 'terminating';
+        }
+
+        if ($statuses->contains('completed')) {
+            return 'completed';
+        }
+
+        if ($statuses->contains(fn ($status) => in_array($status, ['contract_pending_owner_signature', 'contract_pending_sportgo_signature'], true))) {
+            return 'pending_signature';
+        }
+
+        if ($statuses->contains(fn ($status) => in_array($status, ['pending', 'reviewing', 'submitted', 'need_supplement'], true))) {
+            return 'pending_review';
+        }
+
+        if ($statuses->contains('rejected')) {
+            return 'rejected';
+        }
+
+        if ($statuses->contains('cancelled')) {
+            return 'cancelled';
+        }
+
+        return (string) ($statuses->first() ?: 'unknown');
     }
 
     public function show(string $id): JsonResponse
@@ -292,7 +376,7 @@ class PartnerApplicationController extends Controller
 
         $payload['courts'] = $application->courts->values();
         $payload['bank_accounts'] = $application->bankAccounts->values();
-        $payload['documents'] = GeneratedDocument::with('signatures.signer')
+        $payload['documents'] = GeneratedDocument::with(['signatures.signer', 'signingRequests.user', 'signingRequests.signature', 'signingRequests.verificationCode'])
             ->where('partner_application_id', $application->id)
             ->latest()
             ->get()
@@ -313,6 +397,10 @@ class PartnerApplicationController extends Controller
                     'file_size' => $fileAvailable ? Storage::disk('local')->size($path) : 0,
                     'download_url' => $fileAvailable ? '/api/files/documents/' . $document->id . '/download' : null,
                     'signatures' => $document->signatures,
+                    'signing_requests' => $document->signingRequests
+                        ->sortByDesc('created_at')
+                        ->map(fn (DocumentSigningRequest $request): array => $this->signingRequestPayload($request, $document))
+                        ->values(),
                 ];
             });
         $payload['uploaded_documents'] = $application->documents
@@ -325,6 +413,8 @@ class PartnerApplicationController extends Controller
                 'title' => $document->title,
                 'description' => $document->description,
                 'status' => $document->status,
+                'reject_reason' => $document->reject_reason,
+                'reviewed_at' => $document->reviewed_at,
                 'file_name' => $document->media?->file_name,
                 'mime_type' => $document->media?->mime_type,
                 'file_size' => $document->media?->file_size,
@@ -334,7 +424,119 @@ class PartnerApplicationController extends Controller
         $payload['contracts'] = $application->contracts;
         $payload['status_histories'] = $application->statusHistories;
         $payload['termination_requests'] = $application->terminationRequests;
+        $partnerApplications = PartnerApplication::query()
+            ->with(['approvedVenueCluster:id,name,status,address', 'contracts'])
+            ->withCount('courts')
+            ->where('user_id', $application->user_id)
+            ->orderByDesc('submitted_at')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $payload['partner_summary'] = [
+            'partner_code' => 'PTN-' . strtoupper(substr(str_replace('-', '', (string) $application->user_id), 0, 8)),
+            'application_count' => $partnerApplications->count(),
+            'managed_clusters_count' => $partnerApplications->pluck('approved_venue_cluster_id')->filter()->unique()->count(),
+            'active_clusters_count' => $partnerApplications->where('status', 'completed')->count(),
+            'latest_registered_at' => $partnerApplications->first()?->submitted_at ?: $partnerApplications->first()?->created_at,
+        ];
+
+        $payload['partner_applications'] = $partnerApplications
+            ->map(function (PartnerApplication $item): array {
+                $contract = $item->contracts->sortByDesc('created_at')->first();
+
+                return [
+                    'id' => $item->id,
+                    'venue_name' => $item->venue_name,
+                    'venue_address' => $item->venue_address,
+                    'venue_province' => $item->venue_province,
+                    'venue_ward' => $item->venue_ward,
+                    'status' => $item->status,
+                    'status_reason' => $item->status_reason,
+                    'contract_status' => $contract?->status,
+                    'contract_code' => $contract?->contract_code,
+                    'approved_venue_cluster_id' => $item->approved_venue_cluster_id,
+                    'approved_venue_cluster' => $item->approvedVenueCluster,
+                    'courts_count' => $item->courts_count,
+                    'submitted_at' => $item->submitted_at,
+                    'reviewed_at' => $item->reviewed_at,
+                    'terminated_at' => $item->terminated_at,
+                ];
+            })
+            ->values();
 
         return $payload;
+    }
+
+    private function signingRequestPayload(DocumentSigningRequest $request, GeneratedDocument $document): array
+    {
+        return [
+            'id' => $request->id,
+            'document_id' => $request->generated_document_id,
+            'document_type' => $request->document_type,
+            'document_code' => $request->document_code,
+            'document_version' => $request->document_version,
+            'signer_side' => $request->signer_side,
+            'signer_role' => $request->signer_side === 'sportgo' ? 'Đại diện SportGo' : 'Đối tác/chủ sân',
+            'signer' => $request->user ? [
+                'id' => $request->user->id,
+                'full_name' => $request->user->full_name,
+                'email' => $request->user->email,
+                'phone' => $request->user->phone,
+            ] : null,
+            'action' => $request->action,
+            'otp_reference' => substr((string) $request->nonce, 0, 12),
+            'otp_channel' => $request->otp_channel,
+            'otp_identifier' => $request->otp_identifier,
+            'otp_sent_at' => $request->otp_sent_at,
+            'otp_verified_at' => $request->otp_verified_at,
+            'otp_status' => $request->status,
+            'expires_at' => $request->expires_at,
+            'attempt_count' => $request->verificationCode?->attempt_count,
+            'max_attempts' => $request->verificationCode?->max_attempts,
+            'file_hash_before' => $request->file_hash,
+            'file_hash_after' => $request->file_hash_after,
+            'hash_short' => substr((string) ($request->file_hash_after ?: $request->file_hash ?: $document->file_hash), 0, 16),
+            'ip_address' => $request->ip_address,
+            'user_agent' => $request->user_agent,
+            'device' => $this->deviceLabel($request->user_agent),
+            'checkbox_text' => $request->checkbox_text,
+            'signature_position' => $request->metadata['signature_position'] ?? $this->signaturePosition($document->document_type, $request->signer_side),
+            'signature_id' => $request->signed_signature_id,
+            'signed_at' => $request->signature?->signed_at,
+            'status' => $request->status,
+            'created_at' => $request->created_at,
+        ];
+    }
+
+    private function signaturePosition(?string $documentType, ?string $side): string
+    {
+        return match ($documentType . ':' . $side) {
+            'partner_application_form:owner' => 'Khối NGƯỜI ĐỀ NGHỊ / placeholder {{signature_owner}}',
+            'partner_contract:sportgo' => 'Khối ĐẠI DIỆN BÊN A - SPORTGO / placeholder {{signature_sportgo}}',
+            'partner_contract:owner' => 'Khối ĐẠI DIỆN BÊN B - ĐỐI TÁC/CHỦ SÂN / placeholder {{signature_owner}}',
+            'owner_termination_request:owner',
+            'termination_request:owner' => 'Khối NGƯỜI LÀM ĐƠN / placeholder {{signature_owner}}',
+            'mutual_liquidation_minutes:sportgo' => 'Khối ĐẠI DIỆN SPORTGO / placeholder {{signature_sportgo}}',
+            'mutual_liquidation_minutes:owner' => 'Khối ĐẠI DIỆN ĐỐI TÁC / placeholder {{signature_owner}}',
+            'settlement_minutes:sportgo' => 'Khối ĐẠI DIỆN SPORTGO / placeholder {{signature_sportgo}}',
+            'settlement_minutes:owner' => 'Khối ĐẠI DIỆN ĐỐI TÁC / placeholder {{signature_owner}}',
+            default => 'Theo cấu hình placeholder chữ ký của template',
+        };
+    }
+
+    private function deviceLabel(?string $userAgent): string
+    {
+        if (! $userAgent) {
+            return '-';
+        }
+
+        $agent = strtolower($userAgent);
+        $device = str_contains($agent, 'mobile') ? 'Mobile' : (str_contains($agent, 'tablet') ? 'Tablet' : 'Desktop');
+        $browser = str_contains($agent, 'edg') ? 'Edge'
+            : (str_contains($agent, 'chrome') ? 'Chrome'
+                : (str_contains($agent, 'firefox') ? 'Firefox'
+                    : (str_contains($agent, 'safari') ? 'Safari' : 'Trình duyệt')));
+
+        return $device . ' / ' . $browser;
     }
 }

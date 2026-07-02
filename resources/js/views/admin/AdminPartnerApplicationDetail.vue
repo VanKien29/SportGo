@@ -219,6 +219,24 @@
 
       <section v-if="activeTab === 'courts'" class="content-card">
         <div class="card-head">
+          <h3>Danh sách cụm sân của đối tác</h3>
+          <span>{{ application.partner_applications?.length || 0 }} cụm sân</span>
+        </div>
+
+        <div class="cluster-list">
+          <article v-for="item in application.partner_applications || []" :key="item.id" class="cluster-row" :class="{ current: item.id === application.id }">
+            <div>
+              <strong>{{ item.venue_name }}</strong>
+              <p>{{ item.venue_address || '-' }}</p>
+              <small>{{ statusLabel(item.status) }} · {{ contractStatusLabel(item.contract_status) }} · {{ item.courts_count || 0 }} sân</small>
+            </div>
+            <button class="btn ghost small" type="button" :disabled="item.id === application.id" @click="openSiblingApplication(item)">
+              Xem hồ sơ
+            </button>
+          </article>
+        </div>
+
+        <div class="card-head">
           <h3>Sân quản lý</h3>
           <span>{{ application.courts?.length || 0 }} sân</span>
         </div>
@@ -286,6 +304,43 @@
         </article>
       </section>
 
+      <section v-if="activeTab === 'signing'" class="content-card">
+        <div class="card-head">
+          <h3>Nhật ký ký số / OTP</h3>
+          <span>{{ signingLogs.length }} giao dịch</span>
+        </div>
+
+        <div class="signing-log-list">
+          <article v-for="log in signingLogs" :key="log.id" class="signing-log-row">
+            <div>
+              <strong>{{ log.document_title }}</strong>
+              <p>{{ signingSideLabel(log.signer_side) }} · {{ log.otpStatusLabel }} · {{ log.otp_identifier || '-' }}</p>
+              <dl>
+                <dt>Mã tham chiếu OTP</dt>
+                <dd>{{ log.otp_reference || '-' }}</dd>
+                <dt>Gửi OTP</dt>
+                <dd>{{ formatDate(log.otp_sent_at) }}</dd>
+                <dt>Xác thực OTP</dt>
+                <dd>{{ formatDate(log.otp_verified_at) }}</dd>
+                <dt>Lần nhập</dt>
+                <dd>{{ log.attempt_count ?? 0 }}/{{ log.max_attempts ?? '-' }}</dd>
+                <dt>IP</dt>
+                <dd>{{ log.ip_address || '-' }}</dd>
+                <dt>Thiết bị</dt>
+                <dd>{{ log.device || '-' }}</dd>
+                <dt>Hash file</dt>
+                <dd>{{ log.hash_short || '-' }}</dd>
+                <dt>Vị trí chữ ký</dt>
+                <dd>{{ log.signature_position || '-' }}</dd>
+                <dt>User agent</dt>
+                <dd>{{ log.user_agent || '-' }}</dd>
+              </dl>
+            </div>
+          </article>
+          <p v-if="!signingLogs.length" class="empty-text">Chưa có giao dịch OTP/ký số nào.</p>
+        </div>
+      </section>
+
       <section v-if="activeTab === 'history'" class="content-card">
         <div class="card-head">
           <h3>Lịch sử xử lý</h3>
@@ -308,19 +363,125 @@
       <section v-if="activeTab === 'settlement'" class="content-card">
         <div class="card-head">
           <h3>Quyết toán và chấm dứt</h3>
-          <span>{{ application.termination_requests?.length || 0 }} yêu cầu</span>
+          <div class="head-actions">
+            <span>{{ application.termination_requests?.length || 0 }} yêu cầu</span>
+            <button
+              v-if="activeContract && !pendingTerminationRequest"
+              class="btn danger small"
+              type="button"
+              @click="terminationModal.open = true; terminationModal.reason = ''"
+            >
+              <AppIcon name="xCircle" size="14" /> Đơn phương chấm dứt
+            </button>
+          </div>
         </div>
 
-        <div class="doc-list">
-          <div v-for="request in application.termination_requests || []" :key="request.id" class="doc-row">
-            <div>
-              <strong>{{ request.termination_code || 'Yêu cầu chấm dứt' }}</strong>
-              <p>{{ terminationStatusLabel(request.status) }} · {{ request.reason || '-' }}</p>
+        <div class="termination-list">
+          <article v-for="request in application.termination_requests || []" :key="request.id" class="termination-card">
+            <div class="term-header">
+              <div>
+                <strong>{{ request.termination_code || 'Yêu cầu chấm dứt' }}</strong>
+                <span class="badge" :class="`badge-${request.status}`">{{ terminationStatusLabel(request.status) }}</span>
+              </div>
+              <button
+                v-if="['submitted', 'reviewing'].includes(request.status) && request.termination_type !== 'unilateral_by_sportgo'"
+                class="btn primary small"
+                type="button"
+                :disabled="saving"
+                @click="handleConfirmTermination(request)"
+              >
+                <AppIcon name="check" size="14" /> Xác nhận thanh lý
+              </button>
             </div>
-          </div>
+
+            <div class="term-info-grid">
+              <div><span class="label">Loại</span><span>{{ terminationTypeLabel(request.termination_type) }}</span></div>
+              <div><span class="label">Ngày yêu cầu</span><span>{{ formatDate(request.requested_at) }}</span></div>
+              <div><span class="label">Ngày duyệt</span><span>{{ formatDate(request.approved_at) }}</span></div>
+              <div><span class="label">Ngày thu hồi quyền</span><span>{{ formatDate(request.transition_end_at) }}</span></div>
+              <div class="full"><span class="label">Lý do</span><span>{{ request.reason || '-' }}</span></div>
+            </div>
+
+            <!-- Settlement Details -->
+            <div v-if="request.settlement" class="settlement-box">
+              <h4>Quyết toán</h4>
+              <div class="term-info-grid">
+                <div><span class="label">Mã quyết toán</span><span>{{ request.settlement.settlement_code }}</span></div>
+                <div><span class="label">Trạng thái</span><span>{{ settlementStatusLabel(request.settlement.status) }}</span></div>
+                <div><span class="label">Tổng chi trả chủ sân</span><span class="amount positive">{{ money(request.settlement.final_payable_to_owner) }}</span></div>
+                <div><span class="label">Phí chưa thanh toán</span><span class="amount negative">{{ money(request.settlement.unpaid_platform_fee_amount) }}</span></div>
+              </div>
+
+              <table v-if="request.settlement.items?.length" class="settlement-table">
+                <thead>
+                  <tr><th>Hạng mục</th><th>Hướng</th><th>Số tiền</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in request.settlement.items" :key="item.id">
+                    <td>{{ item.description }}</td>
+                    <td>{{ item.direction === 'payable_to_owner' ? 'Trả chủ sân' : 'Thu từ chủ sân' }}</td>
+                    <td class="amount" :class="item.direction === 'payable_to_owner' ? 'positive' : 'negative'">{{ money(item.amount) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- Withdrawal Requests -->
+              <div v-if="request.settlement.withdrawal_requests?.length" class="withdrawal-section">
+                <h5>Lệnh rút tiền</h5>
+                <div v-for="wd in request.settlement.withdrawal_requests" :key="wd.id" class="withdrawal-row">
+                  <span>{{ money(wd.amount) }}</span>
+                  <span class="badge" :class="`badge-${wd.status}`">{{ withdrawalStatusLabel(wd.status) }}</span>
+                  <span class="muted">{{ formatDate(wd.created_at) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Termination Documents -->
+            <div v-if="request.documents?.length" class="term-documents">
+              <h4>Tài liệu thanh lý</h4>
+              <div v-for="doc in request.documents" :key="doc.id" class="doc-row">
+                <div>
+                  <strong>{{ documentTypeLabel(doc.document_type) }}</strong>
+                  <p class="muted">{{ formatDate(doc.generated_at) }}</p>
+                </div>
+                <div class="row-actions">
+                  <button v-if="doc.generated_document" class="btn ghost small" type="button" @click="openDocument(doc.generated_document)">
+                    <AppIcon name="eye" size="14" /> Xem
+                  </button>
+                  <button v-if="doc.generated_document" class="btn ghost small" type="button" @click="downloadGeneratedDocument(doc.generated_document)">
+                    <AppIcon name="download" size="14" /> Tải
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+
           <p v-if="!application.termination_requests?.length" class="empty-text">Chưa có yêu cầu chấm dứt hoặc quyết toán.</p>
         </div>
       </section>
+
+      <!-- Modal đơn phương chấm dứt -->
+      <div v-if="terminationModal.open" class="modal-backdrop" @click.self="terminationModal.open = false">
+        <form class="modal-panel" @submit.prevent="handleUnilateralTermination">
+          <div class="modal-head">
+            <h3>Đơn phương chấm dứt hợp đồng</h3>
+            <button class="icon-btn" type="button" @click="terminationModal.open = false">
+              <AppIcon name="x" size="18" />
+            </button>
+          </div>
+          <div class="modal-body">
+            <p class="muted">Hành động này sẽ gửi công văn chấm dứt hợp tác tới đối tác và tạo quyết toán.</p>
+            <label class="field">
+              <span>Lý do chấm dứt</span>
+              <textarea v-model.trim="terminationModal.reason" rows="4" required maxlength="2000" placeholder="Nhập lý do chấm dứt..."></textarea>
+            </label>
+          </div>
+          <div class="modal-foot">
+            <button class="btn ghost" type="button" @click="terminationModal.open = false">Hủy</button>
+            <button class="btn danger" type="submit" :disabled="saving">{{ saving ? 'Đang xử lý...' : 'Gửi công văn chấm dứt' }}</button>
+          </div>
+        </form>
+      </div>
 
     </template>
   </div>
@@ -345,6 +506,7 @@ const courtTypes = ref([]);
 const activeTab = ref('overview');
 const actionMode = ref(route.query.action || '');
 const fieldErrors = reactive({});
+const terminationModal = reactive({ open: false, reason: '' });
 
 const approveForm = reactive({
   initial_court_name: '',
@@ -360,18 +522,28 @@ const tabs = [
   { value: 'overview', label: 'Tổng quan' },
   { value: 'courts', label: 'Sân quản lý' },
   { value: 'documents', label: 'Tài liệu & văn bản' },
+  { value: 'signing', label: 'Nhật ký ký số / OTP' },
   { value: 'history', label: 'Lịch sử' },
   { value: 'settlement', label: 'Quyết toán' },
 ];
 
 const generatedDocuments = computed(() => (application.value?.documents || []).filter(d => d.source !== 'uploaded'));
 const uploadedDocuments = computed(() => application.value?.uploaded_documents || []);
+const signingLogs = computed(() => generatedDocuments.value.flatMap((document) => (
+  (document.signing_requests || []).map((log) => ({
+    ...log,
+    document_title: document.title || documentTypeLabel(document.document_type),
+    otpStatusLabel: signingStatusLabel(log.status || log.otp_status),
+  }))
+)));
 const requiresInitialCourt = computed(() => !(application.value?.courts || []).length);
 const leafCourtTypes = computed(() => courtTypes.value.filter((type) => type.is_active !== false && Number(type.children_count || 0) === 0));
 const pendingSportgoDocument = computed(() => generatedDocuments.value.find((document) => (
   document.document_type === 'partner_contract' && document.status === 'pending_sportgo_signature'
 )) || null);
 const canReviewApplication = computed(() => isReviewable(application.value?.status));
+const activeContract = computed(() => (application.value?.contracts || []).find(c => c.status === 'signed_active') || null);
+const pendingTerminationRequest = computed(() => (application.value?.termination_requests || []).find(r => ['submitted', 'reviewing', 'transition_period'].includes(r.status)) || null);
 const readonlyActionTitle = computed(() => {
   if (application.value?.status === 'need_supplement') return 'Đang chờ người dùng bổ sung';
   if (application.value?.status === 'rejected') return 'Hồ sơ đã bị từ chối';
@@ -432,6 +604,11 @@ function openDocument(doc, type = 'generated') {
     params: { id: application.value.id, documentId: doc.id },
     query: type === 'uploaded' ? { type: 'uploaded' } : {},
   });
+}
+
+function openSiblingApplication(item) {
+  if (!item?.id || item.id === application.value?.id) return;
+  router.push({ name: 'admin-partner-application-detail', params: { id: item.id } });
 }
 
 async function downloadGeneratedDocument(document) {
@@ -543,6 +720,38 @@ function isReviewable(status) {
   return ['pending', 'reviewing', 'submitted'].includes(status);
 }
 
+async function handleUnilateralTermination() {
+  if (!terminationModal.reason) return;
+  if (!confirm('Bạn có chắc chắn muốn đơn phương chấm dứt hợp đồng này?')) return;
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.terminate(application.value.id, { reason: terminationModal.reason });
+    message.value = response.message || 'Đã gửi công văn chấm dứt.';
+    terminationModal.open = false;
+    await loadApplication();
+  } catch (err) {
+    error.value = err.message || 'Lỗi khi chấm dứt hợp đồng.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function handleConfirmTermination(request) {
+  if (!confirm('Xác nhận đồng ý thanh lý hợp đồng theo yêu cầu của đối tác?')) return;
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.confirmTermination(application.value.id, { termination_request_id: request.id });
+    message.value = response.message || 'Đã xác nhận thanh lý và tạo quyết toán.';
+    await loadApplication();
+  } catch (err) {
+    error.value = err.message || 'Lỗi khi xác nhận thanh lý.';
+  } finally {
+    saving.value = false;
+  }
+}
+
 const InfoPanel = defineComponent({
   props: { title: String, items: Array },
   setup(props) {
@@ -622,13 +831,69 @@ function documentStatusLabel(status) {
   }[status] || status || '-';
 }
 
+function contractStatusLabel(status) {
+  return {
+    pending_sportgo_signature: 'Chờ SportGo ký',
+    pending_owner_signature: 'Chờ chủ sân ký',
+    signed_active: 'Đang hiệu lực',
+    terminated: 'Đã chấm dứt',
+    cancelled: 'Đã hủy',
+  }[status] || status || 'Chưa có hợp đồng';
+}
+
 function terminationStatusLabel(status) {
   return {
     submitted: 'Chờ xác nhận',
     reviewing: 'Đang xem xét',
     transition_period: 'Giai đoạn chuyển tiếp',
     completed: 'Đã hoàn tất',
+    rejected: 'Đã từ chối',
   }[status] || status || '-';
+}
+
+function terminationTypeLabel(type) {
+  return {
+    mutual_agreement: 'Thỏa thuận hai bên',
+    unilateral_by_owner: 'Đơn phương từ chủ sân',
+    unilateral_by_sportgo: 'Đơn phương từ SportGo',
+  }[type] || type || '-';
+}
+
+function settlementStatusLabel(status) {
+  return {
+    pending: 'Chờ duyệt',
+    approved: 'Đã duyệt',
+    completed: 'Hoàn tất',
+    cancelled: 'Đã hủy',
+  }[status] || status || '-';
+}
+
+function withdrawalStatusLabel(status) {
+  return {
+    pending: 'Chờ xử lý',
+    approved: 'Đã duyệt',
+    processing: 'Đang xử lý',
+    completed: 'Đã hoàn tất',
+    rejected: 'Từ chối',
+  }[status] || status || '-';
+}
+
+function signingStatusLabel(status) {
+  return {
+    otp_sent: 'OTP đã gửi',
+    verified: 'OTP đã xác thực',
+    signed: 'Đã ký',
+    failed: 'OTP lỗi',
+    expired: 'OTP hết hạn',
+    cancelled: 'Đã hủy',
+  }[status] || status || '-';
+}
+
+function signingSideLabel(side) {
+  return {
+    owner: 'Đối tác/chủ sân',
+    sportgo: 'SportGo/Admin',
+  }[side] || side || '-';
 }
 
 function signatureSummary(signatures = []) {
@@ -955,11 +1220,71 @@ dd {
   gap: 10px;
 }
 
+.signing-log-list {
+  display: grid;
+  gap: 12px;
+}
+
+.signing-log-row {
+  border: 1px solid var(--admin-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--admin-surface-muted, #f8fafc);
+}
+
+.signing-log-row strong {
+  color: var(--admin-text, #0f172a);
+}
+
+.signing-log-row p {
+  margin: 5px 0 0;
+  color: var(--admin-faint, #64748b);
+  font-size: 13px;
+}
+
+.signing-log-row dl {
+  margin-top: 12px;
+  grid-template-columns: 150px minmax(0, 1fr);
+}
+
 .doc-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.cluster-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 18px;
+}
+
+.cluster-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--admin-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--admin-surface-muted, #f8fafc);
+}
+
+.cluster-row.current {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.cluster-row strong {
+  color: var(--admin-text, #0f172a);
+}
+
+.cluster-row p,
+.cluster-row small {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--admin-faint, #64748b);
 }
 
 .timeline {

@@ -146,6 +146,7 @@ class PartnerDocumentService
             try {
                 $filePath = Storage::disk('local')->path($document->generated_file_path);
                 if (file_exists($filePath)) {
+                    $this->fixSplitMacrosInDocx($filePath);
                     $processor = new \PhpOffice\PhpWord\TemplateProcessor($filePath);
                     $processor->setMacroChars('{{', '}}');
                     $placeholder = 'signature_' . $signerSide;
@@ -156,6 +157,7 @@ class PartnerDocumentService
                     $processor->setValue($signerSide . '_signer_name', $signature->signer_full_name);
                     $processor->saveAs($filePath);
                     $this->normalizeRequiredDocxParts($filePath);
+                    $this->replaceSignedTextPlaceholders($filePath, $signature, $signerSide);
                     $this->polishSignedDocumentFile($document->fresh());
                     $this->injectSignatureFallback($document->fresh(), $signature->fresh(), $signerSide, $media);
                     $this->normalizeRequiredDocxParts($filePath);
@@ -462,8 +464,10 @@ XML;
             return;
         }
 
-        $zip = new ZipArchive();
         $filePath = Storage::disk('local')->path($path);
+        $this->fixSplitMacrosInDocx($filePath);
+
+        $zip = new ZipArchive();
         if ($zip->open($filePath) !== true) {
             return;
         }
@@ -487,6 +491,7 @@ XML;
             $mediaFileName = 'signature-' . $signerSide . '-' . $signature->id . '.png';
             $mediaTarget = 'word/media/' . $mediaFileName;
             $zip->addFromString($mediaTarget, file_get_contents($imagePath));
+            $this->ensurePngContentType($zip);
 
             $relationshipId = $this->ensureImageRelationship($zip, 'media/' . $mediaFileName);
             if ($relationshipId) {
@@ -506,6 +511,71 @@ XML;
         }
 
         $zip->close();
+    }
+
+    private function replaceSignedTextPlaceholders(string $docxPath, GeneratedDocumentSignature $signature, string $signerSide): void
+    {
+        if (! is_file($docxPath) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $this->fixSplitMacrosInDocx($docxPath);
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $changed = false;
+        $values = [
+            '{{' . $signerSide . '_signer_name}}' => $signature->signer_full_name ?: '',
+            '{{' . $signerSide . '_signer_full_name}}' => $signature->signer_full_name ?: '',
+        ];
+
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $entry = $zip->getNameIndex($index);
+            if (! str_starts_with($entry, 'word/') || ! str_ends_with($entry, '.xml')) {
+                continue;
+            }
+
+            $xml = $zip->getFromName($entry);
+            if ($xml === false) {
+                continue;
+            }
+
+            $nextXml = $xml;
+            foreach ($values as $placeholder => $value) {
+                $nextXml = str_replace($placeholder, $this->xmlText($value), $nextXml);
+            }
+
+            if ($nextXml !== $xml) {
+                $zip->addFromString($entry, $nextXml);
+                $changed = true;
+            }
+        }
+
+        $zip->close();
+
+        if ($changed) {
+            $this->normalizeRequiredDocxParts($docxPath);
+        }
+    }
+
+    private function ensurePngContentType(ZipArchive $zip): void
+    {
+        $entry = '[Content_Types].xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false || trim($xml) === '') {
+            return;
+        }
+
+        if (str_contains($xml, 'Extension="png"')) {
+            return;
+        }
+
+        $override = '<Default Extension="png" ContentType="image/png"/>';
+        $xml = str_replace('</Types>', $override . '</Types>', $xml);
+        $zip->addFromString($entry, $xml);
     }
 
     private function ensureImageRelationship(ZipArchive $zip, string $target): ?string

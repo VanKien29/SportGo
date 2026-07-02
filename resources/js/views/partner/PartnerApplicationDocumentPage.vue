@@ -16,7 +16,7 @@
         </div>
 
         <div class="partner-doc-actions">
-          <button v-if="document" class="btn btn-primary" type="button" :disabled="!document.download_url" @click="openPreview">
+          <button v-if="document" class="btn btn-primary" type="button" :disabled="!document.download_url" @click="scrollToDocument">
             <AppIcon name="eye" size="16" />
             Xem file
           </button>
@@ -37,7 +37,7 @@
 
       <template v-else-if="document">
         <div class="partner-sign-layout">
-          <section class="partner-card">
+          <section ref="viewerSection" class="partner-card partner-document-card">
             <div class="partner-card-head">
               <div>
                 <h2>Nội dung văn bản</h2>
@@ -45,28 +45,17 @@
               </div>
             </div>
             <div class="partner-card-body">
-              <div class="partner-document-hero">
+              <div v-if="!document.download_url" class="partner-document-hero">
                 <div class="partner-document-hero-inner">
                   <AppIcon name="fileText" size="48" />
                   <h2>{{ documentTypeLabel(document.document_type, document.source) }}</h2>
-                  <p>
-                    Bấm “Xem file” để mở bản DOCX/PDF thật trong popup. Nếu nội dung chưa đúng,
-                    hãy quay lại form nhập để chỉnh rồi tạo lại đơn.
-                  </p>
-                  <p v-if="!document.download_url" class="partner-doc-warning">
+                  <p class="partner-doc-warning">
                     File văn bản chưa sẵn sàng hoặc bản cũ đã mất file. Vui lòng quay lại tạo lại văn bản.
                   </p>
-                  <div class="partner-action-row">
-                    <button class="btn btn-primary" type="button" :disabled="!document.download_url" @click="openPreview">
-                      <AppIcon name="eye" size="16" />
-                      Xem file
-                    </button>
-                    <button v-if="document.download_url" class="btn btn-secondary" type="button" @click="downloadFile(document.download_url)">
-                      <AppIcon name="download" size="16" />
-                      Tải file
-                    </button>
-                  </div>
                 </div>
+              </div>
+              <div v-else class="partner-inline-document-viewer">
+                <DocumentPreviewPane :document="document" @loaded="hasViewedFile = true" />
               </div>
             </div>
           </section>
@@ -101,7 +90,7 @@
               <div class="partner-card-body partner-action-stack">
                 <div v-if="!hasViewedFile" class="partner-alert">
                   <strong>Cần xem file trước</strong>
-                  <p>Vui lòng mở popup “Xem file” và kiểm tra nội dung trước khi ký.</p>
+                  <p>Vui lòng kiểm tra nội dung văn bản đang hiển thị ở khung bên trái trước khi ký.</p>
                 </div>
 
                 <label class="partner-confirm-box">
@@ -172,12 +161,6 @@
       </template>
     </main>
 
-    <PartnerFilePreviewDialog
-      :show="previewOpen"
-      :document="document"
-      @loaded="hasViewedFile = true"
-      @close="previewOpen = false"
-    />
   </div>
 </template>
 
@@ -186,7 +169,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PublicNavbar from '../../components/PublicNavbar.vue';
 import AppIcon from '../../components/AppIcon.vue';
-import PartnerFilePreviewDialog from '../../components/partner/PartnerFilePreviewDialog.vue';
+import DocumentPreviewPane from '../../components/DocumentPreviewPane.vue';
 import { api, apiDownload } from '../../services/api.js';
 
 const route = useRoute();
@@ -199,8 +182,8 @@ const otpError = ref('');
 const application = ref(null);
 const document = ref(null);
 const contract = ref(null);
-const previewOpen = ref(false);
 const hasViewedFile = ref(false);
+const viewerSection = ref(null);
 const canvas = ref(null);
 const drawing = ref(false);
 const signatureEmpty = ref(true);
@@ -244,12 +227,10 @@ async function loadPage() {
   error.value = '';
   resetOtpState();
   hasViewedFile.value = false;
-  previewOpen.value = false;
 
   try {
-    const response = await api('/api/user/partner-application');
-    const history = response.data?.history || [];
-    application.value = history.find((item) => String(item.id) === String(route.params.id)) || null;
+    const response = await api(`/api/user/partner-application/${route.params.id}`);
+    application.value = response.data || null;
     if (!application.value) throw new Error('Không tìm thấy hồ sơ.');
 
     document.value = findDocument(application.value, route.params.documentId);
@@ -257,7 +238,6 @@ async function loadPage() {
 
     await nextTick();
     prepareCanvas();
-    previewOpen.value = Boolean(document.value?.download_url);
   } catch (err) {
     error.value = err.message || 'Không tải được văn bản.';
   } finally {
@@ -304,13 +284,13 @@ function goBack() {
   router.push({ name: 'partner-application-detail', params: { id: route.params.id } });
 }
 
-function openPreview() {
+function scrollToDocument() {
   if (!document.value) return;
   if (!document.value.download_url) {
     error.value = 'File văn bản này không còn tồn tại. Vui lòng quay lại tạo lại văn bản.';
     return;
   }
-  previewOpen.value = true;
+  viewerSection.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
 }
 
 function signatureBySide(side) {
@@ -425,7 +405,11 @@ async function verifySignatureOtp() {
       localStorage.removeItem(DRAFT_KEY);
     }
 
-    await loadPage();
+    if (isContract.value) {
+      router.push({ name: 'partner-application-detail', params: { id: application.value.id } });
+    } else {
+      router.push({ name: 'partner-application' });
+    }
   } catch (err) {
     otpError.value = err.message || 'Không xác thực được OTP ký văn bản.';
   } finally {
@@ -474,4 +458,24 @@ function formatDate(value) {
 
 <style>
 @import "../../../css/partner/partner.css";
+
+.partner-document-card .partner-card-body {
+  min-height: 760px;
+}
+
+.partner-inline-document-viewer {
+  height: calc(100vh - 240px);
+  min-height: 760px;
+}
+
+.partner-inline-document-viewer .document-preview-pane {
+  min-height: 100%;
+}
+
+@media (max-width: 980px) {
+  .partner-inline-document-viewer {
+    height: auto;
+    min-height: 620px;
+  }
+}
 </style>

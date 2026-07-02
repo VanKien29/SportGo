@@ -5,6 +5,7 @@ namespace App\Services\Partner;
 use App\Jobs\RevokeVenueOwnerRoleJob;
 use App\Jobs\SendRevocationReminderJob;
 use App\Mail\Partner\PartnerApplicationApprovedMail;
+use App\Mail\Partner\PartnerApplicationCancelledMail;
 use App\Mail\Partner\PartnerApplicationReceivedMail;
 use App\Mail\Partner\PartnerApplicationRejectedMail;
 use App\Mail\Partner\PartnerApplicationSupplementRequiredMail;
@@ -61,7 +62,15 @@ class PartnerApplicationService
     {
         $hasOpenApplication = PartnerApplication::query()
             ->where('user_id', $user->id)
-            ->whereNotIn('status', ['rejected', 'cancelled'])
+            ->whereIn('status', [
+                'draft',
+                'pending',
+                'submitted',
+                'reviewing',
+                'need_supplement',
+                'contract_pending_sportgo_signature',
+                'contract_pending_owner_signature',
+            ])
             ->exists();
 
         if ($hasOpenApplication) {
@@ -237,6 +246,7 @@ class PartnerApplicationService
 
             $documentFiles = $data['document_files'] ?? [];
             if (collect($documentFiles)->flatten()->isNotEmpty()) {
+                $this->markReplacedApplicationDocuments($application, $documentFiles, $user);
                 $this->storeApplicationDocuments($application, $documentFiles, 'draft_update_' . now()->format('YmdHis'));
             }
 
@@ -508,7 +518,7 @@ class PartnerApplicationService
                     VenueCourt::query()->where('venue_cluster_id', $contract->venue_cluster_id)->update(['status' => 'active']);
                 }
 
-                $this->grantVenueOwnerRole($owner->id, $owner->id);
+                $this->grantVenueOwnerRole($owner->id, $owner->id, $contract->venue_cluster_id);
                 $this->applicationHistory($contract->application, 'contract_pending_owner_signature', 'completed', $owner, 'owner', 'Chủ sân đã ký hợp đồng. Hồ sơ hoàn tất.');
                 $this->audit('venue_owner_role_granted', $contract->application, $owner, 'owner', null, ['user_id' => $owner->id], $request);
                 $this->notifyUser($owner, 'partner_contract_signed_owner', 'Bạn đã trở thành đối tác/chủ sân của SportGo', 'Tài khoản đã được cấp quyền Chủ sân.', $contract->partner_application_id);
@@ -565,7 +575,7 @@ class PartnerApplicationService
                     VenueCourt::query()->where('venue_cluster_id', $contract->venue_cluster_id)->update(['status' => 'active']);
                 }
 
-                $this->grantVenueOwnerRole($contract->owner_id, $admin->id);
+                $this->grantVenueOwnerRole($contract->owner_id, $admin->id, $contract->venue_cluster_id);
                 $this->applicationHistory($contract->application, 'contract_pending_sportgo_signature', 'completed', $admin, 'admin', 'SportGo đã ký xác nhận hợp đồng. Hồ sơ hoàn tất.');
                 $this->audit('venue_owner_role_granted', $contract->application, $admin, 'admin', null, ['user_id' => $contract->owner_id], $request);
                 $this->notifyUser($contract->application->user, 'partner_contract_completed', 'Bạn đã trở thành đối tác/chủ sân của SportGo', 'Tài khoản đã được cấp quyền Chủ sân.', $contract->partner_application_id);
@@ -759,8 +769,8 @@ class PartnerApplicationService
                 UserRole::query()
                     ->where('user_id', $termination->owner_id)
                     ->where('role_id', $roleId)
-                    ->where('scope_type', 'system')
-                    ->where('scope_id', self::ZERO_UUID)
+                    ->where('scope_type', 'venue')
+                    ->where('scope_id', $termination->venue_cluster_id ?: self::ZERO_UUID)
                     ->delete();
             }
 
@@ -871,6 +881,7 @@ class PartnerApplicationService
 
             $this->applicationHistory($application, $oldStatus, 'cancelled', $user, 'user', $application->status_reason);
             $this->audit('partner_application_cancelled', $application, $user, 'user', ['status' => $oldStatus], ['status' => 'cancelled'], $request, $application->status_reason);
+            $this->mail->queue($application->venue_email ?: $user, new PartnerApplicationCancelledMail($application->fresh(['user'])));
 
             return $application->fresh($this->detailRelations());
         });
@@ -1074,6 +1085,29 @@ class PartnerApplicationService
                 ]);
             }
         }
+    }
+
+    private function markReplacedApplicationDocuments(PartnerApplication $application, array $documentFiles, User $actor): void
+    {
+        $types = collect($documentFiles)
+            ->filter(fn ($files): bool => collect($files)->filter(fn ($file) => $file instanceof UploadedFile)->isNotEmpty())
+            ->keys()
+            ->values();
+
+        if ($types->isEmpty()) {
+            return;
+        }
+
+        PartnerApplicationDocument::query()
+            ->where('partner_application_id', $application->id)
+            ->whereIn('document_type', $types->all())
+            ->where('status', '!=', 'rejected')
+            ->update([
+                'status' => 'rejected',
+                'reviewed_by' => $actor->id,
+                'reviewed_at' => now(),
+                'reject_reason' => 'Tài liệu đã được thay thế bởi phiên bản bổ sung/cập nhật mới.',
+            ]);
     }
 
     private function generateApplicationForm(PartnerApplication $application, User $actor, array $data = [], bool $requiresSignature = false): GeneratedDocument
@@ -1667,7 +1701,7 @@ class PartnerApplicationService
         RevokeVenueOwnerRoleJob::dispatch($termination->id)->delay($transitionEndAt);
     }
 
-    private function grantVenueOwnerRole(string $userId, ?string $actorId): void
+    private function grantVenueOwnerRole(string $userId, ?string $actorId, ?string $venueClusterId = null): void
     {
         $role = Role::query()->where('name', 'venue_owner')->first();
         if (! $role) {
@@ -1678,8 +1712,8 @@ class PartnerApplicationService
             [
                 'user_id' => $userId,
                 'role_id' => $role->id,
-                'scope_type' => 'system',
-                'scope_id' => self::ZERO_UUID,
+                'scope_type' => $venueClusterId ? 'venue' : 'system',
+                'scope_id' => $venueClusterId ?: self::ZERO_UUID,
             ],
             [
                 'granted_by' => $actorId,

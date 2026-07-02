@@ -77,6 +77,7 @@ class PartnerDocumentSigningService
                 'viewed_at' => now()->toISOString(),
                 'hash_short' => substr($fileHash, 0, 16),
                 'verification_code_type' => $verificationType,
+                'signature_position' => $this->signaturePosition($document->document_type, $signerSide),
             ],
         ]);
 
@@ -219,5 +220,21 @@ class PartnerDocumentSigningService
     {
         $signingRequest->verificationCode?->forceFill(['is_used' => true])->save();
         $signingRequest->forceFill(['status' => 'cancelled'])->save();
+    }
+
+    private function signaturePosition(?string $documentType, string $signerSide): string
+    {
+        return match ($documentType . ':' . $signerSide) {
+            'partner_application_form:owner' => 'Khối NGƯỜI ĐỀ NGHỊ / placeholder {{signature_owner}}',
+            'partner_contract:sportgo' => 'Khối ĐẠI DIỆN BÊN A - SPORTGO / placeholder {{signature_sportgo}}',
+            'partner_contract:owner' => 'Khối ĐẠI DIỆN BÊN B - ĐỐI TÁC/CHỦ SÂN / placeholder {{signature_owner}}',
+            'owner_termination_request:owner',
+            'termination_request:owner' => 'Khối NGƯỜI LÀM ĐƠN / placeholder {{signature_owner}}',
+            'mutual_liquidation_minutes:sportgo' => 'Khối ĐẠI DIỆN SPORTGO / placeholder {{signature_sportgo}}',
+            'mutual_liquidation_minutes:owner' => 'Khối ĐẠI DIỆN ĐỐI TÁC / placeholder {{signature_owner}}',
+            'settlement_minutes:sportgo' => 'Khối ĐẠI DIỆN SPORTGO / placeholder {{signature_sportgo}}',
+            'settlement_minutes:owner' => 'Khối ĐẠI DIỆN ĐỐI TÁC / placeholder {{signature_owner}}',
+            default => 'Theo cấu hình placeholder chữ ký của template',
+        };
     }
 }

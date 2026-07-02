@@ -32,7 +32,6 @@ import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
-import PartnerRegistration from "../views/partner/PartnerRegistration.vue";
 import PartnerApplicationPortal from "../views/partner/PartnerApplicationPortal.vue";
 import PartnerApplicationDetail from "../views/partner/PartnerApplicationDetail.vue";
 import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
@@ -94,7 +93,7 @@ const routes = [
     {
         path: "/become-partner",
         name: "partner-registration",
-        component: PartnerRegistration,
+        redirect: { name: "partner-application" },
         meta: { requiresAuth: true },
     },
     {

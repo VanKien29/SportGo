@@ -26,7 +26,7 @@
     <div class="toolbar card">
       <label class="field">
         <span>Tìm kiếm</span>
-        <input v-model.trim="filters.search" type="search" placeholder="Tên sân, chủ sân, email, MST" @input="onFilterChange" />
+        <input v-model.trim="filters.search" type="search" placeholder="Mã đối tác, họ tên, điện thoại, email, cụm sân" @input="onFilterChange" />
       </label>
       <label class="field">
         <span>Trạng thái</span>
@@ -54,29 +54,36 @@
         <table>
           <thead>
             <tr>
-              <th>Hồ sơ</th>
-              <th>Người nộp</th>
-              <th>Sân</th>
-              <th>Ngày gửi</th>
-              <th class="center">Trạng thái</th>
+              <th>Mã đối tác</th>
+              <th>Đối tác</th>
+              <th>Cụm sân</th>
+              <th class="center">Trạng thái hồ sơ</th>
+              <th class="center">Trạng thái hợp đồng</th>
+              <th>Đăng ký gần nhất</th>
               <th class="right">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="application in applications" :key="application.id">
               <td>
-                <div class="strong">{{ application.venue_name }}</div>
-                <div class="muted">{{ application.business_name }}</div>
+                <div class="strong">{{ application.partner_code }}</div>
+                <div class="muted">{{ application.application_count || 1 }} hồ sơ</div>
               </td>
               <td>
-                <div class="strong">{{ application.user?.full_name || application.user?.username || '-' }}</div>
-                <div class="muted">{{ application.user?.email || application.user?.phone || '-' }}</div>
+                <div class="strong">{{ application.partner_name || '-' }}</div>
+                <div class="muted">{{ application.partner_phone || '-' }} · {{ application.partner_email || '-' }}</div>
               </td>
-              <td>{{ application.courts_count || 0 }}</td>
-              <td>{{ formatDate(application.submitted_at) }}</td>
+              <td>
+                <div class="strong">{{ application.managed_clusters_count || 0 }}</div>
+                <div class="muted">{{ (application.venue_names || []).slice(0, 2).join(', ') || application.venue_name || '-' }}</div>
+              </td>
               <td class="center">
-                <span class="status" :class="`status-${application.status}`">{{ statusLabel(application.status) }}</span>
+                <span class="status" :class="`status-${application.partner_status || application.status}`">{{ statusLabel(application.partner_status || application.status) }}</span>
               </td>
+              <td class="center">
+                <span class="status" :class="`status-${application.contract_status || 'none'}`">{{ contractStatusLabel(application.contract_status) }}</span>
+              </td>
+              <td>{{ formatDate(application.latest_registered_at || application.submitted_at) }}</td>
               <td class="right">
                 <div class="actions">
                   <button class="icon-btn" type="button" title="Chi tiết" @click="openDetail(application)">
@@ -122,12 +129,16 @@ export default {
       error: '',
       message: '',
       filterTimer: null,
-      filters: { tab: 'pending', search: '', status: '' },
+      filters: { tab: 'all', search: '', status: '' },
       pagination: { current_page: 1, last_page: 1, total: 0 },
       listTabs: [
-        { value: 'pending', label: 'Chờ xử lý' },
-        { value: 'active', label: 'Hợp đồng & hoạt động' },
-        { value: 'terminating', label: 'Đang chấm dứt' },
+        { value: 'all', label: 'Tất cả đối tác' },
+        { value: 'pending_review', label: 'Chờ duyệt hồ sơ' },
+        { value: 'pending_signature', label: 'Chờ ký hợp đồng' },
+        { value: 'active', label: 'Đang hoạt động' },
+        { value: 'terminating', label: 'Đang yêu cầu chấm dứt' },
+        { value: 'terminated', label: 'Đã chấm dứt' },
+        { value: 'rejected', label: 'Đã từ chối' },
       ],
       statusOptions: [
         { value: 'submitted', label: 'Chờ duyệt' },
@@ -177,7 +188,7 @@ export default {
       this.clearAlerts();
       this.$router.push({
         name: 'admin-partner-application-detail',
-        params: { id: application.id },
+        params: { id: application.latest_application_id || application.id },
         query: action ? { action } : {},
       });
     },
@@ -186,6 +197,9 @@ export default {
     },
     statusLabel(status) {
       return {
+        pending_review: 'Chờ duyệt hồ sơ',
+        pending_signature: 'Chờ ký hợp đồng',
+        terminating: 'Đang chấm dứt',
         pending: 'Chờ duyệt',
         submitted: 'Chờ duyệt',
         reviewing: 'Đang xem xét',
@@ -197,6 +211,15 @@ export default {
         rejected: 'Từ chối',
         cancelled: 'Đã hủy',
       }[status] || status || '-';
+    },
+    contractStatusLabel(status) {
+      return {
+        pending_sportgo_signature: 'Chờ SportGo ký',
+        pending_owner_signature: 'Chờ chủ sân ký',
+        signed_active: 'Đang hiệu lực',
+        terminated: 'Đã chấm dứt',
+        cancelled: 'Đã hủy',
+      }[status] || 'Chưa có';
     },
     formatDate(value) {
       if (!value) return '-';
@@ -342,7 +365,7 @@ export default {
 
 table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1180px;
   border-collapse: collapse;
 }
 

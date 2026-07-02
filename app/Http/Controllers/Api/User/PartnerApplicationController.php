@@ -49,8 +49,30 @@ class PartnerApplicationController extends Controller
             'data' => [
                 'latest' => $applications->first(),
                 'history' => $applications,
-                'can_register' => $models->whereNotIn('status', ['rejected', 'cancelled'])->isEmpty(),
+                'can_register' => $models
+                    ->whereIn('status', [
+                        'draft',
+                        'pending',
+                        'submitted',
+                        'reviewing',
+                        'need_supplement',
+                        'contract_pending_sportgo_signature',
+                        'contract_pending_owner_signature',
+                    ])
+                    ->isEmpty(),
             ],
+        ]);
+    }
+
+    public function detail(Request $request, string $id): JsonResponse
+    {
+        $application = PartnerApplication::with($this->partners->detailRelations())
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->userApplicationPayload($application),
         ]);
     }
 
@@ -574,6 +596,8 @@ class PartnerApplicationController extends Controller
             'title' => $document->title,
             'description' => $document->description,
             'status' => $document->status,
+            'reject_reason' => $document->reject_reason,
+            'reviewed_at' => $document->reviewed_at,
             'file_name' => $document->media?->file_name,
             'mime_type' => $document->media?->mime_type,
             'file_size' => $document->media?->file_size,
