@@ -4,42 +4,45 @@ import {
     getAuth,
 } from "../stores/auth.js";
 
-import Home from "../views/Home.vue";
-import Login from "../views/Login.vue";
-import Register from "../views/Register.vue";
-import ForgotPassword from "../views/ForgotPassword.vue";
-import Profile from "../views/Profile.vue";
-import AdminLogin from "../views/admin/AdminLogin.vue";
-import AdminForgotPassword from "../views/admin/AdminForgotPassword.vue";
-import AdminLayout from "../views/admin/AdminLayout.vue";
-import AdminDashboard from "../views/admin/AdminDashboard.vue";
-import AdminProfile from "../views/admin/AdminProfile.vue";
-import AdminUsers from "../views/admin/AdminUsers.vue";
-import AdminStaffs from "../views/admin/AdminStaffs.vue";
-import AdminUserDetail from "../views/admin/AdminUserDetail.vue";
-import AdminStaffDetail from "../views/admin/AdminStaffDetail.vue";
-import AdminVouchers from "../views/admin/AdminVouchers.vue";
-import AdminVoucherDetail from "../views/admin/AdminVoucherDetail.vue";
-import AdminPolicies from "../views/admin/AdminPolicies.vue";
-import AdminPolicyDetail from "../views/admin/AdminPolicyDetail.vue";
-import AdminRoles from "../views/admin/AdminRoles.vue";
-import AdminRoleDetail from "../views/admin/AdminRoleDetail.vue";
-import OwnerLayout from "../views/owner/OwnerLayout.vue";
-import OwnerDashboard from "../views/owner/OwnerDashboard.vue";
-import OwnerPricing from "../views/owner/OwnerPricing.vue";
-import OwnerStaff from "../views/owner/OwnerStaff.vue";
-import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
-import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
-import BookingForm from "../views/clients/booking/BookingForm.vue";
-import BookingDetail from "../views/clients/booking/BookingDetail.vue";
-import PartnerRegistration from "../views/clients/PartnerRegistration.vue";
-import VenueList from "../views/clients/VenueList.vue";
-import VenueDetail from "../views/clients/VenueDetail.vue";
+const Home = () => import("../views/Home.vue");
+const Login = () => import("../views/Login.vue");
+const Register = () => import("../views/Register.vue");
+const ForgotPassword = () => import("../views/ForgotPassword.vue");
+const Profile = () => import("../views/Profile.vue");
+const AdminLogin = () => import("../views/admin/AdminLogin.vue");
+const AdminForgotPassword = () => import("../views/admin/AdminForgotPassword.vue");
+const AdminLayout = () => import("../views/admin/AdminLayout.vue");
+const AdminDashboard = () => import("../views/admin/AdminDashboard.vue");
+const AdminProfile = () => import("../views/admin/AdminProfile.vue");
+const AdminUsers = () => import("../views/admin/AdminUsers.vue");
+const AdminStaffs = () => import("../views/admin/AdminStaffs.vue");
+const AdminUserDetail = () => import("../views/admin/AdminUserDetail.vue");
+const AdminStaffDetail = () => import("../views/admin/AdminStaffDetail.vue");
+const AdminVouchers = () => import("../views/admin/AdminVouchers.vue");
+const AdminVoucherDetail = () => import("../views/admin/AdminVoucherDetail.vue");
+const AdminPolicies = () => import("../views/admin/AdminPolicies.vue");
+const AdminPolicyDetail = () => import("../views/admin/AdminPolicyDetail.vue");
+const AdminRoles = () => import("../views/admin/AdminRoles.vue");
+const AdminRoleDetail = () => import("../views/admin/AdminRoleDetail.vue");
+const OwnerLayout = () => import("../views/owner/OwnerLayout.vue");
+const OwnerDashboard = () => import("../views/owner/OwnerDashboard.vue");
+const OwnerPricing = () => import("../views/owner/OwnerPricing.vue");
+const OwnerStaff = () => import("../views/owner/OwnerStaff.vue");
+const OwnerVouchers = () => import("../views/owner/OwnerVouchers.vue");
+const OwnerPolicies = () => import("../views/owner/OwnerPolicies.vue");
+const BookingForm = () => import("../views/clients/booking/BookingForm.vue");
+const BookingDetail = () => import("../views/clients/booking/BookingDetail.vue");
+const BookingHistory = () => import("../views/clients/booking/BookingHistory.vue");
+const PartnerRegistration = () => import("../views/clients/PartnerRegistration.vue");
+const VenueList = () => import("../views/clients/VenueList.vue");
+const VenueDetail = () => import("../views/clients/VenueDetail.vue");
+const NewsDetail = () => import("../views/clients/NewsDetail.vue");
 
 const routes = [
     { path: "/", name: "home", component: Home },
     { path: "/venues", name: "venues", component: VenueList },
     { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
+    { path: "/news/:slug", name: "news-detail", component: NewsDetail },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
     {
@@ -68,6 +71,12 @@ const routes = [
         path: "/booking/:id",
         name: "booking-detail",
         component: BookingDetail,
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/bookings",
+        name: "booking-history",
+        component: BookingHistory,
         meta: { requiresAuth: true },
     },
     {

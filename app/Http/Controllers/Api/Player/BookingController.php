@@ -107,6 +107,39 @@ class BookingController extends Controller
     /**
      * API đặt sân mới (Yêu cầu đăng nhập).
      */
+    public function index(Request $request)
+    {
+        $validated = $request->validate([
+            'status_group' => 'nullable|in:all,upcoming,completed,cancelled,refunded',
+            'status' => 'nullable|in:pending_approval,pending_payment,confirmed,checked_in,completed,cancelled,expired,rejected',
+            'per_page' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        $query = Booking::query()
+            ->with([
+                'venueCourt.venueCluster',
+                'venueCourt.courtType',
+                'venueCluster',
+                'payments' => fn ($query) => $query->latest('created_at'),
+            ])
+            ->where('customer_id', auth()->id());
+
+        if (! empty($validated['status'])) {
+            $query->where('status', $validated['status']);
+        } else {
+            $this->applyStatusGroup($query, $validated['status_group'] ?? 'all');
+        }
+
+        $bookings = $query
+            ->orderByDesc('booking_date')
+            ->orderByDesc('start_time')
+            ->orderByDesc('created_at')
+            ->paginate((int) ($validated['per_page'] ?? 10))
+            ->through(fn (Booking $booking) => $this->historyPayload($booking));
+
+        return response()->json($bookings);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -208,5 +241,91 @@ class BookingController extends Controller
         [$hour, $minute] = array_map('intval', explode(':', substr($time, 0, 5)));
 
         return $hour * 60 + $minute;
+    }
+
+    private function applyStatusGroup($query, string $statusGroup): void
+    {
+        if ($statusGroup === 'upcoming') {
+            $today = now()->toDateString();
+            $currentTime = now()->format('H:i:s');
+
+            $query->whereIn('status', ['pending_approval', 'pending_payment', 'confirmed', 'checked_in'])
+                ->where(function ($query) use ($today, $currentTime) {
+                    $query->whereDate('booking_date', '>', $today)
+                        ->orWhere(function ($query) use ($today, $currentTime) {
+                            $query->whereDate('booking_date', $today)
+                                ->where('start_time', '>=', $currentTime);
+                        });
+                });
+
+            return;
+        }
+
+        if ($statusGroup === 'completed') {
+            $query->where('status', 'completed');
+
+            return;
+        }
+
+        if ($statusGroup === 'cancelled') {
+            $query->whereIn('status', ['cancelled', 'expired', 'rejected']);
+
+            return;
+        }
+
+        if ($statusGroup === 'refunded') {
+            $query->whereHas('payments', fn ($query) => $query->where('status', 'refunded'));
+        }
+    }
+
+    private function historyPayload(Booking $booking): array
+    {
+        $payments = $booking->payments;
+        $latestPayment = $payments->first();
+        $paidAmount = (float) $payments->where('status', 'paid')->sum('amount');
+        $isRefunded = $payments->contains(fn ($payment) => $payment->status === 'refunded');
+        $bookingDate = $booking->booking_date instanceof Carbon
+            ? $booking->booking_date->toDateString()
+            : $booking->booking_date;
+
+        return [
+            'id' => $booking->id,
+            'booking_code' => $booking->booking_code,
+            'booking_date' => $bookingDate,
+            'start_time' => $booking->start_time,
+            'end_time' => $booking->end_time,
+            'duration_minutes' => (int) $booking->duration_minutes,
+            'total_price' => (float) $booking->total_price,
+            'required_payment_amount' => (float) $booking->required_payment_amount,
+            'paid_amount' => $paidAmount,
+            'payment_option' => $booking->payment_option,
+            'payment_status' => $isRefunded
+                ? 'refunded'
+                : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),
+            'status' => $booking->status,
+            'status_reason' => $booking->status_reason,
+            'cancelled_at' => $booking->cancelled_at,
+            'can_cancel' => $this->canCustomerCancel($booking),
+            'venue_cluster' => $booking->venueCluster ?: $booking->venueCourt?->venueCluster,
+            'venue_court' => $booking->venueCourt,
+        ];
+    }
+
+    private function canCustomerCancel(Booking $booking): bool
+    {
+        if (! in_array($booking->status, ['pending_approval', 'pending_payment', 'confirmed'], true)) {
+            return false;
+        }
+
+        if (! $booking->booking_date || ! $booking->start_time) {
+            return false;
+        }
+
+        $bookingDate = $booking->booking_date instanceof Carbon
+            ? $booking->booking_date->toDateString()
+            : (string) $booking->booking_date;
+        $startAt = Carbon::parse($bookingDate.' '.substr($booking->start_time, 0, 8));
+
+        return $startAt->isFuture();
     }
 }

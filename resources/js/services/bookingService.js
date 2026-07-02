@@ -26,9 +26,28 @@ export const bookingService = {
     });
   },
 
+  listBookings(params = {}) {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        query.append(key, value);
+      }
+    });
+
+    const suffix = query.toString();
+    return api(`/api/bookings${suffix ? `?${suffix}` : ''}`);
+  },
+
   // Lấy chi tiết đơn đặt sân
   getBooking(id) {
     return api(`/api/bookings/${id}`);
+  },
+
+  cancelBooking(id, reason = '') {
+    return api(`/api/bookings/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
   },
 
   // Tạo thông tin thanh toán SePay cho đơn đặt sân
