@@ -7,12 +7,90 @@
     <PublicNavbar v-if="!isAdmin" theme="dark" />
 
     <!-- Chat Workspace -->
+    <!-- Chat Workspace -->
     <div 
       :class="[
         'flex-1 flex overflow-hidden relative',
         isAdmin ? 'bg-zinc-950 admin-chat-workspace' : 'border-t border-zinc-800 h-[calc(100vh-64px)]'
       ]"
     >
+      <!-- Telegram Menu Drawer Overlay -->
+      <div 
+        v-if="showTelegramMenu"
+        class="fixed inset-0 bg-transparent z-[9998]"
+        @click="closeTelegramMenu"
+      ></div>
+
+      <!-- Telegram Menu Drawer Panel -->
+      <div 
+        :class="[
+          'fixed inset-y-0 left-0 w-[280px] z-[9999] flex flex-col transition-transform duration-300 tg-drawer-panel',
+          showTelegramMenu ? 'translate-x-0' : '-translate-x-full'
+        ]"
+      >
+        <!-- Drawer Profile Header -->
+        <div class="tg-drawer-header">
+          <div class="h-11 w-11 rounded-full bg-orange-500 flex items-center justify-center font-semibold text-sm text-white select-none">
+            {{ currentUser.full_name?.charAt(0).toUpperCase() }}
+          </div>
+          
+          <div class="flex items-center justify-between mt-1.5">
+            <div class="min-w-0">
+              <div class="font-semibold text-[13px] tg-drawer-header-name truncate">{{ currentUser.full_name }}</div>
+              <div class="text-[11px] tg-drawer-header-sub mt-0.5">{{ currentUser.email || currentUser.phone || '' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drawer Navigation Items -->
+        <div class="flex-1 overflow-y-auto tg-drawer-nav">
+          <div class="py-2 px-2">
+            <!-- Tin nhắn đã lưu (Saved Messages - self chat) -->
+            <button @click="openSavedMessages" class="tg-drawer-item text-left w-full">
+              <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+              <span>Tin nhắn đã lưu</span>
+            </button>
+
+            <!-- Cài đặt (Chat settings placeholder) -->
+            <button @click="openChatSettings" class="tg-drawer-item text-left w-full">
+              <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Cài đặt hội thoại</span>
+            </button>
+          </div>
+
+          <!-- Divider -->
+          <div class="tg-drawer-divider"></div>
+
+          <!-- Theme Toggling Option -->
+          <div class="tg-drawer-toggle-row">
+            <div class="flex items-center gap-4 select-none">
+              <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+              <span class="text-sm">Chế độ tối</span>
+            </div>
+            
+            <!-- Custom Toggle Switch -->
+            <button 
+              type="button" 
+              @click="toggleNightMode"
+              class="tg-toggle-switch"
+              :class="isNightMode ? 'tg-toggle-on' : 'tg-toggle-off'"
+              aria-label="Chế độ tối"
+            >
+              <span 
+                class="tg-toggle-knob"
+                :class="isNightMode ? 'tg-knob-on' : 'tg-knob-off'"
+              ></span>
+            </button>
+          </div>
+        </div>
+      </div>
       
       <!-- Left Sidebar: Chat List -->
       <div 
@@ -21,117 +99,6 @@
           mobileShowChat ? 'hidden' : 'flex'
         ]"
       >
-        <!-- Telegram Menu Drawer Overlay -->
-        <div 
-          v-if="showTelegramMenu"
-          class="absolute inset-0 bg-transparent z-40"
-          @click="closeTelegramMenu"
-        ></div>
-
-        <!-- Telegram Menu Drawer Panel -->
-        <div 
-          :class="[
-            'absolute inset-y-0 left-0 w-[280px] z-50 flex flex-col transition-transform duration-300 tg-drawer-panel',
-            showTelegramMenu ? 'translate-x-0' : '-translate-x-full'
-          ]"
-        >
-          <!-- Drawer Profile Header -->
-          <div class="tg-drawer-header">
-            <div class="h-11 w-11 rounded-full bg-orange-500 flex items-center justify-center font-semibold text-sm text-white select-none">
-              {{ currentUser.full_name?.charAt(0).toUpperCase() }}
-            </div>
-            
-            <div class="flex items-center justify-between mt-1.5">
-              <div class="min-w-0">
-                <div class="font-semibold text-[13px] tg-drawer-header-name truncate">{{ currentUser.full_name }}</div>
-                <div class="text-[11px] tg-drawer-header-sub mt-0.5">{{ currentUser.email || currentUser.phone || '' }}</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Drawer Navigation Items -->
-          <div class="flex-1 overflow-y-auto tg-drawer-nav">
-            <div class="py-2 px-2">
-              <a href="/admin/profile" class="tg-drawer-item">
-                <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span>Hồ sơ của tôi</span>
-              </a>
-
-              <button @click="closeTelegramMenu" class="tg-drawer-item text-left">
-                <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                <span>Nhóm mới</span>
-              </button>
-
-              <button @click="closeTelegramMenu" class="tg-drawer-item text-left">
-                <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                </svg>
-                <span>Kênh mới</span>
-              </button>
-
-              <button @click="closeTelegramMenu" class="tg-drawer-item text-left">
-                <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                <span>Danh bạ</span>
-              </button>
-
-              <button @click="closeTelegramMenu" class="tg-drawer-item text-left">
-                <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
-                <span>Cuộc gọi</span>
-              </button>
-
-              <button @click="closeTelegramMenu" class="tg-drawer-item text-left">
-                <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-                <span>Tin nhắn đã lưu</span>
-              </button>
-
-              <a href="/admin/settings" class="tg-drawer-item">
-                <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span>Cài đặt</span>
-              </a>
-            </div>
-
-            <!-- Divider -->
-            <div class="tg-drawer-divider"></div>
-
-            <!-- Theme Toggling Option -->
-            <div class="tg-drawer-toggle-row">
-              <div class="flex items-center gap-4 select-none">
-                <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-                <span class="text-sm">Chế độ tối</span>
-              </div>
-              
-              <!-- Custom Toggle Switch -->
-              <button 
-                type="button" 
-                @click="toggleNightMode"
-                class="tg-toggle-switch"
-                :class="isNightMode ? 'tg-toggle-on' : 'tg-toggle-off'"
-                aria-label="Chế độ tối"
-              >
-                <span 
-                  class="tg-toggle-knob"
-                  :class="isNightMode ? 'tg-knob-on' : 'tg-knob-off'"
-                ></span>
-              </button>
-            </div>
-          </div>
-        </div>
-
         <!-- Sidebar Header / Search -->
         <div class="p-3 flex items-center gap-2 tg-sidebar-header shrink-0">
           <button 
@@ -145,22 +112,14 @@
           </button>
 
           <div class="relative flex-1">
-            <input 
+            <BaseInput 
               v-model="searchQuery"
               @input="handleSearch"
-              type="text" 
               placeholder="Tìm kiếm..." 
-              class="w-full pl-9 pr-8 py-1.5 bg-zinc-950/60 border border-zinc-800 rounded-full text-xs placeholder-zinc-400 text-zinc-100 focus:outline-none focus:border-zinc-700 transition-all tg-search-input"
+              size="sm"
+              no-ring
+              custom-class="w-full rounded-full bg-zinc-950/60 border-zinc-800 text-xs placeholder-zinc-400 text-zinc-100 tg-search-input"
             />
-            <button 
-              v-if="searchQuery" 
-              @click="clearSearch"
-              class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-zinc-400 hover:text-zinc-650"
-            >
-              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
         </div>
 
@@ -269,8 +228,8 @@
                 {{ activeConversation.title.charAt(0).toUpperCase() }}
               </div>
               <div class="min-w-0">
-                <div class="font-medium text-sm text-zinc-100 truncate flex items-center gap-2">
-                  <span>{{ activeConversation.title }}</span>
+                <div class="font-medium text-sm text-zinc-100 flex items-center gap-2 min-w-0">
+                  <span class="truncate">{{ activeConversation.title }}</span>
                   <span v-if="activeConversation.type === 'venue_contact'" class="px-1.5 py-0.5 bg-green-500/10 text-green-400 text-[9px] font-bold rounded border border-green-500/20 uppercase tracking-wider shrink-0">
                     Sân đấu
                   </span>
@@ -380,8 +339,7 @@
               Đang tải tin nhắn...
             </div>
             
-            <div v-else-if="messages.length === 0" class="text-center text-xs text-zinc-600 py-12 flex flex-col items-center gap-2">
-              <div class="text-lg">👋</div>
+            <div v-else-if="messages.length === 0" class="text-center text-xs text-zinc-600 py-12 flex flex-col items-center justify-center">
               <div>Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên!</div>
             </div>
 
@@ -692,13 +650,16 @@
 
 <script>
 import PublicNavbar from '../components/PublicNavbar.vue';
+import BaseInput from '../components/ui/BaseInput.vue';
+import echo from '../echo.js';
 import { getAuth } from '../stores/auth.js';
 import { chatService } from '../services/chat.service.js';
 
 export default {
   name: 'Chat',
   components: {
-    PublicNavbar
+    PublicNavbar,
+    BaseInput
   },
   data() {
     return {
@@ -715,8 +676,9 @@ export default {
       loadingMessages: false,
       selectedTab: 'all', // 'all', 'direct', 'venue_contact'
       mobileShowChat: false,
-      conversationsTimer: null,
-      messagesTimer: null,
+      echoConversationChannel: null,
+      echoUserChannel: null,
+
       showTelegramMenu: false,
       isNightMode: false,
       selectedImageFiles: [],
@@ -766,10 +728,10 @@ export default {
     // Load list of conversations on creation
     this.fetchConversations(true);
 
-    // Set polling for conversations list (every 5 seconds)
-    this.conversationsTimer = setInterval(() => {
-      this.fetchConversations(false);
-    }, 5000);
+    // Subscribe to user's personal channel for conversation list updates
+    this.subscribeUserChannel();
+
+
   },
   mounted() {
     // Apply chat-local theme class on mount
@@ -791,24 +753,21 @@ export default {
     }
   },
   beforeUnmount() {
-    // Clear all polling timers
-    if (this.conversationsTimer) clearInterval(this.conversationsTimer);
-    if (this.messagesTimer) clearInterval(this.messagesTimer);
+
+    // Leave WebSocket channels
+    this.unsubscribeConversationChannel();
+    this.unsubscribeUserChannel();
   },
   watch: {
-    // Clear and restart messages polling when active conversation changes
+    // Subscribe to new conversation channel and clear/restart fallback poll
     activeConversation(newVal, oldVal) {
-      if (this.messagesTimer) {
-        clearInterval(this.messagesTimer);
-        this.messagesTimer = null;
-      }
-      
+      // Unsubscribe from previous conversation channel
+      this.unsubscribeConversationChannel();
+
       if (newVal) {
         this.fetchMessages(true);
-        // Poll active conversation messages (every 3 seconds)
-        this.messagesTimer = setInterval(() => {
-          this.fetchMessages(false);
-        }, 3000);
+        // Subscribe to real-time messages on this conversation channel
+        this.subscribeConversationChannel(newVal.id);
       } else {
         this.messages = [];
         this.activeConversationParticipants = [];
@@ -816,11 +775,78 @@ export default {
     }
   },
   methods: {
+    // ---- WebSocket Channel Subscriptions ----
+    subscribeConversationChannel(conversationId) {
+      this.echoConversationChannel = echo
+        .private(`conversation.${conversationId}`)
+        .listen('.message.sent', (event) => {
+          const msg = event.message;
+          // Avoid duplicate if we already have the message (e.g. optimistic insert)
+          const exists = this.messages.some(m => m.id === msg.id);
+          if (!exists) {
+            this.messages.push(msg);
+            this.scrollToBottom();
+            this.markConversationAsRead();
+          }
+          // Update last message in conversation list
+          const conv = this.conversations.find(c => c.id === conversationId);
+          if (conv) {
+            conv.last_message = { content: msg.content, created_at: msg.created_at, sender_id: msg.sender_id };
+            conv.last_message_at = msg.created_at;
+            this.conversations.sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+          }
+        });
+    },
+
+    unsubscribeConversationChannel() {
+      if (this.echoConversationChannel) {
+        this.echoConversationChannel.stopListening('.message.sent');
+        echo.leave(this.echoConversationChannel.name ?? '');
+        this.echoConversationChannel = null;
+      }
+    },
+
+    subscribeUserChannel() {
+      if (!this.currentUser) return;
+      this.echoUserChannel = echo
+        .private(`user.${this.currentUser.id}`)
+        .listen('.conversation.updated', (event) => {
+          const updated = event.conversation;
+          const conv = this.conversations.find(c => c.id === updated.id);
+          if (conv) {
+            conv.last_message = updated.last_message;
+            conv.last_message_at = updated.last_message_at;
+            conv.unread_count = (conv.unread_count || 0) + 1;
+            this.conversations.sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+          } else {
+            // New conversation we didn't have yet — do a full refresh
+            this.fetchConversations(false);
+          }
+        });
+    },
+
+    unsubscribeUserChannel() {
+      if (this.echoUserChannel) {
+        this.echoUserChannel.stopListening('.conversation.updated');
+        echo.leave(this.echoUserChannel.name ?? '');
+        this.echoUserChannel = null;
+      }
+    },
+
+    // ---- End WebSocket Methods ----
     toggleTelegramMenu() {
       this.showTelegramMenu = !this.showTelegramMenu;
     },
     closeTelegramMenu() {
       this.showTelegramMenu = false;
+    },
+    openSavedMessages() {
+      this.closeTelegramMenu();
+      this.startChat({ type: 'saved' });
+    },
+    openChatSettings() {
+      this.closeTelegramMenu();
+      alert('Chức năng cài đặt hội thoại sẽ được phát triển trong phiên bản sau.');
     },
     toggleNightMode() {
       this.isNightMode = !this.isNightMode;
@@ -1843,6 +1869,20 @@ export default {
   color: var(--tg-received-text) !important;
 }
 
+@media (max-width: 768px) {
+  .tg-profile-sidebar {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: 320px !important;
+    z-index: 40 !important;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.25) !important;
+    border-left: 1px solid var(--tg-border) !important;
+  }
+}
+
 .tg-profile-body {
   padding-top: 48px !important;
   display: flex !important;
@@ -2139,8 +2179,22 @@ export default {
   background-color: var(--tg-input-bg) !important;
   color: var(--tg-input-text) !important;
   border: 1px solid var(--tg-border) !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 6px 12px !important;
+  font-size: 13px !important;
 }
 [data-admin-chat] .tg-search-input::placeholder {
   color: var(--tg-meta) !important;
+}
+.sg-shell-admin .content-area input.tg-search-input:not([type='checkbox']):not([type='radio']):focus,
+.sg-shell-admin .content-area .tg-search-input:focus,
+.sg-shell-admin .content-area input.tg-search-input:focus,
+[data-admin-chat] .tg-search-input:focus,
+.chat-page .tg-search-input:focus {
+  border-color: var(--tg-border) !important;
+  box-shadow: none !important;
+  box-shadow: 0 0 0 0 transparent !important;
+  outline: none !important;
 }
 </style>

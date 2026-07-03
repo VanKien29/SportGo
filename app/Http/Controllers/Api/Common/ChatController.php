@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Common;
 
 use App\Http\Controllers\Controller;
+use App\Events\ConversationUpdated;
+use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
@@ -45,8 +47,13 @@ class ChatController extends Controller
                 $title = $venue ? $venue->name : 'Sân đấu';
                 $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
             } else {
-                $title = $title ?: ($otherUser ? $otherUser->full_name : 'Người dùng');
-                $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
+                if (!$otherUser) {
+                    $title = 'Tin nhắn đã lưu';
+                    $avatarUrl = null;
+                } else {
+                    $title = $title ?: ($otherUser ? $otherUser->full_name : 'Người dùng');
+                    $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
+                }
             }
 
             // Get last message
@@ -185,7 +192,40 @@ class ChatController extends Controller
             return $msg;
         });
 
+        // Broadcast real-time update to all other participants
+        $this->broadcastMessage($message, $conversationId, $userId);
+
         return response()->json($message->load('sender:id,full_name,username,avatar_url'));
+    }
+
+    /**
+     * Broadcast the new message to all participants in the conversation
+     */
+    private function broadcastMessage(Message $message, string $conversationId, int|string $senderId): void
+    {
+        $messageData = $message->load('sender:id,full_name,username,avatar_url')->toArray();
+
+        // Broadcast to the conversation channel (all participants listening)
+        broadcast(new MessageSent($conversationId, $messageData))->toOthers();
+
+        // Broadcast conversation update to each participant's personal channel
+        $participants = ConversationParticipant::where('conversation_id', $conversationId)
+            ->where('user_id', '!=', $senderId)
+            ->pluck('user_id');
+
+        $conversationData = [
+            'id'              => $conversationId,
+            'last_message'    => [
+                'content'    => $message->content,
+                'created_at' => $message->created_at,
+                'sender_id'  => $message->sender_id,
+            ],
+            'last_message_at' => $message->created_at,
+        ];
+
+        foreach ($participants as $participantId) {
+            broadcast(new ConversationUpdated($participantId, $conversationData));
+        }
     }
 
     /**
@@ -363,6 +403,43 @@ class ChatController extends Controller
                     'conversation_id' => $conv->id,
                     'user_id' => $ownerId,
                     'last_read_at' => null,
+                ]);
+
+                return $conv;
+            });
+
+            return response()->json(['id' => $conversation->id]);
+        }
+
+        if ($type === 'saved') {
+            // Check if saved conversation (direct type with only 1 participant) already exists
+            $existing = Conversation::where('type', 'direct')
+                ->whereHas('participants', function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                })
+                ->whereDoesntHave('participants', function ($q) use ($userId) {
+                    $q->where('user_id', '!=', $userId);
+                })
+                ->first();
+
+            if ($existing) {
+                return response()->json(['id' => $existing->id]);
+            }
+
+            // Create new direct conversation with only the current user as participant
+            $conversation = DB::transaction(function () use ($userId) {
+                $now = now();
+                $conv = Conversation::create([
+                    'id' => (string) Str::uuid(),
+                    'type' => 'direct',
+                    'created_by' => $userId,
+                    'last_message_at' => $now,
+                ]);
+
+                ConversationParticipant::create([
+                    'conversation_id' => $conv->id,
+                    'user_id' => $userId,
+                    'last_read_at' => $now,
                 ]);
 
                 return $conv;
