@@ -829,50 +829,6 @@
             </section>
         </div>
 
-        <div v-if="receipt" class="modal-backdrop" @click.self="receipt = null">
-            <section class="receipt-modal">
-                <header>
-                    <div>
-                        <span class="eyebrow">Hóa đơn tài chính</span>
-                        <h3>{{ receipt.receipt_code }}</h3>
-                    </div>
-                    <button
-                        class="icon-only"
-                        type="button"
-                        @click="receipt = null"
-                    >
-                        <AppIcon name="x" size="18" />
-                    </button>
-                </header>
-                <div class="receipt-facts">
-                    <span>Tiêu đề</span><strong>{{ receipt.title }}</strong
-                    ><span>Số tiền</span
-                    ><strong>{{ formatCurrency(receipt.amount) }}</strong
-                    ><span>Phát hành lúc</span
-                    ><strong>{{ formatDate(receipt.issued_at) }}</strong
-                    ><span>Trạng thái</span
-                    ><strong>{{ receipt.status }}</strong>
-                </div>
-                <footer class="modal-actions compact-actions">
-                    <button
-                        v-if="receipt.view_url"
-                        class="primary-btn"
-                        type="button"
-                        @click="openReceiptWeb(receipt)"
-                    >
-                        Mở hóa đơn
-                    </button>
-                    <button
-                        class="secondary-btn"
-                        type="button"
-                        @click="receipt = null"
-                    >
-                        Đóng
-                    </button>
-                </footer>
-            </section>
-        </div>
-
         <div v-if="payoutOpen" class="modal-backdrop" @click.self="closePayout">
             <section
                 class="payout-modal"
@@ -1113,7 +1069,6 @@ export default {
             actionItem: null,
             actionForm: { status: "", reason: "", reference: "" },
             refundDetail: null,
-            receipt: null,
             payoutOpen: false,
             payoutLoading: false,
             payout: null,
@@ -1536,9 +1491,6 @@ export default {
             }
         },
         openReceipt(receipt) {
-            this.receipt = receipt;
-        },
-        openReceiptWeb(receipt) {
             if (!receipt?.view_url) return;
             window.open(receipt.view_url, "_blank", "noopener,noreferrer");
         },

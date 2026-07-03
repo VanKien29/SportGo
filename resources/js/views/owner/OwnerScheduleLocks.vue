@@ -446,8 +446,8 @@
         <details v-if="locks.length" class="locks-section" open>
             <summary class="locks-summary">
                 <div>
-                    <strong>Khoảng đã khóa trong ngày</strong>
-                    <span>{{ locks.length }} khoảng · {{ date(form.start_date) }}</span>
+                    <strong>Khoảng đã khóa</strong>
+                    <span>{{ lockSummaryLabel }}</span>
                 </div>
                 <button
                     v-if="locks.length"
@@ -457,7 +457,7 @@
                     @click.stop="
                         removeLocks(
                             locks,
-                            'Mở tất cả khoảng đã khóa trong ngày này?',
+                            'Mở tất cả khoảng đã khóa đang hiển thị?',
                         )
                     "
                 >
@@ -488,21 +488,50 @@
                             Mở sân này
                         </button>
                     </div>
-                    <div class="lock-chip-list">
-                        <button
-                            v-for="lock in group.items"
-                            :key="lock.id"
-                            type="button"
-                            :disabled="Boolean(deletingId)"
-                            :title="lock.reason || 'Mở khoảng khóa'"
-                            @click="removeLock(lock)"
+                    <div class="lock-day-list">
+                        <section
+                            v-for="day in group.days"
+                            :key="`${group.courtId}-${day.date}`"
+                            class="lock-day-group"
                         >
-                            <strong>
-                                {{ time(lock.start_time) }} -
-                                {{ time(lock.end_time) }}
-                            </strong>
-                            <span>Mở</span>
-                        </button>
+                            <div class="lock-day-head">
+                                <div>
+                                    <strong>{{ day.dateLabel }}</strong>
+                                    <span>{{ day.items.length }} khoảng</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    :disabled="Boolean(deletingId)"
+                                    @click="
+                                        removeLocks(
+                                            day.items,
+                                            `Mở tất cả khoảng khóa của ${group.courtName} ngày ${day.dateLabel}?`,
+                                        )
+                                    "
+                                >
+                                    Mở ngày này
+                                </button>
+                            </div>
+                            <div class="lock-chip-list">
+                                <button
+                                    v-for="lock in day.items"
+                                    :key="lock.id"
+                                    type="button"
+                                    :disabled="Boolean(deletingId)"
+                                    :title="lock.reason || 'Mở khoảng khóa'"
+                                    @click="removeLock(lock)"
+                                >
+                                    <span class="lock-chip-time">
+                                        {{ time(lock.start_time) }} -
+                                        {{ time(lock.end_time) }}
+                                    </span>
+                                    <span class="lock-chip-reason">
+                                        {{ lock.reason || "Không có lý do" }}
+                                    </span>
+                                    <span class="lock-chip-action">Mở</span>
+                                </button>
+                            </div>
+                        </section>
                     </div>
                 </div>
             </div>
@@ -614,6 +643,19 @@ export default {
 
             return `${ranges.slice(0, 2).join(", ")} +${ranges.length - 2} khung`;
         },
+        lockSummaryLabel() {
+            const dates = [
+                ...new Set(this.locks.map((lock) => this.lockDate(lock))),
+            ].filter(Boolean);
+
+            if (!dates.length) return `${this.locks.length} khoảng`;
+            if (dates.length === 1) {
+                return `${this.locks.length} khoảng · ${this.date(dates[0])}`;
+            }
+
+            const sortedDates = dates.sort();
+            return `${this.locks.length} khoảng · ${dates.length} ngày (${this.date(sortedDates[0])} - ${this.date(sortedDates[sortedDates.length - 1])})`;
+        },
         lockGroups() {
             const grouped = this.locks.reduce((result, lock) => {
                 const courtId =
@@ -630,12 +672,37 @@ export default {
             }, {});
 
             return Object.values(grouped)
-                .map((group) => ({
-                    ...group,
-                    items: group.items.sort((a, b) =>
-                        a.start_time.localeCompare(b.start_time),
-                    ),
-                }))
+                .map((group) => {
+                    const days = group.items.reduce((result, lock) => {
+                        const date = this.lockDate(lock);
+                        if (!result[date]) {
+                            result[date] = {
+                                date,
+                                dateLabel: this.date(date),
+                                items: [],
+                            };
+                        }
+                        result[date].items.push(lock);
+                        return result;
+                    }, {});
+
+                    return {
+                        ...group,
+                        items: group.items.sort((a, b) =>
+                            `${this.lockDate(a)} ${a.start_time}`.localeCompare(
+                                `${this.lockDate(b)} ${b.start_time}`,
+                            ),
+                        ),
+                        days: Object.values(days)
+                            .map((day) => ({
+                                ...day,
+                                items: day.items.sort((a, b) =>
+                                    a.start_time.localeCompare(b.start_time),
+                                ),
+                            }))
+                            .sort((a, b) => a.date.localeCompare(b.date)),
+                    };
+                })
                 .sort((a, b) => a.courtName.localeCompare(b.courtName));
         },
         dateRangeDates() {
@@ -1176,6 +1243,14 @@ export default {
             const month = String(date.getMonth() + 1).padStart(2, "0");
             const day = String(date.getDate()).padStart(2, "0");
             return `${year}-${month}-${day}`;
+        },
+        lockDate(lock) {
+            return (
+                lock?.booking_date ||
+                lock?.start_date ||
+                lock?.date ||
+                this.form.start_date
+            );
         },
         date(value) {
             if (!value) return "-";
@@ -1884,8 +1959,8 @@ export default {
 }
 .lock-group {
     display: grid;
-    gap: 10px;
-    padding: 12px;
+    gap: 12px;
+    padding: 14px;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     background: #f8fafc;
@@ -1909,7 +1984,41 @@ export default {
     font-size: 12px;
     font-weight: 750;
 }
+.lock-day-list {
+    display: grid;
+    gap: 10px;
+}
+.lock-day-group {
+    display: grid;
+    gap: 9px;
+    padding: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+}
+.lock-day-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.lock-day-head > div {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+.lock-day-head strong {
+    color: #0f172a;
+    font-size: 13px;
+}
+.lock-day-head span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 750;
+}
 .lock-group-head button,
+.lock-day-head button,
 .text-danger-btn {
     border: 0;
     background: transparent;
@@ -1922,26 +2031,39 @@ export default {
 .lock-chip-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 7px;
+    gap: 8px;
 }
 .lock-chip-list button {
-    display: inline-flex;
+    display: grid;
+    grid-template-columns: auto minmax(120px, 1fr) auto;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
+    max-width: min(100%, 520px);
     border: 1px solid #fecaca;
-    border-radius: 999px;
-    padding: 7px 10px;
-    background: #fff;
+    border-radius: 11px;
+    padding: 8px 10px;
+    background: #fff7f7;
     color: #991b1b;
     font: inherit;
+    text-align: left;
     cursor: pointer;
     transition: all 0.12s ease;
 }
-.lock-chip-list button strong {
+.lock-chip-time {
     font-size: 12px;
     font-weight: 900;
+    white-space: nowrap;
 }
-.lock-chip-list button span {
+.lock-chip-reason {
+    min-width: 0;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 750;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lock-chip-action {
     color: #dc2626;
     font-size: 11px;
     font-weight: 900;
@@ -1952,6 +2074,7 @@ export default {
 }
 .lock-chip-list button:disabled,
 .lock-group-head button:disabled,
+.lock-day-head button:disabled,
 .text-danger-btn:disabled {
     opacity: 0.55;
     cursor: not-allowed;
