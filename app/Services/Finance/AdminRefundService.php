@@ -119,7 +119,7 @@ class AdminRefundService
                 $this->receipts->createRefundReceipt($refund, $context['actor_id'] ?? null);
             }
 
-            return $refund->fresh();
+            return $refund->fresh(['receipt']);
         });
     }
 

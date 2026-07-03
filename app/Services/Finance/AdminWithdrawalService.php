@@ -103,7 +103,7 @@ class AdminWithdrawalService
                 $this->receipts->createWithdrawalReceipt($withdrawal, $context['actor_id'] ?? null);
             }
 
-            return $withdrawal->fresh();
+            return $withdrawal->fresh(['receipt']);
         });
     }
 

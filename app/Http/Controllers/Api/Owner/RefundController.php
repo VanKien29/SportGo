@@ -10,6 +10,7 @@ use App\Services\Policies\RefundPolicyEvaluator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 
 class RefundController extends Controller
@@ -48,6 +49,7 @@ class RefundController extends Controller
                 'payment:id,payment_code,booking_id,amount,method,payment_kind,status',
                 'ownerConfirmedBy:id,username,full_name',
                 'statusHistories.changedBy:id,username,full_name',
+                'receipt',
             ])
             ->whereHas('booking.venueCluster', fn ($builder) => $builder->where('owner_id', $request->user()->id))
             ->when($data['status'] ?? null, fn ($builder, string $status) => $builder->where('status', $status))
@@ -145,6 +147,7 @@ class RefundController extends Controller
             'owner_confirmed_by' => $refund->ownerConfirmedBy,
             'created_at' => $refund->created_at,
             'policy_evaluation' => $policy,
+            'receipt' => $this->receiptPayload($refund->receipt),
             'histories' => $refund->statusHistories
                 ->sortByDesc('created_at')
                 ->values()
@@ -162,6 +165,28 @@ class RefundController extends Controller
             'can_refund_cash' => $refund->status === 'pending_owner_confirmation'
                 && (in_array($refund->refund_destination, ['cash', 'user_wallet'], true))
                 && (float) $refund->amount > 0,
+        ];
+    }
+
+    private function receiptPayload($receipt): ?array
+    {
+        if (! $receipt) {
+            return null;
+        }
+
+        return [
+            'id' => $receipt->id,
+            'receipt_code' => $receipt->receipt_code,
+            'title' => $receipt->title,
+            'amount' => $receipt->amount,
+            'status' => $receipt->status,
+            'issued_at' => $receipt->issued_at,
+            'metadata' => $receipt->metadata,
+            'view_url' => URL::temporarySignedRoute(
+                'invoices.show',
+                now()->addDays(30),
+                ['receipt' => $receipt->id],
+            ),
         ];
     }
 

@@ -98,7 +98,7 @@
   margin: 8px 10px 6px;
   color: var(--admin-faint);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -112,7 +112,7 @@
   border-radius: var(--admin-radius);
   color: var(--admin-muted);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 500;
   line-height: 1.2;
   text-decoration: none;
   transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
@@ -134,7 +134,7 @@
   background: rgba(0, 0, 0, 0.05) !important;
   color: var(--admin-text) !important;
   box-shadow: none !important;
-  font-weight: 700 !important;
+  font-weight: 500 !important;
 }
 
 [data-theme="dark"] .sg-shell-admin .nav-active {
@@ -157,7 +157,7 @@
   background: var(--admin-surface);
   color: var(--admin-primary-dark);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   text-decoration: none;
   transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
@@ -203,7 +203,7 @@
   overflow: hidden;
   color: var(--admin-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -233,7 +233,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 0 clamp(22px, 2.4vw, 42px);
+  padding: 0 10px;
   border-bottom: 1px solid var(--admin-topbar-border);
   background: var(--admin-topbar-bg);
   backdrop-filter: blur(14px) saturate(140%);
@@ -402,21 +402,36 @@
 .sg-shell-admin .content-area {
   flex: 1;
   min-width: 0;
-  padding: 28px clamp(22px, 2.4vw, 42px) 32px;
+  padding: 10px;
 }
 
 /* Chat page fills the full content-area flush (no padding, no scroll) */
+.sg-shell-admin:has(.admin-chat-page) {
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.sg-shell-admin:has(.admin-chat-page) .main-content {
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
 .sg-shell-admin .content-area:has(.admin-chat-page) {
   padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 64px);
+  min-height: 0;
 }
 
 .sg-shell-admin .content-area > .admin-chat-page {
   max-width: none !important;
   margin-inline: 0 !important;
   width: 100% !important;
+  height: 100%;
 }
 
 .admin-footer {
@@ -483,7 +498,7 @@
   }
 
   .sg-shell-admin .content-area {
-    padding: 18px 16px 26px;
+    padding: 10px;
   }
 
   .admin-footer {
@@ -964,7 +979,7 @@
 
 .detail-sidebar-header-title span {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--admin-faint);

@@ -1,3 +1,16 @@
+function getContrastColor(hex) {
+  if (!hex) return '#ffffff';
+  let c = hex.replace(/^#/, '');
+  if (c.length === 3) {
+    c = c.split('').map(x => x + x).join('');
+  }
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  return (yiq >= 150) ? '#18181b' : '#ffffff';
+}
+
 export function applyCustomThemeStyles() {
   const themeDataStr = localStorage.getItem('admin-custom-theme');
   let styleEl = document.getElementById('admin-custom-theme-style');
@@ -22,9 +35,11 @@ export function applyCustomThemeStyles() {
     
     if (themeData.light) {
       const l = themeData.light;
+      const primaryText = getContrastColor(l.primary);
       cssContent += `
 :root {
   ${l.primary ? `--admin-primary: ${l.primary} !important;` : ''}
+  --admin-primary-text: ${primaryText} !important;
   ${l.secondary ? `--admin-blue: ${l.secondary} !important;` : ''}
   ${l.accent ? `--admin-hover: ${l.accent} !important;` : ''}
   ${l.muted ? `--admin-muted: ${l.muted} !important;` : ''}
@@ -47,9 +62,11 @@ export function applyCustomThemeStyles() {
     
     if (themeData.dark) {
       const d = themeData.dark;
+      const primaryText = getContrastColor(d.primary);
       cssContent += `
 [data-theme="dark"] {
   ${d.primary ? `--admin-primary: ${d.primary} !important;` : ''}
+  --admin-primary-text: ${primaryText} !important;
   ${d.secondary ? `--admin-blue: ${d.secondary} !important;` : ''}
   ${d.accent ? `--admin-hover: ${d.accent} !important;` : ''}
   ${d.muted ? `--admin-muted: ${d.muted} !important;` : ''}

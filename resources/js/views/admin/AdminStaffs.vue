@@ -1,14 +1,5 @@
 <template>
   <section class="admin-users">
-    <div class="header-section">
-      <div>
-        <h2>Quản lý Nhân sự hệ thống</h2>
-        <p class="muted">Quản lý nhân sự vận hành hệ thống và gán vai trò.</p>
-      </div>
-      <button class="btn success" @click="openCreateModal">
-        + Thêm nhân sự
-      </button>
-    </div>
 
     <!-- Bộ lọc & Tìm kiếm -->
     <div class="filters-panel">
@@ -34,6 +25,10 @@
         </select>
         <button class="btn secondary" @click="resetFilters">Đặt lại</button>
       </div>
+      <button class="btn btn-create primary" type="button" @click="openCreateModal">
+        <AppIcon name="plus" size="16" />
+        <span>Thêm nhân sự</span>
+      </button>
     </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -1574,5 +1569,36 @@ tr:last-child td {
   .detail-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* FAB Button */
+.btn-fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 22px;
+  height: 46px;
+  border-radius: 100px;
+  background: #000000;
+  color: #ffffff;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  transition: background 0.18s, transform 0.18s, box-shadow 0.18s;
+  z-index: 100;
+}
+.btn-fab:hover {
+  background: #222222;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+.btn-fab:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 </style>

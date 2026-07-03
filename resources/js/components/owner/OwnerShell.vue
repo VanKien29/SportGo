@@ -30,9 +30,6 @@
             <div class="content-area">
                 <slot />
             </div>
-            <footer class="admin-footer">
-                <span>SportGo Owner</span>
-            </footer>
         </main>
     </div>
 </template>

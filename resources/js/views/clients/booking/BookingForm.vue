@@ -1,6 +1,6 @@
 <template>
     <div class="booking-container">
-        <PublicNavbar theme="dark" />
+        <PublicNavbar />
 
         <main class="booking-main">
             <div class="booking-grid" v-if="!loadingInit">
@@ -21,6 +21,7 @@
                                     v-model="selectedClusterId"
                                     @change="onClusterChange"
                                     class="form-control"
+                                    :disabled="isClusterLocked"
                                 >
                                     <option value="" disabled>
                                         -- Chọn cụm sân --
@@ -33,6 +34,9 @@
                                         {{ c.name }}
                                     </option>
                                 </select>
+                                <small v-if="isClusterLocked" class="locked-hint">
+                                    Đang đặt sân cho cụm sân đã chọn.
+                                </small>
                             </div>
                             <div class="form-group">
                                 <label for="date">Ngày đặt sân</label>
@@ -596,6 +600,7 @@ export default {
         return {
             clusters: [],
             selectedClusterId: "",
+            lockedClusterId: "",
             selectedCourtId: "",
             bookingDate: new Date().toLocaleDateString("en-CA"),
             startTime: "08:00:00",
@@ -627,6 +632,12 @@ export default {
             scheduleSlotStatuses: [],
             selectedGridCourtId: "",
             selectedSlotIndexes: [],
+            routeSelectionApplied: false,
+            routeSelection: {
+                venueCourtId: "",
+                startTime: "",
+                endTime: "",
+            },
 
             timeOptions: [
                 "05:00:00",
@@ -673,6 +684,9 @@ export default {
         },
         currentCluster() {
             return this.clusters.find((c) => c.id === this.selectedClusterId);
+        },
+        isClusterLocked() {
+            return Boolean(this.lockedClusterId);
         },
         availableCourts() {
             return this.currentCluster?.venue_courts || [];
@@ -883,28 +897,42 @@ export default {
         }
 
         try {
+            const query = this.$route.query || {};
+            const requestedClusterId = query.venue_cluster_id || query.cluster || "";
+            const requestedCourtId = query.venue_court_id || "";
+            const queryCourtType = query.court_type || "";
+
+            if (query.booking_date || query.date) {
+                this.bookingDate = String(query.booking_date || query.date);
+            }
+            if (query.start_time) {
+                this.startTime = this.normalizeTimeParam(query.start_time);
+            }
+            if (query.end_time) {
+                this.endTime = this.normalizeTimeParam(query.end_time);
+            }
+
+            this.routeSelection = {
+                venueCourtId: requestedCourtId,
+                startTime: this.startTime,
+                endTime: this.endTime,
+            };
+
             const res = await bookingService.getInitData();
             this.clusters = res.clusters || [];
-            
-            const queryCluster = this.$route.query.cluster;
-            const queryDate = this.$route.query.date;
-            const queryCourtType = this.$route.query.court_type;
-
-            if (queryDate) {
-                this.bookingDate = queryDate;
-            }
-
-            if (queryCluster && this.clusters.some(c => String(c.id) === String(queryCluster))) {
-                this.selectedClusterId = Number(queryCluster);
-            } else if (this.clusters.length > 0) {
-                this.selectedClusterId = this.clusters[0].id;
-            }
-
-            if (this.selectedClusterId) {
+            if (this.clusters.length > 0) {
+                const requestedCluster = this.clusters.find(
+                    (cluster) => String(cluster.id) === String(requestedClusterId),
+                );
+                this.lockedClusterId = query.venue_cluster_id ? (requestedCluster?.id || "") : "";
+                this.selectedClusterId = requestedCluster?.id || this.clusters[0].id;
                 if (queryCourtType) {
                     this.selectedScheduleCourtTypeId = String(queryCourtType);
                 }
-                this.onClusterChange(!!queryCourtType);
+                this.onClusterChange({
+                    keepCourtType: Boolean(queryCourtType),
+                    preferredCourtId: requestedCourtId,
+                });
             }
         } catch (err) {
             console.error(err);
@@ -913,7 +941,23 @@ export default {
         }
     },
     methods: {
-        onClusterChange(keepCourtType = false) {
+        onClusterChange(options = {}) {
+            let keepCourtType = false;
+            let preferredCourtId = "";
+
+            if (typeof options === "boolean") {
+                keepCourtType = options;
+            } else if (typeof options === "string") {
+                preferredCourtId = options;
+            } else if (options && typeof options === "object") {
+                keepCourtType = Boolean(options.keepCourtType);
+                preferredCourtId = options.preferredCourtId || "";
+            }
+
+            if (this.lockedClusterId && this.selectedClusterId !== this.lockedClusterId) {
+                this.selectedClusterId = this.lockedClusterId;
+            }
+
             this.selectedCourtId = "";
             if (!keepCourtType) {
                 this.selectedScheduleCourtTypeId = "";
@@ -922,7 +966,10 @@ export default {
             this.availabilityChecked = false;
             this.clearGridSelection();
             if (this.availableCourts.length > 0) {
-                this.selectedCourtId = this.availableCourts[0].id;
+                const preferredCourt = this.availableCourts.find(
+                    (court) => String(court.id) === String(preferredCourtId),
+                );
+                this.selectedCourtId = preferredCourt?.id || this.availableCourts[0].id;
                 this.checkAvailability();
             }
             this.loadSchedule();
@@ -961,6 +1008,7 @@ export default {
                 this.scheduleCourts = res.courts || [];
                 this.scheduleBusyIntervals = res.busy_intervals || [];
                 this.scheduleSlotStatuses = res.slot_statuses || [];
+                this.applyRouteSelection();
             } catch (err) {
                 this.scheduleError = err.message || "Không thể tải lịch trống.";
             } finally {
@@ -1055,6 +1103,51 @@ export default {
         clearGridSelection() {
             this.selectedGridCourtId = "";
             this.selectedSlotIndexes = [];
+        },
+        applyRouteSelection() {
+            if (this.routeSelectionApplied || !this.routeSelection.venueCourtId) {
+                return;
+            }
+
+            const courtExists = this.scheduleCourts.some(
+                (court) => court.id === this.routeSelection.venueCourtId,
+            );
+            if (!courtExists) {
+                this.routeSelectionApplied = true;
+                return;
+            }
+
+            const firstIndex = this.scheduleSlots.findIndex(
+                (slot) => slot.start_time === this.routeSelection.startTime,
+            );
+            const lastIndex = this.scheduleSlots.findIndex(
+                (slot) => slot.end_time === this.routeSelection.endTime,
+            );
+
+            if (firstIndex < 0 || lastIndex < firstIndex) {
+                this.routeSelectionApplied = true;
+                return;
+            }
+
+            const indexes = this.range(firstIndex, lastIndex);
+            if (!this.isRangeFree(this.routeSelection.venueCourtId, indexes)) {
+                this.routeSelectionApplied = true;
+                return;
+            }
+
+            this.selectedGridCourtId = this.routeSelection.venueCourtId;
+            this.selectedCourtId = this.routeSelection.venueCourtId;
+            this.selectedSlotIndexes = indexes;
+            this.startTime = this.routeSelection.startTime;
+            this.endTime = this.routeSelection.endTime;
+            this.routeSelectionApplied = true;
+            this.checkAvailability();
+        },
+        normalizeTimeParam(value) {
+            const raw = String(value || "").trim();
+            if (/^\d{2}:\d{2}$/.test(raw)) return `${raw}:00`;
+            if (/^\d{2}:\d{2}:\d{2}$/.test(raw)) return raw;
+            return raw;
         },
         timeToMinutes(time) {
             const [hour, minute] = (time || "00:00")
@@ -1388,6 +1481,20 @@ export default {
 .form-control option {
     background: #18181b;
     color: #ffffff;
+}
+
+.form-control:disabled {
+    color: #64748b;
+    background: #f1f5f9;
+    cursor: not-allowed;
+}
+
+.locked-hint {
+    display: block;
+    margin-top: 6px;
+    color: #059669;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .time-range-group {

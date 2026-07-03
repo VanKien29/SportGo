@@ -104,6 +104,12 @@ export const adminNavigationSections = [
     label: 'Nội dung & cấu hình',
     items: [
       {
+        label: 'Tin tức hệ thống',
+        icon: 'fileText',
+        to: '/admin/system-posts',
+        activeNames: ['admin-system-posts'],
+      },
+      {
         label: 'Chính sách',
         icon: 'fileText',
         to: '/admin/policies',
@@ -170,6 +176,7 @@ export const adminRouteTitles = {
   'admin-venue-posts': 'Kiểm duyệt bài viết',
   'admin-roles': 'Quản lý nhóm quyền',
   'admin-role-detail': 'Chi tiết nhóm quyền',
+  'admin-system-posts': 'Tin tức hệ thống',
   'admin-policies': 'Quản lý chính sách',
   'admin-platform-fee-policies': 'Chính sách phí nền tảng',
   'admin-policy-detail': 'Chi tiết chính sách',

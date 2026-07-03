@@ -14,16 +14,20 @@
         </div>
 
         <template v-else>
-            <!-- SaaS Command Bar -->
-            <div class="command-bar" v-if="courtTypes.length > 0">
-                <div class="search-box">
-                    <AppIcon name="search" size="16" />
-                    <input
-                        v-model="searchQuery"
-                        type="text"
-                        placeholder="Tìm kiếm nhanh bộ môn hoặc loại sân..."
-                        class="search-input"
-                    />
+            <!-- SaaS Command Bar (Flat Style & High Contrast) -->
+            <div class="avc-filters card animate-fade-in" v-if="courtTypes.length > 0">
+                <div class="filter-row">
+                    <div class="filter-search">
+                        <div class="search-box">
+                            <AppIcon name="search" size="16" />
+                            <input
+                                v-model="searchQuery"
+                                type="text"
+                                placeholder="Tìm kiếm nhanh bộ môn hoặc loại sân..."
+                                class="search-input"
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -75,60 +79,67 @@
                             </div>
                         </div>
 
-                        <!-- Group Items (Loại sân con) -->
+                        <!-- Group Items (Loại sân con dạng SaaSTable) -->
                         <div class="group-items">
-                            <div
-                                v-for="child in getFilteredChildren(parent.id)"
-                                :key="child.id"
-                                class="court-type-row-item"
-                                :class="{ 'status-inactive': !child.is_active || !parent.is_active }"
+                            <SaaSTable 
+                                v-if="getFilteredChildren(parent.id).length > 0"
+                                :columns="tableColumns" 
+                                :data="getFilteredChildren(parent.id)"
                             >
-                                <!-- Accent hover line -->
-                                <div class="accent-line"></div>
-
-                                <!-- Left: Name & Players count -->
-                                <div class="row-left">
-                                    <div class="court-type-info">
-                                        <span class="court-type-name">{{ child.name }}</span>
-                                        <span class="court-type-desc" v-if="child.description">{{ child.description }}</span>
+                                <!-- Tên loại sân con -->
+                                <template #name="{ row }">
+                                    <div class="name-col-cell">
+                                        <span class="court-type-name-text">{{ row.name }}</span>
+                                        <span class="court-type-desc-text" v-if="row.description">{{ row.description }}</span>
                                     </div>
-                                    <span class="players-count-badge">
+                                </template>
+
+                                <!-- Số người chơi -->
+                                <template #player_count="{ row }">
+                                    <div class="player-col-cell">
                                         <AppIcon name="users" size="12" />
-                                        <span>{{ child.player_count }} người chơi</span>
-                                    </span>
-                                </div>
-
-                                <!-- Middle: Default Size & Status -->
-                                <div class="row-middle">
-                                    <div class="size-spec" v-if="child.default_layout_w && child.default_layout_h">
-                                        <AppIcon name="layers" size="13" />
-                                        <span>Quy chuẩn: {{ formatToM(child.default_layout_w) }}m x {{ formatToM(child.default_layout_h) }}m</span>
+                                        <span>{{ row.player_count }} người chơi</span>
                                     </div>
-                                    <span class="row-status-badge" :class="child.is_active ? 'active' : 'inactive'">
-                                        {{ child.is_active ? 'Đang hoạt động' : 'Tạm khóa' }}
-                                    </span>
-                                </div>
+                                </template>
 
-                                <!-- Right: Actions -->
-                                <div class="row-right">
-                                    <ActionIconButton
-                                        icon="pencil"
-                                        label="Sửa loại sân"
-                                        size="sm"
-                                        @click="openEditModal(child)"
-                                    />
-                                    <ActionIconButton
-                                        icon="trash"
-                                        label="Xóa loại sân"
-                                        variant="danger"
-                                        size="sm"
-                                        @click="confirmDelete(child)"
-                                    />
-                                </div>
-                            </div>
+                                <!-- Kích thước quy chuẩn -->
+                                <template #size="{ row }">
+                                    <div class="size-col-cell" v-if="row.default_layout_w && row.default_layout_h">
+                                        <AppIcon name="layers" size="13" />
+                                        <span>{{ formatToM(row.default_layout_w) }}m x {{ formatToM(row.default_layout_h) }}m</span>
+                                    </div>
+                                    <span v-else class="size-empty">—</span>
+                                </template>
+
+                                <!-- Trạng thái -->
+                                <template #is_active="{ row }">
+                                    <span class="status-badge" :class="row.is_active && parent.is_active ? 'status-is-active' : 'status-is-inactive'">
+                                        {{ row.is_active && parent.is_active ? 'Đang hoạt động' : 'Tạm khóa' }}
+                                    </span>
+                                </template>
+
+                                <!-- Actions -->
+                                <template #actions="{ row }">
+                                    <div class="table-actions">
+                                        <ActionIconButton
+                                            icon="pencil"
+                                            label="Sửa loại sân"
+                                            size="sm"
+                                            @click="openEditModal(row)"
+                                        />
+                                        <ActionIconButton
+                                            icon="trash"
+                                            label="Xóa loại sân"
+                                            variant="danger"
+                                            size="sm"
+                                            @click="confirmDelete(row)"
+                                        />
+                                    </div>
+                                </template>
+                            </SaaSTable>
 
                             <!-- Empty Children State -->
-                            <div v-if="getChildren(parent.id).length === 0" class="empty-children-row">
+                            <div v-else class="empty-children-row">
                                 Chưa có loại sân con nào thuộc bộ môn này. Click nút "+" ở tiêu đề nhóm để thêm.
                             </div>
                         </div>
@@ -321,14 +332,22 @@
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { courtTypeService } from "../../services/courtTypes";
 
 export default {
     name: "AdminCourtTypes",
-    components: { ActionIconButton, AppIcon },
+    components: { ActionIconButton, AppIcon, SaaSTable },
     data() {
         return {
             courtTypes: [],
+            tableColumns: [
+                { key: "name", label: "Loại sân con" },
+                { key: "player_count", label: "Số người chơi" },
+                { key: "size", label: "Kích thước quy chuẩn" },
+                { key: "is_active", label: "Trạng thái" },
+                { key: "actions", label: "", align: "right" }
+            ],
             searchQuery: "",
             loading: true,
             error: null,
@@ -555,9 +574,29 @@ export default {
     box-sizing: border-box;
 }
 
-.command-bar {
-    width: 100%;
-    margin-bottom: 4px;
+/* SaaS Filters */
+.avc-filters {
+    padding: 12px 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+:deep(.saas-table-container) {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+.filter-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.filter-search {
+    flex: 1;
+    min-width: 250px;
 }
 
 .views-content-wrapper {
@@ -567,26 +606,29 @@ export default {
 .grouped-court-types-list {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
 }
 
 .court-type-group {
-    background: #ffffff;
-    border: 1px solid rgba(15, 23, 42, 0.04);
-    border-radius: 12px;
-    padding: 16px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01);
+}
+
+.court-type-group:last-child {
+    border-bottom: none;
 }
 
 .group-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid rgba(15, 23, 42, 0.04);
-    padding-bottom: 10px;
+    border-bottom: none;
 }
 
 .group-header-left {
@@ -597,7 +639,7 @@ export default {
 
 .group-title {
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
     color: var(--admin-text, #0f172a);
     letter-spacing: 0.5px;
 }
@@ -612,7 +654,7 @@ export default {
 .group-count {
     font-size: 12px;
     color: var(--admin-faint, #64748b);
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .group-header-right {
@@ -627,140 +669,74 @@ export default {
     gap: 4px;
 }
 
-.court-type-row-item {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 52px;
-    padding: 10px 16px;
-    background: #ffffff;
-    border: 1px solid rgba(15, 23, 42, 0.03);
-    border-radius: 8px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.court-type-row-item:hover {
-    background: rgba(15, 23, 42, 0.01);
-    border-color: rgba(15, 23, 42, 0.06);
-    transform: translateX(2px);
-}
-
-.accent-line {
-    position: absolute;
-    left: 0;
-    top: 15%;
-    bottom: 15%;
-    width: 2.5px;
-    background: var(--admin-primary, #10b981);
-    border-radius: 0 2px 2px 0;
-    opacity: 0;
-    transform: scaleY(0.7);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.court-type-row-item:hover .accent-line {
-    opacity: 1;
-    transform: scaleY(1);
-}
-
-.row-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex: 1.2;
-    min-width: 0;
-}
-
-.court-type-info {
+/* SaaS Table custom layouts */
+.name-col-cell {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    min-width: 0;
 }
 
-.court-type-name {
-    font-size: 14px;
-    font-weight: 600;
+.court-type-name-text {
+    font-size: 13.5px;
+    font-weight: 500;
     color: var(--admin-text, #0f172a);
-    transition: opacity 0.2s ease;
 }
 
-.court-type-desc {
-    font-size: 12px;
+.court-type-desc-text {
+    font-size: 11.5px;
     color: var(--admin-faint, #64748b);
-    white-space: nowrap;
+    max-width: 280px;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 320px;
-}
-
-.court-type-row-item.status-inactive .court-type-name {
-    opacity: 0.5;
-}
-
-.players-count-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    background: rgba(15, 23, 42, 0.04);
-    color: rgba(15, 23, 42, 0.6);
-    border-radius: 6px;
-    font-size: 11.5px;
-    font-weight: 600;
     white-space: nowrap;
 }
 
-.row-middle {
+.player-col-cell, .size-col-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--admin-text, #0f172a);
+}
+
+.player-col-cell svg, .size-col-cell svg {
+    color: var(--admin-faint, #64748b);
+}
+
+.size-empty {
+    color: var(--admin-faint, #64748b);
+    font-size: 13px;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+}
+
+/* Status coloring mapping */
+.status-is-active {
+    color: var(--admin-primary-dark) !important;
+}
+
+/* Ensure readability/contrast for active status in dark mode */
+[data-theme="dark"] .status-is-active {
+    color: #34d399 !important;
+}
+
+.status-is-inactive {
+    color: var(--admin-danger-text, var(--admin-danger)) !important;
+}
+
+.table-actions {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 24px;
-    flex: 1;
-    padding-right: 16px;
-}
-
-.size-spec {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    color: var(--admin-faint, #64748b);
-    font-size: 12.5px;
-    font-weight: 500;
-}
-
-.row-status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 700;
-}
-
-.row-status-badge.active {
-    background: var(--admin-primary-soft, rgba(16, 185, 129, 0.1)) !important;
-    color: var(--admin-primary-dark, #047857) !important;
-}
-
-.row-status-badge.inactive {
-    background: var(--admin-surface-muted, #f1f5f9) !important;
-    color: var(--admin-muted, #475569) !important;
-}
-
-.row-right {
-    display: flex;
-    align-items: center;
     gap: 8px;
-    opacity: 0;
-    transform: translateX(6px);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.court-type-row-item:hover .row-right {
-    opacity: 1;
-    transform: translateX(0);
 }
 
 .empty-children-row {
@@ -1186,7 +1162,7 @@ export default {
 @media (max-width: 1024px) {
     .court-types-container {
         gap: 16px;
-        padding: 0 4px;
+        padding: 0;
     }
 }
 

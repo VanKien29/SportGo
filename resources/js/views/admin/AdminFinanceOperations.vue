@@ -3,7 +3,7 @@
         <header class="page-header">
             <div>
                 <h2>Xử lý hoàn tiền và rút tiền</h2>
-                <p>Đối soát yêu cầu, số dư online và phiếu tài chính.</p>
+                <p>Đối soát yêu cầu, số dư online và hóa đơn tài chính.</p>
             </div>
             <button
                 class="icon-only"
@@ -171,18 +171,17 @@
                         <th>Owner xác nhận</th>
                         <th>Số tiền</th>
                         <th>Trạng thái</th>
-                        <th>Phiếu</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-if="loading">
-                        <td colspan="9" class="empty">
+                        <td colspan="7" class="empty">
                             Đang tải yêu cầu hoàn tiền...
                         </td>
                     </tr>
                     <tr v-else-if="items.length === 0">
-                        <td colspan="9" class="empty">
+                        <td colspan="7" class="empty">
                             Chưa có yêu cầu hoàn tiền.
                         </td>
                     </tr>
@@ -469,16 +468,6 @@
                                     >{{ refundStatusLabel(refund) }}</span
                                 >
                             </td>
-                            <td>
-                                <button
-                                    v-if="refund.receipt"
-                                    class="code-link"
-                                    type="button"
-                                    @click="openReceipt(refund.receipt)"
-                                >
-                                    {{ refund.receipt.receipt_code }}</button
-                                ><span v-else>-</span>
-                            </td>
                             <td class="row-actions">
                                 <button
                                     class="icon-only"
@@ -530,18 +519,17 @@
                         <th>Tài khoản nhận tiền</th>
                         <th>Số tiền yêu cầu</th>
                         <th>Trạng thái</th>
-                        <th>Phiếu</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-if="loading">
-                        <td colspan="9" class="empty">
+                        <td colspan="8" class="empty">
                             Đang tải yêu cầu rút tiền...
                         </td>
                     </tr>
                     <tr v-else-if="items.length === 0">
-                        <td colspan="9" class="empty">
+                        <td colspan="8" class="empty">
                             Chưa có yêu cầu rút tiền.
                         </td>
                     </tr>
@@ -614,18 +602,6 @@
                                     withdrawal.status_reason ||
                                     formatDate(withdrawal.requested_at)
                                 }}</span>
-                            </td>
-                            <td>
-                                <button
-                                    v-if="withdrawal.receipt"
-                                    class="code-link"
-                                    type="button"
-                                    @click="openReceipt(withdrawal.receipt)"
-                                >
-                                    {{
-                                        withdrawal.receipt.receipt_code
-                                    }}</button
-                                ><span v-else>-</span>
                             </td>
                             <td>
                                 <div class="row-actions">
@@ -837,34 +813,19 @@
                         <p>{{ refundStatusNote(refundDetail) }}</p>
                     </section>
                 </div>
-            </section>
-        </div>
 
-        <div v-if="receipt" class="modal-backdrop" @click.self="receipt = null">
-            <section class="receipt-modal">
-                <header>
-                    <div>
-                        <span class="eyebrow">Phiếu tài chính</span>
-                        <h3>{{ receipt.receipt_code }}</h3>
-                    </div>
+                <footer
+                    v-if="refundDetail.receipt"
+                    class="modal-actions compact-actions"
+                >
                     <button
-                        class="icon-only"
+                        class="primary-btn"
                         type="button"
-                        @click="receipt = null"
+                        @click="openReceipt(refundDetail.receipt)"
                     >
-                        <AppIcon name="x" size="18" />
+                        Mở hóa đơn
                     </button>
-                </header>
-                <div class="receipt-facts">
-                    <span>Tiêu đề</span><strong>{{ receipt.title }}</strong
-                    ><span>Số tiền</span
-                    ><strong>{{ formatCurrency(receipt.amount) }}</strong
-                    ><span>Phát hành lúc</span
-                    ><strong>{{ formatDate(receipt.issued_at) }}</strong
-                    ><span>Trạng thái</span
-                    ><strong>{{ receipt.status }}</strong>
-                </div>
-                <pre>{{ prettyJson(receipt.metadata) }}</pre>
+                </footer>
             </section>
         </div>
 
@@ -1108,7 +1069,6 @@ export default {
             actionItem: null,
             actionForm: { status: "", reason: "", reference: "" },
             refundDetail: null,
-            receipt: null,
             payoutOpen: false,
             payoutLoading: false,
             payout: null,
@@ -1531,7 +1491,8 @@ export default {
             }
         },
         openReceipt(receipt) {
-            this.receipt = receipt;
+            if (!receipt?.view_url) return;
+            window.open(receipt.view_url, "_blank", "noopener,noreferrer");
         },
         openRefundDetail(refund) {
             this.refundDetail = refund;
@@ -1875,9 +1836,6 @@ export default {
         },
         formatDate(value) {
             return value ? new Date(value).toLocaleString("vi-VN") : "-";
-        },
-        prettyJson(value) {
-            return JSON.stringify(value || {}, null, 2);
         },
     },
 };
@@ -2364,6 +2322,11 @@ th {
 .receipt-facts.compact {
     margin: 0;
     grid-template-columns: 108px 1fr;
+}
+.compact-actions {
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
 }
 .refund-detail-modal {
     width: min(700px, calc(100vw - 32px));

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Owner;
 use App\Http\Controllers\Controller;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
+use App\Models\VenueCourtApprovalRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,22 +57,23 @@ class VenueCourtController extends Controller
             return response()->json(['message' => 'Bạn không có quyền thêm sân con vào cụm sân này.'], 403);
         }
 
-        $court = VenueCourt::query()->create([
+        if ($cluster->status === 'locked') {
+            return response()->json(['message' => 'Cụm sân đang bị khóa. Không thể gửi yêu cầu mới.'], 422);
+        }
+
+        // Tạo yêu cầu phê duyệt thay vì tạo sân con trực tiếp
+        $approvalRequest = VenueCourtApprovalRequest::create([
             'venue_cluster_id' => $data['venue_cluster_id'],
-            'court_type_id' => $data['court_type_id'],
-            'name' => $data['name'],
-            'sort_order' => $data['sort_order'] ?? 0,
-            'status' => 'active',
-            'layout_x' => $data['layout_x'] ?? null,
-            'layout_y' => $data['layout_y'] ?? null,
-            'layout_w' => $data['layout_w'] ?? null,
-            'layout_h' => $data['layout_h'] ?? null,
-            'layout_rotation' => $data['layout_rotation'] ?? 0,
+            'court_type_id'    => $data['court_type_id'],
+            'name'             => $data['name'],
+            'status'           => 'pending',
+            'requested_by'     => $request->user()->id,
+            'status_reason'    => 'Yêu cầu thêm sân con từ quản lý sân con',
         ]);
 
         return response()->json([
-            'message' => 'Thêm sân con thành công.',
-            'data' => $court->load('courtType'),
+            'message' => 'Yêu cầu thêm sân con đã được gửi thành công. Vui lòng chờ Admin xét duyệt.',
+            'data' => $approvalRequest->load('courtType'),
         ], 201);
     }
 

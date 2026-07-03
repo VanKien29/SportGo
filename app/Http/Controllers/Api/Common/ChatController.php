@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Common;
 
 use App\Http\Controllers\Controller;
+use App\Events\ConversationUpdated;
+use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
@@ -36,16 +38,20 @@ class ChatController extends Controller
             });
             $otherUser = $otherParticipant ? $otherParticipant->user : null;
 
-            // Determine Title & Avatar
-            $title = $conversation->title;
-            $avatarUrl = null;
-
-            if ($conversation->type === 'venue_contact' && $conversation->reference_id) {
+            if ($conversation->type === 'direct') {
+                if (!$otherUser) {
+                    $title = 'Tin nhắn đã lưu';
+                    $avatarUrl = null;
+                } else {
+                    $title = $otherUser->full_name;
+                    $avatarUrl = $otherUser->avatar_url;
+                }
+            } elseif ($conversation->type === 'venue_contact' && $conversation->reference_id) {
                 $venue = VenueCluster::find($conversation->reference_id);
                 $title = $venue ? $venue->name : 'Sân đấu';
                 $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
             } else {
-                $title = $title ?: ($otherUser ? $otherUser->full_name : 'Người dùng');
+                $title = $conversation->title ?: ($otherUser ? $otherUser->full_name : 'Người dùng');
                 $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
             }
 
@@ -145,17 +151,30 @@ class ChatController extends Controller
         }
 
         $request->validate([
-            'content' => 'required|string',
+            'content' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240', // tối đa 10MB
         ]);
 
-        $message = DB::transaction(function () use ($conversationId, $userId, $request) {
+        if (!$request->filled('content') && !$request->hasFile('image')) {
+            return response()->json(['message' => 'Nội dung tin nhắn hoặc hình ảnh là bắt buộc.'], 400);
+        }
+
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $imagePath = $file->store('chats', 'public');
+        }
+
+        $message = DB::transaction(function () use ($conversationId, $userId, $request, $imagePath) {
             $now = now();
             $msg = Message::create([
                 'id' => (string) Str::uuid(),
                 'conversation_id' => $conversationId,
                 'sender_id' => $userId,
-                'content' => $request->input('content'),
+                'content' => $request->input('content') ?: '[Hình ảnh]',
                 'is_system' => false,
+                'reference_type' => $imagePath ? 'image' : null,
+                'reference_id' => $imagePath ?: null,
                 'created_at' => $now,
             ]);
 
@@ -172,7 +191,40 @@ class ChatController extends Controller
             return $msg;
         });
 
+        // Broadcast real-time update to all other participants
+        $this->broadcastMessage($message, $conversationId, $userId);
+
         return response()->json($message->load('sender:id,full_name,username,avatar_url'));
+    }
+
+    /**
+     * Broadcast the new message to all participants in the conversation
+     */
+    private function broadcastMessage(Message $message, string $conversationId, int|string $senderId): void
+    {
+        $messageData = $message->load('sender:id,full_name,username,avatar_url')->toArray();
+
+        // Broadcast to the conversation channel (all participants listening)
+        broadcast(new MessageSent($conversationId, $messageData))->toOthers();
+
+        // Broadcast conversation update to each participant's personal channel
+        $participants = ConversationParticipant::where('conversation_id', $conversationId)
+            ->where('user_id', '!=', $senderId)
+            ->pluck('user_id');
+
+        $conversationData = [
+            'id'              => $conversationId,
+            'last_message'    => [
+                'content'    => $message->content,
+                'created_at' => $message->created_at,
+                'sender_id'  => $message->sender_id,
+            ],
+            'last_message_at' => $message->created_at,
+        ];
+
+        foreach ($participants as $participantId) {
+            broadcast(new ConversationUpdated($participantId, $conversationData));
+        }
     }
 
     /**
@@ -358,6 +410,43 @@ class ChatController extends Controller
             return response()->json(['id' => $conversation->id]);
         }
 
+        if ($type === 'saved') {
+            // Check if saved conversation (direct type with only 1 participant) already exists
+            $existing = Conversation::where('type', 'direct')
+                ->whereHas('participants', function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                })
+                ->whereDoesntHave('participants', function ($q) use ($userId) {
+                    $q->where('user_id', '!=', $userId);
+                })
+                ->first();
+
+            if ($existing) {
+                return response()->json(['id' => $existing->id]);
+            }
+
+            // Create new direct conversation with only the current user as participant
+            $conversation = DB::transaction(function () use ($userId) {
+                $now = now();
+                $conv = Conversation::create([
+                    'id' => (string) Str::uuid(),
+                    'type' => 'direct',
+                    'created_by' => $userId,
+                    'last_message_at' => $now,
+                ]);
+
+                ConversationParticipant::create([
+                    'conversation_id' => $conv->id,
+                    'user_id' => $userId,
+                    'last_read_at' => $now,
+                ]);
+
+                return $conv;
+            });
+
+            return response()->json(['id' => $conversation->id]);
+        }
+
         return response()->json(['message' => 'Loại cuộc trò chuyện không hợp lệ.'], 400);
     }
 
@@ -427,5 +516,49 @@ class ChatController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Delete a conversation and all its messages
+     */
+    public function deleteConversation(Request $request, $id)
+    {
+        $userId = $request->user()->id;
+
+        $participant = ConversationParticipant::where('conversation_id', $id)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$participant) {
+            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+        }
+
+        DB::transaction(function () use ($id) {
+            Message::where('conversation_id', $id)->delete();
+            ConversationParticipant::where('conversation_id', $id)->delete();
+            Conversation::where('id', $id)->delete();
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Clear all messages in a conversation
+     */
+    public function clearMessages(Request $request, $id)
+    {
+        $userId = $request->user()->id;
+
+        $isParticipant = ConversationParticipant::where('conversation_id', $id)
+            ->where('user_id', $userId)
+            ->exists();
+
+        if (!$isParticipant) {
+            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+        }
+
+        Message::where('conversation_id', $id)->delete();
+
+        return response()->json(['success' => true]);
     }
 }

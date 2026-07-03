@@ -19,11 +19,34 @@
             @click="sidebarStyle = 'one-level'"
           >
             <div class="sidebar-card-preview one-level-preview">
-              <div class="preview-sidebar-line"></div>
-              <div class="preview-content-box"></div>
+              <div class="preview-sidebar">
+                <div class="preview-logo"></div>
+                <div class="preview-menu-items">
+                  <div class="preview-menu-item active">
+                    <div class="preview-icon"></div>
+                    <div class="preview-text"></div>
+                  </div>
+                  <div class="preview-menu-item">
+                    <div class="preview-icon"></div>
+                    <div class="preview-text"></div>
+                  </div>
+                  <div class="preview-menu-item">
+                    <div class="preview-icon"></div>
+                    <div class="preview-text"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="preview-content">
+                <div class="preview-header"></div>
+                <div class="preview-body">
+                  <div class="preview-card-item"></div>
+                  <div class="preview-card-item"></div>
+                </div>
+              </div>
             </div>
             <div class="sidebar-card-info">
               <h3>Sidebar đơn cấp</h3>
+              <p>Hiển thị danh mục trực tiếp trên một thanh điều hướng duy nhất</p>
             </div>
           </div>
 
@@ -33,12 +56,33 @@
             @click="sidebarStyle = 'two-level'"
           >
             <div class="sidebar-card-preview two-level-preview">
-              <div class="preview-rail-line"></div>
-              <div class="preview-sidebar-line second"></div>
-              <div class="preview-content-box"></div>
+              <div class="preview-rail">
+                <div class="preview-rail-logo"></div>
+                <div class="preview-rail-items">
+                  <div class="preview-rail-item active"></div>
+                  <div class="preview-rail-item"></div>
+                  <div class="preview-rail-item"></div>
+                </div>
+              </div>
+              <div class="preview-sub-sidebar">
+                <div class="preview-sub-title"></div>
+                <div class="preview-sub-items">
+                  <div class="preview-sub-item active"></div>
+                  <div class="preview-sub-item"></div>
+                  <div class="preview-sub-item"></div>
+                </div>
+              </div>
+              <div class="preview-content">
+                <div class="preview-header"></div>
+                <div class="preview-body">
+                  <div class="preview-card-item"></div>
+                  <div class="preview-card-item"></div>
+                </div>
+              </div>
             </div>
             <div class="sidebar-card-info">
               <h3>Sidebar hai cấp</h3>
+              <p>Chia làm thanh chính (Rail) chứa icon và thanh phụ hiển thị menu chi tiết</p>
             </div>
           </div>
         </div>
@@ -62,6 +106,7 @@
               :key="preset.id"
               class="preset-card"
               :class="{ active: selectedPresetId === preset.id }"
+              :title="preset.name"
               @click="selectPreset(preset)"
             >
               <span class="preset-color-dot" :style="{ background: preset.color }"></span>
@@ -96,11 +141,11 @@
           <!-- Color Customizer Section -->
           <div class="settings-section-title">Chỉnh sửa bảng màu</div>
           
-          <!-- Mode Tabs -->
-          <div class="mode-tabs">
+          <!-- Mode Tabs (Segmented Toggle Control) -->
+          <div class="mode-toggle-group">
             <button
               type="button"
-              class="tab-btn"
+              class="toggle-tab-btn"
               :class="{ active: activeModeTab === 'light' }"
               @click="activeModeTab = 'light'"
             >
@@ -108,7 +153,7 @@
             </button>
             <button
               type="button"
-              class="tab-btn"
+              class="toggle-tab-btn"
               :class="{ active: activeModeTab === 'dark' }"
               @click="activeModeTab = 'dark'"
             >
@@ -174,16 +219,7 @@
               <!-- Color Name -->
               <div class="figma-color-name">{{ color.label }}</div>
 
-              <!-- Hex Input -->
-              <div class="figma-hex-input-wrapper">
-                <input
-                  type="text"
-                  v-model="theme[activeModeTab][color.key]"
-                  class="figma-hex-text-input"
-                  placeholder="#000000"
-                  @input="selectedPresetId = 'custom'"
-                />
-              </div>
+
             </div>
           </div>
 
@@ -195,14 +231,25 @@
               placeholder="Tên chủ đề tùy chỉnh của bạn..."
               class="theme-name-input"
             />
-            <button
-              type="button"
-              class="btn-secondary save-preset-btn"
-              @click="saveAsNewPreset"
-              :disabled="!newThemeName.trim()"
-            >
-              Lưu thành chủ đề mới
-            </button>
+            <div class="preset-action-buttons">
+              <button
+                v-if="isCustomPresetActive"
+                type="button"
+                class="btn-primary update-preset-btn"
+                @click="updateActivePreset"
+                :disabled="!newThemeName.trim()"
+              >
+                Cập nhật chủ đề
+              </button>
+              <button
+                type="button"
+                class="btn-secondary save-preset-btn"
+                @click="saveAsNewPreset"
+                :disabled="!newThemeName.trim()"
+              >
+                Lưu thành chủ đề mới
+              </button>
+            </div>
           </div>
         </div>
 
@@ -456,6 +503,10 @@ export default {
     allPresets() {
       return [...this.defaultPresets, ...this.userPresets];
     },
+    isCustomPresetActive() {
+      const activePreset = this.allPresets.find(p => p.id === this.selectedPresetId);
+      return !!(activePreset && activePreset.isUserPreset);
+    },
     lightPreviewStyle() {
       const l = this.theme.light;
       return {
@@ -486,16 +537,20 @@ export default {
       };
     },
     lightBtnPrimaryStyle() {
-      return { background: this.theme.light.primary, borderRadius: `calc(${this.selectedRadius} - 4px)` };
+      const p = this.theme.light.primary;
+      const r = this.getContrastColor(p);
+      return { background: p, color: r, borderRadius: `calc(${this.selectedRadius} - 4px)` };
     },
     lightBtnDestructiveStyle() {
-      return { background: this.theme.light.destructive, borderRadius: `calc(${this.selectedRadius} - 4px)` };
+      return { background: this.theme.light.destructive, color: '#ffffff', borderRadius: `calc(${this.selectedRadius} - 4px)` };
     },
     darkBtnPrimaryStyle() {
-      return { background: this.theme.dark.primary, borderRadius: `calc(${this.selectedRadius} - 4px)` };
+      const p = this.theme.dark.primary;
+      const r = this.getContrastColor(p);
+      return { background: p, color: r, borderRadius: `calc(${this.selectedRadius} - 4px)` };
     },
     darkBtnDestructiveStyle() {
-      return { background: this.theme.dark.destructive, borderRadius: `calc(${this.selectedRadius} - 4px)` };
+      return { background: this.theme.dark.destructive, color: '#ffffff', borderRadius: `calc(${this.selectedRadius} - 4px)` };
     },
   },
   created() {
@@ -506,6 +561,18 @@ export default {
     document.removeEventListener('click', this.closeCustomPicker);
   },
   methods: {
+    getContrastColor(hex) {
+      if (!hex) return '#ffffff';
+      let c = hex.replace(/^#/, '');
+      if (c.length === 3) {
+        c = c.split('').map(x => x + x).join('');
+      }
+      const r = parseInt(c.slice(0, 2), 16);
+      const g = parseInt(c.slice(2, 4), 16);
+      const b = parseInt(c.slice(4, 6), 16);
+      const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+      return (yiq >= 150) ? '#18181b' : '#ffffff';
+    },
     hexToHsv(hex) {
       let c = hex.replace(/^#/, '');
       if (c.length === 3) {
@@ -628,6 +695,20 @@ export default {
       this.selectedPresetId = preset.id;
       this.theme.light = { ...preset.light };
       this.theme.dark = { ...preset.dark };
+      this.newThemeName = preset.name;
+    },
+    updateActivePreset() {
+      if (!this.newThemeName.trim()) return;
+      const index = this.userPresets.findIndex(p => p.id === this.selectedPresetId);
+      if (index !== -1) {
+        this.userPresets[index].name = this.newThemeName.trim();
+        this.userPresets[index].color = this.theme.light.primary;
+        this.userPresets[index].light = { ...this.theme.light };
+        this.userPresets[index].dark = { ...this.theme.dark };
+        
+        localStorage.setItem('admin-user-presets', JSON.stringify(this.userPresets));
+        alert('Đã cập nhật chủ đề tùy chỉnh thành công!');
+      }
     },
     saveAsNewPreset() {
       if (!this.newThemeName.trim()) return;
@@ -735,6 +816,9 @@ export default {
     grid-template-columns: 1fr;
     gap: 24px;
   }
+  .preview-column {
+    position: static;
+  }
 }
 
 .controls-column {
@@ -750,7 +834,7 @@ export default {
 /* Titles and labels */
 .settings-section-title {
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--admin-text);
@@ -760,86 +844,105 @@ export default {
 
 /* Theme Presets Grid */
 .presets-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 20px;
 }
 
 .preset-card {
   position: relative;
-  border: 1px solid var(--admin-border-soft);
+  height: 36px;
+  padding: 0 12px;
+  gap: 8px;
+  border: 2px solid var(--admin-border-soft);
   border-radius: var(--admin-radius);
-  padding: 8px 12px;
   cursor: pointer;
   background: var(--admin-surface);
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: all 120ms ease;
+  justify-content: center;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
+  box-sizing: border-box;
 }
 
 .preset-card:hover {
   border-color: var(--admin-primary);
-  background: var(--admin-hover);
+  transform: scale(1.04);
 }
 
 .preset-card.active {
   border-color: var(--admin-primary);
-  background: var(--admin-primary-soft);
-  font-weight: 600;
+  box-shadow: none !important;
+  transform: scale(1.02);
 }
 
 .preset-color-dot {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
+  transition: transform 150ms ease;
+}
+
+.preset-card.active .preset-color-dot {
+  transform: scale(1.1);
 }
 
 .preset-name {
+  display: block;
   font-size: 12px;
+  font-weight: 500;
   color: var(--admin-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .delete-preset-btn {
-  background: transparent;
-  border: 0;
-  color: var(--admin-faint);
-  font-size: 16px;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--admin-danger);
+  color: #ffffff;
+  font-size: 10px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--admin-surface);
   cursor: pointer;
-  margin-left: auto;
-  padding: 0 4px;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
-  transition: color 120ms ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 10;
+  padding: 0;
 }
 
-.delete-preset-btn:hover {
-  color: var(--admin-danger);
+.preset-card:hover .delete-preset-btn {
+  display: flex;
 }
 
 /* Radius selector */
 .radius-selector-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 20px;
 }
 
 .radius-btn {
-  padding: 6px 12px;
+  height: 36px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
   background: var(--admin-surface);
   color: var(--admin-text);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 120ms ease;
 }
@@ -851,68 +954,89 @@ export default {
 
 .radius-btn.active {
   background: var(--admin-primary);
-  color: #ffffff;
+  color: var(--admin-primary-text, #ffffff);
   border-color: var(--admin-primary);
 }
 
-/* Mode tabs for color picker */
-.mode-tabs {
-  display: flex;
-  margin-bottom: 12px;
-  gap: 16px;
+/* Mode Segmented Toggle Group */
+.mode-toggle-group {
+  display: inline-flex !important;
+  width: fit-content !important;
+  background: var(--admin-bg-soft) !important;
+  border-radius: var(--admin-radius) !important;
+  padding: 3px !important;
+  gap: 2px !important;
+  margin-bottom: 16px !important;
+  border: 1px solid var(--admin-border-soft) !important;
 }
 
-.tab-btn {
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  padding: 8px 4px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--admin-muted);
-  cursor: pointer;
-  transition: all 120ms ease;
+.toggle-tab-btn {
+  background: transparent !important;
+  border: 0 !important;
+  width: 120px !important;
+  height: 30px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: var(--admin-muted) !important;
+  cursor: pointer !important;
+  border-radius: calc(var(--admin-radius) - 2px) !important;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  user-select: none !important;
 }
 
-.tab-btn:hover {
+.toggle-tab-btn:hover {
   color: var(--admin-text);
 }
 
-.tab-btn.active {
+.toggle-tab-btn.active {
+  background: var(--admin-surface);
   color: var(--admin-primary);
-  border-bottom-color: var(--admin-primary);
+  box-shadow: none !important;
 }
 
 /* Figma Color Rows Styles */
 .figma-color-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--admin-surface);
-  padding: 8px;
-  border-radius: var(--admin-radius);
-  border: 1px solid var(--admin-border-soft);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  border: none;
   margin-bottom: 20px;
+}
+
+@media (max-width: 576px) {
+  .figma-color-rows {
+    grid-template-columns: 1fr;
+  }
 }
 
 .figma-color-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 6px 8px;
-  border-radius: var(--admin-radius);
-  transition: background-color 100ms ease;
+  gap: 10px;
+  padding: 6px 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-sizing: border-box;
+  height: 38px;
+  transition: all 120ms ease;
 }
 
 .figma-color-row:hover {
-  background: var(--admin-hover);
+  opacity: 0.8;
 }
 
 .figma-color-swatch-wrapper {
   position: relative;
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   border: 1px solid var(--admin-border-soft);
   cursor: pointer;
   flex-shrink: 0;
@@ -921,43 +1045,50 @@ export default {
 .figma-color-indicator {
   width: 100%;
   height: 100%;
+  border-radius: 5px;
 }
 
 .figma-color-name {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--admin-text);
   flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .figma-hex-input-wrapper {
-  width: 80px;
+  width: 86px;
 }
 
 .figma-hex-text-input {
-  width: 100%;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 4px 6px;
-  font-family: monospace;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--admin-text);
-  text-transform: uppercase;
-  text-align: right;
-  transition: all 120ms ease;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: var(--admin-bg-soft) !important;
+  border: 1px solid var(--admin-border-soft) !important;
+  border-radius: 4px !important;
+  padding: 4px 6px !important;
+  font-family: monospace !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  color: var(--admin-text) !important;
+  text-transform: uppercase !important;
+  text-align: center !important;
+  transition: all 120ms ease !important;
+  height: 26px !important;
+  min-height: auto !important;
 }
 
 .figma-hex-text-input:hover {
-  border-color: var(--admin-border-soft);
+  border-color: var(--admin-muted);
 }
 
 .figma-hex-text-input:focus {
   background: var(--admin-surface);
   border-color: var(--admin-primary);
   outline: none;
-  box-shadow: 0 0 0 2px var(--admin-primary-soft);
+  box-shadow: none !important;
 }
 
 /* Popover Figma Picker */
@@ -976,6 +1107,18 @@ export default {
   flex-direction: column;
   gap: 8px;
   user-select: none;
+}
+
+@media (max-width: 576px) {
+  .figma-popover {
+    position: fixed;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: calc(100% - 32px);
+    max-width: 260px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.25);
+  }
 }
 
 .sv-canvas {
@@ -1080,7 +1223,7 @@ export default {
 
 .picker-input-label {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--admin-faint);
 }
 
@@ -1091,7 +1234,7 @@ export default {
   outline: none;
   font-family: monospace;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--admin-text);
   text-transform: uppercase;
 }
@@ -1099,22 +1242,64 @@ export default {
 /* Save Preset Inline */
 .save-preset-inline {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   margin-top: 8px;
   padding-top: 16px;
+  border-top: 1px solid var(--admin-border-soft);
 }
 
-.theme-name-input {
+.preset-action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.update-preset-btn,
+.save-preset-btn {
+  height: 36px;
+  padding: 0 16px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 576px) {
+  .save-preset-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .preset-action-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  .update-preset-btn,
+  .save-preset-btn {
+    width: 100%;
+  }
+}
+
+.sg-shell-admin .content-area input.theme-name-input {
   flex: 1;
-  padding: 6px 12px;
+  height: 36px;
+  padding: 0 12px;
+  box-sizing: border-box;
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
   background: var(--admin-surface);
   color: var(--admin-text);
-  font-size: 12px;
+  font-size: 12px !important;
   outline: none;
   transition: border-color 120ms ease;
+}
+
+.sg-shell-admin .content-area input.theme-name-input::placeholder {
+  font-size: 12px !important;
+  opacity: 0.65;
 }
 
 .theme-name-input:focus {
@@ -1122,16 +1307,27 @@ export default {
 }
 
 .save-preset-btn {
-  padding: 7px 14px;
+  height: 36px;
+  padding: 0 16px;
   font-size: 12px;
   white-space: nowrap;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Live Preview Panel */
 .preview-container {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+@media (max-width: 576px) {
+  .preview-container {
+    grid-template-columns: 1fr;
+  }
 }
 
 .preview-item {
@@ -1146,7 +1342,7 @@ export default {
 
 .preview-mode-tag {
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 500;
   text-transform: uppercase;
   color: #334155;
   opacity: 0.6;
@@ -1168,7 +1364,7 @@ export default {
 
 .preview-card-title {
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 500;
   color: var(--preview-primary);
 }
 
@@ -1189,7 +1385,7 @@ export default {
   border: 0;
   padding: 6px 12px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   color: #ffffff;
   cursor: default;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -1204,9 +1400,39 @@ export default {
 .settings-card-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
   padding: 16px 24px;
   background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.02));
   border-top: none !important;
+}
+
+.settings-card-footer button {
+  min-width: 160px;
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .settings-card-footer button {
+    width: auto !important;
+    flex: 1;
+  }
+}
+
+@media (max-width: 576px) {
+  .settings-card-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    padding: 16px 0;
+  }
+  .settings-card-footer button {
+    width: 100% !important;
+    max-width: none;
+  }
+}
+
+.settings-card h2,
+.settings-card h3,
+.sidebar-card-info h3 {
+  font-weight: 500 !important;
 }
 </style>

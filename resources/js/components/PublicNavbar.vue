@@ -1,41 +1,58 @@
 <template>
-  <nav :class="['navbar', isDark ? 'navbar-dark' : 'navbar-light']">
+  <nav class="navbar">
     <div class="navbar-inner">
-      <!-- Brand + Nav links -->
       <div class="navbar-left">
         <router-link to="/" class="brand">
-          <span class="brand-text">Sport Go</span>
+          <div class="brand-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <circle cx="16" cy="16" r="15" stroke="currentColor" stroke-width="2"/>
+              <path d="m9 12 7-5 7 5-3 8h-8z" stroke="currentColor" stroke-width="1.7" fill="none"/>
+              <path d="M9 12 4 15M23 12l5 3M12 20l-3 7M20 20l3 7" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <span class="brand-text">Sport<span>Go</span></span>
         </router-link>
+
         <div class="nav-links">
           <router-link to="/" class="nav-link" exact-active-class="active-link">Trang chủ</router-link>
-          <router-link to="/booking" class="nav-link" active-class="active-link" v-if="user && user.role === 'user'">Lịch & Đặt sân</router-link>
+          <router-link to="/venues" class="nav-link" active-class="active-link">Tìm sân</router-link>
+          <a href="/#sports" class="nav-link">Môn thể thao</a>
+          <a href="/#news" class="nav-link">Tin tức</a>
+          <router-link to="/become-partner" class="nav-link" active-class="active-link">Chủ sân</router-link>
+          <a href="/#support" class="nav-link">Hỗ trợ</a>
+          <router-link
+            v-if="user && user.role === 'user'"
+            to="/bookings"
+            class="nav-link"
+            active-class="active-link"
+          >
+            Lịch đặt sân
+          </router-link>
         </div>
       </div>
 
-      <!-- Right: Login or User Menu -->
       <div class="navbar-right">
-        <!-- Theme Toggle Button -->
-        <button class="theme-toggle-btn" @click="toggleTheme" aria-label="Đổi giao diện">
-          <svg v-if="isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        <router-link to="/become-partner" class="hotline owner-entry">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 10h.01M15 10h.01"/>
           </svg>
-          <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </button>
-
-        <router-link v-if="!user" to="/login" class="login-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-            <polyline points="10 17 15 12 10 7"/>
-            <line x1="15" y1="12" x2="3" y2="12"/>
-          </svg>
-          Đăng nhập
+          <span>
+            <strong>Chủ sân</strong>
+            <small>Quản lý & nhận booking</small>
+          </span>
         </router-link>
+
+        <template v-if="!user">
+          <router-link to="/login" class="login-btn">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+              <polyline points="10 17 15 12 10 7"/>
+              <line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+            Đăng nhập
+          </router-link>
+          <router-link to="/register" class="register-btn">Đăng ký</router-link>
+        </template>
 
         <div v-else class="user-menu" @mouseenter="showDropdown = true" @mouseleave="scheduleHide">
           <button class="user-btn" @click="toggleDropdown">
@@ -53,9 +70,8 @@
               </div>
               <div class="dd-divider"></div>
 
-              <!-- Profile link - đến đúng profile theo role -->
               <router-link :to="profileRoute" class="dd-item" @click="showDropdown = false">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                   <circle cx="12" cy="7" r="4"/>
                 </svg>
@@ -63,46 +79,51 @@
               </router-link>
 
               <router-link to="/chat" class="dd-item" @click="showDropdown = false">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
                 Trò chuyện
               </router-link>
 
-              <router-link v-if="user.role === 'user'" to="/partner-application" class="dd-item dd-partner" @click="showDropdown = false">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <router-link
+                v-if="user.role === 'user'"
+                to="/partner-application"
+                class="dd-item dd-partner"
+                @click="showDropdown = false"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M3 21h18"/>
                   <path d="M5 21V7l8-4v18"/>
                   <path d="M19 21V11l-6-4"/>
-                  <path d="M9 9h1"/>
-                  <path d="M9 13h1"/>
-                  <path d="M9 17h1"/>
+                  <path d="M9 9h1M9 13h1M9 17h1"/>
                 </svg>
                 Đăng ký đối tác
               </router-link>
 
-              <router-link v-if="user.role === 'owner'" to="/owner/partner-profile" class="dd-item dd-partner" @click="showDropdown = false">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <router-link
+                v-if="user.role === 'owner'"
+                to="/owner/partner-profile"
+                class="dd-item dd-partner"
+                @click="showDropdown = false"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <path d="M14 2v6h6"/>
-                  <path d="M16 13H8"/>
-                  <path d="M16 17H8"/>
+                  <path d="M16 13H8M16 17H8"/>
                 </svg>
                 Hồ sơ đối tác
               </router-link>
 
-              <!-- Owner: Quay lại quản lý sân -->
               <button v-if="user.role === 'owner'" class="dd-item dd-manage" @click="goToManage">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                   <circle cx="12" cy="10" r="3"/>
                 </svg>
                 Quay lại quản lý sân
               </button>
 
-              <!-- Admin: Quay lại quản trị -->
               <button v-if="user.role === 'admin'" class="dd-item dd-manage" @click="goToManage">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <rect x="3" y="3" width="7" height="7" rx="1"/>
                   <rect x="14" y="3" width="7" height="7" rx="1"/>
                   <rect x="3" y="14" width="7" height="7" rx="1"/>
@@ -112,7 +133,7 @@
               </button>
 
               <button class="dd-item dd-logout" @click="handleLogout">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                   <polyline points="16 17 21 12 16 7"/>
                   <line x1="21" y1="12" x2="9" y2="12"/>
@@ -128,56 +149,37 @@
 </template>
 
 <script>
-import { getAuth, logout } from '../stores/auth.js';
+import { getAuth, logout } from "../stores/auth.js";
 
 export default {
-  name: 'PublicNavbar',
-  props: {
-    theme: { type: String, default: 'light' },
-  },
+  name: "PublicNavbar",
   data() {
     return {
       user: getAuth(),
       showDropdown: false,
       hideTimer: null,
-      isDark: true,
     };
   },
-  mounted() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    this.isDark = savedTheme === 'dark';
-    this.applyTheme();
-  },
   computed: {
+    appliedTheme() {
+      if (this.theme === 'dark') return 'dark';
+      if (this.theme === 'light') return 'light';
+      return this.isDark ? 'dark' : 'light';
+    },
     userInitial() {
-      return this.user?.fullName?.charAt(0)?.toUpperCase() || '?';
+      return this.user?.fullName?.charAt(0)?.toUpperCase() || "?";
     },
     roleLabel() {
-      const map = { admin: 'Quản trị viên', owner: 'Chủ sân', user: 'Người dùng' };
-      return map[this.user?.role] || '';
+      const map = { admin: "Quản trị viên", owner: "Chủ sân", user: "Người dùng" };
+      return map[this.user?.role] || "";
     },
     profileRoute() {
-      if (!this.user) return '/login';
-      if (this.user.role === 'owner') return '/owner/profile';
-      return '/profile';
+      if (!this.user) return "/login";
+      if (this.user.role === "owner") return "/owner/profile";
+      return "/profile";
     },
   },
   methods: {
-    toggleTheme() {
-      this.isDark = !this.isDark;
-      localStorage.setItem('theme', this.isDark ? 'dark' : 'light');
-      this.applyTheme();
-    },
-    applyTheme() {
-      if (this.isDark) {
-        document.documentElement.classList.remove('light');
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
-      }
-      window.dispatchEvent(new CustomEvent('theme-changed', { detail: { isDark: this.isDark } }));
-    },
     toggleDropdown() {
       this.showDropdown = !this.showDropdown;
     },
@@ -190,17 +192,17 @@ export default {
     goToManage() {
       this.showDropdown = false;
       const role = this.user?.role;
-      if (role === 'admin') {
-        this.$router.push('/admin/dashboard');
-      } else if (role === 'owner') {
-        this.$router.push('/owner/dashboard');
+      if (role === "admin") {
+        this.$router.push("/admin/dashboard");
+      } else if (role === "owner") {
+        this.$router.push("/owner/dashboard");
       }
     },
     async handleLogout() {
       await logout();
       this.user = null;
       this.showDropdown = false;
-      this.$router.push('/login');
+      this.$router.push("/login");
     },
   },
 };
@@ -212,304 +214,318 @@ export default {
   top: 0;
   left: 0;
   right: 0;
-  height: 64px;
-  background: rgba(255,255,255,.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--sg-border);
   z-index: 100;
+  height: 64px;
+  border-bottom: 1px solid rgba(226, 232, 240, .9);
+  background: rgba(255, 255, 255, .94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
+
 .navbar-inner {
-  max-width: 1280px;
-  margin: 0 auto;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  max-width: 1440px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 34px;
 }
+
+.navbar-left,
+.navbar-right,
+.brand,
+.nav-links,
+.hotline,
+.login-btn,
+.register-btn {
+  display: flex;
+  align-items: center;
+}
+
 .navbar-left {
-  display: flex;
-  align-items: center;
-  gap: 32px;
+  gap: 54px;
+  min-width: 0;
 }
+
 .brand {
-  display: flex;
-  align-items: center;
   gap: 10px;
+  color: #0b7a46;
+  text-decoration: none;
 }
+
+.brand-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e7f8ef;
+}
+
+.brand-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
 .brand-text {
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--sg-dark);
-  letter-spacing: -.5px;
+  color: #102015;
+  font-size: 24px;
+  font-weight: 950;
+  letter-spacing: 0;
 }
-.brand-accent {
-  color: var(--sg-green);
+
+.brand-text span {
+  color: #0b8f50;
 }
+
 .nav-links {
-  display: flex;
-  gap: 8px;
+  gap: 20px;
 }
+
 .nav-link {
-  padding: 8px 16px;
-  border-radius: var(--sg-radius-sm);
+  position: relative;
+  padding: 22px 4px 20px;
+  color: #1f2937;
   font-size: 14px;
-  font-weight: 500;
-  color: var(--sg-text-muted);
-  transition: var(--sg-transition);
+  font-weight: 850;
+  text-decoration: none;
+  transition: color .18s ease;
+  white-space: nowrap;
 }
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+}
+
 .nav-link:hover,
 .active-link {
-  color: var(--sg-green-dark);
-  background: var(--sg-green-pale);
+  color: #04733f;
 }
+
+.nav-link:hover::after,
+.active-link::after {
+  background: #14a461;
+}
+
 .navbar-right {
-  display: flex;
-  align-items: center;
+  gap: 12px;
 }
-.login-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 20px;
-  background: var(--sg-green);
-  color: #fff;
-  border-radius: var(--sg-radius-full);
+
+.hotline {
+  gap: 10px;
+  color: #0d7d48;
+  text-decoration: none;
+}
+
+.hotline svg,
+.login-btn svg,
+.dd-item svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.hotline span {
+  display: grid;
+  gap: 1px;
+}
+
+.hotline strong {
+  color: #111827;
   font-size: 14px;
-  font-weight: 600;
-  transition: var(--sg-transition);
+  font-weight: 950;
 }
-.login-btn:hover {
-  background: var(--sg-green-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(34,197,94,.4);
+
+.hotline small {
+  color: #718078;
+  font-size: 11px;
+  font-weight: 750;
 }
+
+.login-btn,
+.register-btn {
+  justify-content: center;
+  min-height: 40px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.login-btn {
+  gap: 8px;
+  padding: 0 18px;
+  border: 1px solid #d8e3dc;
+  background: #fff;
+  color: #111827;
+}
+
+.register-btn {
+  padding: 0 20px;
+  background: #0d8c51;
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(13, 140, 81, .18);
+}
+
 .user-menu {
   position: relative;
 }
+
 .user-btn {
   padding: 4px;
   border-radius: 50%;
-  transition: var(--sg-transition);
+  transition: background .18s ease;
 }
+
 .user-btn:hover {
-  background: var(--sg-green-pale);
+  background: #e7f8ef;
 }
-.user-avatar {
-  width: 36px;
-  height: 36px;
+
+.user-avatar,
+.dd-avatar {
+  display: grid;
+  place-items: center;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--sg-green), var(--sg-green-dark));
+  background: linear-gradient(135deg, #16a765, #04733f);
   color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
+  font-weight: 900;
+}
+
+.user-avatar {
+  width: 38px;
+  height: 38px;
   font-size: 14px;
 }
+
 .dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 10px);
   right: 0;
-  width: 260px;
-  background: var(--sg-white);
-  border-radius: var(--sg-radius);
-  border: 1px solid var(--sg-border);
-  box-shadow: var(--sg-shadow-xl);
+  width: 270px;
   overflow: hidden;
+  border: 1px solid #e1e8e4;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 56px rgba(15, 23, 42, .14);
 }
+
 .dropdown-header {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 16px;
 }
+
 .dd-avatar {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--sg-green), var(--sg-green-dark));
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
   font-size: 16px;
 }
+
 .dd-name {
-  font-weight: 600;
+  color: #111827;
   font-size: 14px;
-  color: var(--sg-text);
+  font-weight: 900;
 }
+
 .dd-role {
+  margin-top: 3px;
+  color: #66756d;
   font-size: 12px;
-  color: var(--sg-text-muted);
-  margin-top: 2px;
+  font-weight: 750;
 }
+
 .dd-divider {
   height: 1px;
-  background: var(--sg-border);
   margin: 0 16px;
+  background: #edf2ef;
 }
+
 .dd-item {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
   padding: 12px 16px;
+  color: #26332b;
   font-size: 14px;
-  color: var(--sg-text);
-  transition: var(--sg-transition);
+  font-weight: 800;
   text-align: left;
+  text-decoration: none;
+  transition: background .18s ease, color .18s ease;
 }
+
 .dd-item:hover {
-  background: var(--sg-surface);
-  color: var(--sg-green-dark);
+  background: #f6faf8;
+  color: #04733f;
 }
+
 .dd-manage {
   color: #2563eb;
-  font-weight: 500;
-}
-.dd-partner {
-  color: #15803d;
-  font-weight: 600;
-}
-.dd-manage:hover {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-.dd-partner:hover {
-  background: #f0fdf4;
-  color: #166534;
-}
-.dd-logout {
-  color: var(--sg-danger);
-}
-.dd-logout:hover {
-  background: #fef2f2;
-  color: var(--sg-danger);
 }
 
-/* Transition */
-.dd-enter-active, .dd-leave-active {
+.dd-partner {
+  color: #0b7a46;
+}
+
+.dd-logout {
+  color: #dc2626;
+}
+
+.dd-enter-active,
+.dd-leave-active {
   transition: opacity .15s ease, transform .15s ease;
 }
-.dd-enter-from, .dd-leave-to {
+
+.dd-enter-from,
+.dd-leave-to {
   opacity: 0;
-  transform: translateY(-8px) scale(.95);
+  transform: translateY(-8px) scale(.96);
 }
 
-@media (max-width: 640px) {
-  .navbar-inner { padding: 0 16px; }
-  .nav-links { display: none; }
-  .brand-text { font-size: 18px; }
+@media (max-width: 980px) {
+  .navbar-inner {
+    padding: 0 20px;
+  }
+
+  .nav-links,
+  .hotline {
+    display: none;
+  }
 }
 
-/* Dark Theme Support (strictly black & white/gray) */
-.navbar.navbar-dark {
-  background: rgba(9, 9, 11, 0.8) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-.navbar.navbar-dark .brand-text {
-  color: #ffffff;
-}
-.navbar.navbar-dark .brand-accent {
-  color: #ffffff;
-}
-.navbar.navbar-dark .brand-icon svg circle,
-.navbar.navbar-dark .brand-icon svg path,
-.navbar.navbar-dark .brand-icon svg line {
-  stroke: #ffffff !important;
-}
-.navbar.navbar-dark .nav-link {
-  color: rgba(255, 255, 255, 0.6);
-}
-.navbar.navbar-dark .nav-link:hover,
-.navbar.navbar-dark .active-link {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
-}
-.navbar.navbar-dark .login-btn {
-  background: #ffffff;
-  color: #09090b;
-}
-.navbar.navbar-dark .login-btn:hover {
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
-}
-.navbar.navbar-dark .user-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-.navbar.navbar-dark .dropdown {
-  background: #09090b;
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 16px -6px rgba(0, 0, 0, 0.3);
-}
-.navbar.navbar-dark .dd-name {
-  color: #ffffff;
-}
-.navbar.navbar-dark .dd-role {
-  color: rgba(255, 255, 255, 0.5);
-}
-.navbar.navbar-dark .dd-divider {
-  background: rgba(255, 255, 255, 0.08);
-}
-.navbar.navbar-dark .dd-item {
-  color: rgba(255, 255, 255, 0.8);
-}
-.navbar.navbar-dark .dd-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-}
-.navbar.navbar-dark .dd-manage {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-.navbar.navbar-dark .dd-manage:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-}
-.navbar.navbar-dark .dd-logout {
-  color: #fca5a5;
-}
-.navbar.navbar-dark .dd-logout:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-}
+@media (max-width: 560px) {
+  .navbar {
+    height: 58px;
+  }
 
-/* Theme Toggle Button */
-.theme-toggle-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: transparent;
-  color: rgba(255, 255, 255, 0.6);
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-right: 12px;
-}
-.theme-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.2);
-}
+  .brand-icon {
+    width: 34px;
+    height: 34px;
+  }
 
-.navbar-light .theme-toggle-btn {
-  border-color: rgba(0, 0, 0, 0.08);
-  color: rgba(0, 0, 0, 0.5);
-}
-.navbar-light .theme-toggle-btn:hover {
-  background: rgba(0, 0, 0, 0.04);
-  color: var(--sg-dark);
-  border-color: rgba(0, 0, 0, 0.15);
+  .brand-text {
+    font-size: 20px;
+  }
+
+  .login-btn {
+    padding: 0 12px;
+  }
+
+  .register-btn {
+    display: none;
+  }
 }
 </style>

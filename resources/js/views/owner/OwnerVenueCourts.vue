@@ -46,87 +46,112 @@
                 </button>
             </div>
 
-            <!-- Grid List of Courts (SaaS Grouped Compact Rows) -->
+            <!-- Grid List of Courts (SaaS Table View) -->
             <div v-if="activeView === 'list'" class="courts-list-wrapper">
-
-                <!-- Grouped Content -->
-                <div class="grouped-courts-list">
-                    <div
-                        v-for="group in groupedCourts"
-                        :key="group.typeName"
-                        class="court-type-group"
-                    >
-                        <div class="group-header">
-                            <span class="group-title">{{ group.typeName.toUpperCase() }}</span>
-                            <span class="group-divider"></span>
-                            <span class="group-count">{{ group.courts.length }} sân</span>
-                        </div>
-
-                        <div class="group-items">
-                            <div
-                                v-for="court in group.courts"
-                                :key="court.id"
-                                class="court-row-item"
-                                :class="{ 'status-inactive': court.status !== 'active' }"
+                <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
+                <div class="avc-filters card animate-fade-in">
+                    <div class="filter-row">
+                        <div class="filter-tabs">
+                            <button
+                                v-for="tab in statusTabs"
+                                :key="tab.value"
+                                class="tab-btn"
+                                :class="{ active: filterStatus === tab.value }"
+                                @click="filterStatus = tab.value"
                             >
-                                <!-- Accent line indicator on hover (handled by CSS) -->
-                                <div class="accent-line"></div>
-
-                                <!-- Left side: Order & Name & Status badge -->
-                                <div class="row-left">
-                                    <span class="row-order">#{{ court.sort_order }}</span>
-                                    <span class="row-name">{{ court.name }}</span>
-                                    <span
-                                        v-if="court.status !== 'active'"
-                                        class="row-status-badge"
-                                        :class="court.status"
-                                    >
-                                        {{ formatStatus(court.status) }}
-                                    </span>
-                                </div>
-
-                                <!-- Middle side: Spatial position status -->
-                                <div class="row-middle">
-                                    <span v-if="court.layout_x !== null" class="spatial-status placed">
-                                        <AppIcon name="circleCheck" size="13" />
-                                        <span>Đã xếp ({{ formatToM(court.layout_x) }}m, {{ formatToM(court.layout_y) }}m)</span>
-                                    </span>
-                                    <button
-                                        v-else
-                                        type="button"
-                                        class="btn-place-quick"
-                                        @click="selectAndSwitchToLayout(court)"
-                                    >
-                                        <span>Chưa xếp &bull; Định vị ngay</span>
-                                        <AppIcon name="chevronRight" size="12" />
-                                    </button>
-                                </div>
-
-                                <!-- Right side: Action Buttons -->
-                                <div class="row-right">
-                                    <ActionIconButton
-                                        icon="pencil"
-                                        label="Sửa sân con"
-                                        size="sm"
-                                        @click="openEditModal(court)"
-                                    />
-                                    <ActionIconButton
-                                        icon="trash"
-                                        label="Xóa sân con"
-                                        variant="danger"
-                                        size="sm"
-                                        @click="confirmDelete(court)"
-                                    />
-                                </div>
+                                {{ tab.label }}
+                            </button>
+                        </div>
+                        <div class="filter-search">
+                            <div class="search-box">
+                                <AppIcon name="search" size="16" />
+                                <input
+                                    id="search-court-name"
+                                    v-model="searchQuery"
+                                    type="text"
+                                    placeholder="Tìm kiếm tên sân con hoặc loại sân..."
+                                    class="search-input"
+                                />
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Empty State for Search -->
-                    <div v-if="groupedCourts.length === 0" class="empty-search-state">
-                        <AppIcon name="alert" size="20" />
-                        <span>Không tìm thấy sân con nào phù hợp với từ khóa.</span>
-                    </div>
+                <!-- ── Empty State khi tìm kiếm không ra kết quả ── -->
+                <div v-if="filteredCourts.length === 0" class="state-box card animate-fade-in" style="text-align: center; padding: 40px 0; background: transparent; border: none; box-shadow: none;">
+                    <p class="empty-msg" style="color: rgba(15, 23, 42, 0.5); font-size: 14px; margin-bottom: 12px;">Không tìm thấy sân con nào phù hợp.</p>
+                    <button class="btn btn-outline" @click="searchQuery = ''; filterStatus = ''">
+                        Xóa bộ lọc
+                    </button>
+                </div>
+
+                <!-- ── Elegant SaaS Table View ── -->
+                <div v-else class="courts-table-wrapper animate-fade-in">
+                    <SaaSTable 
+                        :columns="tableColumns" 
+                        :data="filteredCourts" 
+                        clickable 
+                        @row-click="row => openEditModal(row)"
+                    >
+                        <!-- Tên sân con (hiển thị sort_order + tên) -->
+                        <template #name="{ row }">
+                            <div class="name-col-cell" style="display: flex; align-items: center; gap: 8px;">
+                                <span class="court-order-text" style="font-family: monospace; font-size: 12px; color: rgba(15, 23, 42, 0.4);">#{{ row.sort_order }}</span>
+                                <span class="court-name-text" style="font-weight: 600; color: var(--sg-text);">{{ row.name }}</span>
+                            </div>
+                        </template>
+
+                        <!-- Loại sân -->
+                        <template #court_type="{ row }">
+                            <span class="court-type-text" style="font-size: 13px; color: var(--sg-text);">
+                                {{ row.court_type?.name || 'Khác' }}
+                            </span>
+                        </template>
+
+                        <!-- Sơ đồ trực quan (Trạng thái đã xếp vị trí) -->
+                        <template #spatial_status="{ row }">
+                            <span v-if="row.layout_x !== null && row.layout_y !== null" class="spatial-status placed" style="color: #16a34a; font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                                <AppIcon name="circleCheck" size="13" />
+                                <span>Đã xếp ({{ formatToM(row.layout_x) }}m, {{ formatToM(row.layout_y) }}m)</span>
+                            </span>
+                            <button
+                                v-else
+                                type="button"
+                                class="btn-place-quick"
+                                @click.stop="selectAndSwitchToLayout(row)"
+                                style="background: none; border: none; padding: 0; color: #d97706; font-size: 12.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                            >
+                                <span>Chưa xếp &bull; Định vị</span>
+                                <AppIcon name="chevronRight" size="12" />
+                            </button>
+                        </template>
+
+                        <!-- Trạng thái hoạt động -->
+                        <template #status="{ row }">
+                            <span class="status-badge" :class="'state-is-' + row.status">
+                                {{ formatStatus(row.status) }}
+                            </span>
+                        </template>
+
+                        <!-- Action Column -->
+                        <template #actions="{ row }">
+                            <div class="table-actions" @click.stop style="display: flex; gap: 6px; justify-content: flex-end;">
+                                <ActionIconButton
+                                    icon="pencil"
+                                    label="Sửa sân con"
+                                    size="sm"
+                                    @click="openEditModal(row)"
+                                />
+                                <ActionIconButton
+                                    icon="trash"
+                                    label="Xóa sân con"
+                                    variant="danger"
+                                    size="sm"
+                                    @click="confirmDelete(row)"
+                                />
+                            </div>
+                        </template>
+                    </SaaSTable>
                 </div>
             </div>
 
@@ -756,6 +781,10 @@
                             {{ modalError }}
                         </div>
 
+                        <div v-if="!editingId" class="alert alert-info" style="margin-bottom: 15px; font-size: 13px; line-height: 1.5;">
+                            💡 <strong>Lưu ý:</strong> Việc thêm sân con mới cần được Admin phê duyệt. Yêu cầu phê duyệt sẽ được gửi tự động sau khi bạn lưu.
+                        </div>
+
                         <div class="form-group">
                             <label for="court-name"
                                 >Tên sân con
@@ -903,12 +932,14 @@ import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
 import DecorationVisual from "../../components/DecorationVisual.vue";
+import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { courtTypeService } from "../../services/courtTypes";
+import { useToast } from "vue-toastification";
 
 export default {
     name: "OwnerVenueCourts",
-    components: { ActionIconButton, AppIcon, CourtVisual, DecorationVisual },
+    components: { ActionIconButton, AppIcon, CourtVisual, DecorationVisual, SaaSTable },
     data() {
         return {
             clusterId:
@@ -933,6 +964,20 @@ export default {
             showTypeDropdown: false,
             activeView: "list",
             searchQuery: "",
+            filterStatus: "",
+            statusTabs: [
+                { value: "", label: "Tất cả" },
+                { value: "active", label: "Hoạt động" },
+                { value: "inactive", label: "Tạm ngưng" },
+                { value: "maintenance", label: "Bảo trì" }
+            ],
+            tableColumns: [
+                { key: "name", label: "Tên sân con" },
+                { key: "court_type", label: "Loại sân" },
+                { key: "spatial_status", label: "Sơ đồ trực quan" },
+                { key: "status", label: "Trạng thái hoạt động" },
+                { key: "actions", label: "", align: "right" }
+            ],
             selectedCourtId: null,
             draggingCourtId: null,
             dragStartX: 0,
@@ -982,6 +1027,21 @@ export default {
                     courts: groups[typeName].sort((a, b) => a.sort_order - b.sort_order),
                 };
             });
+        },
+        filteredCourts() {
+            let list = this.courts;
+            if (this.filterStatus) {
+                list = list.filter((c) => c.status === this.filterStatus);
+            }
+            if (this.searchQuery.trim()) {
+                const q = this.searchQuery.trim().toLowerCase();
+                list = list.filter(
+                    (c) =>
+                        c.name.toLowerCase().includes(q) ||
+                        (c.court_type?.name || "").toLowerCase().includes(q)
+                );
+            }
+            return list.sort((a, b) => a.sort_order - b.sort_order);
         },
         selectedCourtType() {
             return this.courtTypes.find(
@@ -1150,6 +1210,7 @@ export default {
                 return;
             }
             try {
+                const toast = useToast();
                 if (this.editingId) {
                     await venueClusterService.updateCourt(this.editingId, {
                         name: this.form.name,
@@ -1157,6 +1218,7 @@ export default {
                         status: this.form.status,
                         sort_order: this.form.sort_order,
                     });
+                    toast.success("Cập nhật sân con thành công.");
                 } else {
                     await venueClusterService.createCourt({
                         venue_cluster_id: this.clusterId,
@@ -1164,6 +1226,7 @@ export default {
                         name: this.form.name,
                         sort_order: this.form.sort_order,
                     });
+                    toast.success("Yêu cầu thêm sân con đã được gửi thành công. Vui lòng chờ Admin xét duyệt.");
                 }
                 await this.initData();
                 this.closeModal();
@@ -2171,252 +2234,138 @@ export default {
     color: #000000;
 }
 
-/* SaaS Grouped Compact Rows */
+/* SaaS Table Layout redesign */
 .courts-list-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 16px;
     width: 100%;
 }
 
-.command-search-bar {
-    max-width: 360px;
-    width: 100%;
+:deep(.saas-table-container) {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
 
-.grouped-courts-list {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+/* Filters - bê nguyên từ AdminVenueClusters */
+.avc-filters {
+    padding: 12px 0;
 }
-
-.court-type-group {
+.filter-row {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.group-header {
-    display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    padding: 0 4px;
-    user-select: none;
+    gap: 16px;
+    flex-wrap: wrap;
 }
-
-.group-title {
-    font-size: 11px;
-    font-weight: 750;
-    color: rgba(15, 23, 42, 0.4);
-    letter-spacing: 0.06em;
-}
-
-.group-divider {
-    flex: 1;
-    height: 1px;
-    background: rgba(15, 23, 42, 0.05);
-}
-
-.group-count {
-    font-size: 11px;
-    font-weight: 700;
-    color: rgba(15, 23, 42, 0.35);
-}
-
-.group-items {
+.filter-tabs {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    gap: 6px;
+}
+.avc-filters .filter-tabs button.tab-btn {
+    height: 38px !important;
+    min-height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 16px !important;
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: var(--admin-surface, #ffffff) !important;
+    color: #475569 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.18s !important;
+    box-sizing: border-box !important;
+}
+.avc-filters .filter-tabs button.tab-btn.active {
+    background: var(--admin-primary, #22a653) !important;
+    border-color: var(--admin-primary, #22a653) !important;
+    color: var(--admin-primary-text, #fff) !important;
+}
+.avc-filters .filter-tabs button.tab-btn:not(.active):hover {
+    background: var(--admin-hover, #f1f5f9) !important;
+    color: var(--admin-primary-dark, #15733a) !important;
+}
+[data-theme="dark"] .avc-filters .filter-tabs button.tab-btn {
+    border: 1px solid var(--admin-border) !important;
+    color: var(--admin-muted) !important;
+}
+.filter-search {
+    flex: 1;
+    min-width: 250px;
+}
+.filter-search .search-box {
+    border-color: #cbd5e1 !important;
+}
+.filter-search .search-box input::placeholder {
+    color: #64748b !important;
+}
+.filter-search .search-box svg {
+    color: #64748b !important;
 }
 
-.court-row-item {
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+/* Status state colors matching admin */
+.state-is-active {
+    color: #10b981 !important;
+}
+
+.state-is-inactive {
+    color: #ef4444 !important;
+}
+
+.state-is-maintenance {
+    color: #f59e0b !important;
+}
+
+.search-box {
     position: relative;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    height: 52px;
-    padding: 0 16px;
-    background: #ffffff;
-    border: 1px solid rgba(15, 23, 42, 0.04);
+    border: 1px solid #cbd5e1;
     border-radius: 8px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
+    background: #ffffff;
+    padding: 0 12px;
+    width: 100%;
+    height: 38px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
 }
 
-.court-row-item:hover {
-    background: rgba(15, 23, 42, 0.015);
-    border-color: rgba(15, 23, 42, 0.08);
-    transform: translateX(2px);
+.search-box:focus-within {
+    border-color: #000000;
 }
 
-.accent-line {
-    position: absolute;
-    left: 0;
-    top: 15%;
-    bottom: 15%;
-    width: 2.5px;
-    background: #000000;
-    border-radius: 0 2px 2px 0;
-    opacity: 0;
-    transform: scaleY(0.7);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.court-row-item:hover .accent-line {
-    opacity: 1;
-    transform: scaleY(1);
-}
-
-.row-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-    min-width: 0;
-}
-
-.row-order {
-    font-size: 12px;
-    font-weight: 700;
-    color: rgba(15, 23, 42, 0.3);
-    font-family: monospace;
-}
-
-.row-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--sg-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: opacity 0.2s ease;
-}
-
-.court-row-item.status-inactive .row-name {
-    opacity: 0.5;
-}
-
-.row-status-badge {
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: capitalize;
-}
-
-.row-status-badge.inactive {
-    background: rgba(15, 23, 42, 0.05);
-    color: rgba(15, 23, 42, 0.5);
-}
-
-.row-status-badge.maintenance {
-    background: rgba(245, 158, 11, 0.08);
-    color: #d97706;
-}
-
-.row-middle {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    flex: 1;
-    padding: 0 24px;
-}
-
-.spatial-status.placed {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: #16a34a;
-    font-size: 12.5px;
-    font-weight: 600;
-}
-
-.btn-place-quick {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: none;
-    border: none;
-    padding: 0;
-    color: #d97706;
-    font-size: 12.5px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-place-quick:hover {
-    color: #b45309;
-}
-
-.btn-place-quick:hover .app-icon {
-    transform: translateX(2px);
-}
-
-.btn-place-quick .app-icon {
-    transition: transform 0.2s ease;
-    color: inherit;
-}
-
-.row-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    opacity: 0;
-    transform: translateX(6px);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.court-row-item:hover .row-right {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-.empty-search-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 16px;
+.search-box svg {
     color: rgba(15, 23, 42, 0.4);
-    gap: 12px;
+    flex-shrink: 0;
+    margin-right: 8px;
 }
 
-.empty-search-state span {
-    font-size: 13.5px;
-    font-weight: 600;
+.search-box input.search-input {
+    flex: 1;
+    border: none !important;
+    background: transparent !important;
+    padding: 8px 0 !important;
+    font-size: 13px;
+    outline: none !important;
+    color: var(--sg-text);
+    min-width: 0;
+    box-shadow: none !important;
 }
 
-/* Responsive Styles for SaaS Rows */
-@media (max-width: 768px) {
-    .court-row-item {
-        height: auto;
-        padding: 12px 14px;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-    }
-    
-    .accent-line {
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        height: auto;
-    }
-
-    .row-middle {
-        padding: 0;
-        margin-left: 24px;
-    }
-
-    .row-right {
-        opacity: 1;
-        transform: none;
-        justify-content: flex-end;
-        border-top: 1px dashed rgba(15, 23, 42, 0.05);
-        padding-top: 8px;
-    }
-}
 
 /* Modal Styling */
 .modal-backdrop {
@@ -2686,8 +2635,6 @@ export default {
 .layout-toggle-tabs {
     display: flex;
     gap: 12px;
-    padding-bottom: 2px;
-    margin-bottom: 24px;
 }
 
 .tab-btn {

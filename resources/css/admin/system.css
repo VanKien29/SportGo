@@ -39,7 +39,7 @@
 
 .sg-shell-admin .content-area :is(h1, h2, h3, h4, .page-title, .section-title, .card-title, .main-title, .avcd-title) {
   color: var(--admin-text) !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
   letter-spacing: 0 !important;
   line-height: 1.25 !important;
 }
@@ -60,14 +60,7 @@
 }
 
 .sg-shell-admin .content-area :is(.page-header, .page-head, .header-card) {
-  min-height: 62px;
-  padding: 16px 18px !important;
-  border: 1px solid var(--admin-border) !important;
-  border-radius: var(--admin-radius-lg) !important;
-  background:
-    var(--admin-header-gradient),
-    var(--admin-surface) !important;
-  box-shadow: var(--admin-shadow-card) !important;
+  display: none !important;
 }
 
 .sg-shell-admin .content-area :is(.page-header h1, .page-header h2, .page-head h1, .page-head h2, .header-card h1, .header-card h2) {
@@ -201,7 +194,7 @@
 
 .sg-shell-admin .content-area :is(.filter-head strong, .toolbar-title strong, .card-head strong, .panel-head strong) {
   color: var(--admin-text) !important;
-  font-weight: 800 !important;
+  font-weight: 500 !important;
 }
 
 .sg-shell-admin .content-area :is(.filter-head span, .toolbar-title span, .card-head span, .panel-head span) {
@@ -224,10 +217,10 @@
 
 .sg-shell-admin .content-area :is(th, .data-table th, .simple-table th, .avc-table th) {
   border-bottom: 1px solid var(--admin-border) !important;
-  background: var(--admin-surface-muted) !important;
+  background: var(--admin-surface, #ffffff) !important;
   color: var(--admin-muted) !important;
   font-size: 12px !important;
-  font-weight: 800 !important;
+  font-weight: 500 !important;
   letter-spacing: 0.025em !important;
   text-transform: uppercase !important;
   white-space: nowrap !important;
@@ -236,7 +229,7 @@
 .sg-shell-admin .content-area :is(td, .data-table td, .simple-table td, .avc-table td) {
   border-bottom: 1px solid var(--admin-border-soft) !important;
   color: var(--admin-text) !important;
-  font-weight: 560 !important;
+  font-weight: 400 !important;
 }
 
 .sg-shell-admin .content-area :is(th, td, .data-table th, .data-table td, .simple-table th, .simple-table td, .avc-table th, .avc-table td) {
@@ -332,7 +325,7 @@
 .sg-shell-admin .content-area :is(input:not([type='checkbox']):not([type='radio']):focus, select:focus, textarea:focus, .form-control:focus, .search-box:focus-within, .search-field:focus-within) {
   border-color: rgba(47, 158, 68, 0.62) !important;
   outline: none !important;
-  box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
+  box-shadow: none !important;
 }
 
 .sg-shell-admin .content-area :is(.search-field input:focus, .search-box input:focus) {
@@ -351,13 +344,13 @@
 
 .sg-shell-admin .content-area :is(.search-field:focus-within, .search-box:focus-within) {
   border-color: rgba(47, 158, 68, 0.72) !important;
-  box-shadow: 0 0 0 3px rgba(47, 158, 68, 0.14) !important;
+  box-shadow: none !important;
 }
 
 .sg-shell-admin .content-area :is(label, .field, .form-group label, .form-label) {
   color: var(--admin-text) !important;
   font-size: 13px !important;
-  font-weight: 760 !important;
+  font-weight: 500 !important;
 }
 
 .sg-shell-admin .content-area :is(.btn, .mini-btn, .icon-btn, .icon-action, .icon-close, .btn-action, .btn-action-mini, .btn-action-icon, .btn-switch, .tab-btn, .tabs button, .sort-btn, .btn-back, .btn-map-link, .btn-edit-link, .btn-add-child, .primary-btn, .secondary-btn, .primary-link, .ghost-btn, .btn-sm, .btn-extract, .export-btn, .icon-only, .icon-command, .pay-command, .link-btn) {
@@ -371,7 +364,7 @@
   padding: 9px 13px !important;
   font: inherit !important;
   font-size: 14px !important;
-  font-weight: 700 !important;
+  font-weight: 500 !important;
   line-height: 1 !important;
   text-decoration: none !important;
   white-space: nowrap !important;
@@ -427,14 +420,14 @@
 .sg-shell-admin .content-area :is(.primary, .btn.primary, .btn-primary, .btn-success, .primary-btn:not(.danger), .primary-link, .pay-command, button.primary, a.primary) {
   border-color: var(--admin-primary) !important;
   background: var(--admin-primary) !important;
-  color: #fff !important;
-  box-shadow: 0 10px 22px rgba(47, 158, 68, 0.18) !important;
+  color: var(--admin-primary-text, #ffffff) !important;
+  box-shadow: none !important;
 }
 
 .sg-shell-admin .content-area :is(.primary:hover, .btn.primary:hover, .btn-primary:hover, .btn-success:hover, .primary-btn:not(.danger):hover, .primary-link:hover, .pay-command:hover, button.primary:hover, a.primary:hover) {
   border-color: var(--admin-primary-dark) !important;
   background: var(--admin-primary-dark) !important;
-  color: #fff !important;
+  color: var(--admin-primary-text, #ffffff) !important;
 }
 
 .sg-shell-admin .content-area :is(.success, .icon-action.success, .btn-action.success, .btn-success-soft) {
@@ -453,14 +446,14 @@
   border-color: rgba(47, 158, 68, 0.32) !important;
   background: var(--admin-primary-soft) !important;
   color: var(--admin-primary-dark) !important;
-  box-shadow: 0 8px 18px rgba(47, 158, 68, 0.08) !important;
+  box-shadow: none !important;
 }
 
 .sg-shell-admin .content-area :is(.icon-only.primary, .icon-command.primary, .btn-action.primary, .action-icon-button.variant-primary) {
   border-color: var(--admin-primary) !important;
   background: var(--admin-primary) !important;
   color: #fff !important;
-  box-shadow: 0 10px 22px rgba(34, 166, 83, 0.2) !important;
+  box-shadow: none !important;
 }
 
 .sg-shell-admin .content-area .icon-btn.approve {
@@ -486,14 +479,14 @@
 .sg-shell-admin .content-area :is(.icon-only.primary:hover, .icon-command.primary:hover, .btn-action.primary:hover, .action-icon-button.variant-primary:hover) {
   border-color: var(--admin-primary-dark) !important;
   background: var(--admin-primary-dark) !important;
-  color: #fff !important;
+  color: var(--admin-primary-text, #ffffff) !important;
 }
 
 .sg-shell-admin .content-area :is(.tabs button.active, .tab-btn.active, .tab-sm.active, .segmented button.active, .btn-switch.active) {
   border-color: var(--admin-primary) !important;
   background: var(--admin-primary) !important;
-  color: #fff !important;
-  box-shadow: 0 10px 22px rgba(34, 166, 83, 0.2) !important;
+  color: var(--admin-primary-text, #ffffff) !important;
+  box-shadow: none !important;
 }
 
 .sg-shell-admin .content-area :is(.danger, .btn.danger, .btn-danger, .btn-danger-outline, .btn-delete, .btn-delete-mini, .btn-action.danger, .btn-action.btn-delete, .btn-action-mini.btn-delete-mini, .primary-btn.danger, button.danger, a.danger) {
@@ -513,35 +506,40 @@
   align-items: center !important;
   justify-content: center !important;
   gap: 7px !important;
-  min-height: 26px !important;
-  border-radius: 999px !important;
-  padding: 5px 10px !important;
-  border: 1px solid transparent !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  line-height: 1 !important;
+  min-height: auto !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.25 !important;
   text-transform: none !important;
   white-space: nowrap !important;
+  background: transparent !important;
 }
 
 .sg-shell-admin .content-area :is(.status.active, .status-badge.active, .status-badge.status-active, .status-badge.status-approved, .status-badge.status-paid, .status-chip.confirmed, .status-chip.completed, .status-chip.checked_in, .badge.active, .badge.resolved, .badge.paid, .status-pill.completed, .status-pill.paid, .status-pill.credit, .status-pill.approved, .status-dot-wrapper.active, .fee-status-paid, .fee-paid, .status-active) {
-  background: var(--admin-primary-soft) !important;
-  color: var(--admin-primary-dark) !important;
+  background: transparent !important;
+  color: var(--admin-primary-dark, #15733a) !important;
+}
+
+[data-theme="dark"] .sg-shell-admin .content-area :is(.status.active, .status-badge.active, .status-badge.status-active, .status-badge.status-approved, .status-badge.status-paid, .status-chip.confirmed, .status-chip.completed, .status-chip.checked_in, .badge.active, .badge.resolved, .badge.paid, .status-pill.completed, .status-pill.paid, .status-pill.credit, .status-pill.approved, .status-dot-wrapper.active, .fee-status-paid, .fee-paid, .status-active) {
+  color: #34d399 !important;
 }
 
 .sg-shell-admin .content-area :is(.status.pending, .status.open, .status-badge.pending, .status-badge.open, .status-badge.status-pending, .status-chip.pending_payment, .status-chip.pending_approval, .badge.pending, .badge.open, .status-pill.pending, .status-pill.pending_confirmation, .status-pill.reviewing, .status-pill.processing, .fee-status-unpaid, .fee-status-partial, .fee-pending, .status-pending) {
-  background: var(--admin-warning-soft) !important;
+  background: transparent !important;
   color: var(--admin-warning) !important;
 }
 
 .sg-shell-admin .content-area :is(.status.inactive, .status.locked, .status.rejected, .status-badge.inactive, .status-badge.locked, .status-badge.rejected, .status-badge.status-locked, .status-badge.status-rejected, .status-chip.cancelled, .status-chip.rejected, .badge.inactive, .badge.expired, .status-pill.failed, .status-pill.rejected, .status-pill.cancelled, .status-pill.refunded, .fee-status-overdue, .fee-overdue, .status-locked, .status-rejected) {
-  background: var(--admin-danger-soft) !important;
-  color: var(--admin-danger) !important;
+  background: transparent !important;
+  color: var(--admin-danger-text, var(--admin-danger)) !important;
 }
 
 .sg-shell-admin .content-area :is(.notice, .alert, .global-alert, .toast, .inline-summary, .preview-banner, .state, .empty, .empty-block) {
   border-radius: var(--admin-radius) !important;
-  font-weight: 650 !important;
+  font-weight: 500 !important;
 }
 
 .sg-shell-admin .content-area :is(.notice.success, .alert.success, .global-alert.success, .toast.success) {
@@ -599,7 +597,7 @@
 
 .sg-shell-admin .content-area :is(.code-link, .link-btn, .btn-map-link, .btn-edit-link) {
   color: var(--admin-primary-dark) !important;
-  font-weight: 700 !important;
+  font-weight: 500 !important;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
@@ -644,10 +642,10 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background-color: #10b981 !important;
-  color: #fff !important;
+  background-color: var(--admin-primary, #10b981) !important;
+  color: var(--admin-primary-text, #fff) !important;
   border: none !important;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 4px 12px var(--admin-primary-ring, rgba(16, 185, 129, 0.3)) !important;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   overflow: hidden;
@@ -662,14 +660,14 @@
   font-size: 13px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-block;
-  color: #fff !important;
+  color: var(--admin-primary-text, #fff) !important;
 }
 .btn-float-add:hover {
   width: 145px !important;
   justify-content: flex-start !important;
   padding-left: 14px !important;
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
-  background-color: #059669 !important;
+  box-shadow: 0 6px 16px var(--admin-primary-ring, rgba(16, 185, 129, 0.4)) !important;
+  background-color: var(--admin-primary-dark, #059669) !important;
 }
 .btn-float-add:hover .btn-float-text {
   max-width: 100px;
@@ -698,4 +696,82 @@
     max-width: 80px;
   }
 }
+
+/* Make layout containers flat inside .content-area to save space */
+.sg-shell-admin .content-area :is(
+  .card,
+  .table-card,
+  .table-wrap,
+  .table-scroll,
+  .table-responsive,
+  .avc-table-wrap,
+  .banner-table,
+  .applications-table,
+  .panel,
+  .form-card,
+  .settings-card,
+  .record-card,
+  .detail-section,
+  .clusters-list,
+  .cluster-edit,
+  .court-card,
+  .state-card,
+  .schedule-panel,
+  .booking-side,
+  .avcd-card,
+  .fees-card-wrap,
+  .schedule-card
+):not(.modal):not(.modal-box):not(.action-modal):not(.receipt-modal):not(.payout-modal):not(.detail-modal):not(.confirm-modal):not(.modal-panel):not(.detail-drawer):not(.side-panel):not(.preview-box):not(.preview-card) {
+  border: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Adjust card/panel headers inside content-area */
+.sg-shell-admin .content-area :is(
+  .card-head,
+  .card-header,
+  .panel-head,
+  .panel-header,
+  .settings-card-header,
+  .picker-head,
+  .filter-head,
+  .detail-head,
+  .courts-header,
+  .schedule-headline
+) {
+  background: transparent !important;
+  border-bottom: 1px solid var(--admin-border-soft) !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* Adjust card/panel content containers inside content-area */
+.sg-shell-admin .content-area :is(
+  .card-content,
+  .card-body,
+  .panel-body,
+  .settings-card-content,
+  .court-chip-grid
+) {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Table cards should overflow properly but keep flat styles */
+.sg-shell-admin .content-area :is(.table-card, .table-wrap, .table-responsive, .table-scroll, .saas-table-container) {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.sg-shell-admin :is(strong, b, .font-bold, .tab-btn, .tabs button, .tabs a, .btn-switch, .tab-sm, .segmented button, .active, .nav-active, .tab-active, .is-active, label) {
+  font-weight: 500 !important;
+}
+
 

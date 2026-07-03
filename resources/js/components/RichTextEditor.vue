@@ -18,7 +18,7 @@
 import { ref, onMounted, watch, shallowRef } from 'vue';
 import { Ckeditor } from '@ckeditor/ckeditor5-vue';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
-import axios from 'axios';
+import { apiFormData } from '../services/api';
 
 const ckeditor = Ckeditor;
 
@@ -52,11 +52,9 @@ function CustomUploadAdapterPlugin(editorInstance) {
           return new Promise((resolve, reject) => {
             const formData = new FormData();
             formData.append('image', file);
-            axios.post('/api/owner/venue-posts/upload-editor-image', formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-            }).then(response => {
+            apiFormData('/api/owner/venue-posts/upload-editor-image', formData).then(response => {
               resolve({
-                default: response.data.url
+                default: response.data?.url || response.url
               });
             }).catch(error => {
               reject(error.response?.data?.message || 'Lỗi khi tải ảnh lên');
