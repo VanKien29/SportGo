@@ -171,18 +171,17 @@
                         <th>Owner xác nhận</th>
                         <th>Số tiền</th>
                         <th>Trạng thái</th>
-                        <th>Hóa đơn</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-if="loading">
-                        <td colspan="9" class="empty">
+                        <td colspan="7" class="empty">
                             Đang tải yêu cầu hoàn tiền...
                         </td>
                     </tr>
                     <tr v-else-if="items.length === 0">
-                        <td colspan="9" class="empty">
+                        <td colspan="7" class="empty">
                             Chưa có yêu cầu hoàn tiền.
                         </td>
                     </tr>
@@ -469,16 +468,6 @@
                                     >{{ refundStatusLabel(refund) }}</span
                                 >
                             </td>
-                            <td>
-                                <button
-                                    v-if="refund.receipt"
-                                    class="code-link"
-                                    type="button"
-                                    @click="openReceipt(refund.receipt)"
-                                >
-                                    {{ refund.receipt.receipt_code }}</button
-                                ><span v-else>-</span>
-                            </td>
                             <td class="row-actions">
                                 <button
                                     class="icon-only"
@@ -530,18 +519,17 @@
                         <th>Tài khoản nhận tiền</th>
                         <th>Số tiền yêu cầu</th>
                         <th>Trạng thái</th>
-                        <th>Hóa đơn</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-if="loading">
-                        <td colspan="9" class="empty">
+                        <td colspan="8" class="empty">
                             Đang tải yêu cầu rút tiền...
                         </td>
                     </tr>
                     <tr v-else-if="items.length === 0">
-                        <td colspan="9" class="empty">
+                        <td colspan="8" class="empty">
                             Chưa có yêu cầu rút tiền.
                         </td>
                     </tr>
@@ -614,18 +602,6 @@
                                     withdrawal.status_reason ||
                                     formatDate(withdrawal.requested_at)
                                 }}</span>
-                            </td>
-                            <td>
-                                <button
-                                    v-if="withdrawal.receipt"
-                                    class="code-link"
-                                    type="button"
-                                    @click="openReceipt(withdrawal.receipt)"
-                                >
-                                    {{
-                                        withdrawal.receipt.receipt_code
-                                    }}</button
-                                ><span v-else>-</span>
                             </td>
                             <td>
                                 <div class="row-actions">
@@ -837,6 +813,19 @@
                         <p>{{ refundStatusNote(refundDetail) }}</p>
                     </section>
                 </div>
+
+                <footer
+                    v-if="refundDetail.receipt"
+                    class="modal-actions compact-actions"
+                >
+                    <button
+                        class="primary-btn"
+                        type="button"
+                        @click="openReceipt(refundDetail.receipt)"
+                    >
+                        Mở hóa đơn
+                    </button>
+                </footer>
             </section>
         </div>
 
@@ -864,7 +853,6 @@
                     ><span>Trạng thái</span
                     ><strong>{{ receipt.status }}</strong>
                 </div>
-                <pre>{{ prettyJson(receipt.metadata) }}</pre>
                 <footer class="modal-actions compact-actions">
                     <button
                         v-if="receipt.view_url"
@@ -1896,9 +1884,6 @@ export default {
         },
         formatDate(value) {
             return value ? new Date(value).toLocaleString("vi-VN") : "-";
-        },
-        prettyJson(value) {
-            return JSON.stringify(value || {}, null, 2);
         },
     },
 };

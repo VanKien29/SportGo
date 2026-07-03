@@ -74,14 +74,6 @@
               </td>
               <td data-label="Trạng thái">
                 <span class="status-pill" :class="refund.status">{{ statusLabel(refund.status) }}</span>
-                <button
-                  v-if="refund.receipt"
-                  class="receipt-link"
-                  type="button"
-                  @click="openReceipt(refund.receipt)"
-                >
-                  Hóa đơn {{ refund.receipt.receipt_code }}
-                </button>
               </td>
               <td class="actions-col" data-label="Thao tác">
                 <TableActionGroup>
