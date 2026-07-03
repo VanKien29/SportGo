@@ -80,7 +80,7 @@
                   type="button"
                   @click="openReceipt(refund.receipt)"
                 >
-                  Phiếu {{ refund.receipt.receipt_code }}
+                  Hóa đơn {{ refund.receipt.receipt_code }}
                 </button>
               </td>
               <td class="actions-col" data-label="Thao tác">
@@ -129,7 +129,7 @@
           <div><dt>Hình thức hoàn</dt><dd>{{ refundDestinationLabel(detailRefund) }}</dd></div>
           <div><dt>Trạng thái</dt><dd>{{ statusLabel(detailRefund.status) }}</dd></div>
           <div v-if="detailRefund.receipt">
-            <dt>Phiếu</dt>
+            <dt>Hóa đơn</dt>
             <dd>
               <button class="receipt-link inline" type="button" @click="openReceipt(detailRefund.receipt)">
                 {{ detailRefund.receipt.receipt_code }}

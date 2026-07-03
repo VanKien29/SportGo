@@ -3,7 +3,7 @@
         <header class="page-header">
             <div>
                 <h2>Xử lý hoàn tiền và rút tiền</h2>
-                <p>Đối soát yêu cầu, số dư online và phiếu tài chính.</p>
+                <p>Đối soát yêu cầu, số dư online và hóa đơn tài chính.</p>
             </div>
             <button
                 class="icon-only"
@@ -171,7 +171,7 @@
                         <th>Owner xác nhận</th>
                         <th>Số tiền</th>
                         <th>Trạng thái</th>
-                        <th>Phiếu</th>
+                        <th>Hóa đơn</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -530,7 +530,7 @@
                         <th>Tài khoản nhận tiền</th>
                         <th>Số tiền yêu cầu</th>
                         <th>Trạng thái</th>
-                        <th>Phiếu</th>
+                        <th>Hóa đơn</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -844,7 +844,7 @@
             <section class="receipt-modal">
                 <header>
                     <div>
-                        <span class="eyebrow">Phiếu tài chính</span>
+                        <span class="eyebrow">Hóa đơn tài chính</span>
                         <h3>{{ receipt.receipt_code }}</h3>
                     </div>
                     <button
@@ -872,7 +872,7 @@
                         type="button"
                         @click="openReceiptWeb(receipt)"
                     >
-                        Mở trang phiếu
+                        Mở hóa đơn
                     </button>
                     <button
                         class="secondary-btn"

@@ -20,14 +20,18 @@ class FinanceReceiptService
         $refund->loadMissing(['booking', 'payment']);
 
         return $this->updateOrCreateAndNotify(
-            ['receipt_code' => 'RCPT-RF-'.strtoupper(substr(hash('sha256', $refund->id), 0, 20))],
             [
+                'receiptable_type' => Refund::class,
+                'receiptable_id' => $refund->id,
+            ],
+            [
+                'receipt_code' => 'INV-RF-'.strtoupper(substr(hash('sha256', $refund->id), 0, 20)),
                 'receipt_type' => 'refund',
                 'receiptable_type' => Refund::class,
                 'receiptable_id' => $refund->id,
                 'issued_to_user_id' => $refund->customer_id,
                 'issued_by' => $issuedBy,
-                'title' => 'Phiếu hoàn tiền booking '.$refund->booking?->booking_code,
+                'title' => 'Hóa đơn hoàn tiền booking '.$refund->booking?->booking_code,
                 'amount' => $refund->amount,
                 'currency' => 'VND',
                 'status' => 'issued',
@@ -47,14 +51,18 @@ class FinanceReceiptService
         $withdrawal->loadMissing('bankAccount');
 
         return $this->updateOrCreateAndNotify(
-            ['receipt_code' => 'RCPT-WD-'.$withdrawal->request_code],
             [
+                'receiptable_type' => OwnerWithdrawalRequest::class,
+                'receiptable_id' => $withdrawal->id,
+            ],
+            [
+                'receipt_code' => 'INV-WD-'.$withdrawal->request_code,
                 'receipt_type' => 'withdrawal',
                 'receiptable_type' => OwnerWithdrawalRequest::class,
                 'receiptable_id' => $withdrawal->id,
                 'issued_to_user_id' => $withdrawal->owner_id,
                 'issued_by' => $issuedBy,
-                'title' => 'Phiếu chi rút tiền '.$withdrawal->request_code,
+                'title' => 'Hóa đơn chi trả rút tiền '.$withdrawal->request_code,
                 'amount' => $withdrawal->amount,
                 'currency' => 'VND',
                 'status' => 'issued',
@@ -77,14 +85,18 @@ class FinanceReceiptService
         $requestCode = 'UWD-'.strtoupper(substr(hash('sha256', $withdrawal->id), 0, 10));
 
         return $this->updateOrCreateAndNotify(
-            ['receipt_code' => 'RCPT-UWD-'.strtoupper(substr(hash('sha256', $withdrawal->id), 0, 18))],
             [
+                'receiptable_type' => UserWithdrawalRequest::class,
+                'receiptable_id' => $withdrawal->id,
+            ],
+            [
+                'receipt_code' => 'INV-UWD-'.strtoupper(substr(hash('sha256', $withdrawal->id), 0, 18)),
                 'receipt_type' => 'withdrawal',
                 'receiptable_type' => UserWithdrawalRequest::class,
                 'receiptable_id' => $withdrawal->id,
                 'issued_to_user_id' => $withdrawal->user_id,
                 'issued_by' => $issuedBy,
-                'title' => 'Phiếu chi rút tiền ví người dùng '.$requestCode,
+                'title' => 'Hóa đơn chi trả rút tiền ví người dùng '.$requestCode,
                 'amount' => $withdrawal->amount,
                 'currency' => 'VND',
                 'status' => 'issued',
@@ -165,7 +177,7 @@ class FinanceReceiptService
             }
 
             $receiptUrl = URL::temporarySignedRoute(
-                'receipts.show',
+                'invoices.show',
                 now()->addDays(30),
                 ['receipt' => $receipt->getKey()],
             );
@@ -179,7 +191,7 @@ class FinanceReceiptService
                 $metadata['mail_sent_at'] = now()->toDateTimeString();
                 $metadata['receipt_url'] = $receiptUrl;
             } catch (Throwable $exception) {
-                Log::warning('Không gửi được email phiếu tài chính.', [
+                Log::warning('Không gửi được email hóa đơn tài chính.', [
                     'receipt_id' => $receipt->getKey(),
                     'receipt_code' => $receipt->receipt_code,
                     'email' => $email,

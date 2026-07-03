@@ -20,7 +20,7 @@ class FinanceReceiptIssuedMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'SportGo - '.$this->receipt->title);
+        return new Envelope(subject: 'SportGo - Hóa đơn '.$this->receipt->receipt_code);
     }
 
     public function content(): Content

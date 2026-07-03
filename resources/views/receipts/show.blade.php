@@ -30,6 +30,15 @@
 
         return filled($value) ? $value : '-';
     };
+
+    $recipientName = $receipt->issuedTo?->full_name ?: $receipt->issuedTo?->username ?: '-';
+    $recipientContact = $receipt->issuedTo?->email ?: $receipt->issuedTo?->phone ?: '-';
+    $invoiceTypeLabel = [
+        'refund' => 'Hoàn tiền',
+        'withdrawal' => 'Chi trả rút tiền',
+        'platform_fee' => 'Phí nền tảng',
+        'payment' => 'Thanh toán',
+    ][$receipt->receipt_type] ?? $receipt->receipt_type;
 @endphp
 <!doctype html>
 <html lang="vi">
@@ -106,6 +115,29 @@
             margin: 24px 0;
         }
 
+        .parties {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin: 22px 0;
+        }
+
+        .party {
+            border: 1px solid #dce9e0;
+            border-radius: 12px;
+            padding: 16px;
+            background: #fbfdfb;
+        }
+
+        .party h3,
+        .section-title {
+            margin: 0 0 10px;
+            font-size: 15px;
+            text-transform: uppercase;
+            letter-spacing: .02em;
+            color: #315041;
+        }
+
         .box {
             border: 1px solid #dce9e0;
             border-radius: 12px;
@@ -157,6 +189,12 @@
             font-size: 13px;
         }
 
+        .total-row td {
+            border-bottom: 0;
+            font-size: 18px;
+            font-weight: 900;
+        }
+
         @media print {
             body {
                 background: #fff;
@@ -181,6 +219,10 @@
             .summary {
                 grid-template-columns: 1fr;
             }
+
+            .parties {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -190,7 +232,7 @@
             <header class="header">
                 <div>
                     <div class="brand">SportGo</div>
-                    <div class="muted">Phiếu tài chính</div>
+                    <div class="muted">Hóa đơn nội bộ</div>
                 </div>
                 <div class="code">
                     {{ $receipt->receipt_code }}
@@ -199,25 +241,61 @@
             </header>
 
             <div class="body">
-                <h1>{{ $receipt->title }}</h1>
+                <h1>HÓA ĐƠN</h1>
+                <div class="muted">{{ $receipt->title }}</div>
                 <div class="muted">Trạng thái: {{ $receipt->status }}</div>
 
                 <div class="summary">
                     <div class="box">
-                        <span class="label">Người nhận</span>
-                        <span class="value">{{ $receipt->issuedTo?->full_name ?: $receipt->issuedTo?->username ?: '-' }}</span>
+                        <span class="label">Mã hóa đơn</span>
+                        <span class="value">{{ $receipt->receipt_code }}</span>
                     </div>
                     <div class="box">
-                        <span class="label">Loại phiếu</span>
-                        <span class="value">{{ $receipt->receipt_type }}</span>
+                        <span class="label">Ngày phát hành</span>
+                        <span class="value">{{ optional($receipt->issued_at)->format('d/m/Y H:i') }}</span>
                     </div>
                     <div class="box">
-                        <span class="label">Số tiền</span>
+                        <span class="label">Tổng tiền</span>
                         <span class="value amount">{{ number_format((float) $receipt->amount, 0, ',', '.') }} {{ $receipt->currency }}</span>
                     </div>
                 </div>
 
-                <h2>Thông tin chi tiết</h2>
+                <div class="parties">
+                    <section class="party">
+                        <h3>Bên phát hành</h3>
+                        <div><span class="label">Đơn vị</span><span class="value">SportGo</span></div>
+                        <div><span class="label">Hệ thống</span><span class="value">Nền tảng đặt sân SportGo</span></div>
+                    </section>
+                    <section class="party">
+                        <h3>Bên nhận</h3>
+                        <div><span class="label">Người nhận</span><span class="value">{{ $recipientName }}</span></div>
+                        <div><span class="label">Liên hệ</span><span class="value">{{ $recipientContact }}</span></div>
+                    </section>
+                </div>
+
+                <h2 class="section-title">Nội dung hóa đơn</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nội dung</th>
+                            <th>Loại</th>
+                            <th style="text-align:right">Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{ $receipt->title }}</td>
+                            <td>{{ $invoiceTypeLabel }}</td>
+                            <td style="text-align:right">{{ number_format((float) $receipt->amount, 0, ',', '.') }} {{ $receipt->currency }}</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="2" style="text-align:right">Tổng cộng</td>
+                            <td style="text-align:right;color:#047857">{{ number_format((float) $receipt->amount, 0, ',', '.') }} {{ $receipt->currency }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h2 class="section-title" style="margin-top:24px">Thông tin đối soát</h2>
                 <table>
                     <tbody>
                         @forelse ($metadata as $key => $value)
@@ -233,7 +311,7 @@
                     </tbody>
                 </table>
 
-                <p class="footer">Phiếu được phát hành tự động bởi hệ thống SportGo. Vui lòng lưu lại mã phiếu để đối soát khi cần.</p>
+                <p class="footer">Hóa đơn được phát hành tự động bởi hệ thống SportGo để người dùng, chủ sân và quản trị viên đối soát giao dịch. Tài liệu này không thay thế hóa đơn điện tử có mã cơ quan thuế.</p>
             </div>
         </section>
     </main>

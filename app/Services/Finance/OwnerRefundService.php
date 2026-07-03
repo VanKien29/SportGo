@@ -107,6 +107,7 @@ class OwnerRefundService
                 'customer',
                 'ownerConfirmedBy',
                 'statusHistories.changedBy',
+                'receipt',
             ]);
         });
     }

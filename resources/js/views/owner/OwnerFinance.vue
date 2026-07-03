@@ -371,7 +371,7 @@
                                         type="button"
                                         @click="openReceipt(withdrawal.receipt)"
                                     >
-                                        Phiếu {{ withdrawal.receipt.receipt_code }}
+                                        Hóa đơn {{ withdrawal.receipt.receipt_code }}
                                     </button>
                                 </td>
                                 <td class="actions-col" data-label="Thao tác">

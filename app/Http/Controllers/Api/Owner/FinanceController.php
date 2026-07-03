@@ -316,7 +316,7 @@ class FinanceController extends Controller
             'issued_at' => $receipt->issued_at,
             'metadata' => $receipt->metadata,
             'view_url' => URL::temporarySignedRoute(
-                'receipts.show',
+                'invoices.show',
                 now()->addDays(30),
                 ['receipt' => $receipt->id],
             ),
