@@ -526,12 +526,22 @@ class PartnerApplicationController extends Controller
 
     public function documents(Request $request): JsonResponse
     {
-        $applicationIds = PartnerApplication::query()->where('user_id', $request->user()->id)->pluck('id');
+        $applications = PartnerApplication::query()
+            ->where('user_id', $request->user()->id)
+            ->get(['id', 'approved_venue_cluster_id']);
+        $applicationIds = $applications->pluck('id')->filter()->values();
+        $venueClusterIds = $applications->pluck('approved_venue_cluster_id')->filter()->unique()->values();
         $documents = GeneratedDocument::query()
-            ->whereIn('partner_application_id', $applicationIds)
-            ->orWhere(fn ($query) => $query
-                ->where('owner_id', $request->user()->id)
-                ->where('document_type', 'partner_application_form'))
+            ->where(function ($query) use ($applicationIds, $venueClusterIds, $request): void {
+                $query->whereIn('partner_application_id', $applicationIds)
+                    ->orWhere(fn ($ownerQuery) => $ownerQuery
+                        ->where('owner_id', $request->user()->id)
+                        ->where('document_type', 'partner_application_form'));
+
+                if ($venueClusterIds->isNotEmpty()) {
+                    $query->orWhereIn('venue_cluster_id', $venueClusterIds);
+                }
+            })
             ->latest()
             ->get()
             ->map(fn (GeneratedDocument $document) => [
@@ -546,8 +556,16 @@ class PartnerApplicationController extends Controller
     {
         $payload = $application->toArray();
 
-        $payload['generated_documents'] = $application->generatedDocuments
-            ->sortByDesc('created_at')
+        $payload['generated_documents'] = GeneratedDocument::with('signatures')
+            ->where(function ($query) use ($application): void {
+                $query->where('partner_application_id', $application->id);
+
+                if ($application->approved_venue_cluster_id) {
+                    $query->orWhere('venue_cluster_id', $application->approved_venue_cluster_id);
+                }
+            })
+            ->latest()
+            ->get()
             ->map(fn (GeneratedDocument $document) => $this->generatedDocumentPayload($document))
             ->values();
 

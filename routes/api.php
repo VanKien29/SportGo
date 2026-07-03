@@ -325,11 +325,13 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::patch('/vouchers/{id}/deactivate', [OwnerVoucherController::class, 'deactivate']);
         // Venue Court Approval Requests (Owner gửi yêu cầu quy mô)
         Route::get('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/approval-requests/preview', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'preview']);
         Route::post('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'store']);
         Route::post('/venue-clusters/{clusterId}/approval-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'supplement']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/cancel', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'cancel']);
         // Venue Location Change Requests (Owner gửi yêu cầu thay đổi vị trí)
         Route::get('/venue-clusters/{clusterId}/location-change-requests', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/location-change-requests/preview', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'preview']);
         Route::post('/venue-clusters/{clusterId}/location-change-requests', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'store']);
         Route::post('/venue-clusters/{clusterId}/location-change-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'supplement']);
         Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/cancel', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'cancel']);
@@ -445,6 +447,7 @@ Route::middleware('auth:sanctum')
         Route::post('/policies/{policy}/accept', [PolicyAcceptanceController::class, 'accept']);
 
         Route::post('venue-clusters/resolve-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'resolveMapUrl']);
+        Route::post('venue-clusters/reverse-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'reverseMap']);
         Route::get('/court-types', [\App\Http\Controllers\Api\Admin\CourtTypeController::class, 'index']); // Read-only: Owner cần xem danh sách loại sân
         Route::get('/amenities', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'index']); // Read-only: Owner cần xem danh sách tiện ích
         Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);

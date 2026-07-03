@@ -1819,10 +1819,29 @@
                                 @change="handleScaleSupplementSelect"
                             />
                             <div v-if="scaleSupplementFiles.length" class="supplement-file-list">
-                                <span v-for="file in scaleSupplementFiles" :key="file.name + file.size">{{ file.name }}</span>
+                                <button
+                                    v-for="file in scaleSupplementFiles"
+                                    :key="file.name + file.size"
+                                    type="button"
+                                    title="Nhấp đôi để xem file"
+                                    @dblclick="previewLocalFile(file)"
+                                >{{ file.name }}</button>
                             </div>
                         </div>
-                        <div class="form-group request-signature-group">
+                        <div class="request-preview-gate">
+                            <div>
+                                <strong>Xem đơn yêu cầu trước khi ký</strong>
+                                <p>Hệ thống sẽ sinh file từ thông tin bạn vừa nhập. Bạn cần mở và đọc file trước khi ký/gửi.</p>
+                            </div>
+                            <button type="button" class="btn btn-outline" :disabled="scalePreviewing" @click="previewScaleRequest">
+                                <AppIcon name="eye" size="16" />
+                                {{ scalePreviewing ? "Đang tạo đơn..." : "Xem đơn" }}
+                            </button>
+                            <span :class="scalePreviewLoaded ? 'signature-ok' : 'signature-missing'">
+                                {{ scalePreviewLoaded ? "Đã xem đơn" : "Chưa xem đơn" }}
+                            </span>
+                        </div>
+                        <div class="form-group request-signature-group" :class="{ 'request-signature-disabled': !scalePreviewLoaded }">
                             <label>Ký xác nhận yêu cầu <span class="required">*</span></label>
                             <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
                                 Chủ sân ký xác nhận thông tin và giấy tờ đính kèm trong yêu cầu mở rộng quy mô là chính xác.
@@ -1854,7 +1873,7 @@
                         <button
                             type="submit"
                             class="btn btn-primary"
-                            :disabled="creatingReq"
+                            :disabled="creatingReq || !scalePreviewLoaded"
                         >
                             <AppIcon name="send" size="16" />
                             {{
@@ -1895,65 +1914,25 @@
                                     >Tỉnh/Thành phố mới
                                     <span class="required">*</span></label
                                 >
-                                <div class="searchable-select-container">
-                                    <input
-                                        type="text"
-                                        v-model="provinceSearch"
-                                        class="form-control searchable-select-input"
-                                        placeholder="Gõ để tìm Tỉnh/Thành..."
-                                        required
-                                        @focus="showProvinceDropdown = true"
-                                        @blur="closeProvinceDropdown"
-                                    />
-                                    <span class="searchable-select-arrow" :class="{ open: showProvinceDropdown }">▼</span>
-                                    <div v-if="showProvinceDropdown" class="searchable-select-dropdown">
-                                        <div
-                                            v-for="p in filteredProvinces"
-                                            :key="p.code"
-                                            class="searchable-select-option"
-                                            :class="{ selected: p.name === locationForm.new_province }"
-                                            @mousedown="selectProvince(p)"
-                                        >
-                                            {{ p.name }}
-                                        </div>
-                                        <div v-if="filteredProvinces.length === 0" class="searchable-select-option empty">
-                                            Không tìm thấy kết quả
-                                        </div>
-                                    </div>
-                                </div>
+                                <BaseCombobox 
+                                    v-model="locationForm.new_province"
+                                    :options="provinceOptions"
+                                    placeholder="Tìm Tỉnh/Thành phố..."
+                                    @update:modelValue="onProvinceChange"
+                                />
                             </div>
                             <div class="form-group">
                                 <label
                                     >Phường/Xã mới
                                     <span class="required">*</span></label
                                 >
-                                <div class="searchable-select-container">
-                                    <input
-                                        type="text"
-                                        v-model="wardSearch"
-                                        class="form-control searchable-select-input"
-                                        placeholder="Gõ để tìm Phường/Xã..."
-                                        required
-                                        :disabled="!locationForm.new_province"
-                                        @focus="showWardDropdown = true"
-                                        @blur="closeWardDropdown"
-                                    />
-                                    <span class="searchable-select-arrow" :class="{ open: showWardDropdown }">▼</span>
-                                    <div v-if="showWardDropdown" class="searchable-select-dropdown">
-                                        <div
-                                            v-for="w in filteredWards"
-                                            :key="w.code"
-                                            class="searchable-select-option"
-                                            :class="{ selected: w.name === locationForm.new_ward }"
-                                            @mousedown="selectWard(w)"
-                                        >
-                                            {{ w.name }}
-                                        </div>
-                                        <div v-if="filteredWards.length === 0" class="searchable-select-option empty">
-                                            Không tìm thấy kết quả
-                                        </div>
-                                    </div>
-                                </div>
+                                <BaseCombobox 
+                                    v-model="locationForm.new_ward"
+                                    :options="wardOptions"
+                                    placeholder="Tìm Phường/Xã..."
+                                    :disabled="!locationForm.new_province"
+                                    @update:modelValue="onWardChange"
+                                />
                             </div>
                         </div>
                         <div class="form-group">
@@ -2068,10 +2047,29 @@
                                 @change="handleLocationSupplementSelect"
                             />
                             <div v-if="locationSupplementFiles.length" class="supplement-file-list">
-                                <span v-for="file in locationSupplementFiles" :key="file.name + file.size">{{ file.name }}</span>
+                                <button
+                                    v-for="file in locationSupplementFiles"
+                                    :key="file.name + file.size"
+                                    type="button"
+                                    title="Nhấp đôi để xem file"
+                                    @dblclick="previewLocalFile(file)"
+                                >{{ file.name }}</button>
                             </div>
                         </div>
-                        <div class="form-group request-signature-group">
+                        <div class="request-preview-gate">
+                            <div>
+                                <strong>Xem đơn yêu cầu trước khi ký</strong>
+                                <p>Hệ thống sẽ sinh file từ địa chỉ, tọa độ và giấy tờ bạn vừa nhập. Bạn cần mở và đọc file trước khi ký/gửi.</p>
+                            </div>
+                            <button type="button" class="btn btn-outline" :disabled="locationPreviewing" @click="previewLocationRequest">
+                                <AppIcon name="eye" size="16" />
+                                {{ locationPreviewing ? "Đang tạo đơn..." : "Xem đơn" }}
+                            </button>
+                            <span :class="locationPreviewLoaded ? 'signature-ok' : 'signature-missing'">
+                                {{ locationPreviewLoaded ? "Đã xem đơn" : "Chưa xem đơn" }}
+                            </span>
+                        </div>
+                        <div class="form-group request-signature-group" :class="{ 'request-signature-disabled': !locationPreviewLoaded }">
                             <label>Ký xác nhận yêu cầu <span class="required">*</span></label>
                             <p class="map-help-text">
                                 Chủ sân ký xác nhận thông tin vị trí mới và giấy tờ đính kèm là chính xác.
@@ -2103,7 +2101,7 @@
                         <button
                             type="submit"
                             class="btn btn-primary"
-                            :disabled="locationSubmitting"
+                            :disabled="locationSubmitting || !locationPreviewLoaded"
                         >
                             {{
                                 locationSubmitting
@@ -2326,11 +2324,17 @@
                                 class="form-control"
                                 multiple
                                 accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx"
-                                @change="handleSupplementRequestFiles"
-                            />
-                            <div v-if="supplementRequestFiles.length" class="supplement-file-list">
-                                <span v-for="file in supplementRequestFiles" :key="`${file.name}-${file.size}`">{{ file.name }}</span>
-                            </div>
+                            @change="handleSupplementRequestFiles"
+                        />
+                        <div v-if="supplementRequestFiles.length" class="supplement-file-list">
+                            <button
+                                v-for="file in supplementRequestFiles"
+                                :key="`${file.name}-${file.size}`"
+                                type="button"
+                                title="Nhấp đôi để xem file"
+                                @dblclick="previewLocalFile(file)"
+                            >{{ file.name }}</button>
+                        </div>
                         </div>
                         <div class="form-group request-signature-group">
                             <label>Ký xác nhận bổ sung <span class="required">*</span></label>
@@ -2371,6 +2375,7 @@
             :show="documentPreviewOpen"
             :document="previewDocument"
             @close="closeRequestDocument"
+            @loaded="handleRequestDocumentLoaded"
         />
     </div>
 </template>
@@ -2383,15 +2388,16 @@ import DecorationVisual from "../../components/DecorationVisual.vue";
 import FloatAddButton from "../../components/FloatAddButton.vue";
 import ClusterActionFloating from "../../components/owner/ClusterActionFloating.vue";
 import PartnerFilePreviewDialog from "../../components/partner/PartnerFilePreviewDialog.vue";
+import BaseCombobox from "../../components/BaseCombobox.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
 import { ownerUnlockRequestsService } from "../../services/ownerUnlockRequests";
-import { apiDownload } from "../../services/api";
+import { api, apiDownload } from "../../services/api";
 
 export default {
     name: "OwnerVenueClusters",
-    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual, FloatAddButton, ClusterActionFloating, PartnerFilePreviewDialog },
+    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual, FloatAddButton, ClusterActionFloating, PartnerFilePreviewDialog, BaseCombobox },
     data() {
         return {
             // Cluster list
@@ -2509,6 +2515,10 @@ export default {
             evidencePreview: null,
             scaleSupplementFiles: [],
             scaleSignatureDirty: false,
+            scalePreviewDocument: null,
+            scalePreviewLoaded: false,
+            scalePreviewing: false,
+            scalePreviewKey: "",
             newReqSuccess: null,
             newReqError: null,
             creatingReq: false,
@@ -2526,6 +2536,10 @@ export default {
             locationModalError: null,
             locationSupplementFiles: [],
             locationSignatureDirty: false,
+            locationPreviewDocument: null,
+            locationPreviewLoaded: false,
+            locationPreviewing: false,
+            locationPreviewKey: "",
             resolvingLocationMap: false,
             locationMapMsg: null,
             locationForm: {
@@ -2541,10 +2555,6 @@ export default {
             locationMarker: null,
             provincesList: [],
             wardsList: [],
-            provinceSearch: "",
-            wardSearch: "",
-            showProvinceDropdown: false,
-            showWardDropdown: false,
 
             // Unlock Requests State
             unlockRequests: [],
@@ -2664,19 +2674,11 @@ export default {
             return this.locationRequests.filter((r) => r.status === "pending")
                 .length;
         },
-        filteredProvinces() {
-            const query = (this.provinceSearch || "").toLowerCase().trim();
-            if (!query) return this.provincesList;
-            return this.provincesList.filter(p => 
-                p.name.toLowerCase().includes(query)
-            );
+        provinceOptions() {
+            return this.provincesList.map((p) => ({ value: p.name, label: p.name }));
         },
-        filteredWards() {
-            const query = (this.wardSearch || "").toLowerCase().trim();
-            if (!query) return this.wardsList;
-            return this.wardsList.filter(w => 
-                w.name.toLowerCase().includes(query)
-            );
+        wardOptions() {
+            return this.wardsList.map((w) => ({ value: w.name, label: w.name }));
         },
         courtTypeStats() {
             if (!this.courts) return [];
@@ -2701,6 +2703,18 @@ export default {
         },
         "locationForm.new_longitude"() {
             this.updateLocationModalMapMarker();
+        },
+        newReqForm: {
+            deep: true,
+            handler() {
+                this.resetScalePreview();
+            },
+        },
+        locationForm: {
+            deep: true,
+            handler() {
+                this.resetLocationPreview();
+            },
         },
         activeTab(newTab) {
             if (newTab === "courts" && this.selectedCluster) {
@@ -2748,6 +2762,52 @@ export default {
     },
 
     methods: {
+        searchToken(value) {
+            return String(value || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+                .trim();
+        },
+
+        validateRequestFiles(files, options = {}) {
+            const list = Array.from(files || []);
+            const maxFiles = options.maxFiles || 10;
+            const maxBytes = options.maxBytes || 10 * 1024 * 1024;
+            const label = options.label || "file";
+            const allowed = options.allowed || [
+                "image/jpeg",
+                "image/png",
+                "image/webp",
+                "application/pdf",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ];
+
+            if (list.length > maxFiles) {
+                return `Chỉ được chọn tối đa ${maxFiles} ${label}.`;
+            }
+
+            const tooLarge = list.find((file) => file.size > maxBytes);
+            if (tooLarge) {
+                return `${tooLarge.name} vượt quá dung lượng ${Math.round(maxBytes / 1024 / 1024)}MB.`;
+            }
+
+            const invalid = list.find((file) => !allowed.includes(file.type) && !/\.(jpe?g|png|webp|pdf|docx?)$/i.test(file.name));
+            if (invalid) {
+                return `${invalid.name} không đúng định dạng cho phép.`;
+            }
+
+            return "";
+        },
+
+        previewLocalFile(file) {
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            window.open(url, "_blank", "noopener");
+            window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+        },
+
         // ── Cluster list ──
         async fetchClusters() {
             this.loading = true;
@@ -3078,8 +3138,12 @@ export default {
 
         async fetchProvinces() {
             try {
-                const res = await fetch("/api/locations/provinces").then((r) => r.json());
+                const res = await api("/api/user/partner-application/provinces");
                 this.provincesList = res.data || [];
+                if (this.locationForm.new_province && !this.wardsList.length) {
+                    const province = this.findProvinceByName(this.locationForm.new_province);
+                    if (province) await this.fetchWards(province.code);
+                }
             } catch (err) {
                 console.error("Lỗi khi tải danh mục tỉnh thành:", err);
             }
@@ -3091,7 +3155,7 @@ export default {
                 return;
             }
             try {
-                const res = await fetch(`/api/locations/wards?province_code=${provinceCode}`).then((r) => r.json());
+                const res = await api(`/api/user/partner-application/provinces/${provinceCode}/wards`);
                 this.wardsList = res.data || [];
             } catch (err) {
                 console.error("Lỗi khi tải danh mục xã phường:", err);
@@ -3101,43 +3165,27 @@ export default {
 
         async onProvinceChange() {
             const selectedProvinceName = this.locationForm.new_province;
-            const province = this.provincesList.find(
-                (p) => p.name === selectedProvinceName,
-            );
+            const province = this.findProvinceByName(selectedProvinceName);
             this.locationForm.new_ward = "";
-            this.wardSearch = "";
             if (province) {
                 await this.fetchWards(province.code);
             } else {
                 this.wardsList = [];
             }
+            this.resetLocationPreview();
         },
 
-        closeProvinceDropdown() {
-            setTimeout(() => {
-                this.showProvinceDropdown = false;
-                this.provinceSearch = this.locationForm.new_province;
-            }, 200);
+        onWardChange() {
+            this.resetLocationPreview();
         },
 
-        closeWardDropdown() {
-            setTimeout(() => {
-                this.showWardDropdown = false;
-                this.wardSearch = this.locationForm.new_ward;
-            }, 200);
-        },
-
-        selectProvince(province) {
-            this.locationForm.new_province = province.name;
-            this.provinceSearch = province.name;
-            this.showProvinceDropdown = false;
-            this.onProvinceChange();
-        },
-
-        selectWard(ward) {
-            this.locationForm.new_ward = ward.name;
-            this.wardSearch = ward.name;
-            this.showWardDropdown = false;
+        findProvinceByName(name) {
+            const token = this.searchToken(name);
+            return this.provincesList.find((p) => this.searchToken(p.name) === token)
+                || this.provincesList.find((p) => {
+                    const provinceToken = this.searchToken(p.name);
+                    return provinceToken.includes(token) || token.includes(provinceToken);
+                });
         },
 
         openRequestModal() {
@@ -3262,7 +3310,7 @@ export default {
             if (!this.map) {
                 this.map = window.L.map("cluster-map", { scrollWheelZoom: false }).setView([lat, lng], 15);
                 window.L.tileLayer(
-                    "http://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}",
+                    "https://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}",
                     { attribution: "&copy; Google Maps" },
                 ).addTo(this.map);
                 this.marker = window.L.marker([lat, lng], {
@@ -3331,7 +3379,7 @@ export default {
                     "location-change-modal-map",
                 ).setView([lat, lng], 15);
                 window.L.tileLayer(
-                    "http://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}",
+                    "https://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}",
                     { attribution: "&copy; Google Maps" },
                 ).addTo(this.locationMap);
                 this.locationMarker = window.L.marker([lat, lng], {
@@ -3355,16 +3403,57 @@ export default {
             }, 100);
         },
 
-        applyLocationPoint(point) {
+        async applyLocationPoint(point) {
             const lat = parseFloat(point.lat.toFixed(7));
             const lng = parseFloat(point.lng.toFixed(7));
             this.locationForm.new_latitude = lat;
             this.locationForm.new_longitude = lng;
             this.locationForm.new_map_url = this.googleMapsPointUrl(lat, lng);
+            this.resetLocationPreview();
             this.locationMapMsg = {
                 type: "success",
                 text: `Đã chọn vị trí mới: ${lat}, ${lng}`,
             };
+            this.reverseLocationPoint(lat, lng);
+        },
+
+        async reverseLocationPoint(lat, lng) {
+            try {
+                const res = await venueClusterService.reverseMapPoint(lat, lng);
+                const data = res.data || {};
+                if (data.address) {
+                    this.locationForm.new_address = data.address;
+                }
+                if (data.province) {
+                    const province = data.province_code
+                        ? this.provincesList.find((p) => p.code === data.province_code)
+                        : this.findProvinceByName(data.province);
+                    this.locationForm.new_province = province?.name || data.province;
+                    if (province) {
+                        await this.fetchWards(province.code);
+                    }
+                }
+                if (data.ward) {
+                    const wardToken = this.searchToken(data.ward);
+                    const ward = data.ward_code
+                        ? this.wardsList.find((w) => w.code === data.ward_code)
+                        : this.wardsList.find((w) => this.searchToken(w.name) === wardToken)
+                            || this.wardsList.find((w) => {
+                                const itemToken = this.searchToken(w.name);
+                                return itemToken.includes(wardToken) || wardToken.includes(itemToken);
+                            });
+                    this.locationForm.new_ward = ward?.name || data.ward;
+                }
+                this.locationMapMsg = {
+                    type: "success",
+                    text: `Đã chọn vị trí và cập nhật địa chỉ: ${lat}, ${lng}`,
+                };
+            } catch (error) {
+                this.locationMapMsg = {
+                    type: "success",
+                    text: `Đã chọn tọa độ ${lat}, ${lng}. Không tự lấy được địa chỉ, vui lòng kiểm tra lại tỉnh/phường/địa chỉ.`,
+                };
+            }
         },
 
         googleMapsPointUrl(lat, lng) {
@@ -4261,6 +4350,7 @@ export default {
             }
             this.evidenceFile = file;
             this.evidencePreview = URL.createObjectURL(file);
+            this.resetScalePreview();
         },
         handleEvidenceDrop(e) {
             const file = e.dataTransfer.files[0];
@@ -4271,6 +4361,7 @@ export default {
             }
             this.evidenceFile = file;
             this.evidencePreview = URL.createObjectURL(file);
+            this.resetScalePreview();
         },
         removeEvidence() {
             this.evidenceFile = null;
@@ -4281,24 +4372,98 @@ export default {
             if (this.$refs.evidenceInput) {
                 this.$refs.evidenceInput.value = '';
             }
+            this.resetScalePreview();
         },
         handleScaleSupplementSelect(e) {
             this.scaleSupplementFiles = Array.from(e.target.files || []);
+            this.resetScalePreview();
         },
         clearScaleSupplementFiles() {
             this.scaleSupplementFiles = [];
             if (this.$refs.scaleSupplementInput) {
                 this.$refs.scaleSupplementInput.value = '';
             }
+            this.resetScalePreview();
         },
         handleLocationSupplementSelect(e) {
             this.locationSupplementFiles = Array.from(e.target.files || []);
+            this.resetLocationPreview();
         },
         clearLocationSupplementFiles() {
             this.locationSupplementFiles = [];
             if (this.$refs.locationSupplementInput) {
                 this.$refs.locationSupplementInput.value = '';
             }
+            this.resetLocationPreview();
+        },
+        handleEvidenceSelect(e) {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const error = this.validateRequestFiles([file], {
+                maxFiles: 1,
+                maxBytes: 5 * 1024 * 1024,
+                label: "anh minh chung",
+                allowed: ["image/jpeg", "image/png", "image/webp"],
+            });
+            if (error) {
+                this.newReqError = error;
+                e.target.value = "";
+                return;
+            }
+            this.newReqError = null;
+            this.evidenceFile = file;
+            this.evidencePreview = URL.createObjectURL(file);
+            this.resetScalePreview();
+        },
+        handleEvidenceDrop(e) {
+            const file = e.dataTransfer.files?.[0];
+            if (!file) return;
+            const error = this.validateRequestFiles([file], {
+                maxFiles: 1,
+                maxBytes: 5 * 1024 * 1024,
+                label: "anh minh chung",
+                allowed: ["image/jpeg", "image/png", "image/webp"],
+            });
+            if (error) {
+                this.newReqError = error;
+                return;
+            }
+            this.newReqError = null;
+            this.evidenceFile = file;
+            this.evidencePreview = URL.createObjectURL(file);
+            this.resetScalePreview();
+        },
+        handleScaleSupplementSelect(e) {
+            const files = Array.from(e.target.files || []);
+            const error = this.validateRequestFiles(files, {
+                maxFiles: 10,
+                maxBytes: 10 * 1024 * 1024,
+                label: "giay to",
+            });
+            if (error) {
+                this.newReqError = error;
+                e.target.value = "";
+                return;
+            }
+            this.newReqError = null;
+            this.scaleSupplementFiles = files;
+            this.resetScalePreview();
+        },
+        handleLocationSupplementSelect(e) {
+            const files = Array.from(e.target.files || []);
+            const error = this.validateRequestFiles(files, {
+                maxFiles: 10,
+                maxBytes: 10 * 1024 * 1024,
+                label: "giay to",
+            });
+            if (error) {
+                this.locationModalError = error;
+                e.target.value = "";
+                return;
+            }
+            this.locationModalError = null;
+            this.locationSupplementFiles = files;
+            this.resetLocationPreview();
         },
         prepareSignatureCanvas(refName, force = false) {
             const canvas = this.$refs[refName];
@@ -4384,7 +4549,18 @@ export default {
             this.supplementRequestError = "";
         },
         handleSupplementRequestFiles(e) {
-            this.supplementRequestFiles = Array.from(e.target.files || []);
+            const files = Array.from(e.target.files || []);
+            const error = this.validateRequestFiles(files, {
+                maxFiles: 10,
+                maxBytes: 10 * 1024 * 1024,
+                label: "giay to",
+            });
+            if (error) {
+                this.supplementRequestError = error;
+                e.target.value = "";
+                return;
+            }
+            this.supplementRequestFiles = files;
             this.supplementRequestError = "";
         },
         async submitSupplementRequest() {
@@ -4446,11 +4622,159 @@ export default {
             if (url) apiDownload(url);
         },
 
+        handleRequestDocumentLoaded(document) {
+            if (!document?.id) return;
+            if (this.scalePreviewDocument?.id === document.id) {
+                this.scalePreviewLoaded = true;
+            }
+            if (this.locationPreviewDocument?.id === document.id) {
+                this.locationPreviewLoaded = true;
+            }
+        },
+
+        resetScalePreview() {
+            this.scalePreviewDocument = null;
+            this.scalePreviewLoaded = false;
+            this.scalePreviewKey = "";
+        },
+
+        resetLocationPreview() {
+            this.locationPreviewDocument = null;
+            this.locationPreviewLoaded = false;
+            this.locationPreviewKey = "";
+        },
+
+        fileListKey(files) {
+            return (files || [])
+                .map((file) => `${file.name}:${file.size}:${file.lastModified || 0}`)
+                .join("|");
+        },
+
+        scaleRequestKey() {
+            return JSON.stringify({
+                court_type_id: this.newReqForm.court_type_id,
+                name: this.newReqForm.name,
+                note: this.newReqForm.note || "",
+                evidence: this.evidenceFile ? this.fileListKey([this.evidenceFile]) : "",
+                files: this.fileListKey(this.scaleSupplementFiles),
+            });
+        },
+
+        locationRequestKey() {
+            return JSON.stringify({
+                ...this.locationForm,
+                files: this.fileListKey(this.locationSupplementFiles),
+            });
+        },
+
+        buildScaleRequestFormData(includeSignature = false) {
+            const formData = new FormData();
+            formData.append('court_type_id', this.newReqForm.court_type_id);
+            formData.append('name', this.newReqForm.name);
+            if (this.newReqForm.note) {
+                formData.append('note', this.newReqForm.note);
+            }
+            if (this.evidenceFile) {
+                formData.append('evidence_image', this.evidenceFile);
+            }
+            this.scaleSupplementFiles.forEach((file) => {
+                formData.append('supplementary_documents[]', file);
+            });
+            if (includeSignature) {
+                formData.append('signature_image', this.signatureData('scaleSignatureCanvas'));
+                if (this.scalePreviewDocument?.id) {
+                    formData.append('preview_document_id', this.scalePreviewDocument.id);
+                }
+            }
+            return formData;
+        },
+
+        buildLocationRequestFormData(includeSignature = false) {
+            const formData = new FormData();
+            Object.entries(this.locationForm).forEach(([key, value]) => {
+                if (value !== null && value !== undefined) {
+                    formData.append(key, value);
+                }
+            });
+            this.locationSupplementFiles.forEach((file) => {
+                formData.append('supplementary_documents[]', file);
+            });
+            if (includeSignature) {
+                formData.append('signature_image', this.signatureData('locationSignatureCanvas'));
+                if (this.locationPreviewDocument?.id) {
+                    formData.append('preview_document_id', this.locationPreviewDocument.id);
+                }
+            }
+            return formData;
+        },
+
+        async previewScaleRequest() {
+            if (!this.newReqForm.court_type_id) {
+                this.newReqError = "Vui lòng chọn loại sân.";
+                return;
+            }
+            if (!this.newReqForm.name?.trim()) {
+                this.newReqError = "Vui lòng nhập tên sân cần mở rộng.";
+                return;
+            }
+            if (!this.evidenceFile) {
+                this.newReqError = "Vui lòng tải lên ảnh minh chứng quy mô sân.";
+                return;
+            }
+            if (!this.scaleSupplementFiles.length) {
+                this.newReqError = "Vui lòng tải lên giấy ĐKKD hoặc giấy cập nhật kinh doanh.";
+                return;
+            }
+
+            this.scalePreviewing = true;
+            this.newReqError = null;
+            try {
+                const key = this.scaleRequestKey();
+                const res = await venueClusterService.previewApprovalRequest(
+                    this.selectedCluster.id,
+                    this.buildScaleRequestFormData(false),
+                );
+                this.scalePreviewDocument = res.data;
+                this.scalePreviewLoaded = false;
+                this.scalePreviewKey = key;
+                this.openRequestDocument(res.data);
+            } catch (err) {
+                this.newReqError = err.message || "Không tạo được bản xem trước đơn yêu cầu.";
+            } finally {
+                this.scalePreviewing = false;
+            }
+        },
+
+        async previewLocationRequest() {
+            if (!this.locationSupplementFiles.length) {
+                this.locationModalError = "Vui lòng tải lên giấy tờ/hình ảnh minh chứng vị trí mới.";
+                return;
+            }
+            this.locationPreviewing = true;
+            this.locationModalError = null;
+            try {
+                const key = this.locationRequestKey();
+                const res = await venueClusterService.previewLocationChangeRequest(
+                    this.selectedCluster.id,
+                    this.buildLocationRequestFormData(false),
+                );
+                this.locationPreviewDocument = res.data;
+                this.locationPreviewLoaded = false;
+                this.locationPreviewKey = key;
+                this.openRequestDocument(res.data);
+            } catch (err) {
+                this.locationModalError = err.message || "Không tạo được bản xem trước đơn yêu cầu.";
+            } finally {
+                this.locationPreviewing = false;
+            }
+        },
+
         openCreateApprovalModal() {
             this.newReqForm = { court_type_id: "", name: "", note: "" };
             this.removeEvidence();
             this.clearScaleSupplementFiles();
             this.scaleSignatureDirty = false;
+            this.resetScalePreview();
             this.showCreateApprovalModal = true;
             this.newReqSuccess = null;
             this.newReqError = null;
@@ -4459,6 +4783,7 @@ export default {
 
         closeCreateApprovalModal() {
             this.showCreateApprovalModal = false;
+            this.resetScalePreview();
         },
 
         async handleCreateApproval() {
@@ -4478,23 +4803,20 @@ export default {
                 this.newReqError = "Vui lòng ký xác nhận yêu cầu trước khi gửi.";
                 return;
             }
+            if (!this.scalePreviewLoaded) {
+                this.newReqError = "Vui lòng bấm Xem đơn và đọc file yêu cầu trước khi ký/gửi.";
+                return;
+            }
+            if (this.scalePreviewKey !== this.scaleRequestKey()) {
+                this.resetScalePreview();
+                this.newReqError = "Thông tin hoặc giấy tờ đã thay đổi sau khi xem đơn. Vui lòng tạo và xem lại bản đơn mới.";
+                return;
+            }
             this.creatingReq = true;
             this.newReqError = null;
             this.newReqSuccess = null;
             try {
-                const formData = new FormData();
-                formData.append('court_type_id', this.newReqForm.court_type_id);
-                formData.append('name', this.newReqForm.name);
-                if (this.newReqForm.note) {
-                    formData.append('note', this.newReqForm.note);
-                }
-                if (this.evidenceFile) {
-                    formData.append('evidence_image', this.evidenceFile);
-                }
-                this.scaleSupplementFiles.forEach((file) => {
-                    formData.append('supplementary_documents[]', file);
-                });
-                formData.append('signature_image', this.signatureData('scaleSignatureCanvas'));
+                const formData = this.buildScaleRequestFormData(true);
                 const res = await venueClusterService.createApprovalRequest(
                     this.selectedCluster.id,
                     formData,
@@ -4573,6 +4895,9 @@ export default {
             this.locationMapMsg = null;
             this.clearLocationSupplementFiles();
             this.locationSignatureDirty = false;
+            if (!this.provincesList.length) {
+                await this.fetchProvinces();
+            }
             this.locationForm = {
                 new_province: this.selectedCluster.province || "",
                 new_ward: this.selectedCluster.ward || "",
@@ -4586,14 +4911,9 @@ export default {
             };
             this.showLocationModal = true;
 
-            this.provinceSearch = this.locationForm.new_province;
-            this.wardSearch = this.locationForm.new_ward;
-
             this.wardsList = [];
             if (this.locationForm.new_province) {
-                const province = this.provincesList.find(
-                    (p) => p.name === this.locationForm.new_province,
-                );
+                const province = this.findProvinceByName(this.locationForm.new_province);
                 if (province) {
                     await this.fetchWards(province.code);
                 }
@@ -4622,18 +4942,18 @@ export default {
                 this.locationModalError = "Vui lòng ký xác nhận yêu cầu trước khi gửi.";
                 return;
             }
+            if (!this.locationPreviewLoaded) {
+                this.locationModalError = "Vui lòng bấm Xem đơn và đọc file yêu cầu trước khi ký/gửi.";
+                return;
+            }
+            if (this.locationPreviewKey !== this.locationRequestKey()) {
+                this.resetLocationPreview();
+                this.locationModalError = "Thông tin hoặc giấy tờ đã thay đổi sau khi xem đơn. Vui lòng tạo và xem lại bản đơn mới.";
+                return;
+            }
             this.locationSubmitting = true;
             try {
-                const formData = new FormData();
-                Object.entries(this.locationForm).forEach(([key, value]) => {
-                    if (value !== null && value !== undefined) {
-                        formData.append(key, value);
-                    }
-                });
-                this.locationSupplementFiles.forEach((file) => {
-                    formData.append('supplementary_documents[]', file);
-                });
-                formData.append('signature_image', this.signatureData('locationSignatureCanvas'));
+                const formData = this.buildLocationRequestFormData(true);
                 const res =
                     await venueClusterService.createLocationChangeRequest(
                         this.selectedCluster.id,
@@ -6481,6 +6801,7 @@ export default {
 }
 
 .supplement-file-list span,
+.supplement-file-list button,
 .supplement-documents a {
     display: inline-flex;
     align-items: center;
@@ -6493,6 +6814,12 @@ export default {
     font-size: 12px;
     font-weight: 700;
     text-decoration: none;
+    cursor: pointer;
+}
+
+.supplement-file-list button {
+    appearance: none;
+    font-family: inherit;
 }
 
 .request-document-actions {
@@ -6518,6 +6845,38 @@ export default {
 
 .request-signature-group {
     margin-top: 14px;
+}
+
+.request-preview-gate {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 12px;
+    align-items: center;
+    margin: 14px 0;
+    padding: 14px;
+    border: 1px solid #dbeafe;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+.request-preview-gate strong {
+    display: block;
+    color: #0f172a;
+    font-weight: 800;
+}
+
+.request-preview-gate p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 12.5px;
+}
+
+.request-signature-disabled {
+    opacity: 0.62;
+}
+
+.request-signature-disabled .request-signature-pad {
+    pointer-events: none;
 }
 
 .request-signature-pad {

@@ -158,8 +158,10 @@ class PartnerDocumentService
                     $processor->saveAs($filePath);
                     $this->normalizeRequiredDocxParts($filePath);
                     $this->replaceSignedTextPlaceholders($filePath, $signature, $signerSide);
+                    $this->restoreSignedSignatureTextStyle($filePath, $signature);
                     $this->polishSignedDocumentFile($document->fresh());
                     $this->injectSignatureFallback($document->fresh(), $signature->fresh(), $signerSide, $media);
+                    $this->restoreSignedSignatureTextStyle($filePath, $signature);
                     $this->normalizeRequiredDocxParts($filePath);
                     $document->forceFill([
                         'file_hash' => hash_file('sha256', $filePath),
@@ -369,6 +371,8 @@ class PartnerDocumentService
 
         $this->fillKnownTemplateBodyFields($targetPath, $data, $documentType);
         $this->appendDocumentDataAppendixToFile($targetPath, $data, $documentType);
+        $this->replaceResidualTemplateBlanks($targetPath, $documentType);
+        $this->polishUnsignedSignaturePlaceholders($targetPath, $documentType);
         $this->normalizeRequiredDocxParts($targetPath);
     }
 
@@ -499,8 +503,13 @@ XML;
                 $pattern = '~<w:r\b[^>]*>(?:(?!</w:r>).)*<w:t\b[^>]*>\{\{signature_' . preg_quote($signerSide, '~') . '\}\}</w:t>(?:(?!</w:r>).)*</w:r>~s';
                 $documentXml = preg_replace($pattern, $drawingRun, $documentXml, 1, $count);
                 if (! $count) {
-                    $documentXml = str_replace($signaturePlaceholder, '', $documentXml);
-                    $documentXml = preg_replace('~(<w:p\b[^>]*>)~', '$1' . $drawingRun, $documentXml, 1);
+                    $paragraphPattern = '~<w:p\b[^>]*>.*?' . preg_quote($signaturePlaceholder, '~') . '.*?</w:p>~s';
+                    $replacementParagraph = '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>' . $drawingRun . '</w:p>';
+                    $documentXml = preg_replace($paragraphPattern, $replacementParagraph, $documentXml, 1, $paragraphCount);
+                    if (! $paragraphCount) {
+                        $documentXml = str_replace($signaturePlaceholder, '', $documentXml);
+                        $documentXml = preg_replace('~(<w:p\b[^>]*>)~', '$1' . $drawingRun, $documentXml, 1);
+                    }
                 }
                 $changed = true;
             }
@@ -789,6 +798,7 @@ XML;
         }
         $this->fillKnownTemplateInlineText($docxPath, $data, $documentType);
         $this->ensureDocumentSignaturePlaceholders($docxPath, $documentType);
+        $this->polishUnsignedSignaturePlaceholders($docxPath, $documentType);
         $this->replaceResidualTemplateBlanks($docxPath, $documentType);
     }
 
@@ -894,6 +904,139 @@ XML;
         }
 
         $zip->close();
+    }
+
+    private function polishUnsignedSignaturePlaceholders(string $docxPath, string $documentType): void
+    {
+        if (! in_array($documentType, [
+            'partner_application_form',
+            'partner_contract',
+            'venue_scale_request',
+            'venue_location_change_request',
+            'termination_request',
+            'mutual_liquidation_minutes',
+            'unilateral_termination_notice',
+            'settlement_minutes',
+        ], true) || ! is_file($docxPath) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $targets = [
+            '{{signature_owner}}',
+            '{{signature_sportgo}}',
+            '{{owner_signer_name}}',
+            '{{owner_signer_full_name}}',
+            '{{sportgo_signer_name}}',
+            '{{sportgo_signer_full_name}}',
+        ];
+
+        $this->styleSignatureRuns($docxPath, $targets, 'FFFFFF', true);
+    }
+
+    private function restoreSignedSignatureTextStyle(string $docxPath, GeneratedDocumentSignature $signature): void
+    {
+        $targets = array_filter([
+            $signature->signer_full_name,
+            $signature->signer_user_id,
+        ]);
+
+        if ($targets !== []) {
+            $this->styleSignatureRuns($docxPath, $targets, '000000', true);
+        }
+    }
+
+    /**
+     * Keep signature placeholders in the XML so TemplateProcessor can replace them,
+     * but hide unsigned placeholders from the human preview and center the signature block.
+     */
+    private function styleSignatureRuns(string $docxPath, array $targets, string $color, bool $centerParagraph): void
+    {
+        if (! is_file($docxPath) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            return;
+        }
+
+        $changed = false;
+        $nextXml = preg_replace_callback('~<w:p\b[^>]*>.*?</w:p>~s', function (array $paragraphMatch) use ($targets, $color, $centerParagraph, &$changed): string {
+            $paragraph = $paragraphMatch[0];
+            $contains = false;
+
+            foreach ($targets as $target) {
+                if ($target !== '' && str_contains($paragraph, $this->xmlText((string) $target))) {
+                    $contains = true;
+                    break;
+                }
+                if ($target !== '' && str_contains($paragraph, (string) $target)) {
+                    $contains = true;
+                    break;
+                }
+            }
+
+            if (! $contains) {
+                return $paragraph;
+            }
+
+            $changed = true;
+            if ($centerParagraph) {
+                $paragraph = $this->setParagraphJustification($paragraph, 'center');
+            }
+
+            return preg_replace_callback('~<w:r\b[^>]*>.*?</w:r>~s', function (array $runMatch) use ($targets, $color): string {
+                $run = $runMatch[0];
+                foreach ($targets as $target) {
+                    if ($target !== '' && (str_contains($run, $this->xmlText((string) $target)) || str_contains($run, (string) $target))) {
+                        return $this->setRunTextColor($run, $color);
+                    }
+                }
+
+                return $run;
+            }, $paragraph) ?? $paragraph;
+        }, $xml);
+
+        if ($changed && is_string($nextXml)) {
+            $zip->addFromString($entry, $nextXml);
+        }
+
+        $zip->close();
+    }
+
+    private function setParagraphJustification(string $paragraphXml, string $value): string
+    {
+        if (preg_match('~<w:pPr\b[^>]*>.*?</w:pPr>~s', $paragraphXml)) {
+            if (preg_match('~<w:jc\b[^>]*/>~', $paragraphXml)) {
+                return preg_replace('~<w:jc\b[^>]*/>~', '<w:jc w:val="' . $value . '"/>', $paragraphXml, 1) ?? $paragraphXml;
+            }
+
+            return preg_replace('~(<w:pPr\b[^>]*>)~', '$1<w:jc w:val="' . $value . '"/>', $paragraphXml, 1) ?? $paragraphXml;
+        }
+
+        return preg_replace('~(<w:p\b[^>]*>)~', '$1<w:pPr><w:jc w:val="' . $value . '"/></w:pPr>', $paragraphXml, 1) ?? $paragraphXml;
+    }
+
+    private function setRunTextColor(string $runXml, string $color): string
+    {
+        $colorXml = '<w:color w:val="' . $color . '"/>';
+
+        if (preg_match('~<w:rPr\b[^>]*>.*?</w:rPr>~s', $runXml)) {
+            if (preg_match('~<w:color\b[^>]*/>~', $runXml)) {
+                return preg_replace('~<w:color\b[^>]*/>~', $colorXml, $runXml, 1) ?? $runXml;
+            }
+
+            return preg_replace('~(<w:rPr\b[^>]*>)~', '$1' . $colorXml, $runXml, 1) ?? $runXml;
+        }
+
+        return preg_replace('~(<w:r\b[^>]*>)~', '$1<w:rPr>' . $colorXml . '</w:rPr>', $runXml, 1) ?? $runXml;
     }
 
     private function replaceResidualTemplateBlanks(string $docxPath, string $documentType): void

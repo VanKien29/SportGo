@@ -193,21 +193,15 @@ export default {
       });
     },
     isReviewable(status) {
-      return ['pending', 'reviewing', 'submitted'].includes(status);
+      return status === 'pending_review';
     },
     statusLabel(status) {
       return {
         pending_review: 'Chờ duyệt hồ sơ',
         pending_signature: 'Chờ ký hợp đồng',
-        terminating: 'Đang chấm dứt',
-        pending: 'Chờ duyệt',
-        submitted: 'Chờ duyệt',
-        reviewing: 'Đang xem xét',
-        need_supplement: 'Cần bổ sung',
-        approved_pending_contract: 'Đã duyệt, chờ hợp đồng',
-        contract_pending_owner_signature: 'Chờ chủ sân ký',
-        contract_pending_sportgo_signature: 'Chờ SportGo ký',
         completed: 'Đang hoạt động',
+        terminating: 'Đang yêu cầu chấm dứt',
+        terminated: 'Đã chấm dứt',
         rejected: 'Từ chối',
         cancelled: 'Đã hủy',
       }[status] || status || '-';
@@ -399,11 +393,8 @@ th {
   color: var(--admin-text);
 }
 
-.status-pending,
-.status-submitted,
-.status-reviewing,
-.status-contract_pending_owner_signature,
-.status-contract_pending_sportgo_signature {
+.status-pending_review,
+.status-pending_signature {
   background: #fef3c7;
   color: #92400e;
 }
@@ -411,6 +402,16 @@ th {
 .status-completed {
   background: #dcfce7;
   color: #166534;
+}
+
+.status-terminating {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.status-terminated {
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .status-rejected,

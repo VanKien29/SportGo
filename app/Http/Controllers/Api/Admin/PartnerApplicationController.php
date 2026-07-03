@@ -102,11 +102,7 @@ class PartnerApplicationController extends Controller
     private function partnerRowPayload($applications): array
     {
         $items = collect($applications);
-        /** @var PartnerApplication $latest */
-        $latest = $items
-            ->sortByDesc(fn (PartnerApplication $item) => $item->submitted_at ?: $item->created_at)
-            ->first();
-        $user = $latest->user;
+        $user = $items->first()?->user;
         $contracts = $items
             ->flatMap(fn (PartnerApplication $item) => $item->contracts ?: collect())
             ->sortByDesc(fn (PartnerContract $contract) => $contract->created_at);
@@ -119,13 +115,41 @@ class PartnerApplicationController extends Controller
             ->unique()
             ->values();
 
+        // Chọn hồ sơ đại diện theo thứ tự ưu tiên trạng thái, không chỉ mới nhất
+        $statusPriority = [
+            'completed' => 0,
+            'contract_pending_sportgo_signature' => 1,
+            'contract_pending_owner_signature' => 2,
+            'approved_pending_contract' => 3,
+            'reviewing' => 4,
+            'need_supplement' => 5,
+            'submitted' => 6,
+            'pending' => 7,
+            'rejected' => 8,
+            'cancelled' => 9,
+        ];
+        /** @var PartnerApplication $representative */
+        $representative = $items
+            ->sortBy([
+                fn (PartnerApplication $a, PartnerApplication $b) =>
+                    ($statusPriority[$a->status] ?? 99) <=> ($statusPriority[$b->status] ?? 99),
+                fn (PartnerApplication $a, PartnerApplication $b) =>
+                    ($b->submitted_at ?: $b->created_at) <=> ($a->submitted_at ?: $a->created_at),
+            ])
+            ->first();
+
+        // Hồ sơ mới nhất (để lấy thông tin đăng ký gần nhất)
+        $latest = $items
+            ->sortByDesc(fn (PartnerApplication $item) => $item->submitted_at ?: $item->created_at)
+            ->first();
+
         return [
-            ...$this->payload($latest),
-            'partner_code' => 'PTN-' . strtoupper(substr(str_replace('-', '', (string) $latest->user_id), 0, 8)),
-            'partner_name' => $user?->full_name ?: $latest->applicant_full_name,
-            'partner_phone' => $user?->phone ?: $latest->applicant_phone,
-            'partner_email' => $user?->email ?: $latest->applicant_email,
-            'latest_application_id' => $latest->id,
+            ...$this->payload($representative),
+            'partner_code' => 'PTN-' . strtoupper(substr(str_replace('-', '', (string) $representative->user_id), 0, 8)),
+            'partner_name' => $user?->full_name ?: $representative->applicant_full_name,
+            'partner_phone' => $user?->phone ?: $representative->applicant_phone,
+            'partner_email' => $user?->email ?: $representative->applicant_email,
+            'latest_application_id' => $representative->id,
             'application_count' => $items->count(),
             'managed_clusters_count' => $clusterIds->count(),
             'partner_status' => $this->aggregatePartnerStatus($items, $terminations->first()),
@@ -376,8 +400,24 @@ class PartnerApplicationController extends Controller
 
         $payload['courts'] = $application->courts->values();
         $payload['bank_accounts'] = $application->bankAccounts->values();
+        $partnerApplications = PartnerApplication::query()
+            ->with(['approvedVenueCluster:id,name,status,address', 'contracts'])
+            ->withCount('courts')
+            ->where('user_id', $application->user_id)
+            ->orderByDesc('submitted_at')
+            ->orderByDesc('created_at')
+            ->get();
+        $partnerApplicationIds = $partnerApplications->pluck('id')->filter()->values();
+        $partnerVenueClusterIds = $partnerApplications->pluck('approved_venue_cluster_id')->filter()->unique()->values();
+
         $payload['documents'] = GeneratedDocument::with(['signatures.signer', 'signingRequests.user', 'signingRequests.signature', 'signingRequests.verificationCode'])
-            ->where('partner_application_id', $application->id)
+            ->where(function ($query) use ($partnerApplicationIds, $partnerVenueClusterIds): void {
+                $query->whereIn('partner_application_id', $partnerApplicationIds);
+
+                if ($partnerVenueClusterIds->isNotEmpty()) {
+                    $query->orWhereIn('venue_cluster_id', $partnerVenueClusterIds);
+                }
+            })
             ->latest()
             ->get()
             ->map(function (GeneratedDocument $document) {
@@ -424,13 +464,6 @@ class PartnerApplicationController extends Controller
         $payload['contracts'] = $application->contracts;
         $payload['status_histories'] = $application->statusHistories;
         $payload['termination_requests'] = $application->terminationRequests;
-        $partnerApplications = PartnerApplication::query()
-            ->with(['approvedVenueCluster:id,name,status,address', 'contracts'])
-            ->withCount('courts')
-            ->where('user_id', $application->user_id)
-            ->orderByDesc('submitted_at')
-            ->orderByDesc('created_at')
-            ->get();
 
         $payload['partner_summary'] = [
             'partner_code' => 'PTN-' . strtoupper(substr(str_replace('-', '', (string) $application->user_id), 0, 8)),

@@ -1209,8 +1209,9 @@ function clearErrors() { Object.keys(fieldErrors).forEach((k) => delete fieldErr
 
 async function navigateToApplicationRoute(target) {
   const href = router.resolve(target).href;
+  const absoluteHref = new URL(href, window.location.origin).toString();
   if (target?.name && target.name !== 'partner-application') {
-    window.location.assign(href);
+    window.location.href = absoluteHref;
     return;
   }
 
@@ -1222,11 +1223,11 @@ async function navigateToApplicationRoute(target) {
       const targetUrl = new URL(href, window.location.origin);
       const stillPortalMounted = Boolean(document.querySelector('.partner-portal-page'));
       if (stillPortalMounted && window.location.pathname === targetUrl.pathname) {
-        window.location.assign(href);
+        window.location.href = absoluteHref;
       }
     }, 80);
   } catch (error) {
-    window.location.assign(href);
+    window.location.href = absoluteHref;
   }
 }
 

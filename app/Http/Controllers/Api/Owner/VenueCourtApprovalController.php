@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Mail\Partner\VenueScaleRequestReceivedMail;
+use App\Models\CourtType;
+use App\Models\GeneratedDocument;
 use App\Models\PartnerApplication;
 use App\Models\VenueCluster;
 use App\Models\VenueCourtApprovalRequest;
@@ -15,6 +17,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class VenueCourtApprovalController extends Controller
@@ -54,6 +57,61 @@ class VenueCourtApprovalController extends Controller
     /**
      * Gửi yêu cầu mở rộng quy mô (thêm sân con mới).
      */
+    public function preview(Request $request, string $clusterId): JsonResponse
+    {
+        $cluster = VenueCluster::findOrFail($clusterId);
+
+        if ($cluster->owner_id !== $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền tạo bản xem trước cho cụm sân này.'], 403);
+        }
+
+        $data = $request->validate([
+            'court_type_id'  => ['required', 'integer', 'exists:court_types,id'],
+            'name'           => ['required', 'string', 'max:100'],
+            'note'           => ['nullable', 'string', 'max:1000'],
+            'evidence_image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
+            'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+        ]);
+
+        $courtType = CourtType::query()->findOrFail($data['court_type_id']);
+        $previewRequest = new VenueCourtApprovalRequest();
+        $previewRequest->forceFill([
+            'id' => (string) Str::uuid(),
+            'venue_cluster_id' => $cluster->id,
+            'court_type_id' => $courtType->id,
+            'name' => $data['name'],
+            'status' => 'draft_preview',
+            'requested_by' => $request->user()->id,
+            'status_reason' => $data['note'] ?? null,
+            'created_at' => now(),
+        ]);
+        $previewRequest->setRelation('courtType', $courtType);
+        $previewRequest->setRelation('requestedBy', $request->user());
+        $previewRequest->setRelation('venueCluster', $cluster);
+
+        $renderData = array_merge($this->scaleRequestRenderData($cluster, $previewRequest), [
+            'attachment_list' => $this->uploadedFileNames($request->file('supplementary_documents', [])),
+            'evidence_file_name' => $request->file('evidence_image')?->getClientOriginalName(),
+        ]);
+
+        $document = $this->documents->generateDocument('venue_scale_request', $cluster, $renderData, $request->user(), [
+            'reference_type' => 'venue_scale_request_preview',
+            'reference_id' => (string) Str::uuid(),
+            'owner_id' => $cluster->owner_id,
+            'venue_cluster_id' => $cluster->id,
+            'entity_type' => VenueCluster::class,
+            'entity_id' => $cluster->id,
+            'status' => 'draft_preview',
+            'title' => 'Bản xem trước đơn yêu cầu mở rộng quy mô sân ' . $cluster->name,
+        ]);
+
+        return response()->json([
+            'message' => 'Đã tạo bản xem trước đơn yêu cầu mở rộng quy mô.',
+            'data' => $this->documentPayload($document),
+        ]);
+    }
+
     public function store(Request $request, string $clusterId): JsonResponse
     {
         $cluster = VenueCluster::findOrFail($clusterId);
@@ -74,6 +132,7 @@ class VenueCourtApprovalController extends Controller
             'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
             'signature_image' => ['required', 'string', 'max:600000'],
+            'preview_document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
         ], [
             'court_type_id.required'  => 'Vui lòng chọn loại sân.',
             'court_type_id.exists'    => 'Loại sân không tồn tại.',
@@ -125,7 +184,7 @@ class VenueCourtApprovalController extends Controller
             'signed_at' => now(),
         ])->save();
 
-        $this->generateAndSignScaleDocument($cluster, $approvalRequest, $request, $data['signature_image']);
+        $this->generateAndSignScaleDocument($cluster, $approvalRequest, $request, $data['signature_image'], $data['preview_document_id'] ?? null);
 
         $approvalRequest->load(['courtType:id,name']);
         $this->sendOwnerMail($cluster, new VenueScaleRequestReceivedMail([
@@ -165,6 +224,7 @@ class VenueCourtApprovalController extends Controller
             'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
             'signature_image' => ['required', 'string', 'max:600000'],
+            'preview_document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
         ], [
             'supplementary_documents.required' => 'Vui lòng tải lên ít nhất một giấy tờ bổ sung.',
             'supplementary_documents.*.mimes' => 'Giấy tờ bổ sung phải có định dạng: jpg, jpeg, png, webp, pdf, doc, docx.',
@@ -193,7 +253,7 @@ class VenueCourtApprovalController extends Controller
             'signed_at' => now(),
         ])->save();
 
-        $this->generateAndSignScaleDocument($cluster, $approvalRequest->refresh(), $request, $data['signature_image']);
+        $this->generateAndSignScaleDocument($cluster, $approvalRequest->refresh(), $request, $data['signature_image'], $data['preview_document_id'] ?? null);
 
         return response()->json([
             'message' => 'Đã nộp giấy tờ bổ sung. Yêu cầu được chuyển lại về trạng thái chờ duyệt.',
@@ -306,18 +366,49 @@ class VenueCourtApprovalController extends Controller
             ->all();
     }
 
-    private function generateAndSignScaleDocument(VenueCluster $cluster, VenueCourtApprovalRequest $approvalRequest, Request $request, string $signatureImage): void
+    private function uploadedFileNames(mixed $files): string
+    {
+        return collect(\Illuminate\Support\Arr::wrap($files))
+            ->filter(fn ($file) => $file instanceof \Illuminate\Http\UploadedFile)
+            ->map(fn ($file) => $file->getClientOriginalName())
+            ->values()
+            ->implode('; ');
+    }
+
+    private function generateAndSignScaleDocument(VenueCluster $cluster, VenueCourtApprovalRequest $approvalRequest, Request $request, string $signatureImage, ?string $previewDocumentId = null): void
     {
         $approvalRequest->loadMissing(['courtType', 'requestedBy', 'venueCluster.owner']);
         $renderData = $this->scaleRequestRenderData($cluster, $approvalRequest);
-        $document = $this->documents->generateDocument('venue_scale_request', $approvalRequest, $renderData, $request->user(), [
-            'owner_id' => $cluster->owner_id,
-            'venue_cluster_id' => $cluster->id,
-            'entity_type' => VenueCluster::class,
-            'entity_id' => $cluster->id,
-            'status' => 'pending_owner_signature',
-            'title' => 'Đơn yêu cầu mở rộng quy mô sân ' . $cluster->name,
-        ]);
+        $document = $previewDocumentId
+            ? GeneratedDocument::query()
+                ->whereKey($previewDocumentId)
+                ->where('document_type', 'venue_scale_request')
+                ->where('owner_id', $cluster->owner_id)
+                ->where('venue_cluster_id', $cluster->id)
+                ->where('status', 'draft_preview')
+                ->first()
+            : null;
+
+        if ($document) {
+            $document->forceFill([
+                'reference_type' => VenueCourtApprovalRequest::class,
+                'reference_id' => $approvalRequest->id,
+                'entity_type' => VenueCluster::class,
+                'entity_id' => $cluster->id,
+                'status' => 'pending_owner_signature',
+                'render_data' => array_merge($document->render_data ?: [], $renderData),
+                'title' => 'Đơn yêu cầu mở rộng quy mô sân ' . $cluster->name,
+            ])->save();
+        } else {
+            $document = $this->documents->generateDocument('venue_scale_request', $approvalRequest, $renderData, $request->user(), [
+                'owner_id' => $cluster->owner_id,
+                'venue_cluster_id' => $cluster->id,
+                'entity_type' => VenueCluster::class,
+                'entity_id' => $cluster->id,
+                'status' => 'pending_owner_signature',
+                'title' => 'Đơn yêu cầu mở rộng quy mô sân ' . $cluster->name,
+            ]);
+        }
 
         $this->documents->signDocument($document, $request->user(), 'owner', $signatureImage, $request, [
             'signer_full_name' => $renderData['owner_signer_name'],

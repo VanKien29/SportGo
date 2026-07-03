@@ -39,6 +39,8 @@
           v-for="file in existingFiles"
           :key="file.id || file.file_name || file.title"
           :class="{ 'upload-box__saved-old': file.status === 'rejected' }"
+          title="Nhấp đúp để xem file"
+          @dblclick="previewSavedFile(file)"
         >
           <span>{{ file.file_name || file.title || 'Tài liệu đã lưu' }}</span>
           <div>
@@ -53,7 +55,12 @@
     <div v-if="files.length" class="upload-box__selected">
       <p>File mới sẽ gửi</p>
       <ul>
-        <li v-for="(file, idx) in files" :key="file.name + idx">
+        <li
+          v-for="(file, idx) in files"
+          :key="file.name + idx"
+          title="Nhấp đúp để xem file"
+          @dblclick="previewLocalFile(file)"
+        >
           <span>{{ file.name }} · {{ fileSize(file) }}</span>
           <button type="button" @click="emit('remove', idx)">Xóa</button>
         </li>
@@ -75,7 +82,7 @@ defineProps({
   error: { type: String, default: '' },
 });
 
-const emit = defineEmits(['change', 'remove']);
+const emit = defineEmits(['change', 'remove', 'preview']);
 const fileInput = ref(null);
 
 function openPicker() {
@@ -85,6 +92,20 @@ function openPicker() {
 function handleChange(event) {
   emit('change', event);
   event.target.value = '';
+}
+
+function previewSavedFile(file) {
+  emit('preview', file);
+  if (file?.download_url) {
+    window.open(file.download_url, '_blank', 'noopener');
+  }
+}
+
+function previewLocalFile(file) {
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  window.open(url, '_blank', 'noopener');
+  window.setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
 const fileSize = (file) => {
@@ -216,6 +237,7 @@ const savedFileSize = (file) => {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  cursor: pointer;
 }
 
 .upload-box__saved-old {
