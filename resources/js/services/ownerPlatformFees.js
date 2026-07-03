@@ -19,6 +19,13 @@ export const ownerPlatformFeeService = {
     });
   },
 
+  cancel(id, reason) {
+    return api(`/api/owner/platform-fees/${id}/cancel`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
   createAdvancePayment(clusterId, months) {
     return api('/api/owner/platform-fees/prepay', {
       method: 'POST',

@@ -221,6 +221,13 @@ class DatabaseSeeder extends Seeder
             'refunds',
             'slot_locks',
         ]);
+
+        $this->callIfTablesExist(ChatConversationsTableSeeder::class, [
+            'users',
+            'conversations',
+            'conversation_participants',
+            'messages',
+        ]);
     }
 
     private function callIfTablesExist(string $seeder, array $tables): void

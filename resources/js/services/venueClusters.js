@@ -99,4 +99,27 @@ export const venueClusterService = {
       method: 'PATCH',
     });
   },
+
+  // Venue Information Change Requests (Owner gửi yêu cầu thay đổi thông tin)
+  getInformationChangeRequests(clusterId, status = null) {
+    const qs = status ? `?status=${status}` : '';
+    return api(`/api/owner/venue-clusters/${clusterId}/information-change-requests${qs}`);
+  },
+  createInformationChangeRequest(clusterId, data) {
+    return api(`/api/owner/venue-clusters/${clusterId}/information-change-requests`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  cancelInformationChangeRequest(clusterId, requestId) {
+    return api(`/api/owner/venue-clusters/${clusterId}/information-change-requests/${requestId}/cancel`, {
+      method: 'PATCH',
+    });
+  },
+  uploadTempMedia(clusterId, formData) {
+    return api(`/api/owner/venue-clusters/${clusterId}/temp-media`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
 };

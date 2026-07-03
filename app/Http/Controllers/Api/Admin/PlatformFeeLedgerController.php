@@ -3,21 +3,26 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PlatformFeeReminderMail;
 use App\Models\InternalReceipt;
 use App\Models\PlatformFeeEmailLog;
 use App\Models\PlatformFeeTier;
 use App\Models\VenueAccessRestriction;
 use App\Models\VenueCluster;
 use App\Models\VenuePlatformFeeLedger;
+use App\Services\Payments\PlatformFeePaymentService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class PlatformFeeLedgerController extends Controller
 {
+    public function __construct(private readonly PlatformFeePaymentService $platformFeePayments) {}
+
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -68,9 +73,14 @@ class PlatformFeeLedgerController extends Controller
                     return;
                 }
 
-                $query->whereHas('emailLogs', fn ($emailQuery) => $emailQuery
-                    ->where('type', $emailStatus)
-                    ->where('status', 'sent'));
+                $query->whereHas('emailLogs', function ($emailQuery) use ($emailStatus): void {
+                    if ($emailStatus === 'due_soon') {
+                        $emailQuery->where('type', 'like', 'due_soon_%_days');
+                    } else {
+                        $emailQuery->where('type', $emailStatus);
+                    }
+                    $emailQuery->where('status', 'sent');
+                });
             })
             ->when($data['keyword'] ?? null, function ($query, string $keyword): void {
                 $keyword = trim($keyword);
@@ -128,7 +138,11 @@ class PlatformFeeLedgerController extends Controller
     public function sendReminder(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'type' => ['required', 'string', 'in:due_soon_7_days,due_today,overdue_3_days,manual'],
+            'type' => [
+                'required',
+                'string',
+                'regex:/^(due_soon_([1-9]|[12][0-9]|30)_days|due_today|overdue_3_days|manual)$/',
+            ],
             'force' => ['nullable', 'boolean'],
         ]);
 
@@ -189,9 +203,7 @@ class PlatformFeeLedgerController extends Controller
         }
 
         try {
-            Mail::raw($content, function ($message) use ($owner, $subject): void {
-                $message->to($owner->email)->subject($subject);
-            });
+            Mail::to($owner->email)->send(new PlatformFeeReminderMail($subject, $content));
 
             $log->forceFill([
                 'status' => 'sent',
@@ -231,7 +243,11 @@ class PlatformFeeLedgerController extends Controller
 
         $ledger = VenuePlatformFeeLedger::query()->create([
             'venue_cluster_id' => $preview['venue']['id'],
+            'creation_source' => 'admin',
             'tier_id' => $preview['tier']['id'],
+            'tier_name_snapshot' => $preview['tier']['name'],
+            'tier_min_courts_snapshot' => $preview['tier']['min_courts'],
+            'tier_max_courts_snapshot' => $preview['tier']['max_courts'],
             'court_count' => $preview['court_count'],
             'billing_cycle' => (int) $preview['period_months'] === 12 ? 'yearly' : 'monthly',
             'period_months' => $preview['period_months'],
@@ -240,6 +256,7 @@ class PlatformFeeLedgerController extends Controller
             'due_date' => $preview['due_date'],
             'price_per_court_month' => $preview['tier']['price_per_court_month'],
             'discount_percent' => $preview['fee']['discount_percent'],
+            'pricing_snapshotted_at' => now(),
             'amount_due' => $preview['fee']['amount_due'],
             'amount_paid' => 0,
             'payment_proof_status' => 'none',
@@ -332,16 +349,16 @@ class PlatformFeeLedgerController extends Controller
 
         $ledger = VenuePlatformFeeLedger::query()->findOrFail($id);
 
-        if ($ledger->status === 'paid') {
-            return response()->json(['message' => 'Kỳ phí đã thanh toán không được hủy.'], 422);
+        try {
+            $ledger = $this->platformFeePayments->cancelPendingLedger(
+                $ledger,
+                $request->user()?->id,
+                'admin',
+                $data['reason'],
+            );
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
         }
-
-        $ledger->forceFill([
-            'status' => 'cancelled',
-            'payment_rejected_by' => $request->user()?->id,
-            'payment_rejected_at' => now(),
-            'payment_reject_reason' => $data['reason'],
-        ])->save();
 
         return response()->json([
             'message' => 'Đã hủy kỳ phí.',
@@ -565,19 +582,40 @@ class PlatformFeeLedgerController extends Controller
         $code = $ledger->payment_code ?: 'PF-'.strtoupper(substr(str_replace('-', '', $ledger->id), 0, 10));
         $venue = $ledger->venueCluster;
         $owner = $venue?->owner;
+        $periodState = $this->periodState($ledger);
+        $periodDaysRemaining = $ledger->period_end ? (int) today()->diffInDays($ledger->period_end, false) : null;
+        $tierName = $ledger->tier_name_snapshot
+            ?: $ledger->tier?->name
+            ?: ($ledger->tier_id ? 'Bậc phí #'.$ledger->tier_id : 'Theo cấu hình');
 
         return [
             'id' => $ledger->id,
             'code' => $code,
             'venue_cluster_id' => $ledger->venue_cluster_id,
+            'creation_source' => $ledger->creation_source,
+            'can_cancel' => ! in_array($ledger->status, ['paid', 'cancelled'], true)
+                && $amountPaid <= 0,
             'tier_id' => $ledger->tier_id,
-            'tier_name' => $ledger->tier?->name ?: 'Bậc phí #'.$ledger->tier_id,
+            'tier_name' => $tierName,
+            'tier_min_courts_snapshot' => $ledger->tier_min_courts_snapshot,
+            'tier_max_courts_snapshot' => $ledger->tier_max_courts_snapshot,
+            'pricing_snapshotted_at' => $ledger->pricing_snapshotted_at?->toISOString(),
             'court_count' => (int) $ledger->court_count,
             'period_months' => (int) $ledger->period_months,
             'billing_cycle' => $ledger->billing_cycle,
             'period_start' => $ledger->period_start?->toDateString(),
             'period_end' => $ledger->period_end?->toDateString(),
             'due_date' => $ledger->due_date?->toDateString(),
+            'is_current_period' => $periodState === 'active',
+            'period_state' => $periodState,
+            'period_days_remaining' => $periodDaysRemaining,
+            'period_warning_level' => match (true) {
+                $periodState === 'expired' && ! in_array($ledger->status, ['paid', 'cancelled'], true) => 'overdue',
+                $periodState === 'active' && $periodDaysRemaining !== null && $periodDaysRemaining <= 7 => 'expiring_soon',
+                default => null,
+            },
+            'period_label' => $this->periodLabel($ledger),
+            'snapshot_note' => 'Số tiền và điều kiện của kỳ này được giữ nguyên theo snapshot khi tạo kỳ phí.',
             'price_per_court_month' => (float) $ledger->price_per_court_month,
             'discount_percent' => (float) $ledger->discount_percent,
             'base_amount' => $baseAmount,
@@ -628,9 +666,35 @@ class PlatformFeeLedgerController extends Controller
         return [
             'id' => $tier->id,
             'name' => $tier->name,
+            'min_courts' => (int) $tier->min_courts,
+            'max_courts' => $tier->max_courts !== null ? (int) $tier->max_courts : null,
             'price_per_court_month' => (float) $tier->price_per_court_month,
             'annual_discount_percent' => (float) $tier->annual_discount_percent,
         ];
+    }
+
+    private function periodState(VenuePlatformFeeLedger $ledger): string
+    {
+        if (! $ledger->period_start || ! $ledger->period_end) {
+            return 'unknown';
+        }
+
+        if (today()->lt($ledger->period_start)) {
+            return 'upcoming';
+        }
+
+        if (today()->gt($ledger->period_end)) {
+            return 'expired';
+        }
+
+        return 'active';
+    }
+
+    private function periodLabel(VenuePlatformFeeLedger $ledger): string
+    {
+        $months = (int) ($ledger->period_months ?: 1);
+
+        return "Kỳ {$months} tháng";
     }
 
     private function truthy(mixed $value): bool
@@ -663,8 +727,11 @@ class PlatformFeeLedgerController extends Controller
 
     private function reminderSubject(string $type): string
     {
+        if (str_starts_with($type, 'due_soon_')) {
+            return 'Phí duy trì sắp đến hạn';
+        }
+
         return [
-            'due_soon_7_days' => 'Phí duy trì sắp đến hạn',
             'due_today' => 'Hôm nay là hạn đóng phí duy trì',
             'overdue_3_days' => 'Phí duy trì đã quá hạn 3 ngày',
             'manual' => 'Nhắc thanh toán phí duy trì',
@@ -676,12 +743,16 @@ class PlatformFeeLedgerController extends Controller
         $venueName = $ledger->venueCluster?->name ?: 'cụm sân';
         $remaining = number_format(max((float) $ledger->amount_due - (float) $ledger->amount_paid, 0), 0, ',', '.');
         $dueDate = $ledger->due_date?->format('d/m/Y') ?: '-';
-        $line = [
-            'due_soon_7_days' => 'sẽ đến hạn sau 7 ngày',
+        $leadDays = preg_match('/^due_soon_(\d+)_days$/', $type, $matches)
+            ? (int) $matches[1]
+            : null;
+        $line = $leadDays !== null
+            ? "sẽ đến hạn sau {$leadDays} ngày"
+            : ([
             'due_today' => 'đến hạn trong hôm nay',
             'overdue_3_days' => 'đã quá hạn 3 ngày và có thể bị hạn chế vận hành',
             'manual' => 'cần được thanh toán',
-        ][$type] ?? 'cần được thanh toán';
+        ][$type] ?? 'cần được thanh toán');
 
         return "Kỳ phí duy trì của {$venueName} {$line}.\nHạn thanh toán: {$dueDate}.\nSố tiền còn lại: {$remaining} VND.\nVui lòng đăng nhập SportGo Owner để xử lý.";
     }

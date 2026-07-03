@@ -6,12 +6,24 @@ use App\Models\Complaint;
 use App\Models\SystemPolicy;
 use App\Models\AuditLog;
 use App\Models\Notification;
+use App\Services\Memberships\SystemVipService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Throwable;
 
 class ComplaintObserver
 {
+    public function __construct(private readonly SystemVipService $vip)
+    {
+    }
+
+    public function creating(Complaint $complaint): void
+    {
+        $complaint->is_vip_priority = $complaint->customer_id
+            ? $this->vip->hasPriorityComplaint($complaint->customer_id)
+            : false;
+    }
+
     public function created(Complaint $complaint): void
     {
         try {

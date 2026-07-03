@@ -10,6 +10,10 @@
       </svg>
     </button>
     <div v-if="isOpen" class="floating-dropdown">
+      <button type="button" @click="triggerAction('info')">
+        <AppIcon name="pencil" size="14" />
+        Yêu cầu sửa thông tin sân
+      </button>
       <button type="button" @click="triggerAction('location')">
         <AppIcon name="pencil" size="14" />
         Yêu cầu sửa vị trí

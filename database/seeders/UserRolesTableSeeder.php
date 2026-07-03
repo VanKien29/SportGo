@@ -19,6 +19,7 @@ class UserRolesTableSeeder extends Seeder
         }
 
         $roleByName = Role::query()->pluck('id', 'name');
+        $defaultUserRoleId = $roleByName['user'] ?? null;
 
         $assignments = [
             'superadmin' => 'super_admin',
@@ -40,6 +41,15 @@ class UserRolesTableSeeder extends Seeder
 
             if (! $user || ! $roleId) {
                 continue;
+            }
+
+            if ($roleName !== 'user' && $defaultUserRoleId) {
+                UserRole::query()
+                    ->where('user_id', $user->id)
+                    ->where('role_id', $defaultUserRoleId)
+                    ->where('scope_type', 'system')
+                    ->where('scope_id', self::ZERO_UUID)
+                    ->delete();
             }
 
             UserRole::query()->updateOrCreate(

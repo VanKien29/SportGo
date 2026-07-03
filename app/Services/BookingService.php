@@ -321,17 +321,18 @@ class BookingService
                 ]);
             }
 
-            $timeRanges = $this->normalizeTimeRanges($data, $court->id);
-            $rangeCourts = $this->courtsForTimeRanges($timeRanges, $court);
-            $this->validateTimeRanges($timeRanges);
-            $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
-
             $dates = $this->recurringDates($data);
-
             $this->validateRecurringDates($dates);
-            $this->ensureRecurringRangesAreNotInPast($dates, $timeRanges);
+            $rangesByDate = $this->recurringRangesByDate($data, $dates, $court);
 
-            $conflicts = $this->recurringConflictPayloadForRanges($court, $dates, $timeRanges);
+            $rangesByDate->each(function (array $timeRanges, string $dateString) use ($court, $data): void {
+                $this->courtsForTimeRanges($timeRanges, $court);
+                $this->validateTimeRanges($timeRanges);
+                $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
+                $this->ensureRangesAreNotInPast($dateString, $timeRanges, 'recurring_start_date');
+            });
+
+            $conflicts = $this->recurringConflictPayloadForDateRanges($rangesByDate);
             $resolution = $data['conflict_resolution'] ?? 'abort';
             $overrides = collect($data['conflict_overrides'] ?? [])->keyBy('date');
             $switchedCourtsByDate = collect();
@@ -379,20 +380,27 @@ class BookingService
                 $switchedCourtsByDate->put($conflict['date'], $override['venue_court_id']);
             }
 
-            $dates->each(fn (Carbon $date) => $this->assertWithinOperatingHours(
-                $court->venue_cluster_id,
-                $date->toDateString(),
-                $data['start_time'],
-                $data['end_time'],
-            ));
+            $dates->each(function (Carbon $date) use ($court, $rangesByDate): void {
+                foreach ($rangesByDate->get($date->toDateString(), []) as $range) {
+                    $this->assertWithinOperatingHours(
+                        $court->venue_cluster_id,
+                        $date->toDateString(),
+                        $range['start_time'],
+                        $range['end_time'],
+                    );
+                }
+            });
 
             $conflicts = $dates
-                ->filter(fn (Carbon $date) => ! $this->checkAvailability(
-                    $court->id,
-                    $date->toDateString(),
-                    $data['start_time'],
-                    $data['end_time'],
-                ))
+                ->filter(function (Carbon $date) use ($rangesByDate): bool {
+                    foreach ($rangesByDate->get($date->toDateString(), []) as $range) {
+                        if (! $this->checkAvailability($range['venue_court_id'], $date->toDateString(), $range['start_time'], $range['end_time'])) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                })
                 ->values()
                 ->map(fn (Carbon $date) => $date->toDateString());
 
@@ -420,18 +428,19 @@ class BookingService
                 $dateCourt = $switchedCourtsByDate->has($dateString)
                     ? $this->lockActiveCourt($switchedCourtsByDate->get($dateString))
                     : $court;
+                $baseDateTimeRanges = $rangesByDate->get($dateString, []);
                 $dateTimeRanges = $switchedCourtsByDate->has($dateString)
-                    ? collect($timeRanges)
+                    ? collect($baseDateTimeRanges)
                         ->map(fn (array $range): array => [
                             ...$range,
                             'venue_court_id' => $dateCourt->id,
                         ])
                         ->values()
                         ->all()
-                    : $timeRanges;
+                    : $baseDateTimeRanges;
                 $dateRangeCourts = $switchedCourtsByDate->has($dateString)
                     ? collect([$dateCourt->id => $dateCourt])
-                    : $rangeCourts;
+                    : $this->courtsForTimeRanges($dateTimeRanges, $court);
 
                 foreach ($dateTimeRanges as $range) {
                     if (! $this->checkAvailability($range['venue_court_id'], $dateString, $range['start_time'], $range['end_time'])) {
@@ -535,16 +544,18 @@ class BookingService
             ]);
         }
 
-        $timeRanges = $this->normalizeTimeRanges($data, $court->id);
-        $this->courtsForTimeRanges($timeRanges, $court);
-        $this->validateTimeRanges($timeRanges);
-        $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
-
         $dates = $this->recurringDates($data);
         $this->validateRecurringDates($dates);
-        $this->ensureRecurringRangesAreNotInPast($dates, $timeRanges);
+        $rangesByDate = $this->recurringRangesByDate($data, $dates, $court);
 
-        $conflicts = $this->recurringConflictPayloadForRanges($court, $dates, $timeRanges);
+        $rangesByDate->each(function (array $timeRanges, string $dateString) use ($court, $data): void {
+            $this->courtsForTimeRanges($timeRanges, $court);
+            $this->validateTimeRanges($timeRanges);
+            $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
+            $this->ensureRangesAreNotInPast($dateString, $timeRanges, 'recurring_start_date');
+        });
+
+        $conflicts = $this->recurringConflictPayloadForDateRanges($rangesByDate);
 
         return [
             'total_dates' => $dates->count(),
@@ -670,9 +681,16 @@ class BookingService
 
     public function syncMembershipForCompletedBooking(Booking $booking): void
     {
+        $fresh = $this->syncVenueMembershipForSuccessfulBooking($booking);
+        $this->systemVip->creditCashbackForCompletedBooking($fresh);
+    }
+
+    public function syncVenueMembershipForSuccessfulBooking(Booking $booking): Booking
+    {
         $fresh = $booking->fresh();
         $this->venueMemberships->syncBooking($fresh);
-        $this->systemVip->creditCashbackForCompletedBooking($fresh);
+
+        return $fresh;
     }
 
     public function collectRecurringGroupPayment(string $groupCode, User $actor, string $method, ?float $amount = null): array
@@ -1569,11 +1587,13 @@ class BookingService
             'owner_type' => $voucher->owner_type,
             'funded_by' => $voucher->funded_by,
             'discount_type' => $voucher->discount_type,
-            'discount_value' => (float) $voucher->discount_value,
-            'max_discount_amount' => $voucher->max_discount_amount !== null ? (float) $voucher->max_discount_amount : null,
-            'min_order_amount' => (float) $voucher->min_order_amount,
-            'discount_amount' => $discountAmount,
-            'final_amount' => round(max($amount - $discountAmount, 0), 2),
+            'discount_value' => $voucher->discount_type === 'percent'
+                ? $this->percentPayload((float) $voucher->discount_value)
+                : $this->moneyPayload($voucher->discount_value),
+            'max_discount_amount' => $voucher->max_discount_amount !== null ? $this->moneyPayload($voucher->max_discount_amount) : null,
+            'min_order_amount' => $this->moneyPayload($voucher->min_order_amount),
+            'discount_amount' => $this->moneyPayload($discountAmount),
+            'final_amount' => $this->moneyPayload(max($amount - $discountAmount, 0)),
             'discount_label' => $voucher->discount_type === 'percent'
                 ? rtrim(rtrim(number_format((float) $voucher->discount_value, 2, '.', ''), '0'), '.') . '%'
                 : number_format((float) $voucher->discount_value, 0, ',', '.') . ' đ',
@@ -1628,7 +1648,7 @@ class BookingService
         $inScope = $scopes->contains(function (object $scope) use ($venueClusterId, $courtTypeId, $bookingType, $userTierKey, $usageUserId): bool {
             return match ($scope->scope_type) {
                 'venue_cluster' => (string) $scope->scope_id === (string) $venueClusterId,
-                'court_type' => (string) $scope->scope_id === (string) $courtTypeId,
+                'court_type' => $this->courtTypeScopeMatches($scope->scope_id, $courtTypeId),
                 'booking_type' => (string) $scope->scope_id === (string) $bookingType,
                 'membership_tier' => (string) $scope->scope_id === (string) $userTierKey,
                 'vip_package' => $this->systemVip->userHasVipPackage($usageUserId, (string) $scope->scope_id),
@@ -1637,6 +1657,37 @@ class BookingService
         });
 
         return $inScope ? null : 'Voucher không áp dụng cho sân, loại sân hoặc hình thức đặt này.';
+    }
+
+    private function courtTypeScopeMatches(mixed $scopeId, string $courtTypeId): bool
+    {
+        if ($scopeId === null || $scopeId === '') {
+            return false;
+        }
+
+        return in_array((string) $scopeId, $this->courtTypeScopeIdsForBooking($courtTypeId), true);
+    }
+
+    private function courtTypeScopeIdsForBooking(string $courtTypeId): array
+    {
+        $ids = [];
+        $currentId = $courtTypeId;
+
+        for ($depth = 0; $depth < 8 && $currentId; $depth++) {
+            $ids[] = (string) $currentId;
+
+            $parentId = DB::table('court_types')
+                ->where('id', $currentId)
+                ->value('parent_id');
+
+            if (! $parentId) {
+                break;
+            }
+
+            $currentId = (string) $parentId;
+        }
+
+        return array_values(array_unique($ids));
     }
 
     private function voucherDiscountAmount(object $voucher, float $amount): float
@@ -1649,7 +1700,19 @@ class BookingService
             $discount = min($discount, (float) $voucher->max_discount_amount);
         }
 
-        return round(min(max($discount, 0), $amount), 2);
+        return (float) $this->moneyPayload(min(max($discount, 0), $amount));
+    }
+
+    private function percentPayload(float $value): int|float
+    {
+        $rounded = round($value, 2);
+
+        return abs($rounded - round($rounded)) < 0.00001 ? (int) round($rounded) : $rounded;
+    }
+
+    private function moneyPayload(mixed $value): int
+    {
+        return (int) round((float) ($value ?? 0));
     }
 
     private function recordVoucherUsage(array $voucher, Booking $booking, string $usageUserId): void
@@ -1699,6 +1762,40 @@ class BookingService
                 'used_quantity' => (int) $voucherRow->used_quantity + 1,
                 'updated_at' => now(),
             ]);
+    }
+
+    public function releaseVoucherUsageForBooking(Booking|string $booking, string $usageStatus = 'cancelled'): void
+    {
+        $bookingId = $booking instanceof Booking ? $booking->id : $booking;
+        $usageStatus = in_array($usageStatus, ['cancelled', 'refunded'], true) ? $usageStatus : 'cancelled';
+
+        $usages = DB::table('voucher_usages')
+            ->where('booking_id', $bookingId)
+            ->where('status', 'applied')
+            ->lockForUpdate()
+            ->get(['id', 'voucher_id']);
+
+        if ($usages->isEmpty()) {
+            return;
+        }
+
+        DB::table('voucher_usages')
+            ->whereIn('id', $usages->pluck('id')->all())
+            ->update([
+                'status' => $usageStatus,
+                'updated_at' => now(),
+            ]);
+
+        $usages->groupBy('voucher_id')->each(function (Collection $voucherUsages, string $voucherId): void {
+            $count = $voucherUsages->count();
+
+            DB::table('vouchers')
+                ->where('id', $voucherId)
+                ->update([
+                    'used_quantity' => DB::raw("CASE WHEN used_quantity >= {$count} THEN used_quantity - {$count} ELSE 0 END"),
+                    'updated_at' => now(),
+                ]);
+        });
     }
 
     private function requiredPaymentAmount(string $venueClusterId, float $totalPrice, string $paymentOption): float
@@ -1838,6 +1935,49 @@ class BookingService
             ->values();
     }
 
+    private function recurringConflictPayloadForDateRanges(Collection $rangesByDate): Collection
+    {
+        return $rangesByDate
+            ->flatMap(function (array $timeRanges, string $dateString): Collection {
+                return collect($timeRanges)
+                    ->filter(fn (array $range): bool => ! $this->checkAvailability(
+                        $range['venue_court_id'],
+                        $dateString,
+                        $range['start_time'],
+                        $range['end_time'],
+                    ))
+                    ->map(function (array $range) use ($dateString): array {
+                        $rangeCourt = VenueCourt::query()
+                            ->with('courtType')
+                            ->findOrFail($range['venue_court_id']);
+
+                        return [
+                            'key' => implode('|', [
+                                $dateString,
+                                $range['venue_court_id'],
+                                $range['start_time'],
+                                $range['end_time'],
+                            ]),
+                            'date' => $dateString,
+                            'start_time' => $range['start_time'],
+                            'end_time' => $range['end_time'],
+                            'current_court' => $this->recurringCourtPayload($rangeCourt),
+                            'reason' => 'Một khung trong nhóm lịch đã có booking hoặc đang bị khóa.',
+                            'alternatives' => $this->availableAlternativeCourts(
+                                $rangeCourt,
+                                $dateString,
+                                $range['start_time'],
+                                $range['end_time'],
+                            )
+                                ->map(fn (VenueCourt $candidate): array => $this->recurringCourtPayload($candidate))
+                                ->values()
+                                ->all(),
+                        ];
+                    });
+            })
+            ->values();
+    }
+
     private function availableAlternativeCourts(VenueCourt $court, string $date, string $startTime, string $endTime): Collection
     {
         return VenueCourt::query()
@@ -1896,6 +2036,37 @@ class BookingService
         }
 
         return $dates;
+    }
+
+    private function recurringRangesByDate(array $data, Collection $dates, VenueCourt $defaultCourt): Collection
+    {
+        $weekdayRanges = $this->recurringWeekdayRanges($data, $defaultCourt);
+        $fallbackRanges = $this->normalizeTimeRanges($data, $defaultCourt->id);
+
+        return $dates
+            ->mapWithKeys(function (Carbon $date) use ($weekdayRanges, $fallbackRanges): array {
+                $day = $date->dayOfWeekIso - 1;
+
+                return [
+                    $date->toDateString() => $weekdayRanges[$day] ?? $fallbackRanges,
+                ];
+            });
+    }
+
+    private function recurringWeekdayRanges(array $data, VenueCourt $defaultCourt): array
+    {
+        if (($data['recurrence_type'] ?? null) !== 'weekly' || empty($data['weekday_time_ranges'])) {
+            return [];
+        }
+
+        return collect($data['weekday_time_ranges'])
+            ->mapWithKeys(fn (array $item): array => [
+                (int) $item['day_of_week'] => $this->normalizeTimeRanges(
+                    ['time_ranges' => $item['time_ranges']],
+                    $defaultCourt->id,
+                ),
+            ])
+            ->all();
     }
 
     private function uniqueBookingCode(): string

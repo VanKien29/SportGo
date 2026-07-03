@@ -1,8 +1,19 @@
 <template>
   <header class="topbar">
     <div class="topbar-left">
+      <!-- Mobile hamburger -->
       <button class="hamburger" type="button" title="Mở menu" @click="$emit('toggle-sidebar')">
         <AppIcon name="menu" size="21" />
+      </button>
+
+      <!-- Desktop collapse toggle -->
+      <button
+        class="collapse-toggle"
+        type="button"
+        :title="sidebarCollapsed ? 'Mở rộng sidebar' : 'Thu nhỏ sidebar'"
+        @click="$emit('toggle-collapse')"
+      >
+        <AppIcon :name="sidebarCollapsed ? 'panelLeftOpen' : 'panelLeftClose'" size="18" />
       </button>
 
       <div class="admin-crumbs" aria-label="Breadcrumb">
@@ -40,8 +51,9 @@ export default {
   props: {
     title: { type: String, required: true },
     sectionLabel: { type: String, default: '' },
+    sidebarCollapsed: { type: Boolean, default: false },
   },
-  emits: ['toggle-sidebar'],
+  emits: ['toggle-sidebar', 'toggle-collapse'],
   computed: {
     user() {
       return getAuth() || {};

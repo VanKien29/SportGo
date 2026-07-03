@@ -109,6 +109,11 @@ class VenueCluster extends Model
         return $this->hasMany(VenueTransferRequest::class, 'venue_cluster_id');
     }
 
+    public function informationChangeRequests()
+    {
+        return $this->hasMany(VenueInformationChangeRequest::class, 'venue_cluster_id');
+    }
+
     public function media()
     {
         return $this->morphMany(Media::class, 'mediable');

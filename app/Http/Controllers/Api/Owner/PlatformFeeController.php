@@ -36,6 +36,8 @@ class PlatformFeeController extends Controller
         $outstanding = $ledgers
             ->whereIn('effective_status', ['pending', 'overdue'])
             ->sum('amount_remaining');
+        $activePeriod = $ledgers
+            ->first(fn (array $ledger): bool => $ledger['is_current_period'] && $ledger['effective_status'] !== 'cancelled');
 
         return response()->json([
             'data' => $ledgers->values(),
@@ -44,6 +46,7 @@ class PlatformFeeController extends Controller
                 'pending' => $ledgers->where('effective_status', 'pending')->count(),
                 'overdue' => $ledgers->where('effective_status', 'overdue')->count(),
                 'outstanding_amount' => round($outstanding, 2),
+                'active_period' => $activePeriod,
             ],
             'venue_cluster' => [
                 'id' => $cluster->id,
@@ -113,8 +116,13 @@ class PlatformFeeController extends Controller
                 'court_count' => $cluster->venue_courts_count,
                 'tier_name' => $tier?->name,
                 'monthly_amount' => $monthlyAmount,
-                'estimated_amounts' => collect([1, 3, 6, 9])
-                    ->mapWithKeys(fn (int $months): array => [(string) $months => $monthlyAmount * $months]),
+                'estimated_amounts' => collect([1, 3, 6, 9, 12])
+                    ->mapWithKeys(function (int $months) use ($monthlyAmount, $tier): array {
+                        $baseAmount = $monthlyAmount * $months;
+                        $discountPercent = $months === 12 ? (float) ($tier?->annual_discount_percent ?? 0) : 0.0;
+
+                        return [(string) $months => round($baseAmount - ($baseAmount * $discountPercent / 100), 2)];
+                    }),
                 'outstanding_count' => $unpaid->count(),
                 'overdue_count' => $unpaid->where('effective_status', 'overdue')->count(),
                 'outstanding_amount' => round($unpaid->sum('amount_remaining'), 2),
@@ -150,7 +158,7 @@ class PlatformFeeController extends Controller
     {
         $data = $request->validate([
             'venue_cluster_id' => ['required', 'uuid'],
-            'months' => ['required', 'integer', Rule::in([1, 3, 6, 9])],
+            'months' => ['required', 'integer', Rule::in([1, 3, 6, 9, 12])],
         ]);
 
         $cluster = $this->ownedCluster($request, $data['venue_cluster_id']);
@@ -171,6 +179,32 @@ class PlatformFeeController extends Controller
         );
     }
 
+    public function cancel(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $ledger = VenuePlatformFeeLedger::query()->findOrFail($id);
+        $this->ownedCluster($request, $ledger->venue_cluster_id);
+
+        try {
+            $ledger = $this->platformFeePayments->cancelPendingLedger(
+                $ledger,
+                $request->user()->id,
+                'owner',
+                $data['reason'],
+            );
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json([
+            'message' => 'Đã hủy kỳ phí chưa xử lý.',
+            'data' => $this->ledgerPayload($ledger),
+        ]);
+    }
+
     private function ownedCluster(Request $request, string $clusterId): VenueCluster
     {
         $cluster = VenueCluster::query()->findOrFail($clusterId);
@@ -187,11 +221,20 @@ class PlatformFeeController extends Controller
         $effectiveStatus = $this->effectiveStatus($ledger);
         $dueDate = $ledger->due_date ?? $ledger->period_end;
         $daysUntilDue = $dueDate ? today()->diffInDays($dueDate, false) : null;
+        $periodDaysRemaining = $ledger->period_end ? (int) today()->diffInDays($ledger->period_end, false) : null;
         $amountRemaining = max(0, (float) $ledger->amount_due - (float) $ledger->amount_paid);
         $paymentAccount = $ledger->systemBankAccount ?: $defaultPaymentAccount;
+        $periodState = $this->periodState($ledger);
+        $tierName = $ledger->tier_name_snapshot
+            ?: $ledger->tier?->name
+            ?: ($ledger->tier_id ? 'Bậc phí #'.$ledger->tier_id : 'Theo cấu hình');
 
         return [
             'id' => $ledger->id,
+            'creation_source' => $ledger->creation_source,
+            'can_cancel' => $ledger->creation_source === 'owner_prepay'
+                && in_array($effectiveStatus, ['pending', 'overdue'], true)
+                && (float) $ledger->amount_paid <= 0,
             'court_count' => $ledger->court_count,
             'billing_cycle' => $ledger->billing_cycle,
             'period_months' => $ledger->period_months,
@@ -207,6 +250,18 @@ class PlatformFeeController extends Controller
             'status' => $ledger->status,
             'effective_status' => $effectiveStatus,
             'paid_at' => $ledger->paid_at?->toISOString(),
+            'cancelled_reason' => $ledger->payment_reject_reason,
+            'is_current_period' => $periodState === 'active',
+            'period_state' => $periodState,
+            'period_days_remaining' => $periodDaysRemaining,
+            'period_warning_level' => match (true) {
+                $periodState === 'expired' && ! in_array($effectiveStatus, ['paid', 'cancelled'], true) => 'overdue',
+                $periodState === 'active' && $periodDaysRemaining !== null && $periodDaysRemaining <= 7 => 'expiring_soon',
+                default => null,
+            },
+            'period_label' => $this->periodLabel($ledger),
+            'snapshot_note' => 'Số tiền và điều kiện của kỳ này được giữ nguyên theo snapshot khi tạo kỳ phí.',
+            'pricing_snapshotted_at' => $ledger->pricing_snapshotted_at?->toISOString(),
             'payment' => [
                 'method' => 'sepay',
                 'code' => $ledger->payment_code,
@@ -219,10 +274,12 @@ class PlatformFeeController extends Controller
                 $effectiveStatus === 'pending' && $daysUntilDue !== null && $daysUntilDue <= 7 => 'due_soon',
                 default => null,
             },
-            'tier' => $ledger->tier ? [
-                'id' => $ledger->tier->id,
-                'name' => $ledger->tier->name,
-            ] : null,
+            'tier' => [
+                'id' => $ledger->tier_id,
+                'name' => $tierName,
+                'min_courts' => $ledger->tier_min_courts_snapshot,
+                'max_courts' => $ledger->tier_max_courts_snapshot,
+            ],
         ];
     }
 
@@ -235,6 +292,30 @@ class PlatformFeeController extends Controller
         $dueDate = $ledger->due_date ?? $ledger->period_end;
 
         return $dueDate && Carbon::parse($dueDate)->isBefore(today()) ? 'overdue' : 'pending';
+    }
+
+    private function periodState(VenuePlatformFeeLedger $ledger): string
+    {
+        if (! $ledger->period_start || ! $ledger->period_end) {
+            return 'unknown';
+        }
+
+        if (today()->lt($ledger->period_start)) {
+            return 'upcoming';
+        }
+
+        if (today()->gt($ledger->period_end)) {
+            return 'expired';
+        }
+
+        return 'active';
+    }
+
+    private function periodLabel(VenuePlatformFeeLedger $ledger): string
+    {
+        $months = (int) ($ledger->period_months ?: 1);
+
+        return "Kỳ {$months} tháng";
     }
 
     private function paymentResponse(array $result, string $message = 'Đã tạo mã thanh toán phí nền tảng.'): JsonResponse

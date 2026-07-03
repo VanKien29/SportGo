@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\MembershipPackage;
+use App\Models\Complaint;
 use App\Models\SystemBankAccount;
 use App\Models\User;
 use App\Models\UserSubscription;
@@ -15,6 +16,51 @@ use Tests\TestCase;
 class SystemVipServiceTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_period_prices_are_calculated_from_monthly_price_using_package_rules(): void
+    {
+        $service = app(SystemVipService::class);
+
+        $this->assertSame([
+            'monthly_price' => 49000,
+            'quarterly_price' => 125000,
+            'yearly_price' => 441000,
+        ], $service->pricesFromMonthly($this->createPackage('saving'), 49000));
+
+        $this->assertSame([
+            'monthly_price' => 99000,
+            'quarterly_price' => 252000,
+            'yearly_price' => 891000,
+        ], $service->pricesFromMonthly($this->createPackage('pro'), 99000));
+    }
+
+    public function test_new_complaint_is_automatically_marked_as_vip_priority(): void
+    {
+        $user = $this->createUser();
+        $pro = $this->createPackage('pro');
+
+        UserSubscription::query()->create([
+            'user_id' => $user->id,
+            'package_id' => $pro->id,
+            'billing_cycle' => 'monthly',
+            'started_at' => now()->subDay(),
+            'expires_at' => now()->addMonth(),
+            'status' => 'active',
+            'paid_amount' => 99000,
+            'payment_ref' => 'VIP-PRIORITY-TEST',
+            'month_post_count' => 0,
+            'month_post_reset_at' => now()->startOfMonth(),
+        ]);
+
+        $complaint = Complaint::query()->create([
+            'complaint_type' => 'system',
+            'customer_id' => $user->id,
+            'content' => 'Khiếu nại từ thành viên VIP.',
+            'status' => 'open',
+        ]);
+
+        $this->assertTrue($complaint->is_vip_priority);
+    }
 
     public function test_user_cannot_buy_another_vip_package_while_current_package_is_active(): void
     {

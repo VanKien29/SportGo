@@ -32,8 +32,13 @@ export const adminNavigationSections = [
           'admin-platform-fee-ledgers',
           'admin-platform-fee-ledger-detail',
           'admin-platform-fee-policies',
-          'admin-platform-fee-settings',
         ],
+      },
+      {
+        label: 'Cài đặt nhắc phí',
+        icon: 'bell',
+        to: '/admin/settings/platform-fee',
+        activeNames: ['admin-platform-fee-settings'],
       },
       {
         label: 'Hồ sơ đối tác',
@@ -122,6 +127,12 @@ export const adminNavigationSections = [
         to: '/admin/banners',
         activeNames: ['admin-banners'],
       },
+      {
+        label: 'Cài đặt giao diện',
+        icon: 'palette',
+        to: '/admin/settings',
+        activeNames: ['admin-settings'],
+      },
     ],
   },
   {
@@ -129,27 +140,15 @@ export const adminNavigationSections = [
     items: [
       {
         label: 'Kiểm duyệt bài viết',
-        icon: 'fileText',
-        to: '/admin/venue-posts',
-        activeNames: ['admin-venue-posts'],
-      },
-      {
-        label: 'Kiểm duyệt nội dung',
         icon: 'eye',
         to: '/admin/moderation',
         activeNames: ['admin-moderation'],
       },
       {
-        label: 'Báo cáo',
+        label: 'Báo cáo & Khiếu nại',
         icon: 'messageWarning',
-        to: '/admin/reports',
-        activeNames: ['admin-reports'],
-      },
-      {
-        label: 'Khiếu nại',
-        icon: 'shieldCheck',
-        to: '/admin/complaints',
-        activeNames: ['admin-complaints'],
+        to: '/admin/reports-complaints',
+        activeNames: ['admin-reports-complaints', 'admin-reports', 'admin-complaints'],
       },
     ],
   },
@@ -167,15 +166,14 @@ export const adminRouteTitles = {
   'admin-membership-packages': 'Gói VIP hệ thống',
   'admin-partner-applications': 'Quản lý hồ sơ đối tác',
   'admin-banners': 'Quản lý banner',
-  'admin-moderation': 'Kiểm duyệt nội dung',
+  'admin-moderation': 'Kiểm duyệt bài viết',
   'admin-venue-posts': 'Kiểm duyệt bài viết',
   'admin-roles': 'Quản lý nhóm quyền',
   'admin-role-detail': 'Chi tiết nhóm quyền',
   'admin-policies': 'Quản lý chính sách',
   'admin-platform-fee-policies': 'Chính sách phí nền tảng',
   'admin-policy-detail': 'Chi tiết chính sách',
-  'admin-reports': 'Xử lý báo cáo',
-  'admin-complaints': 'Xử lý khiếu nại',
+  'admin-reports-complaints': 'Báo cáo & Khiếu nại',
   'admin-court-types': 'Quản lý loại sân',
   'admin-amenities': 'Quản lý tiện ích',
   'admin-venue-clusters': 'Quản lý cụm sân',
@@ -184,7 +182,8 @@ export const adminRouteTitles = {
   'admin-platform-fee-ledgers': 'Quản lý phí duy trì hệ thống',
   'admin-platform-fee-ledger-detail': 'Chi tiết kỳ phí duy trì',
   'admin-venue-platform-fees': 'Phí duy trì cụm sân',
-  'admin-platform-fee-settings': 'Cài đặt phí duy trì',
+  'admin-platform-fee-settings': 'Cài đặt nhắc phí',
+  'admin-settings': 'Cấu hình giao diện',
 };
 
 export function findAdminNavigationSection(routeName) {

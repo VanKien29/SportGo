@@ -11,22 +11,14 @@ function diffDays(left, right) {
   return Math.round((a - b) / 86400000);
 }
 
-function reminderAction(type) {
-  return {
-    due_soon_7_days: 'platform_fee_reminder.email_sent_7_days_before',
-    due_today: 'platform_fee_reminder.email_sent_due_today',
-    overdue_3_days: 'platform_fee_reminder.email_sent_3_days_overdue',
-  }[type] || 'platform_fee_reminder.email_failed';
-}
-
 export function getRemainingAmount(ledger) {
   return Math.max(0, Number(ledger.amount_due || 0) - Number(ledger.amount_paid || 0));
 }
 
-export function getReminderTypeForDate(ledger, today = new Date()) {
+export function getReminderTypeForDate(ledger, today = new Date(), leadDays = 7) {
   if (!ledger || ledger.status === 'paid' || ledger.status === 'cancelled' || getRemainingAmount(ledger) === 0) return null;
   const daysUntilDue = diffDays(ledger.due_date, today);
-  if (daysUntilDue === 7) return 'due_soon_7_days';
+  if (daysUntilDue === leadDays) return `due_soon_${leadDays}_days`;
   if (daysUntilDue === 0) return 'due_today';
   if (daysUntilDue === -3) return 'overdue_3_days';
   return null;
@@ -59,7 +51,11 @@ export async function sendPlatformFeeReminderEmail(ledger, reminderType, options
 
 export async function processPlatformFeeReminders(today = new Date()) {
   const results = [];
-  const ledgers = await getLedgers();
+  const [ledgers, settings] = await Promise.all([
+    getLedgers(),
+    api('/api/admin/platform-fee-settings'),
+  ]);
+  const leadDays = Number(settings.default_due_days || 7);
 
   for (const ledger of ledgers) {
     let freshLedger = ledger;
@@ -67,11 +63,10 @@ export async function processPlatformFeeReminders(today = new Date()) {
       freshLedger = await markLedgerOverdue(ledger.id, 'Tự động chuyển quá hạn theo ngày đến hạn.');
     }
 
-    const type = getReminderTypeForDate(freshLedger, today);
+    const type = getReminderTypeForDate(freshLedger, today, leadDays);
     if (!type) continue;
 
     if (!shouldSendPlatformFeeReminder(freshLedger, type)) {
-      addAuditLog('platform_fee_reminder.email_skipped_duplicate', 'venue_platform_fee_ledger', freshLedger.id, null, { type }, 'platform_fee_reminder');
       continue;
     }
 
@@ -86,8 +81,8 @@ export function getEmailLogsByLedgerId(ledgerId) {
 }
 
 export function reminderSubject(type) {
+  if (String(type).startsWith('due_soon_')) return 'Phí duy trì sắp đến hạn';
   return {
-    due_soon_7_days: 'Phí duy trì sắp đến hạn',
     due_today: 'Hôm nay là hạn đóng phí duy trì',
     overdue_3_days: 'Phí duy trì đã quá hạn 3 ngày',
   }[type] || 'Thông báo phí duy trì';
@@ -95,11 +90,11 @@ export function reminderSubject(type) {
 
 export function reminderContent(ledger, type) {
   const remaining = getRemainingAmount(ledger).toLocaleString('vi-VN');
-  const line = {
-    due_soon_7_days: 'sẽ đến hạn sau 7 ngày',
+  const leadDays = String(type).match(/^due_soon_(\d+)_days$/)?.[1];
+  const line = leadDays ? `sẽ đến hạn sau ${leadDays} ngày` : ({
     due_today: 'đến hạn trong hôm nay',
     overdue_3_days: 'đã quá hạn 3 ngày và có thể bị khóa',
-  }[type] || 'cần xử lý';
+  }[type] || 'cần xử lý');
   return `Kỳ phí duy trì của cụm sân ${ledger.venue?.name || ''} ${line}. Số tiền còn lại: ${remaining} VND.`;
 }
 

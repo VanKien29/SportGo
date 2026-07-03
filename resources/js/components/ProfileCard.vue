@@ -120,7 +120,17 @@
             </div>
             <div class="membership-bookings">
               {{ membershipTier.completed_bookings || 0 }}
-              <span>booking hoàn tất</span>
+              <span>booking thành công</span>
+            </div>
+          </div>
+          <div class="membership-summary">
+            <div>
+              <span>Tổng chi tiêu</span>
+              <strong>{{ formatMoney(membershipTier.total_spend_amount || membershipTier.total_spent || 0) }}</strong>
+            </div>
+            <div v-if="membershipTier.next_tier">
+              <span>Cần thêm</span>
+              <strong>{{ membershipTier.remaining_bookings || 0 }} booking / {{ formatMoney(membershipTier.remaining_spend_amount || 0) }}</strong>
             </div>
           </div>
           <div class="membership-progress">
@@ -176,7 +186,7 @@
       <div class="membership-modal-body">
       <div class="membership-modal-stats">
         <div>
-          <span>Booking hoàn tất</span>
+          <span>Booking thành công</span>
           <strong>{{ membershipTier.completed_bookings || 0 }}</strong>
         </div>
         <div>
@@ -371,7 +381,7 @@ export default {
       const remaining = Number(this.membershipTier?.remaining_bookings || 0);
       const spend = Number(this.membershipTier?.remaining_spend_amount || 0);
       const spendText = spend > 0 ? ` và ${this.formatMoney(spend)}` : '';
-      return `Còn ${remaining} booking hoàn tất${spendText} để lên ${nextTier.label}.`;
+      return `Còn ${remaining} booking thành công${spendText} để lên ${nextTier.label}.`;
     },
     roleLabel() {
       const map = { admin: 'Quản trị viên', owner: 'Chủ sân', user: 'Người dùng' };
@@ -814,6 +824,34 @@ export default {
   font-size: 11px;
   font-weight: 700;
 }
+.membership-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.membership-summary div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--member-border) 70%, #ffffff);
+  border-radius: 8px;
+  background: rgba(255,255,255,.62);
+}
+.membership-summary span {
+  color: var(--member-text);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+.membership-summary strong {
+  min-width: 0;
+  color: var(--member-strong);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
 .membership-progress {
   height: 8px;
   overflow: hidden;
@@ -1091,6 +1129,7 @@ export default {
   .hero-name { font-size: 20px; }
   .membership-card-head { display: grid; }
   .membership-bookings { justify-items: start; }
+  .membership-summary { grid-template-columns: 1fr; }
   .avatar { width: 68px; height: 68px; font-size: 26px; }
   .membership-modal { padding: 16px; }
   .membership-modal-stats { grid-template-columns: 1fr; }

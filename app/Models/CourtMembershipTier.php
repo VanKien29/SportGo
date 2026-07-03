@@ -17,6 +17,9 @@ class CourtMembershipTier extends Model
     protected $fillable = [
         'venue_cluster_id',
         'tier',
+        'tier_label',
+        'is_active',
+        'voucher_id',
         'discount_percent',
         'min_bookings',
         'min_spent_amount',
@@ -29,6 +32,7 @@ class CourtMembershipTier extends Model
     {
         return [
             'discount_percent' => 'decimal:2',
+            'is_active' => 'boolean',
             'min_bookings' => 'integer',
             'min_spent_amount' => 'decimal:2',
             'maintain_min_bookings' => 'integer',

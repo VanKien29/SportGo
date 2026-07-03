@@ -1,17 +1,9 @@
 <template>
   <div class="moderation-page">
-    <!-- page-head removed completely -->
-
-    <!-- Render tab tương ứng -->
-    <keep-alive>
-      <AdminContentModeration 
-        v-if="activeModuleTab === 'moderation'" 
-        ref="moderationTab"
-        @auto-approve-changed="onAutoApproveChanged"
-      />
-      <AdminReports ref="reportsTab" v-else-if="activeModuleTab === 'reports'" />
-      <AdminComplaints ref="complaintsTab" v-else-if="activeModuleTab === 'complaints'" />
-    </keep-alive>
+    <AdminContentModeration 
+      ref="moderationTab"
+      @auto-approve-changed="onAutoApproveChanged"
+    />
   </div>
 </template>
 
@@ -19,8 +11,6 @@
 import AppIcon from '../../components/AppIcon.vue';
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AdminContentModeration from './AdminContentModeration.vue';
-import AdminReports from './AdminReports.vue';
-import AdminComplaints from './AdminComplaints.vue';
 
 export default {
   name: 'AdminModeration',
@@ -28,60 +18,13 @@ export default {
     AppIcon,
     ActionIconButton,
     AdminContentModeration,
-    AdminReports,
-    AdminComplaints,
   },
   data() {
     return {
-      activeModuleTab: 'moderation',
       autoApproveEnabled: false,
-      moduleTabs: [
-        { label: 'Bài đăng', value: 'moderation', icon: 'eye' },
-        { label: 'Báo cáo', value: 'reports', icon: 'messageWarning' },
-        { label: 'Khiếu nại', value: 'complaints', icon: 'shieldCheck' },
-      ],
     };
   },
-  created() {
-    // Đọc tab hoạt động từ query param
-    const tab = this.$route.query.tab;
-    if (tab && this.moduleTabs.some(t => t.value === tab)) {
-      this.activeModuleTab = tab;
-    }
-  },
-  watch: {
-    '$route.query.tab'(newTab) {
-      if (newTab && this.moduleTabs.some(t => t.value === newTab)) {
-        this.activeModuleTab = newTab;
-      }
-    },
-  },
   methods: {
-    selectModuleTab(tabValue) {
-      this.activeModuleTab = tabValue;
-      // Đẩy tab value lên URL query param để giữ trạng thái khi reload
-      this.$router.push({
-        path: this.$route.path,
-        query: { ...this.$route.query, tab: tabValue },
-      }).catch(err => {
-        // Bỏ qua lỗi NavigationDuplicated của vue-router
-        if (err && err.name !== 'NavigationDuplicated') {
-          console.error(err);
-        }
-      });
-    },
-    triggerReportsAutoResolve() {
-      this.$refs.reportsTab?.openAutoResolveModal();
-    },
-    triggerReportsRefresh() {
-      this.$refs.reportsTab?.loadReports();
-    },
-    triggerComplaintsAutoResolve() {
-      this.$refs.complaintsTab?.openAutoResolveModal();
-    },
-    triggerComplaintsRefresh() {
-      this.$refs.complaintsTab?.loadComplaints();
-    },
     onAutoApproveChanged(val) {
       this.autoApproveEnabled = val;
     },

@@ -60,6 +60,12 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: "/chat",
+        name: "chat",
+        component: () => import("../views/Chat.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
         path: "/partner-application",
         name: "partner-application",
         component: () => import("../views/partner/PartnerApplicationPortal.vue"),
@@ -186,20 +192,21 @@ const routes = [
             },
             { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail, meta: { hideFloatingBack: true } },
             {
+                path: "reports-complaints",
+                name: "admin-reports-complaints",
+                component: () => import("../views/admin/AdminReportsAndComplaints.vue"),
+            },
+            {
                 path: "reports",
-                redirect: { name: "admin-moderation", query: { tab: "reports" } }
+                redirect: { name: "admin-reports-complaints", query: { tab: "reports" } }
             },
             {
                 path: "complaints",
-                redirect: { name: "admin-moderation", query: { tab: "complaints" } }
+                redirect: { name: "admin-reports-complaints", query: { tab: "complaints" } }
             },
             { path: "roles", name: "admin-roles", component: AdminRoles },
             { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail, meta: { hideFloatingBack: true } },
-            {
-                path: "venue-posts",
-                name: "admin-venue-posts",
-                component: () => import("../views/admin/AdminVenuePosts.vue"),
-            },
+
             {
                 path: "court-types",
                 name: "admin-court-types",
@@ -257,11 +264,22 @@ const routes = [
                     import("../views/admin/AdminPlatformFeeSettings.vue"),
             },
             {
+                path: "settings",
+                name: "admin-settings",
+                component: () =>
+                    import("../views/admin/AdminSettings.vue"),
+            },
+            {
                 path: "posts/:id",
                 name: "admin-post-detail",
                 component: () =>
                     import("../views/admin/AdminPostDetail.vue"),
                 meta: { hideFloatingBack: true },
+            },
+            {
+                path: "chat",
+                name: "admin-chat",
+                component: () => import("../views/Chat.vue"),
             },
             { path: "", redirect: { name: "admin-dashboard" } },
         ],
@@ -333,6 +351,16 @@ const routes = [
                 path: "matchmaking",
                 name: "owner-matchmaking",
                 component: () => import("../views/owner/OwnerMatchmaking.vue"),
+            },
+            {
+                path: "complaints",
+                name: "owner-complaints",
+                component: () => import("../views/owner/OwnerComplaints.vue"),
+            },
+            {
+                path: "complaints/:id",
+                name: "owner-complaint-detail",
+                component: () => import("../views/owner/OwnerComplaintDetail.vue"),
             },
             { path: "profile", name: "owner-profile", component: Profile },
             {

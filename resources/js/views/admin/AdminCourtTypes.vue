@@ -182,7 +182,7 @@
                             />
                         </div>
 
-                        <div class="form-group">
+                        <div v-if="form.parent_id !== null" class="form-group">
                             <label for="parent_id">Thuộc môn thể thao</label>
                             <div class="custom-select-container" ref="customSelect">
                                 <div class="custom-select-trigger" @click="toggleDropdown">

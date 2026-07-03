@@ -11,7 +11,7 @@ export const DISCOUNT_FIELDS = [
 
 function toNumber(value, fallback = 0) {
   if (value === '' || value === null || value === undefined) return fallback;
-  const number = Number(value);
+  const number = Number(String(value).trim().replace(',', '.'));
   return Number.isFinite(number) ? number : fallback;
 }
 
@@ -74,7 +74,7 @@ export function getDiscountProfiles() {
   return Promise.resolve([
     {
       id: 'db-annual',
-      name: 'Giảm theo DB hiện tại',
+      name: 'Mức giảm kỳ 12 tháng',
       discount_1_month: 0,
       discount_3_months: 0,
       discount_6_months: 0,
@@ -86,7 +86,7 @@ export function getDiscountProfiles() {
 }
 
 export function createDiscountProfile() {
-  return Promise.reject(new Error('Mẫu giảm kỳ chưa có bảng DB riêng. Hiện chỉ lưu giảm 12 tháng trực tiếp trên bậc phí.'));
+  return Promise.reject(new Error('Tính năng mẫu giảm theo kỳ chưa được hỗ trợ.'));
 }
 
 export function updateDiscountProfile() {
@@ -129,14 +129,46 @@ export function validateTier(payload, existingTiers = []) {
   if (!Number.isInteger(tier.min_courts) || tier.min_courts < 1) {
     addFieldError(errors, 'min_courts', 'Số sân tối thiểu phải lớn hơn hoặc bằng 1.');
   }
-  if (!Number.isFinite(tier.price_per_court_month) || tier.price_per_court_month <= 0) {
-    addFieldError(errors, 'price_per_court_month', 'Giá/sân/tháng phải lớn hơn 0.');
+  if (!Number.isInteger(tier.price_per_court_month) || tier.price_per_court_month <= 0) {
+    addFieldError(errors, 'price_per_court_month', 'Giá/sân/tháng phải là số nguyên VND lớn hơn 0.');
+  } else if (tier.price_per_court_month > 9999999999) {
+    addFieldError(errors, 'price_per_court_month', 'Giá/sân/tháng vượt quá giới hạn cho phép.');
   }
   if (tier.annual_discount_percent < 0 || tier.annual_discount_percent > 100) {
     addFieldError(errors, 'discount_12_months', 'Giảm kỳ 12 tháng phải nằm trong khoảng 0 - 100%.');
   }
-  if (tier.is_active && existingTiers.some((item) => item.id !== editingId && item.is_active && Number(item.min_courts) === tier.min_courts)) {
-    addFieldError(errors, 'min_courts', 'Số sân tối thiểu đang trùng với một bậc đang dùng khác.');
+  if (existingTiers.some((item) => item.id !== editingId && Number(item.min_courts) === tier.min_courts)) {
+    addFieldError(errors, 'min_courts', 'Số sân tối thiểu đang trùng với một bậc phí khác.');
+  }
+
+  const proposedActiveTiers = existingTiers
+    .filter((item) => item.id !== editingId && item.is_active)
+    .concat(tier.is_active ? [tier] : [])
+    .sort((left, right) => Number(left.min_courts) - Number(right.min_courts));
+
+  if (proposedActiveTiers.length && Number(proposedActiveTiers[0].min_courts) !== 1) {
+    addFieldError(errors, 'min_courts', 'Bậc phí đang dùng đầu tiên phải bắt đầu từ 1 sân.');
+  }
+
+  if (tier.is_active && Number.isInteger(tier.price_per_court_month) && tier.price_per_court_month > 0) {
+    const tierIndex = proposedActiveTiers.indexOf(tier);
+    const previousTier = proposedActiveTiers[tierIndex - 1];
+    const nextTier = proposedActiveTiers[tierIndex + 1];
+
+    if (previousTier && tier.price_per_court_month >= Number(previousTier.price_per_court_month)) {
+      addFieldError(
+        errors,
+        'price_per_court_month',
+        `Giá bậc này phải thấp hơn giá của bậc ít sân hơn (${Number(previousTier.price_per_court_month).toLocaleString('vi-VN')} đ).`,
+      );
+    }
+    if (nextTier && tier.price_per_court_month <= Number(nextTier.price_per_court_month)) {
+      addFieldError(
+        errors,
+        'price_per_court_month',
+        `Giá bậc này phải cao hơn giá của bậc nhiều sân hơn (${Number(nextTier.price_per_court_month).toLocaleString('vi-VN')} đ).`,
+      );
+    }
   }
 
   return {
@@ -182,8 +214,8 @@ export function validateTierCoverage(tiers) {
   };
 }
 
-export async function createTier(payload) {
-  const validation = validateTier(payload);
+export async function createTier(payload, existingTiers = []) {
+  const validation = validateTier(payload, existingTiers);
   if (!validation.isValid) return Promise.reject(Object.assign(new Error('Dữ liệu bậc phí chưa hợp lệ.'), { validation }));
   const response = await api('/api/admin/platform-fee-tiers', {
     method: 'POST',
@@ -192,8 +224,8 @@ export async function createTier(payload) {
   return decorateTier(response.data || response);
 }
 
-export async function updateTier(id, payload) {
-  const validation = validateTier({ ...payload, id });
+export async function updateTier(id, payload, existingTiers = []) {
+  const validation = validateTier({ ...payload, id }, existingTiers);
   if (!validation.isValid) return Promise.reject(Object.assign(new Error('Dữ liệu bậc phí chưa hợp lệ.'), { validation }));
   const response = await api(`/api/admin/platform-fee-tiers/${encodeURIComponent(id)}`, {
     method: 'PUT',
@@ -268,7 +300,6 @@ export function calculatePlatformFee({ court_count, period_months, tier }) {
   const amountDue = Math.max(0, Math.round(baseAmount - discountAmount));
   const warnings = [];
 
-  if (months !== 12) warnings.push('DB hiện chỉ cấu hình giảm kỳ 12 tháng; kỳ này không áp dụng giảm.');
   if (discountPercent > 50) warnings.push('Mức giảm giá cao, vui lòng kiểm tra lại.');
   if (discountPercent === 100 || amountDue === 0) warnings.push('Giảm giá 100%, số tiền phải đóng bằng 0.');
 

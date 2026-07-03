@@ -7,6 +7,7 @@ use App\Models\BookingConfig;
 use App\Models\Payment;
 use App\Models\PaymentLog;
 use App\Models\SlotLock;
+use App\Services\BookingService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -64,6 +65,8 @@ class ReleaseExpiredSlotLocks extends Command
                             'status' => 'expired',
                             'status_reason' => $reason,
                         ]);
+
+                        app(BookingService::class)->releaseVoucherUsageForBooking($booking, 'cancelled');
 
                         Payment::query()
                             ->where('booking_id', $booking->id)

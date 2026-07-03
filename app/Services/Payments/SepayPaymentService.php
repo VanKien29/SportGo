@@ -265,6 +265,7 @@ class SepayPaymentService
                         $payment->booking()->update([
                             'status' => 'confirmed',
                         ]);
+                        $this->bookingService->syncVenueMembershipForSuccessfulBooking($booking);
                     }
 
                     SlotLock::query()
@@ -352,6 +353,8 @@ class SepayPaymentService
             $booking->cancelled_by = $cancelledBy;
             $booking->cancelled_at = now();
             $booking->save();
+
+            $this->bookingService->releaseVoucherUsageForBooking($booking, 'cancelled');
 
             SlotLock::query()
                 ->where('booking_id', $booking->id)

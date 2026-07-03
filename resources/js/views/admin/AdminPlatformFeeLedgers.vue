@@ -58,24 +58,33 @@
                     {{ month }} tháng
                 </option>
             </select>
-            <input
-                v-model="filters.period_start"
-                type="date"
-                @change="loadLedgers"
-            />
-            <input
-                v-model="filters.period_end"
-                type="date"
-                @change="loadLedgers"
-            />
-            <input
-                v-model="filters.due_date"
-                type="date"
-                @change="loadLedgers"
-            />
+            <label class="date-filter">
+                <span>Từ ngày áp dụng</span>
+                <input
+                    v-model="filters.period_start"
+                    type="date"
+                    @change="loadLedgers"
+                />
+            </label>
+            <label class="date-filter">
+                <span>Đến ngày áp dụng</span>
+                <input
+                    v-model="filters.period_end"
+                    type="date"
+                    @change="loadLedgers"
+                />
+            </label>
+            <label class="date-filter">
+                <span>Hạn thanh toán</span>
+                <input
+                    v-model="filters.due_date"
+                    type="date"
+                    @change="loadLedgers"
+                />
+            </label>
             <select v-model="filters.email_status" @change="loadLedgers">
                 <option value="">Tất cả email</option>
-                <option value="due_soon_7_days">Đã gửi nhắc trước hạn</option>
+                <option value="due_soon">Đã gửi nhắc trước hạn</option>
                 <option value="due_today">Đã gửi nhắc đúng hạn</option>
                 <option value="overdue_3_days">
                     Đã gửi cảnh báo quá hạn 3 ngày
@@ -133,144 +142,139 @@
                     <thead>
                         <tr>
                             <th>Mã kỳ phí</th>
-                            <th>Cụm sân</th>
-                            <th>Chủ sân</th>
-                            <th>Số sân</th>
-                            <th>Bậc phí snapshot</th>
-                            <th>Kỳ đóng</th>
-                            <th>Thời gian kỳ phí</th>
+                            <th>Cụm sân / Chủ sân</th>
+                            <th>Bậc phí / Số sân</th>
+                            <th>Kỳ áp dụng</th>
                             <th>Hạn thanh toán</th>
-                            <th>Gia snapshot</th>
-                            <th>Giảm</th>
-                            <th>Phải đóng</th>
-                            <th>Đã đóng</th>
-                            <th>Còn thiếu</th>
-                            <th>Trạng thái</th>
-                            <th>Ngày thanh toán</th>
-                            <th>Email</th>
+                            <th>Công nợ</th>
+                            <th>Trạng thái / Email</th>
                             <th class="actions-header">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="ledger in ledgers" :key="ledger.id">
                             <td class="mono">{{ ledger.code }}</td>
-                            <td>{{ ledger.venue?.name || "-" }}</td>
-                            <td>{{ ledger.owner?.full_name || "-" }}</td>
-                            <td>{{ ledger.court_count }}</td>
-                            <td>{{ ledger.tier_name }}</td>
-                            <td>{{ ledger.period_months }} tháng</td>
-                            <td>
-                                {{ date(ledger.period_start) }} -
-                                {{ date(ledger.period_end) }}
+                            <td class="stacked-cell">
+                                <strong>{{ ledger.venue?.name || "-" }}</strong>
+                                <small>{{ ledger.owner?.full_name || "-" }}</small>
+                            </td>
+                            <td class="stacked-cell">
+                                <strong>{{ ledger.tier_name }}</strong>
+                                <small>{{ ledger.court_count }} sân · {{ money(ledger.price_per_court_month) }}/tháng</small>
+                                <small v-if="Number(ledger.discount_percent) > 0">
+                                    Giảm {{ percent(ledger.discount_percent) }}
+                                </small>
+                            </td>
+                            <td class="period-cell">
+                                <strong class="period-badge">{{ ledger.period_months }} tháng</strong>
+                                <span class="date-line">
+                                    <small>Từ</small>
+                                    <strong>{{ date(ledger.period_start) }}</strong>
+                                </span>
+                                <span class="date-line">
+                                    <small>Đến</small>
+                                    <strong>{{ date(ledger.period_end) }}</strong>
+                                </span>
+                                <small class="period-note" :class="ledger.period_warning_level">
+                                    {{ periodStatusLabel(ledger) }}
+                                </small>
                             </td>
                             <td
                                 :class="{
                                     overdue: ledger.status === 'overdue',
                                 }"
                             >
-                                {{ date(ledger.due_date) }}
+                                <strong>{{ date(ledger.due_date) }}</strong>
+                                <small v-if="ledger.paid_at" class="paid-date">
+                                    Thanh toán {{ date(ledger.paid_at) }}
+                                </small>
                             </td>
-                            <td>{{ money(ledger.price_per_court_month) }}</td>
-                            <td>{{ percent(ledger.discount_percent) }}</td>
-                            <td>{{ money(ledger.amount_due) }}</td>
-                            <td>{{ money(ledger.amount_paid) }}</td>
-                            <td>{{ money(ledger.remaining_amount) }}</td>
-                            <td>
+                            <td class="debt-cell">
+                                <span><small>Phải đóng</small><strong>{{ money(ledger.amount_due) }}</strong></span>
+                                <span><small>Đã đóng</small><strong>{{ money(ledger.amount_paid) }}</strong></span>
+                                <span v-if="Number(ledger.remaining_amount) > 0" class="remaining">
+                                    <small>Còn thiếu</small><strong>{{ money(ledger.remaining_amount) }}</strong>
+                                </span>
+                            </td>
+                            <td class="status-cell">
+                                <span class="status-line">
                                 <span
                                     class="status-dot"
                                     :class="ledger.status"
                                     :title="statusLabel(ledger.status)"
                                     :aria-label="statusLabel(ledger.status)"
                                 ></span>
+                                    <strong>{{ statusLabel(ledger.status) }}</strong>
+                                </span>
+                                <small>{{ emailSummary(ledger) }}</small>
                             </td>
-                            <td>
-                                {{
-                                    ledger.paid_at ? date(ledger.paid_at) : "-"
-                                }}
-                            </td>
-                            <td>{{ emailSummary(ledger) }}</td>
-                            <td>
-                                <div class="actions">
-                                    <button
-                                        class="icon-btn"
-                                        type="button"
-                                        title="Xem chi tiết"
-                                        aria-label="Xem chi tiết"
-                                        @click="
-                                            $router.push({
-                                                name: 'admin-platform-fee-ledger-detail',
-                                                params: { id: ledger.id },
-                                            })
-                                        "
-                                    >
-                                        <AppIcon name="eye" size="18" />
-                                    </button>
-                                    <button
-                                        class="icon-btn"
-                                        type="button"
-                                        title="Xác nhận thanh toán"
-                                        aria-label="Xác nhận thanh toán"
-                                        :disabled="
-                                            ledger.status === 'paid' ||
-                                            ledger.status === 'cancelled'
-                                        "
-                                        @click="openPay(ledger)"
-                                    >
-                                        <AppIcon name="creditCard" size="18" />
-                                    </button>
-                                    <button
-                                        class="icon-btn warning"
-                                        type="button"
-                                        title="Đánh dấu quá hạn"
-                                        aria-label="Đánh dấu quá hạn"
-                                        :disabled="
-                                            ledger.status === 'paid' ||
-                                            ledger.status === 'cancelled'
-                                        "
-                                        @click="markOverdue(ledger)"
-                                    >
-                                        <AppIcon name="clock" size="18" />
-                                    </button>
-                                    <button
-                                        class="icon-btn danger"
-                                        type="button"
-                                        title="Hủy kỳ phí"
-                                        aria-label="Hủy kỳ phí"
-                                        :disabled="
-                                            ledger.status === 'paid' ||
-                                            ledger.status === 'cancelled'
-                                        "
-                                        @click="openCancel(ledger)"
-                                    >
-                                        <AppIcon name="trash" size="18" />
-                                    </button>
-                                    <button
-                                        class="icon-btn danger"
-                                        type="button"
-                                        title="Khóa cụm sân"
-                                        aria-label="Khóa cụm sân"
-                                        :disabled="ledger.status !== 'overdue'"
-                                        @click="openLock(ledger)"
-                                    >
-                                        <AppIcon name="lock" size="18" />
-                                    </button>
-                                    <button
-                                        class="icon-btn success"
-                                        type="button"
-                                        title="Mở khóa cụm sân"
-                                        aria-label="Mở khóa cụm sân"
-                                        :disabled="ledger.status !== 'paid'"
-                                        @click="unlockVenue(ledger)"
-                                    >
-                                        <AppIcon name="unlock" size="18" />
-                                    </button>
-                                </div>
+                            <td class="actions-cell">
+                                <button
+                                    class="icon-btn"
+                                    type="button"
+                                    title="Mở menu thao tác"
+                                    aria-label="Mở menu thao tác"
+                                    @click.stop="openLedgerActions($event, ledger)"
+                                >
+                                    <AppIcon name="moreHorizontal" size="19" />
+                                </button>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </section>
+
+        <Teleport to="body">
+            <div
+                v-if="actionMenu.ledger"
+                class="ledger-action-menu"
+                :style="{ top: `${actionMenu.top}px`, right: `${actionMenu.right}px` }"
+                @click.stop
+            >
+                <button type="button" @click="selectLedgerAction('view')">
+                    <AppIcon name="eye" size="16" /><span>Xem chi tiết</span>
+                </button>
+                <button
+                    type="button"
+                    :disabled="actionMenu.ledger.status === 'paid' || actionMenu.ledger.status === 'cancelled'"
+                    @click="selectLedgerAction('pay')"
+                >
+                    <AppIcon name="creditCard" size="16" /><span>Xác nhận thanh toán</span>
+                </button>
+                <button
+                    type="button"
+                    :disabled="actionMenu.ledger.status === 'paid' || actionMenu.ledger.status === 'cancelled'"
+                    @click="selectLedgerAction('overdue')"
+                >
+                    <AppIcon name="clock" size="16" /><span>Đánh dấu quá hạn</span>
+                </button>
+                <button
+                    class="danger"
+                    type="button"
+                    :disabled="!canCancelLedger(actionMenu.ledger)"
+                    @click="selectLedgerAction('cancel')"
+                >
+                    <AppIcon name="trash" size="16" /><span>Hủy kỳ phí</span>
+                </button>
+                <button
+                    class="danger"
+                    type="button"
+                    :disabled="actionMenu.ledger.status !== 'overdue'"
+                    @click="selectLedgerAction('lock')"
+                >
+                    <AppIcon name="lock" size="16" /><span>Khóa cụm sân</span>
+                </button>
+                <button
+                    class="success"
+                    type="button"
+                    :disabled="actionMenu.ledger.status !== 'paid'"
+                    @click="selectLedgerAction('unlock')"
+                >
+                    <AppIcon name="unlock" size="16" /><span>Mở khóa cụm sân</span>
+                </button>
+            </div>
+        </Teleport>
 
         <div v-if="showCreate" class="modal-backdrop" @click.self="closeCreate">
             <form class="modal" @submit.prevent="createNewLedger">
@@ -409,6 +413,12 @@
                     </button>
                 </header>
                 <div class="form-grid one">
+                    <p v-if="dialog.type === 'cancel'" class="cancel-warning">
+                        Kỳ phí sẽ chuyển sang trạng thái “Đã hủy”. Kỳ đã thanh toán hoặc đã ghi nhận một phần tiền không thể hủy.
+                    </p>
+                    <p v-if="dialog.type === 'discard-create'" class="cancel-warning">
+                        Dữ liệu kỳ phí đang nhập chưa được lưu và sẽ bị bỏ.
+                    </p>
                     <label v-if="dialog.type === 'pay'">
                         Số tiền thanh toán *
                         <input
@@ -418,7 +428,7 @@
                             required
                         />
                     </label>
-                    <label v-if="dialog.type !== 'pay'">
+                    <label v-if="dialog.type !== 'pay' && dialog.type !== 'discard-create'">
                         Lý do *
                         <textarea
                             v-model.trim="dialog.reason"
@@ -513,6 +523,7 @@ export default {
             previewError: "",
             previewWarnings: [],
             dialog: { type: "", ledger: null, amount: 0, reason: "" },
+            actionMenu: { ledger: null, top: 0, right: 0 },
             toast: "",
             toastType: "success",
             showScrollTop: false,
@@ -532,6 +543,8 @@ export default {
                     pay: "Xác nhận thanh toán",
                     cancel: "Hủy kỳ phí",
                     lock: "Khóa cụm sân vì quá hạn",
+                    overdue: "Đánh dấu kỳ phí quá hạn",
+                    "discard-create": "Hủy tạo kỳ phí?",
                 }[this.dialog.type] || "Xác nhận"
             );
         },
@@ -548,9 +561,13 @@ export default {
         this.loadVenueOptions();
         this.loadLedgers();
         window.addEventListener("scroll", this.handleScroll);
+        window.addEventListener("click", this.closeLedgerActions);
+        window.addEventListener("resize", this.closeLedgerActions);
     },
     beforeUnmount() {
         window.removeEventListener("scroll", this.handleScroll);
+        window.removeEventListener("click", this.closeLedgerActions);
+        window.removeEventListener("resize", this.closeLedgerActions);
     },
     methods: {
         async loadVenueOptions() {
@@ -619,6 +636,15 @@ export default {
             this.showCreate = true;
         },
         closeCreate() {
+            if (this.showCreate && this.form.venue_cluster_id) {
+                this.dialog = {
+                    type: "discard-create",
+                    ledger: null,
+                    amount: 0,
+                    reason: "",
+                };
+                return;
+            }
             this.showCreate = false;
         },
         async refreshPreview() {
@@ -639,7 +665,7 @@ export default {
             try {
                 await createLedger(this.form);
                 this.showMessage("Đã tạo kỳ phí chờ thanh toán.");
-                this.closeCreate();
+                this.showCreate = false;
                 await this.loadLedgers();
             } catch (error) {
                 this.previewError = error.message;
@@ -657,6 +683,9 @@ export default {
         openCancel(ledger) {
             this.dialog = { type: "cancel", ledger, amount: 0, reason: "" };
         },
+        canCancelLedger(ledger) {
+            return ledger.can_cancel === true;
+        },
         openLock(ledger) {
             this.dialog = {
                 type: "lock",
@@ -665,10 +694,57 @@ export default {
                 reason: "Quá hạn phí duy trì hệ thống",
             };
         },
+        openOverdue(ledger) {
+            this.dialog = {
+                type: "overdue",
+                ledger,
+                amount: 0,
+                reason: "Quá hạn thanh toán",
+            };
+        },
+        openLedgerActions(event, ledger) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const menuHeight = 286;
+            const preferredTop = rect.bottom + 6;
+            this.actionMenu = {
+                ledger,
+                top:
+                    preferredTop + menuHeight > window.innerHeight
+                        ? Math.max(12, rect.top - menuHeight - 6)
+                        : preferredTop,
+                right: Math.max(12, window.innerWidth - rect.right),
+            };
+        },
+        closeLedgerActions() {
+            this.actionMenu = { ledger: null, top: 0, right: 0 };
+        },
+        selectLedgerAction(action) {
+            const ledger = this.actionMenu.ledger;
+            if (!ledger) return;
+            this.closeLedgerActions();
+
+            if (action === "view") {
+                this.$router.push({
+                    name: "admin-platform-fee-ledger-detail",
+                    params: { id: ledger.id },
+                });
+            }
+            if (action === "pay") this.openPay(ledger);
+            if (action === "overdue") this.openOverdue(ledger);
+            if (action === "cancel") this.openCancel(ledger);
+            if (action === "lock") this.openLock(ledger);
+            if (action === "unlock") this.unlockVenue(ledger);
+        },
         closeDialog() {
             this.dialog = { type: "", ledger: null, amount: 0, reason: "" };
         },
         async submitDialog() {
+            if (this.dialog.type === "discard-create") {
+                this.showCreate = false;
+                this.closeDialog();
+                return;
+            }
+
             try {
                 if (this.dialog.type === "pay")
                     await confirmLedgerPayment(this.dialog.ledger.id, {
@@ -684,22 +760,17 @@ export default {
                         this.dialog.ledger.id,
                         this.dialog.reason,
                     );
-                this.showMessage("Thao tác thành công.");
+                if (this.dialog.type === "overdue")
+                    await markLedgerOverdue(
+                        this.dialog.ledger.id,
+                        this.dialog.reason,
+                    );
+                this.showMessage(
+                    this.dialog.type === "cancel"
+                        ? "Đã hủy kỳ phí."
+                        : "Thao tác thành công.",
+                );
                 this.closeDialog();
-                await this.loadLedgers();
-            } catch (error) {
-                this.showMessage(error.message, "error");
-            }
-        },
-        async markOverdue(ledger) {
-            const reason = prompt(
-                "Nhập lý do đánh dấu quá hạn:",
-                "Quá hạn thanh toán",
-            );
-            if (!reason) return;
-            try {
-                await markLedgerOverdue(ledger.id, reason);
-                this.showMessage("Đã đánh dấu quá hạn.");
                 await this.loadLedgers();
             } catch (error) {
                 this.showMessage(error.message, "error");
@@ -729,6 +800,29 @@ export default {
             if (logs.some((log) => log.status === "failed")) return "Có lỗi";
             return `${logs.filter((log) => log.status === "sent").length} đã gửi`;
         },
+        periodRemainingLabel(ledger) {
+            if (ledger.period_state === "upcoming") return "Chưa bắt đầu";
+            if (ledger.period_state === "expired")
+                return "Đã hết hạn " + Math.abs(ledger.period_days_remaining || 0) + " ngày";
+            if (ledger.period_days_remaining === 0) return "Hết hạn hôm nay";
+            if (
+                ledger.period_days_remaining !== null &&
+                ledger.period_days_remaining !== undefined
+            )
+                return "Còn " + ledger.period_days_remaining + " ngày";
+            return "Chưa cập nhật";
+        },
+        periodStatusLabel(ledger) {
+            const state = {
+                active: "Đang hiệu lực",
+                upcoming: "Sắp áp dụng",
+                expired: "Đã hết hạn",
+                unknown: "Chưa rõ thời gian",
+            }[ledger.period_state] || "";
+            return state
+                ? state + " · " + this.periodRemainingLabel(ledger)
+                : this.periodRemainingLabel(ledger);
+        },
         statusLabel(status) {
             return (
                 {
@@ -749,7 +843,18 @@ export default {
             return `${Number(value || 0).toLocaleString("vi-VN")}%`;
         },
         date(value) {
-            return value ? new Date(value).toLocaleDateString("vi-VN") : "-";
+            if (!value) return "-";
+
+            const dateOnly = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (dateOnly) {
+                return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;
+            }
+
+            return new Intl.DateTimeFormat("vi-VN", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+            }).format(new Date(value));
         },
         showMessage(message, type = "success") {
             this.toast = message;
@@ -760,6 +865,7 @@ export default {
         },
         handleScroll() {
             this.showScrollTop = window.scrollY > 250;
+            this.closeLedgerActions();
         },
     },
 };
@@ -800,6 +906,15 @@ p {
     gap: 10px;
     align-items: center;
 }
+.date-filter {
+    display: grid;
+    gap: 5px;
+}
+.date-filter span {
+    color: #475569;
+    font-size: 11px;
+    font-weight: 800;
+}
 input,
 select,
 textarea {
@@ -839,11 +954,13 @@ textarea {
     color: #b91c1c;
 }
 .table-wrap {
+    position: relative;
     overflow-x: auto;
 }
 table {
     width: 100%;
-    min-width: 1680px;
+    min-width: 1080px;
+    table-layout: fixed;
     border-collapse: collapse;
 }
 th,
@@ -862,6 +979,82 @@ th {
 .actions-header {
     text-align: center;
 }
+th:nth-child(1) { width: 145px; }
+th:nth-child(2) { width: 170px; }
+th:nth-child(3) { width: 190px; }
+th:nth-child(4) { width: 190px; }
+th:nth-child(5) { width: 135px; }
+th:nth-child(6) { width: 190px; }
+th:nth-child(7) { width: 145px; }
+th:nth-child(8) { width: 62px; }
+.stacked-cell strong,
+.stacked-cell small,
+.paid-date,
+.status-cell > small {
+    display: block;
+}
+.stacked-cell small,
+.paid-date,
+.status-cell > small {
+    margin-top: 4px;
+    color: #64748b;
+    line-height: 1.35;
+}
+.period-cell {
+    min-width: 180px;
+}
+.period-badge {
+    display: inline-block;
+    margin-bottom: 6px;
+    color: #334155;
+}
+.date-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    white-space: nowrap;
+}
+.date-line + .date-line {
+    margin-top: 3px;
+}
+.date-line small {
+    color: #64748b;
+    font-size: 11px;
+}
+.date-line strong {
+    color: #0f172a;
+}
+.debt-cell {
+    display: grid;
+    gap: 5px;
+}
+.debt-cell span {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+.debt-cell small {
+    color: #64748b;
+    font-size: 11px;
+}
+.debt-cell .remaining,
+.debt-cell .remaining small {
+    color: #b91c1c;
+}
+.status-line {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+.status-line strong {
+    white-space: nowrap;
+}
+.actions-cell {
+    text-align: center;
+    vertical-align: middle;
+}
 .mono {
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
@@ -869,6 +1062,15 @@ th {
     color: #b91c1c;
     font-weight: 900;
 }
+.period-note {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+}
+.period-note.expiring_soon { color: #92400e; }
+.period-note.overdue { color: #b91c1c; }
 .status-dot {
     display: inline-grid;
     width: 14px;
@@ -888,11 +1090,6 @@ th {
 .status-dot.cancelled {
     background: #94a3b8;
     box-shadow: 0 0 0 3px #e2e8f0;
-}
-.actions {
-    flex-wrap: wrap;
-    justify-content: center;
-    min-width: 244px;
 }
 .icon-btn,
 .icon-close {
@@ -933,6 +1130,45 @@ th {
 .icon-close {
     width: 32px;
     height: 32px;
+}
+.ledger-action-menu {
+    position: fixed;
+    z-index: 1200;
+    display: grid;
+    width: 230px;
+    padding: 6px;
+    border: 1px solid #dbe3ea;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.2);
+}
+.ledger-action-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #334155;
+    font: inherit;
+    font-weight: 750;
+    text-align: left;
+    cursor: pointer;
+}
+.ledger-action-menu button:hover:not(:disabled) {
+    background: #f1f5f9;
+}
+.ledger-action-menu button.danger {
+    color: #b91c1c;
+}
+.ledger-action-menu button.success {
+    color: #047857;
+}
+.ledger-action-menu button:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
 }
 .btn {
     border: 0;
@@ -981,6 +1217,14 @@ th {
 .alert.warning {
     background: #fef3c7;
     color: #92400e;
+}
+.cancel-warning {
+    margin: 0;
+    padding: 12px;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #9a3412;
+    line-height: 1.5;
 }
 .modal-backdrop {
     position: fixed;

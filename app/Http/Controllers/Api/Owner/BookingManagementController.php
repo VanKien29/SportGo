@@ -235,6 +235,12 @@ class BookingManagementController extends Controller
             'time_ranges.*.venue_court_id' => ['nullable', 'uuid', 'exists:venue_courts,id'],
             'time_ranges.*.start_time' => ['required_with:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'time_ranges.*.end_time' => ['required_with:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'weekday_time_ranges' => ['nullable', 'array', 'max:7'],
+            'weekday_time_ranges.*.day_of_week' => ['required_with:weekday_time_ranges', 'integer', 'between:0,6', 'distinct'],
+            'weekday_time_ranges.*.time_ranges' => ['required_with:weekday_time_ranges', 'array', 'min:1', 'max:32'],
+            'weekday_time_ranges.*.time_ranges.*.venue_court_id' => ['nullable', 'uuid', 'exists:venue_courts,id'],
+            'weekday_time_ranges.*.time_ranges.*.start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'weekday_time_ranges.*.time_ranges.*.end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => ['required', Rule::in(['full_payment', 'no_prepay'])],
             'is_paid' => ['nullable', 'boolean'],
             'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer', 'sepay'])],
@@ -636,6 +642,15 @@ class BookingManagementController extends Controller
 
         if ($validated['recurrence_type'] === 'weekly' && empty($validated['recurrence_days_of_week'])) {
             throw ValidationException::withMessages(['recurrence_days_of_week' => 'Vui lòng chọn thứ trong tuần.']);
+        }
+
+        if ($validated['recurrence_type'] === 'weekly' && ! empty($validated['weekday_time_ranges'])) {
+            $configuredDays = collect($validated['weekday_time_ranges'])->pluck('day_of_week')->sort()->values();
+            $selectedDays = collect($validated['recurrence_days_of_week'] ?? [])->sort()->values();
+
+            if ($configuredDays->diff($selectedDays)->isNotEmpty() || $selectedDays->diff($configuredDays)->isNotEmpty()) {
+                throw ValidationException::withMessages(['weekday_time_ranges' => 'Mỗi thứ đã chọn cần có sân và khung giờ riêng.']);
+            }
         }
 
         if ($validated['recurrence_type'] === 'monthly' && empty($validated['recurrence_days_of_month'])) {

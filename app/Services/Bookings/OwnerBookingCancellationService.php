@@ -9,6 +9,7 @@ use App\Models\Refund;
 use App\Models\RefundStatusHistory;
 use App\Models\SlotLock;
 use App\Models\User;
+use App\Services\BookingService;
 use App\Services\Finance\AdminRefundService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -18,6 +19,7 @@ class OwnerBookingCancellationService
 {
     public function __construct(
         private readonly AdminRefundService $refunds,
+        private readonly BookingService $bookings,
     ) {}
 
     public function cancelBooking(Booking $booking, User $actor, string $reason, string $targetStatus = 'cancelled'): array
@@ -55,6 +57,7 @@ class OwnerBookingCancellationService
                 ]);
 
             SlotLock::query()->where('booking_id', $booking->id)->delete();
+            $this->bookings->releaseVoucherUsageForBooking($booking, 'cancelled');
 
             $refunds = $this->createFullRefundRequests(
                 $booking,
@@ -126,6 +129,8 @@ class OwnerBookingCancellationService
                     'cancelled_by' => $actor->id,
                     'cancelled_at' => now(),
                 ])->save();
+
+                $this->bookings->releaseVoucherUsageForBooking($booking, 'cancelled');
             }
 
             $itemSubtotal = (float) $items->sum(fn (BookingItem $item): float => (float) $item->subtotal);

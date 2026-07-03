@@ -39,6 +39,8 @@
 </template>
 
 <script>
+import { applyCustomThemeStyles } from '../../utils/theme.js';
+
 export default {
   name: 'ThemeToggle',
   directives: {
@@ -75,6 +77,7 @@ export default {
   created() {
     this.activeTheme = localStorage.getItem('admin-theme') || 'system';
     this.applyTheme(this.activeTheme);
+    applyCustomThemeStyles();
 
     this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     if (this.mediaQuery.addEventListener) {
@@ -112,6 +115,7 @@ export default {
         resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       }
       document.documentElement.setAttribute('data-theme', resolvedTheme);
+      applyCustomThemeStyles();
     },
     handleSystemThemeChange() {
       if (this.activeTheme === 'system') {

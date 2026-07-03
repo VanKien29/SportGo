@@ -3,6 +3,7 @@
 namespace App\Services\Memberships;
 
 use App\Models\Booking;
+use App\Models\BookingConfig;
 use App\Models\CourtMembershipTier;
 use App\Models\Notification;
 use App\Models\User;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\DB;
 
 class VenueMembershipService
 {
+    private const EARNING_BOOKING_STATUSES = ['confirmed', 'checked_in', 'completed'];
+
     public const DEFAULT_TIERS = [
         ['tier' => 'standard', 'tier_label' => 'Thường', 'tier_order' => 0, 'discount_percent' => 0, 'min_bookings' => 0, 'min_spent_amount' => 0],
         ['tier' => 'silver', 'tier_label' => 'Bạc', 'tier_order' => 1, 'discount_percent' => 3, 'min_bookings' => 5, 'min_spent_amount' => 500000],
@@ -48,6 +51,9 @@ class VenueMembershipService
                     'tier' => $shape['tier'],
                 ],
                 [
+                    'tier_label' => trim((string) ($input['tier_label'] ?? $input['label'] ?? $shape['tier_label'])),
+                    'is_active' => $shape['tier'] === 'standard' ? true : (bool) ($input['is_active'] ?? true),
+                    'voucher_id' => $input['voucher_id'] ?? null,
                     'discount_percent' => round((float) ($input['discount_percent'] ?? $shape['discount_percent']), 2),
                     'min_bookings' => (int) ($input['min_bookings'] ?? $input['min_completed_bookings'] ?? $shape['min_bookings']),
                     'min_spent_amount' => round((float) ($input['min_spent_amount'] ?? $input['min_spend_amount'] ?? $shape['min_spent_amount']), 2),
@@ -63,20 +69,23 @@ class VenueMembershipService
 
     public function syncBooking(Booking $booking): ?UserCourtMembership
     {
-        if ($booking->status !== 'completed' || ! $booking->customer_id || ! $booking->venue_cluster_id) {
+        if (
+            ! in_array($booking->status, self::EARNING_BOOKING_STATUSES, true)
+            || ! $booking->customer_id
+            || ! $booking->venue_cluster_id
+        ) {
             return null;
         }
 
-        return $this->syncUserVenue($booking->customer_id, $booking->venue_cluster_id, 'booking_completed');
+        return $this->syncUserVenue($booking->customer_id, $booking->venue_cluster_id, 'booking_successful');
     }
 
     public function syncUserVenue(string $userId, string $venueClusterId, string $reason = 'recalculated'): UserCourtMembership
     {
-        $stats = $this->statsForUserVenue($userId, $venueClusterId);
         $settings = $this->settingsForCluster($venueClusterId);
-        $eligibleTier = $this->determineTier($settings, $stats['total_bookings'], $stats['total_spent']);
+        $resetProgressOnUpgrade = $this->resetMembershipProgressOnUpgrade($venueClusterId);
 
-        return DB::transaction(function () use ($userId, $venueClusterId, $stats, $settings, $eligibleTier, $reason): UserCourtMembership {
+        return DB::transaction(function () use ($userId, $venueClusterId, $settings, $resetProgressOnUpgrade, $reason): UserCourtMembership {
             $membership = UserCourtMembership::query()
                 ->where('user_id', $userId)
                 ->where('venue_cluster_id', $venueClusterId)
@@ -93,25 +102,37 @@ class VenueMembershipService
                 ]);
             }
 
+            $stats = $this->statsForUserVenue(
+                $userId,
+                $venueClusterId,
+                $this->progressStartForMembership($membership, $resetProgressOnUpgrade),
+            );
+            $eligibleTier = $this->determineTier($settings, $stats['total_bookings'], $stats['total_spent']);
             $currentTier = $this->normalizeTierKey($membership->tier ?: 'standard');
-            $canUpgrade = $oldTier === null || $reason === 'booking_completed';
+            $canUpgrade = $oldTier === null
+                || in_array($reason, ['booking_completed', 'booking_successful'], true)
+                || ($reason === 'recalculated' && ! $membership->last_downgraded_at);
             $targetTier = $canUpgrade && $this->tierOrder($eligibleTier['tier']) > $this->tierOrder($currentTier)
                 ? $eligibleTier
                 : ($settings->firstWhere('tier', $currentTier) ?: $eligibleTier);
 
             $periodStart = $membership->period_start ? Carbon::parse($membership->period_start)->startOfDay() : now()->startOfDay();
             $periodStats = $this->periodStatsForUserVenue($userId, $venueClusterId, $periodStart);
+            $upgraded = $this->tierOrder($targetTier['tier']) > $this->tierOrder($oldTier ?: 'standard');
+            $storedStats = $upgraded && $resetProgressOnUpgrade
+                ? ['total_bookings' => 0, 'total_spent' => 0.0]
+                : $stats;
 
             $membership->fill([
                 'tier' => $targetTier['tier'],
-                'total_bookings' => $stats['total_bookings'],
-                'total_spent' => $stats['total_spent'],
+                'total_bookings' => $storedStats['total_bookings'],
+                'total_spent' => $storedStats['total_spent'],
                 'period_bookings' => $periodStats['period_bookings'],
                 'period_spent' => $periodStats['period_spent'],
                 'period_start' => $periodStart->toDateString(),
             ]);
 
-            if ($oldTier !== null && $this->tierOrder($targetTier['tier']) > $this->tierOrder($oldTier)) {
+            if ($upgraded) {
                 $membership->last_upgraded_at = now();
             }
 
@@ -142,7 +163,7 @@ class VenueMembershipService
     {
         $clusterIds = Booking::query()
             ->where('customer_id', $user->id)
-            ->where('status', 'completed')
+            ->whereIn('status', self::EARNING_BOOKING_STATUSES)
             ->whereNotNull('venue_cluster_id')
             ->distinct()
             ->pluck('venue_cluster_id')
@@ -229,16 +250,37 @@ class VenueMembershipService
                 $tier = $stored->get($shape['tier']);
                 if (! $tier) {
                     return $shape + [
+                        'is_active' => true,
+                        'voucher_id' => null,
+                        'voucher' => null,
                         'maintain_period_months' => null,
                         'maintain_min_bookings' => null,
                         'maintain_min_spent' => null,
                     ];
                 }
 
+                $voucher = $tier->voucher_id
+                    ? DB::table('vouchers')
+                        ->where('id', $tier->voucher_id)
+                        ->first(['id', 'code', 'name', 'status', 'discount_type', 'discount_value', 'max_discount_amount', 'min_order_amount'])
+                    : null;
+
                 return [
                     'tier' => $shape['tier'],
-                    'tier_label' => $shape['tier_label'],
+                    'tier_label' => $tier->tier_label ?: $shape['tier_label'],
                     'tier_order' => $shape['tier_order'],
+                    'is_active' => $shape['tier'] === 'standard' ? true : (bool) $tier->is_active,
+                    'voucher_id' => $tier->voucher_id,
+                    'voucher' => $voucher ? [
+                        'id' => $voucher->id,
+                        'code' => $voucher->code,
+                        'name' => $voucher->name,
+                        'status' => $voucher->status,
+                        'discount_type' => $voucher->discount_type,
+                        'discount_value' => (float) $voucher->discount_value,
+                        'max_discount_amount' => $voucher->max_discount_amount !== null ? (float) $voucher->max_discount_amount : null,
+                        'min_order_amount' => (float) $voucher->min_order_amount,
+                    ] : null,
                     'discount_percent' => (float) $tier->discount_percent,
                     'min_bookings' => (int) $tier->min_bookings,
                     'min_spent_amount' => (float) $tier->min_spent_amount,
@@ -254,17 +296,35 @@ class VenueMembershipService
     private function determineTier(Collection $settings, int $completedBookings, float $totalSpend): array
     {
         return $settings
+            ->filter(fn (array $tier): bool => (bool) ($tier['is_active'] ?? true))
             ->filter(fn (array $tier): bool => $completedBookings >= (int) $tier['min_bookings'] && $totalSpend >= (float) $tier['min_spent_amount'])
             ->sortByDesc('tier_order')
             ->first() ?: $settings->first();
     }
 
-    private function statsForUserVenue(string $userId, string $venueClusterId): array
+    private function resetMembershipProgressOnUpgrade(string $venueClusterId): bool
+    {
+        return (bool) BookingConfig::query()
+            ->where('venue_cluster_id', $venueClusterId)
+            ->value('reset_membership_progress_on_upgrade');
+    }
+
+    private function progressStartForMembership(UserCourtMembership $membership, bool $resetProgressOnUpgrade): ?Carbon
+    {
+        if (! $resetProgressOnUpgrade || ! $membership->exists || ! $membership->last_upgraded_at) {
+            return null;
+        }
+
+        return Carbon::parse($membership->last_upgraded_at);
+    }
+
+    private function statsForUserVenue(string $userId, string $venueClusterId, ?Carbon $completedAfter = null): array
     {
         $stats = Booking::query()
             ->where('customer_id', $userId)
             ->where('venue_cluster_id', $venueClusterId)
-            ->where('status', 'completed')
+            ->whereIn('status', self::EARNING_BOOKING_STATUSES)
+            ->when($completedAfter, fn ($query) => $query->where('updated_at', '>', $completedAfter))
             ->selectRaw('COUNT(*) as completed_bookings')
             ->selectRaw('COALESCE(SUM(COALESCE(final_amount, total_price, 0)), 0) as total_spend_amount')
             ->selectRaw('MAX(updated_at) as last_booking_completed_at')
@@ -282,7 +342,7 @@ class VenueMembershipService
         $stats = Booking::query()
             ->where('customer_id', $userId)
             ->where('venue_cluster_id', $venueClusterId)
-            ->where('status', 'completed')
+            ->whereIn('status', self::EARNING_BOOKING_STATUSES)
             ->where('updated_at', '>=', $periodStart)
             ->when($periodEnd, fn ($query) => $query->where('updated_at', '<', $periodEnd))
             ->selectRaw('COUNT(*) as period_bookings')
@@ -299,14 +359,19 @@ class VenueMembershipService
     {
         $settings = $this->settingsForCluster($membership->venue_cluster_id);
         $tier = $settings->firstWhere('tier', $membership->tier) ?: $settings->first();
-        $nextTier = $settings->first(fn (array $item): bool => (int) $item['tier_order'] === ((int) $tier['tier_order'] + 1));
+        $nextTier = $settings
+            ->filter(fn (array $item): bool => (bool) ($item['is_active'] ?? true))
+            ->first(fn (array $item): bool => (int) $item['tier_order'] > (int) $tier['tier_order']);
+        $resetProgressOnUpgrade = $this->resetMembershipProgressOnUpgrade($membership->venue_cluster_id);
 
         $progressPercent = 100;
         if ($nextTier) {
-            $bookingRange = max(1, (int) $nextTier['min_bookings'] - (int) $tier['min_bookings']);
-            $spendRange = max(1, (float) $nextTier['min_spent_amount'] - (float) $tier['min_spent_amount']);
-            $bookingProgress = (((int) $membership->total_bookings - (int) $tier['min_bookings']) / $bookingRange) * 100;
-            $spendProgress = (((float) $membership->total_spent - (float) $tier['min_spent_amount']) / $spendRange) * 100;
+            $bookingBase = $resetProgressOnUpgrade ? 0 : (int) $tier['min_bookings'];
+            $spendBase = $resetProgressOnUpgrade ? 0.0 : (float) $tier['min_spent_amount'];
+            $bookingRange = max(1, (int) $nextTier['min_bookings'] - $bookingBase);
+            $spendRange = max(1, (float) $nextTier['min_spent_amount'] - $spendBase);
+            $bookingProgress = (((int) $membership->total_bookings - $bookingBase) / $bookingRange) * 100;
+            $spendProgress = (((float) $membership->total_spent - $spendBase) / $spendRange) * 100;
             $progressPercent = (int) round(min(100, max(0, min($bookingProgress, $spendProgress))));
         }
 
@@ -320,6 +385,7 @@ class VenueMembershipService
             'total_spent' => (float) $membership->total_spent,
             'period_bookings' => (int) $membership->period_bookings,
             'period_spent' => (float) $membership->period_spent,
+            'reset_progress_on_upgrade' => $resetProgressOnUpgrade,
             'next_tier' => $nextTier ? $this->tierPayload($nextTier) : null,
             'tiers' => $settings->map(fn (array $item): array => $this->tierPayload($item))->values()->all(),
             'remaining_bookings' => $nextTier ? max(0, (int) $nextTier['min_bookings'] - (int) $membership->total_bookings) : 0,
@@ -337,6 +403,9 @@ class VenueMembershipService
             'tier_label' => $tier['tier_label'],
             'label' => $tier['tier_label'],
             'tier_order' => (int) $tier['tier_order'],
+            'is_active' => (bool) ($tier['is_active'] ?? true),
+            'voucher_id' => $tier['voucher_id'] ?? null,
+            'voucher' => $tier['voucher'] ?? null,
             'discount_percent' => (float) $tier['discount_percent'],
             'min_bookings' => (int) $tier['min_bookings'],
             'min_completed_bookings' => (int) $tier['min_bookings'],

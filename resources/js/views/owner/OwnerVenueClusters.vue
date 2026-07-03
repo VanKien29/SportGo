@@ -74,6 +74,15 @@
                             </span>
                             <span
                                 v-if="
+                                    tab.key === 'info_requests' &&
+                                    pendingInfoCount > 0
+                                "
+                                class="tab-badge tab-badge-location"
+                            >
+                                {{ pendingInfoCount }}
+                            </span>
+                            <span
+                                v-if="
                                     tab.key === 'unlock' &&
                                     pendingUnlockCount > 0
                                 "
@@ -98,6 +107,9 @@
                     </div>
 
                     <div class="readonly-detail-container">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(15, 23, 42, 0.08); padding-bottom: 10px;">
+                            <h3 style="margin: 0; font-size: 16px; font-weight: 700;">Thông tin chi tiết</h3>
+                        </div>
                         <!-- Tên & Điện thoại -->
                         <div class="info-row-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                             <div class="form-group-readonly">
@@ -1223,6 +1235,152 @@
                 </div>
 
                 <!-- ═══════════════════════════════════════════════════
+                     TAB 2: YÊU CẦU THAY ĐỔI THÔNG TIN SÂN
+                ═══════════════════════════════════════════════════ -->
+                <div v-if="activeTab === 'info_requests'" class="location-tab">
+                    <!-- Lịch sử yêu cầu -->
+                    <div class="card">
+                        <div class="approval-list-header">
+                            <h3 class="section-title">
+                                Lịch sử yêu cầu thay đổi thông tin sân
+                            </h3>
+                            <div class="approval-filter-tabs">
+                                <button
+                                    class="tab-sm"
+                                    :class="{ active: infoFilter === '' }"
+                                    @click="infoFilter = ''"
+                                >
+                                    Tất cả
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: infoFilter === 'pending',
+                                    }"
+                                    @click="infoFilter = 'pending'"
+                                >
+                                    Chờ duyệt
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: infoFilter === 'approved',
+                                    }"
+                                    @click="infoFilter = 'approved'"
+                                >
+                                    Đã duyệt
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: infoFilter === 'rejected',
+                                    }"
+                                    @click="infoFilter = 'rejected'"
+                                >
+                                    Từ chối
+                                </button>
+                                <button
+                                    class="tab-sm"
+                                    :class="{
+                                        active: infoFilter === 'cancelled',
+                                    }"
+                                    @click="infoFilter = 'cancelled'"
+                                >
+                                    Đã hủy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="loading"
+                            class="loading-state"
+                            style="padding: 30px 0"
+                        >
+                            <div class="spinner"></div>
+                            <p>Đang tải...</p>
+                        </div>
+                        <div
+                            v-else-if="filteredInfoRequests.length === 0"
+                            class="empty-section"
+                        >
+                            Không có yêu cầu nào.
+                        </div>
+                        <div v-else class="approval-list">
+                            <div
+                                v-for="req in filteredInfoRequests"
+                                :key="req.id"
+                                class="approval-card"
+                                :class="`approval-${req.status}`"
+                            >
+                                <div class="approval-row">
+                                    <div class="approval-details">
+                                        <div class="approval-name fw-bold">
+                                            Thay đổi thông tin cụm sân
+                                        </div>
+                                        <div class="approval-meta">
+                                            Tên mới: {{ req.new_name }}
+                                        </div>
+                                        <div class="approval-meta">
+                                            Số điện thoại mới: {{ req.new_phone_contact }}
+                                        </div>
+                                        <div class="approval-meta" v-if="req.new_description">
+                                            Mô tả mới: {{ req.new_description }}
+                                        </div>
+                                        <div class="approval-meta" v-if="req.new_images && req.new_images.length > 0">
+                                            Số lượng ảnh mới: {{ req.new_images.length }} ảnh
+                                        </div>
+                                        <div class="approval-meta">
+                                            Lý do yêu cầu: {{ req.note }}
+                                        </div>
+                                        <div class="approval-meta">
+                                            Gửi lúc: {{ formatDate(req.created_at) }}
+                                        </div>
+                                        <div
+                                            v-if="
+                                                req.status_reason &&
+                                                req.status === 'rejected'
+                                            "
+                                            class="approval-reason"
+                                        >
+                                            Lý do từ chối: {{ req.status_reason }}
+                                        </div>
+                                    </div>
+                                    <div class="approval-status-action">
+                                        <span
+                                            class="status-badge"
+                                            :class="req.status"
+                                        >
+                                            {{
+                                                req.status === "pending"
+                                                    ? "Chờ duyệt"
+                                                    : req.status === "approved"
+                                                    ? "Đã duyệt"
+                                                    : req.status === "rejected"
+                                                    ? "Từ chối"
+                                                    : "Đã hủy"
+                                            }}
+                                        </span>
+                                        <button
+                                            v-if="req.status === 'pending'"
+                                            class="btn btn-outline btn-xs"
+                                            style="margin-top: 10px;"
+                                            @click="cancelInfoRequest(req.id)"
+                                            :disabled="cancellingId === req.id"
+                                        >
+                                            {{
+                                                cancellingId === req.id
+                                                    ? "Đang hủy..."
+                                                    : "Hủy yêu cầu"
+                                            }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════
                      TAB 4: YÊU CẦU THAY ĐỔI VỊ TRÍ
                 ═══════════════════════════════════════════════════ -->
                 <div v-if="activeTab === 'location'" class="location-tab">
@@ -2161,6 +2319,139 @@
                 </form>
             </div>
         </div>
+        <!-- Modal: Yêu cầu chỉnh sửa thông tin cụm sân -->
+        <div
+            v-if="showEditClusterModal"
+            class="modal-backdrop"
+            @click.self="closeEditClusterModal"
+        >
+            <div class="modal card">
+                <div class="modal-header">
+                    <h3>Yêu cầu chỉnh sửa thông tin cụm sân</h3>
+                    <button class="btn-close" @click="closeEditClusterModal">
+                        <AppIcon name="x" size="18" />
+                    </button>
+                </div>
+                <form @submit.prevent="handleEditClusterSubmit">
+                    <div class="modal-body">
+                        <div
+                            v-if="editClusterError"
+                            class="alert alert-danger"
+                        >
+                            {{ editClusterError }}
+                        </div>
+                        <div class="form-group">
+                            <label for="cluster-edit-name">
+                                Tên cụm sân mới
+                                <span class="required">*</span>
+                            </label>
+                            <input
+                                id="cluster-edit-name"
+                                v-model="editClusterForm.name"
+                                type="text"
+                                class="form-control"
+                                required
+                            />
+                        </div>
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label for="cluster-edit-phone">
+                                Số điện thoại liên hệ mới
+                                <span class="required">*</span>
+                            </label>
+                            <input
+                                id="cluster-edit-phone"
+                                v-model="editClusterForm.phone_contact"
+                                type="text"
+                                class="form-control"
+                                required
+                            />
+                        </div>
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label for="cluster-edit-description">Mô tả cụm sân mới</label>
+                            <textarea
+                                id="cluster-edit-description"
+                                v-model="editClusterForm.description"
+                                class="form-control"
+                                rows="3"
+                                placeholder="Nhập mô tả chi tiết mới về cụm sân..."
+                            ></textarea>
+                        </div>
+
+                        <!-- Upload hình ảnh sân mới -->
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label class="info-label">Hình ảnh sân mới (Thay thế album cũ)</label>
+                            
+                            <!-- Vùng upload ảnh tạm -->
+                            <div class="evidence-upload-area" style="margin-top: 8px;">
+                                <label class="owner-upload-zone" style="border: 2px dashed #cbd5e1; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; background: #f8fafc; transition: all 0.2s;">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        style="display: none;"
+                                        @change="handleTempImageUpload"
+                                        :disabled="uploadingTempImage"
+                                    />
+                                    <AppIcon name="plus" size="24" style="color: #64748b; margin-bottom: 8px;" />
+                                    <span style="font-size: 13px; font-weight: 600; color: #475569;">
+                                        {{ uploadingTempImage ? "Đang tải ảnh..." : "Chọn ảnh hoặc kéo thả vào đây" }}
+                                    </span>
+                                    <span style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Hỗ trợ JPG, PNG, WEBP tối đa 5MB</span>
+                                </label>
+                            </div>
+
+                            <!-- Preview danh sách ảnh tạm -->
+                            <div class="owner-gallery-grid" v-if="tempImages.length > 0" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px;">
+                                <div v-for="(img, idx) in tempImages" :key="idx" class="owner-gallery-item" style="position: relative; aspect-ratio: 4/3; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
+                                    <img :src="img.url" style="width: 100%; height: 100%; object-fit: cover;" />
+                                    <button
+                                        type="button"
+                                        class="btn-delete-image"
+                                        style="position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); border: none; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer;"
+                                        @click="removeTempImage(idx)"
+                                    >
+                                        &times;
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lý do chỉnh sửa -->
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label for="cluster-edit-note">
+                                Lý do yêu cầu chỉnh sửa
+                                <span class="required">*</span>
+                            </label>
+                            <textarea
+                                id="cluster-edit-note"
+                                v-model="editClusterNote"
+                                class="form-control"
+                                rows="3"
+                                placeholder="Nhập lý do gửi yêu cầu chỉnh sửa thông tin sân..."
+                                required
+                            ></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-outline"
+                            @click="closeEditClusterModal"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            :disabled="editClusterSubmitting || uploadingTempImage"
+                        >
+                            {{ editClusterSubmitting ? "Đang gửi..." : "Gửi yêu cầu" }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Nut noi hanh dong cum san -->
         <ClusterActionFloating :is-locked="isClusterLocked" @action="triggerAction" />
     </div>
@@ -2336,6 +2627,21 @@ export default {
             unlockSubmitting: false,
             unlockError: "",
             unlockSuccess: "",
+
+            // Edit Cluster State
+            showEditClusterModal: false,
+            editClusterForm: {
+                name: "",
+                phone_contact: "",
+                description: ""
+            },
+            editClusterSubmitting: false,
+            editClusterError: null,
+            editClusterNote: "",
+            tempImages: [],
+            uploadingTempImage: false,
+            infoRequests: [],
+            infoFilter: "",
         };
     },
 
@@ -2346,6 +2652,7 @@ export default {
         tabs() {
             const list = [
                 { key: "info", label: "Thông tin chung" },
+                { key: "info_requests", label: "Yêu cầu thông tin" },
                 { key: "approvals", label: "Yêu cầu quy mô" },
                 { key: "location", label: "Yêu cầu vị trí" },
             ];
@@ -2363,6 +2670,13 @@ export default {
         },
         pendingUnlockRequest() {
             return this.unlockRequests.find((r) => r.status === "pending") || null;
+        },
+        pendingInfoCount() {
+            return this.infoRequests.filter((r) => r.status === "pending").length;
+        },
+        filteredInfoRequests() {
+            if (!this.infoFilter) return this.infoRequests;
+            return this.infoRequests.filter((r) => r.status === this.infoFilter);
         },
         selectedDecoration() {
             return (
@@ -2612,6 +2926,9 @@ export default {
             this.unlockForm.reason = "";
             // Load location requests ngay để hiển thị badge đúng
             this.fetchLocationRequests(cluster.id);
+            this.fetchInfoRequests(cluster.id);
+            this.infoRequests = [];
+            this.infoFilter = "";
             this.showHamburgerMenu = false;
             this.showCourtTypeRequestModal = false;
             this.courtTypeRequestError = null;
@@ -2672,6 +2989,115 @@ export default {
                 this.updateError = err.message || "Lỗi khi cập nhật cụm sân.";
             } finally {
                 this.updating = false;
+            }
+        },
+
+        openEditClusterModal() {
+            if (!this.selectedCluster) return;
+            this.editClusterError = null;
+            this.editClusterForm = {
+                name: this.selectedCluster.name,
+                phone_contact: this.selectedCluster.phone_contact || "",
+                description: this.selectedCluster.description || "",
+            };
+            this.editClusterNote = "";
+            this.tempImages = [];
+            this.showEditClusterModal = true;
+        },
+
+        closeEditClusterModal() {
+            this.showEditClusterModal = false;
+            this.editClusterError = null;
+            this.tempImages = [];
+            this.editClusterNote = "";
+        },
+
+        async handleTempImageUpload(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            this.uploadingTempImage = true;
+            this.editClusterError = null;
+            try {
+                for (const file of files) {
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert(`File ${file.name} vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.`);
+                        continue;
+                    }
+                    const formData = new FormData();
+                    formData.append("image", file);
+                    const res = await venueClusterService.uploadTempMedia(
+                        this.selectedCluster.id,
+                        formData
+                    );
+                    this.tempImages.push(res.data);
+                }
+            } catch (err) {
+                this.editClusterError = err.message || "Tải lên hình ảnh tạm thời thất bại.";
+            } finally {
+                this.uploadingTempImage = false;
+                e.target.value = "";
+            }
+        },
+
+        removeTempImage(idx) {
+            this.tempImages.splice(idx, 1);
+        },
+
+        async handleEditClusterSubmit() {
+            if (!this.selectedCluster) return;
+            this.editClusterSubmitting = true;
+            this.editClusterError = null;
+            try {
+                const payload = {
+                    new_name: this.editClusterForm.name,
+                    new_phone_contact: this.editClusterForm.phone_contact,
+                    new_description: this.editClusterForm.description,
+                    new_images: this.tempImages.map(img => img.file_path),
+                    note: this.editClusterNote
+                };
+                
+                const res = await venueClusterService.createInformationChangeRequest(
+                    this.selectedCluster.id,
+                    payload
+                );
+                
+                this.infoRequests.unshift(res.data);
+                this.closeEditClusterModal();
+                alert("Gửi yêu cầu chỉnh sửa thông tin sân thành công! Vui lòng chờ Admin duyệt.");
+            } catch (err) {
+                this.editClusterError = err.message || "Đã xảy ra lỗi khi gửi yêu cầu.";
+            } finally {
+                this.editClusterSubmitting = false;
+            }
+        },
+
+        async fetchInfoRequests(clusterId) {
+            if (!clusterId) return;
+            try {
+                const res = await venueClusterService.getInformationChangeRequests(clusterId);
+                this.infoRequests = res.data || [];
+            } catch (err) {
+                console.error("Không thể tải yêu cầu thông tin:", err.message);
+            }
+        },
+
+        async cancelInfoRequest(requestId) {
+            if (!confirm("Bạn có chắc chắn muốn hủy yêu cầu chỉnh sửa này không?")) return;
+            this.cancellingId = requestId;
+            try {
+                const res = await venueClusterService.cancelInformationChangeRequest(
+                    this.selectedCluster.id,
+                    requestId
+                );
+                const idx = this.infoRequests.findIndex(r => r.id === requestId);
+                if (idx !== -1) {
+                    this.infoRequests.splice(idx, 1, res.data);
+                }
+                alert("Đã hủy yêu cầu chỉnh sửa.");
+            } catch (err) {
+                alert(err.message || "Không thể hủy yêu cầu.");
+            } finally {
+                this.cancellingId = null;
             }
         },
 
@@ -4308,7 +4734,9 @@ export default {
         },
 
         triggerAction(type) {
-            if (type === 'location') {
+            if (type === 'info') {
+                this.openEditClusterModal();
+            } else if (type === 'location') {
                 this.openLocationChangeModal();
             } else if (type === 'scale') {
                 this.openCreateApprovalModal();
@@ -5538,6 +5966,7 @@ export default {
 }
 .modal {
     width: min(500px, 95vw);
+    max-height: 90vh;
     padding: 0;
     overflow: hidden;
     display: flex;
@@ -5567,6 +5996,7 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    overflow-y: auto;
 }
 .modal-footer {
     display: flex;

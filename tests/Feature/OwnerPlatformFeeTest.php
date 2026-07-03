@@ -316,6 +316,151 @@ class OwnerPlatformFeeTest extends TestCase
             ->assertJsonPath('message', 'Kỳ phí này đã hoàn tất hoặc đã hủy.');
     }
 
+    public function test_owner_can_cancel_unpaid_fee_and_cancelled_qr_is_not_auto_confirmed(): void
+    {
+        config()->set('services.sepay.webhook_api_key', null);
+        $this->ledger->update([
+            'amount_paid' => $this->ledger->amount_due,
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
+
+        $courtType = CourtType::query()->create([
+            'name' => 'Sân hủy phí trả trước',
+            'player_count' => 4,
+            'is_active' => true,
+        ]);
+        VenueCourt::query()->create([
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $courtType->id,
+            'name' => 'Sân hủy phí 1',
+            'status' => 'active',
+            'sort_order' => 1,
+        ]);
+
+        $create = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/platform-fees/prepay', [
+                'venue_cluster_id' => $this->cluster->id,
+                'months' => 3,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.can_cancel', true);
+
+        $ledgerId = $create->json('data.id');
+        $paymentCode = $create->json('transfer_content');
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson('/api/owner/platform-fees/'.$ledgerId.'/cancel', [
+                'reason' => 'Không tiếp tục yêu cầu thanh toán',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.effective_status', 'cancelled')
+            ->assertJsonPath('data.cancelled_reason', 'Không tiếp tục yêu cầu thanh toán');
+
+        $this->postJson('/api/sepay/ipn', [
+            'id' => 776655,
+            'accountNumber' => '123456789',
+            'code' => $paymentCode,
+            'content' => $paymentCode.' PHI NEN TANG',
+            'transferType' => 'in',
+            'transferAmount' => 300000,
+        ])
+            ->assertOk()
+            ->assertJsonPath('processed', false)
+            ->assertJsonPath('error_code', 'cancelled_ledger');
+
+        $this->assertDatabaseHas('venue_platform_fee_ledgers', [
+            'id' => $ledgerId,
+            'status' => 'cancelled',
+            'amount_paid' => 0,
+            'creation_source' => 'owner_prepay',
+        ]);
+
+        $this->ledger->update([
+            'status' => 'pending',
+            'amount_paid' => 0,
+            'paid_at' => null,
+        ]);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->patchJson('/api/owner/platform-fees/'.$this->ledger->id.'/cancel', [
+                'reason' => 'Thử hủy kỳ bắt buộc',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Chủ sân chỉ có thể hủy yêu cầu thanh toán trước do mình tạo.');
+    }
+
+    public function test_paid_twelve_month_fee_keeps_original_pricing_after_tier_changes(): void
+    {
+        config()->set('services.sepay.webhook_api_key', null);
+        $this->ledger->update([
+            'amount_paid' => $this->ledger->amount_due,
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
+
+        $courtType = CourtType::query()->create([
+            'name' => 'Sân snapshot phí',
+            'player_count' => 4,
+            'is_active' => true,
+        ]);
+
+        foreach (range(1, 2) as $courtNumber) {
+            VenueCourt::query()->create([
+                'venue_cluster_id' => $this->cluster->id,
+                'court_type_id' => $courtType->id,
+                'name' => "Sân snapshot {$courtNumber}",
+                'status' => 'active',
+                'sort_order' => $courtNumber,
+            ]);
+        }
+
+        $tier = PlatformFeeTier::query()->findOrFail($this->ledger->tier_id);
+        $tier->update([
+            'name' => 'Bậc trả trước gốc',
+            'annual_discount_percent' => 10,
+        ]);
+
+        $create = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/platform-fees/prepay', [
+                'venue_cluster_id' => $this->cluster->id,
+                'months' => 12,
+            ])
+            ->assertOk()
+            ->assertJsonPath('amount', 2160000)
+            ->assertJsonPath('data.period_months', 12)
+            ->assertJsonPath('data.discount_percent', 10)
+            ->assertJsonPath('data.tier.name', 'Bậc trả trước gốc');
+
+        $ledgerId = $create->json('data.id');
+        $paymentCode = $create->json('transfer_content');
+
+        $this->postJson('/api/sepay/ipn', [
+            'id' => 443322,
+            'accountNumber' => '123456789',
+            'code' => $paymentCode,
+            'content' => $paymentCode.' PHI NEN TANG',
+            'transferType' => 'in',
+            'transferAmount' => 2160000,
+        ])
+            ->assertOk()
+            ->assertJsonPath('processed', true);
+
+        $tier->update([
+            'name' => 'Bậc đã thay đổi',
+            'price_per_court_month' => 250000,
+            'annual_discount_percent' => 20,
+        ]);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->getJson('/api/owner/platform-fees/'.$ledgerId)
+            ->assertOk()
+            ->assertJsonPath('data.status', 'paid')
+            ->assertJsonPath('data.tier.name', 'Bậc trả trước gốc')
+            ->assertJsonPath('data.price_per_court_month', 100000)
+            ->assertJsonPath('data.discount_percent', 10)
+            ->assertJsonPath('data.amount_due', 2160000);
+    }
+
     private function createOwner(string $username): User
     {
         return User::query()->create([
