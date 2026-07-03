@@ -72,7 +72,7 @@
 
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
-import axios from 'axios';
+import { apiFormData } from '../services/api';
 
 const props = defineProps({
   modelValue: {
@@ -189,9 +189,7 @@ const handleImageUpload = async (e) => {
 
   try {
     uploading.value = true;
-    const res = await axios.post('/api/owner/venue-posts/upload-editor-image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    const res = await apiFormData('/api/owner/venue-posts/upload-editor-image', formData);
     
     // Clear input
     e.target.value = '';

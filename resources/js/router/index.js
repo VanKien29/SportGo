@@ -32,15 +32,18 @@ import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
+import BookingHistory from "../views/clients/booking/BookingHistory.vue";
 import PartnerRegistration from "../views/partner/PartnerRegistration.vue";
 import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
+import NewsDetail from "../views/clients/NewsDetail.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
     { path: "/venues", name: "venues", component: VenueList },
     { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
+    { path: "/news/:slug", name: "news-detail", component: NewsDetail },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
     {
@@ -93,6 +96,12 @@ const routes = [
         path: "/booking/:id",
         name: "booking-detail",
         component: BookingDetail,
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/bookings",
+        name: "booking-history",
+        component: BookingHistory,
         meta: { requiresAuth: true },
     },
     {

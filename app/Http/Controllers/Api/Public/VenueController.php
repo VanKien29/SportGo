@@ -26,6 +26,10 @@ class VenueController extends Controller
             'court_type_id' => ['nullable', 'integer', 'exists:court_types,id'],
             'area' => ['nullable', 'string', 'max:100'],
             'min_rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'booking_date' => ['nullable', 'date_format:Y-m-d'],
+            'start_time' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'end_time' => ['nullable', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
         ]);
 
         $query = VenueCluster::query()
@@ -53,9 +57,11 @@ class VenueController extends Controller
             $query->where('rating_avg', '>=', $validated['min_rating']);
         }
 
+        $availabilityCourtTypeIds = null;
         if (! empty($validated['court_type_id'])) {
             $courtTypeId = (int) $validated['court_type_id'];
             $courtTypeIds = $this->courtTypeSelfAndDescendants($courtTypeId);
+            $availabilityCourtTypeIds = $courtTypeIds;
 
             $query->whereHas('venueCourts', function ($query) use ($courtTypeIds) {
                 $query->whereIn('court_type_id', $courtTypeIds)->where('status', 'active');
@@ -64,8 +70,37 @@ class VenueController extends Controller
 
         $clusters = $query
             ->orderByDesc('rating_avg')
-            ->orderBy('name')
-            ->get()
+            ->orderBy('name');
+
+        if (! empty($validated['limit']) && (empty($validated['booking_date']) || empty($validated['start_time']) || empty($validated['end_time']))) {
+            $clusters->limit((int) $validated['limit']);
+        }
+
+        $clusters = $clusters->get();
+
+        if (! empty($validated['booking_date']) && ! empty($validated['start_time']) && ! empty($validated['end_time'])) {
+            $clusters = $clusters->filter(function (VenueCluster $cluster) use ($validated, $availabilityCourtTypeIds) {
+                $courts = $availabilityCourtTypeIds === null
+                    ? $cluster->venueCourts
+                    : $cluster->venueCourts->filter(fn ($court) => in_array((int) $court->court_type_id, $availabilityCourtTypeIds, true));
+
+                return $courts->contains(function ($court) use ($cluster, $validated) {
+                    return $this->bookingService->checkAvailability(
+                        $court->id,
+                        $validated['booking_date'],
+                        $validated['start_time'],
+                        $validated['end_time'],
+                    ) && $this->bookingService->meetsMinimumAdvanceNotice(
+                        $cluster->id,
+                        $validated['booking_date'],
+                        $validated['start_time'],
+                    );
+                });
+            })->values();
+        }
+
+        $clusters = $clusters
+            ->when(! empty($validated['limit']), fn (Collection $clusters) => $clusters->take((int) $validated['limit']))
             ->map(fn (VenueCluster $cluster) => $this->summaryPayload($cluster));
 
         return response()->json(['data' => $clusters]);
