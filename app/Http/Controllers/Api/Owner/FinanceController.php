@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -84,6 +85,7 @@ class FinanceController extends Controller
                 'bankAccount:id,bank_name,bank_code,account_number,account_holder_name,branch_name,status',
                 'reviewedBy:id,username,full_name',
                 'completedBy:id,username,full_name',
+                'receipt',
             ])
             ->where('owner_id', $request->user()->id)
             ->when($data['wallet_id'] ?? null, fn ($query, string $id) => $query->where('owner_wallet_id', $id))
@@ -91,7 +93,11 @@ class FinanceController extends Controller
             ->latest('requested_at')
             ->paginate(15);
 
-        $withdrawals->getCollection()->each(fn (OwnerWithdrawalRequest $withdrawal) => $this->expireStalePayoutQr($withdrawal));
+        $withdrawals->getCollection()->transform(function (OwnerWithdrawalRequest $withdrawal): array {
+            $this->expireStalePayoutQr($withdrawal);
+
+            return $this->withdrawalPayload($withdrawal);
+        });
 
         return response()->json($withdrawals);
     }
@@ -286,6 +292,35 @@ class FinanceController extends Controller
                 'payout_expired_at' => now()->toIso8601String(),
             ]),
         ])->save();
+    }
+
+    private function withdrawalPayload(OwnerWithdrawalRequest $withdrawal): array
+    {
+        return array_merge($withdrawal->toArray(), [
+            'receipt' => $this->receiptPayload($withdrawal->receipt),
+        ]);
+    }
+
+    private function receiptPayload($receipt): ?array
+    {
+        if (! $receipt) {
+            return null;
+        }
+
+        return [
+            'id' => $receipt->id,
+            'receipt_code' => $receipt->receipt_code,
+            'title' => $receipt->title,
+            'amount' => $receipt->amount,
+            'status' => $receipt->status,
+            'issued_at' => $receipt->issued_at,
+            'metadata' => $receipt->metadata,
+            'view_url' => URL::temporarySignedRoute(
+                'receipts.show',
+                now()->addDays(30),
+                ['receipt' => $receipt->id],
+            ),
+        ];
     }
 
     private function nextRequestCode(): string
