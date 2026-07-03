@@ -30,4 +30,18 @@ export const ownerMatchmakingService = {
       body: JSON.stringify(payload),
     });
   },
+
+  create(payload) {
+    const isFormData = payload instanceof FormData;
+    return api('/api/owner/matchmaking-posts', {
+      method: 'POST',
+      body: isFormData ? payload : JSON.stringify(payload),
+      // if using api wrapper, typically FormData handles headers automatically (omits Content-Type so browser sets boundary)
+    }, isFormData);
+  },
+
+  getEligibleBookings(venue_cluster_id = '') {
+    const query = venue_cluster_id ? `?venue_cluster_id=${venue_cluster_id}` : '';
+    return api(`/api/owner/matchmaking-posts/eligible-bookings${query}`);
+  },
 };

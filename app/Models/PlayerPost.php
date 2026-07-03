@@ -19,11 +19,14 @@ class PlayerPost extends Model
         'author_id',
         'title',
         'description',
+        'image_path',
         'needed_players',
         'cost_per_player',
         'status',
         'status_reason',
     ];
+
+    protected $appends = ['image_url'];
 
     protected function casts(): array
     {
@@ -31,6 +34,11 @@ class PlayerPost extends Model
             'needed_players' => 'integer',
             'cost_per_player' => 'decimal:2',
         ];
+    }
+
+    protected function getImageUrlAttribute(): ?string
+    {
+        return $this->image_path ? asset('storage/' . $this->image_path) : null;
     }
 
     public function author()

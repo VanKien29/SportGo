@@ -2,10 +2,16 @@
 
 namespace App\Services\Finance;
 
+use App\Mail\FinanceReceiptIssuedMail;
 use App\Models\InternalReceipt;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\Refund;
 use App\Models\UserWithdrawalRequest;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
+use Throwable;
 
 class FinanceReceiptService
 {
@@ -13,15 +19,19 @@ class FinanceReceiptService
     {
         $refund->loadMissing(['booking', 'payment']);
 
-        return InternalReceipt::query()->updateOrCreate(
-            ['receipt_code' => 'RCPT-RF-'.strtoupper(substr(hash('sha256', $refund->id), 0, 20))],
+        return $this->updateOrCreateAndNotify(
             [
+                'receiptable_type' => Refund::class,
+                'receiptable_id' => $refund->id,
+            ],
+            [
+                'receipt_code' => 'INV-RF-'.strtoupper(substr(hash('sha256', $refund->id), 0, 20)),
                 'receipt_type' => 'refund',
                 'receiptable_type' => Refund::class,
                 'receiptable_id' => $refund->id,
                 'issued_to_user_id' => $refund->customer_id,
                 'issued_by' => $issuedBy,
-                'title' => 'Phiếu hoàn tiền booking '.$refund->booking?->booking_code,
+                'title' => 'Hóa đơn hoàn tiền booking '.$refund->booking?->booking_code,
                 'amount' => $refund->amount,
                 'currency' => 'VND',
                 'status' => 'issued',
@@ -40,15 +50,19 @@ class FinanceReceiptService
     {
         $withdrawal->loadMissing('bankAccount');
 
-        return InternalReceipt::query()->updateOrCreate(
-            ['receipt_code' => 'RCPT-WD-'.$withdrawal->request_code],
+        return $this->updateOrCreateAndNotify(
             [
+                'receiptable_type' => OwnerWithdrawalRequest::class,
+                'receiptable_id' => $withdrawal->id,
+            ],
+            [
+                'receipt_code' => 'INV-WD-'.$withdrawal->request_code,
                 'receipt_type' => 'withdrawal',
                 'receiptable_type' => OwnerWithdrawalRequest::class,
                 'receiptable_id' => $withdrawal->id,
                 'issued_to_user_id' => $withdrawal->owner_id,
                 'issued_by' => $issuedBy,
-                'title' => 'Phiếu chi rút tiền '.$withdrawal->request_code,
+                'title' => 'Hóa đơn chi trả rút tiền '.$withdrawal->request_code,
                 'amount' => $withdrawal->amount,
                 'currency' => 'VND',
                 'status' => 'issued',
@@ -70,15 +84,19 @@ class FinanceReceiptService
         $withdrawal->loadMissing(['payoutAccount', 'user']);
         $requestCode = 'UWD-'.strtoupper(substr(hash('sha256', $withdrawal->id), 0, 10));
 
-        return InternalReceipt::query()->updateOrCreate(
-            ['receipt_code' => 'RCPT-UWD-'.strtoupper(substr(hash('sha256', $withdrawal->id), 0, 18))],
+        return $this->updateOrCreateAndNotify(
             [
+                'receiptable_type' => UserWithdrawalRequest::class,
+                'receiptable_id' => $withdrawal->id,
+            ],
+            [
+                'receipt_code' => 'INV-UWD-'.strtoupper(substr(hash('sha256', $withdrawal->id), 0, 18)),
                 'receipt_type' => 'withdrawal',
                 'receiptable_type' => UserWithdrawalRequest::class,
                 'receiptable_id' => $withdrawal->id,
                 'issued_to_user_id' => $withdrawal->user_id,
                 'issued_by' => $issuedBy,
-                'title' => 'Phiếu chi rút tiền ví người dùng '.$requestCode,
+                'title' => 'Hóa đơn chi trả rút tiền ví người dùng '.$requestCode,
                 'amount' => $withdrawal->amount,
                 'currency' => 'VND',
                 'status' => 'issued',
@@ -94,5 +112,99 @@ class FinanceReceiptService
                 ],
             ],
         );
+    }
+
+    private function updateOrCreateAndNotify(array $lookup, array $attributes): InternalReceipt
+    {
+        $existing = InternalReceipt::query()->where($lookup)->first();
+
+        if ($existing) {
+            $attributes['metadata'] = $this->mergePersistentMetadata(
+                $existing->metadata ?? [],
+                $attributes['metadata'] ?? [],
+            );
+        }
+
+        $receipt = InternalReceipt::query()->updateOrCreate($lookup, $attributes);
+        $this->sendMailOnce($receipt);
+
+        return $receipt;
+    }
+
+    private function mergePersistentMetadata(array $existing, array $current): array
+    {
+        foreach (['mail_sent_at', 'mail_to', 'mail_status', 'mail_error', 'receipt_url'] as $key) {
+            if (array_key_exists($key, $existing)) {
+                $current[$key] = $existing[$key];
+            }
+        }
+
+        return $current;
+    }
+
+    private function sendMailOnce(InternalReceipt $receipt): void
+    {
+        $receipt->loadMissing('issuedTo');
+
+        $metadata = $receipt->metadata ?? [];
+        if (! empty($metadata['mail_sent_at'])) {
+            return;
+        }
+
+        $recipient = $receipt->issuedTo;
+        if (! $recipient?->email) {
+            $metadata['mail_status'] = 'skipped_no_email';
+            $receipt->forceFill(['metadata' => $metadata])->save();
+
+            return;
+        }
+
+        $receiptId = $receipt->getKey();
+        $email = $recipient->email;
+
+        DB::afterCommit(function () use ($receiptId, $email): void {
+            $receipt = InternalReceipt::query()
+                ->with(['issuedTo', 'issuedBy'])
+                ->find($receiptId);
+
+            if (! $receipt) {
+                return;
+            }
+
+            $metadata = $receipt->metadata ?? [];
+            if (! empty($metadata['mail_sent_at'])) {
+                return;
+            }
+
+            $receiptUrl = URL::temporarySignedRoute(
+                'invoices.show',
+                now()->addDays(30),
+                ['receipt' => $receipt->getKey()],
+            );
+
+            try {
+                Mail::to($email)->send(new FinanceReceiptIssuedMail($receipt, $receiptUrl));
+
+                unset($metadata['mail_error']);
+                $metadata['mail_to'] = $email;
+                $metadata['mail_status'] = 'sent';
+                $metadata['mail_sent_at'] = now()->toDateTimeString();
+                $metadata['receipt_url'] = $receiptUrl;
+            } catch (Throwable $exception) {
+                Log::warning('Không gửi được email hóa đơn tài chính.', [
+                    'receipt_id' => $receipt->getKey(),
+                    'receipt_code' => $receipt->receipt_code,
+                    'email' => $email,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                $metadata['mail_to'] = $email;
+                $metadata['mail_status'] = 'failed';
+                $metadata['mail_error'] = $exception->getMessage();
+                $metadata['receipt_url'] = $receiptUrl;
+            }
+
+            $receipt->forceFill(['metadata' => $metadata])->save();
+        });
     }
 }

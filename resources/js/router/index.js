@@ -32,15 +32,18 @@ import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
+import BookingHistory from "../views/clients/booking/BookingHistory.vue";
 import PartnerRegistration from "../views/partner/PartnerRegistration.vue";
 import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
+import NewsDetail from "../views/clients/NewsDetail.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
     { path: "/venues", name: "venues", component: VenueList },
     { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
+    { path: "/news/:slug", name: "news-detail", component: NewsDetail },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
     {
@@ -93,6 +96,12 @@ const routes = [
         path: "/booking/:id",
         name: "booking-detail",
         component: BookingDetail,
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/bookings",
+        name: "booking-history",
+        component: BookingHistory,
         meta: { requiresAuth: true },
     },
     {
@@ -192,20 +201,21 @@ const routes = [
             },
             { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail, meta: { hideFloatingBack: true } },
             {
+                path: "reports-complaints",
+                name: "admin-reports-complaints",
+                component: () => import("../views/admin/AdminReportsAndComplaints.vue"),
+            },
+            {
                 path: "reports",
-                redirect: { name: "admin-moderation", query: { tab: "reports" } }
+                redirect: { name: "admin-reports-complaints", query: { tab: "reports" } }
             },
             {
                 path: "complaints",
-                redirect: { name: "admin-moderation", query: { tab: "complaints" } }
+                redirect: { name: "admin-reports-complaints", query: { tab: "complaints" } }
             },
             { path: "roles", name: "admin-roles", component: AdminRoles },
             { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail, meta: { hideFloatingBack: true } },
-            {
-                path: "venue-posts",
-                name: "admin-venue-posts",
-                component: () => import("../views/admin/AdminVenuePosts.vue"),
-            },
+
             {
                 path: "court-types",
                 name: "admin-court-types",
@@ -350,6 +360,16 @@ const routes = [
                 path: "matchmaking",
                 name: "owner-matchmaking",
                 component: () => import("../views/owner/OwnerMatchmaking.vue"),
+            },
+            {
+                path: "complaints",
+                name: "owner-complaints",
+                component: () => import("../views/owner/OwnerComplaints.vue"),
+            },
+            {
+                path: "complaints/:id",
+                name: "owner-complaint-detail",
+                component: () => import("../views/owner/OwnerComplaintDetail.vue"),
             },
             { path: "profile", name: "owner-profile", component: Profile },
             {

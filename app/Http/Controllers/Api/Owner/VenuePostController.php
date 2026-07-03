@@ -29,7 +29,11 @@ class VenuePostController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            if ($request->status === 'deleted') {
+                $query->onlyTrashed();
+            } else {
+                $query->where('status', $request->status);
+            }
         }
 
         if ($request->filled('post_type')) {
@@ -113,12 +117,39 @@ class VenuePostController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('editor', 'public');
+            $file = $request->file('image');
+            
+            // Convert to webp
+            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+            $image = $manager->decodePath($file->getPathname());
+            
+            $filename = uniqid('editor_', true) . '.webp';
+            $path = 'editor/' . $filename;
+            
+            if (!\Illuminate\Support\Facades\Storage::disk('public')->exists('editor')) {
+                \Illuminate\Support\Facades\Storage::disk('public')->makeDirectory('editor');
+            }
+            
+            $image->save(storage_path('app/public/' . $path), quality: 80);
+            
             return response()->json([
                 'url' => asset('storage/' . $path)
             ]);
         }
 
         return response()->json(['message' => 'Tải lên ảnh thất bại.'], 400);
+    }
+
+    public function restore(Request $request, string $id)
+    {
+        $post = VenuePost::onlyTrashed()->findOrFail($id);
+        Gate::authorize('restore', $post);
+
+        try {
+            $this->venuePostService->restorePost($post, $request->user());
+            return response()->json(['message' => 'Khôi phục bài viết thành công.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Khôi phục thất bại.'], 422);
+        }
     }
 }

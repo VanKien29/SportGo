@@ -66,4 +66,9 @@ class Complaint extends Model
     {
         return $this->belongsTo(VenueCluster::class, 'venue_cluster_id');
     }
+
+    public function replies()
+    {
+        return $this->hasMany(ComplaintReply::class, 'complaint_id')->orderBy('created_at', 'asc');
+    }
 }

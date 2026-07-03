@@ -56,6 +56,7 @@
         <button @click="setStatusFilter('draft')" :class="['tab-btn pill', { active: filters.status === 'draft' }]">Bản nháp</button>
         <button @click="setStatusFilter('rejected')" :class="['tab-btn pill', { active: filters.status === 'rejected' }]">Từ chối</button>
         <button @click="setStatusFilter('hidden')" :class="['tab-btn pill', { active: filters.status === 'hidden' }]">Đã ẩn</button>
+        <button @click="setStatusFilter('deleted')" :class="['tab-btn pill', { active: filters.status === 'deleted' }]">Đã xóa</button>
       </div>
 
       <div class="sort-options modern-tabs" style="border-radius: 12px; padding: 4px; background: rgba(255,255,255,0.6); backdrop-filter: blur(8px);">
@@ -87,11 +88,17 @@
         
         <!-- Image Cover -->
         <div class="cover-image" style="height: 200px; position: relative; background: #f8fafc; cursor: pointer; border-bottom: 1px solid #f1f5f9; overflow: hidden;">
-          <img v-if="getThumbnail(post)" :src="getThumbnail(post)" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease;" class="hover-scale" />
+          <img
+            v-if="hasThumbnail(post)"
+            :src="getThumbnail(post)"
+            style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease;"
+            class="hover-scale"
+            @error="handleThumbnailError(post.id)"
+          />
           <div v-else style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8; background: #f1f5f9;"><AppIcon name="image" size="36" /></div>
           
           <span class="status-badge" :class="post.status || 'draft'" style="position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.95); padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); backdrop-filter: blur(4px);">
-            {{ statusLabel(post.status) }}
+            {{ statusLabel(post) }}
           </span>
           <span style="position: absolute; top: 12px; left: 12px; font-size: 11px; font-weight: 800; background: rgba(15,23,42,0.85); padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); color: #fff; backdrop-filter: blur(4px);">
             {{ formatCategory(post.post_type) }}
@@ -131,24 +138,30 @@
               {{ post.author?.full_name || 'Bạn' }}
             </div>
             <div class="post-actions" style="display: flex; gap: 8px;">
-              <a v-if="post.status === 'published'" :href="`/venues/${post.venue_cluster_id}?tab=posts`" target="_blank" class="btn ghost btn-sm action-btn" style="padding: 0; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #e2e8f0; background: white;" title="Xem trên trang cụm sân">
-                <AppIcon name="external-link" size="16" style="color: #3b82f6;" />
-              </a>
-              <!-- Pending review: chỉ xem, icon mắt -->
-              <button v-if="post.status === 'pending_review'" class="btn ghost btn-sm action-btn" type="button" @click="openForm(post)" style="padding: 0; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #bfdbfe; background: #eff6ff; transition: all 0.2s;" title="Xem chi tiết bài viết">
-                <AppIcon name="eye" size="16" style="color: #3b82f6;" />
+              <!-- Deleted: Khôi phục -->
+              <button v-if="post.deleted_at" class="btn ghost btn-sm action-btn" type="button" @click="confirmRestore(post)" style="padding: 0; min-width: 38px; padding: 0 12px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #6ee7b7; background: #ecfdf5; transition: all 0.2s; color: #059669; gap: 6px; font-size: 13px; font-weight: 600;" title="Khôi phục bài viết">
+                <AppIcon name="refresh-cw" size="14" /> Khôi phục
               </button>
-              <!-- Rejected: được phép sửa lại, icon edit màu cam -->
-              <button v-else-if="post.status === 'rejected'" class="btn ghost btn-sm action-btn" type="button" @click="openForm(post)" style="padding: 0; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #fed7aa; background: #fff7ed; transition: all 0.2s;" title="Chỉnh sửa và gửi lại duyệt">
-                <AppIcon name="edit" size="16" style="color: #f97316;" />
-              </button>
-              <!-- Draft / Published / Hidden: sửa bình thường, icon edit xanh -->
-              <button v-else class="btn ghost btn-sm action-btn" type="button" @click="openForm(post)" style="padding: 0; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #e2e8f0; background: white; transition: all 0.2s;" title="Chỉnh sửa bài viết">
-                <AppIcon name="edit" size="16" style="color: #10b981;" />
-              </button>
-              <button class="btn ghost danger btn-sm action-btn" type="button" @click="confirmDelete(post)" style="padding: 0; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #fecaca; background: #fef2f2; transition: all 0.2s;" title="Xóa bài viết">
-                <AppIcon name="trash" size="16" style="color: #ef4444;" />
-              </button>
+              <template v-else>
+                <a v-if="post.status === 'published'" :href="`/venues/${post.venue_cluster_id}?tab=posts`" target="_blank" class="btn ghost btn-sm action-btn" style="padding: 0; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #e2e8f0; background: white;" title="Xem trên trang cụm sân">
+                  <AppIcon name="external-link" size="16" style="color: #3b82f6;" />
+                </a>
+                <!-- Pending review: chỉ xem, icon mắt -->
+                <button v-if="post.status === 'pending_review'" class="btn ghost btn-sm action-btn" type="button" @click="openForm(post)" style="padding: 0; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #bfdbfe; background: #eff6ff; transition: all 0.2s;" title="Xem chi tiết bài viết">
+                  <AppIcon name="eye" size="16" style="color: #3b82f6;" />
+                </button>
+                <!-- Rejected: được phép sửa lại, icon edit màu cam -->
+                <button v-else-if="post.status === 'rejected'" class="btn ghost btn-sm action-btn" type="button" @click="openForm(post)" style="padding: 0; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #fed7aa; background: #fff7ed; transition: all 0.2s;" title="Chỉnh sửa và gửi lại duyệt">
+                  <AppIcon name="edit" size="16" style="color: #f97316;" />
+                </button>
+                <!-- Draft / Published / Hidden: sửa bình thường, icon edit xanh -->
+                <button v-else class="btn ghost btn-sm action-btn" type="button" @click="openForm(post)" style="padding: 0; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #e2e8f0; background: white; transition: all 0.2s;" title="Chỉnh sửa bài viết">
+                  <AppIcon name="edit" size="16" style="color: #10b981;" />
+                </button>
+                <button class="btn ghost danger btn-sm action-btn" type="button" @click="confirmDelete(post)" style="padding: 0; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #fecaca; background: #fef2f2; transition: all 0.2s;" title="Xóa bài viết">
+                  <AppIcon name="trash" size="16" style="color: #ef4444;" />
+                </button>
+              </template>
             </div>
           </div>
         </div>
@@ -208,31 +221,31 @@
             <!-- Form Row: Left + Right -->
             <div style="display: flex; flex-direction: row; gap: 24px;">
               <!-- Left Form -->
-              <div style="flex: 2; display: flex; flex-direction: column; gap: 16px;">
+              <div style="flex: 2; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
               <label class="field" style="display: flex; flex-direction: column; gap: 6px;">
                 <span style="font-size: 13px; font-weight: 700; color: #475569;">Tiêu đề bài viết <span class="required" style="color: #ef4444;">*</span></span>
-                <input v-model="form.title" name="title" type="text" class="modern-input" :class="{ 'is-invalid': errors.title }" placeholder="Tiêu đề ấn tượng (5-200 ký tự)" required :disabled="editingPostStatus === 'pending_review'" />
+                <input v-model="form.title" name="title" type="text" class="modern-input" :class="{ 'is-invalid': errors.title }" placeholder="Tiêu đề ấn tượng (5-200 ký tự)" :disabled="editingPostStatus === 'pending_review'" />
                 <p class="error-msg" v-if="errors.title" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.title[0] }}</p>
               </label>
 
               <label class="field" style="display: flex; flex-direction: column; gap: 6px;">
                 <span style="font-size: 13px; font-weight: 700; color: #475569;">Mô tả ngắn <span class="required" style="color: #ef4444;">*</span></span>
-                <textarea v-model="form.short_description" name="short_description" :class="{ 'is-invalid': errors.short_description }" rows="2" class="modern-textarea" placeholder="Tóm tắt nội dung hấp dẫn người đọc..." required :disabled="editingPostStatus === 'pending_review'"></textarea>
+                <textarea v-model="form.short_description" name="short_description" :class="{ 'is-invalid': errors.short_description }" rows="2" class="modern-textarea" placeholder="Tóm tắt nội dung hấp dẫn người đọc..." :disabled="editingPostStatus === 'pending_review'"></textarea>
                 <p class="error-msg" v-if="errors.short_description" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.short_description[0] }}</p>
               </label>
 
-              <label class="field" style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+              <div class="field" style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
                 <span style="font-size: 13px; font-weight: 700; color: #475569;">Nội dung chi tiết <span class="required" style="color: #ef4444;">*</span></span>
                 <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; flex: 1; min-height: 350px;">
                   <RichTextEditor v-model="form.content" placeholder="Viết nội dung phong phú..." style="min-height: 350px;" :disabled="editingPostStatus === 'pending_review'" />
                 </div>
                 <p class="error-msg" v-if="errors.content" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.content[0] }}</p>
-              </label>
+              </div>
             </div>
 
             <!-- Right Sidebar -->
             <div style="flex: 1; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; padding: 16px; border-radius: 16px;">
-              <label class="field" style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="field" style="display: flex; flex-direction: column; gap: 6px;">
                 <span style="font-size: 13px; font-weight: 700; color: #475569;">Ảnh đại diện (Thumbnail)</span>
                 <div class="upload-zone" style="aspect-ratio: 16/10; border: 2px dashed #cbd5e1; border-radius: 12px; position: relative; cursor: pointer; overflow: hidden; background: white;" :style="editingPostStatus === 'pending_review' ? 'cursor: not-allowed; opacity: 0.8;' : ''" @click="editingPostStatus !== 'pending_review' && !thumbnailPreview && $refs.fileInputRef.click()">
                   <div v-if="thumbnailPreview" style="position: absolute; inset: 0;">
@@ -246,27 +259,17 @@
                   <input type="file" ref="fileInputRef" style="display: none;" @click.stop @change="handleFileUpload" accept="image/*" />
                 </div>
                 <p class="error-msg" v-if="errors.thumbnail" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.thumbnail[0] }}</p>
-              </label>
+              </div>
 
               <label class="field compact" style="display: flex; flex-direction: column; gap: 6px;">
                 <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8;">Cơ sở / Cụm sân <span class="required" style="color: #ef4444;">*</span></span>
-                <select v-model="form.venue_cluster_id" class="modern-select" :class="{ 'is-invalid': errors.venue_cluster_id }" required :disabled="editingPostStatus === 'pending_review'">
-                  <option value="" disabled>-- Chọn cụm sân --</option>
-                  <option v-for="cluster in venueClusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
-                </select>
+                <CustomSelect v-model="form.venue_cluster_id" :options="clusterOptions" placeholder="-- Chọn cụm sân --" :class="{ 'is-invalid': errors.venue_cluster_id }" disabled />
                 <p class="error-msg" v-if="errors.venue_cluster_id" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.venue_cluster_id[0] }}</p>
               </label>
 
               <label class="field compact" style="display: flex; flex-direction: column; gap: 6px;">
                 <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8;">Danh mục <span class="required" style="color: #ef4444;">*</span></span>
-                <select v-model="form.post_type" class="modern-select" :class="{ 'is-invalid': errors.post_type }" required :disabled="editingPostStatus === 'pending_review'">
-                  <option value="" disabled>-- Chọn danh mục --</option>
-                  <option value="promotion">Khuyến mãi</option>
-                  <option value="tournament">Giải đấu</option>
-                  <option value="news">Tin tức</option>
-                  <option value="notice">Thông báo</option>
-                  <option value="recruitment">Tuyển dụng</option>
-                </select>
+                <CustomSelect v-model="form.post_type" :options="categoryOptions" placeholder="-- Chọn danh mục --" :class="{ 'is-invalid': errors.post_type }" :disabled="editingPostStatus === 'pending_review'" />
                 <p class="error-msg" v-if="errors.post_type" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.post_type[0] }}</p>
               </label>
 
@@ -316,6 +319,20 @@
       </div>
     </dialog>
 
+    <!-- RESTORE MODAL -->
+    <dialog id="restore_confirm_modal" class="modal-dialog-custom" @click="handleRestoreDialogClick">
+      <div class="modal medium glass-modal" @click.stop style="max-width: 400px; padding: 0;">
+        <div class="modal-body" style="padding: 32px 24px; text-align: center;">
+          <div style="font-size: 48px; color: #059669; margin-bottom: 16px;"><i class="fas fa-undo"></i></div>
+          <h3 style="font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 8px;">Khôi phục bài viết</h3>
+          <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;">Bạn có chắc chắn muốn khôi phục bài viết này không? Bài viết sẽ được chuyển về trạng thái Đã xuất bản.</p>
+          <div style="display: flex; gap: 12px;">
+            <button class="btn ghost" style="flex: 1;" @click="closeRestoreModal">Hủy</button>
+            <button class="btn primary" style="flex: 1; background: #10b981; color: white; border-color: #10b981;" @click="executeRestore">Khôi phục</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
   </div>
 </template>
 
@@ -325,6 +342,8 @@ import { api, apiFormData } from '../../services/api';
 import { useToast } from 'vue-toastification';
 import RichTextEditor from '../../components/RichTextEditor.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import { normalizeMediaUrl } from '../../utils/mediaUrl.js';
+import CustomSelect from '../../components/CustomSelect.vue';
 
 const toast = useToast();
 
@@ -339,6 +358,18 @@ const fileInputRef = ref(null);
 
 const thumbnailPreview = ref('');
 const deletingPost = ref(null);
+
+const categoryOptions = [
+  { value: 'promotion', label: 'Khuyến mãi' },
+  { value: 'tournament', label: 'Giải đấu' },
+  { value: 'news', label: 'Tin tức' },
+  { value: 'notice', label: 'Thông báo' },
+  { value: 'recruitment', label: 'Tuyển dụng' }
+];
+
+const clusterOptions = computed(() => {
+  return venueClusters.value.map(c => ({ label: c.name, value: c.id }));
+});
 
 const pagination = reactive({
   current_page: 1,
@@ -370,12 +401,29 @@ const form = reactive({
 });
 
 const errors = ref({});
+const brokenThumbnails = ref(new Set());
+
+const currentClusterId = ref(localStorage.getItem('selected_cluster') || '');
+
+const handleClusterChange = (e) => {
+  if (e.detail && e.detail.id) {
+    currentClusterId.value = e.detail.id;
+    if (form.venue_cluster_id) {
+      form.venue_cluster_id = e.detail.id;
+    }
+  }
+};
 
 onMounted(async () => {
+  window.addEventListener('owner-cluster-changed', handleClusterChange);
   await Promise.all([
     fetchVenueClusters(),
     fetchPosts(),
   ]);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('owner-cluster-changed', handleClusterChange);
 });
 
 const fetchVenueClusters = async () => {
@@ -401,6 +449,7 @@ const fetchPosts = async (page = 1) => {
     
     const res = await api('/api/owner/venue-posts' + (Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : ''));
     posts.value = res.data;
+    brokenThumbnails.value = new Set();
     pagination.current_page = res.current_page;
     pagination.last_page = res.last_page;
     pagination.per_page = res.per_page;
@@ -438,7 +487,10 @@ const toggleSort = (field) => {
   fetchPosts(1);
 };
 
-const handleFileUpload = (e) => {
+const MAX_SOURCE_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_UPLOAD_IMAGE_BYTES = 2 * 1024 * 1024;
+
+const handleFileUpload = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
@@ -450,16 +502,70 @@ const handleFileUpload = (e) => {
     return;
   }
 
-  if (file.size > 5 * 1024 * 1024) {
+  if (file.size > MAX_SOURCE_IMAGE_BYTES) {
     errors.value.thumbnail = ['Kích thước ảnh không được vượt quá 5MB.'];
     toast.error('Kích thước ảnh không được vượt quá 5MB.');
     if (fileInputRef.value) fileInputRef.value.value = '';
     return;
   }
 
-  form.thumbnail = file;
-  thumbnailPreview.value = URL.createObjectURL(file);
-  errors.value.thumbnail = null;
+  try {
+    const uploadFile = file.size > MAX_UPLOAD_IMAGE_BYTES ? await compressImage(file, MAX_UPLOAD_IMAGE_BYTES) : file;
+    form.thumbnail = uploadFile;
+    thumbnailPreview.value = URL.createObjectURL(uploadFile);
+    errors.value.thumbnail = null;
+  } catch (error) {
+    errors.value.thumbnail = ['Không thể xử lý ảnh. Vui lòng chọn ảnh JPG, PNG hoặc WEBP khác.'];
+    toast.error('Không thể xử lý ảnh. Vui lòng chọn ảnh khác.');
+    if (fileInputRef.value) fileInputRef.value.value = '';
+  }
+};
+
+const compressImage = (file, maxBytes) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = reject;
+      image.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const maxDimension = 1600;
+        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+          reject(new Error('Canvas is not supported.'));
+          return;
+        }
+
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        for (const quality of [0.86, 0.78, 0.7, 0.62, 0.54]) {
+          const blob = await canvasToBlob(canvas, 'image/webp', quality);
+          if (blob && blob.size <= maxBytes) {
+            resolve(new File([blob], replaceExtension(file.name, 'webp'), { type: 'image/webp' }));
+            return;
+          }
+        }
+
+        reject(new Error('Compressed image is still too large.'));
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+const canvasToBlob = (canvas, type, quality) => {
+  return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+};
+
+const replaceExtension = (fileName, extension) => {
+  const baseName = fileName.replace(/\.[^.]+$/, '') || 'thumbnail';
+  return `${baseName}.${extension}`;
 };
 
 const clearThumbnail = () => {
@@ -480,8 +586,9 @@ const openForm = (post = null) => {
     editingPostStatus.value = post.status;
     
     form.venue_cluster_id = post.venue_cluster_id;
-    form.title = post.title;
-    form.short_description = post.short_description || '';
+    const contentText = plainTextFromHtml(post.content);
+    form.title = normalizeExistingTitle(post.title, contentText);
+    form.short_description = normalizeExistingDescription(post.short_description, contentText);
     form.content = post.content;
     form.post_type = post.post_type;
     form.is_draft = post.status === 'draft';
@@ -497,12 +604,14 @@ const openForm = (post = null) => {
     editingPostId.value = null;
     editingPostStatus.value = '';
     
-    form.venue_cluster_id = venueClusters.value.length > 0 ? venueClusters.value[0].id : '';
-    form.title = '';
-    form.short_description = '';
-    form.content = '';
-    form.post_type = '';
-    form.is_draft = false;
+    if (!isEditing.value) {
+      form.venue_cluster_id = currentClusterId.value || (venueClusters.value.length > 0 ? venueClusters.value[0].id : '');
+      form.title = '';
+      form.short_description = '';
+      form.content = '';
+      form.post_type = '';
+      form.is_draft = false;
+    }
     form.thumbnail = null;
     form.tags = [];
   }
@@ -579,8 +688,8 @@ const submitForm = async () => {
     fetchPosts(pagination.current_page);
   } catch (error) {
     if (error.response && error.response.status === 422) {
-      errors.value = error.response.data.errors;
-      toast.error(error.response.data.message || 'Dữ liệu nhập không hợp lệ, vui lòng kiểm tra lại.');
+      errors.value = error.response.data.errors || {};
+      toast.error(firstValidationMessage(error.response.data) || 'Dữ liệu nhập không hợp lệ, vui lòng kiểm tra lại.');
       focusFirstError();
     } else {
       toast.error('Có lỗi xảy ra trong quá trình xử lý, vui lòng thử lại.');
@@ -616,6 +725,19 @@ const closeDeleteModal = () => {
   deletingPost.value = null;
 };
 
+const restoringPost = ref(null);
+const handleRestoreDialogClick = (e) => { if(e.target.id === 'restore_confirm_modal') closeRestoreModal(); };
+
+const confirmRestore = (post) => {
+  restoringPost.value = post;
+  document.getElementById('restore_confirm_modal').showModal();
+};
+
+const closeRestoreModal = () => {
+  document.getElementById('restore_confirm_modal').close();
+  restoringPost.value = null;
+};
+
 const executeDelete = async () => {
   if (!deletingPost.value) return;
   try {
@@ -633,13 +755,65 @@ const executeDelete = async () => {
   }
 };
 
+const executeRestore = async () => {
+  if (!restoringPost.value) return;
+  try {
+    await api(`/api/owner/venue-posts/${restoringPost.value.id}/restore`, { method: 'POST' });
+    toast.success('Khôi phục bài viết thành công.');
+    fetchPosts(pagination.current_page);
+    closeRestoreModal();
+  } catch (error) {
+    toast.error('Lỗi khi khôi phục bài viết.');
+    closeRestoreModal();
+  }
+};
+
 const getThumbnail = (post) => {
   if (!post.media?.length) return '';
   const thumb = post.media.find((m) => m.collection === 'thumbnail') || post.media[0];
-  return thumb?.file_path ? `/storage/${thumb.file_path}` : '';
+  return normalizeMediaUrl(thumb);
 };
 
-const statusLabel = (status) => {
+const plainTextFromHtml = (html = '') => {
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html || '';
+  return (tempDiv.innerText || tempDiv.textContent || '').replace(/\s+/g, ' ').trim();
+};
+
+const normalizeExistingTitle = (title, contentText = '') => {
+  const normalized = String(title || '').trim();
+  if (normalized.length >= 5 && normalized.length <= 200) return normalized;
+
+  const fallback = contentText.slice(0, 80).trim();
+  return fallback.length >= 5 ? fallback : 'Bài viết sân thể thao';
+};
+
+const normalizeExistingDescription = (description, contentText = '') => {
+  const normalized = String(description || '').trim();
+  if (normalized.length >= 10 && normalized.length <= 500) return normalized;
+
+  const fallback = contentText.slice(0, 160).trim();
+  return fallback.length >= 10 ? fallback : 'Thông tin cập nhật từ chủ sân.';
+};
+
+const firstValidationMessage = (data) => {
+  const first = data?.errors ? Object.values(data.errors)[0] : null;
+  if (Array.isArray(first) && first[0]) return first[0];
+  return data?.message || '';
+};
+
+const hasThumbnail = (post) => {
+  return Boolean(getThumbnail(post)) && !brokenThumbnails.value.has(post.id);
+};
+
+const handleThumbnailError = (postId) => {
+  const next = new Set(brokenThumbnails.value);
+  next.add(postId);
+  brokenThumbnails.value = next;
+};
+
+const statusLabel = (post) => {
+  if (post.deleted_at) return 'Đã xóa';
   const map = {
     'draft': 'Bản nháp',
     'pending_review': 'Chờ duyệt',
@@ -647,7 +821,7 @@ const statusLabel = (status) => {
     'rejected': 'Bị từ chối',
     'hidden': 'Đã ẩn'
   };
-  return map[status] || status;
+  return map[post.status] || post.status;
 };
 
 const formatCategory = (type) => {

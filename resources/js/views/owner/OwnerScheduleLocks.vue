@@ -446,15 +446,8 @@
         <details v-if="locks.length" class="locks-section" open>
             <summary class="locks-summary">
                 <div>
-                    <strong>Khoảng đã khóa trong ngày</strong>
-<<<<<<< HEAD
-                    <span>{{ locks.length }} khoảng · {{ date(form.start_date) }}</span>
-=======
-                    <span
-                        >{{ locks.length }} khoảng ·
-                        {{ date(form.start_date) }}</span
-                    >
->>>>>>> origin/owner-refund-withdrawal-requests
+                    <strong>Khoảng đã khóa</strong>
+                    <span>{{ lockSummaryLabel }}</span>
                 </div>
                 <button
                     v-if="locks.length"
@@ -464,7 +457,7 @@
                     @click.stop="
                         removeLocks(
                             locks,
-                            'Mở tất cả khoảng đã khóa trong ngày này?',
+                            'Mở tất cả khoảng đã khóa đang hiển thị?',
                         )
                     "
                 >
@@ -473,42 +466,48 @@
             </summary>
             <div class="lock-list">
                 <div
-                    v-for="group in lockGroups"
-                    :key="group.courtId"
-                    class="lock-group"
+                    v-for="row in lockRows"
+                    :key="row.key"
+                    class="lock-row"
                 >
-                    <div class="lock-group-head">
+                    <div class="lock-row-head">
                         <div>
-                            <strong>{{ group.courtName }}</strong>
-                            <span>{{ group.items.length }} khoảng</span>
+                            <strong>{{ row.courtName }}</strong>
+                            <span
+                                >{{ row.dateLabel }} ·
+                                {{ row.items.length }} khoảng</span
+                            >
                         </div>
                         <button
                             type="button"
                             :disabled="Boolean(deletingId)"
                             @click="
                                 removeLocks(
-                                    group.items,
-                                    `Mở tất cả khoảng khóa của ${group.courtName}?`,
+                                    row.items,
+                                    `Mở tất cả khoảng khóa của ${row.courtName} ngày ${row.dateLabel}?`,
                                 )
                             "
                         >
-                            Mở sân này
+                            Mở ngày này
                         </button>
                     </div>
                     <div class="lock-chip-list">
                         <button
-                            v-for="lock in group.items"
+                            v-for="lock in row.items"
                             :key="lock.id"
                             type="button"
                             :disabled="Boolean(deletingId)"
                             :title="lock.reason || 'Mở khoảng khóa'"
                             @click="removeLock(lock)"
                         >
-                            <strong>
+                            <span class="lock-chip-time">
                                 {{ time(lock.start_time) }} -
                                 {{ time(lock.end_time) }}
-                            </strong>
-                            <span>Mở</span>
+                            </span>
+                            <span class="lock-chip-reason">
+                                {{ lock.reason || "Không có lý do" }}
+                            </span>
+                            <span class="lock-chip-action">Mở</span>
                         </button>
                     </div>
                 </div>
@@ -621,6 +620,19 @@ export default {
 
             return `${ranges.slice(0, 2).join(", ")} +${ranges.length - 2} khung`;
         },
+        lockSummaryLabel() {
+            const dates = [
+                ...new Set(this.locks.map((lock) => this.lockDate(lock))),
+            ].filter(Boolean);
+
+            if (!dates.length) return `${this.locks.length} khoảng`;
+            if (dates.length === 1) {
+                return `${this.locks.length} khoảng · ${this.date(dates[0])}`;
+            }
+
+            const sortedDates = dates.sort();
+            return `${this.locks.length} khoảng · ${dates.length} ngày (${this.date(sortedDates[0])} - ${this.date(sortedDates[sortedDates.length - 1])})`;
+        },
         lockGroups() {
             const grouped = this.locks.reduce((result, lock) => {
                 const courtId =
@@ -637,13 +649,50 @@ export default {
             }, {});
 
             return Object.values(grouped)
-                .map((group) => ({
-                    ...group,
-                    items: group.items.sort((a, b) =>
-                        a.start_time.localeCompare(b.start_time),
-                    ),
-                }))
+                .map((group) => {
+                    const days = group.items.reduce((result, lock) => {
+                        const date = this.lockDate(lock);
+                        if (!result[date]) {
+                            result[date] = {
+                                date,
+                                dateLabel: this.date(date),
+                                items: [],
+                            };
+                        }
+                        result[date].items.push(lock);
+                        return result;
+                    }, {});
+
+                    return {
+                        ...group,
+                        items: group.items.sort((a, b) =>
+                            `${this.lockDate(a)} ${a.start_time}`.localeCompare(
+                                `${this.lockDate(b)} ${b.start_time}`,
+                            ),
+                        ),
+                        days: Object.values(days)
+                            .map((day) => ({
+                                ...day,
+                                items: day.items.sort((a, b) =>
+                                    a.start_time.localeCompare(b.start_time),
+                                ),
+                            }))
+                            .sort((a, b) => a.date.localeCompare(b.date)),
+                    };
+                })
                 .sort((a, b) => a.courtName.localeCompare(b.courtName));
+        },
+        lockRows() {
+            return this.lockGroups.flatMap((group) =>
+                group.days.map((day) => ({
+                    key: `${group.courtId}-${day.date}`,
+                    courtId: group.courtId,
+                    courtName: group.courtName,
+                    date: day.date,
+                    dateLabel: day.dateLabel,
+                    items: day.items,
+                })),
+            );
         },
         dateRangeDates() {
             const start = new Date(`${this.form.start_date}T00:00:00`);
@@ -1183,6 +1232,14 @@ export default {
             const month = String(date.getMonth() + 1).padStart(2, "0");
             const day = String(date.getDate()).padStart(2, "0");
             return `${year}-${month}-${day}`;
+        },
+        lockDate(lock) {
+            return (
+                lock?.booking_date ||
+                lock?.start_date ||
+                lock?.date ||
+                this.form.start_date
+            );
         },
         date(value) {
             if (!value) return "-";
@@ -1886,38 +1943,47 @@ export default {
 }
 .lock-list {
     display: grid;
-    gap: 10px;
+    gap: 8px;
     padding: 0 20px 20px;
 }
-.lock-group {
+.lock-row {
     display: grid;
-    gap: 10px;
-    padding: 12px;
+    grid-template-columns: minmax(190px, 260px) minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    background: #f8fafc;
+    background: #fff;
 }
-.lock-group-head {
+.lock-row-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
+    min-width: 0;
 }
-.lock-group-head > div {
+.lock-row-head > div {
     display: grid;
     gap: 2px;
+    min-width: 0;
 }
-.lock-group-head strong {
+.lock-row-head strong {
+    overflow: hidden;
     color: #0f172a;
     font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
-.lock-group-head span {
+.lock-row-head span {
     color: #64748b;
     font-size: 12px;
     font-weight: 750;
+    white-space: nowrap;
 }
-.lock-group-head button,
+.lock-row-head button,
 .text-danger-btn {
+    flex: 0 0 auto;
     border: 0;
     background: transparent;
     color: #dc2626;
@@ -1929,26 +1995,40 @@ export default {
 .lock-chip-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 7px;
+    gap: 8px;
+    min-width: 0;
 }
 .lock-chip-list button {
-    display: inline-flex;
+    display: grid;
+    grid-template-columns: auto minmax(70px, 1fr) auto;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
+    max-width: 320px;
     border: 1px solid #fecaca;
     border-radius: 999px;
     padding: 7px 10px;
-    background: #fff;
+    background: #fff7f7;
     color: #991b1b;
     font: inherit;
+    text-align: left;
     cursor: pointer;
     transition: all 0.12s ease;
 }
-.lock-chip-list button strong {
+.lock-chip-time {
     font-size: 12px;
     font-weight: 900;
+    white-space: nowrap;
 }
-.lock-chip-list button span {
+.lock-chip-reason {
+    min-width: 0;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 750;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lock-chip-action {
     color: #dc2626;
     font-size: 11px;
     font-weight: 900;
@@ -1958,10 +2038,17 @@ export default {
     background: #fff5f5;
 }
 .lock-chip-list button:disabled,
-.lock-group-head button:disabled,
+.lock-row-head button:disabled,
 .text-danger-btn:disabled {
     opacity: 0.55;
     cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+    .lock-row {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
 }
 
 /* ===== Sticky Bottom Bar ===== */

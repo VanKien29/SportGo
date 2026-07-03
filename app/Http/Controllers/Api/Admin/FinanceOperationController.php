@@ -20,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use RuntimeException;
 
@@ -835,6 +836,11 @@ class FinanceOperationController extends Controller
             'status' => $receipt->status,
             'issued_at' => $receipt->issued_at,
             'metadata' => $receipt->metadata,
+            'view_url' => URL::temporarySignedRoute(
+                'invoices.show',
+                now()->addDays(30),
+                ['receipt' => $receipt->id],
+            ),
         ];
     }
 
