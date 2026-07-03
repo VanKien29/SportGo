@@ -365,6 +365,14 @@
                                             withdrawal.transfer_reference
                                         }}</small
                                     >
+                                    <button
+                                        v-if="withdrawal.receipt"
+                                        class="receipt-link"
+                                        type="button"
+                                        @click="openReceipt(withdrawal.receipt)"
+                                    >
+                                        Phiếu {{ withdrawal.receipt.receipt_code }}
+                                    </button>
                                 </td>
                                 <td class="actions-col" data-label="Thao tác">
                                     <ActionIconButton
@@ -725,6 +733,10 @@ export default {
                 this.cancellingId = null;
             }
         },
+        openReceipt(receipt) {
+            if (!receipt?.view_url) return;
+            window.open(receipt.view_url, "_blank", "noopener,noreferrer");
+        },
         ledgerType(type) {
             return (
                 {
@@ -774,6 +786,21 @@ export default {
     display: grid;
     gap: 16px;
     min-width: 0;
+}
+
+.receipt-link {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-top: 6px;
+    border: 0;
+    background: transparent;
+    color: #15803d;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 .tabs-and-actions {

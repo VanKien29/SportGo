@@ -74,6 +74,14 @@
               </td>
               <td data-label="Trạng thái">
                 <span class="status-pill" :class="refund.status">{{ statusLabel(refund.status) }}</span>
+                <button
+                  v-if="refund.receipt"
+                  class="receipt-link"
+                  type="button"
+                  @click="openReceipt(refund.receipt)"
+                >
+                  Phiếu {{ refund.receipt.receipt_code }}
+                </button>
               </td>
               <td class="actions-col" data-label="Thao tác">
                 <TableActionGroup>
@@ -120,6 +128,14 @@
           <div><dt>Số tiền sẽ hoàn</dt><dd>{{ formatCurrency(refundAmount(detailRefund)) }}</dd></div>
           <div><dt>Hình thức hoàn</dt><dd>{{ refundDestinationLabel(detailRefund) }}</dd></div>
           <div><dt>Trạng thái</dt><dd>{{ statusLabel(detailRefund.status) }}</dd></div>
+          <div v-if="detailRefund.receipt">
+            <dt>Phiếu</dt>
+            <dd>
+              <button class="receipt-link inline" type="button" @click="openReceipt(detailRefund.receipt)">
+                {{ detailRefund.receipt.receipt_code }}
+              </button>
+            </dd>
+          </div>
         </dl>
 
         <section class="policy-band">
@@ -307,6 +323,10 @@ export default {
         if (this.decisionRefund && this.notice) this.decisionRefund = null;
       }
     },
+    openReceipt(receipt) {
+      if (!receipt?.view_url) return;
+      window.open(receipt.view_url, '_blank', 'noopener,noreferrer');
+    },
     refundAmount(refund) {
       return Number(refund?.policy_evaluation?.suggested_amount ?? refund?.payment?.amount ?? refund?.amount ?? 0);
     },
@@ -367,6 +387,26 @@ export default {
   display: grid;
   gap: 16px;
   min-width: 0;
+}
+
+.receipt-link {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 6px;
+  border: 0;
+  background: transparent;
+  color: #15803d;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.receipt-link.inline {
+  margin-top: 0;
+  font-size: 14px;
 }
 
 .status-tabs {

@@ -865,6 +865,23 @@
                     ><strong>{{ receipt.status }}</strong>
                 </div>
                 <pre>{{ prettyJson(receipt.metadata) }}</pre>
+                <footer class="modal-actions compact-actions">
+                    <button
+                        v-if="receipt.view_url"
+                        class="primary-btn"
+                        type="button"
+                        @click="openReceiptWeb(receipt)"
+                    >
+                        Mở trang phiếu
+                    </button>
+                    <button
+                        class="secondary-btn"
+                        type="button"
+                        @click="receipt = null"
+                    >
+                        Đóng
+                    </button>
+                </footer>
             </section>
         </div>
 
@@ -1532,6 +1549,10 @@ export default {
         },
         openReceipt(receipt) {
             this.receipt = receipt;
+        },
+        openReceiptWeb(receipt) {
+            if (!receipt?.view_url) return;
+            window.open(receipt.view_url, "_blank", "noopener,noreferrer");
         },
         openRefundDetail(refund) {
             this.refundDetail = refund;
@@ -2364,6 +2385,11 @@ th {
 .receipt-facts.compact {
     margin: 0;
     grid-template-columns: 108px 1fr;
+}
+.compact-actions {
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
 }
 .refund-detail-modal {
     width: min(700px, calc(100vw - 32px));
