@@ -484,13 +484,13 @@
 .sg-shell-admin .content-area :is(.icon-only.primary:hover, .icon-command.primary:hover, .btn-action.primary:hover, .action-icon-button.variant-primary:hover) {
   border-color: var(--admin-primary-dark) !important;
   background: var(--admin-primary-dark) !important;
-  color: #fff !important;
+  color: var(--admin-primary-text, #ffffff) !important;
 }
 
 .sg-shell-admin .content-area :is(.tabs button.active, .tab-btn.active, .tab-sm.active, .segmented button.active, .btn-switch.active) {
   border-color: var(--admin-primary) !important;
   background: var(--admin-primary) !important;
-  color: #fff !important;
+  color: var(--admin-primary-text, #ffffff) !important;
   box-shadow: 0 10px 22px rgba(34, 166, 83, 0.2) !important;
 }
 

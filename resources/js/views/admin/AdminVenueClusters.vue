@@ -64,7 +64,7 @@
                         v-for="c in filteredClusters"
                         :key="c.id"
                         class="cluster-row-item"
-                        :class="{ 'status-locked': c.status === 'locked' }"
+                        :class="{ 'row-locked': c.status === 'locked' }"
                         @click="goDetail(c.id)"
                     >
                         <!-- Accent hover line -->
@@ -93,10 +93,10 @@
                                 <span class="owner-email" v-if="c.owner?.email">{{ c.owner.email }}</span>
                             </div>
                             <div class="status-badges">
-                                <span class="row-status-badge fee-badge" :class="c.fee_status">
+                                <span class="row-status-badge" :class="'fee-is-' + c.fee_status">
                                     Phí: {{ feeStatusLabel(c.fee_status) }}
                                 </span>
-                                <span class="row-status-badge status-badge" :class="c.status">
+                                <span class="row-status-badge" :class="'state-is-' + c.status">
                                     {{ statusLabel(c.status) }}
                                 </span>
                             </div>
@@ -226,9 +226,9 @@ export default {
 }
 
 .card {
-    background: #fff;
+    background: var(--admin-surface, #fff);
     border-radius: 12px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border, var(--sg-border));
     padding: 20px 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
@@ -268,7 +268,7 @@ export default {
 .avc-filters .filter-tabs button.tab-btn.active {
     background: var(--admin-primary) !important;
     border-color: var(--admin-primary) !important;
-    color: #fff !important;
+    color: var(--admin-primary-text, #fff) !important;
 }
 .avc-filters .filter-tabs button.tab-btn:not(.active):hover {
     background: var(--admin-hover) !important;
@@ -288,12 +288,12 @@ export default {
     padding: 60px 24px;
     gap: 14px;
     text-align: center;
-    color: rgba(15, 23, 42, 0.5);
+    color: var(--admin-muted, rgba(15, 23, 42, 0.5));
 }
 .error-box {
-    color: #dc2626;
-    background: #fef2f2;
-    border-color: #fecaca;
+    color: var(--admin-danger, #dc2626);
+    background: var(--admin-danger-soft, #fef2f2);
+    border-color: var(--admin-border, #fecaca);
 }
 .empty-msg {
     font-size: 15px;
@@ -303,7 +303,7 @@ export default {
     width: 32px;
     height: 32px;
     border: 3px solid rgba(0, 0, 0, 0.05);
-    border-top-color: #0f172a;
+    border-top-color: var(--admin-text, #0f172a);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -323,7 +323,10 @@ export default {
 .clusters-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border, rgba(15, 23, 42, 0.08));
+    border-radius: 12px;
+    overflow: hidden;
 }
 
 .cluster-row-item {
@@ -331,37 +334,34 @@ export default {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 54px;
-    padding: 10px 16px;
-    background: #ffffff;
-    border: 1px solid rgba(15, 23, 42, 0.04);
-    border-radius: 8px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 58px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--admin-border-soft, rgba(15, 23, 42, 0.04));
+    transition: background 0.15s ease;
     cursor: pointer;
 }
 
+.cluster-row-item:last-child {
+    border-bottom: none;
+}
+
 .cluster-row-item:hover {
-    background: rgba(15, 23, 42, 0.015);
-    border-color: rgba(15, 23, 42, 0.08);
-    transform: translateX(2px);
+    background: var(--admin-hover, rgba(15, 23, 42, 0.015));
 }
 
 .accent-line {
     position: absolute;
     left: 0;
-    top: 15%;
-    bottom: 15%;
-    width: 2.5px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
     background: var(--admin-primary, #10b981);
-    border-radius: 0 2px 2px 0;
     opacity: 0;
-    transform: scaleY(0.7);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.15s ease;
 }
 
 .cluster-row-item:hover .accent-line {
     opacity: 1;
-    transform: scaleY(1);
 }
 
 .row-left {
@@ -386,8 +386,8 @@ export default {
     transition: opacity 0.2s ease;
 }
 
-.cluster-row-item.status-locked .cluster-name {
-    opacity: 0.5;
+.cluster-row-item.row-locked .cluster-name {
+    color: var(--admin-danger, #ef4444);
 }
 
 .cluster-meta {
@@ -418,11 +418,8 @@ export default {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 3px 8px;
-    background: rgba(15, 23, 42, 0.04);
-    color: rgba(15, 23, 42, 0.6);
-    border-radius: 6px;
-    font-size: 11.5px;
+    color: var(--admin-muted, rgba(15, 23, 42, 0.6));
+    font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -469,61 +466,54 @@ export default {
 .status-badges {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 16px;
     flex-shrink: 0;
 }
 
 .row-status-badge {
     display: inline-flex;
     align-items: center;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 700;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
     white-space: nowrap;
+    background: transparent !important;
+    padding: 0 !important;
 }
 
 /* Status styles */
-.status-badge.pending {
-    background: var(--admin-warning-soft, rgba(245, 158, 11, 0.1)) !important;
-    color: var(--admin-warning, #d97706) !important;
+.state-is-pending {
+    color: var(--admin-warning, #f59e0b) !important;
 }
 
-.status-badge.active {
-    background: var(--admin-primary-soft, rgba(16, 185, 129, 0.1)) !important;
-    color: var(--admin-primary-dark, #047857) !important;
+.state-is-active {
+    color: var(--admin-primary, #10b981) !important;
 }
 
-.status-badge.locked {
-    background: var(--admin-danger-soft, rgba(239, 68, 68, 0.1)) !important;
-    color: var(--admin-danger, #b91c1c) !important;
+.state-is-locked {
+    color: var(--admin-danger, #ef4444) !important;
 }
 
 /* Fee styles */
-.fee-badge.paid {
-    background: var(--admin-primary-soft, rgba(16, 185, 129, 0.1)) !important;
-    color: var(--admin-primary-dark, #047857) !important;
+.fee-is-paid {
+    color: var(--admin-primary, #10b981) !important;
 }
 
-.fee-badge.pending {
-    background: var(--admin-warning-soft, rgba(245, 158, 11, 0.1)) !important;
-    color: var(--admin-warning, #d97706) !important;
+.fee-is-pending {
+    color: var(--admin-warning, #f59e0b) !important;
 }
 
-.fee-badge.unpaid,
-.fee-badge.overdue {
-    background: var(--admin-danger-soft, rgba(239, 68, 68, 0.1)) !important;
-    color: var(--admin-danger, #b91c1c) !important;
+.fee-is-unpaid,
+.fee-is-overdue {
+    color: var(--admin-danger, #ef4444) !important;
 }
 
-.fee-badge.cancelled {
-    background: var(--admin-surface-muted, #f1f5f9) !important;
-    color: var(--admin-muted, #475569) !important;
+.fee-is-cancelled {
+    color: var(--admin-muted, #71717a) !important;
 }
 
-.fee-badge.no_fee {
-    background: var(--admin-surface-muted, #f1f5f9) !important;
-    color: var(--admin-muted, #475569) !important;
+.fee-is-no_fee {
+    color: var(--admin-muted, #71717a) !important;
 }
 
 .row-right {
@@ -552,11 +542,11 @@ export default {
 }
 .btn-outline {
     background: transparent;
-    border-color: var(--sg-border);
-    color: var(--sg-text);
+    border-color: var(--admin-border, var(--sg-border));
+    color: var(--admin-text, var(--sg-text));
 }
 .btn-outline:hover {
-    background: #f1f5f9;
+    background: var(--admin-hover, #f1f5f9);
 }
 
 /* Animations */
@@ -615,7 +605,7 @@ export default {
         justify-content: space-between;
         padding-right: 0;
         gap: 12px;
-        border-top: 1px dashed rgba(15, 23, 42, 0.04);
+        border-top: 1px dashed var(--admin-border, rgba(15, 23, 42, 0.04));
         padding-top: 8px;
     }
 
@@ -627,8 +617,5 @@ export default {
         transform: none;
     }
 
-    .cluster-row-item:hover .row-right {
-        transform: none;
-    }
 }
 </style>

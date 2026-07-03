@@ -1,7 +1,7 @@
 <template>
   <div class="user-profile-dropdown" v-click-outside="closeMenu">
     <!-- Trigger: Avatar tròn chứa ảnh hoặc icon user bình thường -->
-    <button class="avatar-trigger" type="button" @click="toggleMenu" aria-haspopup="true" :aria-expanded="isOpen">
+    <button class="avatar-trigger" type="button" @click="toggleMenu" aria-haspopup="true" :aria-expanded="isOpen" aria-label="Menu người dùng">
       <span class="avatar-circle">
         <img v-if="avatarUrl" :src="avatarUrl" alt="Avatar" class="avatar-img" />
         <span v-else class="avatar-placeholder">
