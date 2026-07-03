@@ -756,6 +756,10 @@
                             {{ modalError }}
                         </div>
 
+                        <div v-if="!editingId" class="alert alert-info" style="margin-bottom: 15px; font-size: 13px; line-height: 1.5;">
+                            💡 <strong>Lưu ý:</strong> Việc thêm sân con mới cần được Admin phê duyệt. Yêu cầu phê duyệt sẽ được gửi tự động sau khi bạn lưu.
+                        </div>
+
                         <div class="form-group">
                             <label for="court-name"
                                 >Tên sân con
@@ -905,6 +909,7 @@ import CourtVisual from "../../components/CourtVisual.vue";
 import DecorationVisual from "../../components/DecorationVisual.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { courtTypeService } from "../../services/courtTypes";
+import { useToast } from "vue-toastification";
 
 export default {
     name: "OwnerVenueCourts",
@@ -1150,6 +1155,7 @@ export default {
                 return;
             }
             try {
+                const toast = useToast();
                 if (this.editingId) {
                     await venueClusterService.updateCourt(this.editingId, {
                         name: this.form.name,
@@ -1157,6 +1163,7 @@ export default {
                         status: this.form.status,
                         sort_order: this.form.sort_order,
                     });
+                    toast.success("Cập nhật sân con thành công.");
                 } else {
                     await venueClusterService.createCourt({
                         venue_cluster_id: this.clusterId,
@@ -1164,6 +1171,7 @@ export default {
                         name: this.form.name,
                         sort_order: this.form.sort_order,
                     });
+                    toast.success("Yêu cầu thêm sân con đã được gửi thành công. Vui lòng chờ Admin xét duyệt.");
                 }
                 await this.initData();
                 this.closeModal();

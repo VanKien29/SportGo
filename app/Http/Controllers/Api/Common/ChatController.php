@@ -38,22 +38,21 @@ class ChatController extends Controller
             });
             $otherUser = $otherParticipant ? $otherParticipant->user : null;
 
-            // Determine Title & Avatar
-            $title = $conversation->title;
-            $avatarUrl = null;
-
-            if ($conversation->type === 'venue_contact' && $conversation->reference_id) {
-                $venue = VenueCluster::find($conversation->reference_id);
-                $title = $venue ? $venue->name : 'Sân đấu';
-                $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
-            } else {
+            if ($conversation->type === 'direct') {
                 if (!$otherUser) {
                     $title = 'Tin nhắn đã lưu';
                     $avatarUrl = null;
                 } else {
-                    $title = $title ?: ($otherUser ? $otherUser->full_name : 'Người dùng');
-                    $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
+                    $title = $otherUser->full_name;
+                    $avatarUrl = $otherUser->avatar_url;
                 }
+            } elseif ($conversation->type === 'venue_contact' && $conversation->reference_id) {
+                $venue = VenueCluster::find($conversation->reference_id);
+                $title = $venue ? $venue->name : 'Sân đấu';
+                $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
+            } else {
+                $title = $conversation->title ?: ($otherUser ? $otherUser->full_name : 'Người dùng');
+                $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
             }
 
             // Get last message

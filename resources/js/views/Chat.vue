@@ -944,11 +944,17 @@ export default {
           for (let i = 0; i < filesToSend.length; i++) {
             const currentContent = (i === 0) ? content : '';
             const response = await chatService.sendMessage(this.activeConversation.id, currentContent, filesToSend[i]);
-            this.messages.push(response);
+            const exists = this.messages.some(m => m.id === response.id);
+            if (!exists) {
+              this.messages.push(response);
+            }
           }
         } else {
           const response = await chatService.sendMessage(this.activeConversation.id, content, null);
-          this.messages.push(response);
+          const exists = this.messages.some(m => m.id === response.id);
+          if (!exists) {
+            this.messages.push(response);
+          }
         }
         
         // Update last message in the conversations list locally

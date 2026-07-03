@@ -406,17 +406,32 @@
 }
 
 /* Chat page fills the full content-area flush (no padding, no scroll) */
+.sg-shell-admin:has(.admin-chat-page) {
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.sg-shell-admin:has(.admin-chat-page) .main-content {
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
 .sg-shell-admin .content-area:has(.admin-chat-page) {
   padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 64px);
+  min-height: 0;
 }
 
 .sg-shell-admin .content-area > .admin-chat-page {
   max-width: none !important;
   margin-inline: 0 !important;
   width: 100% !important;
+  height: 100%;
 }
 
 .admin-footer {
