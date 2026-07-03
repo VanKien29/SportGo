@@ -135,7 +135,6 @@
             {{ pendingOwnerContract?.contract_title || 'Hợp đồng hợp tác đối tác SportGo' }}
           </div>
           <canvas ref="signatureCanvas" class="signature-pad" width="620" height="190" @pointerdown="startDraw" @pointermove="draw" @pointerup="stopDraw" @pointerleave="stopDraw"></canvas>
-          <button class="btn ghost small" type="button" @click="clearSignature">Xóa chữ ký</button>
           <label class="check-line">
             <input v-model="signModal.accepted" type="checkbox" />
             <span>Tôi đã đọc và đồng ý với toàn bộ nội dung hợp đồng</span>
@@ -159,7 +158,9 @@
             <span>Lý do chấm dứt</span>
             <textarea v-model.trim="terminationForm.reason" rows="5" required></textarea>
           </label>
-          <canvas ref="terminationCanvas" class="signature-pad" width="620" height="190" @pointerdown="startDraw" @pointermove="draw" @pointerup="stopDraw" @pointerleave="stopDraw"></canvas>
+          <div class="termination-note">
+            Hệ thống sẽ sinh đơn yêu cầu chấm dứt để SportGo xử lý và tạo quyết toán.
+          </div>
           <button class="btn ghost small" type="button" @click="clearSignature">Xóa chữ ký</button>
         </div>
         <div class="modal-footer">
@@ -290,7 +291,6 @@ export default {
     openTermination() {
       this.terminationForm.reason = '';
       this.terminationModal.open = true;
-      this.$nextTick(() => this.prepareCanvas(this.$refs.terminationCanvas));
     },
     closeTermination() {
       this.terminationModal.open = false;
@@ -302,7 +302,6 @@ export default {
           method: 'POST',
           body: JSON.stringify({
             reason: this.terminationForm.reason,
-            signature_image: this.signatureData(this.$refs.terminationCanvas),
           }),
         });
         this.closeTermination();
@@ -380,6 +379,9 @@ export default {
       }[status] || status || '-';
     },
     documentTypeLabel(type) {
+      if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
+      if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+
       return {
         partner_application_form: 'Đơn đăng ký đối tác',
         partner_contract: 'Hợp đồng hợp tác',
@@ -721,6 +723,17 @@ export default {
   background: var(--admin-surface-muted);
   margin-bottom: 12px;
   font-weight: 800;
+}
+
+.termination-note {
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .signature-pad {

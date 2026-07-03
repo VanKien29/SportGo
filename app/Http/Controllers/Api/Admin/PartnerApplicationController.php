@@ -10,6 +10,7 @@ use App\Models\PartnerApplication;
 use App\Models\PartnerContract;
 use App\Models\PartnerTerminationRequest;
 use App\Services\Partner\PartnerApplicationService;
+use App\Services\Partner\PartnerDocumentService;
 use App\Services\Partner\PartnerDocumentSigningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -22,6 +23,7 @@ class PartnerApplicationController extends Controller
 {
     public function __construct(
         private readonly PartnerApplicationService $partners,
+        private readonly PartnerDocumentService $documents,
         private readonly PartnerDocumentSigningService $signing,
     )
     {
@@ -252,15 +254,51 @@ class PartnerApplicationController extends Controller
 
     public function signDocument(Request $request, string $id): JsonResponse
     {
-        $request->validate([
+        $data = $request->validate([
             'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
+            'document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
             'signature_image' => ['required', 'string'],
         ]);
 
         $application = PartnerApplication::findOrFail($id);
+
+        if ($request->filled('document_id')) {
+            $document = GeneratedDocument::query()
+                ->with('signatures')
+                ->whereKey($data['document_id'])
+                ->whereIn('document_type', ['venue_scale_appendix', 'venue_location_appendix'])
+                ->where('status', 'pending_sportgo_signature')
+                ->firstOrFail();
+
+            $clusterIds = PartnerApplication::query()
+                ->where('user_id', $application->user_id)
+                ->pluck('approved_venue_cluster_id')
+                ->filter()
+                ->values();
+
+            $allowed = $document->partner_application_id === $application->id
+                || $document->owner_id === $application->user_id
+                || ($document->venue_cluster_id && $clusterIds->contains($document->venue_cluster_id));
+
+            if (! $allowed) {
+                abort(404);
+            }
+
+            $this->documents->signDocument($document, $request->user(), 'sportgo', $data['signature_image'], $request, [
+                'signer_title' => 'Dai dien SportGo',
+                'signer_organization' => 'SportGo',
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'SportGo da ky phu luc. Van ban dang cho chu san ky xac nhan.',
+                'data' => $this->payload($application->fresh($this->partners->detailRelations()), true),
+            ]);
+        }
+
         $contract = PartnerContract::query()
             ->where('partner_application_id', $application->id)
-            ->when($request->filled('contract_id'), fn ($q) => $q->whereKey($request->input('contract_id')))
+            ->when($request->filled('contract_id'), fn ($q) => $q->whereKey($data['contract_id']))
             ->where('status', 'pending_sportgo_signature')
             ->latest()
             ->first();
@@ -269,7 +307,7 @@ class PartnerApplicationController extends Controller
             throw ValidationException::withMessages(['contract' => 'Không có hợp đồng đang chờ SportGo ký.']);
         }
 
-        $contract = $this->partners->signAdminContract($contract, $request->user(), $request, $request->input('signature_image'));
+        $contract = $this->partners->signAdminContract($contract, $request->user(), $request, $data['signature_image']);
 
         return response()->json([
             'status' => 'success',
@@ -543,6 +581,12 @@ class PartnerApplicationController extends Controller
 
     private function signaturePosition(?string $documentType, ?string $side): string
     {
+        if (in_array($documentType, ['venue_scale_appendix', 'venue_location_appendix'], true)) {
+            return $side === 'sportgo'
+                ? 'Khoi DAI DIEN BEN A - SPORTGO / placeholder {{signature_sportgo}}'
+                : 'Khoi DAI DIEN BEN B - DOI TAC/CHU SAN / placeholder {{signature_owner}}';
+        }
+
         return match ($documentType . ':' . $side) {
             'partner_application_form:owner' => 'Khối NGƯỜI ĐỀ NGHỊ / placeholder {{signature_owner}}',
             'partner_contract:sportgo' => 'Khối ĐẠI DIỆN BÊN A - SPORTGO / placeholder {{signature_sportgo}}',

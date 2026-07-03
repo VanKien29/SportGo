@@ -260,18 +260,24 @@
           </div>
 
           <div class="doc-list">
-            <div v-for="document in generatedDocuments" :key="document.id" class="doc-row">
-              <div>
-                <strong>{{ document.title || documentTypeLabel(document.document_type) }}</strong>
-                <p>{{ document.document_code }} · {{ documentStatusLabel(document.status) }} · {{ signatureSummary(document.signatures) }}</p>
+            <div v-for="group in generatedDocumentGroups" :key="group.key" class="doc-group">
+              <div class="doc-group-head">
+                <strong>{{ group.label }}</strong>
+                <span>{{ group.documents.length }} văn bản</span>
               </div>
-              <div class="row-actions">
-                <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document)">
-                  <AppIcon name="eye" size="15" />
-                </button>
-                <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadGeneratedDocument(document)">
-                  <AppIcon name="download" size="15" />
-                </button>
+              <div v-for="document in group.documents" :key="document.id" class="doc-row">
+                <div>
+                  <strong>{{ document.title || documentTypeLabel(document.document_type) }}</strong>
+                  <p>{{ document.document_code }} · {{ documentStatusLabel(document.status) }} · {{ signatureSummary(document.signatures) }}</p>
+                </div>
+                <div class="row-actions">
+                  <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document)">
+                    <AppIcon name="eye" size="15" />
+                  </button>
+                  <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadGeneratedDocument(document)">
+                    <AppIcon name="download" size="15" />
+                  </button>
+                </div>
               </div>
             </div>
             <p v-if="!generatedDocuments.length" class="empty-text">Chưa có văn bản hệ thống.</p>
@@ -285,18 +291,24 @@
           </div>
 
           <div class="doc-list">
-            <div v-for="document in uploadedDocuments" :key="document.id" class="doc-row">
-              <div>
-                <strong>{{ document.title || uploadedTypeLabel(document.document_type) }}</strong>
-                <p>{{ document.file_name || uploadedTypeLabel(document.document_type) }} · {{ fileSize(document.file_size) }}</p>
+            <div v-for="group in uploadedDocumentGroups" :key="group.key" class="doc-group">
+              <div class="doc-group-head">
+                <strong>{{ group.label }}</strong>
+                <span>{{ group.documents.length }} file</span>
               </div>
-              <div class="row-actions">
-                <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document, 'uploaded')">
-                  <AppIcon name="eye" size="15" />
-                </button>
-                <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadUploadedDocument(document)">
-                  <AppIcon name="download" size="15" />
-                </button>
+              <div v-for="document in group.documents" :key="document.id" class="doc-row">
+                <div>
+                  <strong>{{ document.title || uploadedTypeLabel(document.document_type) }}</strong>
+                  <p>{{ document.file_name || uploadedTypeLabel(document.document_type) }} · {{ fileSize(document.file_size) }}</p>
+                </div>
+                <div class="row-actions">
+                  <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document, 'uploaded')">
+                    <AppIcon name="eye" size="15" />
+                  </button>
+                  <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadUploadedDocument(document)">
+                    <AppIcon name="download" size="15" />
+                  </button>
+                </div>
               </div>
             </div>
             <p v-if="!uploadedDocuments.length" class="empty-text">Chưa có tài liệu phụ lục.</p>
@@ -524,11 +536,13 @@ const tabs = [
   { value: 'documents', label: 'Tài liệu & văn bản' },
   { value: 'signing', label: 'Nhật ký ký số / OTP' },
   { value: 'history', label: 'Lịch sử' },
-  { value: 'settlement', label: 'Quyết toán' },
+  { value: 'settlement', label: 'Hủy/chấm dứt & quyết toán' },
 ];
 
 const generatedDocuments = computed(() => (application.value?.documents || []).filter(d => d.source !== 'uploaded'));
 const uploadedDocuments = computed(() => application.value?.uploaded_documents || []);
+const generatedDocumentGroups = computed(() => groupDocuments(generatedDocuments.value, generatedDocumentGroupMeta));
+const uploadedDocumentGroups = computed(() => groupDocuments(uploadedDocuments.value, uploadedDocumentGroupMeta));
 const signingLogs = computed(() => generatedDocuments.value.flatMap((document) => (
   (document.signing_requests || []).map((log) => ({
     ...log,
@@ -539,7 +553,8 @@ const signingLogs = computed(() => generatedDocuments.value.flatMap((document) =
 const requiresInitialCourt = computed(() => !(application.value?.courts || []).length);
 const leafCourtTypes = computed(() => courtTypes.value.filter((type) => type.is_active !== false && Number(type.children_count || 0) === 0));
 const pendingSportgoDocument = computed(() => generatedDocuments.value.find((document) => (
-  document.document_type === 'partner_contract' && document.status === 'pending_sportgo_signature'
+  ['partner_contract', 'venue_scale_appendix', 'venue_location_appendix'].includes(document.document_type)
+    && document.status === 'pending_sportgo_signature'
 )) || null);
 const canReviewApplication = computed(() => isReviewable(application.value?.status));
 const activeContract = computed(() => (application.value?.contracts || []).find(c => c.status === 'signed_active') || null);
@@ -801,6 +816,11 @@ function bankVerificationLabel(status) {
 }
 
 function documentTypeLabel(type) {
+  if (type === 'venue_scale_request') return 'Đơn yêu cầu thay đổi quy mô sân';
+  if (type === 'venue_location_change_request') return 'Đơn yêu cầu thay đổi vị trí cụm sân';
+  if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
+  if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+
   return {
     partner_application_form: 'Đơn đăng ký đối tác',
     partner_contract: 'Giấy/hợp đồng đối tác kinh doanh',
@@ -818,8 +838,59 @@ function uploadedTypeLabel(type) {
     facility: 'Ảnh cơ sở/sân',
     bank: 'Chứng từ ngân hàng',
     lease: 'Hợp đồng thuê mặt bằng',
+    scale_request_documents: 'Hồ sơ yêu cầu thay đổi quy mô',
+    scale_request_supplement: 'Hồ sơ yêu cầu thay đổi quy mô',
+    location_change_documents: 'Hồ sơ yêu cầu thay đổi vị trí',
+    location_change_supplement: 'Hồ sơ yêu cầu thay đổi vị trí',
     additional: 'Tài liệu bổ sung',
   }[type] || type || 'Tài liệu';
+}
+
+function groupDocuments(documents, metaResolver) {
+  const map = new Map();
+  for (const document of documents || []) {
+    const meta = metaResolver(document);
+    if (!map.has(meta.key)) {
+      map.set(meta.key, { ...meta, documents: [] });
+    }
+    map.get(meta.key).documents.push(document);
+  }
+
+  return Array.from(map.values());
+}
+
+function generatedDocumentGroupMeta(document) {
+  const type = document?.document_type;
+  if (['partner_contract', 'venue_scale_appendix', 'venue_location_appendix'].includes(type)) {
+    return { key: 'contracts', label: 'Hợp đồng và phụ lục' };
+  }
+  if (type === 'partner_application_form') {
+    return { key: 'partner_application', label: 'Đơn đăng ký đối tác' };
+  }
+  if (type === 'venue_scale_request') {
+    return { key: 'scale_request', label: 'Đơn yêu cầu thay đổi quy mô' };
+  }
+  if (type === 'venue_location_change_request') {
+    return { key: 'location_request', label: 'Đơn yêu cầu thay đổi vị trí' };
+  }
+  if (['termination_request', 'mutual_liquidation_minutes', 'unilateral_termination_notice', 'settlement_minutes'].includes(type)) {
+    return { key: 'termination', label: 'Công văn, hủy yêu cầu đối tác' };
+  }
+  return { key: 'other', label: 'Văn bản khác' };
+}
+
+function uploadedDocumentGroupMeta(document) {
+  const type = document?.document_type || document?.category;
+  if (['identity', 'business_license', 'facility', 'bank', 'lease'].includes(type)) {
+    return { key: 'registration', label: 'Hồ sơ đăng ký đối tác' };
+  }
+  if (['scale_request_documents', 'scale_request_supplement'].includes(type)) {
+    return { key: 'scale_request_uploads', label: 'Hồ sơ yêu cầu thay đổi quy mô' };
+  }
+  if (['location_change_documents', 'location_change_supplement'].includes(type)) {
+    return { key: 'location_request_uploads', label: 'Hồ sơ yêu cầu thay đổi vị trí' };
+  }
+  return { key: 'other_uploads', label: 'Tài liệu bổ sung khác' };
 }
 
 function documentStatusLabel(status) {
@@ -1218,6 +1289,27 @@ dd {
 .doc-list {
   display: grid;
   gap: 10px;
+}
+
+.doc-group {
+  display: grid;
+  gap: 8px;
+}
+
+.doc-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.doc-group-head span {
+  color: #64748b;
+  font-size: 13px;
 }
 
 .signing-log-list {

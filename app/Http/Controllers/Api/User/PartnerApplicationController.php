@@ -8,6 +8,11 @@ use App\Models\DocumentSigningRequest;
 use App\Models\GeneratedDocument;
 use App\Models\PartnerApplication;
 use App\Models\PartnerContract;
+use App\Models\VenueCluster;
+use App\Models\VenueCourtApprovalRequest;
+use App\Models\VenueLocationChangeRequest;
+use App\Mail\Partner\VenueLocationChangeRequestReceivedMail;
+use App\Mail\Partner\VenueScaleRequestReceivedMail;
 use App\Services\Partner\PartnerApplicationService;
 use App\Services\Partner\PartnerBankService;
 use App\Services\Partner\PartnerDocumentService;
@@ -19,6 +24,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -315,10 +322,39 @@ class PartnerApplicationController extends Controller
     {
         $data = $request->validate([
             'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
+            'document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
             'signature_image' => ['required', 'string'],
             'confirmed' => ['accepted'],
             'confirmation_text' => ['required', 'string', 'max:1000'],
         ], $this->messages(), $this->attributes());
+
+        if (! empty($data['document_id'])) {
+            $document = GeneratedDocument::query()
+                ->whereKey($data['document_id'])
+                ->where('owner_id', $request->user()->id)
+                ->whereIn('document_type', ['venue_scale_appendix', 'venue_location_appendix'])
+                ->where('status', 'pending_owner_signature')
+                ->firstOrFail();
+
+            $signingRequest = $this->signing->requestOtp(
+                $document,
+                $request->user(),
+                'owner',
+                'Ky phu luc hop dong doi tac SportGo',
+                $data['confirmation_text'],
+                $data['signature_image'],
+                $request
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Ma OTP ky phu luc da duoc gui den email cua ban.',
+                'data' => [
+                    'signing_request_id' => $signingRequest->id,
+                    'expires_at' => $signingRequest->expires_at,
+                ],
+            ]);
+        }
 
         $contract = PartnerContract::with(['application.user', 'generatedDocument'])
             ->where('owner_id', $request->user()->id)
@@ -360,6 +396,37 @@ class PartnerApplicationController extends Controller
 
         $signingRequest = DocumentSigningRequest::with('document')->findOrFail($data['signing_request_id']);
         $verifiedRequest = $this->signing->verifyOtp($signingRequest, $request->user(), $data['otp']);
+        $document = $verifiedRequest->document;
+
+        if ($document && in_array($document->document_type, ['venue_scale_appendix', 'venue_location_appendix'], true)) {
+            if ($document->owner_id !== $request->user()->id || $document->status !== 'pending_owner_signature') {
+                abort(403);
+            }
+
+            $signerName = $request->user()->full_name ?: $request->user()->username;
+            $signature = $this->documents->signDocument(
+                $document,
+                $request->user(),
+                'owner',
+                $verifiedRequest->signature_image,
+                $request,
+                [
+                    'signature_method' => 'otp_confirm',
+                    'signer_full_name' => $signerName,
+                    'signer_title' => 'Chu san',
+                ]
+            );
+            $this->signing->markSigned($verifiedRequest, $signature);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Ban da ky phu luc thanh cong. Yeu cau thay doi se duoc cap nhat theo phu luc da ky.',
+                'data' => [
+                    'document' => $document->refresh(),
+                    'signature' => $signature,
+                ],
+            ]);
+        }
 
         $contract = PartnerContract::with(['application.user', 'generatedDocument.signatures'])
             ->where('owner_id', $request->user()->id)
@@ -427,10 +494,39 @@ class PartnerApplicationController extends Controller
     public function requestDocumentSignatureOtp(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
+            'document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
             'signature_image' => ['required', 'string'],
             'confirmed' => ['accepted'],
             'confirmation_text' => ['required', 'string', 'max:1000'],
         ], $this->messages(), $this->attributes());
+
+        if (! empty($data['document_id'])) {
+            $document = GeneratedDocument::query()
+                ->whereKey($data['document_id'])
+                ->where('owner_id', $request->user()->id)
+                ->whereIn('document_type', ['venue_scale_request', 'venue_location_change_request'])
+                ->where('status', 'pending_owner_signature')
+                ->firstOrFail();
+
+            $signingRequest = $this->signing->requestOtp(
+                $document,
+                $request->user(),
+                'owner',
+                'Ky don yeu cau thay doi thong tin cum san SportGo',
+                $data['confirmation_text'],
+                $data['signature_image'],
+                $request
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Ma OTP ky don yeu cau da duoc gui den email cua ban.',
+                'data' => [
+                    'signing_request_id' => $signingRequest->id,
+                    'expires_at' => $signingRequest->expires_at,
+                ],
+            ]);
+        }
 
         $application = PartnerApplication::with('generatedDocuments')
             ->where('user_id', $request->user()->id)
@@ -480,6 +576,41 @@ class PartnerApplicationController extends Controller
             'otp' => ['required', 'digits:6'],
         ], $this->messages(), $this->attributes());
 
+        $signingRequest = DocumentSigningRequest::with('document')->findOrFail($data['signing_request_id']);
+        $requestDocument = $signingRequest->document;
+
+        if ($requestDocument && in_array($requestDocument->document_type, ['venue_scale_request', 'venue_location_change_request'], true)) {
+            if ($requestDocument->owner_id !== $request->user()->id || $requestDocument->status !== 'pending_owner_signature') {
+                abort(403);
+            }
+
+            $verifiedRequest = $this->signing->verifyOtp($signingRequest, $request->user(), $data['otp']);
+            $signerName = $request->user()->full_name ?: $request->user()->username;
+            $signature = $this->documents->signDocument(
+                $requestDocument,
+                $request->user(),
+                'owner',
+                $verifiedRequest->signature_image,
+                $request,
+                [
+                    'signature_method' => 'otp_confirm',
+                    'signer_full_name' => $signerName,
+                    'signer_title' => 'Chu san',
+                ]
+            );
+            $this->signing->markSigned($verifiedRequest, $signature);
+            $this->markVenueChangeRequestSubmitted($requestDocument->refresh());
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Da ky don yeu cau va gui SportGo xet duyet.',
+                'data' => [
+                    'document' => $requestDocument->refresh(),
+                    'signature' => $signature,
+                ],
+            ]);
+        }
+
         $application = PartnerApplication::with('generatedDocuments.signatures')
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
@@ -522,6 +653,90 @@ class PartnerApplicationController extends Controller
                 'signature' => $signature,
             ],
         ]);
+    }
+
+    private function markVenueChangeRequestSubmitted(GeneratedDocument $document): void
+    {
+        if ($document->document_type === 'venue_scale_request') {
+            $changeRequest = VenueCourtApprovalRequest::query()
+                ->with(['venueCluster.owner', 'courtType'])
+                ->whereKey($document->reference_id)
+                ->first();
+
+            if (! $changeRequest) {
+                return;
+            }
+
+            $changeRequest->forceFill([
+                'status' => 'pending',
+                'signed_at' => now(),
+                'signature_hash' => $document->file_hash,
+            ])->save();
+
+            $this->sendVenueChangeRequestReceivedMail(
+                $changeRequest->venueCluster,
+                new VenueScaleRequestReceivedMail([
+                    'cluster_name' => $changeRequest->venueCluster?->name,
+                    'court_name' => $changeRequest->name,
+                    'court_type_name' => $changeRequest->courtType?->name,
+                    'submitted_at' => now()->format('H:i d/m/Y'),
+                ]),
+                $changeRequest->id
+            );
+
+            return;
+        }
+
+        if ($document->document_type === 'venue_location_change_request') {
+            $changeRequest = VenueLocationChangeRequest::query()
+                ->with('venueCluster.owner')
+                ->whereKey($document->reference_id)
+                ->first();
+
+            if (! $changeRequest) {
+                return;
+            }
+
+            $changeRequest->forceFill([
+                'status' => 'pending',
+                'signed_at' => now(),
+                'signature_hash' => $document->file_hash,
+            ])->save();
+
+            $this->sendVenueChangeRequestReceivedMail(
+                $changeRequest->venueCluster,
+                new VenueLocationChangeRequestReceivedMail([
+                    'cluster_name' => $changeRequest->venueCluster?->name,
+                    'new_address' => trim($changeRequest->new_address . ', ' . $changeRequest->new_ward . ', ' . $changeRequest->new_province, ', '),
+                    'coordinates' => $changeRequest->new_latitude . ', ' . $changeRequest->new_longitude,
+                    'submitted_at' => now()->format('H:i d/m/Y'),
+                ]),
+                $changeRequest->id
+            );
+        }
+    }
+
+    private function sendVenueChangeRequestReceivedMail(?VenueCluster $cluster, $mail, ?string $referenceId = null): void
+    {
+        $owner = $cluster?->owner;
+        if (! $owner?->email) {
+            Log::warning('Venue change request mail skipped: owner has no email.', [
+                'venue_cluster_id' => $cluster?->id,
+                'reference_id' => $referenceId,
+            ]);
+            return;
+        }
+
+        try {
+            Mail::to($owner->email)->send($mail);
+        } catch (\Throwable $exception) {
+            Log::error('Venue change request mail failed.', [
+                'venue_cluster_id' => $cluster->id,
+                'reference_id' => $referenceId,
+                'owner_id' => $owner->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     public function documents(Request $request): JsonResponse

@@ -88,6 +88,10 @@
             </div>
 
             <div class="app-list-actions">
+              <button v-if="needsChangeAppendixSignature(application)" type="button" class="btn btn-primary" title="Ky phu luc hop dong" @click="openApplicationDocument(changeAppendixWord(application), application)">
+                <AppIcon name="fileText" size="16" />
+                Ky phu luc
+              </button>
               <button type="button" class="btn btn-secondary action-detail" title="Xem chi tiết" @click="openApplicationDetail(application)">
                 <AppIcon name="eye" size="16" />
                 Chi tiết
@@ -1331,6 +1335,10 @@ function needsContractSignature(application) {
   return !doc.signatures?.some(s => s.signer_side === 'owner' && s.status === 'signed');
 }
 
+function needsChangeAppendixSignature(application) {
+  return Boolean(changeAppendixWord(application));
+}
+
 function applicationWord(application) {
   const docs = application.generated_documents || application.generatedDocuments || [];
   return docs.find((d) => d.document_type === 'partner_application_form');
@@ -1347,6 +1355,15 @@ function contractWord(application) {
   const contractDoc = docs.find((d) => d.document_type === 'partner_contract');
   if (contractDoc) return { ...contractDoc, partner_contract_id: pendingContract.id };
   return null;
+}
+
+function changeAppendixWord(application) {
+  const docs = application.generated_documents || application.generatedDocuments || [];
+  return docs.find((doc) => (
+    ['venue_scale_appendix', 'venue_location_appendix'].includes(doc.document_type)
+    && doc.status === 'pending_owner_signature'
+    && !doc.signatures?.some((signature) => signature.signer_side === 'owner' && signature.status === 'signed')
+  )) || null;
 }
 function canCancel(application) { return ['pending', 'submitted', 'reviewing', 'need_supplement', 'draft'].includes(application.status); }
 function statusLabel(status) {

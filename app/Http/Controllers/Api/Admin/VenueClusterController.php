@@ -7,13 +7,17 @@ use App\Mail\Partner\VenueChangeRequestApprovedMail;
 use App\Mail\Partner\VenueChangeRequestRejectedMail;
 use App\Models\AuditLog;
 use App\Models\Booking;
+use App\Models\GeneratedDocument;
 use App\Models\Notification;
+use App\Models\PartnerApplication;
+use App\Models\PartnerContract;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Models\VenueCourtApprovalRequest;
 use App\Models\VenueLocationChangeRequest;
 use App\Models\VenuePlatformFeeLedger;
 use App\Models\VenueUnlockRequest;
+use App\Services\Partner\PartnerDocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Mail\Mailable;
 use Illuminate\Http\Request;
@@ -24,6 +28,10 @@ use Illuminate\Validation\Rule;
 
 class VenueClusterController extends Controller
 {
+    public function __construct(private readonly PartnerDocumentService $documents)
+    {
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // Danh sách cụm sân toàn hệ thống (filter theo status)
     // ─────────────────────────────────────────────────────────────────
@@ -339,33 +347,39 @@ class VenueClusterController extends Controller
         }
 
         // Tạo sân con mới khi duyệt yêu cầu mở rộng
-        $newCourt = VenueCourt::create([
-            'venue_cluster_id' => $clusterId,
-            'court_type_id'    => $approvalRequest->court_type_id,
-            'name'             => $approvalRequest->name,
-            'status'           => 'active',
+        $cluster = VenueCluster::with(['owner', 'venueCourts.courtType'])->findOrFail($clusterId);
+        $approvalRequest->loadMissing(['courtType', 'requestedBy']);
+        $approvalRequest->forceFill([
+            'reviewed_by' => $actor->id,
+            'reviewed_at' => now(),
+            'status_reason' => null,
         ]);
+        $appendix = $this->generateVenueChangeAppendixDocument(
+            'venue_scale_appendix',
+            $cluster,
+            $approvalRequest,
+            $actor,
+            $this->scaleAppendixRenderData($cluster, $approvalRequest)
+        );
 
         $approvalRequest->forceFill([
-            'status'                  => 'approved',
-            'reviewed_by'             => $actor->id,
-            'reviewed_at'             => now(),
-            'approved_venue_court_id' => $newCourt->id,
+            'status'                  => 'approved_pending_appendix',
             'status_reason'           => null,
         ])->save();
 
-        $this->audit($request, $actor, 'venue_court_approval.approved', $approvalRequest, ['status' => 'pending'], ['status' => 'approved', 'venue_court_id' => $newCourt->id]);
+        $this->audit($request, $actor, 'venue_court_approval.appendix_created', $approvalRequest, ['status' => 'pending'], ['status' => 'approved_pending_appendix', 'appendix_document_id' => $appendix->id]);
         $approvalRequest->loadMissing(['venueCluster.owner', 'courtType']);
         $this->sendVenueChangeMail($approvalRequest->venueCluster, new VenueChangeRequestApprovedMail([
             'request_type' => 'Mở rộng quy mô sân',
             'cluster_name' => $approvalRequest->venueCluster?->name,
-            'summary' => $approvalRequest->name . ' - ' . ($approvalRequest->courtType?->name ?? 'Loại sân'),
+            'summary' => $this->scaleChangeSummary($approvalRequest),
             'reviewed_at' => optional($approvalRequest->reviewed_at)->format('H:i d/m/Y'),
         ]), $approvalRequest->id);
 
         return response()->json([
-            'message' => 'Duyệt yêu cầu thành công. Sân con mới đã được tạo.',
+            'message' => 'Duyệt yêu cầu thành công. Hệ thống đã tạo phụ lục hợp đồng và đang chờ SportGo ký trước.',
             'request' => $this->approvalPayload($approvalRequest->fresh(['courtType', 'requestedBy', 'reviewedBy', 'generatedDocument.signatures'])),
+            'appendix_document' => $this->generatedDocumentPayload($appendix),
         ]);
     }
 
@@ -403,7 +417,7 @@ class VenueClusterController extends Controller
         $this->sendVenueChangeMail($approvalRequest->venueCluster, new VenueChangeRequestRejectedMail([
             'request_type' => 'Mở rộng quy mô sân',
             'cluster_name' => $approvalRequest->venueCluster?->name,
-            'summary' => $approvalRequest->name . ' - ' . ($approvalRequest->courtType?->name ?? 'Loại sân'),
+            'summary' => $this->scaleChangeSummary($approvalRequest),
             'reason' => $data['status_reason'],
             'reviewed_at' => optional($approvalRequest->reviewed_at)->format('H:i d/m/Y'),
         ]), $approvalRequest->id);
@@ -448,7 +462,7 @@ class VenueClusterController extends Controller
         $this->sendVenueChangeMail($approvalRequest->venueCluster, new VenueChangeRequestRejectedMail([
             'request_type' => 'Mở rộng quy mô sân',
             'cluster_name' => $approvalRequest->venueCluster?->name,
-            'summary' => $approvalRequest->name . ' - ' . ($approvalRequest->courtType?->name ?? 'Loại sân'),
+            'summary' => $this->scaleChangeSummary($approvalRequest),
             'reason' => $data['status_reason'],
             'reviewed_at' => optional($approvalRequest->reviewed_at)->format('H:i d/m/Y'),
             'status_label' => 'Cần bổ sung hồ sơ',
@@ -474,7 +488,8 @@ class VenueClusterController extends Controller
             return response()->json(['message' => 'Yêu cầu này đã được xử lý.'], 422);
         }
 
-        $cluster = VenueCluster::findOrFail($clusterId);
+        $cluster = VenueCluster::with(['owner', 'venueCourts.courtType'])->findOrFail($clusterId);
+        $locationRequest->loadMissing(['requestedBy']);
 
         $oldValues = [
             'address'   => $cluster->address,
@@ -486,33 +501,32 @@ class VenueClusterController extends Controller
         ];
 
         // Cập nhật vị trí cluster từ snapshot
-        $cluster->forceFill([
-            'address'   => $locationRequest->new_address,
-            'province'  => $locationRequest->new_province,
-            'ward'      => $locationRequest->new_ward,
-            'latitude'  => $locationRequest->new_latitude,
-            'longitude' => $locationRequest->new_longitude,
-            'map_url'   => $locationRequest->new_map_url,
-        ])->save();
-
         $locationRequest->forceFill([
-            'status'      => 'approved',
             'reviewed_by' => $actor->id,
             'reviewed_at' => now(),
+            'status_reason' => null,
+        ]);
+        $appendix = $this->generateVenueChangeAppendixDocument(
+            'venue_location_appendix',
+            $cluster,
+            $locationRequest,
+            $actor,
+            $this->locationAppendixRenderData($cluster, $locationRequest)
+        );
+
+        $locationRequest->forceFill([
+            'status'      => 'approved_pending_appendix',
             'status_reason' => null,
         ])->save();
 
         $this->audit(
             $request, $actor,
-            'venue_cluster.location_changed',
+            'venue_cluster.location_change_appendix_created',
             $cluster,
             $oldValues,
             [
-                'address'   => $locationRequest->new_address,
-                'province'  => $locationRequest->new_province,
-                'ward'      => $locationRequest->new_ward,
-                'latitude'  => $locationRequest->new_latitude,
-                'longitude' => $locationRequest->new_longitude,
+                'status' => 'approved_pending_appendix',
+                'appendix_document_id' => $appendix->id,
             ]
         );
         $cluster->loadMissing('owner');
@@ -524,8 +538,9 @@ class VenueClusterController extends Controller
         ]), $locationRequest->id);
 
         return response()->json([
-            'message' => 'Duyệt yêu cầu thành công. Vị trí cụm sân đã được cập nhật.',
+            'message' => 'Duyệt yêu cầu thành công. Hệ thống đã tạo phụ lục thay đổi vị trí và đang chờ SportGo ký trước.',
             'request' => $this->locationChangePayload($locationRequest->fresh(['requestedBy', 'reviewedBy', 'generatedDocument.signatures'])),
+            'appendix_document' => $this->generatedDocumentPayload($appendix),
         ]);
     }
 
@@ -780,6 +795,8 @@ class VenueClusterController extends Controller
     private function detailPayload(VenueCluster $c): array
     {
         $courts = $c->venueCourts ?? collect();
+        $contract = $this->activePartnerContractForCluster($c);
+        $application = $contract?->application ?: $this->partnerApplicationForCluster($c);
 
         return array_merge($this->listPayload($c), [
             'description'   => $c->description,
@@ -804,14 +821,36 @@ class VenueClusterController extends Controller
                 'file_path' => $m->file_path,
                 'file_name' => $m->file_name,
             ])->values(),
+            'partner_application' => $application ? [
+                'id' => $application->id,
+                'business_name' => $application->business_name,
+                'representative_name' => $application->representative_name ?: $application->applicant_full_name,
+                'status' => $application->status,
+                'reviewed_at' => $application->reviewed_at,
+            ] : null,
+            'active_contract' => $contract ? [
+                'id' => $contract->id,
+                'contract_code' => $contract->contract_code,
+                'status' => $contract->status,
+                'owner_signed_at' => $contract->owner_signed_at,
+                'sportgo_signed_at' => $contract->sportgo_signed_at,
+                'effective_from' => $contract->effective_from,
+                'effective_to' => $contract->effective_to,
+            ] : null,
         ]);
     }
 
     private function approvalPayload(VenueCourtApprovalRequest $r): array
     {
+        $appendix = $this->appendixDocumentForRequest($r, 'venue_scale_appendix');
+
         return [
             'id'                      => $r->id,
             'name'                    => $r->name,
+            'change_type'             => $r->change_type ?: 'add',
+            'requested_courts'         => $r->requested_courts ?: [],
+            'removed_court_ids'        => $r->removed_court_ids ?: [],
+            'scale_summary'           => $this->scaleChangeSummary($r),
             'status'                  => $r->status,
             'status_reason'           => $r->status_reason,
             'evidence_image'          => $r->evidence_image,
@@ -822,6 +861,7 @@ class VenueClusterController extends Controller
             'signature_hash'          => $r->signature_hash,
             'signed_at'               => $r->signed_at,
             'generated_document'       => $this->documentPayload($r->generatedDocument),
+            'appendix_document'        => $this->documentPayload($appendix),
             'court_type'              => $r->courtType ? ['id' => $r->courtType->id, 'name' => $r->courtType->name] : null,
             'requested_by'            => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
             'reviewed_by'             => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,
@@ -833,6 +873,8 @@ class VenueClusterController extends Controller
 
     private function locationChangePayload(VenueLocationChangeRequest $r): array
     {
+        $appendix = $this->appendixDocumentForRequest($r, 'venue_location_appendix');
+
         return [
             'id'            => $r->id,
             'status'        => $r->status,
@@ -840,7 +882,9 @@ class VenueClusterController extends Controller
             'status_reason' => $r->status_reason,
             'new_address'   => $r->new_address,
             'new_province'  => $r->new_province,
+            'new_province_code' => $r->new_province_code,
             'new_ward'      => $r->new_ward,
+            'new_ward_code' => $r->new_ward_code,
             'new_latitude'  => $r->new_latitude,
             'new_longitude' => $r->new_longitude,
             'new_map_url'   => $r->new_map_url,
@@ -850,6 +894,7 @@ class VenueClusterController extends Controller
             'signature_hash' => $r->signature_hash,
             'signed_at' => $r->signed_at,
             'generated_document' => $this->documentPayload($r->generatedDocument),
+            'appendix_document' => $this->documentPayload($appendix),
             'requested_by'  => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
             'reviewed_by'   => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'full_name' => $r->reviewedBy->full_name] : null,
             'reviewed_at'   => $r->reviewed_at,
@@ -874,6 +919,324 @@ class VenueClusterController extends Controller
             'generated_at' => $document->generated_at,
             'download_url' => url('/api/files/documents/' . $document->id . '/download'),
         ];
+    }
+
+    private function generatedDocumentPayload($document): ?array
+    {
+        return $this->documentPayload($document);
+    }
+
+    private function appendixDocumentForRequest($requestModel, string $documentType): ?GeneratedDocument
+    {
+        return GeneratedDocument::query()
+            ->with('signatures')
+            ->where('document_type', $documentType)
+            ->where('reference_type', $requestModel::class)
+            ->where('reference_id', (string) $requestModel->getKey())
+            ->latest('document_version')
+            ->latest('generated_at')
+            ->first();
+    }
+
+    private function generateVenueChangeAppendixDocument(
+        string $documentType,
+        VenueCluster $cluster,
+        $requestModel,
+        $actor,
+        array $renderData
+    ): GeneratedDocument {
+        $contract = $this->activePartnerContractForCluster($cluster);
+        $application = $contract?->application ?: $this->partnerApplicationForCluster($cluster);
+
+        $titlePrefix = $documentType === 'venue_scale_appendix'
+            ? 'Phu luc hop dong thay doi quy mo san '
+            : 'Phu luc hop dong thay doi vi tri cum san ';
+
+        return $this->documents->generateDocument($documentType, $requestModel, $renderData, $actor, [
+            'reference_type' => $requestModel::class,
+            'reference_id' => (string) $requestModel->getKey(),
+            'owner_id' => $cluster->owner_id,
+            'venue_cluster_id' => $cluster->id,
+            'partner_application_id' => $application?->id,
+            'partner_contract_id' => $contract?->id,
+            'entity_type' => VenueCluster::class,
+            'entity_id' => $cluster->id,
+            'status' => 'pending_sportgo_signature',
+            'title' => $titlePrefix . $cluster->name,
+        ]);
+    }
+
+    private function scaleAppendixRenderData(VenueCluster $cluster, VenueCourtApprovalRequest $approvalRequest): array
+    {
+        $application = $this->partnerApplicationForCluster($cluster);
+        $contract = $this->activePartnerContractForCluster($cluster);
+        $owner = $cluster->owner;
+        $ownerName = $application?->representative_name
+            ?: $application?->applicant_full_name
+            ?: $owner?->full_name
+            ?: $owner?->username;
+        $scaleSummary = $this->scaleCourtSummaries($approvalRequest);
+        $changeType = $approvalRequest->change_type ?: 'add';
+
+        $currentCourtCount = $cluster->venueCourts?->count() ?? VenueCourt::query()
+            ->where('venue_cluster_id', $cluster->id)
+            ->count();
+        $currentCourts = ($cluster->venueCourts ?: collect())->loadMissing('courtType:id,name');
+        $currentCourtTypesSummary = $currentCourts
+            ->map(fn (VenueCourt $court): ?string => $court->courtType?->name)
+            ->filter()
+            ->unique()
+            ->implode('; ');
+        $requestDocument = $approvalRequest->generatedDocument()->first();
+
+        return [
+            'owner_full_name' => $ownerName,
+            'owner_signer_name' => $ownerName,
+            'owner_signer_full_name' => $ownerName,
+            'business_name' => $application?->business_name ?: $ownerName,
+            'identity_number' => $application?->representative_identity_number,
+            'tax_code' => $application?->tax_code,
+            'business_license_number' => $application?->business_license_number ?: $application?->business_code,
+            'owner_phone' => $application?->applicant_phone ?: $application?->venue_phone ?: $owner?->phone,
+            'owner_email' => $application?->applicant_email ?: $application?->venue_email ?: $owner?->email,
+            'owner_address' => $application?->business_address ?: $application?->applicant_address ?: $cluster->address,
+            'venue_name' => $cluster->name,
+            'cluster_name' => $cluster->name,
+            'venue_address' => $cluster->address,
+            'venue_province' => $cluster->province,
+            'venue_ward' => $cluster->ward,
+            'venue_latitude' => $cluster->latitude,
+            'venue_longitude' => $cluster->longitude,
+            'venue_map_url' => $cluster->map_url,
+            'request_id' => $approvalRequest->id,
+            'request_code' => $requestDocument?->document_code ?: $approvalRequest->id,
+            'contract_code' => $contract?->contract_code,
+            'contract_signed_at' => $this->formatDateTime($this->contractTimelineAt($contract)),
+            'current_court_count' => $currentCourtCount,
+            'current_court_types_summary' => $currentCourtTypesSummary,
+            'current_courts_summary' => $currentCourts
+                ->map(fn (VenueCourt $court): string => trim($court->name . ' - ' . ($court->courtType?->name ?? '')))
+                ->filter()
+                ->implode('; '),
+            'change_action' => $this->scaleChangeAction($changeType),
+            'change_court_count' => $this->scaleChangeCount($changeType, $scaleSummary),
+            'new_court_count' => $scaleSummary['new_count'],
+            'removed_court_count' => $scaleSummary['removed_count'],
+            'requested_court_type_name' => $approvalRequest->courtType?->name,
+            'requested_court_names' => $scaleSummary['new'] ?: $approvalRequest->name,
+            'new_courts_summary' => $scaleSummary['new'],
+            'removed_courts_summary' => $scaleSummary['removed'],
+            'requested_court_rows' => $scaleSummary['requested_rows'],
+            'removed_court_rows' => $scaleSummary['removed_rows'],
+            'court_change_rows' => $scaleSummary['rows'],
+            'reason' => $approvalRequest->status_reason,
+            'booking_impact' => 'Rà soát booking còn hiệu lực, cấu hình giá và lịch vận hành trước khi cập nhật quy mô.',
+            'submitted_at' => $this->formatDateTime($approvalRequest->created_at),
+            'reviewed_at' => $this->formatDateTime($approvalRequest->reviewed_at),
+            'expected_effective_date' => now()->format('d/m/Y'),
+            'attachment_list' => $this->documentNames($approvalRequest->supplementary_documents),
+        ];
+    }
+
+    private function locationAppendixRenderData(VenueCluster $cluster, VenueLocationChangeRequest $locationRequest): array
+    {
+        $application = $this->partnerApplicationForCluster($cluster);
+        $contract = $this->activePartnerContractForCluster($cluster);
+        $owner = $cluster->owner;
+        $ownerName = $application?->representative_name
+            ?: $application?->applicant_full_name
+            ?: $owner?->full_name
+            ?: $owner?->username;
+        $requestDocument = $locationRequest->generatedDocument()->first();
+
+        return [
+            'owner_full_name' => $ownerName,
+            'owner_signer_name' => $ownerName,
+            'owner_signer_full_name' => $ownerName,
+            'business_name' => $application?->business_name ?: $ownerName,
+            'identity_number' => $application?->representative_identity_number,
+            'tax_code' => $application?->tax_code,
+            'business_license_number' => $application?->business_license_number ?: $application?->business_code,
+            'owner_phone' => $application?->applicant_phone ?: $application?->venue_phone ?: $owner?->phone,
+            'owner_email' => $application?->applicant_email ?: $application?->venue_email ?: $owner?->email,
+            'owner_address' => $application?->business_address ?: $application?->applicant_address ?: $cluster->address,
+            'venue_name' => $cluster->name,
+            'cluster_name' => $cluster->name,
+            'request_id' => $locationRequest->id,
+            'request_code' => $requestDocument?->document_code ?: $locationRequest->id,
+            'current_address' => $cluster->address,
+            'current_province' => $cluster->province,
+            'current_ward' => $cluster->ward,
+            'current_latitude' => $cluster->latitude,
+            'current_longitude' => $cluster->longitude,
+            'current_map_url' => $cluster->map_url,
+            'venue_phone' => $cluster->phone_contact,
+            'venue_manager_name' => $ownerName,
+            'new_address' => $locationRequest->new_address,
+            'new_province' => $locationRequest->new_province,
+            'new_ward' => $locationRequest->new_ward,
+            'new_latitude' => $locationRequest->new_latitude,
+            'new_longitude' => $locationRequest->new_longitude,
+            'new_map_url' => $locationRequest->new_map_url,
+            'contract_code' => $contract?->contract_code,
+            'contract_signed_at' => $this->formatDateTime($this->contractTimelineAt($contract)),
+            'reason' => $locationRequest->note ?: $locationRequest->status_reason,
+            'submitted_at' => $this->formatDateTime($locationRequest->created_at),
+            'reviewed_at' => $this->formatDateTime($locationRequest->reviewed_at),
+            'expected_effective_date' => now()->format('d/m/Y'),
+            'attachment_list' => $this->documentNames($locationRequest->supplementary_documents),
+        ];
+    }
+
+    private function scaleCourtSummaries(VenueCourtApprovalRequest $approvalRequest): array
+    {
+        $requestedCourts = collect($approvalRequest->requested_courts ?: []);
+
+        if ($requestedCourts->isEmpty() && ! in_array($approvalRequest->change_type, ['remove'], true)) {
+            $requestedCourts = collect([[
+                'court_type_id' => $approvalRequest->court_type_id,
+                'name' => $approvalRequest->name,
+            ]]);
+        }
+
+        $typeNames = \App\Models\CourtType::query()
+            ->whereIn('id', $requestedCourts->pluck('court_type_id')->filter()->unique())
+            ->pluck('name', 'id');
+
+        $newCourtsSummary = $requestedCourts
+            ->map(function (array $court) use ($typeNames): string {
+                $name = trim((string) ($court['name'] ?? ''));
+                $typeName = $typeNames[(int) ($court['court_type_id'] ?? 0)] ?? null;
+
+                return trim($name . ($typeName ? ' - ' . $typeName : ''));
+            })
+            ->filter()
+            ->implode('; ');
+        $effectiveDate = $approvalRequest->reviewed_at
+            ? $approvalRequest->reviewed_at->format('d/m/Y')
+            : now()->format('d/m/Y');
+        $requestedRows = $requestedCourts
+            ->map(fn (array $court): array => [
+                'name' => trim((string) ($court['name'] ?? '')),
+                'court_type_id' => (int) ($court['court_type_id'] ?? 0),
+                'court_type_name' => $typeNames[(int) ($court['court_type_id'] ?? 0)] ?? null,
+                'change' => 'Tăng/thêm sân',
+                'effective_date' => $effectiveDate,
+                'status' => 'Dự kiến hoạt động sau phê duyệt',
+                'note' => 'Theo đơn yêu cầu đã ký',
+            ])
+            ->values()
+            ->all();
+
+        $removedCourts = VenueCourt::query()
+            ->with('courtType:id,name')
+            ->whereIn('id', $approvalRequest->removed_court_ids ?: [])
+            ->get();
+
+        $removedCourtsSummary = $removedCourts
+            ->map(fn (VenueCourt $court): string => trim($court->name . ' - ' . ($court->courtType?->name ?? '')))
+            ->filter()
+            ->implode('; ');
+        $removedRows = $removedCourts
+            ->map(fn (VenueCourt $court): array => [
+                'id' => $court->id,
+                'name' => $court->name,
+                'court_type_id' => $court->court_type_id,
+                'court_type_name' => $court->courtType?->name,
+                'change' => 'Giảm/ngừng khai thác',
+                'effective_date' => $effectiveDate,
+                'status' => 'Dự kiến ngừng khai thác',
+                'note' => 'Theo đơn yêu cầu đã ký',
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'new' => $newCourtsSummary,
+            'removed' => $removedCourtsSummary,
+            'new_count' => $requestedCourts->count(),
+            'removed_count' => $removedCourts->count(),
+            'requested_rows' => $requestedRows,
+            'removed_rows' => $removedRows,
+            'rows' => array_values(array_merge($requestedRows, $removedRows)),
+        ];
+    }
+
+    private function scaleChangeAction(string $changeType): string
+    {
+        return match ($changeType) {
+            'remove' => 'Giam quy mo/xoa bot san con',
+            'mixed' => 'Dieu chinh quy mo san',
+            default => 'Mo rong quy mo/them san con',
+        };
+    }
+
+    private function scaleChangeCount(string $changeType, array $summary): string
+    {
+        return match ($changeType) {
+            'remove' => '-' . $summary['removed_count'],
+            'mixed' => '+' . $summary['new_count'] . ' / -' . $summary['removed_count'],
+            default => (string) $summary['new_count'],
+        };
+    }
+
+    private function scaleChangeSummary(VenueCourtApprovalRequest $approvalRequest): string
+    {
+        $summary = $this->scaleCourtSummaries($approvalRequest);
+        $parts = [];
+
+        if ($summary['new'] !== '') {
+            $parts[] = 'Them: ' . $summary['new'];
+        }
+
+        if ($summary['removed'] !== '') {
+            $parts[] = 'Xoa bot: ' . $summary['removed'];
+        }
+
+        return implode(' | ', $parts) ?: ($approvalRequest->name . ' - ' . ($approvalRequest->courtType?->name ?? 'Loai san'));
+    }
+
+    private function activePartnerContractForCluster(VenueCluster $cluster): ?PartnerContract
+    {
+        return PartnerContract::query()
+            ->with(['application.user'])
+            ->where('venue_cluster_id', $cluster->id)
+            ->whereIn('status', ['signed_active', 'completed', 'active', 'generated', 'draft', 'pending_owner_signature', 'pending_sportgo_signature'])
+            ->orderByRaw('COALESCE(sportgo_signed_at, owner_signed_at, effective_from, created_at) DESC')
+            ->first();
+    }
+
+    private function contractTimelineAt(?PartnerContract $contract)
+    {
+        return $contract?->sportgo_signed_at
+            ?: $contract?->owner_signed_at
+            ?: $contract?->effective_from
+            ?: $contract?->created_at;
+    }
+
+    private function partnerApplicationForCluster(VenueCluster $cluster): ?PartnerApplication
+    {
+        return PartnerApplication::query()
+            ->with('user')
+            ->where('approved_venue_cluster_id', $cluster->id)
+            ->latest('reviewed_at')
+            ->latest('created_at')
+            ->first();
+    }
+
+    private function documentNames($documents): string
+    {
+        return collect($documents ?: [])
+            ->map(fn ($document) => is_array($document)
+                ? ($document['file_name'] ?? $document['name'] ?? $document['original_name'] ?? null)
+                : null)
+            ->filter()
+            ->implode('; ');
+    }
+
+    private function formatDateTime($value): ?string
+    {
+        return $value ? \Illuminate\Support\Carbon::parse($value)->format('H:i d/m/Y') : null;
     }
 
     private function lockSnapshot(VenueCluster $c): array

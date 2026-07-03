@@ -119,26 +119,32 @@
               </div>
               <div class="partner-card-body">
                 <div v-if="generatedDocuments.length" class="partner-document-list">
-                  <article v-for="document in generatedDocuments" :key="document.id" class="partner-doc-row">
-                    <div>
-                      <strong>{{ document.title || documentTypeLabel(document.document_type) }}</strong>
-                      <p>{{ document.document_code || 'Chưa có mã' }} · {{ documentStatusLabel(document.status) }} · {{ signatureSummary(document.signatures) }}</p>
-                      <p v-if="!document.download_url" class="partner-doc-warning">File văn bản chưa sẵn sàng hoặc bản cũ đã mất file.</p>
+                  <section v-for="group in generatedDocumentGroups" :key="group.key" class="partner-doc-group">
+                    <div class="partner-doc-group-head">
+                      <strong>{{ group.label }}</strong>
+                      <span>{{ group.documents.length }} văn bản</span>
                     </div>
-                    <div class="partner-doc-actions">
-                      <button class="btn btn-secondary" type="button" :disabled="!document.download_url" @click="previewDocument(document)">
-                        <AppIcon name="eye" size="16" />
-                        Xem
-                      </button>
-                      <button v-if="canOpenSigning(document)" class="btn btn-primary" type="button" @click="openDocumentPage(document)">
-                        <AppIcon name="pencil" size="16" />
-                        Ký
-                      </button>
-                      <button v-if="document.download_url" class="btn btn-outline icon-only" type="button" title="Tải file" @click="downloadFile(document.download_url)">
-                        <AppIcon name="download" size="16" />
-                      </button>
-                    </div>
-                  </article>
+                    <article v-for="document in group.documents" :key="document.id" class="partner-doc-row">
+                      <div>
+                        <strong>{{ document.title || documentTypeLabel(document.document_type) }}</strong>
+                        <p>{{ document.document_code || 'Chưa có mã' }} · {{ documentStatusLabel(document.status) }} · {{ signatureSummary(document.signatures) }}</p>
+                        <p v-if="!document.download_url" class="partner-doc-warning">File văn bản chưa sẵn sàng hoặc bản cũ đã mất file.</p>
+                      </div>
+                      <div class="partner-doc-actions">
+                        <button class="btn btn-secondary" type="button" :disabled="!document.download_url" @click="previewDocument(document)">
+                          <AppIcon name="eye" size="16" />
+                          Xem
+                        </button>
+                        <button v-if="canOpenSigning(document)" class="btn btn-primary" type="button" @click="openDocumentPage(document)">
+                          <AppIcon name="pencil" size="16" />
+                          Ký
+                        </button>
+                        <button v-if="document.download_url" class="btn btn-outline icon-only" type="button" title="Tải file" @click="downloadFile(document.download_url)">
+                          <AppIcon name="download" size="16" />
+                        </button>
+                      </div>
+                    </article>
+                  </section>
                 </div>
                 <p v-else class="partner-empty">Chưa có văn bản hệ thống.</p>
               </div>
@@ -150,21 +156,27 @@
               </div>
               <div class="partner-card-body">
                 <div v-if="uploadedDocuments.length" class="partner-document-list">
-                  <article v-for="document in uploadedDocuments" :key="document.id" class="partner-doc-row">
-                    <div>
-                      <strong>{{ document.title || uploadedTypeLabel(document.document_type) }}</strong>
-                      <p>{{ document.file_name || uploadedTypeLabel(document.document_type) }} · {{ fileSize(document.file_size) }}</p>
+                  <section v-for="group in uploadedDocumentGroups" :key="group.key" class="partner-doc-group">
+                    <div class="partner-doc-group-head">
+                      <strong>{{ group.label }}</strong>
+                      <span>{{ group.documents.length }} file</span>
                     </div>
-                    <div class="partner-doc-actions">
-                      <button class="btn btn-secondary" type="button" @click="previewDocument({ ...document, source: 'uploaded' })">
-                        <AppIcon name="eye" size="16" />
-                        Xem
-                      </button>
-                      <button class="btn btn-outline icon-only" type="button" title="Tải file" @click="downloadFile(document.download_url)">
-                        <AppIcon name="download" size="16" />
-                      </button>
-                    </div>
-                  </article>
+                    <article v-for="document in group.documents" :key="document.id" class="partner-doc-row">
+                      <div>
+                        <strong>{{ document.title || uploadedTypeLabel(document.document_type) }}</strong>
+                        <p>{{ document.file_name || uploadedTypeLabel(document.document_type) }} · {{ fileSize(document.file_size) }}</p>
+                      </div>
+                      <div class="partner-doc-actions">
+                        <button class="btn btn-secondary" type="button" @click="previewDocument({ ...document, source: 'uploaded' })">
+                          <AppIcon name="eye" size="16" />
+                          Xem
+                        </button>
+                        <button class="btn btn-outline icon-only" type="button" title="Tải file" @click="downloadFile(document.download_url)">
+                          <AppIcon name="download" size="16" />
+                        </button>
+                      </div>
+                    </article>
+                  </section>
                 </div>
                 <p v-else class="partner-empty">Chưa có tài liệu phụ lục.</p>
               </div>
@@ -274,6 +286,8 @@ const generatedDocuments = computed(() => {
 });
 
 const uploadedDocuments = computed(() => application.value?.documents || application.value?.uploaded_documents || []);
+const generatedDocumentGroups = computed(() => groupDocuments(generatedDocuments.value, generatedDocumentGroupMeta));
+const uploadedDocumentGroups = computed(() => groupDocuments(uploadedDocuments.value, uploadedDocumentGroupMeta));
 const applicationForm = computed(() => generatedDocuments.value.find((doc) => doc.document_type === 'partner_application_form'));
 const contractDocument = computed(() => generatedDocuments.value.find((doc) => doc.document_type === 'partner_contract'));
 
@@ -344,6 +358,12 @@ function canOpenSigning(document) {
   }
   if (document.document_type === 'partner_contract') {
     return application.value?.status === 'contract_pending_owner_signature' && document.status === 'pending_owner_signature';
+  }
+  if (['venue_scale_appendix', 'venue_location_appendix'].includes(document.document_type)) {
+    return document.status === 'pending_owner_signature';
+  }
+  if (['venue_scale_request', 'venue_location_change_request'].includes(document.document_type)) {
+    return document.status === 'pending_owner_signature';
   }
   return false;
 }
@@ -416,6 +436,11 @@ function statusLabel(status) {
 }
 
 function documentTypeLabel(type) {
+  if (type === 'venue_scale_request') return 'Đơn yêu cầu thay đổi quy mô sân';
+  if (type === 'venue_location_change_request') return 'Đơn yêu cầu thay đổi vị trí cụm sân';
+  if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
+  if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+
   return {
     partner_application_form: 'Đơn đăng ký đối tác',
     partner_contract: 'Hợp đồng đối tác kinh doanh',
@@ -429,8 +454,58 @@ function uploadedTypeLabel(type) {
     facility: 'Ảnh cơ sở/sân',
     bank: 'Chứng từ ngân hàng',
     lease: 'Hợp đồng thuê mặt bằng',
+    scale_request_documents: 'Hồ sơ yêu cầu thay đổi quy mô',
+    scale_request_supplement: 'Hồ sơ yêu cầu thay đổi quy mô',
+    location_change_documents: 'Hồ sơ yêu cầu thay đổi vị trí',
+    location_change_supplement: 'Hồ sơ yêu cầu thay đổi vị trí',
     additional: 'Tài liệu bổ sung',
   }[type] || type || 'Tài liệu';
+}
+
+function groupDocuments(documents, metaResolver) {
+  const map = new Map();
+  for (const document of documents || []) {
+    const meta = metaResolver(document);
+    if (!map.has(meta.key)) {
+      map.set(meta.key, { ...meta, documents: [] });
+    }
+    map.get(meta.key).documents.push(document);
+  }
+  return Array.from(map.values());
+}
+
+function generatedDocumentGroupMeta(document) {
+  const type = document?.document_type;
+  if (['partner_contract', 'venue_scale_appendix', 'venue_location_appendix'].includes(type)) {
+    return { key: 'contracts', label: 'Hợp đồng và phụ lục' };
+  }
+  if (type === 'partner_application_form') {
+    return { key: 'partner_application', label: 'Đơn đăng ký đối tác' };
+  }
+  if (type === 'venue_scale_request') {
+    return { key: 'scale_request', label: 'Đơn yêu cầu thay đổi quy mô' };
+  }
+  if (type === 'venue_location_change_request') {
+    return { key: 'location_request', label: 'Đơn yêu cầu thay đổi vị trí' };
+  }
+  if (['termination_request', 'mutual_liquidation_minutes', 'unilateral_termination_notice', 'settlement_minutes'].includes(type)) {
+    return { key: 'termination', label: 'Công văn, hủy yêu cầu đối tác' };
+  }
+  return { key: 'other', label: 'Văn bản khác' };
+}
+
+function uploadedDocumentGroupMeta(document) {
+  const type = document?.document_type || document?.category;
+  if (['identity', 'business_license', 'facility', 'bank', 'lease'].includes(type)) {
+    return { key: 'registration', label: 'Hồ sơ đăng ký đối tác' };
+  }
+  if (['scale_request_documents', 'scale_request_supplement'].includes(type)) {
+    return { key: 'scale_request_uploads', label: 'Hồ sơ yêu cầu thay đổi quy mô' };
+  }
+  if (['location_change_documents', 'location_change_supplement'].includes(type)) {
+    return { key: 'location_request_uploads', label: 'Hồ sơ yêu cầu thay đổi vị trí' };
+  }
+  return { key: 'other_uploads', label: 'Tài liệu bổ sung khác' };
 }
 
 function documentStatusLabel(status) {
@@ -477,4 +552,25 @@ function dateOnly(value) {
 
 <style>
 @import "../../../css/partner/partner.css";
+
+.partner-doc-group {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.partner-doc-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.partner-doc-group-head span {
+  color: #64748b;
+  font-size: 0.85rem;
+}
 </style>

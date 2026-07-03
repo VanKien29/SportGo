@@ -9,6 +9,7 @@ use App\Models\PartnerApplication;
 use App\Models\VenueCluster;
 use App\Models\VenueLocationChangeRequest;
 use App\Services\Partner\PartnerDocumentService;
+use App\Services\Partner\PartnerLocationService;
 use App\Services\Partner\PartnerMapResolver;
 use App\Services\Partner\PartnerProfileDocumentService;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +26,7 @@ class VenueLocationChangeController extends Controller
     public function __construct(
         private readonly PartnerProfileDocumentService $profileDocuments,
         private readonly PartnerDocumentService $documents,
+        private readonly PartnerLocationService $locations,
         private readonly PartnerMapResolver $maps,
     )
     {
@@ -69,7 +71,9 @@ class VenueLocationChangeController extends Controller
         $data = $request->validate([
             'new_address'   => ['required', 'string', 'max:255'],
             'new_province'  => ['required', 'string', 'max:255'],
+            'new_province_code' => ['required', 'string', 'max:20'],
             'new_ward'      => ['required', 'string', 'max:255'],
+            'new_ward_code' => ['required', 'string', 'max:20'],
             'new_latitude'  => ['required', 'numeric', 'between:-90,90'],
             'new_longitude' => ['required', 'numeric', 'between:-180,180'],
             'new_map_url'   => ['nullable', 'url', 'max:2000'],
@@ -77,6 +81,7 @@ class VenueLocationChangeController extends Controller
             'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
         ]);
+        $data = $this->normalizeLocationRequestData($data);
 
         $this->assertLocationMatchesCoordinates($data);
 
@@ -89,7 +94,9 @@ class VenueLocationChangeController extends Controller
             'note' => $data['note'],
             'new_address' => $data['new_address'],
             'new_province' => $data['new_province'],
+            'new_province_code' => $data['new_province_code'],
             'new_ward' => $data['new_ward'],
+            'new_ward_code' => $data['new_ward_code'],
             'new_latitude' => $data['new_latitude'],
             'new_longitude' => $data['new_longitude'],
             'new_map_url' => $data['new_map_url'] ?? $this->googleMapsPointUrl((float) $data['new_latitude'], (float) $data['new_longitude']),
@@ -134,7 +141,7 @@ class VenueLocationChangeController extends Controller
         // Kiểm tra xem đã có yêu cầu pending chưa
         $hasPending = VenueLocationChangeRequest::query()
             ->where('venue_cluster_id', $clusterId)
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending_owner_signature', 'pending', 'approved_pending_appendix', 'need_supplement'])
             ->exists();
 
         if ($hasPending) {
@@ -146,14 +153,15 @@ class VenueLocationChangeController extends Controller
         $data = $request->validate([
             'new_address'   => ['required', 'string', 'max:255'],
             'new_province'  => ['required', 'string', 'max:255'],
+            'new_province_code' => ['required', 'string', 'max:20'],
             'new_ward'      => ['required', 'string', 'max:255'],
+            'new_ward_code' => ['required', 'string', 'max:20'],
             'new_latitude'  => ['required', 'numeric', 'between:-90,90'],
             'new_longitude' => ['required', 'numeric', 'between:-180,180'],
             'new_map_url'   => ['nullable', 'url', 'max:2000'],
             'note'          => ['required', 'string', 'max:1000'],
             'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
-            'signature_image' => ['required', 'string', 'max:600000'],
             'preview_document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
         ], [
             'new_address.required'   => 'Vui lòng nhập địa chỉ mới.',
@@ -170,16 +178,20 @@ class VenueLocationChangeController extends Controller
             'signature_image.required' => 'Vui lòng ký xác nhận yêu cầu trước khi gửi.',
         ]);
 
+        $data = $this->normalizeLocationRequestData($data);
+
         $this->assertLocationMatchesCoordinates($data);
 
         $locationRequest = VenueLocationChangeRequest::create([
             'venue_cluster_id' => $clusterId,
             'requested_by'     => $request->user()->id,
-            'status'           => 'pending',
+            'status'           => 'pending_owner_signature',
             'note'             => $data['note'],
             'new_address'      => $data['new_address'],
             'new_province'     => $data['new_province'],
+            'new_province_code' => $data['new_province_code'],
             'new_ward'         => $data['new_ward'],
+            'new_ward_code'    => $data['new_ward_code'],
             'new_latitude'     => $data['new_latitude'],
             'new_longitude'    => $data['new_longitude'],
             'new_map_url'      => $data['new_map_url'] ?? null,
@@ -197,25 +209,14 @@ class VenueLocationChangeController extends Controller
             $locationRequest->forceFill(['supplementary_documents' => $documents])->save();
         }
 
-        $signature = $this->storeSignatureImage($data['signature_image'], 'venue-change-signatures/location/' . $clusterId, $locationRequest->id);
-        $locationRequest->forceFill([
-            'signature_image' => $signature['path'],
-            'signature_hash' => $signature['hash'],
-            'signed_at' => now(),
-        ])->save();
-
-        $this->generateAndSignLocationDocument($cluster, $locationRequest, $request, $data['signature_image'], $data['preview_document_id'] ?? null);
-
-        $this->sendOwnerMail($cluster, new VenueLocationChangeRequestReceivedMail([
-            'cluster_name' => $cluster->name,
-            'new_address' => trim($locationRequest->new_address . ', ' . $locationRequest->new_ward . ', ' . $locationRequest->new_province, ', '),
-            'coordinates' => $locationRequest->new_latitude . ', ' . $locationRequest->new_longitude,
-            'submitted_at' => now()->format('H:i d/m/Y'),
-        ]), $locationRequest->id);
+        $this->generateLocationDocument($cluster, $locationRequest, $request, $data['preview_document_id'] ?? null);
 
         return response()->json([
             'message' => 'Gửi yêu cầu thành công. Vui lòng chờ Admin xét duyệt.',
-            'data'    => $this->payload($locationRequest->load(['requestedBy:id,full_name,username,email,phone', 'generatedDocument.signatures'])),
+            'data'    => [
+                ...$this->payload($locationRequest->load(['requestedBy:id,full_name,username,email,phone', 'generatedDocument.signatures'])),
+                'partner_application_id' => $this->partnerApplication($cluster)?->id,
+            ],
         ], 201);
     }
 
@@ -242,7 +243,6 @@ class VenueLocationChangeController extends Controller
             'note' => ['nullable', 'string', 'max:1000'],
             'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
-            'signature_image' => ['required', 'string', 'max:600000'],
             'preview_document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
         ], [
             'supplementary_documents.required' => 'Vui lòng tải lên ít nhất một giấy tờ bổ sung.',
@@ -261,22 +261,23 @@ class VenueLocationChangeController extends Controller
             'Giấy tờ chủ sân bổ sung theo yêu cầu của SportGo.'
         );
 
-        $signature = $this->storeSignatureImage($data['signature_image'], 'venue-change-signatures/location/' . $clusterId, $locationRequest->id);
-
         $locationRequest->forceFill([
-            'status' => 'pending',
+            'status' => 'pending_owner_signature',
             'status_reason' => $data['note'] ?? 'Chủ sân đã bổ sung giấy tờ theo yêu cầu.',
             'supplementary_documents' => array_values(array_merge($locationRequest->supplementary_documents ?: [], $documents)),
-            'signature_image' => $signature['path'],
-            'signature_hash' => $signature['hash'],
-            'signed_at' => now(),
+            'signature_image' => null,
+            'signature_hash' => null,
+            'signed_at' => null,
         ])->save();
 
-        $this->generateAndSignLocationDocument($cluster, $locationRequest->refresh(), $request, $data['signature_image'], $data['preview_document_id'] ?? null);
+        $this->generateLocationDocument($cluster, $locationRequest->refresh(), $request, $data['preview_document_id'] ?? null);
 
         return response()->json([
             'message' => 'Đã nộp giấy tờ bổ sung. Yêu cầu được chuyển lại về trạng thái chờ duyệt.',
-            'data' => $this->payload($locationRequest->fresh(['requestedBy:id,full_name,username,email,phone', 'reviewedBy:id,full_name,username', 'generatedDocument.signatures'])),
+            'data' => [
+                ...$this->payload($locationRequest->fresh(['requestedBy:id,full_name,username,email,phone', 'reviewedBy:id,full_name,username', 'generatedDocument.signatures'])),
+                'partner_application_id' => $this->partnerApplication($cluster)?->id,
+            ],
         ]);
     }
 
@@ -292,7 +293,7 @@ class VenueLocationChangeController extends Controller
             ->where('venue_cluster_id', $clusterId)
             ->findOrFail($requestId);
 
-        if ($locationRequest->status !== 'pending') {
+        if (! in_array($locationRequest->status, ['pending_owner_signature', 'pending'], true)) {
             return response()->json(['message' => 'Chỉ có thể hủy yêu cầu đang ở trạng thái chờ duyệt.'], 422);
         }
 
@@ -336,7 +337,9 @@ class VenueLocationChangeController extends Controller
             'status_reason' => $r->status_reason,
             'new_address'   => $r->new_address,
             'new_province'  => $r->new_province,
+            'new_province_code' => $r->new_province_code,
             'new_ward'      => $r->new_ward,
+            'new_ward_code' => $r->new_ward_code,
             'new_latitude'  => $r->new_latitude,
             'new_longitude' => $r->new_longitude,
             'new_map_url'   => $r->new_map_url,
@@ -346,6 +349,7 @@ class VenueLocationChangeController extends Controller
             'signature_hash' => $r->signature_hash,
             'signed_at' => $r->signed_at,
             'generated_document' => $this->documentPayload($r->generatedDocument),
+            'partner_application_id' => $this->partnerApplicationIdForCluster($r->venue_cluster_id),
             'requested_by'  => $r->requestedBy ? [
                 'id'        => $r->requestedBy->id,
                 'full_name' => $r->requestedBy->full_name,
@@ -383,6 +387,23 @@ class VenueLocationChangeController extends Controller
         return ['path' => $path, 'hash' => $hash];
     }
 
+    private function normalizeLocationRequestData(array $data): array
+    {
+        if (! $this->locations->assertWardBelongsToProvince($data['new_province_code'], $data['new_ward_code'])) {
+            throw ValidationException::withMessages([
+                'new_ward_code' => 'Phường/Xã không thuộc Tỉnh/Thành phố đã chọn.',
+            ]);
+        }
+
+        $province = $this->locations->provinceByCode($data['new_province_code']);
+        $ward = $this->locations->wardByCode($data['new_province_code'], $data['new_ward_code']);
+
+        $data['new_province'] = $province['name'] ?? ($data['new_province'] ?? '');
+        $data['new_ward'] = $ward['name'] ?? ($data['new_ward'] ?? '');
+
+        return $data;
+    }
+
     private function assertLocationMatchesCoordinates(array $data): void
     {
         try {
@@ -398,6 +419,24 @@ class VenueLocationChangeController extends Controller
         }
 
         $errors = [];
+        $resolvedProvinceCode = (string) ($resolved['province_code'] ?? '');
+        $resolvedWardCode = (string) ($resolved['ward_code'] ?? '');
+
+        if ($resolvedProvinceCode !== '' && $resolvedProvinceCode !== (string) ($data['new_province_code'] ?? '')) {
+            $errors['new_province_code'] = 'Tỉnh/Thành phố không khớp với tọa độ đã chọn trên bản đồ.';
+        }
+
+        if ($resolvedWardCode !== '' && $resolvedWardCode !== (string) ($data['new_ward_code'] ?? '')) {
+            $errors['new_ward_code'] = 'Phường/Xã không khớp với tọa độ đã chọn trên bản đồ.';
+        }
+
+        if ($resolvedProvinceCode !== '' || $resolvedWardCode !== '') {
+            if ($errors !== []) {
+                throw ValidationException::withMessages($errors);
+            }
+
+            return;
+        }
         if (! empty($resolved['province']) && ! $this->sameLocationName($resolved['province'], $data['new_province'] ?? null)) {
             $errors['new_province'] = 'Tỉnh/Thành phố không khớp với tọa độ đã chọn trên bản đồ.';
         }
@@ -457,7 +496,7 @@ class VenueLocationChangeController extends Controller
         return 'https://www.google.com/maps/search/?api=1&query=' . $latitude . ',' . $longitude;
     }
 
-    private function generateAndSignLocationDocument(VenueCluster $cluster, VenueLocationChangeRequest $locationRequest, Request $request, string $signatureImage, ?string $previewDocumentId = null): void
+    private function generateLocationDocument(VenueCluster $cluster, VenueLocationChangeRequest $locationRequest, Request $request, ?string $previewDocumentId = null): void
     {
         $locationRequest->loadMissing(['requestedBy', 'venueCluster.owner']);
         $renderData = $this->locationRequestRenderData($cluster, $locationRequest);
@@ -475,6 +514,7 @@ class VenueLocationChangeController extends Controller
             $document->forceFill([
                 'reference_type' => VenueLocationChangeRequest::class,
                 'reference_id' => $locationRequest->id,
+                'partner_application_id' => $this->partnerApplication($cluster)?->id,
                 'entity_type' => VenueCluster::class,
                 'entity_id' => $cluster->id,
                 'status' => 'pending_owner_signature',
@@ -485,18 +525,13 @@ class VenueLocationChangeController extends Controller
             $document = $this->documents->generateDocument('venue_location_change_request', $locationRequest, $renderData, $request->user(), [
                 'owner_id' => $cluster->owner_id,
                 'venue_cluster_id' => $cluster->id,
+                'partner_application_id' => $this->partnerApplication($cluster)?->id,
                 'entity_type' => VenueCluster::class,
                 'entity_id' => $cluster->id,
                 'status' => 'pending_owner_signature',
                 'title' => 'Đơn yêu cầu thay đổi vị trí cụm sân ' . $cluster->name,
             ]);
         }
-
-        $this->documents->signDocument($document, $request->user(), 'owner', $signatureImage, $request, [
-            'signer_full_name' => $renderData['owner_signer_name'],
-            'signer_title' => 'Chủ sân/Đối tác',
-            'signature_method' => 'drawn',
-        ]);
 
         $locationRequest->forceFill(['generated_document_id' => $document->id])->save();
     }
@@ -522,14 +557,17 @@ class VenueLocationChangeController extends Controller
             'cluster_name' => $cluster->name,
             'venue_cluster_id' => $cluster->id,
             'venue_cluster_code' => $cluster->slug ?: $cluster->id,
+            'request_id' => $locationRequest->id,
             'contract_code' => $contract?->contract_code,
-            'contract_signed_at' => $contract?->completed_at ?: $contract?->created_at,
+            'contract_signed_at' => $this->contractTimelineAt($contract),
             'current_address' => $cluster->address,
             'current_province' => $cluster->province,
             'current_ward' => $cluster->ward,
             'current_latitude' => $cluster->latitude,
             'current_longitude' => $cluster->longitude,
             'current_map_url' => $cluster->map_url,
+            'venue_phone' => $cluster->phone_contact,
+            'venue_manager_name' => $ownerSigner,
             'new_address' => $locationRequest->new_address,
             'new_province' => $locationRequest->new_province,
             'new_ward' => $locationRequest->new_ward,
@@ -551,6 +589,27 @@ class VenueLocationChangeController extends Controller
             ->latest('reviewed_at')
             ->latest('created_at')
             ->first();
+    }
+
+    private function partnerApplicationIdForCluster(?string $clusterId): ?string
+    {
+        if (! $clusterId) {
+            return null;
+        }
+
+        return PartnerApplication::query()
+            ->where('approved_venue_cluster_id', $clusterId)
+            ->latest('reviewed_at')
+            ->latest('created_at')
+            ->value('id');
+    }
+
+    private function contractTimelineAt($contract)
+    {
+        return $contract?->sportgo_signed_at
+            ?: $contract?->owner_signed_at
+            ?: $contract?->effective_from
+            ?: $contract?->created_at;
     }
 
     private function documentPayload($document): ?array

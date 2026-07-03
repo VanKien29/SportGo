@@ -6,7 +6,7 @@
       <header class="partner-page-header">
         <button class="btn btn-secondary" type="button" @click="goBack">
           <AppIcon name="arrow-left" size="16" />
-          {{ route.query.from === 'registration' ? 'Quay lại form nhập' : 'Quay lại hồ sơ' }}
+          {{ route.query.from === 'registration' ? 'Quay lại form nhập' : (route.query.from === 'venue-change' ? 'Quay lại cụm sân' : 'Quay lại hồ sơ') }}
         </button>
 
         <div class="partner-page-title">
@@ -197,11 +197,14 @@ const DRAFT_KEY = 'sportgo_partner_application_draft_v3';
 const isGeneratedDocument = computed(() => document.value?.source !== 'uploaded');
 const isApplicationForm = computed(() => document.value?.document_type === 'partner_application_form');
 const isContract = computed(() => document.value?.document_type === 'partner_contract');
+const isChangeAppendix = computed(() => ['venue_scale_appendix', 'venue_location_appendix'].includes(document.value?.document_type));
+const isVenueChangeRequest = computed(() => ['venue_scale_request', 'venue_location_change_request'].includes(document.value?.document_type));
+const isTwoPartyDocument = computed(() => isContract.value || isChangeAppendix.value);
 const requiredSides = computed(() => {
   if (document.value?.source === 'uploaded') return [];
-  return isContract.value
+  return isTwoPartyDocument.value
     ? [{ key: 'sportgo', label: 'SportGo' }, { key: 'owner', label: 'Chủ sân' }]
-    : [{ key: 'owner', label: 'Người đăng ký' }];
+    : [{ key: 'owner', label: isVenueChangeRequest.value ? 'Chủ sân' : 'Người đăng ký' }];
 });
 const canSign = computed(() => (
   isGeneratedDocument.value
@@ -209,10 +212,17 @@ const canSign = computed(() => (
   && Boolean(document.value?.download_url)
   && !signatureBySide('owner')
 ));
-const confirmationText = computed(() => (isContract.value
-  ? 'Tôi xác nhận đã đọc, hiểu rõ toàn bộ nội dung hợp đồng, đồng ý giao kết hợp đồng này với SportGo và xác nhận thông tin trong hợp đồng là đúng.'
-  : 'Tôi xác nhận đã đọc, kiểm tra và chịu trách nhiệm về tính chính xác, hợp pháp của toàn bộ thông tin, tài liệu trong đơn đăng ký này.'
-));
+const confirmationText = computed(() => {
+  if (isTwoPartyDocument.value) {
+    return 'Tôi xác nhận đã đọc, hiểu rõ toàn bộ nội dung hợp đồng, đồng ý giao kết hợp đồng này với SportGo và xác nhận thông tin trong hợp đồng là đúng.';
+  }
+
+  if (isVenueChangeRequest.value) {
+    return 'Tôi xác nhận đã đọc, kiểm tra và chịu trách nhiệm về tính chính xác, hợp pháp của toàn bộ thông tin, tài liệu trong đơn yêu cầu thay đổi này.';
+  }
+
+  return 'Tôi xác nhận đã đọc, kiểm tra và chịu trách nhiệm về tính chính xác, hợp pháp của toàn bộ thông tin, tài liệu trong đơn đăng ký này.';
+});
 const readonlyHint = computed(() => {
   if (document.value?.source === 'uploaded') return 'Tài liệu phụ lục chỉ hỗ trợ xem và tải xuống.';
   if (document.value?.status === 'completed') return 'Văn bản đã hoàn tất chữ ký bắt buộc.';
@@ -278,6 +288,11 @@ function findDocument(app, documentId) {
 function goBack() {
   if (route.query.from === 'registration') {
     router.push({ name: 'partner-application', query: { editDraft: route.params.id } });
+    return;
+  }
+
+  if (route.query.from === 'venue-change') {
+    router.push({ name: 'owner-venue-clusters' });
     return;
   }
 
@@ -365,14 +380,21 @@ async function requestSignatureOtp() {
       confirmation_text: confirmationText.value,
     };
 
-    const response = isContract.value
+    const response = isTwoPartyDocument.value
       ? await api('/api/user/partner-application/sign-contract/request-otp', {
         method: 'POST',
-        body: JSON.stringify({ ...payload, contract_id: document.value.partner_contract_id || contract.value?.id }),
+        body: JSON.stringify({
+          ...payload,
+          contract_id: document.value.partner_contract_id || contract.value?.id,
+          document_id: isChangeAppendix.value ? document.value.id : undefined,
+        }),
       })
       : await api(`/api/user/partner-application/${application.value.id}/sign-document/request-otp`, {
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          document_id: isVenueChangeRequest.value ? document.value.id : undefined,
+        }),
       });
 
     signingRequestId.value = response.data?.signing_request_id || '';
@@ -392,7 +414,7 @@ async function verifySignatureOtp() {
   otpError.value = '';
 
   try {
-    if (isContract.value) {
+    if (isTwoPartyDocument.value) {
       await api('/api/user/partner-application/sign-contract/verify-otp', {
         method: 'POST',
         body: JSON.stringify({ signing_request_id: signingRequestId.value, otp: otp.value }),
@@ -405,8 +427,10 @@ async function verifySignatureOtp() {
       localStorage.removeItem(DRAFT_KEY);
     }
 
-    if (isContract.value) {
+    if (isTwoPartyDocument.value) {
       router.push({ name: 'partner-application-detail', params: { id: application.value.id } });
+    } else if (isVenueChangeRequest.value) {
+      router.push({ name: 'owner-venue-clusters' });
     } else {
       router.push({ name: 'partner-application' });
     }
@@ -442,6 +466,11 @@ function statusLabel(status) {
 }
 
 function documentTypeLabel(type, source) {
+  if (type === 'venue_scale_request') return 'Đơn yêu cầu thay đổi quy mô sân';
+  if (type === 'venue_location_change_request') return 'Đơn yêu cầu thay đổi vị trí cụm sân';
+  if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
+  if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+
   if (source === 'uploaded') return 'Tài liệu phụ lục';
   return {
     partner_application_form: 'Đơn đăng ký đối tác',

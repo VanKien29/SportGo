@@ -224,6 +224,12 @@ class PartnerDocumentSigningService
 
     private function signaturePosition(?string $documentType, string $signerSide): string
     {
+        if (in_array($documentType, ['venue_scale_appendix', 'venue_location_appendix'], true)) {
+            return $signerSide === 'sportgo'
+                ? 'Khoi DAI DIEN BEN A - SPORTGO / placeholder {{signature_sportgo}}'
+                : 'Khoi DAI DIEN BEN B - DOI TAC/CHU SAN / placeholder {{signature_owner}}';
+        }
+
         return match ($documentType . ':' . $signerSide) {
             'partner_application_form:owner' => 'Khối NGƯỜI ĐỀ NGHỊ / placeholder {{signature_owner}}',
             'partner_contract:sportgo' => 'Khối ĐẠI DIỆN BÊN A - SPORTGO / placeholder {{signature_sportgo}}',

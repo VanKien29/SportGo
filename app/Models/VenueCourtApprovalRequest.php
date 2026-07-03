@@ -18,6 +18,9 @@ class VenueCourtApprovalRequest extends Model
         'venue_cluster_id',
         'court_type_id',
         'name',
+        'change_type',
+        'requested_courts',
+        'removed_court_ids',
         'status',
         'requested_by',
         'reviewed_by',
@@ -39,6 +42,8 @@ class VenueCourtApprovalRequest extends Model
             'reviewed_at' => 'datetime',
             'signed_at' => 'datetime',
             'supplementary_documents' => 'array',
+            'requested_courts' => 'array',
+            'removed_court_ids' => 'array',
         ];
     }
 
