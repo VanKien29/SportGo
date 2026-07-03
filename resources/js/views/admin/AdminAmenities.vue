@@ -59,62 +59,63 @@
                 </button>
             </div>
 
-            <!-- Compact Rows View -->
+            <!-- Elegant SaaS Table View -->
             <div v-else class="amenities-list-wrapper animate-fade-in">
-                <div class="amenities-list">
-                    <div
-                        v-for="item in filteredAmenities"
-                        :key="item.id"
-                        class="amenity-row-item"
-                        :class="{ 'status-inactive': item.status === 'inactive' || item.status === 'rejected' }"
-                        @click="openViewModal(item)"
-                    >
-                        <!-- Accent hover line -->
-                        <div class="accent-line"></div>
-
-                        <!-- Left: Name & Description -->
-                        <div class="row-left">
-                            <div class="amenity-info">
-                                <span class="amenity-name">{{ item.name }}</span>
-                                <span class="amenity-desc" v-if="item.description">{{ item.description }}</span>
-                            </div>
+                <SaaSTable 
+                    :columns="tableColumns" 
+                    :data="filteredAmenities" 
+                    clickable 
+                    @row-click="row => openViewModal(row)"
+                >
+                    <!-- Tên tiện ích -->
+                    <template #name="{ row }">
+                        <div class="name-col-cell">
+                            <span class="amenity-name-text">{{ row.name }}</span>
+                            <span class="amenity-desc-text" v-if="row.description">{{ row.description }}</span>
                         </div>
+                    </template>
 
-                        <!-- Middle: Sender (Created by) & Status Badge -->
-                        <div class="row-middle">
-                            <div class="sender-info hide-on-tablet">
-                                <span class="sender-name">{{ item.created_by ? item.created_by.full_name : 'Hệ thống' }}</span>
-                                <span class="sender-email" v-if="item.created_by?.email">{{ item.created_by.email }}</span>
-                            </div>
-                            <span class="row-status-badge" :class="item.status">
-                                {{ statusText(item.status) }}
-                            </span>
+                    <!-- Người tạo -->
+                    <template #created_by="{ row }">
+                        <div class="owner-col-cell" v-if="row.created_by">
+                            <span class="owner-name-text">{{ row.created_by.full_name }}</span>
+                            <span class="owner-email-text">{{ row.created_by.email }}</span>
                         </div>
+                        <span v-else class="owner-name-text">Hệ thống</span>
+                    </template>
 
-                        <!-- Right: Actions -->
-                        <div class="row-right" @click.stop>
+                    <!-- Trạng thái -->
+                    <template #status="{ row }">
+                        <span class="status-badge" :class="'status-is-' + row.status">
+                            {{ statusText(row.status) }}
+                        </span>
+                    </template>
+
+                    <!-- Action Column -->
+                    <template #actions="{ row }">
+                        <div class="table-actions" @click.stop>
                             <ActionIconButton
                                 icon="eye"
                                 label="Xem chi tiết"
                                 size="sm"
-                                @click="openViewModal(item)"
+                                @click="openViewModal(row)"
                             />
                             <ActionIconButton
                                 icon="pencil"
                                 label="Sửa tiện ích"
                                 size="sm"
-                                @click="openEditModal(item)"
+                                @click="openEditModal(row)"
                             />
                             <ActionIconButton
                                 icon="trash"
                                 label="Xóa tiện ích"
                                 variant="danger"
                                 size="sm"
-                                @click="confirmDelete(item)"
+                                @click="confirmDelete(row)"
                             />
                         </div>
-                    </div>
-                </div>
+                    </template>
+                </SaaSTable>
             </div>
         </template>
 
@@ -258,14 +259,21 @@
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import TableActionGroup from "../../components/TableActionGroup.vue";
+import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { amenityService } from "../../services/amenityService";
 
 export default {
     name: "AdminAmenities",
-    components: { ActionIconButton, AppIcon, TableActionGroup },
+    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSTable },
     data() {
         return {
             amenities: [],
+            tableColumns: [
+                { key: "name", label: "Tên tiện ích" },
+                { key: "created_by", label: "Người tạo" },
+                { key: "status", label: "Trạng thái" },
+                { key: "actions", label: "", align: "right" }
+            ],
             searchQuery: "",
             statusFilter: "all",
             isDropdownOpen: false,
@@ -481,8 +489,16 @@ export default {
 
 /* Filters */
 .avc-filters {
-    padding: 14px 24px;
-    margin-bottom: 20px;
+    padding: 12px 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+:deep(.saas-table-container) {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
 .filter-row {
     display: flex;
@@ -503,9 +519,9 @@ export default {
     justify-content: center !important;
     padding: 0 16px !important;
     border-radius: 8px !important;
-    border: 1px solid var(--admin-border) !important;
+    border: 1px solid #cbd5e1 !important;
     background: var(--admin-surface) !important;
-    color: var(--admin-muted) !important;
+    color: #475569 !important;
     font-size: 13px !important;
     font-weight: 600 !important;
     cursor: pointer !important;
@@ -520,6 +536,10 @@ export default {
 .avc-filters .filter-tabs button.tab-btn:not(.active):hover {
     background: var(--admin-hover) !important;
     color: var(--admin-primary-dark) !important;
+}
+[data-theme="dark"] .avc-filters .filter-tabs button.tab-btn {
+    border: 1px solid var(--admin-border) !important;
+    color: var(--admin-muted) !important;
 }
 .filter-search {
     flex: 1;
@@ -585,6 +605,74 @@ export default {
     transition: all 0.2s ease;
 }
 
+/* SaaS Table cell custom layout styles */
+.name-col-cell, .owner-col-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.amenity-name-text {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--admin-text, #0f172a);
+}
+
+.amenity-desc-text {
+    font-size: 11.5px;
+    color: var(--admin-faint, #64748b);
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.owner-name-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--admin-text, #0f172a);
+}
+
+.owner-email-text {
+    font-size: 11px;
+    color: var(--admin-faint, #64748b);
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+}
+
+/* Status coloring mapping */
+.status-is-pending_review {
+    color: var(--admin-warning) !important;
+}
+
+.status-is-active {
+    color: var(--admin-primary-dark) !important;
+}
+
+/* Ensure readability/contrast for active status in dark mode */
+[data-theme="dark"] .status-is-active {
+    color: #34d399 !important;
+}
+
+.status-is-inactive, .status-is-rejected {
+    color: var(--admin-danger-text, var(--admin-danger)) !important;
+}
+
+.table-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
 .btn-primary {
     background: #0f172a;
     color: #fff;
@@ -617,202 +705,9 @@ export default {
     gap: 4px;
 }
 
-.amenity-row-item {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 52px;
-    padding: 10px 16px;
-    background: #ffffff;
-    border: 1px solid rgba(15, 23, 42, 0.04);
-    border-radius: 8px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-}
 
-.amenity-row-item:hover {
-    background: rgba(15, 23, 42, 0.015);
-    border-color: rgba(15, 23, 42, 0.08);
-    transform: translateX(2px);
-}
 
-.accent-line {
-    position: absolute;
-    left: 0;
-    top: 15%;
-    bottom: 15%;
-    width: 2.5px;
-    background: #000000;
-    border-radius: 0 2px 2px 0;
-    opacity: 0;
-    transform: scaleY(0.7);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
 
-.amenity-row-item:hover .accent-line {
-    opacity: 1;
-    transform: scaleY(1);
-}
-
-.row-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-    min-width: 0;
-}
-
-.amenity-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.amenity-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--admin-text);
-    transition: opacity 0.2s ease;
-}
-
-.amenity-desc {
-    font-size: 12px;
-    color: var(--admin-faint);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 450px;
-}
-
-.amenity-row-item.status-inactive .amenity-name {
-    opacity: 0.5;
-}
-
-.row-middle {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 24px;
-    flex: 1;
-    padding-right: 16px;
-}
-
-.sender-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
-    text-align: right;
-}
-
-.sender-name {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--admin-text);
-}
-
-.sender-email {
-    font-size: 11px;
-    color: var(--admin-faint);
-}
-
-.row-status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: capitalize;
-}
-
-.row-status-badge.active {
-    background: var(--admin-primary-soft) !important;
-    color: var(--admin-primary-dark) !important;
-}
-
-.row-status-badge.pending_review {
-    background: var(--admin-warning-soft) !important;
-    color: var(--admin-warning) !important;
-}
-
-.row-status-badge.rejected {
-    background: var(--admin-danger-soft) !important;
-    color: var(--admin-danger) !important;
-}
-
-.row-status-badge.inactive {
-    background: var(--admin-surface-muted) !important;
-    color: var(--admin-muted) !important;
-}
-
-.row-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    opacity: 0;
-    transform: translateX(6px);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.amenity-row-item:hover .row-right {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-.actions-wrapper {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-}
-
-.btn-action {
-    padding: 6px 12px;
-    font-size: 12px;
-    font-weight: 700;
-    border-radius: 6px;
-    cursor: pointer;
-    border: 1px solid var(--sg-border, #e2e8f0);
-    background: #fff;
-    transition: all 0.15s ease;
-}
-
-.btn-action:hover {
-    background: #f1f5f9;
-}
-
-.btn-edit {
-    color: #2563eb;
-    border-color: #bfdbfe;
-}
-.btn-edit:hover {
-    background: #eff6ff;
-}
-
-.btn-delete {
-    color: #dc2626;
-    border-color: #fecaca;
-}
-.btn-delete:hover {
-    background: #fef2f2;
-}
-
-.btn-approve {
-    color: #166534;
-    border-color: #bbf7d0;
-}
-.btn-approve:hover {
-    background: #dcfce7;
-}
-
-.btn-reject {
-    color: #b91c1c;
-    border-color: #fecaca;
-}
-.btn-reject:hover {
-    background: #fee2e2;
-}
 
 /* Modal */
 .modal-backdrop {

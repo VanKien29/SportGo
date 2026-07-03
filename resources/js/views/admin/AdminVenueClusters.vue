@@ -57,75 +57,77 @@
                 </button>
             </div>
 
-            <!-- ── Compact Rows View ── -->
+            <!-- ── Elegant SaaS Table View ── -->
             <div v-else class="clusters-list-wrapper animate-fade-in">
-                <div class="clusters-list">
-                    <div
-                        v-for="c in filteredClusters"
-                        :key="c.id"
-                        class="cluster-row-item"
-                        :class="{ 'row-locked': c.status === 'locked' }"
-                        @click="goDetail(c.id)"
-                    >
-                        <!-- Accent hover line -->
-                        <div class="accent-line"></div>
-
-                        <!-- Left: Cluster Name, Slug & Courts count -->
-                        <div class="row-left">
-                            <div class="cluster-info">
-                                <span class="cluster-name">{{ c.name }}</span>
-                                <span class="cluster-meta">
-                                    <span class="cluster-slug">{{ c.slug }}</span>
-                                    <span class="meta-dot">&bull;</span>
-                                    <span class="cluster-address">{{ formatFullAddress(c) }}</span>
-                                </span>
-                            </div>
-                            <span class="courts-count-badge">
-                                <AppIcon name="layers" size="12" />
-                                <span>{{ c.court_count }} sân con</span>
-                            </span>
+                <SaaSTable 
+                    :columns="tableColumns" 
+                    :data="filteredClusters" 
+                    clickable 
+                    @row-click="row => goDetail(row.id)"
+                >
+                    <!-- Tên cụm sân & Address -->
+                    <template #name="{ row }">
+                        <div class="name-col-cell">
+                            <span class="cluster-name-text">{{ row.name }}</span>
+                            <span class="cluster-address-text">{{ formatFullAddress(row) }}</span>
                         </div>
+                    </template>
 
-                        <!-- Middle: Owner & Status Badges -->
-                        <div class="row-middle">
-                            <div class="owner-info hide-on-tablet">
-                                <span class="owner-name">{{ c.owner?.full_name || '—' }}</span>
-                                <span class="owner-email" v-if="c.owner?.email">{{ c.owner.email }}</span>
-                            </div>
-                            <div class="status-badges">
-                                <span class="row-status-badge" :class="'fee-is-' + c.fee_status">
-                                    Phí: {{ feeStatusLabel(c.fee_status) }}
-                                </span>
-                                <span class="row-status-badge" :class="'state-is-' + c.status">
-                                    {{ statusLabel(c.status) }}
-                                </span>
-                            </div>
+                    <!-- Chủ sân -->
+                    <template #owner="{ row }">
+                        <div class="owner-col-cell" v-if="row.owner">
+                            <span class="owner-name-text">{{ row.owner.full_name }}</span>
+                            <span class="owner-email-text">{{ row.owner.email }}</span>
                         </div>
+                        <span v-else class="text-muted">—</span>
+                    </template>
 
-                        <!-- Right: Actions -->
-                        <div class="row-right" @click.stop>
+                    <!-- Số sân con -->
+                    <template #courts="{ row }">
+                        <span class="courts-badge-count">{{ row.court_count }} sân</span>
+                    </template>
+
+                    <!-- Trạng thái phí -->
+                    <template #fee_status="{ row }">
+                        <span class="fee-badge" :class="'fee-is-' + row.fee_status">
+                            {{ feeStatusLabel(row.fee_status) }}
+                        </span>
+                    </template>
+
+                    <!-- Trạng thái hoạt động -->
+                    <template #status="{ row }">
+                        <span class="status-badge" :class="'state-is-' + row.status">
+                            {{ statusLabel(row.status) }}
+                        </span>
+                    </template>
+
+                    <!-- Action Column -->
+                    <template #actions="{ row }">
+                        <div class="table-actions" @click.stop>
                             <ActionIconButton
                                 icon="eye"
-                                label="Xem chi tiết"
+                                label="Chi tiết"
                                 size="sm"
-                                @click="goDetail(c.id)"
+                                @click="goDetail(row.id)"
                             />
                         </div>
-                    </div>
-                </div>
+                    </template>
+                </SaaSTable>
             </div>
         </template>
     </div>
 </template>
 
+
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
 
 export default {
     name: "AdminVenueClusters",
-    components: { ActionIconButton, AppIcon },
+    components: { ActionIconButton, AppIcon, SaaSTable },
     data() {
         return {
             clusters: [],
@@ -139,6 +141,14 @@ export default {
                 { value: "active", label: "Hoạt động" },
                 { value: "locked", label: "Đã khóa" },
             ],
+            tableColumns: [
+                { key: "name", label: "Tên cụm sân" },
+                { key: "owner", label: "Chủ sân" },
+                { key: "courts", label: "Số sân con", align: "center" },
+                { key: "fee_status", label: "Trạng thái phí" },
+                { key: "status", label: "Trạng thái" },
+                { key: "actions", label: "", align: "right" }
+            ]
         };
     },
     computed: {
@@ -226,16 +236,23 @@ export default {
 }
 
 .card {
-    background: var(--admin-surface, #fff);
-    border-radius: 12px;
-    border: 1px solid var(--admin-border, var(--sg-border));
-    padding: 20px 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    background: transparent;
+    border-radius: 0;
+    border: none;
+    padding: 12px 0;
+    box-shadow: none;
+}
+
+:deep(.saas-table-container) {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
 
 /* Filters */
 .avc-filters {
-    padding: 14px 24px;
+    padding: 12px 0;
 }
 .filter-row {
     display: flex;
@@ -256,9 +273,9 @@ export default {
     justify-content: center !important;
     padding: 0 16px !important;
     border-radius: 8px !important;
-    border: 1px solid var(--admin-border) !important;
+    border: 1px solid #cbd5e1 !important;
     background: var(--admin-surface) !important;
-    color: var(--admin-muted) !important;
+    color: #475569 !important;
     font-size: 13px !important;
     font-weight: 600 !important;
     cursor: pointer !important;
@@ -274,9 +291,32 @@ export default {
     background: var(--admin-hover) !important;
     color: var(--admin-primary-dark) !important;
 }
+[data-theme="dark"] .avc-filters .filter-tabs button.tab-btn {
+    border: 1px solid var(--admin-border) !important;
+    color: var(--admin-muted) !important;
+}
 .filter-search {
     flex: 1;
     min-width: 250px;
+}
+/* Search box border styling to increase contrast on light theme */
+.filter-search :deep(.search-box) {
+    border-color: #cbd5e1 !important;
+}
+.filter-search :deep(.search-box input::placeholder) {
+    color: #64748b !important;
+}
+.filter-search :deep(.search-box svg) {
+    color: #64748b !important;
+}
+[data-theme="dark"] .filter-search :deep(.search-box) {
+    border-color: var(--admin-border) !important;
+}
+[data-theme="dark"] .filter-search :deep(.search-box input::placeholder) {
+    color: var(--admin-faint) !important;
+}
+[data-theme="dark"] .filter-search :deep(.search-box svg) {
+    color: var(--admin-faint) !important;
 }
 
 /* State */
@@ -572,7 +612,7 @@ export default {
 @media (max-width: 1024px) {
     .avc-page {
         gap: 16px;
-        padding: 0 4px;
+        padding: 0;
     }
 }
 
@@ -617,5 +657,86 @@ export default {
         transform: none;
     }
 
+}
+
+/* SaaS Table cell custom layout styles */
+.name-col-cell, .owner-col-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cluster-name-text {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--admin-text, #0f172a);
+}
+
+.cluster-address-text {
+    font-size: 11.5px;
+    color: var(--admin-faint, #64748b);
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.owner-name-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--admin-text, #0f172a);
+}
+
+.owner-email-text {
+    font-size: 11px;
+    color: var(--admin-faint, #64748b);
+}
+
+.courts-badge-count {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--admin-text, #0f172a);
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+
+.fee-badge, .status-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+}
+
+/* Status coloring mapping */
+.state-is-pending, .fee-is-pending {
+    color: var(--admin-warning) !important;
+}
+
+.state-is-active, .fee-is-paid {
+    color: var(--admin-primary-dark) !important;
+}
+
+/* Ensure readability/contrast for active status in dark mode */
+[data-theme="dark"] .state-is-active, 
+[data-theme="dark"] .fee-is-paid {
+    color: #34d399 !important;
+}
+
+.state-is-locked, .fee-is-unpaid, .fee-is-overdue {
+    color: var(--admin-danger-text, var(--admin-danger)) !important;
+}
+
+.fee-is-cancelled, .fee-is-no_fee {
+    color: #4b5563 !important;
+}
+
+[data-theme="dark"] .fee-is-cancelled,
+[data-theme="dark"] .fee-is-no_fee {
+    color: #9ca3af !important;
 }
 </style>
