@@ -834,7 +834,7 @@ export default {
 /* Titles and labels */
 .settings-section-title {
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--admin-text);
@@ -874,7 +874,7 @@ export default {
 
 .preset-card.active {
   border-color: var(--admin-primary);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+  box-shadow: none !important;
   transform: scale(1.02);
 }
 
@@ -894,7 +894,7 @@ export default {
 .preset-name {
   display: block;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--admin-text);
 }
 
@@ -942,7 +942,7 @@ export default {
   background: var(--admin-surface);
   color: var(--admin-text);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 120ms ease;
 }
@@ -976,7 +976,7 @@ export default {
   width: 120px !important;
   height: 30px !important;
   font-size: 11px !important;
-  font-weight: 700 !important;
+  font-weight: 500 !important;
   color: var(--admin-muted) !important;
   cursor: pointer !important;
   border-radius: calc(var(--admin-radius) - 2px) !important;
@@ -994,7 +994,7 @@ export default {
 .toggle-tab-btn.active {
   background: var(--admin-surface);
   color: var(--admin-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: none !important;
 }
 
 /* Figma Color Rows Styles */
@@ -1050,7 +1050,7 @@ export default {
 
 .figma-color-name {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--admin-text);
   flex: 1;
   white-space: nowrap;
@@ -1071,7 +1071,7 @@ export default {
   padding: 4px 6px !important;
   font-family: monospace !important;
   font-size: 10px !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   color: var(--admin-text) !important;
   text-transform: uppercase !important;
   text-align: center !important;
@@ -1088,7 +1088,7 @@ export default {
   background: var(--admin-surface);
   border-color: var(--admin-primary);
   outline: none;
-  box-shadow: 0 0 0 2px var(--admin-primary-soft);
+  box-shadow: none !important;
 }
 
 /* Popover Figma Picker */
@@ -1223,7 +1223,7 @@ export default {
 
 .picker-input-label {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--admin-faint);
 }
 
@@ -1234,7 +1234,7 @@ export default {
   outline: none;
   font-family: monospace;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--admin-text);
   text-transform: uppercase;
 }
@@ -1342,7 +1342,7 @@ export default {
 
 .preview-mode-tag {
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 500;
   text-transform: uppercase;
   color: #334155;
   opacity: 0.6;
@@ -1364,7 +1364,7 @@ export default {
 
 .preview-card-title {
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 500;
   color: var(--preview-primary);
 }
 
@@ -1385,7 +1385,7 @@ export default {
   border: 0;
   padding: 6px 12px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   color: #ffffff;
   cursor: default;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -1428,5 +1428,11 @@ export default {
     width: 100% !important;
     max-width: none;
   }
+}
+
+.settings-card h2,
+.settings-card h3,
+.sidebar-card-info h3 {
+  font-weight: 500 !important;
 }
 </style>

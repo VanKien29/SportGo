@@ -642,10 +642,10 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background-color: #10b981 !important;
-  color: #fff !important;
+  background-color: var(--admin-primary, #10b981) !important;
+  color: var(--admin-primary-text, #fff) !important;
   border: none !important;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 4px 12px var(--admin-primary-ring, rgba(16, 185, 129, 0.3)) !important;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   overflow: hidden;
@@ -660,14 +660,14 @@
   font-size: 13px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-block;
-  color: #fff !important;
+  color: var(--admin-primary-text, #fff) !important;
 }
 .btn-float-add:hover {
   width: 145px !important;
   justify-content: flex-start !important;
   padding-left: 14px !important;
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
-  background-color: #059669 !important;
+  box-shadow: 0 6px 16px var(--admin-primary-ring, rgba(16, 185, 129, 0.4)) !important;
+  background-color: var(--admin-primary-dark, #059669) !important;
 }
 .btn-float-add:hover .btn-float-text {
   max-width: 100px;
