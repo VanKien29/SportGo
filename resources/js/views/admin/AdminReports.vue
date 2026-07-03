@@ -159,6 +159,29 @@
                 <button class="btn danger" type="button" :disabled="saving" @click="submitDecision('resolved')">Xác nhận</button>
               </div>
             </div>
+
+            <div v-if="selected.reported_user" class="manual-action-box" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+              <h4 style="margin-top: 0; margin-bottom: 8px; color: #b91c1c; display: flex; align-items: center; gap: 6px;">
+                <AppIcon name="shieldAlert" size="16" /> Xử lý thủ công
+              </h4>
+              <p class="muted" style="margin-bottom: 12px; font-size: 13px;">Tài khoản nhận quá nhiều báo cáo? Bạn có thể khóa tài khoản trực tiếp tại đây.</p>
+              
+              <div v-if="reportedUserViolation" style="margin-bottom: 12px; padding: 10px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px;">
+                <div style="font-size: 13px; color: #881337; margin-bottom: 4px;">
+                  Số lần bị báo cáo: <strong>{{ reportedUserViolation.violation_count }}</strong> / {{ userLockThreshold }}
+                </div>
+                <div v-if="reportedUserViolation.violation_count >= userLockThreshold" style="font-size: 12px; color: #dc2626; font-weight: 700;">
+                  ⚠️ Đã vượt ngưỡng chính sách khóa tài khoản!
+                </div>
+                <div v-else style="font-size: 12px; color: #f59e0b; font-weight: 700;">
+                  Chưa vượt ngưỡng chính sách.
+                </div>
+              </div>
+
+              <button class="btn danger outline" style="width: 100%; justify-content: center;" type="button" @click="openLockUserModal">
+                <AppIcon name="lock" size="16" /> Khóa tài khoản
+              </button>
+            </div>
           </aside>
         </div>
       </section>
@@ -259,6 +282,29 @@
       </div>
     </div>
 
+    <!-- Modal Khóa Tài Khoản -->
+    <div v-if="showLockUserModal" class="detail-backdrop" @click.self="closeLockUserModal" style="z-index: 10000;">
+      <div class="modal" style="max-width: 450px; background: #fff; border-radius: 12px; padding: 22px; display: grid; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+        <h3 style="margin: 0;">Khóa tài khoản</h3>
+        <p class="muted" style="margin: 0; color: #64748b; font-size: 14px;">Bạn đang khóa tài khoản <strong>{{ selected?.reported_user?.full_name }}</strong>.</p>
+        
+        <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 13px; color: #334155;">
+          <span>Thời hạn khóa (để trống nếu khóa vĩnh viễn):</span>
+          <input type="datetime-local" v-model="lockUserForm.locked_until" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" />
+        </label>
+        
+        <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 13px; color: #334155;">
+          <span>Lý do khóa:</span>
+          <textarea v-model="lockUserForm.status_reason" rows="3" placeholder="Nhập lý do khóa..." style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;"></textarea>
+        </label>
+
+        <footer style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn secondary" @click="closeLockUserModal" style="border: 0; background: #f1f5f9; color: #334155; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;">Hủy</button>
+          <button type="button" class="btn danger" style="background: #dc2626; color: white; border: 0; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;" @click="submitLockUser" :disabled="lockUserSaving">Khóa tài khoản</button>
+        </footer>
+      </div>
+    </div>
+
     <!-- Nút cấu hình nổi (Floating Action Button) -->
     <div class="floating-config-container" :class="{ 'has-scroll': showScrollTop }">
       <button class="floating-config-btn" @click="openAutoResolveModal" title="Cấu hình tự động xử lý báo cáo">
@@ -274,6 +320,7 @@ import AppIcon from '../../components/AppIcon.vue';
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import CustomSelect from '../../components/CustomSelect.vue';
 import { adminReportService } from '../../services/adminModeration.js';
+import { adminUserService } from '../../services/adminUserService.js';
 
 export default {
   name: 'AdminReports',
@@ -283,6 +330,14 @@ export default {
       reports: [],
       summary: {},
       filters: { keyword: '', target_type: '', reason: '', status: '', date_from: '', date_to: '', target_group: 'content' },
+      showLockUserModal: false,
+      lockUserForm: {
+        status_reason: 'Nhận quá nhiều báo cáo vi phạm',
+        locked_until: '',
+      },
+      lockUserSaving: false,
+      reportedUserViolation: null,
+      userLockThreshold: 10,
       targetTypes: [
         { value: 'post', label: 'Bài viết cộng đồng' },
         { value: 'comment', label: 'Bình luận' },
@@ -335,9 +390,15 @@ export default {
       return this.autoResolveConfigData.configs[this.activeAutoTab];
     },
   },
-  mounted() {
+  async mounted() {
     this.loadReports();
     window.addEventListener('scroll', this.handleScroll);
+    try {
+      const policyResponse = await adminUserService.getLockPolicy();
+      this.userLockThreshold = policyResponse.data?.lock_threshold || 10;
+    } catch (e) {
+      console.error(e);
+    }
   },
   beforeUnmount() {
     window.removeEventListener('scroll', this.handleScroll);
@@ -388,6 +449,7 @@ export default {
       this.detailLoading = true;
       this.selected = null;
       this.auditLogs = [];
+      this.reportedUserViolation = null;
       try {
         const response = await adminReportService.show(report.id);
         this.selected = response.data.report;
@@ -397,6 +459,15 @@ export default {
           action_note: this.selected.action_note || '',
           lock_days: null,
         };
+        
+        if (this.selected.reported_user) {
+          try {
+            const vrResponse = await adminReportService.getViolationRecord('user', this.selected.reported_user.id);
+            this.reportedUserViolation = vrResponse.data;
+          } catch (e) {
+            console.error('Lỗi khi lấy thông tin vi phạm:', e);
+          }
+        }
       } catch (error) {
         this.error = error.message;
         this.detailOpen = false;
@@ -447,6 +518,35 @@ export default {
     },
     statusLabel(value) {
       return this.statuses.find((item) => item.value === value)?.label || value || '-';
+    },
+    openLockUserModal() {
+      this.showLockUserModal = true;
+      this.lockUserForm.status_reason = 'Nhận quá nhiều báo cáo vi phạm';
+      this.lockUserForm.locked_until = '';
+    },
+    closeLockUserModal() {
+      this.showLockUserModal = false;
+    },
+    async submitLockUser() {
+      if (!this.selected?.reported_user?.id) return;
+      this.lockUserSaving = true;
+      try {
+        const payload = {
+          status_reason: this.lockUserForm.status_reason,
+        };
+        if (this.lockUserForm.locked_until) {
+          const date = new Date(this.lockUserForm.locked_until);
+          const isoString = date.toISOString().slice(0, 19).replace('T', ' ');
+          payload.locked_until = isoString;
+        }
+        await adminUserService.lockUser(this.selected.reported_user.id, payload);
+        this.success = 'Khóa tài khoản thành công!';
+        this.closeLockUserModal();
+      } catch (error) {
+        this.error = error.message;
+      } finally {
+        this.lockUserSaving = false;
+      }
     },
     isTerminalStatus(value) {
       return ['resolved', 'dismissed'].includes(value);
