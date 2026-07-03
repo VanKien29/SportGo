@@ -58,7 +58,7 @@ class VenuePostService
             }
 
             // Convert and save thumbnail to WebP using Intervention Image
-            $manager = new ImageManager(new Driver());
+            $manager = ImageManager::usingDriver(new Driver());
             $image = $manager->decodePath($thumbnail->getPathname());
             
             $filename = uniqid('thumb_', true) . '.webp';
@@ -68,7 +68,7 @@ class VenuePostService
                 Storage::disk('public')->makeDirectory('venue_posts');
             }
             
-            $image->save(storage_path('app/public/' . $path), quality: 80);
+            $image->save(storage_path('app/public/' . $path), 80);
 
             $post->media()->create([
                 'collection' => 'thumbnail',

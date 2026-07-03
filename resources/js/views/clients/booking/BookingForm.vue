@@ -1,6 +1,6 @@
 <template>
     <div class="booking-container">
-        <PublicNavbar theme="dark" />
+        <PublicNavbar />
 
         <main class="booking-main">
             <div class="booking-grid" v-if="!loadingInit">

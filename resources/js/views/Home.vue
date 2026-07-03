@@ -592,6 +592,16 @@ export default {
 };
 </script>
 
+<style>
+html.light .home-container {
+  --h-bg: #f8fafc;
+  --h-text: #0f172a;
+  --h-text-rgb: 15, 23, 42;
+  --h-inv-rgb: 255, 255, 255;
+  --h-surface-rgb: 255, 255, 255;
+}
+</style>
+
 <style scoped>
 .home-page {
   min-height: 100vh;

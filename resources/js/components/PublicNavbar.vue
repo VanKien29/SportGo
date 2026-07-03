@@ -161,6 +161,11 @@ export default {
     };
   },
   computed: {
+    appliedTheme() {
+      if (this.theme === 'dark') return 'dark';
+      if (this.theme === 'light') return 'light';
+      return this.isDark ? 'dark' : 'light';
+    },
     userInitial() {
       return this.user?.fullName?.charAt(0)?.toUpperCase() || "?";
     },

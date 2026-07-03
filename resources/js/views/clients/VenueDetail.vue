@@ -1,6 +1,6 @@
 <template>
   <div class="venue-detail-page">
-    <PublicNavbar theme="dark" />
+    <PublicNavbar />
 
     <!-- Loading State -->
     <div v-if="loading" class="loading-screen">

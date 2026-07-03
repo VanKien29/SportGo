@@ -17,6 +17,8 @@ class SystemPost extends Model
     protected $fillable = [
         'author_id',
         'title',
+        'short_description',
+        'category',
         'slug',
         'content',
         'thumbnail_path',
