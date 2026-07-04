@@ -43,8 +43,9 @@ class VenuePostController extends Controller
             'author:id,full_name,username', 
             'venueCluster:id,name', 
             'hashtags', 
+            'likers:id,full_name,username,avatar_url',
             'topLevelComments' => function ($query) {
-                $query->with(['user:id,full_name,username', 'replies.user:id,full_name,username']);
+                $query->with(['user:id,full_name,username,avatar_url', 'replies.user:id,full_name,username,avatar_url']);
             }
         ])
             ->where('slug', $slug)
@@ -115,8 +116,8 @@ class VenuePostController extends Controller
             'id' => $commentId,
             'venue_post_id' => $post->id,
             'user_id' => $request->user()->id,
-            'content' => strip_tags($request->content),
-            'parent_id' => $request->parent_id,
+            'content' => strip_tags($request->input('content')),
+            'parent_id' => $request->input('parent_id'),
             'created_at' => now(),
             'updated_at' => now(),
         ]);

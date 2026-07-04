@@ -1295,6 +1295,8 @@ svg {
 .post-body h3 {
   font-size: 17px;
   line-height: 1.35;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .post-body p {
@@ -1303,6 +1305,8 @@ svg {
   color: #66756d;
   font-size: 14px;
   line-height: 1.55;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .post-body a {
