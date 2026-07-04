@@ -1,6 +1,6 @@
 <template>
   <div class="partner-document-page">
-    <PublicNavbar />
+    <PublicNavbar v-if="!isOwnerDocumentRoute" />
 
     <main class="partner-document-main">
       <header class="partner-page-header">
@@ -193,12 +193,21 @@ const otp = ref('');
 const signingRequestId = ref('');
 const otpExpiresAt = ref(null);
 const DRAFT_KEY = 'sportgo_partner_application_draft_v3';
+const isOwnerDocumentRoute = computed(() => route.name === 'owner-partner-document' || route.meta.ownerDocument === true);
 
 const isGeneratedDocument = computed(() => document.value?.source !== 'uploaded');
 const isApplicationForm = computed(() => document.value?.document_type === 'partner_application_form');
 const isContract = computed(() => document.value?.document_type === 'partner_contract');
 const isChangeAppendix = computed(() => ['venue_scale_appendix', 'venue_location_appendix'].includes(document.value?.document_type));
 const isVenueChangeRequest = computed(() => ['venue_scale_request', 'venue_location_change_request'].includes(document.value?.document_type));
+const isOwnerSignableDocument = computed(() => [
+  'partner_application_form',
+  'partner_contract',
+  'venue_scale_request',
+  'venue_location_change_request',
+  'venue_scale_appendix',
+  'venue_location_appendix',
+].includes(document.value?.document_type));
 const isTwoPartyDocument = computed(() => isContract.value || isChangeAppendix.value);
 const requiredSides = computed(() => {
   if (document.value?.source === 'uploaded') return [];
@@ -208,6 +217,7 @@ const requiredSides = computed(() => {
 });
 const canSign = computed(() => (
   isGeneratedDocument.value
+  && isOwnerSignableDocument.value
   && document.value?.status === 'pending_owner_signature'
   && Boolean(document.value?.download_url)
   && !signatureBySide('owner')
@@ -286,6 +296,13 @@ function findDocument(app, documentId) {
 }
 
 function goBack() {
+  if (isOwnerDocumentRoute.value) {
+    router.push(route.query.from === 'venue-change'
+      ? { name: 'owner-venue-clusters' }
+      : { name: 'owner-partner-profile' });
+    return;
+  }
+
   if (route.query.from === 'registration') {
     router.push({ name: 'partner-application', query: { editDraft: route.params.id } });
     return;
@@ -427,7 +444,11 @@ async function verifySignatureOtp() {
       localStorage.removeItem(DRAFT_KEY);
     }
 
-    if (isTwoPartyDocument.value) {
+    if (isOwnerDocumentRoute.value) {
+      router.push((isVenueChangeRequest.value || isChangeAppendix.value)
+        ? { name: 'owner-venue-clusters' }
+        : { name: 'owner-partner-profile' });
+    } else if (isTwoPartyDocument.value) {
       router.push({ name: 'partner-application-detail', params: { id: application.value.id } });
     } else if (isVenueChangeRequest.value) {
       router.push({ name: 'owner-venue-clusters' });

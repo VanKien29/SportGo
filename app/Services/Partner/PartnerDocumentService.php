@@ -169,6 +169,7 @@ class PartnerDocumentService
                     $this->polishSignedDocumentFile($document->fresh());
                     $this->injectSignatureFallback($document->fresh(), $signature->fresh(), $signerSide, $media);
                     $this->restoreSignedSignatureTextStyle($filePath, $signature);
+                    $this->ensureSignerNameVisible($document->fresh(), $signature->fresh(), $signerSide);
                     $this->normalizeRequiredDocxParts($filePath);
                     $document->forceFill([
                         'file_hash' => hash_file('sha256', $filePath),
@@ -189,6 +190,7 @@ class PartnerDocumentService
                 $filePath = Storage::disk('local')->path($document->generated_file_path);
                 if (file_exists($filePath)) {
                     $this->normalizeRequiredDocxParts($filePath);
+                    $this->ensureSignerNameVisible($document->fresh(), $signature->fresh(), $signerSide);
                     $document->forceFill([
                         'file_hash' => hash_file('sha256', $filePath),
                     ])->save();
@@ -394,8 +396,25 @@ class PartnerDocumentService
 
         $this->normalizeRequiredDocxParts(Storage::disk('local')->path($path));
         $this->repairSignedDocumentPlaceholders($document);
+        $this->repairVisibleSignerNames($document);
 
         return $path;
+    }
+
+    private function repairVisibleSignerNames(GeneratedDocument $document): void
+    {
+        $document->loadMissing('signatures');
+
+        foreach ($document->signatures->where('status', 'signed') as $signature) {
+            $this->ensureSignerNameVisible($document, $signature, (string) $signature->signer_side);
+        }
+
+        $path = $document->generated_file_path;
+        if ($path && Storage::disk('local')->exists($path)) {
+            $document->forceFill([
+                'file_hash' => hash_file('sha256', Storage::disk('local')->path($path)),
+            ])->save();
+        }
     }
 
     private function activeTemplate(string $documentType): DocumentTemplate
@@ -708,6 +727,75 @@ XML;
         if ($changed) {
             $this->normalizeRequiredDocxParts($docxPath);
         }
+    }
+
+    private function ensureSignerNameVisible(GeneratedDocument $document, GeneratedDocumentSignature $signature, string $signerSide): void
+    {
+        $name = trim((string) $signature->signer_full_name);
+        $path = $document->generated_file_path;
+
+        if ($name === '' || ! $path || ! Storage::disk('local')->exists($path) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $filePath = Storage::disk('local')->path($path);
+        $zip = new ZipArchive();
+        if ($zip->open($filePath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            return;
+        }
+
+        if ($this->signerNameAlreadyNearSignature($xml, $name)) {
+            $zip->close();
+            return;
+        }
+
+        $nameParagraph = $this->signedNameParagraphXml($name);
+        $patterns = [
+            '~(<w:p\b[^>]*>.*?<w:drawing\b.*?</w:p>)~s',
+            '~(<w:p\b[^>]*>.*?signature[_-]' . preg_quote($signerSide, '~') . '.*?</w:p>)~s',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match_all($pattern, $xml, $matches, PREG_OFFSET_CAPTURE) && $matches[1]) {
+                $last = end($matches[1]);
+                $offset = $last[1] + strlen($last[0]);
+                $xml = substr($xml, 0, $offset) . $nameParagraph . substr($xml, $offset);
+                $zip->addFromString($entry, $xml);
+                $zip->close();
+                return;
+            }
+        }
+
+        if (str_contains($xml, '</w:body>')) {
+            $xml = str_replace('</w:body>', $nameParagraph . '</w:body>', $xml);
+            $zip->addFromString($entry, $xml);
+        }
+
+        $zip->close();
+    }
+
+    private function signedNameParagraphXml(string $name): string
+    {
+        return '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">'
+            . $this->xmlText($name)
+            . '</w:t></w:r></w:p>';
+    }
+
+    private function signerNameAlreadyNearSignature(string $xml, string $name): bool
+    {
+        $escaped = preg_quote($this->xmlText($name), '~');
+
+        return (bool) preg_match(
+            '~<w:p\b[^>]*>.*?<w:drawing\b.*?</w:p>(?:(?!<w:p\b).)*<w:p\b[^>]*>.*?' . $escaped . '.*?</w:p>~s',
+            $xml
+        );
     }
 
     private function ensurePngContentType(ZipArchive $zip): void

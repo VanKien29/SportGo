@@ -46,7 +46,7 @@
           <div>
             <small v-if="savedFileSize(file)">{{ savedFileSize(file) }}</small>
             <small v-if="file.status === 'rejected'">{{ file.reject_reason || 'Bản cũ đã được thay thế' }}</small>
-            <a v-if="file.download_url" :href="file.download_url" target="_blank" rel="noopener">Xem/tải</a>
+            <button v-if="file.download_url" type="button" @click.stop="downloadSavedFile(file)">Xem/tải</button>
           </div>
         </li>
       </ul>
@@ -73,6 +73,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { apiDownload } from '../services/api.js';
 
 defineProps({
   title: { type: String, required: true },
@@ -97,8 +98,20 @@ function handleChange(event) {
 function previewSavedFile(file) {
   emit('preview', file);
   if (file?.download_url) {
-    window.open(file.download_url, '_blank', 'noopener');
+    downloadSavedFile(file);
   }
+}
+
+function downloadSavedFile(file) {
+  if (!file?.download_url) return;
+
+  const url = new URL(file.download_url, window.location.origin);
+  if (url.pathname.startsWith('/api/')) {
+    apiDownload(file.download_url);
+    return;
+  }
+
+  window.open(file.download_url, '_blank', 'noopener');
 }
 
 function previewLocalFile(file) {
@@ -263,13 +276,19 @@ const savedFileSize = (file) => {
   flex: 0 0 auto;
 }
 
-.upload-box__saved a {
+.upload-box__saved a,
+.upload-box__saved button {
+  border: 0;
+  background: transparent;
+  padding: 0;
   color: #0369a1;
   font-weight: 800;
   text-decoration: none;
+  cursor: pointer;
 }
 
-.upload-box__saved a:hover {
+.upload-box__saved a:hover,
+.upload-box__saved button:hover {
   text-decoration: underline;
 }
 

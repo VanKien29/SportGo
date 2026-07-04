@@ -76,6 +76,9 @@
               <p class="muted">{{ signatureSummary(document.signatures) }}</p>
             </div>
             <div style="display: flex; gap: 8px;">
+              <button v-if="canSignDocument(document)" class="btn primary small" type="button" @click="openOwnerDocument(document)">
+                <AppIcon name="pencil" size="15" /> Ký
+              </button>
               <button class="btn ghost small" type="button" @click="viewDocument(document)">
                 <AppIcon name="eye" size="15" /> Xem
               </button>
@@ -250,6 +253,11 @@ export default {
       }
     },
     viewDocument(doc) {
+      if (this.canSignDocument(doc)) {
+        this.openOwnerDocument(doc);
+        return;
+      }
+
       this.viewerModal = {
         open: true,
         document: {
@@ -260,12 +268,53 @@ export default {
         }
       };
     },
+    canSignDocument(doc) {
+      const signableTypes = [
+        'partner_application_form',
+        'partner_contract',
+        'venue_scale_request',
+        'venue_location_change_request',
+        'venue_scale_appendix',
+        'venue_location_appendix',
+      ];
+
+      return doc?.status === 'pending_owner_signature'
+        && signableTypes.includes(doc.document_type)
+        && !(doc.signatures || []).some((signature) => signature.signer_side === 'owner' && signature.status === 'signed');
+    },
+    openOwnerDocument(doc, from = 'owner-profile') {
+      const applicationId = doc?.partner_application_id || this.activeApplication.id;
+      if (!applicationId || !doc?.id) {
+        this.error = 'Không tìm thấy hồ sơ liên kết với văn bản cần ký.';
+        return;
+      }
+
+      this.$router.push({
+        name: 'owner-partner-document',
+        params: { id: applicationId, documentId: doc.id },
+        query: { from },
+      });
+    },
+    contractDocument(contract) {
+      const generated = contract?.generated_document || contract?.generatedDocument;
+      if (generated?.id) return generated;
+
+      return this.activeDocuments.find((document) => (
+        document.partner_contract_id === contract?.id
+        || (document.document_type === 'partner_contract' && document.status === 'pending_owner_signature')
+      )) || null;
+    },
     closeViewerModal() {
       this.viewerModal.open = false;
     },
     openSignContract() {
-      this.signModal = { open: true, accepted: false };
-      this.$nextTick(() => this.prepareCanvas(this.$refs.signatureCanvas));
+      const document = this.contractDocument(this.pendingOwnerContract);
+      if (!document) {
+        this.error = 'Không tìm thấy file hợp đồng cần ký.';
+        return;
+      }
+
+      this.openOwnerDocument(document);
     },
     closeSignContract() {
       this.signModal.open = false;

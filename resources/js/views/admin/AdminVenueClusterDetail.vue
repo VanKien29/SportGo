@@ -689,15 +689,15 @@
                 </div>
                 <div v-if="req.supplementary_documents?.length" class="supplement-documents-admin">
                   <strong>Giấy tờ bổ sung:</strong>
-                  <a
+                  <button
                     v-for="doc in req.supplementary_documents"
                     :key="doc.id || doc.download_url || doc.file_name"
-                    :href="doc.download_url"
-                    target="_blank"
-                    rel="noopener"
+                    type="button"
+                    class="supplement-document-link"
+                    @click="downloadSupplementDocument(doc)"
                   >
                     {{ doc.file_name || doc.title || 'Tài liệu' }}
-                  </a>
+                  </button>
                 </div>
                 <div v-if="req.generated_document" class="request-document-actions">
                   <strong>Đơn yêu cầu:</strong>
@@ -762,15 +762,15 @@
                 </div>
                 <div v-if="req.supplementary_documents?.length" class="supplement-documents-admin">
                   <strong>Giấy tờ bổ sung:</strong>
-                  <a
+                  <button
                     v-for="doc in req.supplementary_documents"
                     :key="doc.id || doc.download_url || doc.file_name"
-                    :href="doc.download_url"
-                    target="_blank"
-                    rel="noopener"
+                    type="button"
+                    class="supplement-document-link"
+                    @click="downloadSupplementDocument(doc)"
                   >
                     {{ doc.file_name || doc.title || 'Tài liệu' }}
-                  </a>
+                  </button>
                 </div>
                 <div v-if="req.generated_document" class="request-document-actions">
                   <strong>Đơn yêu cầu:</strong>
@@ -1256,6 +1256,10 @@ export default {
     downloadRequestDocument(document) {
       const url = document?.download_url || (document?.id ? `/api/files/documents/${document.id}/download` : '');
       if (url) apiDownload(url);
+    },
+
+    downloadSupplementDocument(document) {
+      if (document?.download_url) apiDownload(document.download_url);
     },
 
     async loadDetail() {
@@ -3015,7 +3019,8 @@ export default {
   color: #475569;
 }
 
-.supplement-documents-admin a {
+.supplement-documents-admin a,
+.supplement-document-link {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
@@ -3026,6 +3031,8 @@ export default {
   color: #3730a3;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
+  appearance: none;
 }
 .request-document-actions {
   display: flex;

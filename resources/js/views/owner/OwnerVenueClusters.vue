@@ -1210,23 +1210,34 @@
                                         </div>
                                         <div v-if="req.supplementary_documents?.length" class="supplement-documents">
                                             <span class="approval-evidence-label">Giấy tờ bổ sung:</span>
-                                            <a
+                                            <button
                                                 v-for="doc in req.supplementary_documents"
                                                 :key="doc.id || doc.file_path || doc.file_name"
-                                                :href="doc.download_url"
-                                                target="_blank"
-                                                rel="noopener"
+                                                type="button"
+                                                class="supplement-document-link"
+                                                @click="downloadSupplementDocument(doc)"
                                             >
                                                 {{ doc.file_name || 'Tải file' }}
-                                            </a>
+                                            </button>
                                         </div>
                                         <div v-if="req.generated_document" class="request-document-actions">
                                             <span>Đơn yêu cầu:</span>
                                             <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.generated_document, req.partner_application_id)">
                                                 <AppIcon name="eye" size="14" />
-                                                Xem
+                                                {{ requestDocumentActionLabel(req.generated_document) }}
                                             </button>
                                             <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.generated_document)">
+                                                <AppIcon name="download" size="14" />
+                                                Tải
+                                            </button>
+                                        </div>
+                                        <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
+                                            <span>Phụ lục hợp đồng:</span>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.appendix_document, req.partner_application_id)">
+                                                <AppIcon name="eye" size="14" />
+                                                {{ requestDocumentActionLabel(req.appendix_document) }}
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.appendix_document)">
                                                 <AppIcon name="download" size="14" />
                                                 Tải
                                             </button>
@@ -1419,23 +1430,34 @@
                                         </div>
                                         <div v-if="req.supplementary_documents?.length" class="supplement-documents">
                                             <span>Giấy tờ bổ sung:</span>
-                                            <a
+                                            <button
                                                 v-for="doc in req.supplementary_documents"
                                                 :key="doc.id || doc.file_path || doc.file_name"
-                                                :href="doc.download_url"
-                                                target="_blank"
-                                                rel="noopener"
+                                                type="button"
+                                                class="supplement-document-link"
+                                                @click="downloadSupplementDocument(doc)"
                                             >
                                                 {{ doc.file_name || 'Tải file' }}
-                                            </a>
+                                            </button>
                                         </div>
                                         <div v-if="req.generated_document" class="request-document-actions">
                                             <span>Đơn yêu cầu:</span>
                                             <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.generated_document, req.partner_application_id)">
                                                 <AppIcon name="eye" size="14" />
-                                                Xem
+                                                {{ requestDocumentActionLabel(req.generated_document) }}
                                             </button>
                                             <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.generated_document)">
+                                                <AppIcon name="download" size="14" />
+                                                Tải
+                                            </button>
+                                        </div>
+                                        <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
+                                            <span>Phụ lục hợp đồng:</span>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.appendix_document, req.partner_application_id)">
+                                                <AppIcon name="eye" size="14" />
+                                                {{ requestDocumentActionLabel(req.appendix_document) }}
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.appendix_document)">
                                                 <AppIcon name="download" size="14" />
                                                 Tải
                                             </button>
@@ -4880,7 +4902,7 @@ export default {
             const applicationId = partnerApplicationId || document.partner_application_id;
             if (document.status === "pending_owner_signature" && applicationId && document.id) {
                 this.$router.push({
-                    name: "partner-application-document",
+                    name: "owner-partner-document",
                     params: { id: applicationId, documentId: document.id },
                     query: { from: "venue-change" },
                 });
@@ -4894,6 +4916,10 @@ export default {
             this.documentPreviewOpen = true;
         },
 
+        requestDocumentActionLabel(document) {
+            return document?.status === "pending_owner_signature" ? "Ký" : "Xem";
+        },
+
         closeRequestDocument() {
             this.documentPreviewOpen = false;
             this.previewDocument = null;
@@ -4902,6 +4928,12 @@ export default {
         downloadRequestDocument(document) {
             const url = document?.download_url || (document?.id ? `/api/files/documents/${document.id}/download` : "");
             if (url) apiDownload(url);
+        },
+
+        downloadSupplementDocument(document) {
+            if (document?.download_url) {
+                apiDownload(document.download_url);
+            }
         },
 
         handleRequestDocumentLoaded(document) {
@@ -7294,7 +7326,8 @@ export default {
 
 .supplement-file-list span,
 .supplement-file-list button,
-.supplement-documents a {
+.supplement-documents a,
+.supplement-document-link {
     display: inline-flex;
     align-items: center;
     min-height: 30px;
@@ -7307,6 +7340,7 @@ export default {
     font-weight: 700;
     text-decoration: none;
     cursor: pointer;
+    appearance: none;
 }
 
 .supplement-file-list button {

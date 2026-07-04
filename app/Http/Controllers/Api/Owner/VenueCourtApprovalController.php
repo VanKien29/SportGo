@@ -366,6 +366,7 @@ class VenueCourtApprovalController extends Controller
             'signature_hash'          => $r->signature_hash,
             'signed_at'               => $r->signed_at,
             'generated_document'       => $this->documentPayload($r->generatedDocument),
+            'appendix_document'        => $this->documentPayload($this->appendixDocumentForRequest($r, 'venue_scale_appendix')),
             'partner_application_id'   => $this->partnerApplicationIdForCluster($r->venue_cluster_id),
             'court_type'              => $r->courtType ? ['id' => $r->courtType->id, 'name' => $r->courtType->name] : null,
             'requested_by'            => $r->requestedBy ? ['id' => $r->requestedBy->id, 'full_name' => $r->requestedBy->full_name] : null,
@@ -694,6 +695,18 @@ class VenueCourtApprovalController extends Controller
             });
     }
 
+    private function appendixDocumentForRequest(VenueCourtApprovalRequest $requestModel, string $documentType): ?GeneratedDocument
+    {
+        return GeneratedDocument::query()
+            ->with('signatures')
+            ->where('document_type', $documentType)
+            ->where('reference_type', $requestModel::class)
+            ->where('reference_id', (string) $requestModel->getKey())
+            ->latest('document_version')
+            ->latest('generated_at')
+            ->first();
+    }
+
     private function documentPayload($document): ?array
     {
         if (! $document) {
@@ -705,11 +718,18 @@ class VenueCourtApprovalController extends Controller
             'document_code' => $document->document_code,
             'document_type' => $document->document_type,
             'document_version' => $document->document_version,
+            'partner_application_id' => $document->partner_application_id,
+            'partner_contract_id' => $document->partner_contract_id,
+            'owner_id' => $document->owner_id,
+            'venue_cluster_id' => $document->venue_cluster_id,
             'title' => $document->title,
             'status' => $document->status,
             'file_hash' => $document->file_hash,
             'generated_at' => $document->generated_at,
             'download_url' => url('/api/files/documents/' . $document->id . '/download'),
+            'signatures' => $document->relationLoaded('signatures')
+                ? $document->signatures->values()
+                : $document->signatures()->get(),
         ];
     }
 }

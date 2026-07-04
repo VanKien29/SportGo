@@ -342,6 +342,12 @@ const routes = [
                 component: () => import("../views/owner/OwnerPartnerProfile.vue"),
             },
             {
+                path: "partner-documents/:id/:documentId",
+                name: "owner-partner-document",
+                component: PartnerApplicationDocumentPage,
+                meta: { ownerDocument: true },
+            },
+            {
                 path: "finance",
                 name: "owner-finance",
                 component: () => import("../views/owner/OwnerFinance.vue"),
