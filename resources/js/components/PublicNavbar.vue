@@ -17,7 +17,8 @@
           <router-link to="/" class="nav-link" exact-active-class="active-link">Trang chủ</router-link>
           <router-link to="/venues" class="nav-link" active-class="active-link">Tìm sân</router-link>
           <a href="/#sports" class="nav-link">Môn thể thao</a>
-          <a href="/#news" class="nav-link">Tin tức</a>
+          <router-link to="/news" class="nav-link" active-class="active-link">Tin tức</router-link>
+          <router-link to="/community" class="nav-link" active-class="active-link">Cộng đồng</router-link>
           <router-link to="/become-partner" class="nav-link" active-class="active-link">Chủ sân</router-link>
           <a href="/#support" class="nav-link">Hỗ trợ</a>
           <router-link

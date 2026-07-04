@@ -5,11 +5,19 @@ namespace App\Http\Controllers\Api\Player;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreVenuePostCommentRequest;
 use App\Models\VenuePost;
+use App\Http\Requests\StoreVenuePostRequest;
+use App\Http\Requests\UpdateVenuePostRequest;
+use App\Services\VenuePostService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class VenuePostController extends Controller
 {
+    public function __construct(private VenuePostService $venuePostService)
+    {
+    }
+
     public function index(Request $request)
     {
         $posts = VenuePost::with(['media', 'author:id,full_name,username', 'venueCluster:id,name'])
@@ -45,6 +53,52 @@ class VenuePostController extends Controller
         $post->increment('view_count');
 
         return response()->json(['data' => $post]);
+    }
+
+    public function store(StoreVenuePostRequest $request)
+    {
+        Gate::authorize('create', VenuePost::class);
+
+        try {
+            $post = $this->venuePostService->createPost(
+                $request->validated(),
+                $request->user(),
+                $request->file('thumbnail')
+            );
+
+            return response()->json(['message' => 'Bài viết đã được tạo thành công.', 'data' => $post->load(['media', 'hashtags'])], 201);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage(), 'errors' => ['status' => [$e->getMessage()]]], 422);
+        }
+    }
+
+    public function update(UpdateVenuePostRequest $request, string $id)
+    {
+        $post = VenuePost::findOrFail($id);
+        Gate::authorize('update', $post);
+
+        try {
+            $post = $this->venuePostService->updatePost(
+                $post,
+                $request->validated(),
+                $request->user(),
+                $request->file('thumbnail')
+            );
+
+            return response()->json(['message' => 'Bài viết đã được cập nhật.', 'data' => $post->load(['media', 'hashtags'])]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage(), 'errors' => ['status' => [$e->getMessage()]]], 422);
+        }
+    }
+
+    public function destroy(Request $request, string $id)
+    {
+        $post = VenuePost::findOrFail($id);
+        Gate::authorize('delete', $post);
+
+        $this->venuePostService->deletePost($post);
+
+        return response()->json(['message' => 'Bài viết đã được xóa.']);
     }
 
     public function comment(StoreVenuePostCommentRequest $request, string $id)

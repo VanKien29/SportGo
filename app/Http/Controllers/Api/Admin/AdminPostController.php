@@ -16,7 +16,7 @@ class AdminPostController extends Controller
      */
     public function show(Request $request, string $post): JsonResponse
     {
-        $postModel = CommunityPost::query()
+        $postModel = \App\Models\VenuePost::query()
             ->with([
                 'author:id,username,full_name,avatar_url',
                 'media',
@@ -103,7 +103,7 @@ class AdminPostController extends Controller
             'action' => 'required|in:hide,delete,unhide',
         ]);
 
-        $postModel = CommunityPost::findOrFail($post);
+        $postModel = \App\Models\VenuePost::findOrFail($post);
 
         // Audit logging could be added here if there's a generic audit mechanism
 
@@ -141,7 +141,7 @@ class AdminPostController extends Controller
      */
     public function likes(Request $request, string $post): JsonResponse
     {
-        $postModel = CommunityPost::findOrFail($post);
+        $postModel = \App\Models\VenuePost::findOrFail($post);
 
         $likes = $postModel->likes()
             ->with('user:id,username,full_name,avatar_url')

@@ -37,13 +37,13 @@ import PartnerRegistration from "../views/partner/PartnerRegistration.vue";
 import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
-import NewsDetail from "../views/clients/NewsDetail.vue";
+import CommunityPostDetail from "../views/clients/NewsDetail.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
     { path: "/venues", name: "venues", component: VenueList },
     { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
-    { path: "/news/:slug", name: "news-detail", component: NewsDetail },
+    { path: "/community/:slug", name: "community-post-detail", component: CommunityPostDetail },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
     {
@@ -67,6 +67,12 @@ const routes = [
         name: "ClientNewsList",
         component: () => import("@/views/clients/news/NewsList.vue"),
         meta: { requiresAuth: false, title: "Tin tức" },
+    },
+    {
+        path: "/community",
+        name: "ClientCommunityList",
+        component: () => import("@/views/clients/community/CommunityList.vue"),
+        meta: { requiresAuth: false, title: "Cộng đồng" },
     },
     {
         path: "/news/:slug",

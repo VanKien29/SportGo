@@ -477,6 +477,12 @@ Route::middleware('auth:sanctum')
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
+
+        // Player/Client Venue Posts (Community Posts)
+        Route::post('/venue-posts', [PlayerVenuePostController::class, 'store']);
+        Route::post('/venue-posts/{id}', [PlayerVenuePostController::class, 'update']); // use POST with _method=PUT/PATCH for file uploads
+        Route::delete('/venue-posts/{id}', [PlayerVenuePostController::class, 'destroy']);
+
         Route::get('/vip-membership', [\App\Http\Controllers\Api\Player\VipMembershipController::class, 'index']);
         Route::post('/vip-membership/subscribe', [\App\Http\Controllers\Api\Player\VipMembershipController::class, 'subscribe']);
 

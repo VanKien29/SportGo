@@ -7,14 +7,14 @@
 
       <div v-else-if="error" class="news-state news-state--error">
         <p>{{ error }}</p>
-        <router-link :to="{ name: 'home', hash: '#news' }">Quay lại tin tức</router-link>
+        <router-link :to="{ name: 'home', hash: '#community' }">Quay lại cộng đồng</router-link>
       </div>
 
       <article v-else-if="post" class="article-layout">
         <nav class="article-breadcrumbs" aria-label="Breadcrumb">
           <router-link :to="{ name: 'home' }">Trang chủ</router-link>
           <span>/</span>
-          <router-link :to="{ name: 'home', hash: '#news' }">Tin tức</router-link>
+          <router-link :to="{ name: 'home', hash: '#community' }">Cộng đồng</router-link>
         </nav>
 
         <header class="article-header">

@@ -535,9 +535,21 @@ export default {
   mounted() {
     this.loadData();
     this.fetchAutoApproveConfig();
+    
+    // Restore auto approve state from localStorage
+    const savedAutoApprove = localStorage.getItem('sg_admin_auto_approve');
+    if (savedAutoApprove === 'true') {
+      this.autoApproveEnabled = true;
+      this.startAutoApprove();
+    }
   },
   beforeUnmount() {
-    this.stopAutoApprove();
+    // When leaving page, just clear interval but do NOT emit false or change data, 
+    // so it can be restored on next mount
+    if (this.autoApproveInterval) {
+      clearInterval(this.autoApproveInterval);
+      this.autoApproveInterval = null;
+    }
   },
   methods: {
     async copyPostLink(postId) {
@@ -585,21 +597,14 @@ export default {
     },
     changeTab(tabValue) {
       this.activeTab = tabValue;
-      if (this.filters.status !== 'pending') {
-        this.autoApproveEnabled = false;
-        this.stopAutoApprove();
-      }
       this.clearAlerts();
       this.filters.search = '';
       this.loadData(1);
     },
     setStatus(status) {
       this.filters.status = status;
-      if (status !== 'pending') {
-        this.autoApproveEnabled = false;
-        this.stopAutoApprove();
-      }
       this.clearAlerts();
+      this.filters.search = '';
       this.loadData(1);
     },
     onFilterChange() {
@@ -742,11 +747,10 @@ export default {
     },
     toggleAutoApprove() {
       if (this.autoApproveEnabled) {
-        if (this.filters.status !== 'pending') {
-          this.setStatus('pending');
-        }
+        localStorage.setItem('sg_admin_auto_approve', 'true');
         this.startAutoApprove();
       } else {
+        localStorage.setItem('sg_admin_auto_approve', 'false');
         this.stopAutoApprove();
       }
       this.$emit('auto-approve-changed', this.autoApproveEnabled);
@@ -813,8 +817,9 @@ export default {
         clearInterval(this.autoApproveInterval);
         this.autoApproveInterval = null;
       }
-      this.autoApproveEnabled = false;
-      this.$emit('auto-approve-changed', false);
+      // Do not force autoApproveEnabled = false here, let v-model handle it, 
+      // or only set it if explicitly called to stop from outside.
+      this.$emit('auto-approve-changed', this.autoApproveEnabled);
     },
 
     // Hành động xử lý nhanh cho Post
