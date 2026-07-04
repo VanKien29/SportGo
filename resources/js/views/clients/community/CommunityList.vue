@@ -64,7 +64,6 @@
         <div v-for="post in posts" :key="post.id" class="news-card" @click="goToDetail(post.slug)">
           <div class="news-image">
             <img :src="getPostImage(post)" :alt="post.title" />
-            <span v-if="post.category" class="news-badge">{{ post.category }}</span>
           </div>
           <div class="news-info">
             <div class="news-meta">
@@ -83,9 +82,8 @@
       <!-- Pagination -->
       <div v-if="pagination.last_page > 1" class="pagination-wrapper">
         <PaginationBar 
-          :current-page="pagination.current_page"
-          :last-page="pagination.last_page"
-          @page-changed="changePage"
+          :meta="pagination"
+          @change="changePage"
         />
       </div>
     </div>
@@ -185,7 +183,8 @@ const changePage = (page) => {
 };
 
 const goToDetail = (slug) => {
-  router.push(`/community/${slug}`);
+  // Use window.location.href to guarantee the page loads and bypass any Vue Router silent transition failures
+  window.location.href = `/community/${slug}`;
 };
 
 const handlePostCreated = () => {

@@ -17,6 +17,8 @@ import {
   findAdminNavigationSection,
 } from '../../config/adminNavigation.js';
 
+import { autoApproveStore } from '../../stores/autoApprove.js';
+
 export default {
   name: 'AdminLayout',
   components: { AdminShell },
@@ -33,5 +35,11 @@ export default {
       return findAdminNavigationSection(this.$route.name)?.label || 'Tổng quan';
     },
   },
+  mounted() {
+    autoApproveStore.init();
+  },
+  unmounted() {
+    autoApproveStore.stop();
+  }
 };
 </script>

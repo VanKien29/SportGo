@@ -40,12 +40,9 @@
           />
         </label>
 
-
-
-
-        <div class="auto-approve-wrapper">
+        <div class="auto-approve-wrapper" title="Tự động tìm & duyệt các bài mới mỗi 5 giây">
           <label class="switch">
-            <input type="checkbox" v-model="autoApproveEnabled" @change="toggleAutoApprove" />
+            <input type="checkbox" :checked="autoApproveStore.isEnabled" @change="toggleAutoApprove" />
             <span class="slider"></span>
           </label>
           <span class="switch-label">Duyệt tự động (5s)</span>
@@ -438,6 +435,7 @@ import AppIcon from '../../components/AppIcon.vue';
 import PostLikesModal from '../../components/admin/PostLikesModal.vue';
 import { adminModerationService } from '../../services/adminModeration.js';
 import { adminUserService } from '../../services/adminUserService.js';
+import { autoApproveStore } from '../../stores/autoApprove.js';
 
 export default {
   name: 'AdminContentModeration',
@@ -471,6 +469,7 @@ export default {
         { label: 'Bài đăng chờ duyệt', value: 'pending' },
         { label: 'Bài đăng đã ẩn', value: 'hidden' },
       ],
+      autoApproveStore: autoApproveStore,
       detailModal: { open: false },
       actionModal: { open: false },
       activeItem: null,
@@ -486,8 +485,6 @@ export default {
       showLikesModal: false,
       activeLikesPostId: null,
       mousedownWasOnBackdrop: false,
-      autoApproveEnabled: false,
-      autoApproveInterval: null,
       modalTab: 'post',
       postComments: [],
       loadingComments: false,
@@ -532,24 +529,20 @@ export default {
       });
     },
   },
+  watch: {
+    'autoApproveStore.lastActionTime'() {
+      // Refresh list if an auto-approve action occurred while we are looking at pending posts
+      if (this.filters.status === 'pending_review' || this.filters.status === 'pending') {
+        this.refresh();
+      }
+    }
+  },
   mounted() {
     this.loadData();
     this.fetchAutoApproveConfig();
-    
-    // Restore auto approve state from localStorage
-    const savedAutoApprove = localStorage.getItem('sg_admin_auto_approve');
-    if (savedAutoApprove === 'true') {
-      this.autoApproveEnabled = true;
-      this.startAutoApprove();
-    }
   },
-  beforeUnmount() {
-    // When leaving page, just clear interval but do NOT emit false or change data, 
-    // so it can be restored on next mount
-    if (this.autoApproveInterval) {
-      clearInterval(this.autoApproveInterval);
-      this.autoApproveInterval = null;
-    }
+  unmounted() {
+    // interval is managed globally by the store now
   },
   methods: {
     async copyPostLink(postId) {
@@ -746,80 +739,8 @@ export default {
       }
     },
     toggleAutoApprove() {
-      if (this.autoApproveEnabled) {
-        localStorage.setItem('sg_admin_auto_approve', 'true');
-        this.startAutoApprove();
-      } else {
-        localStorage.setItem('sg_admin_auto_approve', 'false');
-        this.stopAutoApprove();
-      }
-      this.$emit('auto-approve-changed', this.autoApproveEnabled);
-    },
-    startAutoApprove() {
-      this.stopAutoApprove();
-      this.autoApproveInterval = setInterval(async () => {
-        if (this.loading || this.savingAction) {
-          return;
-        }
-
-        // 1. Kiểm tra tab hiện tại trước để ưu tiên duyệt
-        let targetItem = this.items.find(item => ['pending', 'pending_review', 'draft'].includes(item.status));
-        let targetType = this.activeTab;
-
-        // 2. Nếu tab hiện tại không có bài viết chờ duyệt, quét qua các tab khác trong nền
-        if (!targetItem) {
-          const allTypes = ['community_posts', 'venue_posts', 'system_posts'];
-          const otherTypes = allTypes.filter(t => t !== this.activeTab);
-
-          for (const type of otherTypes) {
-            try {
-              const response = await adminModerationService.getQueue({
-                type: type,
-                status: 'pending',
-                page: 1,
-              });
-              const paginator = response.data || {};
-              const list = paginator.data || [];
-              const found = list.find(item => ['pending', 'pending_review', 'draft'].includes(item.status));
-              if (found) {
-                targetItem = found;
-                targetType = type;
-                break; // Tìm thấy bài chờ duyệt thì dừng quét để tiến hành duyệt bài này
-              }
-            } catch (err) {
-              console.error(`Lỗi quét tự động duyệt cho tab ${type}:`, err);
-            }
-          }
-        }
-
-        // 3. Nếu tìm thấy bài viết chờ duyệt ở bất kỳ tab nào, tiến hành duyệt
-        if (targetItem) {
-          this.savingAction = true;
-          try {
-            await adminModerationService.approvePost(targetType, targetItem.id);
-            // Nếu bài được duyệt thuộc tab hiện tại, load lại danh sách để cập nhật màn hình
-            if (targetType === this.activeTab) {
-              await this.loadData(this.pagination.current_page);
-            }
-          } catch (err) {
-            console.error('Duyệt tự động bài viết thất bại:', err);
-          } finally {
-            this.savingAction = false;
-          }
-        } else {
-          // Nếu không còn bài viết chờ duyệt nào ở tất cả các tab, reload tab hiện tại để kiểm tra lại
-          await this.loadData(1);
-        }
-      }, 5000);
-    },
-    stopAutoApprove() {
-      if (this.autoApproveInterval) {
-        clearInterval(this.autoApproveInterval);
-        this.autoApproveInterval = null;
-      }
-      // Do not force autoApproveEnabled = false here, let v-model handle it, 
-      // or only set it if explicitly called to stop from outside.
-      this.$emit('auto-approve-changed', this.autoApproveEnabled);
+      this.autoApproveStore.toggle();
+      this.$emit('auto-approve-changed', this.autoApproveStore.isEnabled);
     },
 
     // Hành động xử lý nhanh cho Post

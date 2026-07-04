@@ -28,6 +28,19 @@ class VenuePostService
                 $slug = $slug . '-' . ($count + 1);
             }
 
+            // Auto approve logic
+            $status = !empty($data['is_draft']) ? 'draft' : 'pending_review';
+            if ($status === 'pending_review') {
+                $isCommunityType = in_array($data['post_type'], ['news', 'event', 'promotion', 'announcement']);
+                $configKey = $isCommunityType ? 'require_community_post_moderation' : 'require_venue_post_moderation';
+                $requireModeration = \App\Models\ModerationConfig::where('key', $configKey)->value('value');
+                
+                // If the config explicitly says 'false' (do not require moderation)
+                if ($requireModeration === 'false' || $requireModeration === false) {
+                    $status = 'published';
+                }
+            }
+
             $post = VenuePost::create([
                 'venue_cluster_id' => $data['venue_cluster_id'] ?? null,
                 'author_id' => $user->id,
@@ -38,7 +51,7 @@ class VenuePostService
                 'meta_title' => $data['meta_title'] ?? null,
                 'meta_description' => $data['meta_description'] ?? null,
                 'post_type' => $data['post_type'],
-                'status' => !empty($data['is_draft']) ? 'draft' : 'pending_review',
+                'status' => $status,
             ]);
 
             // Save tags

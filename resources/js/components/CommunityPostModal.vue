@@ -15,17 +15,25 @@
             <div class="user-avatar">{{ userInitial }}</div>
             <div class="user-meta">
               <div class="user-name">{{ user?.fullName || 'Người dùng' }}</div>
-              <CustomSelect 
-                v-model="form.post_type" 
-                class="privacy-select" 
-                :options="[
-                  { label: 'Kinh nghiệm / Giao lưu / Hỏi đáp', value: 'news' },
-                  { label: 'Sự kiện / Cụm sân mới', value: 'notice' },
-                  { label: 'Ưu đãi', value: 'promotion' },
-                  { label: 'Giải đấu', value: 'tournament' },
-                  { label: 'Tuyển dụng', value: 'recruitment' }
-                ]"
-              />
+              <div class="privacy-badge">
+                <i class="fas fa-globe-asia"></i> Công khai
+              </div>
+            </div>
+          </div>
+
+          <div class="category-selection">
+            <span class="category-label">Chủ đề:</span>
+            <div class="category-chips">
+              <button 
+                v-for="cat in availableCategories" 
+                :key="cat"
+                type="button"
+                class="category-chip"
+                :class="{ active: (form.tags || []).includes(cat) }"
+                @click="toggleTag(cat)"
+              >
+                {{ cat }}
+              </button>
             </div>
           </div>
 
@@ -98,8 +106,20 @@ const userFirstName = computed(() => {
 
 const form = ref({
   content: '',
-  post_type: 'news'
+  post_type: 'news',
+  tags: []
 });
+
+const availableCategories = ['Kinh nghiệm', 'Giao lưu', 'Hỏi đáp', 'Sự kiện', 'Cụm sân mới', 'Ưu đãi'];
+
+const toggleTag = (cat) => {
+  const index = form.value.tags.indexOf(cat);
+  if (index === -1) {
+    form.value.tags.push(cat);
+  } else {
+    form.value.tags.splice(index, 1);
+  }
+};
 
 const selectedFiles = ref([]);
 const fileError = ref('');
@@ -140,7 +160,7 @@ const close = () => {
   emit('close');
   // Reset form
   setTimeout(() => {
-    form.value = { content: '', post_type: 'news' };
+    form.value = { content: '', post_type: 'news', tags: [] };
     removeFile();
     errorMsg.value = '';
     fileError.value = '';
@@ -175,6 +195,10 @@ const submit = async () => {
     
     formData.append('content', form.value.content);
     formData.append('post_type', form.value.post_type);
+    
+    form.value.tags.forEach((tag, index) => {
+      formData.append(`tags[${index}]`, tag);
+    });
     
     if (selectedFiles.value.length > 0) {
       formData.append('thumbnail', selectedFiles.value[0]);
@@ -248,6 +272,83 @@ const submit = async () => {
 }
 .dark .modal-title {
   color: #e4e6eb;
+}
+
+.privacy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #e4e6eb;
+  color: #050505;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.dark .privacy-badge {
+  background: #3a3b3c;
+  color: #e4e6eb;
+}
+
+.category-selection {
+  padding: 0 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #65676b;
+}
+
+.dark .category-label {
+  color: #b0b3b8;
+}
+
+.category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.category-chip {
+  padding: 6px 12px;
+  border: 1px solid #ced0d4;
+  border-radius: 16px;
+  background: transparent;
+  color: #050505;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dark .category-chip {
+  border-color: #3e4042;
+  color: #e4e6eb;
+}
+
+.category-chip:hover {
+  background: #f0f2f5;
+}
+
+.dark .category-chip:hover {
+  background: #3a3b3c;
+}
+
+.category-chip.active {
+  background: #e7f3ff;
+  color: #1877f2;
+  border-color: #e7f3ff;
+}
+
+.dark .category-chip.active {
+  background: #263951;
+  color: #2e89ff;
+  border-color: #263951;
 }
 
 .close-btn {

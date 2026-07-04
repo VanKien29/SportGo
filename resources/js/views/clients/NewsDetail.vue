@@ -20,6 +20,7 @@
         <header class="article-header">
           <div class="article-meta">
             <span>{{ categoryLabel(post.post_type) }}</span>
+            <span v-for="tag in post.hashtags" :key="tag.id" class="hashtag">#{{ tag.name }}</span>
             <span>{{ formatDate(post.created_at) }}</span>
             <span>{{ post.view_count || 0 }} lượt xem</span>
           </div>

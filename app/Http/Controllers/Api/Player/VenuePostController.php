@@ -20,10 +20,15 @@ class VenuePostController extends Controller
 
     public function index(Request $request)
     {
-        $posts = VenuePost::with(['media', 'author:id,full_name,username', 'venueCluster:id,name'])
+        $posts = VenuePost::with(['media', 'author:id,full_name,username', 'venueCluster:id,name', 'hashtags'])
             ->where('status', 'published')
             ->when($request->venue_cluster_id, fn ($q) => $q->where('venue_cluster_id', $request->venue_cluster_id))
             ->when($request->post_type, fn ($q) => $q->where('post_type', $request->post_type))
+            ->when($request->category, function ($q) use ($request) {
+                $q->whereHas('hashtags', function ($q2) use ($request) {
+                    $q2->where('name', $request->category);
+                });
+            })
             ->when($request->keyword, fn ($q) => $q->where('title', 'like', "%{$request->keyword}%"))
             ->latest()
             ->paginate($request->integer('per_page', 15));
