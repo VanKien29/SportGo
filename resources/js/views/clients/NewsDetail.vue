@@ -37,6 +37,19 @@
                     <span>{{ categoryLabel(post.post_type) }}</span>
                   </div>
                 </div>
+
+                <!-- Post Options -->
+                <div class="fb-post-options" style="margin-left: auto; position: relative;">
+                  <button @click="showPostOptions = !showPostOptions" class="action-btn" style="padding: 8px; border-radius: 50%; color: #65676b;" title="Tùy chọn bài viết">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="12" r="2"/></svg>
+                  </button>
+                  <div v-if="showPostOptions" class="options-dropdown" style="position: absolute; right: 0; top: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 8px; padding: 8px; z-index: 10; min-width: 180px;">
+                    <button @click="openReportModal('post', post.id)" class="dropdown-item" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: none; background: none; cursor: pointer; text-align: left; border-radius: 4px; color: #1c1e21; font-weight: 500;">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> 
+                      Báo cáo bài viết
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- Post Content -->
@@ -117,11 +130,25 @@
                       <img v-if="comment.user?.avatar_url" :src="comment.user.avatar_url" />
                       <div v-else class="fb-avatar-text">{{ initials(comment.user?.full_name || comment.user?.username || '?') }}</div>
                     </div>
-                    <div class="comment-content-wrapper">
+                    <div class="comment-content-wrapper" @mouseenter="hoverComment = comment.id" @mouseleave="hoverComment = null">
                       <div class="comment-bubble">
                         <strong>{{ comment.user?.full_name || comment.user?.username || 'Người dùng' }}</strong>
                         <p>{{ comment.content }}</p>
                       </div>
+                      
+                      <!-- Comment Options -->
+                      <div class="comment-options" v-show="hoverComment === comment.id || activeCommentOptions === comment.id" style="position: absolute; right: -32px; top: 50%; transform: translateY(-50%);">
+                        <button @click="toggleCommentOptions(comment.id)" class="action-btn" style="padding: 4px; border-radius: 50%; color: #65676b; border: none; background: transparent; cursor: pointer;">
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="12" r="2"/></svg>
+                        </button>
+                        <div v-if="activeCommentOptions === comment.id" class="options-dropdown" style="position: absolute; left: 100%; top: 0; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 8px; padding: 8px; z-index: 10; min-width: 160px; margin-left: 8px;">
+                          <button @click="openReportModal('comment', comment.id)" class="dropdown-item" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: none; background: none; cursor: pointer; text-align: left; border-radius: 4px; color: #1c1e21; font-weight: 500;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            Báo cáo bình luận
+                          </button>
+                        </div>
+                      </div>
+
                       <div class="comment-actions">
                         <span>{{ timeAgo(comment.created_at) }}</span>
                       </div>
@@ -159,11 +186,20 @@
         </div>
       </div>
     </div>
+    
+    <ReportModal
+      :isOpen="reportModal.open"
+      :targetType="reportModal.targetType"
+      :targetId="reportModal.targetId"
+      @close="reportModal.open = false"
+      @success="handleReportSuccess"
+    />
   </div>
 </template>
 
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
+import ReportModal from "../../components/ReportModal.vue";
 import { api } from "../../services/api.js";
 import { normalizeMediaUrl } from "../../utils/mediaUrl.js";
 import { getAuth } from "../../stores/auth.js";
@@ -172,7 +208,7 @@ const fallbackImage = "/images/home/badminton-cover.webp";
 
 export default {
   name: "NewsDetail",
-  components: { PublicNavbar },
+  components: { PublicNavbar, ReportModal },
   data() {
     return {
       post: null,
@@ -185,6 +221,14 @@ export default {
       showLikersModal: false,
       showToast: false,
       toastMessage: "",
+      showPostOptions: false,
+      hoverComment: null,
+      activeCommentOptions: null,
+      reportModal: {
+        open: false,
+        targetType: '',
+        targetId: ''
+      }
     };
   },
   computed: {
@@ -247,24 +291,14 @@ export default {
       }
     },
     async submitComment() {
-      if (!this.newComment.trim() || this.isSubmittingComment) return;
-      
+      if (!this.newComment.trim() || this.isSubmittingComment || !this.currentUser) return;
+
       this.isSubmittingComment = true;
       try {
-        const response = await api(`/api/venue-posts/${this.post.id}/comments`, {
-          method: 'POST',
-          body: JSON.stringify({ content: this.newComment.trim() })
+        await api(`/api/venue-posts/${this.post.id}/comments`, {
+          method: "POST",
+          body: JSON.stringify({ content: this.newComment.trim() }),
         });
-        
-        // Optimistic update
-        if (!this.post.top_level_comments) this.post.top_level_comments = [];
-        this.post.top_level_comments.unshift({
-          id: response.data?.id || Date.now(),
-          content: this.newComment.trim(),
-          user: this.currentUser,
-          created_at: new Date().toISOString()
-        });
-        this.post.comment_count++;
         
         this.newComment = "";
         this.$refs.commentInput.style.height = 'auto';
@@ -339,6 +373,30 @@ export default {
       if (!name) return "?";
       return name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
     },
+    toggleCommentOptions(id) {
+      if (this.activeCommentOptions === id) {
+        this.activeCommentOptions = null;
+      } else {
+        this.activeCommentOptions = id;
+      }
+    },
+    openReportModal(type, id) {
+      this.reportModal.targetType = type;
+      this.reportModal.targetId = id;
+      this.reportModal.open = true;
+      this.showPostOptions = false;
+      this.activeCommentOptions = null;
+    },
+    handleReportSuccess() {
+      this.showToastMessage('Báo cáo của bạn đã được gửi thành công.');
+    },
+    showToastMessage(msg) {
+      this.toastMessage = msg;
+      this.showToast = true;
+      setTimeout(() => {
+        this.showToast = false;
+      }, 3000);
+    }
   },
 };
 </script>

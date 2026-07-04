@@ -107,12 +107,13 @@
 
             <section class="detail-section">
               <h4>Đối tượng bị báo cáo</h4>
-              <p class="content-box">{{ selected.target?.title || selected.target?.content || selected.target?.label || 'Đối tượng không còn tồn tại.' }}</p>
-              <div v-if="getTargetUrl(selected)" style="margin-top: 10px;">
-                <a :href="getTargetUrl(selected)" target="_blank" class="btn primary" style="text-decoration: none; display: inline-flex; gap: 8px; font-weight: 700; background: #2563eb; color: white;">
-                  <AppIcon name="external-link" size="16" /> Xem chi tiết đối tượng vi phạm
+              <div v-if="getTargetUrl(selected)" class="content-box target-box" style="display: flex; flex-direction: column; gap: 8px;">
+                <p style="margin: 0;">{{ selected.target?.title || selected.target?.content || selected.target?.label || 'Đối tượng không còn tồn tại.' }}</p>
+                <a :href="getTargetUrl(selected)" target="_blank" style="font-size: 13px; font-weight: 600; color: #2563eb; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                  <AppIcon name="external-link" size="14" /> Xem trực tiếp trên hệ thống
                 </a>
               </div>
+              <p v-else class="content-box">{{ selected.target?.title || selected.target?.content || selected.target?.label || 'Đối tượng không còn tồn tại.' }}</p>
             </section>
 
             <section class="detail-section">
@@ -412,14 +413,15 @@ export default {
     getTargetUrl(report) {
       if (!report || !report.target_id) return null;
       const id = report.target_id;
+      const slug = report.target?.slug || id;
       
       switch (report.target_type) {
         case 'post':
         case 'venue_post':
         case 'player_post':
-          return this.$router.resolve({ name: 'admin-post-detail', params: { id } }).href;
+          return window.location.origin + '/community/' + slug;
         case 'comment':
-          return report.parent_id ? this.$router.resolve({ name: 'admin-post-detail', params: { id: report.parent_id } }).href : null;
+          return window.location.origin + '/community/' + (report.target?.post?.slug || report.parent_id || slug);
         case 'user':
           return this.$router.resolve({ name: 'admin-user-detail', params: { id } }).href;
         case 'venue':

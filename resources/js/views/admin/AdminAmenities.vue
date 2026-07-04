@@ -486,20 +486,6 @@ export default {
     justify-content: space-between;
     align-items: center;
 }
-
-/* Filters */
-.avc-filters {
-    padding: 12px 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-}
-:deep(.saas-table-container) {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
 .filter-row {
     display: flex;
     justify-content: space-between;

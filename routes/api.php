@@ -49,6 +49,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Public\LocationController;
 use App\Http\Controllers\Api\Public\VenueController;
 use App\Http\Controllers\Api\Public\PublicAffiliateProductController;
+use App\Http\Controllers\Api\Public\ReportController as PublicReportController;
 use App\Http\Controllers\Api\Common\ChatController;
 
 // Broadcasting auth endpoint — must use Sanctum so Bearer token is accepted
@@ -495,6 +496,9 @@ Route::middleware('auth:sanctum')
         Route::post('/venue-posts/{id}/comments', [PlayerVenuePostController::class, 'comment']);
         Route::post('/venue-posts/{id}/likes', [PlayerVenuePostController::class, 'toggleLike']);
         Route::post('/partner-applications', [\App\Http\Controllers\Api\Player\PartnerApplicationController::class, 'store']);
+        
+        // Reports
+        Route::post('/reports', [PublicReportController::class, 'store']);
 
         // Chat routes
         Route::prefix('chat')->group(function (): void {
