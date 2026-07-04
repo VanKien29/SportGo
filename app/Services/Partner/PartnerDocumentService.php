@@ -8,6 +8,9 @@ use App\Models\DocumentTemplate;
 use App\Models\Media;
 use App\Models\PartnerApplication;
 use App\Models\User;
+use App\Models\VenueCourt;
+use App\Models\VenueCourtApprovalRequest;
+use App\Models\VenueLocationChangeRequest;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -28,6 +31,10 @@ class PartnerDocumentService
         'mutual_liquidation_minutes' => 'Mau_04_Bien_ban_thanh_ly_hop_dong_hai_ben_SportGo_DA_SUA.docx',
         'unilateral_termination_notice' => 'Mau_05_Cong_van_cham_dut_hop_dong_don_phuong_SportGo_DA_SUA.docx',
         'settlement_minutes' => 'Mau_06_Bien_ban_quyet_toan_cham_dut_hop_tac_SportGo_DA_SUA.docx',
+        'venue_scale_request' => 'Don_yeu_cau_thay_doi_quy_mo_san_SportGo.docx',
+        'venue_location_change_request' => 'Don_yeu_cau_thay_doi_vi_tri_cum_san_SportGo.docx',
+        'venue_scale_appendix' => 'Phu_luc_thay_doi_quy_mo_san_SportGo.docx',
+        'venue_location_appendix' => 'Phu_luc_thay_doi_vi_tri_cum_san_SportGo.docx',
     ];
 
     private const DOCUMENT_PREFIXES = [
@@ -37,6 +44,10 @@ class PartnerDocumentService
         'mutual_liquidation_minutes' => 'BBTL',
         'unilateral_termination_notice' => 'CVCD',
         'settlement_minutes' => 'BBQT',
+        'venue_scale_request' => 'YCQM',
+        'venue_location_change_request' => 'YCVT',
+        'venue_scale_appendix' => 'PLQM',
+        'venue_location_appendix' => 'PLVT',
     ];
 
     public function generateDocument(
@@ -62,17 +73,21 @@ class PartnerDocumentService
         $title = $context['title'] ?? $this->defaultTitle($documentType, $renderData);
 
         $sourcePath = $template ? Storage::disk($template->storage_disk)->path($template->file_path) : null;
-        if (! $sourcePath || ! is_file($sourcePath)) {
+        if (! $sourcePath || ! $this->isUsableDocx($sourcePath)) {
             $sourcePath = $this->fallbackTemplatePath($documentType);
         }
 
-        if (! $sourcePath || ! is_file($sourcePath)) {
+        if (! $sourcePath || ! $this->isUsableDocx($sourcePath)) {
             throw new RuntimeException("Không tìm thấy template DOCX cho {$documentType}.");
         }
 
         $targetPath = Storage::disk('local')->path($filePath);
         $this->ensureLocalDirectory($targetPath);
         $this->renderDocxTemplate($sourcePath, $targetPath, $renderData, $documentType);
+        $this->normalizeRequiredDocxParts($targetPath);
+        if (! $this->isUsableDocx($targetPath)) {
+            throw new RuntimeException("Không thể sinh file DOCX hợp lệ cho {$documentType}.");
+        }
 
         $document = GeneratedDocument::create([
             'document_code' => $documentCode,
@@ -138,6 +153,7 @@ class PartnerDocumentService
             try {
                 $filePath = Storage::disk('local')->path($document->generated_file_path);
                 if (file_exists($filePath)) {
+                    $this->fixSplitMacrosInDocx($filePath);
                     $processor = new \PhpOffice\PhpWord\TemplateProcessor($filePath);
                     $processor->setMacroChars('{{', '}}');
                     $placeholder = 'signature_' . $signerSide;
@@ -147,7 +163,14 @@ class PartnerDocumentService
                     ]);
                     $processor->setValue($signerSide . '_signer_name', $signature->signer_full_name);
                     $processor->saveAs($filePath);
+                    $this->normalizeRequiredDocxParts($filePath);
+                    $this->replaceSignedTextPlaceholders($filePath, $signature, $signerSide);
+                    $this->restoreSignedSignatureTextStyle($filePath, $signature);
                     $this->polishSignedDocumentFile($document->fresh());
+                    $this->injectSignatureFallback($document->fresh(), $signature->fresh(), $signerSide, $media);
+                    $this->restoreSignedSignatureTextStyle($filePath, $signature);
+                    $this->ensureSignerNameVisible($document->fresh(), $signature->fresh(), $signerSide);
+                    $this->normalizeRequiredDocxParts($filePath);
                     $document->forceFill([
                         'file_hash' => hash_file('sha256', $filePath),
                     ])->save();
@@ -166,6 +189,8 @@ class PartnerDocumentService
             if ($document->generated_file_path) {
                 $filePath = Storage::disk('local')->path($document->generated_file_path);
                 if (file_exists($filePath)) {
+                    $this->normalizeRequiredDocxParts($filePath);
+                    $this->ensureSignerNameVisible($document->fresh(), $signature->fresh(), $signerSide);
                     $document->forceFill([
                         'file_hash' => hash_file('sha256', $filePath),
                     ])->save();
@@ -181,6 +206,8 @@ class PartnerDocumentService
             'completed_at' => $isCompleted ? now() : $document->completed_at,
         ])->save();
 
+        $this->syncVenueChangeAppendixAfterSignature($document->refresh(), $signerSide, $isCompleted);
+
         return $signature;
     }
 
@@ -191,8 +218,12 @@ class PartnerDocumentService
             ->pluck('signer_side')
             ->all();
 
-        if ($document->document_type === 'partner_application_form') {
+        if (in_array($document->document_type, ['partner_application_form', 'venue_scale_request', 'venue_location_change_request'], true)) {
             return in_array('owner', $signedSides, true);
+        }
+
+        if (in_array($document->document_type, ['venue_scale_appendix', 'venue_location_appendix'], true)) {
+            return in_array('owner', $signedSides, true) && in_array('sportgo', $signedSides, true);
         }
 
         return in_array('owner', $signedSides, true) && in_array('sportgo', $signedSides, true);
@@ -200,7 +231,7 @@ class PartnerDocumentService
 
     private function nextStatusAfterSignature(GeneratedDocument $document, string $signerSide): string
     {
-        if ($document->document_type === 'partner_contract') {
+        if (in_array($document->document_type, ['partner_contract', 'venue_scale_appendix', 'venue_location_appendix'], true)) {
             return $signerSide === 'sportgo' ? 'pending_owner_signature' : 'pending_sportgo_signature';
         }
 
@@ -208,7 +239,138 @@ class PartnerDocumentService
             return 'completed';
         }
 
+        if (in_array($document->document_type, ['venue_scale_request', 'venue_location_change_request'], true) && $signerSide === 'owner') {
+            return 'completed';
+        }
+
         return $document->status;
+    }
+
+    private function syncVenueChangeAppendixAfterSignature(GeneratedDocument $document, string $signerSide, bool $isCompleted): void
+    {
+        if (! in_array($document->document_type, ['venue_scale_appendix', 'venue_location_appendix'], true)) {
+            return;
+        }
+
+        if ($signerSide === 'sportgo' && ! $isCompleted) {
+            $this->markVenueChangeRequestStatus($document, 'pending_owner_signature');
+            return;
+        }
+
+        if (! $isCompleted) {
+            return;
+        }
+
+        if ($document->document_type === 'venue_scale_appendix') {
+            $request = VenueCourtApprovalRequest::query()
+                ->whereKey($document->reference_id)
+                ->with(['venueCluster', 'courtType'])
+                ->first();
+
+            if (! $request || $request->status === 'completed') {
+                return;
+            }
+
+            $createdCourtId = $request->approved_venue_court_id;
+            $requestedCourts = collect($request->requested_courts ?: []);
+
+            if ($requestedCourts->isEmpty() && ! in_array($request->change_type, ['remove'], true)) {
+                $requestedCourts = collect([[
+                    'court_type_id' => $request->court_type_id,
+                    'name' => $request->name,
+                ]]);
+            }
+
+            if (! in_array($request->change_type, ['remove'], true)) {
+                $nextSortOrder = (int) VenueCourt::query()
+                    ->where('venue_cluster_id', $request->venue_cluster_id)
+                    ->max('sort_order');
+
+                foreach ($requestedCourts as $courtData) {
+                    $courtTypeId = (int) ($courtData['court_type_id'] ?? 0);
+                    $courtName = trim((string) ($courtData['name'] ?? ''));
+
+                    if ($courtTypeId <= 0 || $courtName === '') {
+                        continue;
+                    }
+
+                    $court = VenueCourt::create([
+                        'venue_cluster_id' => $request->venue_cluster_id,
+                        'court_type_id' => $courtTypeId,
+                        'name' => $courtName,
+                        'status' => 'active',
+                        'sort_order' => ++$nextSortOrder,
+                    ]);
+
+                    $createdCourtId ??= $court->id;
+                }
+            }
+
+            $removedCourtIds = collect($request->removed_court_ids ?: [])
+                ->filter()
+                ->values()
+                ->all();
+
+            if ($removedCourtIds !== []) {
+                VenueCourt::query()
+                    ->where('venue_cluster_id', $request->venue_cluster_id)
+                    ->whereIn('id', $removedCourtIds)
+                    ->update(['status' => 'inactive']);
+            }
+
+            if ($createdCourtId && ! $request->approved_venue_court_id) {
+                $request->forceFill(['approved_venue_court_id' => $createdCourtId])->save();
+            }
+
+            $request->forceFill([
+                'status' => 'completed',
+                'status_reason' => null,
+            ])->save();
+
+            return;
+        }
+
+        $request = VenueLocationChangeRequest::query()
+            ->whereKey($document->reference_id)
+            ->with('venueCluster')
+            ->first();
+
+        if (! $request || $request->status === 'completed' || ! $request->venueCluster) {
+            return;
+        }
+
+        $request->venueCluster->forceFill([
+            'address' => $request->new_address,
+            'province' => $request->new_province,
+            'province_code' => $request->new_province_code,
+            'ward' => $request->new_ward,
+            'ward_code' => $request->new_ward_code,
+            'latitude' => $request->new_latitude,
+            'longitude' => $request->new_longitude,
+            'map_url' => $request->new_map_url,
+        ])->save();
+
+        $request->forceFill([
+            'status' => 'completed',
+            'status_reason' => null,
+        ])->save();
+    }
+
+    private function markVenueChangeRequestStatus(GeneratedDocument $document, string $status): void
+    {
+        if ($document->document_type === 'venue_scale_appendix') {
+            VenueCourtApprovalRequest::query()
+                ->whereKey($document->reference_id)
+                ->where('status', 'approved_pending_appendix')
+                ->update(['status' => $status]);
+        }
+
+        if ($document->document_type === 'venue_location_appendix') {
+            VenueLocationChangeRequest::query()
+                ->whereKey($document->reference_id)
+                ->where('status', 'approved_pending_appendix')
+                ->update(['status' => $status]);
+        }
     }
 
     public function assertCanDownload(GeneratedDocument $document, User $user, bool $isAdmin = false): void
@@ -232,7 +394,27 @@ class PartnerDocumentService
             abort(404, 'Không tìm thấy file văn bản.');
         }
 
+        $this->normalizeRequiredDocxParts(Storage::disk('local')->path($path));
+        $this->repairSignedDocumentPlaceholders($document);
+        $this->repairVisibleSignerNames($document);
+
         return $path;
+    }
+
+    private function repairVisibleSignerNames(GeneratedDocument $document): void
+    {
+        $document->loadMissing('signatures');
+
+        foreach ($document->signatures->where('status', 'signed') as $signature) {
+            $this->ensureSignerNameVisible($document, $signature, (string) $signature->signer_side);
+        }
+
+        $path = $document->generated_file_path;
+        if ($path && Storage::disk('local')->exists($path)) {
+            $document->forceFill([
+                'file_hash' => hash_file('sha256', Storage::disk('local')->path($path)),
+            ])->save();
+        }
     }
 
     private function activeTemplate(string $documentType): DocumentTemplate
@@ -284,6 +466,23 @@ class PartnerDocumentService
         return $fileName ? base_path('database/seeders/templates/partner-documents/' . $fileName) : null;
     }
 
+    private function isUsableDocx(?string $path): bool
+    {
+        if (! $path || ! is_file($path) || filesize($path) < 1024 || ! class_exists(ZipArchive::class)) {
+            return false;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($path) !== true) {
+            return false;
+        }
+
+        $usable = $zip->getFromName('word/document.xml') !== false;
+        $zip->close();
+
+        return $usable;
+    }
+
     private function ensureLocalDirectory(string $targetPath): void
     {
         $directory = dirname($targetPath);
@@ -297,6 +496,7 @@ class PartnerDocumentService
     {
         $tempPath = $targetPath . '.tmp.docx';
         copy($sourcePath, $tempPath);
+        $this->normalizeRequiredDocxParts($tempPath);
         $this->fixSplitMacrosInDocx($tempPath);
 
         try {
@@ -330,6 +530,349 @@ class PartnerDocumentService
 
         $this->fillKnownTemplateBodyFields($targetPath, $data, $documentType);
         $this->appendDocumentDataAppendixToFile($targetPath, $data, $documentType);
+        $this->replaceResidualTemplateBlanks($targetPath, $documentType);
+        $this->polishUnsignedSignaturePlaceholders($targetPath, $documentType);
+        $this->normalizeRequiredDocxParts($targetPath);
+    }
+
+    private function normalizeRequiredDocxParts(string $docxPath): void
+    {
+        if (! is_file($docxPath) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $styles = $zip->getFromName('word/styles.xml');
+        if ($styles === false || trim($styles) === '') {
+            $fallbackStyles = $zip->getFromName('word/stylesWithEffects.xml');
+            $zip->addFromString(
+                'word/styles.xml',
+                is_string($fallbackStyles) && trim($fallbackStyles) !== ''
+                    ? $fallbackStyles
+                    : $this->minimalStylesXml()
+            );
+        }
+
+        $settings = $zip->getFromName('word/settings.xml');
+        if ($settings === false || trim($settings) === '') {
+            $zip->addFromString('word/settings.xml', $this->minimalSettingsXml());
+        }
+
+        $zip->close();
+    }
+
+    private function minimalStylesXml(): string
+    {
+        return <<<'XML'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>
+    </w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+</w:styles>
+XML;
+    }
+
+    private function minimalSettingsXml(): string
+    {
+        return <<<'XML'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>
+XML;
+    }
+
+    private function repairSignedDocumentPlaceholders(GeneratedDocument $document): void
+    {
+        if (! $document->generated_file_path || ! Storage::disk('local')->exists($document->generated_file_path)) {
+            return;
+        }
+
+        $document->loadMissing('signatures');
+        foreach ($document->signatures->where('status', 'signed') as $signature) {
+            if (! $signature->signature_media_id) {
+                continue;
+            }
+
+            $media = Media::query()->find($signature->signature_media_id);
+            if (! $media) {
+                continue;
+            }
+
+            $this->injectSignatureFallback($document, $signature, $signature->signer_side, $media);
+        }
+
+        $filePath = Storage::disk('local')->path($document->generated_file_path);
+        if (is_file($filePath)) {
+            $document->forceFill(['file_hash' => hash_file('sha256', $filePath)])->save();
+        }
+    }
+
+    private function injectSignatureFallback(GeneratedDocument $document, GeneratedDocumentSignature $signature, string $signerSide, Media $media): void
+    {
+        $path = $document->generated_file_path;
+        if (! $path || ! Storage::disk('local')->exists($path) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $imagePath = $this->publicMediaPath($media);
+        if (! $imagePath || ! is_file($imagePath)) {
+            return;
+        }
+
+        $filePath = Storage::disk('local')->path($path);
+        $this->fixSplitMacrosInDocx($filePath);
+
+        $zip = new ZipArchive();
+        if ($zip->open($filePath) !== true) {
+            return;
+        }
+
+        $documentXml = $zip->getFromName('word/document.xml');
+        if ($documentXml === false) {
+            $zip->close();
+            return;
+        }
+
+        $changed = false;
+        $namePlaceholder = '{{' . $signerSide . '_signer_name}}';
+        $signaturePlaceholder = '{{signature_' . $signerSide . '}}';
+
+        if (str_contains($documentXml, $namePlaceholder)) {
+            $documentXml = str_replace($namePlaceholder, $this->xmlText($signature->signer_full_name ?: ''), $documentXml);
+            $changed = true;
+        }
+
+        if (str_contains($documentXml, $signaturePlaceholder)) {
+            $mediaFileName = 'signature-' . $signerSide . '-' . $signature->id . '.png';
+            $mediaTarget = 'word/media/' . $mediaFileName;
+            $zip->addFromString($mediaTarget, file_get_contents($imagePath));
+            $this->ensurePngContentType($zip);
+
+            $relationshipId = $this->ensureImageRelationship($zip, 'media/' . $mediaFileName);
+            if ($relationshipId) {
+                $drawingRun = $this->signatureDrawingRunXml($relationshipId, $mediaFileName, $imagePath);
+                $pattern = '~<w:r\b[^>]*>(?:(?!</w:r>).)*<w:t\b[^>]*>\{\{signature_' . preg_quote($signerSide, '~') . '\}\}</w:t>(?:(?!</w:r>).)*</w:r>~s';
+                $documentXml = preg_replace($pattern, $drawingRun, $documentXml, 1, $count);
+                if (! $count) {
+                    $paragraphPattern = '~<w:p\b[^>]*>.*?' . preg_quote($signaturePlaceholder, '~') . '.*?</w:p>~s';
+                    $replacementParagraph = '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>' . $drawingRun . '</w:p>';
+                    $documentXml = preg_replace($paragraphPattern, $replacementParagraph, $documentXml, 1, $paragraphCount);
+                    if (! $paragraphCount) {
+                        $documentXml = str_replace($signaturePlaceholder, '', $documentXml);
+                        $documentXml = preg_replace('~(<w:p\b[^>]*>)~', '$1' . $drawingRun, $documentXml, 1);
+                    }
+                }
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            $zip->addFromString('word/document.xml', $documentXml);
+        }
+
+        $zip->close();
+    }
+
+    private function replaceSignedTextPlaceholders(string $docxPath, GeneratedDocumentSignature $signature, string $signerSide): void
+    {
+        if (! is_file($docxPath) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $this->fixSplitMacrosInDocx($docxPath);
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $changed = false;
+        $values = [
+            '{{' . $signerSide . '_signer_name}}' => $signature->signer_full_name ?: '',
+            '{{' . $signerSide . '_signer_full_name}}' => $signature->signer_full_name ?: '',
+        ];
+
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $entry = $zip->getNameIndex($index);
+            if (! str_starts_with($entry, 'word/') || ! str_ends_with($entry, '.xml')) {
+                continue;
+            }
+
+            $xml = $zip->getFromName($entry);
+            if ($xml === false) {
+                continue;
+            }
+
+            $nextXml = $xml;
+            foreach ($values as $placeholder => $value) {
+                $nextXml = str_replace($placeholder, $this->xmlText($value), $nextXml);
+            }
+
+            if ($nextXml !== $xml) {
+                $zip->addFromString($entry, $nextXml);
+                $changed = true;
+            }
+        }
+
+        $zip->close();
+
+        if ($changed) {
+            $this->normalizeRequiredDocxParts($docxPath);
+        }
+    }
+
+    private function ensureSignerNameVisible(GeneratedDocument $document, GeneratedDocumentSignature $signature, string $signerSide): void
+    {
+        $name = trim((string) $signature->signer_full_name);
+        $path = $document->generated_file_path;
+
+        if ($name === '' || ! $path || ! Storage::disk('local')->exists($path) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $filePath = Storage::disk('local')->path($path);
+        $zip = new ZipArchive();
+        if ($zip->open($filePath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            return;
+        }
+
+        if ($this->signerNameAlreadyNearSignature($xml, $name)) {
+            $zip->close();
+            return;
+        }
+
+        $nameParagraph = $this->signedNameParagraphXml($name);
+        $patterns = [
+            '~(<w:p\b[^>]*>.*?<w:drawing\b.*?</w:p>)~s',
+            '~(<w:p\b[^>]*>.*?signature[_-]' . preg_quote($signerSide, '~') . '.*?</w:p>)~s',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match_all($pattern, $xml, $matches, PREG_OFFSET_CAPTURE) && $matches[1]) {
+                $last = end($matches[1]);
+                $offset = $last[1] + strlen($last[0]);
+                $xml = substr($xml, 0, $offset) . $nameParagraph . substr($xml, $offset);
+                $zip->addFromString($entry, $xml);
+                $zip->close();
+                return;
+            }
+        }
+
+        if (str_contains($xml, '</w:body>')) {
+            $xml = str_replace('</w:body>', $nameParagraph . '</w:body>', $xml);
+            $zip->addFromString($entry, $xml);
+        }
+
+        $zip->close();
+    }
+
+    private function signedNameParagraphXml(string $name): string
+    {
+        return '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">'
+            . $this->xmlText($name)
+            . '</w:t></w:r></w:p>';
+    }
+
+    private function signerNameAlreadyNearSignature(string $xml, string $name): bool
+    {
+        $escaped = preg_quote($this->xmlText($name), '~');
+
+        return (bool) preg_match(
+            '~<w:p\b[^>]*>.*?<w:drawing\b.*?</w:p>(?:(?!<w:p\b).)*<w:p\b[^>]*>.*?' . $escaped . '.*?</w:p>~s',
+            $xml
+        );
+    }
+
+    private function ensurePngContentType(ZipArchive $zip): void
+    {
+        $entry = '[Content_Types].xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false || trim($xml) === '') {
+            return;
+        }
+
+        if (str_contains($xml, 'Extension="png"')) {
+            return;
+        }
+
+        $override = '<Default Extension="png" ContentType="image/png"/>';
+        $xml = str_replace('</Types>', $override . '</Types>', $xml);
+        $zip->addFromString($entry, $xml);
+    }
+
+    private function ensureImageRelationship(ZipArchive $zip, string $target): ?string
+    {
+        $entry = 'word/_rels/document.xml.rels';
+        $relsXml = $zip->getFromName($entry);
+        if ($relsXml === false || trim($relsXml) === '') {
+            $relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+        }
+
+        if (preg_match('~<Relationship\s+[^>]*Id="([^"]+)"[^>]*Target="' . preg_quote($target, '~') . '"~', $relsXml, $match)) {
+            return $match[1];
+        }
+
+        preg_match_all('~Id="rId(\d+)"~', $relsXml, $matches);
+        $next = $matches[1] ? (max(array_map('intval', $matches[1])) + 1) : 1;
+        $relationshipId = 'rId' . $next;
+        $relationship = '<Relationship Id="' . $relationshipId . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="' . $this->xmlAttr($target) . '"/>';
+        $relsXml = str_replace('</Relationships>', $relationship . '</Relationships>', $relsXml);
+        $zip->addFromString($entry, $relsXml);
+
+        return $relationshipId;
+    }
+
+    private function signatureDrawingRunXml(string $relationshipId, string $name, string $imagePath): string
+    {
+        [$width, $height] = getimagesize($imagePath) ?: [360, 160];
+        $widthEmu = 1524000;
+        $heightEmu = max(300000, (int) round($widthEmu * max(1, $height) / max(1, $width)));
+        $docPrId = random_int(10000, 999999);
+
+        return '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+            . '<wp:extent cx="' . $widthEmu . '" cy="' . $heightEmu . '"/>'
+            . '<wp:effectExtent l="0" t="0" r="0" b="0"/>'
+            . '<wp:docPr id="' . $docPrId . '" name="' . $this->xmlAttr($name) . '"/>'
+            . '<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/></wp:cNvGraphicFramePr>'
+            . '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            . '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            . '<pic:nvPicPr><pic:cNvPr id="0" name="' . $this->xmlAttr($name) . '"/><pic:cNvPicPr/></pic:nvPicPr>'
+            . '<pic:blipFill><a:blip r:embed="' . $this->xmlAttr($relationshipId) . '" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+            . '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $widthEmu . '" cy="' . $heightEmu . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
+            . '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
+    }
+
+    private function publicMediaPath(Media $media): ?string
+    {
+        $path = $media->getRawOriginal('file_path') ?: $media->file_path;
+        $path = preg_replace('~^/storage/~', '', (string) $path);
+
+        return $path ? Storage::disk('public')->path(ltrim($path, '/')) : null;
+    }
+
+    private function xmlText(string $value): string
+    {
+        return htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
+    }
+
+    private function xmlAttr(string $value): string
+    {
+        return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
     }
 
     private function fixSplitMacrosInDocx(string $docxPath): void
@@ -468,6 +1011,10 @@ class PartnerDocumentService
             'mutual_liquidation_minutes',
             'unilateral_termination_notice',
             'settlement_minutes' => $this->workflowTemplateBodyValues($data, $documentType),
+            'venue_scale_request',
+            'venue_location_change_request',
+            'venue_scale_appendix',
+            'venue_location_appendix' => $this->venueChangeRequestTemplateBodyValues($data, $documentType),
             default => [],
         };
 
@@ -476,9 +1023,391 @@ class PartnerDocumentService
         }
 
         $this->fillTwoColumnTemplateBodyFields($docxPath, $fields);
+        $this->fillVenueChangeStructuredTables($docxPath, $data, $documentType);
+        if (in_array($documentType, ['partner_application_form', 'partner_contract', 'venue_scale_request', 'venue_location_change_request', 'venue_scale_appendix', 'venue_location_appendix'], true)) {
+            $this->normalizeTwoColumnTableWidths($docxPath);
+        }
         $this->fillKnownTemplateInlineText($docxPath, $data, $documentType);
+        $this->removeVenueChangeReasonBlankParagraphs($docxPath, $documentType);
         $this->ensureDocumentSignaturePlaceholders($docxPath, $documentType);
+        $this->polishUnsignedSignaturePlaceholders($docxPath, $documentType);
         $this->replaceResidualTemplateBlanks($docxPath, $documentType);
+    }
+
+    private function fillVenueChangeStructuredTables(string $docxPath, array $data, string $documentType): void
+    {
+        if (! in_array($documentType, ['venue_scale_request', 'venue_location_change_request', 'venue_scale_appendix', 'venue_location_appendix'], true)
+            || ! class_exists(ZipArchive::class)
+            || ! class_exists(\DOMDocument::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            return;
+        }
+
+        $dom = new \DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $loaded = $dom->loadXML($xml);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+
+        if (! $loaded) {
+            $zip->close();
+            return;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+        $changed = false;
+        foreach ($xpath->query('//w:tbl') as $table) {
+            $tableKey = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($table, $xpath)));
+
+            if (in_array($documentType, ['venue_scale_request', 'venue_scale_appendix'], true)) {
+                if (str_contains($tableKey, 'tensancon') && (str_contains($tableKey, 'tanggiam') || str_contains($tableKey, 'hinhthucthaydoi'))) {
+                    $changed = $this->fillScaleCourtChangeTable($table, $xpath, $data) || $changed;
+                    continue;
+                }
+
+                if (str_contains($tableKey, 'thongtinhientai') && str_contains($tableKey, 'thongtinsauthaydoi')) {
+                    $changed = $this->fillScaleSummaryTable($table, $xpath, $data) || $changed;
+                    continue;
+                }
+            }
+
+            if ($documentType === 'venue_location_appendix'
+                && str_contains($tableKey, 'noidungthongtin')
+                && str_contains($tableKey, 'thongtindenghithaydoi')) {
+                $changed = $this->fillLocationComparisonTable($table, $xpath, $data) || $changed;
+            }
+        }
+
+        if ($changed) {
+            $zip->addFromString($entry, $dom->saveXML());
+        }
+
+        $zip->close();
+    }
+
+    private function fillScaleCourtChangeTable(\DOMNode $table, \DOMXPath $xpath, array $data): bool
+    {
+        $rows = iterator_to_array($xpath->query('./w:tr', $table));
+        if ($rows === []) {
+            return false;
+        }
+
+        $headerIndex = null;
+        foreach ($rows as $index => $row) {
+            $key = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($row, $xpath)));
+            if (str_contains($key, 'stt') && str_contains($key, 'tensancon')) {
+                $headerIndex = $index;
+                break;
+            }
+        }
+
+        if ($headerIndex === null) {
+            return false;
+        }
+
+        $changes = $this->venueScaleCourtRows($data);
+        $dataRows = array_values(array_slice($rows, $headerIndex + 1));
+        if ($dataRows === []) {
+            return false;
+        }
+
+        $changed = false;
+        $hasApplyDateColumn = str_contains(Str::ascii($this->normalizeDocxLabel($this->docxNodeText($rows[$headerIndex], $xpath))), 'ngayapdung');
+
+        while (count($dataRows) < count($changes)) {
+            $clone = end($dataRows)->cloneNode(true);
+            $table->appendChild($clone);
+            $dataRows[] = $clone;
+            $changed = true;
+        }
+
+        foreach ($dataRows as $index => $row) {
+            if (! isset($changes[$index])) {
+                $row->parentNode?->removeChild($row);
+                $changed = true;
+                continue;
+            }
+
+            $cells = $xpath->query('./w:tc', $row);
+            if ($cells->length < 6) {
+                continue;
+            }
+
+            $item = $changes[$index];
+            $values = $hasApplyDateColumn
+                ? [
+                    (string) ($index + 1),
+                    $item['name'],
+                    $item['court_type'],
+                    $item['change'],
+                    $item['effective_date'],
+                    $item['note'],
+                ]
+                : [
+                    (string) ($index + 1),
+                    $item['name'],
+                    $item['court_type'],
+                    $item['change'],
+                    $item['status'],
+                    $item['note'],
+                ];
+
+            foreach ($values as $cellIndex => $value) {
+                $changed = $this->replaceDocxCellText($cells->item($cellIndex), $xpath, $value) || $changed;
+            }
+        }
+
+        return $changed;
+    }
+
+    private function fillScaleSummaryTable(\DOMNode $table, \DOMXPath $xpath, array $data): bool
+    {
+        $values = $this->venueScaleSummaryValues($data);
+        $changed = false;
+
+        foreach ($xpath->query('./w:tr', $table) as $row) {
+            $cells = $xpath->query('./w:tc', $row);
+            if ($cells->length < 5) {
+                continue;
+            }
+
+            $label = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($cells->item(1), $xpath)));
+            foreach ($values as $needle => $rowValues) {
+                if ($needle !== '' && str_contains($label, $needle)) {
+                    $changed = $this->replaceDocxCellText($cells->item(2), $xpath, $rowValues[0]) || $changed;
+                    $changed = $this->replaceDocxCellText($cells->item(3), $xpath, $rowValues[1]) || $changed;
+                    $changed = $this->replaceDocxCellText($cells->item(4), $xpath, $rowValues[2]) || $changed;
+                    break;
+                }
+            }
+        }
+
+        return $changed;
+    }
+
+    private function fillLocationComparisonTable(\DOMNode $table, \DOMXPath $xpath, array $data): bool
+    {
+        $values = $this->venueLocationComparisonValues($data);
+        $changed = false;
+
+        foreach ($xpath->query('./w:tr', $table) as $row) {
+            $cells = $xpath->query('./w:tc', $row);
+            if ($cells->length < 5) {
+                continue;
+            }
+
+            $label = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($cells->item(1), $xpath)));
+            foreach ($values as $needle => $rowValues) {
+                if ($needle !== '' && str_contains($label, $needle)) {
+                    $changed = $this->replaceDocxCellText($cells->item(2), $xpath, $rowValues[0]) || $changed;
+                    $changed = $this->replaceDocxCellText($cells->item(3), $xpath, $rowValues[1]) || $changed;
+                    $changed = $this->replaceDocxCellText($cells->item(4), $xpath, $rowValues[2]) || $changed;
+                    break;
+                }
+            }
+        }
+
+        return $changed;
+    }
+
+    private function venueScaleCourtRows(array $data): array
+    {
+        $expectedDate = $this->formatDateForDocument($this->firstFilled($data, ['expected_effective_date', 'reviewed_at', 'submitted_at', 'rendered_at']))
+            ?: now()->format('d/m/Y');
+        $rows = [];
+
+        $rawRows = data_get($data, 'court_change_rows', []);
+        if (is_array($rawRows)) {
+            foreach ($rawRows as $row) {
+                if (is_array($row)) {
+                    $rows[] = $this->normalizeScaleCourtRow($row, 'Điều chỉnh', 'Chờ SportGo duyệt', $expectedDate);
+                }
+            }
+        }
+
+        if ($rows === []) {
+            $requestedRows = data_get($data, 'requested_court_rows', data_get($data, 'requested_courts', []));
+            if (is_array($requestedRows)) {
+                foreach ($requestedRows as $row) {
+                    if (is_array($row)) {
+                        $rows[] = $this->normalizeScaleCourtRow($row, 'Tăng/thêm sân', 'Dự kiến hoạt động sau phê duyệt', $expectedDate);
+                    }
+                }
+            }
+
+            $removedRows = data_get($data, 'removed_court_rows', []);
+            if (is_array($removedRows)) {
+                foreach ($removedRows as $row) {
+                    if (is_array($row)) {
+                        $rows[] = $this->normalizeScaleCourtRow($row, 'Giảm/ngừng khai thác', 'Dự kiến ngừng khai thác', $expectedDate);
+                    }
+                }
+            }
+        }
+
+        if ($rows === [] && $this->firstFilled($data, ['new_courts_summary', 'requested_court_names', 'new_court_name'])) {
+            $rows[] = [
+                'name' => $this->firstFilled($data, ['new_courts_summary', 'requested_court_names', 'new_court_name']),
+                'court_type' => $this->firstFilled($data, ['requested_court_type_name', 'court_type_name']) ?: 'Theo hồ sơ yêu cầu',
+                'change' => $this->firstFilled($data, ['change_action']) ?: 'Tăng/thêm sân',
+                'effective_date' => $expectedDate,
+                'status' => 'Dự kiến hoạt động sau phê duyệt',
+                'note' => $this->firstFilled($data, ['reason', 'status_reason']) ?: 'Theo đơn yêu cầu đã ký',
+            ];
+        }
+
+        if ($rows === [] && $this->firstFilled($data, ['removed_courts_summary'])) {
+            $rows[] = [
+                'name' => $this->firstFilled($data, ['removed_courts_summary']),
+                'court_type' => 'Theo danh sách sân hiện tại',
+                'change' => 'Giảm/ngừng khai thác',
+                'effective_date' => $expectedDate,
+                'status' => 'Dự kiến ngừng khai thác',
+                'note' => $this->firstFilled($data, ['reason', 'status_reason']) ?: 'Theo đơn yêu cầu đã ký',
+            ];
+        }
+
+        return $rows ?: [[
+            'name' => 'Theo danh sách sân trong hồ sơ yêu cầu',
+            'court_type' => 'Theo cấu hình cụm sân',
+            'change' => $this->firstFilled($data, ['change_action']) ?: 'Điều chỉnh',
+            'effective_date' => $expectedDate,
+            'status' => 'Chờ SportGo duyệt',
+            'note' => $this->firstFilled($data, ['reason', 'status_reason']) ?: 'Theo đơn yêu cầu đã ký',
+        ]];
+    }
+
+    private function normalizeScaleCourtRow(array $row, string $defaultChange, string $defaultStatus, string $defaultDate): array
+    {
+        $name = $this->cellPlainValue($row['name'] ?? $row['court_name'] ?? $row['title'] ?? '');
+        $courtType = $this->cellPlainValue($row['court_type_name'] ?? $row['type_name'] ?? $row['court_type'] ?? '');
+        $change = $this->cellPlainValue($row['change_action'] ?? $row['change'] ?? $row['action'] ?? '');
+        $status = $this->cellPlainValue($row['status'] ?? $row['status_note'] ?? $row['expected_status'] ?? '');
+        $note = $this->cellPlainValue($row['note'] ?? $row['status_note'] ?? $row['reason'] ?? '');
+
+        return [
+            'name' => $name !== '' ? $name : 'Theo danh sách sân trong hồ sơ',
+            'court_type' => $courtType !== '' ? $courtType : 'Theo cấu hình cụm sân',
+            'change' => $change !== '' ? $change : $defaultChange,
+            'effective_date' => $this->formatDateForDocument($row['effective_date'] ?? $row['apply_date'] ?? null) ?: $defaultDate,
+            'status' => $status !== '' ? $status : $defaultStatus,
+            'note' => $note !== '' ? $note : 'Theo đơn yêu cầu đã ký',
+        ];
+    }
+
+    private function venueScaleSummaryValues(array $data): array
+    {
+        $rows = $this->venueScaleCourtRows($data);
+        $currentCount = $this->firstFilled($data, ['current_court_count', 'court_count_total', 'court_count']) ?: '0';
+        $newCount = $this->numericDocumentValue($this->firstFilled($data, ['new_court_count', 'requested_court_count']))
+            ?? collect($rows)->filter(fn (array $row): bool => ! str_contains(Str::ascii(Str::lower($row['change'])), 'giam'))->count();
+        $removedCount = $this->numericDocumentValue($this->firstFilled($data, ['removed_court_count']))
+            ?? collect($rows)->filter(fn (array $row): bool => str_contains(Str::ascii(Str::lower($row['change'])), 'giam'))->count();
+        $afterCount = $this->scaleAfterCourtCount($currentCount, $newCount, $removedCount);
+        $changedTypes = $this->scaleChangedCourtTypes($rows, $data);
+        $currentTypes = $this->firstFilled($data, ['current_court_types_summary', 'court_types_summary']) ?: 'Theo danh sách sân hiện tại';
+        $currentArea = $this->firstFilled($data, ['current_operation_area', 'venue_address', 'current_address', 'owner_address']) ?: 'Theo hồ sơ cụm sân hiện tại';
+        $afterArea = $this->firstFilled($data, ['requested_operation_area', 'new_operation_area']) ?: 'Không thay đổi khu vực khai thác';
+        $bookingImpact = $this->firstFilled($data, ['booking_impact']) ?: 'Rà soát booking còn hiệu lực trước khi cập nhật sân';
+        $currentCountLabel = str_contains(Str::lower($currentCount), 'sân') ? $currentCount : $currentCount . ' sân';
+
+        return [
+            'tongsosancondangvanhanh' => [$currentCountLabel, $afterCount, 'Tính theo cụm sân được duyệt'],
+            'sosancontangthem' => ['0 sân', $newCount . ' sân', $newCount > 0 ? 'Theo danh sách sân tăng thêm' : 'Không phát sinh'],
+            'sosancongiamngungkhaithac' => ['0 sân', $removedCount . ' sân', $removedCount > 0 ? 'Theo danh sách sân ngừng khai thác' : 'Không phát sinh'],
+            'loaisanmonthethaothaydoi' => [$currentTypes, $changedTypes, 'Theo từng sân con trong danh sách'],
+            'khuvucdientichkhaithac' => [$currentArea, $afterArea, 'Kiểm tra theo hồ sơ minh chứng'],
+            'trangthainhanbooking' => ['Đang nhận booking theo cấu hình hiện tại', $bookingImpact, 'Chủ sân chịu trách nhiệm xử lý lịch đã đặt'],
+        ];
+    }
+
+    private function venueLocationComparisonValues(array $data): array
+    {
+        $currentAddress = $this->joinFilled([
+            $this->firstFilled($data, ['current_address', 'venue_address']),
+            $this->firstFilled($data, ['current_ward', 'venue_ward']),
+            $this->firstFilled($data, ['current_province', 'venue_province']),
+        ]) ?: 'Theo hồ sơ cụm sân hiện tại';
+        $newAddress = $this->joinFilled([
+            $this->firstFilled($data, ['new_address']),
+            $this->firstFilled($data, ['new_ward']),
+            $this->firstFilled($data, ['new_province']),
+        ]) ?: 'Theo đơn yêu cầu thay đổi vị trí';
+        $currentCoordinates = $this->coordinatesAndMap([
+            'venue_latitude' => $this->firstFilled($data, ['current_latitude', 'venue_latitude']),
+            'venue_longitude' => $this->firstFilled($data, ['current_longitude', 'venue_longitude']),
+            'venue_map_url' => $this->firstFilled($data, ['current_map_url', 'venue_map_url']),
+        ]) ?: 'Theo tọa độ đang lưu trên hệ thống';
+        $newCoordinates = $this->coordinatesAndMap([
+            'venue_latitude' => $this->firstFilled($data, ['new_latitude']),
+            'venue_longitude' => $this->firstFilled($data, ['new_longitude']),
+            'venue_map_url' => $this->firstFilled($data, ['new_map_url']),
+        ]) ?: 'Theo tọa độ mới trong đơn yêu cầu';
+        $currentRegion = $this->joinFilled([
+            $this->firstFilled($data, ['current_ward', 'venue_ward']),
+            $this->firstFilled($data, ['current_province', 'venue_province']),
+        ]) ?: 'Theo địa chỉ hiện tại';
+        $newRegion = $this->joinFilled([
+            $this->firstFilled($data, ['new_ward']),
+            $this->firstFilled($data, ['new_province']),
+        ]) ?: 'Theo địa chỉ mới';
+        $manager = $this->firstFilled($data, ['venue_manager_name', 'owner_signer_name', 'owner_full_name', 'business_name']) ?: 'Chủ sân/đối tác';
+        $effectiveDate = $this->formatDateForDocument($this->firstFilled($data, ['expected_effective_date', 'reviewed_at', 'submitted_at', 'rendered_at']))
+            ?: now()->format('d/m/Y');
+
+        return [
+            'diachicumsan' => [$currentAddress, $newAddress, 'Cập nhật sau khi phụ lục ký đủ'],
+            'toadogpsduongdanbando' => [$currentCoordinates, $newCoordinates, 'Đã đối chiếu theo bản đồ'],
+            'khuvucquanhuyentinhthanh' => [$currentRegion, $newRegion, 'Theo đơn vị hành chính đã chọn'],
+            'sodienthoaitaicoso' => [$this->firstFilled($data, ['venue_phone', 'owner_phone']) ?: 'Theo hồ sơ hiện tại', $this->firstFilled($data, ['new_phone', 'venue_phone', 'owner_phone']) ?: 'Không thay đổi', 'Dùng để liên hệ khách đặt sân'],
+            'nguoiquanlytaicoso' => [$manager, $manager, 'Không thay đổi người phụ trách'],
+            'thoidiemdukienapdung' => ['Đang áp dụng', $effectiveDate, 'Sau khi SportGo và chủ sân ký phụ lục'],
+        ];
+    }
+
+    private function scaleChangedCourtTypes(array $rows, array $data): string
+    {
+        $types = collect($rows)
+            ->pluck('court_type')
+            ->filter(fn (string $value): bool => $value !== '' && $value !== 'Theo cấu hình cụm sân')
+            ->unique()
+            ->values()
+            ->implode('; ');
+
+        return $types ?: ($this->firstFilled($data, ['requested_court_type_name', 'court_type_name', 'court_types_summary']) ?: 'Theo danh sách sân con thay đổi');
+    }
+
+    private function scaleAfterCourtCount(string $currentCount, int $newCount, int $removedCount): string
+    {
+        $current = $this->numericDocumentValue($currentCount);
+        if ($current === null) {
+            return trim($currentCount . ' + ' . $newCount . ' - ' . $removedCount) . ' sân';
+        }
+
+        return max(0, $current + $newCount - $removedCount) . ' sân';
+    }
+
+    private function numericDocumentValue(mixed $value): ?int
+    {
+        $text = $this->cellPlainValue($value);
+        if ($text === '' || ! preg_match('/-?\d+/', $text, $match)) {
+            return null;
+        }
+
+        return (int) $match[0];
     }
 
     private function ensureDocumentSignaturePlaceholders(string $docxPath, string $documentType): void
@@ -534,7 +1463,20 @@ class PartnerDocumentService
             }
         }
 
-        if ($documentType === 'partner_contract') {
+        if (in_array($documentType, ['venue_scale_request', 'venue_location_change_request'], true)) {
+            foreach ($xpath->query('//w:p') as $paragraph) {
+                $ascii = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($paragraph, $xpath)));
+                if (str_contains($ascii, 'nguoilamdon') || str_contains($ascii, 'kyghirohoten')) {
+                    if (! str_contains($xml, '{{signature_owner}}')) {
+                        $changed = $this->insertDocxParagraphAfter($paragraph, '{{owner_signer_name}}') || $changed;
+                        $changed = $this->insertDocxParagraphAfter($paragraph, '{{signature_owner}}') || $changed;
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (in_array($documentType, ['partner_contract', 'venue_scale_appendix', 'venue_location_appendix'], true)) {
             $tables = $xpath->query('//w:tbl');
             $signatureTable = $tables->item(max(0, $tables->length - 1));
             if ($signatureTable) {
@@ -572,13 +1514,154 @@ class PartnerDocumentService
         $zip->close();
     }
 
-    private function replaceResidualTemplateBlanks(string $docxPath, string $documentType): void
+    private function polishUnsignedSignaturePlaceholders(string $docxPath, string $documentType): void
     {
         if (! in_array($documentType, [
+            'partner_application_form',
+            'partner_contract',
+            'venue_scale_request',
+            'venue_location_change_request',
+            'venue_scale_appendix',
+            'venue_location_appendix',
             'termination_request',
             'mutual_liquidation_minutes',
             'unilateral_termination_notice',
             'settlement_minutes',
+        ], true) || ! is_file($docxPath) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $targets = [
+            '{{signature_owner}}',
+            '{{signature_sportgo}}',
+            '{{owner_signer_name}}',
+            '{{owner_signer_full_name}}',
+            '{{sportgo_signer_name}}',
+            '{{sportgo_signer_full_name}}',
+        ];
+
+        $this->styleSignatureRuns($docxPath, $targets, 'FFFFFF', true);
+    }
+
+    private function restoreSignedSignatureTextStyle(string $docxPath, GeneratedDocumentSignature $signature): void
+    {
+        $targets = array_filter([
+            $signature->signer_full_name,
+            $signature->signer_user_id,
+        ]);
+
+        if ($targets !== []) {
+            $this->styleSignatureRuns($docxPath, $targets, '000000', true);
+        }
+    }
+
+    /**
+     * Keep signature placeholders in the XML so TemplateProcessor can replace them,
+     * but hide unsigned placeholders from the human preview and center the signature block.
+     */
+    private function styleSignatureRuns(string $docxPath, array $targets, string $color, bool $centerParagraph): void
+    {
+        if (! is_file($docxPath) || ! class_exists(ZipArchive::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            return;
+        }
+
+        $changed = false;
+        $nextXml = preg_replace_callback('~<w:p\b[^>]*>.*?</w:p>~s', function (array $paragraphMatch) use ($targets, $color, $centerParagraph, &$changed): string {
+            $paragraph = $paragraphMatch[0];
+            $contains = false;
+
+            foreach ($targets as $target) {
+                if ($target !== '' && str_contains($paragraph, $this->xmlText((string) $target))) {
+                    $contains = true;
+                    break;
+                }
+                if ($target !== '' && str_contains($paragraph, (string) $target)) {
+                    $contains = true;
+                    break;
+                }
+            }
+
+            if (! $contains) {
+                return $paragraph;
+            }
+
+            $changed = true;
+            if ($centerParagraph) {
+                $paragraph = $this->setParagraphJustification($paragraph, 'center');
+            }
+
+            return preg_replace_callback('~<w:r\b[^>]*>.*?</w:r>~s', function (array $runMatch) use ($targets, $color): string {
+                $run = $runMatch[0];
+                foreach ($targets as $target) {
+                    if ($target !== '' && (str_contains($run, $this->xmlText((string) $target)) || str_contains($run, (string) $target))) {
+                        return $this->setRunTextColor($run, $color);
+                    }
+                }
+
+                return $run;
+            }, $paragraph) ?? $paragraph;
+        }, $xml);
+
+        if ($changed && is_string($nextXml)) {
+            $zip->addFromString($entry, $nextXml);
+        }
+
+        $zip->close();
+    }
+
+    private function setParagraphJustification(string $paragraphXml, string $value): string
+    {
+        if (preg_match('~<w:pPr\b[^>]*>.*?</w:pPr>~s', $paragraphXml)) {
+            if (preg_match('~<w:jc\b[^>]*/>~', $paragraphXml)) {
+                return preg_replace('~<w:jc\b[^>]*/>~', '<w:jc w:val="' . $value . '"/>', $paragraphXml, 1) ?? $paragraphXml;
+            }
+
+            return preg_replace('~(<w:pPr\b[^>]*>)~', '$1<w:jc w:val="' . $value . '"/>', $paragraphXml, 1) ?? $paragraphXml;
+        }
+
+        return preg_replace('~(<w:p\b[^>]*>)~', '$1<w:pPr><w:jc w:val="' . $value . '"/></w:pPr>', $paragraphXml, 1) ?? $paragraphXml;
+    }
+
+    private function setRunTextColor(string $runXml, string $color): string
+    {
+        $colorXml = '<w:color w:val="' . $color . '"/>';
+
+        if (preg_match('~<w:rPr\b[^>]*>.*?</w:rPr>~s', $runXml)) {
+            if (preg_match('~<w:color\b[^>]*/>~', $runXml)) {
+                return preg_replace('~<w:color\b[^>]*/>~', $colorXml, $runXml, 1) ?? $runXml;
+            }
+
+            return preg_replace('~(<w:rPr\b[^>]*>)~', '$1' . $colorXml, $runXml, 1) ?? $runXml;
+        }
+
+        return preg_replace('~(<w:r\b[^>]*>)~', '$1<w:rPr>' . $colorXml . '</w:rPr>', $runXml, 1) ?? $runXml;
+    }
+
+    private function replaceResidualTemplateBlanks(string $docxPath, string $documentType): void
+    {
+        if (! in_array($documentType, [
+            'partner_application_form',
+            'partner_contract',
+            'termination_request',
+            'mutual_liquidation_minutes',
+            'unilateral_termination_notice',
+            'settlement_minutes',
+            'venue_scale_request',
+            'venue_location_change_request',
+            'venue_scale_appendix',
+            'venue_location_appendix',
         ], true) || ! class_exists(ZipArchive::class) || ! class_exists(\DOMDocument::class)) {
             return;
         }
@@ -619,7 +1702,7 @@ class PartnerDocumentService
             }
 
             $replacement = $value;
-            if (preg_match('/^[\.\s_…\/-]{3,}$/u', $trimmed)) {
+            if (preg_match('/^[\.\s_…\/]{3,}$/u', $trimmed)) {
                 $replacement = 'Chưa cung cấp';
             } else {
                 $replacement = preg_replace('/\.{6,}/u', 'Chưa cung cấp', $replacement);
@@ -680,9 +1763,83 @@ class PartnerDocumentService
                 continue;
             }
 
+            if (in_array($documentType, ['venue_scale_request', 'venue_location_change_request', 'venue_scale_appendix', 'venue_location_appendix'], true)
+                && $this->isInsideDocxTable($paragraph)) {
+                continue;
+            }
+
             $replacement = $this->inlineReplacementText($text, $data, $documentType);
             if ($replacement !== null && $replacement !== $text) {
                 $changed = $this->replaceDocxCellText($paragraph, $xpath, $replacement) || $changed;
+            }
+        }
+
+        if ($changed) {
+            $zip->addFromString($entry, $dom->saveXML());
+        }
+
+        $zip->close();
+    }
+
+    private function removeVenueChangeReasonBlankParagraphs(string $docxPath, string $documentType): void
+    {
+        if (! in_array($documentType, ['venue_scale_request', 'venue_location_change_request'], true)
+            || ! class_exists(ZipArchive::class)
+            || ! class_exists(\DOMDocument::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            return;
+        }
+
+        $dom = new \DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $loaded = $dom->loadXML($xml);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+
+        if (! $loaded) {
+            $zip->close();
+            return;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+        $changed = false;
+        foreach ($xpath->query('//w:p') as $paragraph) {
+            $key = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($paragraph, $xpath)));
+            if (! str_contains($key, 'lydoyeucauthaydoiquymo') && ! str_contains($key, 'lydoyeucauthaydoivitri')) {
+                continue;
+            }
+
+            $next = $paragraph->nextSibling;
+            $removed = 0;
+            while ($next && $removed < 4) {
+                $candidate = $next;
+                $next = $next->nextSibling;
+
+                if (! $candidate instanceof \DOMElement || $candidate->localName !== 'p') {
+                    continue;
+                }
+
+                $text = trim($this->docxNodeText($candidate, $xpath));
+                if (! preg_match('/^[\.\s_…\/]{3,}$/u', $text)) {
+                    break;
+                }
+
+                $candidate->parentNode?->removeChild($candidate);
+                $removed++;
+                $changed = true;
             }
         }
 
@@ -700,7 +1857,12 @@ class PartnerDocumentService
         $place = $this->firstFilled($data, ['document_place', 'venue_province']) ?: 'Hà Nội';
         [$day, $month, $year] = $this->documentDateParts($data);
 
-        if (str_contains($ascii, 'ngay') && str_contains($ascii, 'thang') && str_contains($ascii, 'nam')) {
+        if (in_array($documentType, ['venue_scale_request', 'venue_location_change_request', 'venue_scale_appendix', 'venue_location_appendix'], true)
+            && str_contains($ascii, 'kemtheo')) {
+            return $this->venueChangeInlineReplacementText($text, $data, $documentType);
+        }
+
+        if (str_contains($ascii, 'ngay') && str_contains($ascii, 'thang') && str_contains($ascii, 'nam') && ! str_contains($ascii, 'kemtheo')) {
             return "{$place}, ngày {$day} tháng {$month} năm {$year}";
         }
 
@@ -724,6 +1886,10 @@ class PartnerDocumentService
             if (str_contains($ascii, 'hopdongduoclapthanh') && str_contains($ascii, 'bangiay')) {
                 return '• Hợp đồng được lập thành 02 bản giấy có giá trị như nhau hoặc được lưu dưới dạng điện tử trên hệ thống SportGo, mỗi Bên giữ/truy cập một bản.';
             }
+        }
+
+        if (in_array($documentType, ['venue_scale_request', 'venue_location_change_request', 'venue_scale_appendix', 'venue_location_appendix'], true)) {
+            return $this->venueChangeInlineReplacementText($text, $data, $documentType);
         }
 
         return null;
@@ -805,11 +1971,9 @@ class PartnerDocumentService
                     continue;
                 }
 
-                foreach ($normalizedFields as $needle => $value) {
-                    if ($needle !== '' && str_contains($label, $needle)) {
-                        $changed = $this->replaceDocxCellText($cells->item(1), $xpath, $value) || $changed;
-                        break;
-                    }
+                $matchedValue = $this->matchedDocxFieldValue($label, $normalizedFields);
+                if ($matchedValue !== null) {
+                    $changed = $this->replaceDocxCellText($cells->item(1), $xpath, $matchedValue) || $changed;
                 }
             }
         }
@@ -819,6 +1983,167 @@ class PartnerDocumentService
         }
 
         $zip->close();
+    }
+
+    /**
+     * Prefer exact DOCX labels and longer labels first so short labels cannot
+     * fill more specific owner/applicant rows by accident.
+     *
+     * @param  array<string, string>  $normalizedFields
+     */
+    private function matchedDocxFieldValue(string $label, array $normalizedFields): ?string
+    {
+        if (array_key_exists($label, $normalizedFields)) {
+            return $normalizedFields[$label];
+        }
+
+        uksort($normalizedFields, fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+
+        foreach ($normalizedFields as $needle => $value) {
+            if ($needle !== '' && str_contains($label, $needle)) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeTwoColumnTableWidths(string $docxPath): void
+    {
+        if (! class_exists(ZipArchive::class) || ! class_exists(\DOMDocument::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            return;
+        }
+
+        $dom = new \DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $loaded = $dom->loadXML($xml);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+
+        if (! $loaded) {
+            $zip->close();
+            return;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+        $namespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+        $changed = false;
+
+        foreach ($xpath->query('//w:tbl') as $table) {
+            $hasTwoColumnRow = false;
+            foreach ($xpath->query('./w:tr', $table) as $row) {
+                if ($xpath->query('./w:tc', $row)->length === 2) {
+                    $hasTwoColumnRow = true;
+                    break;
+                }
+            }
+
+            if (! $hasTwoColumnRow) {
+                continue;
+            }
+
+            $changed = $this->setDocxTableGridWidths($table, $namespace, ['2600', '6500']) || $changed;
+            foreach ($xpath->query('./w:tr', $table) as $row) {
+                $cells = $xpath->query('./w:tc', $row);
+                if ($cells->length !== 2) {
+                    continue;
+                }
+
+                $changed = $this->setDocxCellWidth($cells->item(0), $namespace, '2600') || $changed;
+                $changed = $this->setDocxCellWidth($cells->item(1), $namespace, '6500') || $changed;
+            }
+        }
+
+        if ($changed) {
+            $zip->addFromString($entry, $dom->saveXML());
+        }
+
+        $zip->close();
+    }
+
+    private function setDocxTableGridWidths(\DOMNode $table, string $namespace, array $widths): bool
+    {
+        $document = $table->ownerDocument;
+        if (! $document) {
+            return false;
+        }
+
+        foreach (iterator_to_array($table->childNodes) as $child) {
+            if ($child instanceof \DOMElement && $child->localName === 'tblGrid') {
+                $table->removeChild($child);
+            }
+        }
+
+        $grid = $document->createElementNS($namespace, 'w:tblGrid');
+        foreach ($widths as $width) {
+            $column = $document->createElementNS($namespace, 'w:gridCol');
+            $column->setAttributeNS($namespace, 'w:w', $width);
+            $grid->appendChild($column);
+        }
+
+        $insertBefore = null;
+        foreach ($table->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->localName === 'tr') {
+                $insertBefore = $child;
+                break;
+            }
+        }
+
+        $insertBefore ? $table->insertBefore($grid, $insertBefore) : $table->appendChild($grid);
+
+        return true;
+    }
+
+    private function setDocxCellWidth(\DOMNode $cell, string $namespace, string $width): bool
+    {
+        $document = $cell->ownerDocument;
+        if (! $document) {
+            return false;
+        }
+
+        $tcPr = null;
+        foreach ($cell->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->localName === 'tcPr') {
+                $tcPr = $child;
+                break;
+            }
+        }
+
+        if (! $tcPr) {
+            $tcPr = $document->createElementNS($namespace, 'w:tcPr');
+            $cell->insertBefore($tcPr, $cell->firstChild);
+        }
+
+        $tcW = null;
+        foreach ($tcPr->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->localName === 'tcW') {
+                $tcW = $child;
+                break;
+            }
+        }
+
+        if (! $tcW) {
+            $tcW = $document->createElementNS($namespace, 'w:tcW');
+            $tcPr->appendChild($tcW);
+        }
+
+        $tcW->setAttributeNS($namespace, 'w:w', $width);
+        $tcW->setAttributeNS($namespace, 'w:type', 'dxa');
+
+        return true;
     }
 
     private function normalizeDocxFieldGroups(array $fields): array
@@ -974,6 +2299,182 @@ class PartnerDocumentService
         ];
     }
 
+    private function venueChangeRequestTemplateBodyValues(array $data, string $documentType): array
+    {
+        $ownerName = $this->venueChangeOwnerDisplayName($data);
+        $legalId = $this->venueChangeLegalId($data);
+        $clusterAddress = $this->joinFilled([
+            $this->firstFilled($data, ['venue_address', 'current_address']),
+            $this->firstFilled($data, ['venue_ward', 'current_ward']),
+            $this->firstFilled($data, ['venue_province', 'current_province']),
+        ]);
+        $bookingImpact = $this->firstFilled($data, ['booking_impact']) ?: 'Không ảnh hưởng; rà soát booking còn hiệu lực trước khi cập nhật.';
+        $ownerResponsible = $this->venueChangeOwnerDisplayName($data) ?: 'Chủ sân/đối tác';
+
+        $common = [
+            'Mã yêu cầu trên hệ thống' => $this->firstFilled($data, ['request_code', 'request_id', 'source_document_code', 'document_code']),
+            'Tên chủ sân/đối tác' => $ownerName,
+            'Họ tên/Tên tổ chức' => $ownerName,
+            'Số CCCD/CMND/Hộ chiếu hoặc mã số kinh doanh' => $legalId,
+            'Số điện thoại' => $this->firstFilled($data, ['owner_phone', 'phone', 'venue_phone']),
+            'Email' => $this->firstFilled($data, ['owner_email', 'email']),
+            'Địa chỉ liên hệ' => $this->firstFilled($data, ['owner_address', 'business_address', 'contact_address']),
+            'Tên chi nhánh/cụm sân' => $this->firstFilled($data, ['venue_name', 'cluster_name']),
+            'Mã chi nhánh/cụm sân' => $this->firstFilled($data, ['venue_cluster_code', 'venue_cluster_id', 'cluster_code']),
+            'Mã chi nhánh/cụm sân trên hệ thống' => $this->firstFilled($data, ['venue_cluster_code', 'venue_cluster_id', 'cluster_code']),
+            'Số hợp đồng/thoả thuận hợp tác' => $this->firstFilled($data, ['contract_code', 'contract_number']) ?: 'Chưa có/không áp dụng',
+            'Số hợp đồng/thỏa thuận hợp tác' => $this->firstFilled($data, ['contract_code', 'contract_number']) ?: 'Chưa có/không áp dụng',
+            'Số hợp đồng hợp tác' => $this->firstFilled($data, ['contract_code', 'contract_number']) ?: 'Chưa có/không áp dụng',
+            'Ngày ký hợp đồng' => $this->formatDateForDocument($this->firstFilled($data, ['contract_signed_at', 'contract_signed_date'])) ?: 'Chưa cung cấp',
+            'Ngày dự kiến áp dụng thay đổi' => $this->formatDateForDocument($this->firstFilled($data, ['expected_effective_date', 'reviewed_at', 'submitted_at', 'rendered_at'])),
+            'Người phụ trách liên hệ' => $this->joinFilled([
+                $this->firstFilled($data, ['venue_manager_name', 'owner_signer_name', 'owner_full_name']),
+                $this->firstFilled($data, ['owner_phone', 'venue_phone']),
+                $this->firstFilled($data, ['owner_email', 'venue_email']),
+            ], ' - '),
+            'Booking/lịch đặt sân đang còn hiệu lực' => $bookingImpact,
+            'Phương án xử lý lịch đã đặt' => 'Giữ lịch, chuyển sân hoặc liên hệ khách hàng theo phương án đã thông báo.',
+            'Phương án xử lý booking bị ảnh hưởng' => 'Giữ lịch, chuyển lịch, hoàn tiền hoặc liên hệ khách hàng theo phương án đã thông báo.',
+            'Cấu hình giá và khung giờ' => 'Giữ nguyên; cập nhật bảng giá/khung giờ nếu quy mô hoặc vị trí mới yêu cầu.',
+            'Trạng thái vận hành sau thay đổi' => 'Chờ duyệt/phát hành phụ lục, sau đó cập nhật theo trạng thái thực tế.',
+            'Thời gian tạm dừng nhận lịch mới nếu có' => 'Không tạm dừng, trừ khi SportGo yêu cầu trong quá trình cập nhật.',
+            'Bộ phận/cá nhân chịu trách nhiệm phối hợp' => "Chủ sân/đối tác: {$ownerResponsible}; SportGo: Bộ phận tiếp nhận SportGo",
+        ];
+
+        if (in_array($documentType, ['venue_scale_request', 'venue_scale_appendix'], true)) {
+            return [
+                ...$common,
+                'Quy mô/số lượng sân con hiện tại' => $this->firstFilled($data, ['current_court_count', 'court_count_total', 'court_count']),
+                'Hình thức thay đổi' => $this->firstFilled($data, ['change_action', 'change_type']) ?: 'Mở rộng quy mô/thêm sân con',
+                'Số lượng sân con tăng/giảm' => $this->firstFilled($data, ['change_court_count', 'requested_court_count']) ?: '1',
+                'Loại sân/môn thể thao thay đổi' => $this->firstFilled($data, ['requested_court_type_name', 'court_type_name', 'court_types_summary']),
+                'Tên/danh sách sân con dự kiến' => $this->firstFilled($data, ['requested_court_names', 'new_court_name', 'court_name', 'courts_summary']),
+                'Thời điểm dự kiến áp dụng' => $this->formatDateForDocument($this->firstFilled($data, ['expected_effective_date', 'submitted_at', 'rendered_at'])),
+            ];
+        }
+
+        return [
+            ...$common,
+            'Địa chỉ/tọa độ hiện tại' => $this->joinFilled([
+                $clusterAddress,
+                $this->coordinatesAndMap([
+                    'venue_latitude' => $this->firstFilled($data, ['current_latitude', 'venue_latitude']),
+                    'venue_longitude' => $this->firstFilled($data, ['current_longitude', 'venue_longitude']),
+                    'venue_map_url' => $this->firstFilled($data, ['current_map_url', 'venue_map_url']),
+                ]),
+            ], ' - '),
+            'Địa chỉ mới' => $this->joinFilled([
+                $this->firstFilled($data, ['new_address']),
+                $this->firstFilled($data, ['new_ward']),
+                $this->firstFilled($data, ['new_province']),
+            ]),
+            'Tọa độ/đường dẫn bản đồ mới' => $this->coordinatesAndMap([
+                'venue_latitude' => $this->firstFilled($data, ['new_latitude']),
+                'venue_longitude' => $this->firstFilled($data, ['new_longitude']),
+                'venue_map_url' => $this->firstFilled($data, ['new_map_url']),
+            ]),
+            'Số điện thoại liên hệ tại vị trí mới' => $this->firstFilled($data, ['new_phone', 'venue_phone', 'owner_phone']),
+            'Thời điểm dự kiến áp dụng' => $this->formatDateForDocument($this->firstFilled($data, ['expected_effective_date', 'submitted_at', 'rendered_at'])),
+            'Phạm vi ảnh hưởng đến lịch đặt sân/booking hiện có' => $this->firstFilled($data, ['booking_impact']) ?: 'Chủ sân cam kết tự xử lý các lịch đặt bị ảnh hưởng và thông báo cho khách hàng nếu phát sinh.',
+        ];
+    }
+
+    private function venueChangeInlineReplacementText(string $text, array $data, string $documentType): ?string
+    {
+        $normalized = $this->normalizeDocxLabel($text);
+        $ascii = Str::ascii($normalized);
+
+        if (str_contains($ascii, 'kinhgui')) {
+            return 'Kính gửi: Công ty/Đơn vị vận hành nền tảng SportGo';
+        }
+
+        if (str_contains($ascii, 'lydoyeucauthaydoiquymo')) {
+            return '5. Lý do yêu cầu thay đổi quy mô: ' . ($this->firstFilled($data, ['reason', 'note', 'status_reason']) ?: 'Chưa cung cấp');
+        }
+
+        if (str_contains($ascii, 'lydoyeucauthaydoivitri')) {
+            return '4. Lý do yêu cầu thay đổi vị trí: ' . ($this->firstFilled($data, ['reason', 'note', 'status_reason']) ?: 'Chưa cung cấp');
+        }
+
+        $requestCode = $this->firstFilled($data, ['request_code', 'request_id', 'source_document_code', 'document_code']) ?: 'theo hệ thống';
+        $effectiveDate = $this->formatDateForDocument($this->firstFilled($data, ['expected_effective_date', 'reviewed_at', 'submitted_at', 'rendered_at'])) ?: now()->format('d/m/Y');
+        if ($documentType === 'venue_scale_appendix' && str_contains($ascii, 'kemtheodonyeucauthaydoiquymo')) {
+            return "(Kèm theo Đơn yêu cầu thay đổi quy mô sân số: {$requestCode} ngày {$effectiveDate} của Chủ sân/Đối tác)";
+        }
+
+        if ($documentType === 'venue_location_appendix' && str_contains($ascii, 'kemtheodonyeucauthaydoivitri')) {
+            return "(Kèm theo Đơn yêu cầu thay đổi vị trí cụm sân số: {$requestCode} ngày {$effectiveDate} của Chủ sân/Đối tác)";
+        }
+
+        $bookingImpact = $this->firstFilled($data, ['booking_impact']) ?: 'Không ảnh hưởng; rà soát booking còn hiệu lực trước khi cập nhật.';
+        if (str_contains($ascii, 'bookinglichdatsandangconhieuluc')) {
+            return 'Booking/lịch đặt sân đang còn hiệu lực: ' . $bookingImpact;
+        }
+
+        if (str_contains($ascii, 'phuonganxulylichdadat')) {
+            return 'Phương án xử lý lịch đã đặt: Giữ lịch, chuyển sân hoặc liên hệ khách hàng theo phương án đã thông báo.';
+        }
+
+        if (str_contains($ascii, 'phuonganxulybookingbia')) {
+            return 'Phương án xử lý booking bị ảnh hưởng: Giữ lịch, chuyển lịch, hoàn tiền hoặc liên hệ khách hàng theo phương án đã thông báo.';
+        }
+
+        if (str_contains($ascii, 'cauhinhgiavakhunggio')) {
+            return 'Cấu hình giá và khung giờ: Giữ nguyên; cập nhật bảng giá/khung giờ nếu quy mô hoặc vị trí mới yêu cầu.';
+        }
+
+        if (str_contains($ascii, 'trangthaivanhanhsauthaydoi')) {
+            return 'Trạng thái vận hành sau thay đổi: Chờ duyệt/phát hành phụ lục, sau đó cập nhật theo trạng thái sân con thực tế.';
+        }
+
+        if (str_contains($ascii, 'thoigiantamdungnhanlichmoi')) {
+            return 'Thời gian tạm dừng nhận lịch mới nếu có: Không tạm dừng, trừ khi SportGo yêu cầu trong quá trình cập nhật.';
+        }
+
+        if (str_contains($ascii, 'bophancanhanchiu')) {
+            $ownerName = $this->venueChangeOwnerDisplayName($data) ?: 'Chủ sân/đối tác';
+            return "Bộ phận/cá nhân chịu trách nhiệm phối hợp: Chủ sân/đối tác: {$ownerName}; SportGo: Bộ phận tiếp nhận SportGo";
+        }
+
+        $fields = $this->venueChangeRequestTemplateBodyValues($data, $documentType);
+        $lookup = [];
+        foreach ($fields as $label => $value) {
+            $key = Str::ascii($this->normalizeDocxLabel((string) $label));
+            $lookup[$key] = [(string) $label, $this->cellPlainValue($value) ?: 'Chưa cung cấp'];
+        }
+
+        uksort($lookup, fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+        foreach ($lookup as $key => [$label, $value]) {
+            if ($key !== '' && str_starts_with($ascii, $key)) {
+                $prefix = str_starts_with(ltrim($text), '-') ? '- ' : '';
+                return $prefix . $label . ': ' . $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function venueChangeOwnerDisplayName(array $data): ?string
+    {
+        return $this->firstFilled($data, [
+            'business_name',
+            'partner_name',
+            'owner_full_name',
+            'owner_signer_name',
+            'representative_name',
+            'full_name',
+        ]);
+    }
+
+    private function venueChangeLegalId(array $data): ?string
+    {
+        return $this->joinFilled([
+            $this->firstFilled($data, ['identity_number', 'representative_identity_number']),
+            $this->firstFilled($data, ['tax_code']),
+            $this->firstFilled($data, ['business_license_number', 'business_code']),
+        ], '; ');
+    }
+
     private function workflowTemplateBodyValues(array $data, string $documentType): array
     {
         $fallback = 'Chưa cung cấp';
@@ -983,13 +2484,18 @@ class PartnerDocumentService
         $sportgoRep = $this->firstFilled($data, ['party_a_rep', 'issuer_representative_name', 'sportgo_representative_name']) ?: 'Đại diện SportGo';
         $sportgoRole = $this->firstFilled($data, ['sportgo_representative_title']) ?: 'Đại diện được ủy quyền';
 
-        $ownerName = $this->firstFilled($data, [
+        $ownerRepresentativeName = $this->firstFilled($data, [
+            'owner_signer_full_name',
+            'representative_name',
             'owner_full_name',
-            'party_b_name',
-            'receiver_name',
             'venue_owner_name',
             'full_name',
         ]) ?: $fallback;
+        $ownerDisplayName = $this->firstFilled($data, [
+            'business_name',
+            'party_b_name',
+            'receiver_name',
+        ]) ?: $ownerRepresentativeName;
         $ownerLegalId = $this->firstFilled($data, [
             'party_b_id',
             'identity_number',
@@ -1012,10 +2518,10 @@ class PartnerDocumentService
         ], ' - ') ?: $fallback;
 
         $commonOwner = [
-            'Họ tên/Tên tổ chức' => $ownerName,
+            'Họ tên/Tên tổ chức' => $ownerDisplayName,
             'Số CCCD/CMND/Hộ chiếu/MST/ĐKKD' => $ownerLegalId,
-            'Người đại diện nếu là tổ chức' => $ownerName,
-            'Người đại diện nếu có' => $ownerName,
+            'Người đại diện nếu là tổ chức' => $ownerDisplayName !== $ownerRepresentativeName ? $ownerRepresentativeName : 'Không áp dụng',
+            'Người đại diện nếu có' => $ownerRepresentativeName,
             'Chức vụ/Quan hệ đại diện' => $this->firstFilled($data, ['representative_position']) ?: 'Chủ sân/đối tác',
             'Số điện thoại' => $this->firstFilled($data, ['owner_phone', 'phone']) ?: $fallback,
             'Email' => $this->firstFilled($data, ['owner_email', 'email']) ?: $fallback,
@@ -1055,9 +2561,9 @@ class PartnerDocumentService
                 'Thời điểm thu hồi quyền chủ sân' => $this->firstFilled($data, ['owner_access_revocation_date']) ?: $effectiveDate,
             ],
             'unilateral_termination_notice' => [
-                'Tên đối tác/chủ sân' => $ownerName,
+                'Tên đối tác/chủ sân' => $ownerDisplayName,
                 'Số CCCD/CMND/Hộ chiếu/MST/ĐKKD' => $ownerLegalId,
-                'Người đại diện nếu có' => $ownerName,
+                'Người đại diện nếu có' => $ownerRepresentativeName,
                 'Số hợp đồng hợp tác' => $contractCode,
                 'Tên cụm sân' => $venueName,
                 'Mã cụm sân trên hệ thống' => $venueCode,
@@ -1073,8 +2579,8 @@ class PartnerDocumentService
                 'Bên A' => $sportgoName,
                 'Đại diện Bên A' => $sportgoRep,
                 'Chức vụ/Căn cứ đại diện' => $sportgoRole,
-                'Bên B' => $ownerName,
-                'Đại diện Bên B' => $ownerName,
+                'Bên B' => $ownerDisplayName,
+                'Đại diện Bên B' => $ownerRepresentativeName,
                 'Cụm sân liên quan' => $venueName,
                 'Số hợp đồng' => $contractCode,
                 'Kỳ/Thời điểm quyết toán' => $this->firstFilled($data, ['calculation_date', 'settlement_date']) ?: now()->format('d/m/Y'),
@@ -1144,6 +2650,20 @@ class PartnerDocumentService
         }
 
         return trim(implode('', $texts));
+    }
+
+    private function isInsideDocxTable(\DOMNode $node): bool
+    {
+        $current = $node->parentNode;
+        while ($current) {
+            if ($current instanceof \DOMElement && $current->localName === 'tbl') {
+                return true;
+            }
+
+            $current = $current->parentNode;
+        }
+
+        return false;
     }
 
     private function replaceDocxCellText(\DOMNode $cell, \DOMXPath $xpath, string $text): bool
@@ -1255,7 +2775,7 @@ class PartnerDocumentService
             $changed = $this->centerDocxTableParagraphs($signatureTable, $xpath) || $changed;
 
             $rows = $xpath->query('./w:tr', $signatureTable);
-            if ($document->document_type === 'partner_contract') {
+            if (in_array($document->document_type, ['partner_contract', 'venue_scale_appendix', 'venue_location_appendix'], true)) {
                 $nameRow = $rows->item(3);
                 if ($nameRow) {
                     $cells = $xpath->query('./w:tc', $nameRow);
@@ -1820,6 +3340,8 @@ class PartnerDocumentService
     private function defaultTitle(string $documentType, array $renderData): string
     {
         return match ($documentType) {
+            'venue_scale_request' => 'Đơn yêu cầu mở rộng quy mô sân ' . ($renderData['venue_name'] ?? $renderData['cluster_name'] ?? ''),
+            'venue_location_change_request' => 'Đơn yêu cầu thay đổi vị trí cụm sân ' . ($renderData['venue_name'] ?? $renderData['cluster_name'] ?? ''),
             'partner_application_form' => 'Đơn đăng ký đối tác ' . ($renderData['venue_name'] ?? ''),
             'partner_contract' => 'Hợp đồng hợp tác ' . ($renderData['venue_name'] ?? ''),
             'termination_request' => 'Đơn yêu cầu chấm dứt hợp tác',

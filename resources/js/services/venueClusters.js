@@ -21,6 +21,12 @@ export const venueClusterService = {
       body: JSON.stringify({ url }),
     });
   },
+  reverseMapPoint(latitude, longitude) {
+    return api('/api/venue-clusters/reverse-map', {
+      method: 'POST',
+      body: JSON.stringify({ latitude, longitude }),
+    });
+  },
 
   // Venue Courts (Owner)
   getCourts(clusterId, params = {}) {
@@ -77,6 +83,18 @@ export const venueClusterService = {
       body: formData,
     });
   },
+  previewApprovalRequest(clusterId, formData) {
+    return api(`/api/owner/venue-clusters/${clusterId}/approval-requests/preview`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+  supplementApprovalRequest(clusterId, requestId, formData) {
+    return api(`/api/owner/venue-clusters/${clusterId}/approval-requests/${requestId}/supplement`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
   cancelApprovalRequest(clusterId, requestId) {
     return api(`/api/owner/venue-clusters/${clusterId}/approval-requests/${requestId}/cancel`, {
       method: 'PATCH',
@@ -91,7 +109,19 @@ export const venueClusterService = {
   createLocationChangeRequest(clusterId, data) {
     return api(`/api/owner/venue-clusters/${clusterId}/location-change-requests`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data instanceof FormData ? data : JSON.stringify(data),
+    });
+  },
+  previewLocationChangeRequest(clusterId, formData) {
+    return api(`/api/owner/venue-clusters/${clusterId}/location-change-requests/preview`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+  supplementLocationChangeRequest(clusterId, requestId, formData) {
+    return api(`/api/owner/venue-clusters/${clusterId}/location-change-requests/${requestId}/supplement`, {
+      method: 'POST',
+      body: formData,
     });
   },
   cancelLocationChangeRequest(clusterId, requestId) {

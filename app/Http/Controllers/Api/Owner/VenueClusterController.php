@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\VenueCluster;
+use App\Services\Partner\PartnerMapResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class VenueClusterController extends Controller
 {
+    public function __construct(private readonly PartnerMapResolver $maps)
+    {
+    }
+
     public function index(Request $request): JsonResponse
     {
         $clusterIds = $this->accessibleClusterIds($request);
@@ -168,6 +173,18 @@ class VenueClusterController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Lỗi kết nối khi phân giải link map: ' . $e->getMessage()], 500);
         }
+    }
+
+    public function reverseMap(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        return response()->json([
+            'data' => $this->maps->reverse((float) $data['latitude'], (float) $data['longitude']),
+        ]);
     }
 
     public function uploadMedia(Request $request, string $id): JsonResponse

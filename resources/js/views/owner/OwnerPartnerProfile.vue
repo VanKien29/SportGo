@@ -76,6 +76,9 @@
               <p class="muted">{{ signatureSummary(document.signatures) }}</p>
             </div>
             <div style="display: flex; gap: 8px;">
+              <button v-if="canSignDocument(document)" class="btn primary small" type="button" @click="openOwnerDocument(document)">
+                <AppIcon name="pencil" size="15" /> Ký
+              </button>
               <button class="btn ghost small" type="button" @click="viewDocument(document)">
                 <AppIcon name="eye" size="15" /> Xem
               </button>
@@ -135,7 +138,6 @@
             {{ pendingOwnerContract?.contract_title || 'Hợp đồng hợp tác đối tác SportGo' }}
           </div>
           <canvas ref="signatureCanvas" class="signature-pad" width="620" height="190" @pointerdown="startDraw" @pointermove="draw" @pointerup="stopDraw" @pointerleave="stopDraw"></canvas>
-          <button class="btn ghost small" type="button" @click="clearSignature">Xóa chữ ký</button>
           <label class="check-line">
             <input v-model="signModal.accepted" type="checkbox" />
             <span>Tôi đã đọc và đồng ý với toàn bộ nội dung hợp đồng</span>
@@ -159,7 +161,9 @@
             <span>Lý do chấm dứt</span>
             <textarea v-model.trim="terminationForm.reason" rows="5" required></textarea>
           </label>
-          <canvas ref="terminationCanvas" class="signature-pad" width="620" height="190" @pointerdown="startDraw" @pointermove="draw" @pointerup="stopDraw" @pointerleave="stopDraw"></canvas>
+          <div class="termination-note">
+            Hệ thống sẽ sinh đơn yêu cầu chấm dứt để SportGo xử lý và tạo quyết toán.
+          </div>
           <button class="btn ghost small" type="button" @click="clearSignature">Xóa chữ ký</button>
         </div>
         <div class="modal-footer">
@@ -249,6 +253,11 @@ export default {
       }
     },
     viewDocument(doc) {
+      if (this.canSignDocument(doc)) {
+        this.openOwnerDocument(doc);
+        return;
+      }
+
       this.viewerModal = {
         open: true,
         document: {
@@ -259,12 +268,53 @@ export default {
         }
       };
     },
+    canSignDocument(doc) {
+      const signableTypes = [
+        'partner_application_form',
+        'partner_contract',
+        'venue_scale_request',
+        'venue_location_change_request',
+        'venue_scale_appendix',
+        'venue_location_appendix',
+      ];
+
+      return doc?.status === 'pending_owner_signature'
+        && signableTypes.includes(doc.document_type)
+        && !(doc.signatures || []).some((signature) => signature.signer_side === 'owner' && signature.status === 'signed');
+    },
+    openOwnerDocument(doc, from = 'owner-profile') {
+      const applicationId = doc?.partner_application_id || this.activeApplication.id;
+      if (!applicationId || !doc?.id) {
+        this.error = 'Không tìm thấy hồ sơ liên kết với văn bản cần ký.';
+        return;
+      }
+
+      this.$router.push({
+        name: 'owner-partner-document',
+        params: { id: applicationId, documentId: doc.id },
+        query: { from },
+      });
+    },
+    contractDocument(contract) {
+      const generated = contract?.generated_document || contract?.generatedDocument;
+      if (generated?.id) return generated;
+
+      return this.activeDocuments.find((document) => (
+        document.partner_contract_id === contract?.id
+        || (document.document_type === 'partner_contract' && document.status === 'pending_owner_signature')
+      )) || null;
+    },
     closeViewerModal() {
       this.viewerModal.open = false;
     },
     openSignContract() {
-      this.signModal = { open: true, accepted: false };
-      this.$nextTick(() => this.prepareCanvas(this.$refs.signatureCanvas));
+      const document = this.contractDocument(this.pendingOwnerContract);
+      if (!document) {
+        this.error = 'Không tìm thấy file hợp đồng cần ký.';
+        return;
+      }
+
+      this.openOwnerDocument(document);
     },
     closeSignContract() {
       this.signModal.open = false;
@@ -290,7 +340,6 @@ export default {
     openTermination() {
       this.terminationForm.reason = '';
       this.terminationModal.open = true;
-      this.$nextTick(() => this.prepareCanvas(this.$refs.terminationCanvas));
     },
     closeTermination() {
       this.terminationModal.open = false;
@@ -302,7 +351,6 @@ export default {
           method: 'POST',
           body: JSON.stringify({
             reason: this.terminationForm.reason,
-            signature_image: this.signatureData(this.$refs.terminationCanvas),
           }),
         });
         this.closeTermination();
@@ -380,6 +428,9 @@ export default {
       }[status] || status || '-';
     },
     documentTypeLabel(type) {
+      if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
+      if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+
       return {
         partner_application_form: 'Đơn đăng ký đối tác',
         partner_contract: 'Hợp đồng hợp tác',
@@ -721,6 +772,17 @@ export default {
   background: var(--admin-surface-muted);
   margin-bottom: 12px;
   font-weight: 800;
+}
+
+.termination-note {
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .signature-pad {
