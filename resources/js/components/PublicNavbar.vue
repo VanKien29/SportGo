@@ -55,7 +55,38 @@
           <router-link to="/register" class="register-btn">Đăng ký</router-link>
         </template>
 
-        <div v-else class="user-menu" @mouseenter="showDropdown = true" @mouseleave="scheduleHide">
+        <div v-if="user" class="notification-menu" @mouseenter="showNotifDropdown = true" @mouseleave="scheduleNotifHide">
+          <button class="notif-btn" @click="toggleNotifDropdown">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" width="22" height="22">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount }}</span>
+          </button>
+
+          <transition name="dd">
+            <div v-if="showNotifDropdown" class="dropdown notif-dropdown" @mouseenter="cancelNotifHide" @mouseleave="scheduleNotifHide">
+              <div class="dropdown-header notif-header">
+                <span class="dd-name">Thông báo</span>
+                <button v-if="unreadCount > 0" @click="markAllAsRead" class="mark-read-btn">Đánh dấu đã đọc</button>
+              </div>
+              <div class="dd-divider"></div>
+              <div class="notif-list">
+                <div v-if="notifications.length === 0" class="no-notif">Không có thông báo nào.</div>
+                <div v-for="notif in notifications" :key="notif.id" class="notif-item" :class="{ 'unread': !notif.is_read }" @click="markAsRead(notif)">
+                  <div class="notif-content">
+                    <div class="notif-title">{{ notif.title }}</div>
+                    <div class="notif-body">{{ notif.body }}</div>
+                    <div class="notif-time">{{ formatTime(notif.created_at) }}</div>
+                  </div>
+                  <div v-if="!notif.is_read" class="unread-dot"></div>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </div>
+
+        <div v-if="user" class="user-menu" @mouseenter="showDropdown = true" @mouseleave="scheduleHide">
           <button class="user-btn" @click="toggleDropdown">
             <div class="user-avatar">{{ userInitial }}</div>
           </button>
@@ -151,6 +182,7 @@
 
 <script>
 import { getAuth, logout } from "../stores/auth.js";
+import { notificationService } from "../services/notification.service.js";
 
 export default {
   name: "PublicNavbar",
@@ -159,7 +191,21 @@ export default {
       user: getAuth(),
       showDropdown: false,
       hideTimer: null,
+      showNotifDropdown: false,
+      notifHideTimer: null,
+      notifications: [],
+      unreadCount: 0,
+      notifPollTimer: null,
     };
+  },
+  mounted() {
+    if (this.user) {
+      this.fetchNotifications();
+      this.notifPollTimer = setInterval(this.fetchNotifications, 30000); // Tự động load thông báo mỗi 30s
+    }
+  },
+  unmounted() {
+    if (this.notifPollTimer) clearInterval(this.notifPollTimer);
   },
   computed: {
     appliedTheme() {
@@ -205,6 +251,52 @@ export default {
       this.showDropdown = false;
       this.$router.push("/login");
     },
+    toggleNotifDropdown() {
+      this.showNotifDropdown = !this.showNotifDropdown;
+    },
+    scheduleNotifHide() {
+      this.notifHideTimer = setTimeout(() => { this.showNotifDropdown = false; }, 200);
+    },
+    cancelNotifHide() {
+      if (this.notifHideTimer) clearTimeout(this.notifHideTimer);
+    },
+    async fetchNotifications() {
+      try {
+        const res = await notificationService.getNotifications();
+        this.notifications = res.data;
+        this.unreadCount = res.unread_count;
+      } catch (e) {
+        console.error('Failed to fetch notifications', e);
+      }
+    },
+    async markAsRead(notif) {
+      if (!notif.is_read) {
+        notif.is_read = true;
+        this.unreadCount = Math.max(0, this.unreadCount - 1);
+        try {
+          await notificationService.markAsRead(notif.id);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    },
+    async markAllAsRead() {
+      try {
+        await notificationService.markAllAsRead();
+        this.notifications.forEach(n => n.is_read = true);
+        this.unreadCount = 0;
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    formatTime(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleString('vi-VN', { 
+        hour: '2-digit', minute: '2-digit', 
+        day: '2-digit', month: '2-digit', year: 'numeric' 
+      });
+    }
   },
 };
 </script>
@@ -446,6 +538,134 @@ export default {
   color: #66756d;
   font-size: 12px;
   font-weight: 750;
+}
+
+.notification-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+}
+
+.notif-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  background: transparent;
+  transition: all 0.2s;
+}
+
+.notif-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.notif-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  height: 16px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+}
+
+.notif-dropdown {
+  width: 320px;
+  padding: 0;
+}
+
+.notif-header {
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.mark-read-btn {
+  font-size: 12px;
+  color: #0ea5e9;
+  font-weight: 600;
+  background: transparent;
+}
+
+.mark-read-btn:hover {
+  text-decoration: underline;
+}
+
+.notif-list {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.no-notif {
+  padding: 20px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.notif-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.notif-item:hover {
+  background: #f8fafc;
+}
+
+.notif-item.unread {
+  background: #f0f9ff;
+}
+
+.notif-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.notif-body {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.notif-time {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  flex-shrink: 0;
+  margin-top: 4px;
 }
 
 .dd-divider {

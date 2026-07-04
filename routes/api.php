@@ -271,6 +271,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/moderation/posts/{type}/{id}/approve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'approvePost']);
         Route::post('/moderation/posts/{type}/{id}/reject', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'rejectPost']);
         Route::post('/moderation/posts/{type}/{id}/hide', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'hidePost']);
+        Route::post('/moderation/posts/{type}/{id}/notify-author', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'notifyAuthor']);
         Route::delete('/moderation/posts/{type}/{id}', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'deletePost']);
         Route::post('/moderation/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'resolveReport']);
 
@@ -442,6 +443,10 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
 
 Route::middleware('auth:sanctum')
     ->group(function (): void {
+        Route::get('/notifications', [\App\Http\Controllers\Api\NotificationController::class, 'index']);
+        Route::post('/notifications/mark-all-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+        Route::post('/notifications/{id}/mark-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+
         Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
         Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
         Route::get('/user/partner-application/provinces', [UserPartnerApplicationController::class, 'provinces']);

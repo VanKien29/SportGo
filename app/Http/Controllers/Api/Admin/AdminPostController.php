@@ -25,7 +25,7 @@ class AdminPostController extends Controller
 
         // Paginate comments riêng
         $comments = $postModel->comments()
-            ->with(['user:id,username,full_name,avatar_url', 'media', 'replies.user:id,username,full_name,avatar_url', 'replies.media'])
+            ->with(['user:id,username,full_name,avatar_url', 'replies.user:id,username,full_name,avatar_url'])
             ->withCount('replies')
             ->whereNull('parent_id') // Chỉ lấy comment gốc, không lấy reply
             ->orderByDesc('created_at')
@@ -37,16 +37,16 @@ class AdminPostController extends Controller
         // Override comments bằng phiên bản paginated
         $resourceData['comments'] = $comments->items()
             ? collect($comments->items())->map(function ($comment) {
-                $reportsCount = \App\Models\Report::where('reportable_type', \App\Models\CommunityPostComment::class)
+                $reportsCount = \App\Models\Report::where('reportable_type', \App\Models\VenuePostComment::class)
                     ->where('reportable_id', $comment->id)
                     ->count();
 
-                $resolvedReportsCount = \App\Models\Report::where('reportable_type', \App\Models\CommunityPostComment::class)
+                $resolvedReportsCount = \App\Models\Report::where('reportable_type', \App\Models\VenuePostComment::class)
                     ->where('reportable_id', $comment->id)
                     ->where('status', 'resolved')
                     ->count();
 
-                $pendingReportsCount = \App\Models\Report::where('reportable_type', \App\Models\CommunityPostComment::class)
+                $pendingReportsCount = \App\Models\Report::where('reportable_type', \App\Models\VenuePostComment::class)
                     ->where('reportable_id', $comment->id)
                     ->where('status', 'pending')
                     ->count();
@@ -65,10 +65,7 @@ class AdminPostController extends Controller
                     'needs_attention' => $pendingReportsCount > 0,
                     'threshold_reached' => $resolvedReportsCount >= 3,
                     'near_threshold' => $resolvedReportsCount >= 2,
-                    'media' => $comment->media->map(fn ($m) => [
-                        'id' => $m->id,
-                        'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
-                    ]),
+                    'media' => [],
                     'replies' => $comment->replies->map(fn ($reply) => [
                         'id' => $reply->id,
                         'content' => $reply->content,
@@ -143,9 +140,11 @@ class AdminPostController extends Controller
     {
         $postModel = \App\Models\VenuePost::findOrFail($post);
 
-        $likes = $postModel->likes()
-            ->with('user:id,username,full_name,avatar_url')
-            ->orderByDesc('created_at')
+        $likes = \Illuminate\Support\Facades\DB::table('venue_post_likes')
+            ->where('post_id', $postModel->id)
+            ->join('users', 'venue_post_likes.user_id', '=', 'users.id')
+            ->select('venue_post_likes.id', 'venue_post_likes.user_id', 'venue_post_likes.created_at', 'users.full_name', 'users.username', 'users.avatar_url')
+            ->orderByDesc('venue_post_likes.created_at')
             ->paginate(20);
 
         return response()->json([
@@ -153,8 +152,8 @@ class AdminPostController extends Controller
                 return [
                     'id' => $like->id,
                     'user_id' => $like->user_id,
-                    'user_name' => $like->user?->full_name ?: $like->user?->username,
-                    'user_avatar' => $like->user?->avatar_url,
+                    'user_name' => $like->full_name ?: $like->username,
+                    'user_avatar' => $like->avatar_url,
                     'created_at' => $like->created_at,
                 ];
             }),

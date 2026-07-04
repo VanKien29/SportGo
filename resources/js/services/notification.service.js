@@ -1,3 +1,5 @@
+import { api } from './api.js';
+
 function addOwnerNotification(venueId, title, content, link = '/owner/platform-fees') {
   return {
     id: null,
@@ -86,4 +88,14 @@ export const notificationService = {
   notifyOwnerFeeDueSoon,
   notifyOwnerFeeDueToday,
   notifyOwnerFeeOverdueThreeDays,
+  
+  getNotifications() {
+    return api('/api/notifications');
+  },
+  markAsRead(id) {
+    return api(`/api/notifications/${id}/mark-read`, { method: 'POST' });
+  },
+  markAllAsRead() {
+    return api('/api/notifications/mark-all-read', { method: 'POST' });
+  }
 };

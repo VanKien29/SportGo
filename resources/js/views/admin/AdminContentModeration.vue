@@ -204,9 +204,19 @@
                 <div v-else class="fb-avatar-text">SG</div>
               </div>
               <div class="fb-post-meta">
-                <strong>
+                <strong style="display: flex; align-items: center; gap: 8px;">
                   <template v-if="activeTab === 'system_posts'">Hệ thống SportGo</template>
                   <template v-else>{{ activeItem.author?.full_name || activeItem.author?.username || '-' }}</template>
+                  <button
+                    v-if="activeItem.status === 'hidden' && activeTab !== 'system_posts'"
+                    type="button"
+                    class="icon-btn tool-primary"
+                    title="Gửi thông báo cho tác giả"
+                    @click.stop="openNotifyModal(activeItem)"
+                    style="padding: 2px; width: 24px; height: 24px; display: inline-flex; justify-content: center; align-items: center; border-radius: 50%; background: #e0f2fe; color: #0284c7; border: none; cursor: pointer;"
+                  >
+                    <AppIcon name="bell" size="14" />
+                  </button>
                 </strong>
                 <span>{{ formatDate(activeItem.created_at) }}</span>
               </div>
@@ -427,6 +437,43 @@
       :postId="activeLikesPostId" 
       @close="showLikesModal = false" 
     />
+
+    <!-- MODAL GỬI THÔNG BÁO CHO TÁC GIẢ -->
+    <div v-if="notifyModal.open" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeNotifyModal)">
+      <div class="modal small" @mousedown.stop>
+        <div class="modal-header">
+          <h3>Gửi thông báo cho tác giả</h3>
+          <button class="icon-btn" type="button" title="Đóng" @click="closeNotifyModal">
+            <AppIcon name="x" size="18" />
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p class="muted">Gửi thông báo để giải thích cho tác giả lý do bài viết bị ẩn.</p>
+          <label class="field" style="margin-top: 15px;">
+            <span>Nội dung thông báo (Bắt buộc)</span>
+            <textarea
+              v-model.trim="notifyModal.message"
+              rows="4"
+              placeholder="Nhập nội dung thông báo..."
+            ></textarea>
+          </label>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn ghost" type="button" @click="closeNotifyModal">Hủy</button>
+          <button
+            class="btn primary"
+            type="button"
+            :disabled="sendingNotification || !notifyModal.message"
+            @click="submitNotifyModal"
+          >
+            <span v-if="sendingNotification">Đang gửi...</span>
+            <span v-else>Gửi thông báo</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -472,6 +519,12 @@ export default {
       autoApproveStore: autoApproveStore,
       detailModal: { open: false },
       actionModal: { open: false },
+      notifyModal: {
+        open: false,
+        message: '',
+        targetPost: null
+      },
+      sendingNotification: false,
       activeItem: null,
       showComments: false,
       actionForm: {
@@ -541,10 +594,36 @@ export default {
     this.loadData();
     this.fetchAutoApproveConfig();
   },
-  unmounted() {
-    // interval is managed globally by the store now
-  },
   methods: {
+    openNotifyModal(item) {
+      this.notifyModal = {
+        open: true,
+        message: 'Bài viết của bạn đã bị ẩn do vi phạm chính sách nội dung của chúng tôi.',
+        targetPost: item
+      };
+    },
+    closeNotifyModal() {
+      this.notifyModal.open = false;
+      this.notifyModal.targetPost = null;
+    },
+    async submitNotifyModal() {
+      if (!this.notifyModal.message || !this.notifyModal.targetPost) return;
+      this.sendingNotification = true;
+      try {
+        const type = this.activeTab === 'system_posts' ? 'system_post' : (this.activeTab === 'venue_posts' ? 'venue_post' : 'community_post');
+        await adminModerationService.notifyAuthor(
+          type,
+          this.notifyModal.targetPost.id,
+          this.notifyModal.message
+        );
+        this.closeNotifyModal();
+        alert('Đã gửi thông báo cho tác giả thành công');
+      } catch (err) {
+        console.error(err);
+      } finally {
+        this.sendingNotification = false;
+      }
+    },
     async copyPostLink(postId) {
       try {
         const link = window.location.origin + '/posts/' + postId;
