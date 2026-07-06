@@ -574,19 +574,7 @@ export default {
     box-sizing: border-box;
 }
 
-/* SaaS Filters */
-.avc-filters {
-    padding: 12px 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-}
-:deep(.saas-table-container) {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
+
 .filter-row {
     display: flex;
     justify-content: space-between;
@@ -610,11 +598,7 @@ export default {
 }
 
 .court-type-group {
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    border-radius: 0;
-    padding: 0;
+    border-radius: var(--admin-radius-lg);
     display: flex;
     flex-direction: column;
     gap: 12px;

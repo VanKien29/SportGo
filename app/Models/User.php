@@ -110,6 +110,11 @@ class User extends Authenticatable
         return 'user';
     }
 
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class, 'user_id');
+    }
+
     protected static function booted(): void
     {
         static::created(function (User $user) {

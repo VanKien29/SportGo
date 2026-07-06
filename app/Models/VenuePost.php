@@ -86,4 +86,9 @@ class VenuePost extends Model
             ->whereNull('parent_id')
             ->latest();
     }
+
+    public function likers()
+    {
+        return $this->belongsToMany(User::class, 'venue_post_likes', 'post_id', 'user_id');
+    }
 }

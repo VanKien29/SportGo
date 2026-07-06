@@ -169,7 +169,7 @@
 
 .sg-shell-admin .content-area :is(form.filters, form.toolbar, .filter-bar, .filters) {
   display: flex !important;
-  align-items: center !important;
+  align-items: flex-end !important;
   justify-content: flex-start !important;
   flex-wrap: wrap !important;
   gap: 10px !important;
@@ -695,83 +695,6 @@
   .btn-float-add:hover .btn-float-text {
     max-width: 80px;
   }
-}
-
-/* Make layout containers flat inside .content-area to save space */
-.sg-shell-admin .content-area :is(
-  .card,
-  .table-card,
-  .table-wrap,
-  .table-scroll,
-  .table-responsive,
-  .avc-table-wrap,
-  .banner-table,
-  .applications-table,
-  .panel,
-  .form-card,
-  .settings-card,
-  .record-card,
-  .detail-section,
-  .clusters-list,
-  .cluster-edit,
-  .court-card,
-  .state-card,
-  .schedule-panel,
-  .booking-side,
-  .avcd-card,
-  .fees-card-wrap,
-  .schedule-card
-):not(.modal):not(.modal-box):not(.action-modal):not(.receipt-modal):not(.payout-modal):not(.detail-modal):not(.confirm-modal):not(.modal-panel):not(.detail-drawer):not(.side-panel):not(.preview-box):not(.preview-card) {
-  border: none !important;
-  background: transparent !important;
-  background-color: transparent !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-}
-
-/* Adjust card/panel headers inside content-area */
-.sg-shell-admin .content-area :is(
-  .card-head,
-  .card-header,
-  .panel-head,
-  .panel-header,
-  .settings-card-header,
-  .picker-head,
-  .filter-head,
-  .detail-head,
-  .courts-header,
-  .schedule-headline
-) {
-  background: transparent !important;
-  border-bottom: 1px solid var(--admin-border-soft) !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  padding-top: 0 !important;
-}
-
-/* Adjust card/panel content containers inside content-area */
-.sg-shell-admin .content-area :is(
-  .card-content,
-  .card-body,
-  .panel-body,
-  .settings-card-content,
-  .court-chip-grid
-) {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-}
-
-/* Table cards should overflow properly but keep flat styles */
-.sg-shell-admin .content-area :is(.table-card, .table-wrap, .table-responsive, .table-scroll, .saas-table-container) {
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-}
-
-.sg-shell-admin :is(strong, b, .font-bold, .tab-btn, .tabs button, .tabs a, .btn-switch, .tab-sm, .segmented button, .active, .nav-active, .tab-active, .is-active, label) {
-  font-weight: 500 !important;
 }
 
 

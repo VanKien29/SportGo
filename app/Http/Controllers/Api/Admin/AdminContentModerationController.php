@@ -111,6 +111,7 @@ class AdminContentModerationController extends Controller
 
         if (in_array($type, ['venue_post', 'venue_posts'], true)) {
             $query = VenuePost::query()
+                ->whereNotNull('venue_cluster_id')
                 ->with(['author:id,username,full_name,email,phone,avatar_url', 'venueCluster:id,name,slug', 'media', 'hashtags']);
 
             if ($statusFilter === 'published') {
@@ -141,8 +142,9 @@ class AdminContentModerationController extends Controller
             ]);
         }
 
-        // Mặc định là community_posts
-        $query = CommunityPost::query()
+        // Mặc định là community_posts (sử dụng chung bảng venue_posts với venue_cluster_id = null)
+        $query = VenuePost::query()
+            ->whereNull('venue_cluster_id')
             ->with(['author:id,username,full_name,email,phone,avatar_url', 'media', 'hashtags']);
 
         if ($statusFilter === 'published') {
@@ -533,7 +535,7 @@ class AdminContentModerationController extends Controller
         if (in_array($type, ['system_post', 'system_posts'], true)) {
             return SystemPost::query()->findOrFail($id);
         }
-        return CommunityPost::query()->findOrFail($id);
+        return VenuePost::query()->findOrFail($id);
     }
 
     /**
@@ -547,7 +549,7 @@ class AdminContentModerationController extends Controller
         if (in_array($type, ['system_post', 'system_posts'], true)) {
             return 'system_posts';
         }
-        return 'community_posts';
+        return 'venue_posts';
     }
 
     /**

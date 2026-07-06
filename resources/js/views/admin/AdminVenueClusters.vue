@@ -217,20 +217,7 @@ export default {
     box-sizing: border-box;
 }
 
-.card {
-    background: transparent;
-    border-radius: 0;
-    border: none;
-    padding: 12px 0;
-    box-shadow: none;
-}
 
-:deep(.saas-table-container) {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
 
 /* State */
 .state-box {

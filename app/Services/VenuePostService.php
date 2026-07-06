@@ -19,7 +19,7 @@ class VenuePostService
      * @param UploadedFile $thumbnail
      * @return VenuePost
      */
-    public function createPost(array $data, $user, UploadedFile $thumbnail)
+    public function createPost(array $data, $user, ?UploadedFile $thumbnail = null)
     {
         return DB::transaction(function () use ($data, $user, $thumbnail) {
             $slug = Str::slug($data['title']);
@@ -28,8 +28,21 @@ class VenuePostService
                 $slug = $slug . '-' . ($count + 1);
             }
 
+            // Auto approve logic
+            $status = !empty($data['is_draft']) ? 'draft' : 'pending_review';
+            if ($status === 'pending_review') {
+                $isCommunityType = in_array($data['post_type'], ['news', 'event', 'promotion', 'announcement']);
+                $configKey = $isCommunityType ? 'require_community_post_moderation' : 'require_venue_post_moderation';
+                $requireModeration = \App\Models\ModerationConfig::where('key', $configKey)->value('value');
+                
+                // If the config explicitly says 'false' (do not require moderation)
+                if ($requireModeration === 'false' || $requireModeration === false) {
+                    $status = 'published';
+                }
+            }
+
             $post = VenuePost::create([
-                'venue_cluster_id' => $data['venue_cluster_id'],
+                'venue_cluster_id' => $data['venue_cluster_id'] ?? null,
                 'author_id' => $user->id,
                 'title' => $data['title'],
                 'slug' => $slug,
@@ -38,7 +51,7 @@ class VenuePostService
                 'meta_title' => $data['meta_title'] ?? null,
                 'meta_description' => $data['meta_description'] ?? null,
                 'post_type' => $data['post_type'],
-                'status' => !empty($data['is_draft']) ? 'draft' : 'pending_review',
+                'status' => $status,
             ]);
 
             // Save tags
@@ -58,25 +71,27 @@ class VenuePostService
             }
 
             // Convert and save thumbnail to WebP using Intervention Image
-            $manager = ImageManager::usingDriver(new Driver());
-            $image = $manager->decodePath($thumbnail->getPathname());
-            
-            $filename = uniqid('thumb_', true) . '.webp';
-            $path = 'venue_posts/' . $filename;
-            
-            if (!Storage::disk('public')->exists('venue_posts')) {
-                Storage::disk('public')->makeDirectory('venue_posts');
-            }
-            
-            $image->save(storage_path('app/public/' . $path), 80);
+            if ($thumbnail) {
+                $manager = ImageManager::usingDriver(new Driver());
+                $image = $manager->decodePath($thumbnail->getPathname());
+                
+                $filename = uniqid('thumb_', true) . '.webp';
+                $path = 'venue_posts/' . $filename;
+                
+                if (!Storage::disk('public')->exists('venue_posts')) {
+                    Storage::disk('public')->makeDirectory('venue_posts');
+                }
+                
+                $image->save(storage_path('app/public/' . $path), 80);
 
-            $post->media()->create([
-                'collection' => 'thumbnail',
-                'file_name' => $thumbnail->getClientOriginalName() . '.webp',
-                'file_path' => $path,
-                'mime_type' => 'image/webp',
-                'file_size' => filesize(storage_path('app/public/' . $path)),
-            ]);
+                $post->media()->create([
+                    'collection' => 'thumbnail',
+                    'file_name' => $thumbnail->getClientOriginalName() . '.webp',
+                    'file_path' => $path,
+                    'mime_type' => 'image/webp',
+                    'file_size' => filesize(storage_path('app/public/' . $path)),
+                ]);
+            }
 
             $this->logAction($user->id, 'venue_post.created', $post, null, $post->toArray(), 'Tạo bài viết mới');
 

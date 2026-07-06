@@ -49,6 +49,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Public\LocationController;
 use App\Http\Controllers\Api\Public\VenueController;
 use App\Http\Controllers\Api\Public\PublicAffiliateProductController;
+use App\Http\Controllers\Api\Public\ReportController as PublicReportController;
 use App\Http\Controllers\Api\Common\ChatController;
 
 // Broadcasting auth endpoint — must use Sanctum so Bearer token is accepted
@@ -273,6 +274,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/moderation/posts/{type}/{id}/approve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'approvePost']);
         Route::post('/moderation/posts/{type}/{id}/reject', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'rejectPost']);
         Route::post('/moderation/posts/{type}/{id}/hide', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'hidePost']);
+        Route::post('/moderation/posts/{type}/{id}/notify-author', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'notifyAuthor']);
         Route::delete('/moderation/posts/{type}/{id}', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'deletePost']);
         Route::post('/moderation/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'resolveReport']);
 
@@ -448,6 +450,10 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
 
 Route::middleware('auth:sanctum')
     ->group(function (): void {
+        Route::get('/notifications', [\App\Http\Controllers\Api\NotificationController::class, 'index']);
+        Route::post('/notifications/mark-all-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+        Route::post('/notifications/{id}/mark-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+
         Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
         Route::get('/user/partner-application/{id}', [UserPartnerApplicationController::class, 'detail'])->whereUuid('id');
         Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
@@ -489,6 +495,12 @@ Route::middleware('auth:sanctum')
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
+
+        // Player/Client Venue Posts (Community Posts)
+        Route::post('/venue-posts', [PlayerVenuePostController::class, 'store']);
+        Route::post('/venue-posts/{id}', [PlayerVenuePostController::class, 'update']); // use POST with _method=PUT/PATCH for file uploads
+        Route::delete('/venue-posts/{id}', [PlayerVenuePostController::class, 'destroy']);
+
         Route::get('/vip-membership', [\App\Http\Controllers\Api\Player\VipMembershipController::class, 'index']);
         Route::post('/vip-membership/subscribe', [\App\Http\Controllers\Api\Player\VipMembershipController::class, 'subscribe']);
 
@@ -496,6 +508,9 @@ Route::middleware('auth:sanctum')
         Route::post('/venue-posts/{id}/comments', [PlayerVenuePostController::class, 'comment']);
         Route::post('/venue-posts/{id}/likes', [PlayerVenuePostController::class, 'toggleLike']);
         Route::post('/partner-applications', [\App\Http\Controllers\Api\Player\PartnerApplicationController::class, 'store']);
+        
+        // Reports
+        Route::post('/reports', [PublicReportController::class, 'store']);
 
         // Chat routes
         Route::prefix('chat')->group(function (): void {

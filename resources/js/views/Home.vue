@@ -198,13 +198,13 @@
         </div>
       </section>
 
-      <section id="news" class="section-block news-section">
+      <section id="community" class="section-block news-section">
         <div class="section-heading">
           <div>
-            <p>Cập nhật</p>
-            <h2>Tin tức mới nhất</h2>
+            <p>Cộng đồng</p>
+            <h2>Bài đăng mới nhất</h2>
           </div>
-          <router-link :to="{ name: 'venues' }">
+          <router-link :to="{ name: 'ClientCommunityList' }">
             Xem tất cả
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
           </router-link>
@@ -222,7 +222,7 @@
               <h3>{{ post.title }}</h3>
               <p>{{ post.short_description || plainText(post.content).slice(0, 120) }}</p>
               <router-link
-                :to="{ name: 'news-detail', params: { slug: post.slug || post.id } }"
+                :to="{ name: 'community-post-detail', params: { slug: post.slug || post.id } }"
               >
                 Đọc bài viết
               </router-link>
@@ -267,7 +267,8 @@
         <div>
           <h3>Khám phá</h3>
           <router-link :to="{ name: 'venues' }">Cụm sân</router-link>
-          <a href="#news">Tin tức</a>
+          <router-link to="/news">Tin tức</router-link>
+          <router-link to="/community">Cộng đồng</router-link>
           <a href="#offers">Ưu đãi</a>
         </div>
         <div>
@@ -461,7 +462,7 @@ export default {
     },
     observeNewsSection() {
       this.$nextTick(() => {
-        const section = this.$el.querySelector("#news");
+        const section = this.$el.querySelector("#community");
         if (!section) return;
 
         if (!("IntersectionObserver" in window)) {
@@ -1294,6 +1295,8 @@ svg {
 .post-body h3 {
   font-size: 17px;
   line-height: 1.35;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .post-body p {
@@ -1302,6 +1305,8 @@ svg {
   color: #66756d;
   font-size: 14px;
   line-height: 1.55;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .post-body a {
