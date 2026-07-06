@@ -574,7 +574,7 @@ export default {
 
 .cluster-address-text {
     font-size: 11.5px;
-    color: var(--admin-faint, #64748b);
+    color: var(--admin-muted, #475569);
     max-width: 250px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -589,7 +589,7 @@ export default {
 
 .owner-email-text {
     font-size: 11px;
-    color: var(--admin-faint, #64748b);
+    color: var(--admin-muted, #475569);
 }
 
 .courts-badge-count {

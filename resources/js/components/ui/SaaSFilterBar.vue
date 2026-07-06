@@ -1,5 +1,5 @@
 <template>
-    <div class="avc-filters card animate-fade-in">
+    <div class="avc-filters animate-fade-in">
         <div class="filter-row">
             <div class="filter-tabs">
                 <button
@@ -24,6 +24,9 @@
                         class="search-input"
                     />
                 </div>
+            </div>
+            <div class="filter-actions" v-if="$slots.actions">
+                <slot name="actions"></slot>
             </div>
         </div>
     </div>
@@ -128,5 +131,10 @@ export default {
 }
 [data-theme="dark"] .filter-search .search-box svg {
     color: var(--admin-faint) !important;
+}
+.filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 </style>

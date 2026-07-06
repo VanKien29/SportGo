@@ -49,7 +49,7 @@
             <!-- Grid List of Courts (SaaS Table View) -->
             <div v-if="activeView === 'list'" class="courts-list-wrapper">
                 <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
-                <div class="avc-filters card animate-fade-in">
+                <div class="avc-filters animate-fade-in">
                     <div class="filter-row">
                         <div class="filter-tabs">
                             <button

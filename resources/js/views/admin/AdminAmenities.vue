@@ -15,7 +15,7 @@
 
         <template v-else>
             <!-- Controls Bar -->
-            <div class="avc-filters card animate-fade-in" v-if="amenities.length > 0 || searchQuery || statusFilter !== 'all'">
+            <div class="avc-filters animate-fade-in" v-if="amenities.length > 0 || searchQuery || statusFilter !== 'all'">
                 <div class="filter-row">
                     <div class="filter-tabs">
                         <button

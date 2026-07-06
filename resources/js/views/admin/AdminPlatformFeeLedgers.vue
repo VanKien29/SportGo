@@ -944,7 +944,7 @@ textarea {
 .run-reminder-btn:hover {
     background: var(--admin-primary-soft, #f0fdf4) !important;
     color: var(--admin-primary, #22a653) !important;
-    border-color: rgba(34, 166, 83, 0.35) !important;
+    border-color: color-mix(in srgb, var(--admin-primary, #22a653) 35%, transparent) !important;
     transform: translateY(-1px);
 }
 .check-row {

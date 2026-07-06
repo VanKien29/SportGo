@@ -550,7 +550,7 @@ function dateOnly(value) {
 }
 </script>
 
-<style>
+<style scoped>
 @import "../../../css/partner/partner.css";
 
 .partner-doc-group {

@@ -1,6 +1,6 @@
 .sg-shell-admin .content-area > :is(section, div, main) {
   width: 100%;
-  max-width: 1520px;
+  max-width: 100%;
   min-width: 0;
   margin-inline: auto;
 }
@@ -149,7 +149,7 @@
   box-shadow: none !important;
 }
 
-.sg-shell-admin .content-area :is(.filter-panel, form.filters, form.toolbar, .filter-bar, .toolbar.card, .avc-filters, .filters) {
+.sg-shell-admin .content-area :is(.filter-panel, form.filters, form.toolbar, .filter-bar, .toolbar.card, .filters) {
   padding: 16px !important;
   border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius-lg) !important;
@@ -159,7 +159,14 @@
   box-shadow: none !important;
 }
 
-.sg-shell-admin .content-area :is(.toolbar.card, .filter-panel, .avc-filters, .card, .table-card, .banner-table, .applications-table, .panel) > :is(.filters, .filter-bar, .table-scroll, .table-responsive) {
+.sg-shell-admin .content-area .avc-filters {
+  padding: 12px 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area :is(.toolbar.card, .filter-panel, .card, .table-card, .banner-table, .applications-table, .panel) > :is(.filters, .filter-bar, .table-scroll, .table-responsive) {
   padding: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -431,7 +438,7 @@
 }
 
 .sg-shell-admin .content-area :is(.success, .icon-action.success, .btn-action.success, .btn-success-soft) {
-  border-color: rgba(34, 166, 83, 0.24) !important;
+  border-color: color-mix(in srgb, var(--admin-primary) 24%, transparent) !important;
   background: var(--admin-primary-soft) !important;
   color: var(--admin-primary-dark) !important;
 }

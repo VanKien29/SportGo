@@ -110,7 +110,9 @@ export default {
 <style scoped>
 .user-profile-dropdown {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
 }
 .avatar-trigger {
   background: none;
@@ -123,20 +125,21 @@ export default {
 .avatar-circle {
   width: 38px;
   height: 38px;
-  border-radius: 50%;
-  border: 1.5px solid var(--admin-border, #e2e8f0);
+  border-radius: var(--admin-radius, 8px);
+  border: 1px solid var(--admin-border);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: var(--admin-surface, #ffffff);
+  background: var(--admin-surface);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: var(--admin-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+  box-shadow: var(--admin-shadow-sm);
 }
 .avatar-circle:hover {
-  border-color: var(--admin-primary, #cbd5e1);
+  border-color: var(--admin-primary);
+  background: var(--admin-primary-soft);
   transform: translateY(-1px);
-  box-shadow: var(--admin-shadow-card, 0 4px 6px -1px rgba(0, 0, 0, 0.05));
+  box-shadow: var(--admin-shadow-card);
 }
 .avatar-img {
   width: 100%;
@@ -150,13 +153,13 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--admin-surface-muted, #f8fafc);
-  color: var(--admin-faint, #64748b);
+  background: transparent;
+  color: var(--admin-faint);
   transition: background 0.2s, color 0.2s;
 }
 .avatar-circle:hover .avatar-placeholder {
-  background: var(--admin-hover, #f1f5f9);
-  color: var(--admin-text, #334155);
+  background: transparent;
+  color: var(--admin-primary-dark);
 }
 .avatar-user-icon {
   width: 18px;

@@ -38,7 +38,6 @@
           <span>Làm mới</span>
         </button>
       </div>
-    </div>
 
     <!-- Thông báo kết quả -->
     <div v-if="message" class="notice success">{{ message }}</div>

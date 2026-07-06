@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Api\Admin\AdminUiSettingsController;
 use App\Http\Controllers\Api\Admin\Auth\AdminAuthController;
 use App\Http\Controllers\Api\Admin\Auth\AdminForgotPasswordController;
 use App\Http\Controllers\Api\Admin\BannerController as AdminBannerController;
@@ -157,6 +158,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::delete('/platform-fee-tiers/{id}', [AdminPlatformFeeTierController::class, 'destroy']);
         Route::get('/platform-fee-settings', [AdminPlatformFeeTierController::class, 'settings']);
         Route::put('/platform-fee-settings', [AdminPlatformFeeTierController::class, 'updateSettings']);
+
+        Route::get('/ui-settings', [AdminUiSettingsController::class, 'getSettings']);
+        Route::post('/ui-settings', [AdminUiSettingsController::class, 'updateSettings']);
 
         Route::get('/partner-applications', [AdminPartnerApplicationController::class, 'index']);
         Route::get('/partner-applications/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
