@@ -92,6 +92,9 @@ class PartnerTerminationService
                     'locked_by' => $admin->id,
                     'status_reason' => 'Hợp đồng đối tác đã bị thanh lý/chấm dứt',
                 ]);
+                \App\Models\VenueCourt::where('venue_cluster_id', $clusterId)->update([
+                    'status' => 'inactive',
+                ]);
             }
 
             // Revoke owner role if no other active applications/clusters exist

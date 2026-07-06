@@ -51,6 +51,34 @@
           </div>
         </section>
 
+        <section v-if="signingLogs.length" class="panel">
+          <h3>Nhật ký ký số / OTP</h3>
+          <div class="otp-log-list">
+            <article v-for="log in signingLogs" :key="log.id || log.otp_reference" class="otp-log-item">
+              <div class="otp-log-head">
+                <strong>{{ signerSideLabel(log.signer_side) }}</strong>
+                <span>{{ log.otp_status || log.status || '-' }}</span>
+              </div>
+              <dl class="otp-log-grid">
+                <dt>Mã tham chiếu</dt>
+                <dd>{{ log.otp_reference || '-' }}</dd>
+                <dt>Gửi OTP</dt>
+                <dd>{{ formatDate(log.otp_sent_at) }}</dd>
+                <dt>Xác thực OTP</dt>
+                <dd>{{ formatDate(log.otp_verified_at) }}</dd>
+                <dt>Lần nhập</dt>
+                <dd>{{ log.attempt_count ?? '-' }}</dd>
+                <dt>IP</dt>
+                <dd>{{ log.ip_address || '-' }}</dd>
+                <dt>Thiết bị</dt>
+                <dd>{{ log.device_label || log.device || '-' }}</dd>
+                <dt>Vị trí chữ ký</dt>
+                <dd>{{ log.signature_position || '-' }}</dd>
+              </dl>
+            </article>
+          </div>
+        </section>
+
         <section v-if="canSign" class="panel sign-panel">
           <h3>Ký đại diện SportGo</h3>
           <p>Kiểm tra hợp đồng đã điền đầy đủ thông tin, sau đó ký để gửi người dùng kiểm tra và ký xác nhận.</p>
@@ -114,14 +142,16 @@ const confirmed = ref(false);
 
 const isGeneratedDocument = computed(() => document.value?.source !== 'uploaded');
 const isPartnerContract = computed(() => document.value?.document_type === 'partner_contract');
+const isTwoPartyDocument = computed(() => ['partner_contract', 'venue_scale_appendix', 'venue_location_appendix'].includes(document.value?.document_type));
 const documentTitle = computed(() => document.value?.title || documentTypeLabel(document.value?.document_type));
 const documentKindLabel = computed(() => isGeneratedDocument.value ? documentTypeLabel(document.value?.document_type) : uploadedTypeLabel(document.value?.document_type));
-const requiredSides = computed(() => isPartnerContract.value
+const signingLogs = computed(() => document.value?.signing_requests || []);
+const requiredSides = computed(() => isTwoPartyDocument.value
   ? [{ key: 'sportgo', label: 'SportGo' }, { key: 'owner', label: 'Chủ sân' }]
   : [{ key: 'owner', label: 'Người đăng ký' }]);
 const canSign = computed(() => (
   isGeneratedDocument.value
-  && isPartnerContract.value
+  && isTwoPartyDocument.value
   && document.value?.status === 'pending_sportgo_signature'
   && !signatureBySide('sportgo')
 ));
@@ -176,6 +206,14 @@ function findDocument(app, documentId) {
 
 function signatureBySide(side) {
   return (document.value?.signatures || []).find((signature) => signature.signer_side === side && signature.status === 'signed') || null;
+}
+
+function signerSideLabel(side) {
+  return {
+    sportgo: 'SportGo',
+    owner: 'Chủ sân',
+    user: 'Người dùng',
+  }[side] || side || '-';
 }
 
 function prepareCanvas() {
@@ -248,6 +286,7 @@ async function submitSignature() {
   try {
     const response = await adminPartnerApplicationService.signDocument(application.value.id, {
       contract_id: document.value.partner_contract_id,
+      document_id: isPartnerContract.value ? undefined : document.value.id,
       signature_image: canvas.value.toDataURL('image/png'),
     });
     message.value = response.message || 'SportGo đã ký hợp đồng.';
@@ -260,6 +299,9 @@ async function submitSignature() {
 }
 
 function documentTypeLabel(type) {
+  if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
+  if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+
   return {
     partner_application_form: 'Đơn đăng ký đối tác',
     partner_contract: 'Giấy/hợp đồng đối tác kinh doanh',
@@ -320,6 +362,12 @@ dd { margin: 0; color: #0f172a; font-weight: 800; overflow-wrap: anywhere; }
 .signature-list { display: grid; gap: 8px; }
 .signature-item { border: 1px solid #facc15; background: #fefce8; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; gap: 10px; color: #854d0e; font-size: 13px; }
 .signature-item.signed { border-color: #86efac; background: #f0fdf4; color: #166534; }
+.otp-log-list { display: grid; gap: 10px; }
+.otp-log-item { border: 1px solid #dbe7df; background: #f8fbf8; border-radius: 8px; padding: 12px; }
+.otp-log-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 10px; color: #0f172a; font-size: 13px; }
+.otp-log-head span { border-radius: 999px; background: #e8f5eb; color: #166534; padding: 3px 8px; font-size: 11px; font-weight: 800; }
+.otp-log-grid { grid-template-columns: 96px minmax(0, 1fr); font-size: 12px; }
+.otp-log-grid dd { font-weight: 750; }
 .confirm-line { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; margin: 12px 0; color: #334155; font-size: 13px; font-weight: 750; line-height: 1.45; }
 .confirm-line input { margin-top: 2px; width: 16px; height: 16px; accent-color: #0f172a; }
 .canvas-wrap { position: relative; border: 1px dashed #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff; }

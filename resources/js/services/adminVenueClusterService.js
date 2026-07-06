@@ -68,6 +68,13 @@ export const adminVenueClusterService = {
     });
   },
 
+  requestScaleSupplement(clusterId, requestId, payload) {
+    return api(`/api/admin/venue-clusters/${clusterId}/approval-requests/${requestId}/supplement`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
   /**
    * Cập nhật danh sách tiện ích của cụm sân (Admin)
    * @param {string} id
@@ -99,6 +106,13 @@ export const adminVenueClusterService = {
    */
   rejectLocationChange(clusterId, requestId, payload) {
     return api(`/api/admin/venue-clusters/${clusterId}/location-change-requests/${requestId}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  requestLocationSupplement(clusterId, requestId, payload) {
+    return api(`/api/admin/venue-clusters/${clusterId}/location-change-requests/${requestId}/supplement`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
@@ -149,4 +163,3 @@ export const adminVenueClusterService = {
     });
   },
 };
-

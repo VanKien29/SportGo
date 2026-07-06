@@ -5,8 +5,10 @@ namespace App\Services\Partner;
 use App\Jobs\RevokeVenueOwnerRoleJob;
 use App\Jobs\SendRevocationReminderJob;
 use App\Mail\Partner\PartnerApplicationApprovedMail;
+use App\Mail\Partner\PartnerApplicationCancelledMail;
 use App\Mail\Partner\PartnerApplicationReceivedMail;
 use App\Mail\Partner\PartnerApplicationRejectedMail;
+use App\Mail\Partner\PartnerApplicationSupplementRequiredMail;
 use App\Mail\Partner\PartnerContractSignedByOwnerMail;
 use App\Mail\Partner\PartnerTerminationConfirmedMail;
 use App\Mail\Partner\PartnerTerminationReceivedMail;
@@ -18,6 +20,7 @@ use App\Models\Media;
 use App\Models\Notification;
 use App\Models\OwnerBankAccount;
 use App\Models\OwnerWallet;
+use App\Models\OwnerWalletLedger;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\PartnerApplication;
 use App\Models\PartnerApplicationCourt;
@@ -47,7 +50,7 @@ use Illuminate\Validation\ValidationException;
 class PartnerApplicationService
 {
     private const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
-    private const REVIEWABLE_STATUSES = ['pending', 'reviewing', 'submitted', 'need_supplement'];
+    private const REVIEWABLE_STATUSES = ['pending', 'reviewing', 'submitted'];
 
     public function __construct(
         private readonly PartnerDocumentService $documents,
@@ -59,7 +62,15 @@ class PartnerApplicationService
     {
         $hasOpenApplication = PartnerApplication::query()
             ->where('user_id', $user->id)
-            ->whereNotIn('status', ['rejected', 'cancelled'])
+            ->whereIn('status', [
+                'draft',
+                'pending',
+                'submitted',
+                'reviewing',
+                'need_supplement',
+                'contract_pending_sportgo_signature',
+                'contract_pending_owner_signature',
+            ])
             ->exists();
 
         if ($hasOpenApplication) {
@@ -149,6 +160,108 @@ class PartnerApplicationService
             }
 
             return $application->fresh(['user', 'courts.courtType', 'documents', 'contracts', 'generatedDocuments']);
+        });
+    }
+
+    public function updateDraftApplication(PartnerApplication $application, User $user, array $data, ?Request $request = null): PartnerApplication
+    {
+        if ($application->user_id !== $user->id) {
+            abort(403, 'Bạn không có quyền sửa hồ sơ này.');
+        }
+
+        if (! in_array($application->status, ['draft', 'need_supplement'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Chỉ có hồ sơ nháp hoặc hồ sơ đang cần bổ sung mới được sửa và tạo lại đơn đăng ký.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($application, $user, $data, $request): PartnerApplication {
+            $oldStatus = $application->status;
+            $application->forceFill([
+                'applicant_full_name' => $data['applicant_full_name'] ?? $user->full_name,
+                'applicant_phone' => $data['applicant_phone'] ?? $user->phone,
+                'applicant_email' => $data['applicant_email'] ?? $user->email,
+                'applicant_birth_date' => $data['applicant_birth_date'] ?? null,
+                'applicant_address' => $data['applicant_address'] ?? null,
+                'applicant_type' => $data['applicant_type'] ?? 'individual',
+                'representative_name' => $data['representative_name'] ?? ($data['applicant_full_name'] ?? $user->full_name),
+                'representative_identity_type' => $data['representative_identity_type'] ?? 'cccd',
+                'representative_identity_number' => $data['representative_identity_number'] ?? null,
+                'representative_identity_issued_date' => $data['representative_identity_issued_date'] ?? null,
+                'representative_identity_issued_place' => $data['representative_identity_issued_place'] ?? null,
+                'representative_position' => $data['representative_position'] ?? null,
+                'business_name' => $data['business_name'],
+                'business_code' => $data['business_code'] ?? null,
+                'tax_code' => $data['tax_code'] ?? null,
+                'business_license_number' => $data['business_license_number'] ?? null,
+                'business_address' => $data['business_address'] ?? ($data['venue_address'] ?? null),
+                'business_representative_name' => $data['business_representative_name'] ?? ($data['representative_name'] ?? $user->full_name),
+                'business_representative_position' => $data['business_representative_position'] ?? null,
+                'venue_name' => $data['venue_name'],
+                'venue_address' => $data['venue_address'],
+                'venue_province' => $data['venue_province'] ?? null,
+                'venue_province_code' => $data['venue_province_code'] ?? null,
+                'venue_district' => $data['venue_district'] ?? null,
+                'venue_district_code' => $data['venue_district_code'] ?? null,
+                'venue_ward' => $data['venue_ward'] ?? null,
+                'venue_ward_code' => $data['venue_ward_code'] ?? null,
+                'venue_map_url' => $data['venue_map_url'] ?? null,
+                'venue_latitude' => $data['venue_latitude'],
+                'venue_longitude' => $data['venue_longitude'],
+                'venue_phone' => $data['venue_phone'] ?? $user->phone,
+                'venue_email' => $data['venue_email'] ?? $user->email,
+                'venue_description' => $data['venue_description'] ?? null,
+                'expected_opening_hours' => $data['expected_opening_hours'] ?? null,
+                'parking_info' => $data['parking_info'] ?? null,
+                'amenities' => $data['amenities'] ?? [],
+                'court_count_total' => $data['court_count_total'] ?? count($data['courts'] ?? []),
+                'base_price_per_hour' => (int) ($data['base_price_per_hour'] ?? 0),
+                'status' => 'draft',
+                'status_reason' => null,
+            ])->save();
+
+            $application->forceFill([
+                'bank_name' => $data['bank_name'] ?? null,
+                'bank_code' => $data['bank_code'] ?? null,
+                'account_number' => $data['account_number'] ?? null,
+                'account_holder_name' => $data['account_holder_name'] ?? null,
+                'bank_branch' => $data['bank_branch'] ?? null,
+                'bank_verification_status' => $data['bank_verification_status'] ?? 'pending',
+                'bank_verified_at' => ($data['bank_verification_status'] ?? null) === 'verified' ? now() : null,
+            ])->save();
+
+            $application->courts()->delete();
+            foreach ($data['courts'] ?? [] as $index => $court) {
+                $courtType = CourtType::query()->find($court['court_type_id']);
+                PartnerApplicationCourt::create([
+                    'partner_application_id' => $application->id,
+                    'court_type_id' => $court['court_type_id'],
+                    'court_type_name_snapshot' => $courtType?->name,
+                    'expected_court_count' => $court['expected_court_count'] ?? 1,
+                    'name' => $court['name'],
+                    'note' => $court['note'] ?? null,
+                    'sort_order' => $court['sort_order'] ?? ($index + 1),
+                ]);
+            }
+
+            $documentFiles = $data['document_files'] ?? [];
+            if (collect($documentFiles)->flatten()->isNotEmpty()) {
+                $this->markReplacedApplicationDocuments($application, $documentFiles, $user);
+                $this->storeApplicationDocuments($application, $documentFiles, 'draft_update_' . now()->format('YmdHis'));
+            }
+
+            $application->generatedDocuments()
+                ->where('document_type', 'partner_application_form')
+                ->where('status', 'pending_owner_signature')
+                ->update(['status' => 'cancelled']);
+
+            $this->storeBankAccountFromApplication($application, null, 'pending');
+            $this->generateApplicationForm($application->fresh(['courts.courtType', 'documents']), $user, $data, true);
+
+            $this->applicationHistory($application, $oldStatus, 'draft', $user, 'user', 'Cập nhật thông tin hồ sơ và tạo lại đơn đăng ký đối tác.');
+            $this->audit('partner_application_draft_updated', $application, $user, 'user', ['status' => $oldStatus], ['status' => 'draft'], $request);
+
+            return $application->fresh($this->detailRelations());
         });
     }
 
@@ -282,6 +395,81 @@ class PartnerApplicationService
         });
     }
 
+    public function requireSupplement(PartnerApplication $application, User $admin, string $reason, ?Request $request = null): PartnerApplication
+    {
+        if (! in_array($application->status, self::REVIEWABLE_STATUSES, true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Hồ sơ này đã được xử lý, không thể yêu cầu bổ sung.',
+            ]);
+        }
+
+        if (trim($reason) === '') {
+            throw ValidationException::withMessages(['reason' => 'Vui lòng nhập nội dung cần bổ sung.']);
+        }
+
+        return DB::transaction(function () use ($application, $admin, $reason, $request): PartnerApplication {
+            $application->loadMissing('user');
+            $oldStatus = $application->status;
+            $application->forceFill([
+                'status' => 'need_supplement',
+                'reviewed_by' => $admin->id,
+                'reviewed_at' => now(),
+                'status_reason' => $reason,
+            ])->save();
+
+            $this->applicationHistory($application, $oldStatus, 'need_supplement', $admin, 'admin', $reason);
+            $this->audit('partner_application_need_supplement', $application, $admin, 'admin', ['status' => $oldStatus], ['status' => 'need_supplement'], $request, $reason);
+            $this->notifyUser($application->user, 'partner_application_need_supplement', 'Hồ sơ đối tác cần bổ sung', 'Nội dung cần bổ sung: ' . $reason, $application->id);
+            $this->mail->queue($application->venue_email ?? $application->user->email, new PartnerApplicationSupplementRequiredMail($application));
+
+            return $application->fresh($this->detailRelations());
+        });
+    }
+
+    /**
+     * @param array<int, UploadedFile> $files
+     */
+    public function submitSupplementDocuments(PartnerApplication $application, User $user, array $files, ?string $note = null, ?Request $request = null): PartnerApplication
+    {
+        if ($application->user_id !== $user->id) {
+            abort(403, 'Bạn không có quyền bổ sung hồ sơ này.');
+        }
+
+        if ($application->status !== 'need_supplement') {
+            throw ValidationException::withMessages([
+                'status' => 'Chỉ có hồ sơ đang cần bổ sung mới được nộp thêm giấy tờ.',
+            ]);
+        }
+
+        if (count($files) === 0) {
+            throw ValidationException::withMessages([
+                'additional_documents' => 'Vui lòng tải lên ít nhất một giấy tờ bổ sung.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($application, $user, $files, $note, $request): PartnerApplication {
+            $oldStatus = $application->status;
+            $this->storeApplicationDocuments($application, ['additional' => $files], 'supplement_' . now()->format('YmdHis'));
+
+            $reason = trim((string) $note);
+            $application->forceFill([
+                'status' => 'submitted',
+                'submitted_at' => now(),
+                'status_reason' => $reason !== '' ? $reason : 'Người dùng đã bổ sung giấy tờ theo yêu cầu.',
+            ])->save();
+
+            $historyReason = $reason !== ''
+                ? 'Người dùng bổ sung hồ sơ: ' . $reason
+                : 'Người dùng đã bổ sung giấy tờ theo yêu cầu.';
+
+            $this->applicationHistory($application, $oldStatus, 'submitted', $user, 'user', $historyReason);
+            $this->audit('partner_application_supplement_submitted', $application, $user, 'user', ['status' => $oldStatus], ['status' => 'submitted'], $request, $historyReason);
+            $this->notifyAdmins('partner_application_supplement_submitted', 'Hồ sơ đối tác đã được bổ sung', $application->venue_name . ' vừa nộp giấy tờ bổ sung.', $application->id);
+
+            return $application->fresh($this->detailRelations());
+        });
+    }
+
     public function signOwnerContract(PartnerContract $contract, User $owner, Request $request, ?string $signatureImage = null): PartnerContract
     {
         if ($contract->owner_id !== $owner->id) {
@@ -299,8 +487,10 @@ class PartnerApplicationService
                 throw ValidationException::withMessages(['document' => 'Không tìm thấy văn bản hợp đồng để ký.']);
             }
 
+            $ownerSignerName = $this->applicationSignerName($contract->application, $owner);
             $this->documents->signDocument($document, $owner, 'owner', $signatureImage, $request, [
-                'signer_title' => 'Chủ sân',
+                'signer_full_name' => $ownerSignerName,
+                'signer_title' => $contract->application?->representative_position ?: 'Chủ sân',
                 'signer_organization' => $contract->application?->business_name,
             ]);
 
@@ -328,7 +518,7 @@ class PartnerApplicationService
                     VenueCourt::query()->where('venue_cluster_id', $contract->venue_cluster_id)->update(['status' => 'active']);
                 }
 
-                $this->grantVenueOwnerRole($owner->id, $owner->id);
+                $this->grantVenueOwnerRole($owner->id, $owner->id, $contract->venue_cluster_id);
                 $this->applicationHistory($contract->application, 'contract_pending_owner_signature', 'completed', $owner, 'owner', 'Chủ sân đã ký hợp đồng. Hồ sơ hoàn tất.');
                 $this->audit('venue_owner_role_granted', $contract->application, $owner, 'owner', null, ['user_id' => $owner->id], $request);
                 $this->notifyUser($owner, 'partner_contract_signed_owner', 'Bạn đã trở thành đối tác/chủ sân của SportGo', 'Tài khoản đã được cấp quyền Chủ sân.', $contract->partner_application_id);
@@ -385,7 +575,7 @@ class PartnerApplicationService
                     VenueCourt::query()->where('venue_cluster_id', $contract->venue_cluster_id)->update(['status' => 'active']);
                 }
 
-                $this->grantVenueOwnerRole($contract->owner_id, $admin->id);
+                $this->grantVenueOwnerRole($contract->owner_id, $admin->id, $contract->venue_cluster_id);
                 $this->applicationHistory($contract->application, 'contract_pending_sportgo_signature', 'completed', $admin, 'admin', 'SportGo đã ký xác nhận hợp đồng. Hồ sơ hoàn tất.');
                 $this->audit('venue_owner_role_granted', $contract->application, $admin, 'admin', null, ['user_id' => $contract->owner_id], $request);
                 $this->notifyUser($contract->application->user, 'partner_contract_completed', 'Bạn đã trở thành đối tác/chủ sân của SportGo', 'Tài khoản đã được cấp quyền Chủ sân.', $contract->partner_application_id);
@@ -428,8 +618,10 @@ class PartnerApplicationService
 
             $document = $this->generateTerminationRequestDocument($termination, $contract, $owner);
             if ($signatureImage) {
+                $ownerSignerName = $this->applicationSignerName($contract->application, $owner);
                 $this->documents->signDocument($document, $owner, 'owner', $signatureImage, $request, [
-                    'signer_title' => 'Chủ sân',
+                    'signer_full_name' => $ownerSignerName,
+                    'signer_title' => $contract->application?->representative_position ?: 'Chủ sân',
                     'signer_organization' => $contract->application?->business_name,
                 ]);
             }
@@ -449,7 +641,7 @@ class PartnerApplicationService
             $this->notifyAdmins('termination_requested', 'Có yêu cầu chấm dứt hợp tác', $contract->contract_code . ' vừa có yêu cầu chấm dứt.', $contract->partner_application_id);
 
             $this->mail->queue($owner, new PartnerTerminationReceivedMail([
-                'owner_name' => $owner->full_name,
+                'owner_name' => $this->applicationSignerName($contract->application, $owner),
                 'contract_code' => $contract->contract_code,
                 'requested_at' => $this->timestamp($termination->requested_at),
                 'reason' => $reason,
@@ -556,12 +748,12 @@ class PartnerApplicationService
             $this->notifyUser($contract->application->user, 'unilateral_termination_initiated', 'SportGo thông báo chấm dứt hợp tác', 'Vui lòng xem thông tin quyết toán và thời hạn chuyển tiếp.', $contract->partner_application_id);
 
             $this->mail->queue($contract->application->user, new PartnerUnilateralTerminationMail([
-                'owner_name' => $contract->application->user->full_name,
+                'owner_name' => $this->applicationSignerName($contract->application, $contract->application?->user),
                 'contract_code' => $contract->contract_code,
                 'issued_at' => $this->timestamp($termination->requested_at),
                 'reason' => $reason,
                 'revocation_date' => $this->timestamp($transitionEndAt),
-                'refund_amount' => $this->money($settlement->platform_fee_remaining_refund_amount),
+                'refund_amount' => $this->money($settlement->final_payable_to_owner),
             ]));
 
             return $termination->fresh(['documents.generatedDocument', 'contract.application.user', 'settlement.items', 'settlement.withdrawalRequests']);
@@ -577,8 +769,8 @@ class PartnerApplicationService
                 UserRole::query()
                     ->where('user_id', $termination->owner_id)
                     ->where('role_id', $roleId)
-                    ->where('scope_type', 'system')
-                    ->where('scope_id', self::ZERO_UUID)
+                    ->where('scope_type', 'venue')
+                    ->where('scope_id', $termination->venue_cluster_id ?: self::ZERO_UUID)
                     ->delete();
             }
 
@@ -601,6 +793,9 @@ class PartnerApplicationService
                     'status' => 'locked',
                     'status_reason' => 'Quyền đối tác đã chấm dứt theo hồ sơ ' . $termination->termination_code,
                     'locked_at' => now(),
+                ]);
+                VenueCourt::query()->where('venue_cluster_id', $termination->venue_cluster_id)->update([
+                    'status' => 'inactive',
                 ]);
             }
 
@@ -641,6 +836,30 @@ class PartnerApplicationService
             ->exists();
     }
 
+    private function applicationSignerName(?PartnerApplication $application, ?User $fallbackUser = null): ?string
+    {
+        return $application?->representative_name
+            ?: $application?->applicant_full_name
+            ?: $fallbackUser?->full_name
+            ?: $fallbackUser?->username
+            ?: $fallbackUser?->email;
+    }
+
+    private function applicationDisplayName(?PartnerApplication $application, ?User $fallbackUser = null): ?string
+    {
+        return $application?->business_name ?: $this->applicationSignerName($application, $fallbackUser);
+    }
+
+    private function applicationContactPhone(?PartnerApplication $application, ?User $fallbackUser = null): ?string
+    {
+        return $application?->applicant_phone ?: $application?->venue_phone ?: $fallbackUser?->phone;
+    }
+
+    private function applicationContactEmail(?PartnerApplication $application, ?User $fallbackUser = null): ?string
+    {
+        return $application?->applicant_email ?: $application?->venue_email ?: $fallbackUser?->email;
+    }
+
     public function cancelApplication(PartnerApplication $application, User $user, ?string $reason = null, ?Request $request = null): PartnerApplication
     {
         if ($application->user_id !== $user->id) {
@@ -662,6 +881,7 @@ class PartnerApplicationService
 
             $this->applicationHistory($application, $oldStatus, 'cancelled', $user, 'user', $application->status_reason);
             $this->audit('partner_application_cancelled', $application, $user, 'user', ['status' => $oldStatus], ['status' => 'cancelled'], $request, $application->status_reason);
+            $this->mail->queue($application->venue_email ?: $user, new PartnerApplicationCancelledMail($application->fresh(['user'])));
 
             return $application->fresh($this->detailRelations());
         });
@@ -798,7 +1018,7 @@ class PartnerApplicationService
         return $contract;
     }
 
-    private function storeApplicationDocuments(PartnerApplication $application, array $documentFiles): void
+    private function storeApplicationDocuments(PartnerApplication $application, array $documentFiles, ?string $batch = null): void
     {
         $definitions = [
             'identity' => [
@@ -839,7 +1059,8 @@ class PartnerApplicationService
                     continue;
                 }
 
-                $path = $file->store('partner-applications/' . $application->id . '/' . $type, 'public');
+                $folder = 'partner-applications/' . $application->id . '/' . $type . ($batch ? '/' . $batch : '');
+                $path = $file->store($folder, 'public');
                 $media = Media::query()->create([
                     'mediable_type' => PartnerApplication::class,
                     'mediable_id' => $application->id,
@@ -866,9 +1087,33 @@ class PartnerApplicationService
         }
     }
 
+    private function markReplacedApplicationDocuments(PartnerApplication $application, array $documentFiles, User $actor): void
+    {
+        $types = collect($documentFiles)
+            ->filter(fn ($files): bool => collect($files)->filter(fn ($file) => $file instanceof UploadedFile)->isNotEmpty())
+            ->keys()
+            ->values();
+
+        if ($types->isEmpty()) {
+            return;
+        }
+
+        PartnerApplicationDocument::query()
+            ->where('partner_application_id', $application->id)
+            ->whereIn('document_type', $types->all())
+            ->where('status', '!=', 'rejected')
+            ->update([
+                'status' => 'rejected',
+                'reviewed_by' => $actor->id,
+                'reviewed_at' => now(),
+                'reject_reason' => 'Tài liệu đã được thay thế bởi phiên bản bổ sung/cập nhật mới.',
+            ]);
+    }
+
     private function generateApplicationForm(PartnerApplication $application, User $actor, array $data = [], bool $requiresSignature = false): GeneratedDocument
     {
-        $application->loadMissing(['courts.courtType', 'documents']);
+        $application->loadMissing(['user', 'courts.courtType', 'documents']);
+        $ownerSignerName = $application->representative_name ?: $application->applicant_full_name ?: ($application->user?->full_name ?: $application->user?->username);
 
         return $this->documents->generateDocument('partner_application_form', $application, [
             'full_name' => $application->applicant_full_name,
@@ -885,6 +1130,9 @@ class PartnerApplicationService
             'location_date' => ($application->venue_province ?? 'Hà Nội') . ', ngày ' . date('d') . ' tháng ' . date('m') . ' năm ' . date('Y'),
             'applicant_address' => $application->applicant_address,
             'representative_name' => $application->representative_name,
+            'owner_full_name' => $ownerSignerName,
+            'owner_signer_full_name' => $ownerSignerName,
+            'business_representative_name' => $application->business_representative_name ?: $application->representative_name,
             'representative_identity_type' => $application->representative_identity_type,
             'representative_identity_number' => $application->representative_identity_number,
             'representative_identity_issued_date' => $application->representative_identity_issued_date?->format('d/m/Y'),
@@ -983,6 +1231,10 @@ class PartnerApplicationService
             'location_date' => ($data['venue_province'] ?? 'Hà Nội') . ', ngày ' . date('d') . ' tháng ' . date('m') . ' năm ' . date('Y'),
             'applicant_address' => $data['applicant_address'] ?? null,
             'applicant_type' => $data['applicant_type'] ?? null,
+            'representative_name' => $data['representative_name'] ?? null,
+            'owner_full_name' => $data['representative_name'] ?? ($data['applicant_full_name'] ?? null),
+            'owner_signer_full_name' => $data['representative_name'] ?? ($data['applicant_full_name'] ?? null),
+            'business_representative_name' => $data['business_representative_name'] ?? ($data['representative_name'] ?? null),
             'representative_identity_type' => $data['representative_identity_type'] ?? null,
             'representative_identity_number' => $data['representative_identity_number'] ?? null,
             'representative_identity_issued_date' => $data['representative_identity_issued_date'] ?? null,
@@ -1083,9 +1335,22 @@ class PartnerApplicationService
 
     private function generateTerminationRequestDocument(PartnerTerminationRequest $termination, PartnerContract $contract, User $actor): GeneratedDocument
     {
+        $application = $contract->application;
+        $ownerSignerName = $this->applicationSignerName($application, $actor);
+        $partnerDisplayName = $this->applicationDisplayName($application, $actor);
+
         return $this->documents->generateDocument('termination_request', $termination, [
-            'full_name' => $contract->application?->applicant_full_name,
-            'venue_name' => $contract->application?->venue_name,
+            'full_name' => $ownerSignerName,
+            'business_name' => $application?->business_name,
+            'representative_name' => $ownerSignerName,
+            'owner_full_name' => $ownerSignerName,
+            'owner_signer_full_name' => $ownerSignerName,
+            'party_b_name' => $partnerDisplayName,
+            'party_b_id' => $application?->tax_code ?: $application?->representative_identity_number,
+            'party_b_address' => $application?->business_address ?: $application?->venue_address,
+            'owner_phone' => $this->applicationContactPhone($application, $actor),
+            'owner_email' => $this->applicationContactEmail($application, $actor),
+            'venue_name' => $application?->venue_name,
             'contract_number' => $contract->contract_code,
             'contract_code' => $contract->contract_code,
             'termination_reason' => $termination->reason,
@@ -1093,11 +1358,10 @@ class PartnerApplicationService
             'request_date' => $this->timestamp($termination->requested_at),
             'termination_code' => $termination->termination_code,
             'requested_at' => $this->timestamp($termination->requested_at),
-            'requested_by' => $actor->full_name,
-            'owner_full_name' => $contract->application?->user?->full_name,
+            'requested_by' => $ownerSignerName,
             'termination_type' => 'Chấm dứt theo yêu cầu chủ sân',
             'requested_effective_date' => $termination->requested_effective_date?->format('d/m/Y'),
-            'owner_bank_account_snapshot' => $this->bankSnapshot($contract->application),
+            'owner_bank_account_snapshot' => $this->bankSnapshot($application),
             'owner_signed_at' => $this->timestamp(now()),
         ], $actor, [
             'partner_application_id' => $contract->partner_application_id,
@@ -1110,10 +1374,22 @@ class PartnerApplicationService
 
     private function generateLiquidationDocument(PartnerTerminationRequest $termination, PartnerContract $contract, PartnerSettlement $settlement, User $admin): GeneratedDocument
     {
+        $application = $contract->application;
+        $ownerSignerName = $this->applicationSignerName($application, $application?->user);
+        $partnerDisplayName = $this->applicationDisplayName($application, $application?->user);
+
         return $this->documents->generateDocument('mutual_liquidation_minutes', $termination, [
             'termination_date' => $this->timestamp($termination->effective_termination_date),
             'party_a_rep' => $admin->full_name ?: $admin->username,
-            'party_b_name' => $contract->application?->user?->full_name,
+            'party_b_name' => $partnerDisplayName,
+            'business_name' => $application?->business_name,
+            'representative_name' => $ownerSignerName,
+            'owner_full_name' => $ownerSignerName,
+            'owner_signer_full_name' => $ownerSignerName,
+            'party_b_id' => $application?->tax_code ?: $application?->representative_identity_number,
+            'party_b_address' => $application?->business_address ?: $application?->venue_address,
+            'owner_phone' => $this->applicationContactPhone($application, $application?->user),
+            'owner_email' => $this->applicationContactEmail($application, $application?->user),
             'settlement_table' => $this->settlementTableText($settlement),
             'effective_date' => $this->timestamp($termination->transition_end_at),
             'liquidation_minutes_code' => 'BBTL-' . $termination->termination_code,
@@ -1121,8 +1397,8 @@ class PartnerApplicationService
             'termination_request_code' => $termination->termination_code,
             'termination_reason' => $termination->reason,
             'agreed_termination_date' => $this->timestamp($termination->transition_end_at),
-            'venue_name' => $contract->application?->venue_name,
-            'court_count_total' => $contract->application?->court_count_total,
+            'venue_name' => $application?->venue_name,
+            'court_count_total' => $application?->court_count_total,
             'owner_wallet_available_amount' => $this->money($settlement->owner_wallet_available_amount),
             'unpaid_platform_fee_amount' => $this->money($settlement->unpaid_platform_fee_amount),
             'final_payable_to_owner' => $this->money($settlement->final_payable_to_owner),
@@ -1140,22 +1416,35 @@ class PartnerApplicationService
 
     private function generateUnilateralNoticeDocument(PartnerTerminationRequest $termination, PartnerContract $contract, PartnerSettlement $settlement, User $admin): GeneratedDocument
     {
+        $application = $contract->application;
+        $ownerSignerName = $this->applicationSignerName($application, $application?->user);
+        $partnerDisplayName = $this->applicationDisplayName($application, $application?->user);
+
         return $this->documents->generateDocument('unilateral_termination_notice', $termination, [
             'document_number' => 'CV-' . $termination->termination_code,
             'notice_code' => 'CV-' . $termination->termination_code,
             'issue_date' => $this->timestamp($termination->requested_at),
             'issued_at' => $this->timestamp($termination->requested_at),
             'issuer_side' => 'SportGo',
-            'receiver_name' => $contract->application?->user?->full_name,
-            'venue_owner_name' => $contract->application?->user?->full_name,
+            'receiver_name' => $partnerDisplayName,
+            'venue_owner_name' => $ownerSignerName,
+            'business_name' => $application?->business_name,
+            'representative_name' => $ownerSignerName,
+            'owner_full_name' => $ownerSignerName,
+            'owner_signer_full_name' => $ownerSignerName,
+            'party_b_name' => $partnerDisplayName,
+            'party_b_id' => $application?->tax_code ?: $application?->representative_identity_number,
+            'party_b_address' => $application?->business_address ?: $application?->venue_address,
+            'owner_phone' => $this->applicationContactPhone($application, $application?->user),
+            'owner_email' => $this->applicationContactEmail($application, $application?->user),
             'contract_code' => $contract->contract_code,
-            'venue_name' => $contract->application?->venue_name,
+            'venue_name' => $application?->venue_name,
             'legal_basis_text' => 'Theo điều khoản chấm dứt hợp tác trong hợp đồng đã ký.',
             'termination_reason' => $termination->reason,
             'effective_date' => $this->timestamp($termination->transition_end_at),
             'effective_termination_date' => $this->timestamp($termination->transition_end_at),
             'transition_end_at' => $this->timestamp($termination->transition_end_at),
-            'required_actions' => 'Hoàn tất bàn giao và xử lý các booking còn tồn tại.',
+            'required_actions' => 'Hoàn tất bàn giao, rút toàn bộ số dư khỏi ví chủ sân và xử lý các booking còn tồn tại bằng hoàn tiền mặt nếu cần.',
             'settlement_deadline' => $this->timestamp(now()->addDays(14)),
             'issuer_representative_name' => $admin->full_name ?: $admin->username,
         ], $admin, [
@@ -1170,22 +1459,30 @@ class PartnerApplicationService
 
     private function generateSettlementDocument(PartnerTerminationRequest $termination, PartnerContract $contract, PartnerSettlement $settlement, User $admin): GeneratedDocument
     {
+        $application = $contract->application;
+        $ownerSignerName = $this->applicationSignerName($application, $application?->user);
+        $partnerDisplayName = $this->applicationDisplayName($application, $application?->user);
+
         return $this->documents->generateDocument('settlement_minutes', $settlement, [
             'total_paid' => $this->money($settlement->getAttribute('calculation_total_paid') ?? $settlement->platform_fee_remaining_refund_amount),
             'months_used' => $settlement->getAttribute('calculation_months_used') ?? 0,
             'months_remaining' => $settlement->getAttribute('calculation_months_remaining') ?? 0,
-            'refund_amount' => $this->money($settlement->platform_fee_remaining_refund_amount),
-            'bank_account' => $this->bankSnapshot($contract->application),
-            'bank_name' => $contract->application?->bank_name,
-            'account_number' => $contract->application?->account_number,
-            'account_holder_name' => $contract->application?->account_holder_name,
+            'refund_amount' => $this->money($settlement->final_payable_to_owner),
+            'bank_account' => $this->bankSnapshot($application),
+            'bank_name' => $application?->bank_name,
+            'account_number' => $application?->account_number,
+            'account_holder_name' => $application?->account_holder_name,
             'calculation_date' => $this->timestamp(now()),
             'settlement_code' => $settlement->settlement_code,
             'settlement_date' => $this->timestamp(now()),
             'contract_code' => $contract->contract_code,
             'termination_request_code' => $termination->termination_code,
-            'owner_full_name' => $contract->application?->user?->full_name,
-            'venue_name' => $contract->application?->venue_name,
+            'owner_full_name' => $ownerSignerName,
+            'owner_signer_full_name' => $ownerSignerName,
+            'representative_name' => $ownerSignerName,
+            'business_name' => $application?->business_name,
+            'party_b_name' => $partnerDisplayName,
+            'venue_name' => $application?->venue_name,
             'owner_wallet_available_amount' => $this->money($settlement->owner_wallet_available_amount),
             'platform_fee_remaining_refund_amount' => $this->money($settlement->platform_fee_remaining_refund_amount),
             'unpaid_platform_fee_amount' => $this->money($settlement->unpaid_platform_fee_amount),
@@ -1209,44 +1506,72 @@ class PartnerApplicationService
     private function createSettlement(PartnerTerminationRequest $termination, PartnerContract $contract, User $admin): PartnerSettlement
     {
         $calculation = $this->calculatePlatformFeeRefund($contract);
+        $wallet = OwnerWallet::query()
+            ->where('owner_id', $contract->owner_id)
+            ->where('venue_cluster_id', $contract->venue_cluster_id)
+            ->lockForUpdate()
+            ->first();
+        $ownerWalletAvailable = max(0, (float) ($wallet?->available_balance ?? 0));
+        $ownerWalletPending = max(0, (float) ($wallet?->pending_withdrawal_balance ?? 0));
+        $finalPayableToOwner = $ownerWalletAvailable + (float) $calculation['refund_amount'];
+
         $settlement = PartnerSettlement::create([
             'settlement_code' => $this->uniqueSettlementCode(),
             'partner_termination_request_id' => $termination->id,
             'partner_contract_id' => $contract->id,
             'owner_id' => $contract->owner_id,
             'venue_cluster_id' => $contract->venue_cluster_id,
-            'owner_wallet_available_amount' => 0,
-            'owner_wallet_pending_amount' => 0,
+            'owner_wallet_available_amount' => $ownerWalletAvailable,
+            'owner_wallet_pending_amount' => $ownerWalletPending,
             'platform_fee_remaining_refund_amount' => $calculation['refund_amount'],
             'unpaid_platform_fee_amount' => $calculation['unpaid_amount'],
             'penalty_amount' => 0,
             'adjustment_amount' => 0,
-            'final_payable_to_owner' => $calculation['refund_amount'],
+            'final_payable_to_owner' => $finalPayableToOwner,
             'final_receivable_from_owner' => $calculation['unpaid_amount'],
             'status' => 'approved',
             'calculated_by' => $admin->id,
             'approved_by' => $admin->id,
             'approved_at' => now(),
-            'note' => json_encode($calculation, JSON_UNESCAPED_UNICODE),
+            'note' => json_encode([
+                ...$calculation,
+                'owner_wallet_available_amount' => $ownerWalletAvailable,
+                'owner_wallet_pending_amount' => $ownerWalletPending,
+            ], JSON_UNESCAPED_UNICODE),
         ]);
 
         $settlement->setAttribute('calculation_total_paid', $calculation['total_paid']);
         $settlement->setAttribute('calculation_months_used', $calculation['months_used']);
         $settlement->setAttribute('calculation_months_remaining', $calculation['months_remaining']);
 
-        PartnerSettlementItem::create([
-            'partner_settlement_id' => $settlement->id,
-            'item_type' => 'platform_fee_remaining_refund',
-            'description' => 'Hoàn phí nền tảng chưa sử dụng: ' . $calculation['months_remaining'] . ' tháng còn lại.',
-            'amount' => $calculation['refund_amount'],
-            'direction' => 'payable_to_owner',
-            'reference_type' => VenuePlatformFeeLedger::class,
-            'reference_id' => $contract->venue_cluster_id,
-            'created_at' => now(),
-        ]);
+        if ((float) $calculation['refund_amount'] > 0) {
+            PartnerSettlementItem::create([
+                'partner_settlement_id' => $settlement->id,
+                'item_type' => 'platform_fee_remaining_refund',
+                'description' => 'Hoàn phí nền tảng chưa sử dụng: ' . $calculation['months_remaining'] . ' tháng còn lại.',
+                'amount' => $calculation['refund_amount'],
+                'direction' => 'payable_to_owner',
+                'reference_type' => VenuePlatformFeeLedger::class,
+                'reference_id' => $contract->venue_cluster_id,
+                'created_at' => now(),
+            ]);
+        }
 
-        if ($calculation['refund_amount'] > 0) {
-            $this->createWithdrawalForSettlement($settlement, $contract, $calculation['refund_amount']);
+        if ($ownerWalletAvailable > 0) {
+            PartnerSettlementItem::create([
+                'partner_settlement_id' => $settlement->id,
+                'item_type' => 'owner_wallet_balance',
+                'description' => 'Rút toàn bộ số dư ví chủ sân khỏi hệ thống khi chấm dứt hợp tác.',
+                'amount' => $ownerWalletAvailable,
+                'direction' => 'payable_to_owner',
+                'reference_type' => OwnerWallet::class,
+                'reference_id' => $wallet?->id,
+                'created_at' => now(),
+            ]);
+        }
+
+        if ($finalPayableToOwner > 0) {
+            $this->createWithdrawalForSettlement($settlement, $contract, $finalPayableToOwner, (float) $calculation['refund_amount']);
         }
 
         return $settlement;
@@ -1294,7 +1619,7 @@ class PartnerApplicationService
         ];
     }
 
-    private function createWithdrawalForSettlement(PartnerSettlement $settlement, PartnerContract $contract, float $amount): void
+    private function createWithdrawalForSettlement(PartnerSettlement $settlement, PartnerContract $contract, float $amount, float $platformRefundAmount = 0.0): void
     {
         $bankAccount = OwnerBankAccount::query()
             ->where('owner_id', $contract->owner_id)
@@ -1306,7 +1631,7 @@ class PartnerApplicationService
             return;
         }
 
-        $wallet = OwnerWallet::firstOrCreate(
+        $wallet = OwnerWallet::query()->firstOrCreate(
             [
                 'owner_id' => $contract->owner_id,
                 'venue_cluster_id' => $contract->venue_cluster_id,
@@ -1319,13 +1644,15 @@ class PartnerApplicationService
             ]
         );
 
+        $balanceBefore = (float) $wallet->available_balance;
+        $balanceAfterCredit = $balanceBefore + max(0, $platformRefundAmount);
         $wallet->forceFill([
-            'available_balance' => max(0, (float) $wallet->available_balance),
+            'available_balance' => max(0, $balanceAfterCredit - $amount),
             'pending_withdrawal_balance' => (float) $wallet->pending_withdrawal_balance + $amount,
-            'total_earned' => (float) $wallet->total_earned + $amount,
+            'total_earned' => (float) $wallet->total_earned + max(0, $platformRefundAmount),
         ])->save();
 
-        OwnerWithdrawalRequest::create([
+        $withdrawal = OwnerWithdrawalRequest::create([
             'request_code' => 'WR-' . Str::upper(Str::random(8)),
             'source' => 'partner_termination_settlement',
             'partner_settlement_id' => $settlement->id,
@@ -1336,11 +1663,31 @@ class PartnerApplicationService
             'owner_bank_account_id' => $bankAccount->id,
             'amount' => $amount,
             'status' => 'pending',
-            'owner_note' => 'Tự động tạo từ quyết toán chấm dứt hợp tác.',
+            'owner_note' => 'Tự động tạo từ quyết toán chấm dứt hợp tác và rút toàn bộ số dư ví khỏi hệ thống.',
             'requested_at' => now(),
             'metadata' => [
                 'contract_code' => $contract->contract_code,
                 'settlement_code' => $settlement->settlement_code,
+                'platform_refund_amount' => $platformRefundAmount,
+                'wallet_balance_before_withdrawal' => $balanceBefore,
+            ],
+        ]);
+
+        OwnerWalletLedger::create([
+            'owner_wallet_id' => $wallet->id,
+            'owner_id' => $contract->owner_id,
+            'venue_cluster_id' => $contract->venue_cluster_id,
+            'type' => 'debit',
+            'amount' => $amount,
+            'balance_before' => $balanceAfterCredit,
+            'balance_after' => (float) $wallet->available_balance,
+            'reference_code' => 'WDR-' . Str::upper(Str::random(8)),
+            'reference_type' => OwnerWithdrawalRequest::class,
+            'reference_id' => $withdrawal->id,
+            'description' => 'Rút toàn bộ số dư ví do chấm dứt hợp đồng đối tác.',
+            'metadata' => [
+                'partner_settlement_id' => $settlement->id,
+                'partner_termination_request_id' => $settlement->partner_termination_request_id,
             ],
         ]);
     }
@@ -1354,7 +1701,7 @@ class PartnerApplicationService
         RevokeVenueOwnerRoleJob::dispatch($termination->id)->delay($transitionEndAt);
     }
 
-    private function grantVenueOwnerRole(string $userId, ?string $actorId): void
+    private function grantVenueOwnerRole(string $userId, ?string $actorId, ?string $venueClusterId = null): void
     {
         $role = Role::query()->where('name', 'venue_owner')->first();
         if (! $role) {
@@ -1365,8 +1712,8 @@ class PartnerApplicationService
             [
                 'user_id' => $userId,
                 'role_id' => $role->id,
-                'scope_type' => 'system',
-                'scope_id' => self::ZERO_UUID,
+                'scope_type' => $venueClusterId ? 'venue' : 'system',
+                'scope_id' => $venueClusterId ?: self::ZERO_UUID,
             ],
             [
                 'granted_by' => $actorId,
@@ -1391,15 +1738,17 @@ class PartnerApplicationService
             return;
         }
 
+        $bankCode = $application->bank_code ?: Str::upper(Str::slug($application->bank_name, '_'));
+
         OwnerBankAccount::updateOrCreate(
             [
                 'owner_id' => $application->user_id,
-                'partner_application_id' => $application->id,
+                'bank_code' => $bankCode,
                 'account_number' => $application->account_number,
             ],
             [
+                'partner_application_id' => $application->id,
                 'bank_name' => $application->bank_name,
-                'bank_code' => $application->bank_code ?: Str::upper(Str::slug($application->bank_name, '_')),
                 'account_holder_name' => $application->account_holder_name,
                 'branch_name' => $application->bank_branch,
                 'status' => $status,
@@ -1423,9 +1772,9 @@ class PartnerApplicationService
         $accountNumber = $application->account_number ?: $bankAccount?->account_number;
         $accountHolderName = $application->account_holder_name ?: $bankAccount?->account_holder_name;
         $courtCount = (int) ($application->court_count_total ?: $application->courts->count());
-        $ownerName = $application->user?->full_name ?: $application->representative_name ?: $application->applicant_full_name;
-        $ownerPhone = $application->user?->phone ?: $application->applicant_phone ?: $application->venue_phone;
-        $ownerEmail = $application->user?->email ?: $application->applicant_email ?: $application->venue_email;
+        $ownerName = $this->applicationSignerName($application, $application->user);
+        $ownerPhone = $application->applicant_phone ?: $application->venue_phone ?: $application->user?->phone;
+        $ownerEmail = $application->applicant_email ?: $application->venue_email ?: $application->user?->email;
 
         return [
             'contract_number' => $contractCode,
@@ -1600,14 +1949,14 @@ class PartnerApplicationService
         $calculation = json_decode((string) $settlement->note, true) ?: [];
 
         return [
-            'owner_name' => $contract->application?->user?->full_name,
+            'owner_name' => $this->applicationSignerName($contract->application, $contract->application?->user),
             'contract_code' => $contract->contract_code,
             'confirmed_at' => $this->timestamp($termination->approved_at),
             'admin_name' => ($admin->full_name ?: $admin->username) . ' - Đại diện SportGo',
             'total_paid' => $this->money($calculation['total_paid'] ?? 0),
             'months_used' => $calculation['months_used'] ?? 0,
             'months_remaining' => $calculation['months_remaining'] ?? 0,
-            'refund_amount' => $this->money($settlement->platform_fee_remaining_refund_amount),
+            'refund_amount' => $this->money($settlement->final_payable_to_owner),
             'bank_account' => $this->bankSnapshot($contract->application),
             'revocation_date' => $this->timestamp($termination->transition_end_at),
         ];

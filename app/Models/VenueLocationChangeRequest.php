@@ -22,10 +22,17 @@ class VenueLocationChangeRequest extends Model
         'status_reason',
         'new_address',
         'new_province',
+        'new_province_code',
         'new_ward',
+        'new_ward_code',
         'new_latitude',
         'new_longitude',
         'new_map_url',
+        'supplementary_documents',
+        'signature_image',
+        'signature_hash',
+        'signed_at',
+        'generated_document_id',
         'reviewed_at',
     ];
 
@@ -35,6 +42,8 @@ class VenueLocationChangeRequest extends Model
             'new_latitude'  => 'decimal:7',
             'new_longitude' => 'decimal:7',
             'reviewed_at'   => 'datetime',
+            'signed_at'     => 'datetime',
+            'supplementary_documents' => 'array',
         ];
     }
 
@@ -51,5 +60,10 @@ class VenueLocationChangeRequest extends Model
     public function reviewedBy()
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function generatedDocument()
+    {
+        return $this->belongsTo(GeneratedDocument::class, 'generated_document_id');
     }
 }

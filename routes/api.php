@@ -256,9 +256,11 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/venue-clusters/{id}/amenities', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'updateAmenities']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveRequest']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectRequest']);
+        Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'requestSupplementForScale']);
         // Venue Location Change Requests (Admin duyệt/từ chối thay đổi vị trí)
         Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveLocationChange']);
         Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectLocationChange']);
+        Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'requestSupplementForLocationChange']);
         Route::patch('/venue-clusters/{clusterId}/unlock-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveUnlockRequest']);
         Route::patch('/venue-clusters/{clusterId}/unlock-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectUnlockRequest']);
         Route::patch('/venue-clusters/{clusterId}/information-change-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveInformationChange']);
@@ -338,11 +340,15 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::patch('/vouchers/{id}/deactivate', [OwnerVoucherController::class, 'deactivate']);
         // Venue Court Approval Requests (Owner gửi yêu cầu quy mô)
         Route::get('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/approval-requests/preview', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'preview']);
         Route::post('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'store']);
+        Route::post('/venue-clusters/{clusterId}/approval-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'supplement']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/cancel', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'cancel']);
         // Venue Location Change Requests (Owner gửi yêu cầu thay đổi vị trí)
         Route::get('/venue-clusters/{clusterId}/location-change-requests', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/location-change-requests/preview', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'preview']);
         Route::post('/venue-clusters/{clusterId}/location-change-requests', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'store']);
+        Route::post('/venue-clusters/{clusterId}/location-change-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'supplement']);
         Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/cancel', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'cancel']);
         // Venue Information Change Requests (Owner gửi yêu cầu chỉnh sửa thông tin sân)
         Route::get('/venue-clusters/{clusterId}/information-change-requests', [\App\Http\Controllers\Api\Owner\VenueInformationChangeController::class, 'index']);
@@ -443,13 +449,17 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
 Route::middleware('auth:sanctum')
     ->group(function (): void {
         Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
+        Route::get('/user/partner-application/{id}', [UserPartnerApplicationController::class, 'detail'])->whereUuid('id');
         Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
         Route::get('/user/partner-application/provinces', [UserPartnerApplicationController::class, 'provinces']);
         Route::get('/user/partner-application/provinces/{provinceCode}/wards', [UserPartnerApplicationController::class, 'wards']);
         Route::post('/user/partner-application/resolve-map', [UserPartnerApplicationController::class, 'resolveMap']);
+        Route::post('/user/partner-application/reverse-map', [UserPartnerApplicationController::class, 'reverseMap']);
         Route::post('/user/partner-application/preview', [UserPartnerApplicationController::class, 'preview']);
         Route::post('/user/partner-application', [UserPartnerApplicationController::class, 'store']);
+        Route::post('/user/partner-application/{id}/draft', [UserPartnerApplicationController::class, 'updateDraft']);
         Route::post('/user/partner-application/{id}/submit', [UserPartnerApplicationController::class, 'submitSigned']);
+        Route::post('/user/partner-application/{id}/supplement-documents', [UserPartnerApplicationController::class, 'supplementDocuments']);
         Route::post('/user/partner-application/{id}/cancel', [UserPartnerApplicationController::class, 'cancel']);
         Route::get('/user/partner-application/documents', [UserPartnerApplicationController::class, 'documents']);
         Route::get('/user/partner-application/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
@@ -466,6 +476,8 @@ Route::middleware('auth:sanctum')
         Route::post('/policies/{policy}/accept', [PolicyAcceptanceController::class, 'accept']);
 
         Route::post('venue-clusters/resolve-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'resolveMapUrl']);
+        Route::post('venue-clusters/reverse-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'reverseMap']);
+        Route::get('/court-types', [\App\Http\Controllers\Api\Admin\CourtTypeController::class, 'index']); // Read-only: Owner cần xem danh sách loại sân
         Route::get('/amenities', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'index']); // Read-only: Owner cần xem danh sách tiện ích
         Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);
         Route::get('/bookings/schedule', [\App\Http\Controllers\Api\Player\BookingController::class, 'schedule']);
