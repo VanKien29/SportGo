@@ -61,7 +61,7 @@ export default {
     background: #fff;
     color: var(--admin-muted, #334155);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 600;
     text-decoration: none;
 }
 

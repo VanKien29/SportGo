@@ -1,26 +1,5 @@
-﻿<template>
+<template>
     <section class="pf-page">
-        <PlatformFeeSubnav />
-
-        <!-- Action bar with secondary actions -->
-        <div
-            class="action-bar-layout"
-            style="
-                margin-bottom: 12px;
-                display: flex;
-                justify-content: flex-end;
-                gap: 12px;
-            "
-        >
-            <button
-                class="btn secondary icon-text"
-                type="button"
-                @click="checkCoverage"
-            >
-                <AppIcon name="check" size="18" />
-                <span>Kiểm tra khoảng bậc phí</span>
-            </button>
-        </div>
 
         <!-- Floating Add Button -->
         <div
@@ -40,27 +19,19 @@
 
         <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
 
-        <section class="panel filter-panel">
-            <input v-model.trim="keyword" placeholder="Tìm theo tên bậc phí" />
+        <AdminFilterPanel show-refresh @refresh="reloadFromDb">
+            <label class="search-box">
+                <AppIcon name="search" size="18" />
+                <input v-model.trim="keyword" placeholder="Tìm theo tên bậc phí" />
+            </label>
             <select v-model="statusFilter">
                 <option value="">Tất cả trạng thái</option>
                 <option value="active">Đang áp dụng</option>
                 <option value="inactive">Ngừng áp dụng</option>
             </select>
-            <button
-                class="btn secondary icon-text"
-                type="button"
-                @click="reloadFromDb"
-            >
-                <AppIcon name="refresh" size="18" />
-            </button>
-        </section>
+        </AdminFilterPanel>
 
         <section class="panel">
-            <div class="panel-title">
-                <strong>Danh sách bậc phí</strong>
-                <span>{{ filteredTiers.length }} bậc phí</span>
-            </div>
             <div v-if="filteredTiers.length === 0" class="empty">
                 Chưa có bậc phí. Hãy tạo bậc phí đầu tiên.
             </div>
@@ -581,6 +552,7 @@
 <script>
 import AppIcon from "../../components/AppIcon.vue";
 import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
+import AdminFilterPanel from "../../components/AdminFilterPanel.vue";
 import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
 import {
     calculatePlatformFee,
@@ -636,7 +608,7 @@ const rangeTierName = (minCourts, maxCourts) =>
 
 export default {
     name: "AdminPlatformFeeTiers",
-    components: { AppIcon, PlatformFeeSubnav },
+    components: { AppIcon, PlatformFeeSubnav, AdminFilterPanel },
     data() {
         return {
             tiers: [],
@@ -1170,11 +1142,25 @@ textarea {
     padding: 10px 12px;
     font: inherit;
 }
-.filter-panel input {
-    max-width: 360px;
-}
 .filter-panel select {
     max-width: 220px;
+}
+.pf-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+.check-coverage-btn {
+    transition: all 0.2s ease-in-out;
+}
+.check-coverage-btn:hover {
+    background: var(--admin-primary-soft, #f0fdf4) !important;
+    color: var(--admin-primary, #22a653) !important;
+    border-color: rgba(34, 166, 83, 0.35) !important;
+    transform: translateY(-1px);
 }
 .panel-title {
     justify-content: space-between;
@@ -1264,7 +1250,7 @@ td small {
     border: 0;
     border-radius: 8px;
     padding: 10px 14px;
-    font-weight: 900;
+    font-weight: 600;
     cursor: pointer;
 }
 .btn.primary {

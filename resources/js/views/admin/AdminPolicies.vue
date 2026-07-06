@@ -13,47 +13,6 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <section class="filter-panel">
-      <label class="search-box">
-        <AppIcon name="search" size="18" />
-        <input
-          v-model.trim="filters.keyword"
-          placeholder="Tìm theo tên chính sách hoặc mã kỹ thuật"
-          @keyup.enter="loadPolicies"
-        />
-      </label>
-
-      <select v-if="!isPlatformFeeScope" v-model="filters.policy_type" @change="loadPolicies">
-        <option value="">Tất cả nhóm chính sách</option>
-        <option v-for="type in policyTypes" :key="type.value" :value="type.value">
-          {{ type.label }}
-        </option>
-      </select>
-
-      <select v-model="filters.status" @change="loadPolicies">
-        <option value="">Tất cả trạng thái</option>
-        <option value="draft">Bản nháp</option>
-        <option value="active">Đang áp dụng</option>
-        <option value="inactive">Ngưng áp dụng</option>
-        <option value="archived">Lưu trữ</option>
-        <option value="pending_review">Chờ duyệt</option>
-        <option value="rejected">Bị từ chối</option>
-      </select>
-
-      <select v-model="filters.require_reaccept" @change="loadPolicies">
-        <option value="">Chấp nhận lại: tất cả</option>
-        <option value="1">Có yêu cầu</option>
-        <option value="0">Không yêu cầu</option>
-      </select>
-
-      <button class="icon-btn" type="button" title="Lọc danh sách" @click="loadPolicies">
-        <AppIcon name="filter" size="17" />
-      </button>
-      <button class="icon-btn" type="button" title="Tải lại" :disabled="loading" @click="resetFilters">
-        <AppIcon name="refresh" size="17" />
-      </button>
-    </section>
-
     <section class="table-card">
       <div v-if="loading" class="table-state">Đang tải danh sách chính sách...</div>
       <div v-else-if="policies.length === 0" class="table-state">Chưa có chính sách phù hợp.</div>

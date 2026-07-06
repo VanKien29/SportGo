@@ -1,52 +1,5 @@
 <template>
   <section class="admin-users">
-    <div class="action-bar-layout">
-      <nav class="tabs" aria-label="Lọc nhanh tài khoản">
-        <button
-          v-for="tab in tabs"
-          :key="tab.value"
-          :class="{ active: filters.status === tab.value }"
-          type="button"
-          @click="setStatus(tab.value)"
-        >
-          {{ tab.label }}
-        </button>
-      </nav>
-      <div class="head-actions">
-        <button type="button" class="btn secondary" style="display: inline-flex; align-items: center; gap: 6px;" @click="openPolicyModal">
-          <AppIcon name="settings" size="16" /> Cấu hình khóa tự động
-        </button>
-        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadUsers" />
-      </div>
-    </div>
-
-    <section class="filters">
-      <label>
-        <span>Tìm kiếm</span>
-        <input
-          v-model.trim="filters.keyword"
-          placeholder="Tên, username, email hoặc số điện thoại"
-          @input="scheduleSearch"
-          @keyup.enter="loadUsers"
-        />
-      </label>
-      <label>
-        <span>Vai trò</span>
-        <select v-model="filters.role" @change="reloadFromFirstPage">
-          <option value="">Tất cả vai trò</option>
-          <option v-for="role in roleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
-        </select>
-      </label>
-      <label v-if="filters.status === 'warning'">
-        <span>Mức cảnh báo</span>
-        <select v-model="filters.warning_level" @change="reloadFromFirstPage">
-          <option value="">Tất cả cảnh báo</option>
-          <option value="near_lock">Cần theo dõi</option>
-          <option value="lock_suggested">Cần xử lý</option>
-        </select>
-      </label>
-      <ActionIconButton icon="refresh" label="Xóa lọc" @click="resetFilters" />
-    </section>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>

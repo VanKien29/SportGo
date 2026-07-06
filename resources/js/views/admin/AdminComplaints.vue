@@ -3,72 +3,7 @@
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="success" class="alert success">{{ success }}</div>
 
-        <section class="filter-panel">
-            <div class="filter-bar">
-                <label class="search-box">
-                    <AppIcon name="search" size="17" />
-                    <input
-                        v-model.trim="filters.keyword"
-                        placeholder="Tìm khách hàng, booking, cụm sân hoặc nội dung"
-                        @keyup.enter="loadComplaints"
-                    />
-                </label>
-                <select
-                    v-model="filters.complaint_type"
-                    @change="loadComplaints"
-                >
-                    <option value="">Tất cả loại</option>
-                    <option value="venue">Khiếu nại cụm sân</option>
-                    <option value="system">Khiếu nại hệ thống</option>
-                </select>
-                <select v-model="filters.status" @change="loadComplaints">
-                    <option value="">Tất cả trạng thái</option>
-                    <option
-                        v-for="item in statuses"
-                        :key="item.value"
-                        :value="item.value"
-                    >
-                        {{ item.label }}
-                    </option>
-                </select>
-                <select v-model="filters.assigned_to" @change="loadComplaints">
-                    <option value="">Tất cả người xử lý</option>
-                    <option value="unassigned">Chưa phân công</option>
-                    <option
-                        v-for="member in staff"
-                        :key="member.id"
-                        :value="member.id"
-                    >
-                        {{ member.full_name }}
-                    </option>
-                </select>
-                <input
-                    v-model="filters.date_from"
-                    type="date"
-                    aria-label="Từ ngày"
-                    @change="loadComplaints"
-                />
-                <input
-                    v-model="filters.date_to"
-                    type="date"
-                    aria-label="Đến ngày"
-                    :min="filters.date_from || undefined"
-                    @change="loadComplaints"
-                />
-                <ActionIconButton
-                    icon="filter"
-                    label="Lọc danh sách"
-                    variant="primary"
-                    @click="loadComplaints"
-                />
-                <ActionIconButton
-                    icon="refresh"
-                    label="Tải lại"
-                    :disabled="loading"
-                    @click="loadComplaints"
-                />
-            </div>
-        </section>
+
 
         <div v-if="loading" class="empty-state">
             Đang tải danh sách khiếu nại...

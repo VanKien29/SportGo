@@ -5,39 +5,6 @@
       <p class="subtitle">Thêm và cập nhật các thông báo, sự kiện, hướng dẫn cho Khách hàng</p>
     </div>
 
-    <div class="toolbar card">
-      <div class="filters">
-        <label class="field compact">
-          <span>Tìm kiếm</span>
-          <input
-            v-model="filters.keyword"
-            type="search"
-            placeholder="Tiêu đề bài viết..."
-            @input="onFilterChange"
-          />
-        </label>
-        <label class="field compact">
-          <span>Danh mục</span>
-          <select v-model="filters.category" @change="loadPosts(1)">
-            <option value="">Tất cả danh mục</option>
-            <option value="announcement">Thông báo</option>
-            <option value="guide">Hướng dẫn</option>
-            <option value="news">Tin tức</option>
-            <option value="event">Sự kiện</option>
-          </select>
-        </label>
-        <label class="field compact">
-          <span>Trạng thái</span>
-          <select v-model="filters.status" @change="loadPosts(1)">
-            <option value="">Tất cả trạng thái</option>
-            <option value="published">Đã xuất bản</option>
-            <option value="draft">Bản nháp</option>
-            <option value="hidden">Đã ẩn</option>
-          </select>
-        </label>
-      </div>
-    </div>
-
     <div v-if="loading" class="state-box card">
       <div class="spinner"></div>
       <p>Đang tải bài viết...</p>
@@ -400,7 +367,7 @@ export default {
 
 <style scoped>
 .admin-system-posts-page {
-  padding: 24px;
+  padding: 10px;
 }
 .page-header {
   margin-bottom: 24px;
