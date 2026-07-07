@@ -88,20 +88,37 @@
             </div>
 
             <div class="app-list-actions">
-              <button type="button" class="btn btn-secondary action-detail icon-only" title="Xem chi tiết" @click="openApplicationDetail(application)">
-                <AppIcon name="eye" size="16" />
-              </button>
-              <button v-if="needsApplicationSignature(application)" type="button" class="btn btn-secondary action-document icon-only" title="Ký đơn đăng ký" @click="openApplicationDocument(applicationWord(application), application)">
-                <AppIcon name="edit" size="16" />
-              </button>
-              <button v-if="needsContractSignature(application)" type="button" class="btn btn-primary icon-only" title="Ký Hợp đồng" @click="openApplicationDocument(contractWord(application), application)">
+              <button v-if="needsChangeAppendixSignature(application)" type="button" class="btn btn-primary" title="Ky phu luc hop dong" @click="openApplicationDocument(changeAppendixWord(application), application)">
                 <AppIcon name="fileText" size="16" />
+                Ky phu luc
               </button>
-              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary action-submit icon-only" title="Gửi hồ sơ" @click="submitSignedApplication(application)">
+              <button type="button" class="btn btn-secondary action-detail" title="Xem chi tiết" @click="openApplicationDetail(application)">
+                <AppIcon name="eye" size="16" />
+                Chi tiết
+              </button>
+              <button v-if="application.status === 'need_supplement'" type="button" class="btn btn-primary action-document" title="Bổ sung/chỉnh sửa hồ sơ" @click="editApplication(application)">
+                <AppIcon name="edit" size="16" />
+                Bổ sung
+              </button>
+              <button v-if="application.status === 'rejected'" type="button" class="btn btn-secondary action-document" title="Tạo bản sao hồ sơ đăng ký" @click="duplicateApplication(application)">
+                <AppIcon name="copy" size="16" />
+                Tạo bản sao
+              </button>
+              <button v-if="needsApplicationSignature(application)" type="button" class="btn btn-secondary action-document" title="Ký đơn đăng ký" @click="openApplicationDocument(applicationWord(application), application)">
+                <AppIcon name="edit" size="16" />
+                Ký đơn
+              </button>
+              <button v-if="needsContractSignature(application)" type="button" class="btn btn-primary" title="Ký hợp đồng" @click="openApplicationDocument(contractWord(application), application)">
+                <AppIcon name="fileText" size="16" />
+                Ký hợp đồng
+              </button>
+              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary action-submit" title="Gửi hồ sơ" @click="submitSignedApplication(application)">
                 <AppIcon name="send" size="16" />
+                Gửi hồ sơ
               </button>
-              <button v-if="canCancel(application)" type="button" class="btn btn-outline action-cancel icon-only" title="Hủy hồ sơ" @click="cancelApplication(application)">
+              <button v-if="canCancel(application)" type="button" class="btn btn-outline action-cancel" title="Hủy hồ sơ" @click="cancelApplication(application)">
                 <AppIcon name="trash" size="16" />
+                Hủy
               </button>
             </div>
           </article>
@@ -132,7 +149,7 @@
                       <input v-model.trim="form.applicant_full_name" :class="inputClass(fieldErrors.applicant_full_name)" />
                     </FormField>
                     <FormField label="Số điện thoại" required :error="fieldErrors.applicant_phone">
-                      <input v-model.trim="form.applicant_phone" :class="inputClass(fieldErrors.applicant_phone)" inputmode="tel" @input="normalizePhone('applicant_phone')" />
+                      <input v-model.trim="form.applicant_phone" :class="inputClass(fieldErrors.applicant_phone)" inputmode="tel" @input="sanitizePhoneCharacters('applicant_phone')" />
                     </FormField>
                     <FormField label="Email" required :error="fieldErrors.applicant_email">
                       <input v-model.trim="form.applicant_email" :class="inputClass(fieldErrors.applicant_email)" type="email" />
@@ -170,7 +187,7 @@
                       <input v-model.trim="form.business_name" :class="inputClass(fieldErrors.business_name)" />
                     </FormField>
                     <FormField label="Mã số thuế" :error="fieldErrors.tax_code">
-                      <input v-model.trim="form.tax_code" :class="inputClass(fieldErrors.tax_code)" @input="normalizeTaxCode" />
+                      <input v-model.trim="form.tax_code" :class="inputClass(fieldErrors.tax_code)" inputmode="numeric" @input="normalizeTaxCode" />
                     </FormField>
                     <FormField label="Số giấy đăng ký kinh doanh/pháp lý" required :error="fieldErrors.business_license_number">
                       <input v-model.trim="form.business_license_number" :class="inputClass(fieldErrors.business_license_number)" />
@@ -205,9 +222,28 @@
                       <input v-model.trim="form.venue_map_url" :class="inputClass(mapError || fieldErrors.venue_map_url)" placeholder="Dán link Google Maps có tọa độ" @input="onMapUrlInput" />
                       <div v-if="mapSuggestion" style="margin-top: 8px; background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px;">
                         <p style="font-size: 13px; color: #92400e; margin-bottom: 8px;">{{ mapSuggestion.message }}</p>
-                        <button type="button" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;" @click="applyMapSuggestion">Cập nhật theo Google Maps</button>
+                        <button v-if="mapSuggestion.province_code || mapSuggestion.ward_code" type="button" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;" @click="applyMapSuggestion">Cập nhật theo Google Maps</button>
                       </div>
                       <p v-else-if="mapStatus" style="margin-top: 4px; font-size: 13px; color: #059669;">{{ mapStatus }}</p>
+                    </FormField>
+                    <FormField class="full-width" label="Chọn vị trí trên bản đồ" required :error="fieldErrors.venue_coordinates">
+                      <div class="map-picker-shell">
+                        <div id="partner-application-map" class="map-picker"></div>
+                        <div class="map-coordinate-grid">
+                          <label :class="{ invalid: fieldErrors.venue_latitude }">
+                            <span>Vĩ độ</span>
+                            <input v-model.trim="form.venue_latitude" :class="inputClass(fieldErrors.venue_latitude)" inputmode="decimal" @input="sanitizeCoordinate('venue_latitude')" />
+                          </label>
+                          <label :class="{ invalid: fieldErrors.venue_longitude }">
+                            <span>Kinh độ</span>
+                            <input v-model.trim="form.venue_longitude" :class="inputClass(fieldErrors.venue_longitude)" inputmode="decimal" @input="sanitizeCoordinate('venue_longitude')" />
+                          </label>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" style="margin-top: 8px; margin-bottom: 8px;" @click="getCurrentLocation">
+                          📍 Lấy vị trí hiện tại
+                        </button>
+                        <p class="map-help">Click trên bản đồ hoặc kéo marker để chọn tọa độ cụm sân. Link Google Maps nếu có tọa độ sẽ tự đặt marker.</p>
+                      </div>
                     </FormField>
                     <input type="hidden" :value="form.venue_latitude" name="venue_latitude" />
                     <input type="hidden" :value="form.venue_longitude" name="venue_longitude" />
@@ -216,7 +252,7 @@
                       <input v-model.trim="form.venue_name" :class="inputClass(fieldErrors.venue_name)" />
                     </FormField>
                     <FormField label="Số điện thoại tại sân" required :error="fieldErrors.venue_phone">
-                      <input v-model.trim="form.venue_phone" :class="inputClass(fieldErrors.venue_phone)" inputmode="tel" @input="normalizePhone('venue_phone')" />
+                      <input v-model.trim="form.venue_phone" :class="inputClass(fieldErrors.venue_phone)" inputmode="tel" @input="sanitizePhoneCharacters('venue_phone')" />
                     </FormField>
                     <FormField label="Giờ mở cửa dự kiến" :error="fieldErrors.expected_opening_hours">
                       <input v-model.trim="form.expected_opening_hours" :class="inputClass(fieldErrors.expected_opening_hours)" placeholder="05:00 - 23:00" />
@@ -230,10 +266,10 @@
                 <FormSection title="Cấu hình sân con" style="margin-top: 24px;">
                   <div class="form-grid">
                     <FormField label="Số lượng sân con" required :error="fieldErrors.court_count_total">
-                      <input v-model.number="form.court_count_total" :class="inputClass(fieldErrors.court_count_total)" type="number" min="1" max="100" @input="syncCourtRows" />
+                      <input v-model.trim="form.court_count_total" :class="inputClass(fieldErrors.court_count_total)" inputmode="numeric" @input="onCourtCountInput" />
                     </FormField>
                     <FormField label="Giá cơ bản/giờ (VNĐ)" required :error="fieldErrors.base_price_per_hour">
-                      <input v-model.number="form.base_price_per_hour" :class="inputClass(fieldErrors.base_price_per_hour)" type="number" min="1000" step="1000" />
+                      <input v-model.trim="form.base_price_per_hour" :class="inputClass(fieldErrors.base_price_per_hour)" inputmode="numeric" @input="sanitizeDigitsField('base_price_per_hour')" />
                     </FormField>
                   </div>
 
@@ -304,11 +340,12 @@
 
                 <FormSection title="Tài liệu đính kèm" style="margin-top: 24px;">
                   <div class="form-grid">
-                    <UploadBox title="CCCD/CMND người đại diện" required :files="files.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
-                    <UploadBox title="Giấy ĐKKD/Pháp lý" required :files="files.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
-                    <UploadBox title="Hình ảnh cơ sở/sân" required :files="files.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
-                    <UploadBox title="Chứng từ ngân hàng" required :files="files.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
-                    <UploadBox title="Hợp đồng thuê mặt bằng" required :files="files.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
+                    <UploadBox :key="`identity-${uploadResetKey}`" title="CCCD/CMND người đại diện" required :files="files.identity" :existing-files="existingDocuments.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
+                    <UploadBox :key="`business-${uploadResetKey}`" title="Giấy ĐKKD/Pháp lý" required :files="files.business_license" :existing-files="existingDocuments.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
+                    <UploadBox :key="`facility-${uploadResetKey}`" title="Hình ảnh cơ sở/sân" required :files="files.facility" :existing-files="existingDocuments.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
+                    <UploadBox :key="`bank-${uploadResetKey}`" title="Chứng từ ngân hàng" required :files="files.bank" :existing-files="existingDocuments.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
+                    <UploadBox :key="`lease-${uploadResetKey}`" title="Hợp đồng thuê mặt bằng" required :files="files.lease" :existing-files="existingDocuments.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
+                    <UploadBox :key="`additional-${uploadResetKey}`" title="Giấy tờ khác" :files="files.additional" :existing-files="existingDocuments.additional" :error="fieldErrors.additional_documents" @change="setFiles('additional', $event)" @remove="removeFile('additional', $event)" />
                   </div>
                 </FormSection>
 
@@ -348,14 +385,104 @@
 <style scoped>
 @import "../../../css/partner/partner.css";
 
+.form-group {
+  min-width: 0;
+}
+
+.form-group :deep(.combo-wrapper) {
+  width: 100%;
+}
+
+.form-group input:not([type="checkbox"]):not([type="radio"]),
+.form-group textarea,
+:deep(.form-select) {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.form-group textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.form-group input:not([type="checkbox"]):not([type="radio"]):focus,
+.form-group textarea:focus,
+:deep(.form-select:focus) {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, .16);
+}
+
+.form-group input.border-red-400,
+.form-group textarea.has-error,
+:deep(.form-select.has-error) {
+  border-color: #f87171;
+}
+
+.map-picker-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.map-picker {
+  min-height: 320px;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #eef2f7;
+}
+
+.map-coordinate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.map-coordinate-grid label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.map-coordinate-grid label.invalid input {
+  border-color: #f87171;
+}
+
+.map-help {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .map-coordinate-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 </style>
-
 <script setup>
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import PublicNavbar from '../../components/PublicNavbar.vue';
 import FloatingActions from '../../components/FloatingActions.vue';
 import BackButton from '../../components/BackButton.vue';
@@ -406,6 +533,7 @@ const FormField = defineComponent({
 });
 
 // ─── State ───────────────────────────────────────────────────────────────────
+const route = useRoute();
 const router = useRouter();
 const user = getAuth();
 
@@ -422,12 +550,20 @@ const banks = ref([]);
 const courtTypes = ref([]);
 const amenities = ref([]);
 const files = reactive(blankFiles());
+const existingDocuments = reactive(blankExistingDocuments());
+const uploadResetKey = ref(0);
 const confirmed = ref(false);
 const submitting = ref(false);
 const mapError = ref('');
 const mapStatus = ref('');
 const mapSuggestion = ref(null);
 const mapTimer = ref(null);
+const mapInstance = ref(null);
+const mapMarker = ref(null);
+const mapReverseBusy = ref(false);
+const editingApplicationId = ref('');
+const editingApplicationStatus = ref('');
+const existingDocumentTypes = ref(new Set());
 
 // ─── Static options ───────────────────────────────────────────────────────────
 const applicantTypeOptions = [
@@ -456,17 +592,33 @@ onMounted(async () => {
   if (!user) { router.replace({ name: 'login' }); return; }
   loadDraft();
   await Promise.all([loadApplications(), loadBanks(), loadProvinces(), loadCourtTypes(), loadAmenities()]);
+  await openDraftFromRoute();
 });
 
 onBeforeUnmount(() => {
   clearTimeout(bankTimer.value);
   clearTimeout(mapTimer.value);
+  destroyMapPicker();
 });
 
 watch(() => form.venue_province_code, async (code, old) => {
   if (code !== old) { form.venue_ward_code = ''; wards.value = []; await loadWards(code); syncVenueAddress(); }
 });
 watch(() => form.venue_ward_code, syncVenueAddress);
+watch(formOpen, async (open) => {
+  if (open) {
+    await nextTick();
+    initMapPicker();
+    return;
+  }
+  destroyMapPicker();
+});
+watch(() => [form.venue_latitude, form.venue_longitude], updateMapPickerMarker);
+watch(() => route.query.editDraft, async () => {
+  if (route.name === 'partner-application') {
+    await openDraftFromRoute();
+  }
+});
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function defaultForm(authUser) {
@@ -488,6 +640,7 @@ function defaultForm(authUser) {
 }
 
 function blankFiles() { return { identity: [], business_license: [], facility: [], bank: [], lease: [], additional: [] }; }
+function blankExistingDocuments() { return { identity: [], business_license: [], facility: [], bank: [], lease: [], additional: [] }; }
 function localId() { return `local-${Math.random().toString(36).slice(2)}-${Date.now()}`; }
 
 function normalizeList(data) {
@@ -521,24 +674,37 @@ async function loadCourtTypes() { const r = await api('/api/court-types'); court
 async function loadAmenities() { const r = await api('/api/amenities?active_only=1'); amenities.value = normalizeList(r.data); }
 
 // ─── Form lifecycle ───────────────────────────────────────────────────────────
-function startNewApplication() { resetForm(defaultForm(user)); formOpen.value = true; }
+function startNewApplication() {
+  editingApplicationId.value = '';
+  editingApplicationStatus.value = '';
+  existingDocumentTypes.value = new Set();
+  resetForm(defaultForm(user));
+  formOpen.value = true;
+}
 
 function resetForm(next) {
   Object.assign(form, next);
   Object.assign(files, blankFiles());
+  Object.assign(existingDocuments, blankExistingDocuments());
+  uploadResetKey.value += 1;
   clearErrors();
   formBanner.value = '';
   confirmed.value = false;
   mapError.value = '';
   mapStatus.value = '';
   mapSuggestion.value = null;
+  mapReverseBusy.value = false;
+}
+
+function persistDraft(showMessage = false) {
+  const payload = { ...form, editing_application_id: editingApplicationId.value || '', saved_at: new Date().toISOString() };
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+  draft.value = payload;
+  if (showMessage) formBanner.value = '�? l�u nh�p h? s� tr�n tr?nh duy?t.';
 }
 
 function saveDraft() {
-  const payload = { ...form, saved_at: new Date().toISOString() };
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
-  draft.value = payload;
-  formBanner.value = 'Đã lưu nháp hồ sơ trên trình duyệt.';
+  persistDraft(true);
 }
 
 function loadDraft() {
@@ -547,32 +713,188 @@ function loadDraft() {
 
 async function continueDraft() {
   if (!draft.value) return;
+  editingApplicationId.value = draft.value.editing_application_id || editingApplicationId.value || '';
   resetForm({ ...defaultForm(user), ...draft.value });
   formOpen.value = true;
   if (form.venue_province_code) await loadWards(form.venue_province_code);
 }
 
-function clearDraft() { localStorage.removeItem(DRAFT_KEY); draft.value = null; }
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+  draft.value = null;
+  editingApplicationId.value = '';
+  editingApplicationStatus.value = '';
+  existingDocumentTypes.value = new Set();
+}
+
+async function openDraftFromRoute() {
+  const id = route.query.editDraft ? String(route.query.editDraft) : '';
+  if (!id) return;
+
+  const application = applications.value.find((item) => String(item.id) === id);
+  if (application && ['draft', 'need_supplement'].includes(application.status)) {
+    editingApplicationId.value = id;
+    loadApplicationIntoForm(application);
+    formOpen.value = true;
+    if (form.venue_province_code) await loadWards(form.venue_province_code);
+    syncVenueAddress();
+    formBanner.value = application.status === 'need_supplement'
+      ? 'Bạn đang bổ sung hồ sơ theo yêu cầu của SportGo. Bấm gửi để hệ thống tạo lại đơn đăng ký mới.'
+      : 'Bạn đang sửa bản nháp. Bấm gửi để hệ thống tạo lại đơn đăng ký mới.';
+    return;
+  }
+
+  if (draft.value) {
+    editingApplicationId.value = id;
+    await continueDraft();
+  }
+}
+
+async function editApplication(application) {
+  if (!application) return;
+  editingApplicationId.value = application.id;
+  loadApplicationIntoForm(application);
+  formOpen.value = true;
+  if (form.venue_province_code) await loadWards(form.venue_province_code);
+  syncVenueAddress();
+  formBanner.value = 'Bạn đang bổ sung/chỉnh sửa hồ sơ. Sau khi gửi, hệ thống sẽ tạo lại đơn đăng ký để bạn xem và ký lại.';
+}
+
+async function duplicateApplication(application) {
+  if (!application) return;
+  editingApplicationId.value = '';
+  editingApplicationStatus.value = '';
+  loadApplicationIntoForm(application);
+  editingApplicationStatus.value = '';
+  existingDocumentTypes.value = new Set();
+  Object.assign(existingDocuments, blankExistingDocuments());
+  uploadResetKey.value += 1;
+  confirmed.value = false;
+  formOpen.value = true;
+  if (form.venue_province_code) await loadWards(form.venue_province_code);
+  syncVenueAddress();
+  formBanner.value = 'Đã tạo bản sao thông tin từ hồ sơ bị từ chối. Vui lòng kiểm tra, tải lại giấy tờ bắt buộc và gửi hồ sơ mới.';
+}
+
+function loadApplicationIntoForm(application) {
+  const savedDocuments = application.documents || application.uploaded_documents || [];
+  const activeSavedDocuments = savedDocuments.filter((doc) => doc.status !== 'rejected');
+  editingApplicationStatus.value = application.status || '';
+  existingDocumentTypes.value = new Set(activeSavedDocuments.map((doc) => doc.document_type));
+  resetForm({
+    ...defaultForm(user),
+    applicant_full_name: application.applicant_full_name || '',
+    applicant_phone: application.applicant_phone || '',
+    applicant_email: application.applicant_email || '',
+    applicant_birth_date: dateInputValue(application.applicant_birth_date),
+    applicant_address: application.applicant_address || '',
+    applicant_type: application.applicant_type || 'individual',
+    representative_name: application.representative_name || '',
+    representative_identity_type: application.representative_identity_type || 'cccd',
+    representative_identity_number: application.representative_identity_number || '',
+    representative_identity_issued_date: dateInputValue(application.representative_identity_issued_date),
+    representative_identity_issued_place: application.representative_identity_issued_place || '',
+    representative_position: application.representative_position || 'Chủ cơ sở',
+    business_name: application.business_name || '',
+    tax_code: application.tax_code || '',
+    business_code: application.business_code || '',
+    business_license_number: application.business_license_number || '',
+    business_address: application.business_address || '',
+    venue_name: application.venue_name || '',
+    street_address: streetFromVenueAddress(application),
+    venue_address: application.venue_address || '',
+    venue_province_code: application.venue_province_code || '',
+    venue_ward_code: application.venue_ward_code || '',
+    venue_map_url: application.venue_map_url || '',
+    venue_latitude: application.venue_latitude || '',
+    venue_longitude: application.venue_longitude || '',
+    venue_phone: application.venue_phone || '',
+    venue_email: application.venue_email || '',
+    venue_description: application.venue_description || '',
+    expected_opening_hours: application.expected_opening_hours || '05:00 - 23:00',
+    parking_info: application.parking_info || '',
+    amenities: Array.isArray(application.amenities) ? application.amenities : [],
+    court_count_total: application.court_count_total || Math.max(1, (application.courts || []).length),
+    base_price_per_hour: application.base_price_per_hour || '',
+    courts: applicationCourtsForForm(application),
+    bank_name: application.bank_name || '',
+    bank_code: application.bank_code || '',
+    bank_bin: '',
+    account_number: application.account_number || '',
+    account_holder_name: application.account_holder_name || '',
+    bank_branch: application.bank_branch || '',
+  });
+  Object.assign(existingDocuments, groupExistingDocuments(savedDocuments));
+  confirmed.value = true;
+}
+
+function groupExistingDocuments(documents = []) {
+  const groups = blankExistingDocuments();
+  documents.forEach((document) => {
+    const group = document.document_type || document.document_group;
+    if (groups[group]) groups[group].push(document);
+  });
+  return groups;
+}
+
+function dateInputValue(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value).slice(0, 10) : date.toISOString().slice(0, 10);
+}
+
+function streetFromVenueAddress(application) {
+  const address = application.venue_address || '';
+  const ward = application.venue_ward || '';
+  const province = application.venue_province || '';
+  return address
+    .replace(ward ? `, ${ward}` : '', '')
+    .replace(province ? `, ${province}` : '', '')
+    .trim()
+    .replace(/,\s*$/, '');
+}
+
+function applicationCourtsForForm(application) {
+  const rows = (application.courts || []).map((court, index) => ({
+    local_id: localId(),
+    name: court.name || `S�n ${index + 1}`,
+    court_type_id: court.court_type_id || '',
+    note: court.note || '',
+  }));
+
+  return rows.length ? rows : [{ local_id: localId(), name: 'S�n 1', court_type_id: '', note: '' }];
+}
 
 // ─── Input handlers ───────────────────────────────────────────────────────────
-function normalizePhone(field) {
+function sanitizePhoneCharacters(field) {
   let value = String(form[field] || '').replace(/[^\d+]/g, '');
   if (value.includes('+')) value = `+${value.replace(/\+/g, '')}`;
-  if (value.startsWith('+84')) value = `+84${value.slice(3).replace(/\D/g, '').slice(0, 9)}`;
-  else value = value.replace(/\D/g, '').slice(0, 10);
   form[field] = value;
 }
 
 function normalizeIdentityNumber() {
   const v = String(form.representative_identity_number || '');
-  form.representative_identity_number = form.representative_identity_type === 'passport' ? v.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 20) : v.replace(/\D/g, '').slice(0, 12);
+  form.representative_identity_number = form.representative_identity_type === 'passport' ? v.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : v.replace(/\D/g, '');
 }
 
-function normalizeTaxCode() { form.tax_code = String(form.tax_code || '').replace(/[^\d-]/g, '').slice(0, 14); }
+function normalizeTaxCode() { form.tax_code = String(form.tax_code || '').replace(/[^\d-]/g, ''); }
 
 // ─── Bank verification ────────────────────────────────────────────────────────
 function selectBank(bank) { form.bank_name = bank?.short_name || bank?.name || ''; form.bank_bin = bank?.bin || ''; }
-function onAccountNumberInput() { form.account_number = String(form.account_number || '').replace(/\D/g, '').slice(0, 19); }
+function onAccountNumberInput() { sanitizeDigitsField('account_number'); }
+function sanitizeDigitsField(field) { form[field] = String(form[field] || '').replace(/\D/g, ''); }
+function onCourtCountInput() {
+  sanitizeDigitsField('court_count_total');
+  const total = Number(form.court_count_total);
+  if (Number.isInteger(total) && total >= 1 && total <= 100) syncCourtRows();
+}
+function sanitizeCoordinate(field) {
+  let value = String(form[field] || '').replace(/[^0-9.-]/g, '');
+  value = value.replace(/(?!^)-/g, '');
+  const parts = value.split('.');
+  if (parts.length > 2) value = `${parts.shift()}.${parts.join('')}`;
+  form[field] = value;
+}
 function onManualBankHolderInput() {
   form.account_holder_name = String(form.account_holder_name || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
 }
@@ -584,6 +906,109 @@ function syncVenueAddress() {
   const province = provinces.value.find((p) => String(p.code) === String(form.venue_province_code))?.name;
   const ward = wards.value.find((w) => String(w.code) === String(form.venue_ward_code))?.name;
   form.venue_address = [form.street_address, ward, province].filter(Boolean).join(', ');
+  if (
+    mapSuggestion.value
+    && (!mapSuggestion.value.province_code || String(mapSuggestion.value.province_code) === String(form.venue_province_code))
+    && (!mapSuggestion.value.ward_code || String(mapSuggestion.value.ward_code) === String(form.venue_ward_code))
+  ) {
+    mapSuggestion.value = null;
+    mapStatus.value = 'Đã cập nhật địa chỉ theo tọa độ bản đồ.';
+  }
+}
+
+function initMapPicker() {
+  if (mapInstance.value) return;
+  const container = document.getElementById('partner-application-map');
+  if (!container) return;
+  const lat = validLatitude(form.venue_latitude) ? Number(form.venue_latitude) : 21.0285;
+  const lng = validLongitude(form.venue_longitude) ? Number(form.venue_longitude) : 105.8542;
+  const DefaultIcon = L.icon({
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
+  L.Marker.prototype.options.icon = DefaultIcon;
+  mapInstance.value = L.map(container, { scrollWheelZoom: false }).setView([lat, lng], 15);
+  L.tileLayer('https://mt1.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}', {
+    attribution: '&copy; Google Maps',
+    maxZoom: 20,
+  }).addTo(mapInstance.value);
+  mapMarker.value = L.marker([lat, lng], { draggable: true }).addTo(mapInstance.value);
+  mapMarker.value.on('dragend', (event) => applyPickedCoordinates(event.target.getLatLng()));
+  mapInstance.value.on('click', (event) => applyPickedCoordinates(event.latlng));
+  setTimeout(() => mapInstance.value?.invalidateSize(), 150);
+}
+
+function destroyMapPicker() {
+  if (!mapInstance.value) return;
+  mapInstance.value.remove();
+  mapInstance.value = null;
+  mapMarker.value = null;
+}
+
+function getCurrentLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        applyPickedCoordinates({ lat, lng });
+        if (mapInstance.value) {
+          mapInstance.value.setView([lat, lng], 15);
+          if (mapMarker.value) mapMarker.value.setLatLng([lat, lng]);
+        }
+      },
+      () => {
+        alert('Không thể lấy được vị trí. Vui lòng kiểm tra quyền truy cập vị trí của trình duyệt.');
+      }
+    );
+  } else {
+    alert('Trình duyệt của bạn không hỗ trợ tính năng định vị.');
+  }
+}
+
+function applyPickedCoordinates(point) {
+  const lat = Number(point.lat).toFixed(7);
+  const lng = Number(point.lng).toFixed(7);
+  form.venue_latitude = lat;
+  form.venue_longitude = lng;
+  form.venue_map_url = googleMapsPointUrl(lat, lng);
+  mapStatus.value = 'Đã chọn tọa độ trên bản đồ, đang cập nhật địa chỉ...';
+  mapError.value = '';
+  mapSuggestion.value = null;
+  delete fieldErrors.venue_coordinates;
+  delete fieldErrors.venue_latitude;
+  delete fieldErrors.venue_longitude;
+  delete fieldErrors.venue_map_url;
+  reverseCoordinates(lat, lng, { overwriteStreet: true, applyLocation: true });
+}
+
+function googleMapsPointUrl(lat, lng) {
+  return `https://www.google.com/maps?q=${lat},${lng}`;
+}
+
+function updateMapPickerMarker() {
+  if (!mapInstance.value || !mapMarker.value) return;
+  if (!validLatitude(form.venue_latitude) || !validLongitude(form.venue_longitude)) return;
+  const lat = Number(form.venue_latitude);
+  const lng = Number(form.venue_longitude);
+  const current = mapMarker.value.getLatLng();
+  if (Math.abs(current.lat - lat) < 0.000001 && Math.abs(current.lng - lng) < 0.000001) return;
+  mapMarker.value.setLatLng([lat, lng]);
+  mapInstance.value.setView([lat, lng], mapInstance.value.getZoom() || 15);
+}
+
+function validLatitude(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= -90 && number <= 90;
+}
+
+function validLongitude(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= -180 && number <= 180;
 }
 
 function onMapUrlInput() {
@@ -602,11 +1027,21 @@ async function resolveMapUrl() {
   try {
     const r = await api('/api/user/partner-application/resolve-map', { method: 'POST', body: JSON.stringify({ url: urlToResolve }) });
     const resolved = r.data || {};
-    if (resolved.latitude && resolved.longitude) { form.venue_latitude = resolved.latitude; form.venue_longitude = resolved.longitude; compareResolvedAddress(resolved); return; }
+    if (resolved.latitude && resolved.longitude) {
+      form.venue_map_url = resolved.final_url || urlToResolve;
+      form.venue_latitude = Number(resolved.latitude).toFixed(7);
+      form.venue_longitude = Number(resolved.longitude).toFixed(7);
+      await compareResolvedAddress(resolved, { overwriteStreet: false, applyLocation: false });
+      return;
+    }
   } catch (e) { console.error('Lỗi phân giải map:', e); }
   const coords = extractCoordinates(urlToResolve);
   if (!coords && !form.venue_latitude) { mapStatus.value = ''; mapError.value = 'Không lấy được tọa độ từ link Google Maps này. Vui lòng dùng link đầy đủ có tọa độ.'; return; }
-  if (coords) { form.venue_latitude = coords.latitude; form.venue_longitude = coords.longitude; mapStatus.value = 'Đã lấy tọa độ từ link. Vui lòng tự chọn Tỉnh/Thành phố và nhập địa chỉ bên trên.'; }
+  if (coords) {
+    form.venue_latitude = Number(coords.latitude).toFixed(7);
+    form.venue_longitude = Number(coords.longitude).toFixed(7);
+    await reverseCoordinates(form.venue_latitude, form.venue_longitude, { overwriteStreet: false, applyLocation: false });
+  }
 }
 
 function extractCoordinates(url) {
@@ -617,20 +1052,50 @@ function extractCoordinates(url) {
   return null;
 }
 
-function compareResolvedAddress(resolved) {
+async function reverseCoordinates(latitude, longitude, options = {}) {
+  if (!validLatitude(latitude) || !validLongitude(longitude)) return;
+  mapReverseBusy.value = true;
+  try {
+    const r = await api('/api/user/partner-application/reverse-map', {
+      method: 'POST',
+      body: JSON.stringify({ latitude, longitude }),
+    });
+    await compareResolvedAddress(r.data || {}, options);
+  } catch (e) {
+    mapStatus.value = '';
+    mapSuggestion.value = { province_code: '', ward_code: '', message: 'Kh�ng x�c minh ��?c T?nh/Th�nh ph? v� Ph�?ng/X? t? t?a �? n�y. Vui l?ng ch?n l?i v? tr� r? h�n tr�n b?n �?.' };
+  } finally {
+    mapReverseBusy.value = false;
+  }
+}
+
+function streetFromAddress(address) {
+  return String(address || '').split(',').map((part) => part.trim()).filter(Boolean)[0] || '';
+}
+
+async function compareResolvedAddress(resolved, options = {}) {
   const rp = resolved.province_code || '', rw = resolved.ward_code || '';
   const pc = rp && rp !== form.venue_province_code, wc = rw && rw !== form.venue_ward_code;
-  if (resolved.address && !form.street_address) form.street_address = resolved.address.split(',')[0] || '';
+  if (resolved.address && (options.overwriteStreet || !form.street_address)) form.street_address = streetFromAddress(resolved.address);
+
+  if (!rp || !rw) {
+    mapStatus.value = '';
+    mapSuggestion.value = { province_code: rp, ward_code: rw, message: 'Kh�ng x�c �?nh ��?c T?nh/Th�nh ph? v� Ph�?ng/X? t? t?a �? n�y. Vui l?ng ch?n l?i v? tr� r? h�n tr�n b?n �?.' };
+    return;
+  }
   
-  if (!form.venue_province_code && rp) {
+  if ((options.applyLocation || !form.venue_province_code) && rp) {
     form.venue_province_code = rp;
-    loadWards(rp).then(() => { if (rw) form.venue_ward_code = rw; });
-    mapStatus.value = 'Đã tự động điền địa chỉ từ Google Maps.';
+    await loadWards(rp);
+    if (rw) form.venue_ward_code = rw;
+    syncVenueAddress();
+    mapStatus.value = 'Đã cập nhật địa chỉ theo tọa độ trên bản đồ.';
     return;
   }
   if (!pc && !wc) {
-    if (!form.venue_province_code) mapStatus.value = 'Đã lấy tọa độ và địa chỉ đường. Vui lòng tự chọn Tỉnh/Thành phố.';
-    else mapStatus.value = 'Vị trí Google Maps khớp với địa chỉ đã chọn.';
+    syncVenueAddress();
+    if (!form.venue_province_code) mapStatus.value = 'Đã lấy tọa độ và địa chỉ đường. Vui lòng chọn Tỉnh/Thành phố.';
+    else mapStatus.value = 'Vị trí bản đồ khớp với địa chỉ đã chọn.';
     return;
   }
   const cur = [wards.value.find((w) => String(w.code) === String(form.venue_ward_code))?.name, provinces.value.find((p) => String(p.code) === String(form.venue_province_code))?.name].filter(Boolean).join(', ') || 'chưa chọn';
@@ -656,6 +1121,13 @@ function removeCourt(index) { if (form.courts.length <= 1) return; form.courts.s
 // ─── Files ────────────────────────────────────────────────────────────────────
 function setFiles(group, event) { files[group] = Array.from(event.target.files || []); }
 function removeFile(group, index) { files[group].splice(index, 1); }
+function hasDocumentForGroup(group) {
+  if (editingApplicationStatus.value === 'need_supplement' && group !== 'additional') {
+    return files[group]?.length > 0;
+  }
+
+  return files[group]?.length > 0 || existingDocumentTypes.value.has(group);
+}
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 function validateForm() {
@@ -688,15 +1160,33 @@ function validateForm() {
   if (form.venue_phone && !/^(0\d{9}|\+84\d{9})$/.test(form.venue_phone)) fieldErrors.venue_phone = 'Số điện thoại sân phải có 10 số và bắt đầu bằng 0 hoặc +84.';
   if (form.applicant_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.applicant_email)) fieldErrors.applicant_email = 'Email không đúng định dạng.';
   if (form.venue_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.venue_email)) fieldErrors.venue_email = 'Email sân không đúng định dạng.';
+  if (form.tax_code && !/^\d{10}(-?\d{3})?$/.test(form.tax_code)) fieldErrors.tax_code = 'Mã số thuế phải gồm 10 số hoặc 13 số, có thể có dấu gạch ngang sau 10 số.';
+  if (form.account_number && !/^\d+$/.test(form.account_number)) fieldErrors.account_number = 'Số tài khoản chỉ được nhập chữ số.';
   if (!isValidIdentity()) fieldErrors.representative_identity_number = 'Số giấy tờ không đúng định dạng đã chọn.';
-  if (!form.venue_latitude || !form.venue_longitude) fieldErrors.venue_map_url = 'Vui lòng dùng link Google Maps có tọa độ hợp lệ.';
+  if (!validLatitude(form.venue_latitude) || !validLongitude(form.venue_longitude)) {
+    fieldErrors.venue_map_url = 'Vui lòng dùng link Google Maps có tọa độ hợp lệ hoặc chọn vị trí trên bản đồ.';
+    fieldErrors.venue_coordinates = 'Vui lòng chọn vị trí hợp lệ trên bản đồ.';
+    if (!validLatitude(form.venue_latitude)) fieldErrors.venue_latitude = 'Vĩ độ phải từ -90 đến 90.';
+    if (!validLongitude(form.venue_longitude)) fieldErrors.venue_longitude = 'Kinh độ phải từ -180 đến 180.';
+  }
+  if (mapSuggestion.value) {
+    fieldErrors.venue_ward_code = 'Phường/Xã đang chọn chưa khớp với tọa độ bản đồ. Vui lòng bấm “Cập nhật theo Google Maps” hoặc chọn lại vị trí.';
+    fieldErrors.venue_coordinates = 'Tọa độ bản đồ chưa khớp với địa chỉ đã chọn.';
+  }
+  if (mapReverseBusy.value) {
+    fieldErrors.venue_coordinates = 'H? th?ng �ang c?p nh?t �?a ch? theo t?a �?. Vui l?ng ch? ho�n t?t r?i g?i l?i.';
+  }
+  const courtCount = Number(form.court_count_total);
+  if (!Number.isInteger(courtCount) || courtCount < 1 || courtCount > 100) fieldErrors.court_count_total = 'Số lượng sân con phải từ 1 đến 100.';
+  const basePrice = Number(form.base_price_per_hour);
+  if (!Number.isFinite(basePrice) || basePrice < 1000) fieldErrors.base_price_per_hour = 'Giá cơ bản phải từ 1.000 VNĐ trở lên.';
   // if (!bankVerified.value && !bankManualMode.value) fieldErrors.account_number = bankError.value || 'Vui lòng chờ xác minh tài khoản ngân hàng thành công.';
   if (!form.account_holder_name) fieldErrors.account_holder_name = 'Vui lòng nhập tên chủ tài khoản.';
-  if (!files.identity.length) fieldErrors.identity_documents = 'Vui lòng tải lên CCCD/CMND.';
-  if (!files.business_license.length) fieldErrors.business_license_documents = 'Vui lòng tải lên giấy tờ pháp lý.';
-  if (!files.facility.length) fieldErrors.facility_images = 'Vui lòng tải lên hình ảnh cơ sở.';
-  if (!files.bank.length) fieldErrors.bank_documents = 'Vui lòng tải lên chứng từ ngân hàng.';
-  if (!files.lease.length) fieldErrors.lease_documents = 'Vui lòng tải lên hợp đồng hoặc giấy tờ thuê mặt bằng.';
+  if (!hasDocumentForGroup('identity')) fieldErrors.identity_documents = 'Vui lòng tải lên CCCD/CMND.';
+  if (!hasDocumentForGroup('business_license')) fieldErrors.business_license_documents = 'Vui lòng tải lên giấy tờ pháp lý.';
+  if (!hasDocumentForGroup('facility')) fieldErrors.facility_images = 'Vui lòng tải lên hình ảnh cơ sở.';
+  if (!hasDocumentForGroup('bank')) fieldErrors.bank_documents = 'Vui lòng tải lên chứng từ ngân hàng.';
+  if (!hasDocumentForGroup('lease')) fieldErrors.lease_documents = 'Vui lòng tải lên hợp đồng hoặc giấy tờ thuê mặt bằng.';
   if (!confirmed.value) fieldErrors.confirmed = 'Vui lòng xác nhận thông tin trước khi gửi.';
   form.courts.forEach((c, i) => {
     if (!c.name) fieldErrors[`courts.${i}.name`] = 'Vui lòng nhập tên sân.';
@@ -707,7 +1197,7 @@ function validateForm() {
 
 async function focusFirstError() {
   await nextTick();
-  const first = document.querySelector('.border-red-400, .border-red-300, .has-error');
+  const first = document.querySelector('.border-red-400, .border-red-300, .has-error, .upload-box--error, .form-error');
   if (first && typeof first.focus === 'function') first.focus({ preventScroll: false });
   first?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
 }
@@ -720,6 +1210,30 @@ function isValidIdentity() {
 }
 
 function clearErrors() { Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k]); }
+
+async function navigateToApplicationRoute(target) {
+  const href = router.resolve(target).href;
+  const absoluteHref = new URL(href, window.location.origin).toString();
+  if (target?.name && target.name !== 'partner-application') {
+    window.location.href = absoluteHref;
+    return;
+  }
+
+  try {
+    formOpen.value = false;
+    await router.push(target);
+    await nextTick();
+    window.setTimeout(() => {
+      const targetUrl = new URL(href, window.location.origin);
+      const stillPortalMounted = Boolean(document.querySelector('.partner-portal-page'));
+      if (stillPortalMounted && window.location.pathname === targetUrl.pathname) {
+        window.location.href = absoluteHref;
+      }
+    }, 80);
+  } catch (error) {
+    window.location.href = absoluteHref;
+  }
+}
 
 // ─── Submit ───────────────────────────────────────────────────────────────────
 async function submit() {
@@ -741,19 +1255,26 @@ async function submit() {
     files.bank.forEach((f) => formData.append('bank_documents[]', f));
     files.lease.forEach((f) => formData.append('lease_documents[]', f));
     files.additional.forEach((f) => formData.append('additional_documents[]', f));
-    const response = await apiFormData('/api/user/partner-application', formData);
-    clearDraft();
+    persistDraft(false);
+    const endpoint = editingApplicationId.value
+      ? `/api/user/partner-application/${editingApplicationId.value}/draft`
+      : '/api/user/partner-application';
+    const response = await apiFormData(endpoint, formData);
     const application = response.data;
+    editingApplicationId.value = application.id;
     const doc = applicationWord(application);
     if (doc) {
-      router.push({ name: 'partner-application-document', params: { id: application.id, documentId: doc.id } });
+      await navigateToApplicationRoute({ name: 'partner-application-document', params: { id: application.id, documentId: doc.id }, query: { from: 'registration' } });
       return;
     }
     formOpen.value = false; await loadApplications();
   } catch (e) {
     clearErrors();
     const errors = e.data?.errors || {};
-    Object.entries(errors).forEach(([f, m]) => { fieldErrors[f] = Array.isArray(m) ? m[0] : m; });
+    Object.entries(errors).forEach(([f, m]) => {
+      const key = f.replace(/\.\d+$/, '');
+      fieldErrors[key] = Array.isArray(m) ? m[0] : m;
+    });
     if (Object.keys(errors).length) {
       await focusFirstError();
     } else {
@@ -765,7 +1286,13 @@ async function submit() {
 
 // ─── Application actions ──────────────────────────────────────────────────────
 async function cancelApplication(application) {
-  if (!window.confirm(`Hủy hồ sơ đăng ký cho ${application.venue_name}?`)) return;
+  const ok = window.confirm([
+    `Hủy hồ sơ đăng ký cho ${application.venue_name}?`,
+    '',
+    'Sau khi hủy, hồ sơ sẽ ngừng xử lý và không được cấp quyền chủ sân từ hồ sơ này.',
+    'Các file đã nộp vẫn được lưu trong lịch sử để tra cứu khi cần.',
+  ].join('\n'));
+  if (!ok) return;
   try {
     await api(`/api/user/partner-application/${application.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Người dùng hủy hồ sơ từ trang đăng ký đối tác.' }) });
     alert('Đã hủy hồ sơ thành công.');
@@ -776,12 +1303,12 @@ async function cancelApplication(application) {
 }
 
 function openApplicationDetail(application) {
-  router.push({ name: 'partner-application-detail', params: { id: application.id } });
+  navigateToApplicationRoute({ name: 'partner-application-detail', params: { id: application.id } });
 }
 
 function openApplicationDocument(document, application) {
   if (!document || !application) return;
-  router.push({ name: 'partner-application-document', params: { id: application.id, documentId: document.id } });
+  navigateToApplicationRoute({ name: 'partner-application-document', params: { id: application.id, documentId: document.id } });
 }
 
 function canSubmitSignedApplication(application) {
@@ -808,6 +1335,10 @@ function needsContractSignature(application) {
   return !doc.signatures?.some(s => s.signer_side === 'owner' && s.status === 'signed');
 }
 
+function needsChangeAppendixSignature(application) {
+  return Boolean(changeAppendixWord(application));
+}
+
 function applicationWord(application) {
   const docs = application.generated_documents || application.generatedDocuments || [];
   return docs.find((d) => d.document_type === 'partner_application_form');
@@ -824,6 +1355,15 @@ function contractWord(application) {
   const contractDoc = docs.find((d) => d.document_type === 'partner_contract');
   if (contractDoc) return { ...contractDoc, partner_contract_id: pendingContract.id };
   return null;
+}
+
+function changeAppendixWord(application) {
+  const docs = application.generated_documents || application.generatedDocuments || [];
+  return docs.find((doc) => (
+    ['venue_scale_appendix', 'venue_location_appendix'].includes(doc.document_type)
+    && doc.status === 'pending_owner_signature'
+    && !doc.signatures?.some((signature) => signature.signer_side === 'owner' && signature.status === 'signed')
+  )) || null;
 }
 function canCancel(application) { return ['pending', 'submitted', 'reviewing', 'need_supplement', 'draft'].includes(application.status); }
 function statusLabel(status) {

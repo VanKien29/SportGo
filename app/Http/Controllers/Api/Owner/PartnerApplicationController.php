@@ -53,6 +53,9 @@ class PartnerApplicationController extends Controller
             ->map(fn (GeneratedDocument $document) => [
                 'id' => $document->id,
                 'partner_application_id' => $document->partner_application_id,
+                'partner_contract_id' => $document->partner_contract_id,
+                'owner_id' => $document->owner_id,
+                'venue_cluster_id' => $document->venue_cluster_id,
                 'document_code' => $document->document_code,
                 'document_type' => $document->document_type,
                 'title' => $document->title,

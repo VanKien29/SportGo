@@ -4,13 +4,12 @@ namespace App\Mail\Partner;
 
 use App\Models\PartnerContract;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class PartnerContractSignedByOwnerMail extends Mailable implements ShouldQueue
+class PartnerContractSignedByOwnerMail extends Mailable
 {
     use Queueable, SerializesModels;
 

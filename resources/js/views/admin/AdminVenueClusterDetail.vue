@@ -22,6 +22,50 @@
         </div>
       </div>
 
+      <div class="workflow-bridge card">
+        <div class="workflow-block">
+          <div class="workflow-heading">
+            <span class="workflow-kicker">Vận hành cụm sân</span>
+            <strong>{{ cluster.court_count || 0 }} sân con</strong>
+          </div>
+          <p>Khóa/mở khóa, booking, phí nền tảng và các yêu cầu đổi quy mô/vị trí được xử lý tại màn này.</p>
+          <div class="workflow-metrics">
+            <button type="button" class="workflow-chip" @click="activeTab = 'approvals'">
+              {{ pendingApprovalCount }} yêu cầu quy mô chờ xử lý
+            </button>
+            <button type="button" class="workflow-chip" @click="activeTab = 'location_changes'">
+              {{ pendingLocationChangeCount }} yêu cầu vị trí chờ xử lý
+            </button>
+          </div>
+        </div>
+        <div class="workflow-block contract-block">
+          <div class="workflow-heading">
+            <span class="workflow-kicker">Hồ sơ & hợp đồng đối tác</span>
+            <strong>{{ cluster.active_contract?.contract_code || 'Chưa có hợp đồng' }}</strong>
+          </div>
+          <p>
+            {{ cluster.partner_application?.business_name || cluster.owner?.full_name || 'Đối tác' }}
+            <span v-if="cluster.active_contract"> · {{ contractStatusLabel(cluster.active_contract.status) }}</span>
+          </p>
+          <div class="workflow-actions">
+            <button
+              v-if="cluster.partner_application?.id"
+              type="button"
+              class="btn btn-outline btn-sm"
+              @click="goPartnerApplication"
+            >
+              Mở hồ sơ đối tác
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" @click="activeTab = 'approvals'">
+              Xử lý phụ lục quy mô
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" @click="activeTab = 'location_changes'">
+              Xử lý phụ lục vị trí
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Tabs -->
       <div class="avcd-tabs card">
         <button
@@ -34,6 +78,9 @@
           {{ tab.label }}
           <span v-if="tab.key === 'info_changes' && pendingInfoChangeCount > 0" class="tab-badge-admin">
             {{ pendingInfoChangeCount }}
+          </span>
+          <span v-if="tab.key === 'approvals' && pendingApprovalCount > 0" class="tab-badge-admin">
+            {{ pendingApprovalCount }}
           </span>
           <span v-if="tab.key === 'location_changes' && pendingLocationChangeCount > 0" class="tab-badge-admin">
             {{ pendingLocationChangeCount }}
@@ -586,6 +633,7 @@
         <div class="approval-tabs">
           <button class="tab-sm" :class="{ active: approvalFilter === '' }" @click="approvalFilter = ''">Tất cả</button>
           <button class="tab-sm" :class="{ active: approvalFilter === 'pending' }" @click="approvalFilter = 'pending'">Chờ duyệt</button>
+          <button class="tab-sm" :class="{ active: approvalFilter === 'need_supplement' }" @click="approvalFilter = 'need_supplement'">Cần bổ sung</button>
           <button class="tab-sm" :class="{ active: approvalFilter === 'approved' }" @click="approvalFilter = 'approved'">Đã duyệt</button>
           <button class="tab-sm" :class="{ active: approvalFilter === 'rejected' }" @click="approvalFilter = 'rejected'">Từ chối</button>
         </div>
@@ -595,10 +643,45 @@
         <div v-else class="approval-list">
           <div v-for="req in filteredApprovals" :key="req.id" class="approval-card" :class="`approval-${req.status}`">
             <div class="approval-row">
-              <div>
-                <div class="approval-name fw-bold">{{ req.name }}</div>
-                <div class="muted">Loại: {{ req.court_type?.name || '—' }}</div>
-                <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
+              <div class="request-card-main">
+                <div class="request-card-head">
+                  <div>
+                    <div class="approval-name fw-bold">{{ req.name }}</div>
+                    <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
+                  </div>
+                  <span class="request-type-pill">{{ scaleChangeTypeLabel(req.change_type) }}</span>
+                </div>
+                <div class="request-summary-grid">
+                  <div>
+                    <span>Cụm sân hiện tại</span>
+                    <strong>{{ cluster.court_count || 0 }} sân</strong>
+                  </div>
+                  <div>
+                    <span>Sân tăng thêm</span>
+                    <strong>{{ scaleAddedRows(req).length }}</strong>
+                  </div>
+                  <div>
+                    <span>Sân giảm/ngừng</span>
+                    <strong>{{ scaleRemovedRows(req).length }}</strong>
+                  </div>
+                  <div>
+                    <span>Loại sân chính</span>
+                    <strong>{{ req.court_type?.name || 'Theo danh sách' }}</strong>
+                  </div>
+                </div>
+                <div v-if="scaleAddedRows(req).length" class="court-delta-list">
+                  <span class="delta-label delta-add">Thêm</span>
+                  <span v-for="court in scaleAddedRows(req)" :key="`${req.id}-add-${court.name}`" class="delta-item">
+                    {{ court.name }}<small>{{ court.court_type_name || req.court_type?.name || courtTypeName(court.court_type_id) || 'Loại sân' }}</small>
+                  </span>
+                </div>
+                <div v-if="scaleRemovedRows(req).length" class="court-delta-list">
+                  <span class="delta-label delta-remove">Xóa/ngừng</span>
+                  <span v-for="court in scaleRemovedRows(req)" :key="`${req.id}-remove-${court.id}`" class="delta-item">
+                    {{ court.name }}<small>{{ court.court_type?.name || 'Loại sân hiện tại' }}</small>
+                  </span>
+                </div>
+                <div v-if="!scaleAddedRows(req).length && !scaleRemovedRows(req).length" class="muted">Danh sách sân thay đổi đang chờ dữ liệu chi tiết.</div>
                 <div v-if="req.reviewed_by" class="muted">Xử lý bởi: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
                 <div v-if="req.status_reason" class="reason-text">Lý do: {{ req.status_reason }}</div>
                 <div v-if="req.evidence_image_url" class="approval-evidence" style="margin-top: 8px;">
@@ -607,11 +690,34 @@
                     <img :src="req.evidence_image_url" alt="Ảnh minh chứng" style="max-width:200px; max-height:140px; border-radius:8px; border:1px solid var(--border-color); object-fit:cover; cursor:pointer; transition: transform 0.2s;" @mouseover="$event.target.style.transform='scale(1.05)'" @mouseout="$event.target.style.transform='scale(1)'" />
                   </a>
                 </div>
+                <div v-if="req.supplementary_documents?.length" class="supplement-documents-admin">
+                  <strong>Giấy tờ bổ sung:</strong>
+                  <button
+                    v-for="doc in req.supplementary_documents"
+                    :key="doc.id || doc.download_url || doc.file_name"
+                    type="button"
+                    class="supplement-document-link"
+                    @click="downloadSupplementDocument(doc)"
+                  >
+                    {{ doc.file_name || doc.title || 'Tài liệu' }}
+                  </button>
+                </div>
+                <div v-if="req.generated_document" class="request-document-actions">
+                  <strong>Đơn yêu cầu:</strong>
+                  <button type="button" class="btn ghost small" @click="openRequestDocument(req.generated_document)">Xem</button>
+                  <button type="button" class="btn ghost small" @click="downloadRequestDocument(req.generated_document)">Tải</button>
+                </div>
+                <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
+                  <strong>Phụ lục hợp đồng:</strong>
+                  <button type="button" class="btn ghost small" @click="openRequestDocument(req.appendix_document)">Xem</button>
+                  <button type="button" class="btn ghost small" @click="downloadRequestDocument(req.appendix_document)">Tải</button>
+                </div>
               </div>
               <div class="approval-right">
                 <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
                 <div v-if="req.status === 'pending'" class="approval-btns">
                   <button class="btn btn-success btn-sm" :disabled="processingId === req.id" @click="handleApprove(req)">{{ processingId === req.id ? '...' : 'Duyệt' }}</button>
+                  <button class="btn btn-warning btn-sm" :disabled="processingId === req.id" @click="openSupplementModal(req)">Bổ sung</button>
                   <button class="btn btn-danger btn-sm" :disabled="processingId === req.id" @click="openRejectModal(req)">Từ chối</button>
                 </div>
               </div>
@@ -673,6 +779,7 @@
         <div class="approval-tabs">
           <button class="tab-sm" :class="{ active: locationChangeFilter === '' }" @click="locationChangeFilter = ''">Tất cả</button>
           <button class="tab-sm" :class="{ active: locationChangeFilter === 'pending' }" @click="locationChangeFilter = 'pending'">Chờ duyệt</button>
+          <button class="tab-sm" :class="{ active: locationChangeFilter === 'need_supplement' }" @click="locationChangeFilter = 'need_supplement'">Cần bổ sung</button>
           <button class="tab-sm" :class="{ active: locationChangeFilter === 'approved' }" @click="locationChangeFilter = 'approved'">Đã duyệt</button>
           <button class="tab-sm" :class="{ active: locationChangeFilter === 'rejected' }" @click="locationChangeFilter = 'rejected'">Từ chối</button>
         </div>
@@ -680,13 +787,52 @@
         <div v-else class="approval-list">
           <div v-for="req in filteredLocationChanges" :key="req.id" class="approval-card" :class="`approval-${req.status}`">
             <div class="approval-row">
-              <div style="flex:1">
-                <div class="approval-name fw-bold">Yêu cầu thay đổi vị trí</div>
-                <div class="muted">Địa chỉ mới: {{ req.new_address }}, {{ req.new_ward }}, {{ req.new_province }}</div>
-                <div class="muted">Tọa độ mới: {{ req.new_latitude }}, {{ req.new_longitude }}</div>
-                <div v-if="req.new_map_url" class="muted">Map URL: <a :href="req.new_map_url" target="_blank" style="color:#2563eb">Xem bản đồ</a></div>
+              <div class="request-card-main">
+                <div class="request-card-head">
+                  <div>
+                    <div class="approval-name fw-bold">Yêu cầu thay đổi vị trí</div>
+                    <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
+                  </div>
+                  <span class="request-type-pill">Đổi vị trí cụm sân</span>
+                </div>
+                <div class="location-compare-grid">
+                  <div>
+                    <span>Vị trí hiện tại</span>
+                    <strong>{{ formatFullAddress(cluster) }}</strong>
+                    <small>{{ formatCoordinate(cluster.latitude, cluster.longitude) }}</small>
+                  </div>
+                  <div>
+                    <span>Vị trí đề nghị</span>
+                    <strong>{{ req.new_address }}, {{ req.new_ward }}, {{ req.new_province }}</strong>
+                    <small>{{ formatCoordinate(req.new_latitude, req.new_longitude) }}</small>
+                  </div>
+                </div>
+                <div v-if="req.new_map_url" class="map-action-row">
+                  <a :href="req.new_map_url" target="_blank" rel="noopener">Mở vị trí mới trên Google Maps</a>
+                </div>
+                <div v-if="req.supplementary_documents?.length" class="supplement-documents-admin">
+                  <strong>Giấy tờ bổ sung:</strong>
+                  <button
+                    v-for="doc in req.supplementary_documents"
+                    :key="doc.id || doc.download_url || doc.file_name"
+                    type="button"
+                    class="supplement-document-link"
+                    @click="downloadSupplementDocument(doc)"
+                  >
+                    {{ doc.file_name || doc.title || 'Tài liệu' }}
+                  </button>
+                </div>
+                <div v-if="req.generated_document" class="request-document-actions">
+                  <strong>Đơn yêu cầu:</strong>
+                  <button type="button" class="btn ghost small" @click="openRequestDocument(req.generated_document)">Xem</button>
+                  <button type="button" class="btn ghost small" @click="downloadRequestDocument(req.generated_document)">Tải</button>
+                </div>
+                <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
+                  <strong>Phụ lục hợp đồng:</strong>
+                  <button type="button" class="btn ghost small" @click="openRequestDocument(req.appendix_document)">Xem</button>
+                  <button type="button" class="btn ghost small" @click="downloadRequestDocument(req.appendix_document)">Tải</button>
+                </div>
                 <div class="muted">Lý do: {{ req.note }}</div>
-                <div class="muted">Yêu cầu bởi: {{ req.requested_by?.full_name || '—' }} · {{ formatDate(req.created_at) }}</div>
                 <div v-if="req.reviewed_by" class="muted">Xử lý bởi: {{ req.reviewed_by?.full_name }} · {{ formatDate(req.reviewed_at) }}</div>
                 <div v-if="req.status_reason && req.status === 'rejected'" class="reason-text">Lý do từ chối: {{ req.status_reason }}</div>
               </div>
@@ -696,6 +842,7 @@
                   <button class="btn btn-success btn-sm" :disabled="processingLocationId === req.id" @click="handleApproveLocation(req)">
                     {{ processingLocationId === req.id ? '...' : 'Duyệt' }}
                   </button>
+                  <button class="btn btn-warning btn-sm" :disabled="processingLocationId === req.id" @click="openLocationSupplementModal(req)">Bổ sung</button>
                   <button class="btn btn-danger btn-sm" :disabled="processingLocationId === req.id" @click="openRejectLocationModal(req)">Từ chối</button>
                 </div>
               </div>
@@ -858,6 +1005,76 @@
       </form>
     </div>
 
+    <!-- ── Modal: Yêu cầu bổ sung hồ sơ quy mô ── -->
+    <div v-if="supplementTarget" class="modal-backdrop" @click.self="closeSupplementModal">
+      <form class="modal-box card" @submit.prevent="handleRequestSupplement">
+        <div class="modal-header">
+          <h3>Yêu cầu bổ sung</h3>
+          <button type="button" class="btn-close" @click="closeSupplementModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="muted">Yêu cầu: <strong>{{ supplementTarget.name }}</strong></p>
+          <div v-if="supplementError" class="alert-error">{{ supplementError }}</div>
+          <label class="form-label">
+            Nội dung cần bổ sung <span class="required">*</span>
+            <textarea
+              v-model="supplementReason"
+              rows="5"
+              required
+              placeholder="Ghi rõ giấy tờ/thông tin cần chủ sân bổ sung..."
+              class="form-control"
+            ></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" @click="closeSupplementModal">Hủy</button>
+          <button type="submit" class="btn btn-warning" :disabled="supplementing">
+            {{ supplementing ? 'Đang gửi...' : 'Gửi yêu cầu bổ sung' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Modal: Yêu cầu bổ sung hồ sơ vị trí ── -->
+    <div v-if="supplementLocationTarget" class="modal-backdrop" @click.self="closeLocationSupplementModal">
+      <form class="modal-box card" @submit.prevent="handleRequestLocationSupplement">
+        <div class="modal-header">
+          <h3>Yêu cầu bổ sung vị trí</h3>
+          <button type="button" class="btn-close" @click="closeLocationSupplementModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="muted">Địa chỉ mới: <strong>{{ supplementLocationTarget.new_address }}, {{ supplementLocationTarget.new_province }}</strong></p>
+          <div v-if="supplementLocationError" class="alert-error">{{ supplementLocationError }}</div>
+          <label class="form-label">
+            Nội dung cần bổ sung <span class="required">*</span>
+            <textarea
+              v-model="supplementLocationReason"
+              rows="5"
+              required
+              placeholder="Ghi rõ giấy tờ/thông tin cần chủ sân bổ sung..."
+              class="form-control"
+            ></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" @click="closeLocationSupplementModal">Hủy</button>
+          <button type="submit" class="btn btn-warning" :disabled="supplementingLocation">
+            {{ supplementingLocation ? 'Đang gửi...' : 'Gửi yêu cầu bổ sung' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
     <!-- ── Modal: Từ chối yêu cầu vị trí ── -->
     <div v-if="rejectLocationTarget" class="modal-backdrop" @click.self="closeRejectLocationModal">
       <form class="modal-box card" @submit.prevent="handleRejectLocation">
@@ -936,14 +1153,22 @@
         {{ globalMsg }}
       </div>
     </transition>
+    <PartnerFilePreviewDialog
+      :show="documentPreviewOpen"
+      :document="previewDocument"
+      @close="closeRequestDocument"
+    />
   </div>
 </template>
 
 <script>
 import { adminVenueClusterService } from '../../services/adminVenueClusterService.js';
+import PartnerFilePreviewDialog from '../../components/partner/PartnerFilePreviewDialog.vue';
+import { apiDownload } from '../../services/api.js';
 
 export default {
   name: 'AdminVenueClusterDetail',
+  components: { PartnerFilePreviewDialog },
   data() {
     return {
       cluster: null,
@@ -953,6 +1178,8 @@ export default {
       approvalRequests: [],
       loading: true,
       error: '',
+      documentPreviewOpen: false,
+      previewDocument: null,
 
       activeTab: 'info',
       tabs: [
@@ -993,6 +1220,16 @@ export default {
       rejectError: '',
       rejecting: false,
 
+      supplementTarget: null,
+      supplementReason: '',
+      supplementError: '',
+      supplementing: false,
+
+      supplementLocationTarget: null,
+      supplementLocationReason: '',
+      supplementLocationError: '',
+      supplementingLocation: false,
+
 
 
       // Unlock requests state
@@ -1024,12 +1261,15 @@ export default {
       if (!this.approvalFilter) return this.approvalRequests;
       return this.approvalRequests.filter((r) => r.status === this.approvalFilter);
     },
+    pendingApprovalCount() {
+      return this.approvalRequests.filter((r) => ['pending', 'approved_pending_appendix', 'pending_owner_signature'].includes(r.status)).length;
+    },
     filteredLocationChanges() {
       if (!this.locationChangeFilter) return this.locationChangeRequests;
       return this.locationChangeRequests.filter((r) => r.status === this.locationChangeFilter);
     },
     pendingLocationChangeCount() {
-      return this.locationChangeRequests.filter((r) => r.status === 'pending').length;
+      return this.locationChangeRequests.filter((r) => ['pending', 'approved_pending_appendix', 'pending_owner_signature'].includes(r.status)).length;
     },
     filteredUnlockAppeals() {
       if (!this.unlockAppealFilter) return this.unlockRequests;
@@ -1050,6 +1290,80 @@ export default {
     this.loadDetail();
   },
   methods: {
+    goPartnerApplication() {
+      if (!this.cluster?.partner_application?.id) return;
+      this.$router.push({
+        name: 'admin-partner-application-detail',
+        params: { id: this.cluster.partner_application.id },
+      });
+    },
+
+    contractStatusLabel(status) {
+      return {
+        signed_active: 'Đã ký hiệu lực',
+        completed: 'Hoàn tất',
+        active: 'Đang hiệu lực',
+        generated: 'Đã tạo',
+        draft: 'Bản nháp',
+        pending_owner_signature: 'Chờ chủ sân ký',
+        pending_sportgo_signature: 'Chờ SportGo ký',
+      }[status] || status || 'Chưa rõ trạng thái';
+    },
+
+    scaleChangeTypeLabel(type) {
+      return {
+        add: 'Tăng/thêm sân',
+        remove: 'Giảm/ngừng khai thác',
+        mixed: 'Điều chỉnh tăng/giảm',
+      }[type] || 'Điều chỉnh quy mô';
+    },
+
+    scaleAddedRows(req) {
+      return Array.isArray(req?.requested_courts) ? req.requested_courts : [];
+    },
+
+    scaleRemovedRows(req) {
+      const removedIds = Array.isArray(req?.removed_court_ids) ? req.removed_court_ids : [];
+      return removedIds.map((id) => {
+        const court = (this.cluster?.courts || []).find((item) => item.id === id);
+        return court || { id, name: id, court_type: null };
+      });
+    },
+
+    courtTypeName(id) {
+      const court = (this.cluster?.courts || []).find((item) => String(item.court_type?.id) === String(id));
+      return court?.court_type?.name || '';
+    },
+
+    formatCoordinate(lat, lng) {
+      if (!lat || !lng) return '—';
+      return `${lat}, ${lng}`;
+    },
+
+    openRequestDocument(document) {
+      if (!document) return;
+      this.previewDocument = {
+        ...document,
+        title: document.title || 'Đơn yêu cầu thay đổi hồ sơ',
+        download_url: document.download_url || `/api/files/documents/${document.id}/download`,
+      };
+      this.documentPreviewOpen = true;
+    },
+
+    closeRequestDocument() {
+      this.documentPreviewOpen = false;
+      this.previewDocument = null;
+    },
+
+    downloadRequestDocument(document) {
+      const url = document?.download_url || (document?.id ? `/api/files/documents/${document.id}/download` : '');
+      if (url) apiDownload(url);
+    },
+
+    downloadSupplementDocument(document) {
+      if (document?.download_url) apiDownload(document.download_url);
+    },
+
     async loadDetail() {
       this.loading = true;
       this.error = '';
@@ -1131,6 +1445,39 @@ export default {
       } catch (err) {
         this.showMsg(err.message || 'Duyệt không thành công.', 'msg-error');
       } finally {
+        this.processingId = null;
+      }
+    },
+    openSupplementModal(req) {
+      this.supplementTarget = req;
+      this.supplementReason = req.status_reason || '';
+      this.supplementError = '';
+    },
+    closeSupplementModal() {
+      this.supplementTarget = null;
+      this.supplementReason = '';
+      this.supplementError = '';
+    },
+    async handleRequestSupplement() {
+      const reason = this.supplementReason.trim();
+      if (!reason) {
+        this.supplementError = 'Vui lòng nhập nội dung cần bổ sung.';
+        return;
+      }
+      this.supplementing = true;
+      this.processingId = this.supplementTarget.id;
+      try {
+        const res = await adminVenueClusterService.requestScaleSupplement(this.cluster.id, this.supplementTarget.id, {
+          status_reason: reason,
+        });
+        const idx = this.approvalRequests.findIndex((r) => r.id === this.supplementTarget.id);
+        if (idx !== -1) this.approvalRequests.splice(idx, 1, res.request);
+        this.closeSupplementModal();
+        this.showMsg('Đã gửi yêu cầu bổ sung.', 'msg-success');
+      } catch (err) {
+        this.supplementError = err.message || 'Không gửi được yêu cầu bổ sung.';
+      } finally {
+        this.supplementing = false;
         this.processingId = null;
       }
     },
@@ -1219,6 +1566,39 @@ export default {
       } catch (err) {
         this.showMsg(err.message || 'Duyệt không thành công.', 'msg-error');
       } finally {
+        this.processingLocationId = null;
+      }
+    },
+    openLocationSupplementModal(req) {
+      this.supplementLocationTarget = req;
+      this.supplementLocationReason = req.status_reason || '';
+      this.supplementLocationError = '';
+    },
+    closeLocationSupplementModal() {
+      this.supplementLocationTarget = null;
+      this.supplementLocationReason = '';
+      this.supplementLocationError = '';
+    },
+    async handleRequestLocationSupplement() {
+      const reason = this.supplementLocationReason.trim();
+      if (!reason) {
+        this.supplementLocationError = 'Vui lòng nhập nội dung cần bổ sung.';
+        return;
+      }
+      this.supplementingLocation = true;
+      this.processingLocationId = this.supplementLocationTarget.id;
+      try {
+        const res = await adminVenueClusterService.requestLocationSupplement(this.cluster.id, this.supplementLocationTarget.id, {
+          status_reason: reason,
+        });
+        const idx = this.locationChangeRequests.findIndex((r) => r.id === this.supplementLocationTarget.id);
+        if (idx !== -1) this.locationChangeRequests.splice(idx, 1, res.request);
+        this.closeLocationSupplementModal();
+        this.showMsg('Đã gửi yêu cầu bổ sung vị trí.', 'msg-success');
+      } catch (err) {
+        this.supplementLocationError = err.message || 'Không gửi được yêu cầu bổ sung.';
+      } finally {
+        this.supplementingLocation = false;
         this.processingLocationId = null;
       }
     },
@@ -1311,7 +1691,11 @@ export default {
       return { pending: 'Chờ duyệt', active: 'Hoạt động', locked: 'Đã khóa' }[status] || status;
     },
     approvalStatusLabel(status) {
-      return { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối', cancelled: 'Hủy' }[status] || status;
+      if (status === 'approved_pending_appendix') return 'Da duyet, cho SportGo ky phu luc';
+      if (status === 'pending_owner_signature') return 'Cho chu san ky phu luc';
+      if (status === 'completed') return 'Hoan tat thay doi';
+
+      return { pending: 'Chờ duyệt', need_supplement: 'Cần bổ sung', approved: 'Đã duyệt', rejected: 'Từ chối', cancelled: 'Hủy' }[status] || status;
     },
     imageUrl(path) {
       if (!path || path.includes('default-home.jpg')) return '';
@@ -1758,6 +2142,7 @@ export default {
 .status-active  { background: var(--admin-primary-soft, #dcfce7) !important; color: var(--admin-primary-dark, #166534) !important; }
 .status-locked  { background: var(--admin-danger-soft, #fee2e2) !important; color: var(--admin-danger, #991b1b) !important; }
 .status-approved { background: var(--admin-primary-soft, #dcfce7) !important; color: var(--admin-primary-dark, #166534) !important; }
+.status-need_supplement { background: var(--admin-warning-soft, #fffbeb) !important; color: var(--admin-warning, #92400e) !important; }
 .status-rejected { background: var(--admin-danger-soft, #fee2e2) !important; color: var(--admin-danger, #991b1b) !important; }
 .status-cancelled { background: var(--admin-surface-muted, #f3f4f6) !important; color: var(--admin-muted, #6b7280) !important; }
 
@@ -1779,6 +2164,7 @@ export default {
 .custom-status-active  { background: var(--admin-primary-soft, #f0fdf4) !important; color: var(--admin-primary-dark, #15803d) !important; border: 1px solid var(--admin-border-soft, #bbf7d0) !important; }
 .custom-status-locked  { background: var(--admin-danger-soft, #fef2f2) !important; color: var(--admin-danger, #b91c1c) !important; border: 1px solid var(--admin-border-soft, #fecaca) !important; }
 .custom-status-approved { background: var(--admin-primary-soft, #f0fdf4) !important; color: var(--admin-primary-dark, #15803d) !important; border: 1px solid var(--admin-border-soft, #bbf7d0) !important; }
+.custom-status-need_supplement { background: var(--admin-warning-soft, #fffbeb) !important; color: var(--admin-warning, #92400e) !important; border: 1px solid var(--admin-border-soft, #fde68a) !important; }
 .custom-status-rejected { background: var(--admin-danger-soft, #fef2f2) !important; color: var(--admin-danger, #b91c1c) !important; border: 1px solid var(--admin-border-soft, #fecaca) !important; }
 .custom-status-cancelled { background: var(--admin-surface-muted, #f8fafc) !important; color: var(--admin-muted, #475569) !important; border: 1px solid var(--admin-border-soft, #e2e8f0) !important; }
 .fee-paid { background: var(--admin-primary-soft, #dcfce7) !important; color: var(--admin-primary-dark, #166534) !important; }
@@ -2500,6 +2886,69 @@ export default {
   color: rgba(15, 23, 42, 0.4);
 }
 
+.workflow-bridge {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px;
+}
+.workflow-block {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+.contract-block {
+  background: #f7fee7;
+  border-color: #bbf7d0;
+}
+.workflow-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.workflow-heading strong {
+  color: #0f172a;
+  font-size: 15px;
+  text-align: right;
+}
+.workflow-kicker {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.workflow-block p {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.workflow-metrics,
+.workflow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.workflow-chip {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.workflow-chip:hover {
+  border-color: #16a34a;
+  color: #166534;
+}
+
 /* Approvals */
 .approval-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
 .tab-sm {
@@ -2523,9 +2972,116 @@ export default {
 }
 .approval-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
 .approval-pending { border-left: 3px solid #f59e0b; }
+.approval-need_supplement { border-left: 3px solid #f59e0b; }
 .approval-approved { border-left: 3px solid #22c55e; }
 .approval-rejected { border-left: 3px solid #ef4444; }
+
+.btn-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
 .approval-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.request-card-main { flex: 1; min-width: min(100%, 520px); }
+.request-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.request-type-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.request-summary-grid,
+.location-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+.location-compare-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.request-summary-grid > div,
+.location-compare-grid > div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+.request-summary-grid span,
+.location-compare-grid span {
+  display: block;
+  color: #64748b;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.request-summary-grid strong,
+.location-compare-grid strong {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.location-compare-grid small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+}
+.court-delta-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.delta-label,
+.delta-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.delta-label { padding: 0 10px; }
+.delta-add { background: #dcfce7; color: #166534; }
+.delta-remove { background: #fee2e2; color: #991b1b; }
+.delta-item {
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+}
+.delta-item small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+.map-action-row {
+  margin: 8px 0;
+}
+.map-action-row a {
+  color: #166534;
+  font-weight: 800;
+  text-decoration: none;
+}
 .approval-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 .approval-btns { display: flex; gap: 8px; }
 .approval-name { margin-bottom: 4px; }
@@ -2603,6 +3159,49 @@ export default {
   transition: border-color 0.18s;
 }
 .form-control:focus { border-color: var(--admin-primary); }
+
+.supplement-documents-admin {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.supplement-documents-admin a,
+.supplement-document-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  appearance: none;
+}
+.request-document-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #475569;
+}
+.request-document-actions .btn {
+  min-height: 30px;
+  border: 1px solid #0f172a;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 8px;
+  font-weight: 800;
+}
 .required { color: #ef4444; }
 .alert-error {
   padding: 10px 14px;
@@ -2682,6 +3281,22 @@ export default {
 
 @media (max-width: 640px) {
   .info-grid { grid-template-columns: 1fr; }
+  .workflow-bridge,
+  .request-summary-grid,
+  .location-compare-grid {
+    grid-template-columns: 1fr;
+  }
+  .request-card-head,
+  .approval-right {
+    align-items: stretch;
+  }
+  .approval-right,
+  .approval-btns {
+    width: 100%;
+  }
+  .approval-btns {
+    flex-wrap: wrap;
+  }
 }
 
 .tab-badge-admin {

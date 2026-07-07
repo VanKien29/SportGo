@@ -59,6 +59,18 @@ class DocumentTemplatesTableSeeder extends Seeder
                 'Mau_06_Bien_ban_quyet_toan_cham_dut_hop_tac_SportGo_DA_SUA.docx',
                 $this->settlementVariables(),
             ],
+            [
+                'venue_scale_request',
+                'Đơn yêu cầu thay đổi quy mô sân SportGo',
+                'Don_yeu_cau_thay_doi_quy_mo_san_SportGo.docx',
+                $this->venueScaleRequestVariables(),
+            ],
+            [
+                'venue_location_change_request',
+                'Đơn yêu cầu thay đổi vị trí cụm sân SportGo',
+                'Don_yeu_cau_thay_doi_vi_tri_cum_san_SportGo.docx',
+                $this->venueLocationChangeRequestVariables(),
+            ],
         ];
 
         foreach ($templates as [$documentType, $name, $fileName, $variables]) {
@@ -189,6 +201,34 @@ class DocumentTemplatesTableSeeder extends Seeder
             'penalty_amount', 'adjustment_amount', 'final_payable_to_owner',
             'final_receivable_from_owner', 'settlement_items', 'bank_name',
             'account_number', 'account_holder_name', 'withdrawal_code', 'withdrawal_status',
+        ];
+    }
+
+    private function venueScaleRequestVariables(): array
+    {
+        return [
+            'document_code', 'document_version', 'owner_full_name', 'business_name',
+            'identity_number', 'tax_code', 'business_license_number', 'owner_phone',
+            'owner_email', 'owner_address', 'venue_name', 'venue_cluster_code',
+            'contract_code', 'contract_signed_at', 'current_court_count',
+            'change_action', 'change_court_count', 'requested_court_type_name',
+            'requested_court_names', 'expected_effective_date', 'reason',
+            'submitted_at', 'owner_signer_name', 'signature_owner',
+        ];
+    }
+
+    private function venueLocationChangeRequestVariables(): array
+    {
+        return [
+            'document_code', 'document_version', 'owner_full_name', 'business_name',
+            'identity_number', 'tax_code', 'business_license_number', 'owner_phone',
+            'owner_email', 'owner_address', 'venue_name', 'venue_cluster_code',
+            'contract_code', 'contract_signed_at', 'current_address',
+            'current_latitude', 'current_longitude', 'current_map_url',
+            'new_address', 'new_province', 'new_ward', 'new_latitude',
+            'new_longitude', 'new_map_url', 'new_phone', 'expected_effective_date',
+            'booking_impact', 'reason', 'submitted_at', 'owner_signer_name',
+            'signature_owner',
         ];
     }
 }

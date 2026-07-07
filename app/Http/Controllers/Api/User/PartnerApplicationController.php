@@ -8,6 +8,11 @@ use App\Models\DocumentSigningRequest;
 use App\Models\GeneratedDocument;
 use App\Models\PartnerApplication;
 use App\Models\PartnerContract;
+use App\Models\VenueCluster;
+use App\Models\VenueCourtApprovalRequest;
+use App\Models\VenueLocationChangeRequest;
+use App\Mail\Partner\VenueLocationChangeRequestReceivedMail;
+use App\Mail\Partner\VenueScaleRequestReceivedMail;
 use App\Services\Partner\PartnerApplicationService;
 use App\Services\Partner\PartnerBankService;
 use App\Services\Partner\PartnerDocumentService;
@@ -19,6 +24,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class PartnerApplicationController extends Controller
@@ -48,8 +56,30 @@ class PartnerApplicationController extends Controller
             'data' => [
                 'latest' => $applications->first(),
                 'history' => $applications,
-                'can_register' => $models->whereNotIn('status', ['rejected', 'cancelled'])->isEmpty(),
+                'can_register' => $models
+                    ->whereIn('status', [
+                        'draft',
+                        'pending',
+                        'submitted',
+                        'reviewing',
+                        'need_supplement',
+                        'contract_pending_sportgo_signature',
+                        'contract_pending_owner_signature',
+                    ])
+                    ->isEmpty(),
             ],
+        ]);
+    }
+
+    public function detail(Request $request, string $id): JsonResponse
+    {
+        $application = PartnerApplication::with($this->partners->detailRelations())
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->userApplicationPayload($application),
         ]);
     }
 
@@ -65,8 +95,28 @@ class PartnerApplicationController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Đã tạo đơn đăng ký. Vui lòng xem và ký đơn trước khi gửi hồ sơ.',
-            'data' => $application,
+            'data' => $this->userApplicationPayload($application->fresh($this->partners->detailRelations())),
         ], 201);
+    }
+
+    public function updateDraft(Request $request, string $id): JsonResponse
+    {
+        $data = $this->validatedApplicationData($request, false);
+        $data = $this->enrichLocationNames($data);
+        $data = $this->enrichBankVerification($data);
+        $data['document_files'] = $this->documentFiles($request);
+
+        $application = PartnerApplication::query()
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $application = $this->partners->updateDraftApplication($application, $request->user(), $data, $request);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã cập nhật bản nháp và tạo lại đơn đăng ký. Vui lòng xem lại trước khi ký.',
+            'data' => $this->userApplicationPayload($application),
+        ]);
     }
 
     public function submitSigned(Request $request, string $id): JsonResponse
@@ -155,6 +205,22 @@ class PartnerApplicationController extends Controller
         ]);
     }
 
+    public function reverseMap(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ], $this->messages(), [
+            'latitude' => 'Vĩ độ',
+            'longitude' => 'Kinh độ',
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->maps->reverse((float) $data['latitude'], (float) $data['longitude']),
+        ]);
+    }
+
     public function cancel(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
@@ -169,6 +235,37 @@ class PartnerApplicationController extends Controller
             'status' => 'success',
             'message' => 'Đã hủy hồ sơ đăng ký đối tác.',
             'data' => $this->partners->cancelApplication($application, $request->user(), $data['reason'] ?? null, $request),
+        ]);
+    }
+
+    public function supplementDocuments(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'note' => ['nullable', 'string', 'max:2000'],
+            'additional_documents' => ['required', 'array', 'min:1', 'max:10'],
+            'additional_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+        ], $this->messages(), [
+            ...$this->attributes(),
+            'note' => 'Nội dung phản hồi bổ sung',
+            'additional_documents' => 'Giấy tờ bổ sung',
+        ]);
+
+        $application = PartnerApplication::query()
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $application = $this->partners->submitSupplementDocuments(
+            $application,
+            $request->user(),
+            $this->filesArray($request->file('additional_documents', [])),
+            $data['note'] ?? null,
+            $request
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã nộp giấy tờ bổ sung. Hồ sơ được chuyển lại về trạng thái chờ xét duyệt.',
+            'data' => $this->userApplicationPayload($application),
         ]);
     }
 
@@ -225,10 +322,39 @@ class PartnerApplicationController extends Controller
     {
         $data = $request->validate([
             'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
+            'document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
             'signature_image' => ['required', 'string'],
             'confirmed' => ['accepted'],
             'confirmation_text' => ['required', 'string', 'max:1000'],
         ], $this->messages(), $this->attributes());
+
+        if (! empty($data['document_id'])) {
+            $document = GeneratedDocument::query()
+                ->whereKey($data['document_id'])
+                ->where('owner_id', $request->user()->id)
+                ->whereIn('document_type', ['venue_scale_appendix', 'venue_location_appendix'])
+                ->where('status', 'pending_owner_signature')
+                ->firstOrFail();
+
+            $signingRequest = $this->signing->requestOtp(
+                $document,
+                $request->user(),
+                'owner',
+                'Ky phu luc hop dong doi tac SportGo',
+                $data['confirmation_text'],
+                $data['signature_image'],
+                $request
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Ma OTP ky phu luc da duoc gui den email cua ban.',
+                'data' => [
+                    'signing_request_id' => $signingRequest->id,
+                    'expires_at' => $signingRequest->expires_at,
+                ],
+            ]);
+        }
 
         $contract = PartnerContract::with(['application.user', 'generatedDocument'])
             ->where('owner_id', $request->user()->id)
@@ -270,6 +396,37 @@ class PartnerApplicationController extends Controller
 
         $signingRequest = DocumentSigningRequest::with('document')->findOrFail($data['signing_request_id']);
         $verifiedRequest = $this->signing->verifyOtp($signingRequest, $request->user(), $data['otp']);
+        $document = $verifiedRequest->document;
+
+        if ($document && in_array($document->document_type, ['venue_scale_appendix', 'venue_location_appendix'], true)) {
+            if ($document->owner_id !== $request->user()->id || $document->status !== 'pending_owner_signature') {
+                abort(403);
+            }
+
+            $signerName = $request->user()->full_name ?: $request->user()->username;
+            $signature = $this->documents->signDocument(
+                $document,
+                $request->user(),
+                'owner',
+                $verifiedRequest->signature_image,
+                $request,
+                [
+                    'signature_method' => 'otp_confirm',
+                    'signer_full_name' => $signerName,
+                    'signer_title' => 'Chu san',
+                ]
+            );
+            $this->signing->markSigned($verifiedRequest, $signature);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Ban da ky phu luc thanh cong. Yeu cau thay doi se duoc cap nhat theo phu luc da ky.',
+                'data' => [
+                    'document' => $document->refresh(),
+                    'signature' => $signature,
+                ],
+            ]);
+        }
 
         $contract = PartnerContract::with(['application.user', 'generatedDocument.signatures'])
             ->where('owner_id', $request->user()->id)
@@ -337,10 +494,39 @@ class PartnerApplicationController extends Controller
     public function requestDocumentSignatureOtp(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
+            'document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
             'signature_image' => ['required', 'string'],
             'confirmed' => ['accepted'],
             'confirmation_text' => ['required', 'string', 'max:1000'],
         ], $this->messages(), $this->attributes());
+
+        if (! empty($data['document_id'])) {
+            $document = GeneratedDocument::query()
+                ->whereKey($data['document_id'])
+                ->where('owner_id', $request->user()->id)
+                ->whereIn('document_type', ['venue_scale_request', 'venue_location_change_request'])
+                ->where('status', 'pending_owner_signature')
+                ->firstOrFail();
+
+            $signingRequest = $this->signing->requestOtp(
+                $document,
+                $request->user(),
+                'owner',
+                'Ky don yeu cau thay doi thong tin cum san SportGo',
+                $data['confirmation_text'],
+                $data['signature_image'],
+                $request
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Ma OTP ky don yeu cau da duoc gui den email cua ban.',
+                'data' => [
+                    'signing_request_id' => $signingRequest->id,
+                    'expires_at' => $signingRequest->expires_at,
+                ],
+            ]);
+        }
 
         $application = PartnerApplication::with('generatedDocuments')
             ->where('user_id', $request->user()->id)
@@ -390,6 +576,41 @@ class PartnerApplicationController extends Controller
             'otp' => ['required', 'digits:6'],
         ], $this->messages(), $this->attributes());
 
+        $signingRequest = DocumentSigningRequest::with('document')->findOrFail($data['signing_request_id']);
+        $requestDocument = $signingRequest->document;
+
+        if ($requestDocument && in_array($requestDocument->document_type, ['venue_scale_request', 'venue_location_change_request'], true)) {
+            if ($requestDocument->owner_id !== $request->user()->id || $requestDocument->status !== 'pending_owner_signature') {
+                abort(403);
+            }
+
+            $verifiedRequest = $this->signing->verifyOtp($signingRequest, $request->user(), $data['otp']);
+            $signerName = $request->user()->full_name ?: $request->user()->username;
+            $signature = $this->documents->signDocument(
+                $requestDocument,
+                $request->user(),
+                'owner',
+                $verifiedRequest->signature_image,
+                $request,
+                [
+                    'signature_method' => 'otp_confirm',
+                    'signer_full_name' => $signerName,
+                    'signer_title' => 'Chu san',
+                ]
+            );
+            $this->signing->markSigned($verifiedRequest, $signature);
+            $this->markVenueChangeRequestSubmitted($requestDocument->refresh());
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Da ky don yeu cau va gui SportGo xet duyet.',
+                'data' => [
+                    'document' => $requestDocument->refresh(),
+                    'signature' => $signature,
+                ],
+            ]);
+        }
+
         $application = PartnerApplication::with('generatedDocuments.signatures')
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
@@ -405,13 +626,19 @@ class PartnerApplicationController extends Controller
 
         $verifiedRequest = $this->signing->verifyOtp($signingRequest, $request->user(), $data['otp']);
 
+        $ownerSignerName = $application->representative_name ?: $application->applicant_full_name ?: ($request->user()->full_name ?: $request->user()->username);
         $signature = $this->documents->signDocument(
             $document,
             $request->user(),
             'owner',
             $verifiedRequest->signature_image,
             $request,
-            ['signature_method' => 'otp_confirm']
+            [
+                'signature_method' => 'otp_confirm',
+                'signer_full_name' => $ownerSignerName,
+                'signer_title' => $application->representative_position ?: 'Chủ sân',
+                'signer_organization' => $application->business_name,
+            ]
         );
         $this->signing->markSigned($verifiedRequest, $signature);
 
@@ -428,14 +655,108 @@ class PartnerApplicationController extends Controller
         ]);
     }
 
+    private function markVenueChangeRequestSubmitted(GeneratedDocument $document): void
+    {
+        if ($document->document_type === 'venue_scale_request') {
+            $changeRequest = VenueCourtApprovalRequest::query()
+                ->with(['venueCluster.owner', 'courtType'])
+                ->whereKey($document->reference_id)
+                ->first();
+
+            if (! $changeRequest) {
+                return;
+            }
+
+            $changeRequest->forceFill([
+                'status' => 'pending',
+                'signed_at' => now(),
+                'signature_hash' => $document->file_hash,
+            ])->save();
+
+            $this->sendVenueChangeRequestReceivedMail(
+                $changeRequest->venueCluster,
+                new VenueScaleRequestReceivedMail([
+                    'cluster_name' => $changeRequest->venueCluster?->name,
+                    'court_name' => $changeRequest->name,
+                    'court_type_name' => $changeRequest->courtType?->name,
+                    'submitted_at' => now()->format('H:i d/m/Y'),
+                ]),
+                $changeRequest->id
+            );
+
+            return;
+        }
+
+        if ($document->document_type === 'venue_location_change_request') {
+            $changeRequest = VenueLocationChangeRequest::query()
+                ->with('venueCluster.owner')
+                ->whereKey($document->reference_id)
+                ->first();
+
+            if (! $changeRequest) {
+                return;
+            }
+
+            $changeRequest->forceFill([
+                'status' => 'pending',
+                'signed_at' => now(),
+                'signature_hash' => $document->file_hash,
+            ])->save();
+
+            $this->sendVenueChangeRequestReceivedMail(
+                $changeRequest->venueCluster,
+                new VenueLocationChangeRequestReceivedMail([
+                    'cluster_name' => $changeRequest->venueCluster?->name,
+                    'new_address' => trim($changeRequest->new_address . ', ' . $changeRequest->new_ward . ', ' . $changeRequest->new_province, ', '),
+                    'coordinates' => $changeRequest->new_latitude . ', ' . $changeRequest->new_longitude,
+                    'submitted_at' => now()->format('H:i d/m/Y'),
+                ]),
+                $changeRequest->id
+            );
+        }
+    }
+
+    private function sendVenueChangeRequestReceivedMail(?VenueCluster $cluster, $mail, ?string $referenceId = null): void
+    {
+        $owner = $cluster?->owner;
+        if (! $owner?->email) {
+            Log::warning('Venue change request mail skipped: owner has no email.', [
+                'venue_cluster_id' => $cluster?->id,
+                'reference_id' => $referenceId,
+            ]);
+            return;
+        }
+
+        try {
+            Mail::to($owner->email)->send($mail);
+        } catch (\Throwable $exception) {
+            Log::error('Venue change request mail failed.', [
+                'venue_cluster_id' => $cluster->id,
+                'reference_id' => $referenceId,
+                'owner_id' => $owner->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
     public function documents(Request $request): JsonResponse
     {
-        $applicationIds = PartnerApplication::query()->where('user_id', $request->user()->id)->pluck('id');
+        $applications = PartnerApplication::query()
+            ->where('user_id', $request->user()->id)
+            ->get(['id', 'approved_venue_cluster_id']);
+        $applicationIds = $applications->pluck('id')->filter()->values();
+        $venueClusterIds = $applications->pluck('approved_venue_cluster_id')->filter()->unique()->values();
         $documents = GeneratedDocument::query()
-            ->whereIn('partner_application_id', $applicationIds)
-            ->orWhere(fn ($query) => $query
-                ->where('owner_id', $request->user()->id)
-                ->where('document_type', 'partner_application_form'))
+            ->where(function ($query) use ($applicationIds, $venueClusterIds, $request): void {
+                $query->whereIn('partner_application_id', $applicationIds)
+                    ->orWhere(fn ($ownerQuery) => $ownerQuery
+                        ->where('owner_id', $request->user()->id)
+                        ->where('document_type', 'partner_application_form'));
+
+                if ($venueClusterIds->isNotEmpty()) {
+                    $query->orWhereIn('venue_cluster_id', $venueClusterIds);
+                }
+            })
             ->latest()
             ->get()
             ->map(fn (GeneratedDocument $document) => [
@@ -450,7 +771,16 @@ class PartnerApplicationController extends Controller
     {
         $payload = $application->toArray();
 
-        $payload['generated_documents'] = $application->generatedDocuments
+        $payload['generated_documents'] = GeneratedDocument::with('signatures')
+            ->where(function ($query) use ($application): void {
+                $query->where('partner_application_id', $application->id);
+
+                if ($application->approved_venue_cluster_id) {
+                    $query->orWhere('venue_cluster_id', $application->approved_venue_cluster_id);
+                }
+            })
+            ->latest()
+            ->get()
             ->map(fn (GeneratedDocument $document) => $this->generatedDocumentPayload($document))
             ->values();
 
@@ -477,9 +807,14 @@ class PartnerApplicationController extends Controller
 
     private function generatedDocumentPayload(GeneratedDocument $document): array
     {
+        $path = $document->final_file_path ?: $document->generated_file_path;
+        $fileAvailable = (bool) ($path && Storage::disk('local')->exists($path));
+
         return [
             ...$document->toArray(),
-            'download_url' => '/api/files/documents/' . $document->id . '/download',
+            'file_available' => $fileAvailable,
+            'file_size' => $fileAvailable ? Storage::disk('local')->size($path) : 0,
+            'download_url' => $fileAvailable ? '/api/files/documents/' . $document->id . '/download' : null,
             'signatures' => $document->signatures->values(),
         ];
     }
@@ -494,6 +829,8 @@ class PartnerApplicationController extends Controller
             'title' => $document->title,
             'description' => $document->description,
             'status' => $document->status,
+            'reject_reason' => $document->reject_reason,
+            'reviewed_at' => $document->reviewed_at,
             'file_name' => $document->media?->file_name,
             'mime_type' => $document->media?->mime_type,
             'file_size' => $document->media?->file_size,
@@ -556,20 +893,34 @@ class PartnerApplicationController extends Controller
         if ($includeFiles) {
             $rules += [
                 'identity_documents' => ['required', 'array', 'min:1', 'max:5'],
-                'identity_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'identity_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'business_license_documents' => ['required', 'array', 'min:1', 'max:5'],
-                'business_license_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'business_license_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'facility_images' => ['required', 'array', 'min:1', 'max:12'],
-                'facility_images.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'facility_images.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'bank_documents' => ['required', 'array', 'min:1', 'max:5'],
-                'bank_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'bank_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'lease_documents' => ['required', 'array', 'min:1', 'max:5'],
-                'lease_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'lease_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
                 'additional_documents' => ['nullable', 'array', 'max:10'],
-                'additional_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf', 'max:10240'],
+                'additional_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
             ];
         } else {
             $rules['attachments_summary'] = ['nullable', 'string', 'max:1000'];
+            $rules += [
+                'identity_documents' => ['nullable', 'array', 'max:5'],
+                'identity_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+                'business_license_documents' => ['nullable', 'array', 'max:5'],
+                'business_license_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+                'facility_images' => ['nullable', 'array', 'max:12'],
+                'facility_images.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+                'bank_documents' => ['nullable', 'array', 'max:5'],
+                'bank_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+                'lease_documents' => ['nullable', 'array', 'max:5'],
+                'lease_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+                'additional_documents' => ['nullable', 'array', 'max:10'],
+                'additional_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
+            ];
         }
 
         $data = $request->validate($rules, $this->messages(), $this->attributes());
@@ -585,6 +936,8 @@ class PartnerApplicationController extends Controller
                 'venue_ward_code' => 'Phường/Xã không thuộc Tỉnh/Thành phố đã chọn.',
             ]);
         }
+
+        $this->assertCoordinatesMatchAddress($data);
 
         $this->assertIdentityNumber($data['representative_identity_type'], $data['representative_identity_number']);
 
@@ -635,6 +988,38 @@ class PartnerApplicationController extends Controller
                     "courts.$index.court_type_id" => 'Vui lòng chọn loại sân con đang hoạt động và là loại sử dụng cuối.',
                 ]);
             }
+        }
+    }
+
+    private function assertCoordinatesMatchAddress(array $data): void
+    {
+        try {
+            $resolved = $this->maps->reverse((float) $data['venue_latitude'], (float) $data['venue_longitude']);
+        } catch (\Throwable) {
+            throw ValidationException::withMessages([
+                'venue_coordinates' => 'Không xác minh được Tỉnh/Thành phố và Phường/Xã từ tọa độ đã chọn. Vui lòng chọn lại vị trí trên bản đồ.',
+            ]);
+        }
+
+        $resolvedProvince = (string) ($resolved['province_code'] ?? '');
+        $resolvedWard = (string) ($resolved['ward_code'] ?? '');
+
+        if ($resolvedProvince === '' || $resolvedWard === '') {
+            throw ValidationException::withMessages([
+                'venue_coordinates' => 'Không xác định được Tỉnh/Thành phố và Phường/Xã từ tọa độ đã chọn. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.',
+            ]);
+        }
+
+        if ($resolvedProvince !== '' && $resolvedProvince !== (string) $data['venue_province_code']) {
+            throw ValidationException::withMessages([
+                'venue_province_code' => 'Tỉnh/Thành phố không khớp với tọa độ đã chọn trên bản đồ.',
+            ]);
+        }
+
+        if ($resolvedWard !== '' && $resolvedWard !== (string) $data['venue_ward_code']) {
+            throw ValidationException::withMessages([
+                'venue_ward_code' => 'Phường/Xã không khớp với tọa độ đã chọn trên bản đồ.',
+            ]);
         }
     }
 
@@ -727,7 +1112,7 @@ class PartnerApplicationController extends Controller
             'between' => ':attribute không nằm trong giới hạn hợp lệ.',
             'before_or_equal' => ':attribute phải cho thấy người đăng ký đã đủ 18 tuổi.',
             'accepted' => 'Bạn cần xác nhận đã đọc đơn đăng ký trước khi gửi.',
-            'mimes' => ':attribute chỉ hỗ trợ JPG, PNG, WEBP hoặc PDF.',
+            'mimes' => ':attribute chỉ hỗ trợ JPG, PNG, WEBP, PDF, DOC hoặc DOCX.',
             'file' => ':attribute phải là file hợp lệ.',
             'exists' => ':attribute không tồn tại trong danh mục.',
             'in' => ':attribute không hợp lệ.',
