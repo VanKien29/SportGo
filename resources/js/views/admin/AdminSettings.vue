@@ -262,7 +262,7 @@
               <span class="preview-mode-tag">Giao diện Sáng</span>
               <div :style="previewCardStyle" class="preview-card-body">
                 <div class="preview-card-title">Tiêu đề Khối</div>
-                <p class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</p>
+                <div class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</div>
                 <div class="preview-btn-row">
                   <button type="button" :style="lightBtnPrimaryStyle" class="preview-btn">Primary</button>
                   <button type="button" :style="lightBtnDestructiveStyle" class="preview-btn">Danger</button>
@@ -275,7 +275,7 @@
               <span class="preview-mode-tag dark">Giao diện Tối</span>
               <div :style="previewCardStyle" class="preview-card-body">
                 <div class="preview-card-title">Tiêu đề Khối</div>
-                <p class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</p>
+                <div class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</div>
                 <div class="preview-btn-row">
                   <button type="button" :style="darkBtnPrimaryStyle" class="preview-btn">Primary</button>
                   <button type="button" :style="darkBtnDestructiveStyle" class="preview-btn">Danger</button>
@@ -302,6 +302,7 @@
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import { applyCustomThemeStyles } from '../../utils/theme.js';
+import { adminUiSettingsService } from '../../services/adminUiSettings.js';
 
 const PRESETS = [
   {
@@ -553,9 +554,10 @@ export default {
       return { background: this.theme.dark.destructive, color: '#ffffff', borderRadius: `calc(${this.selectedRadius} - 4px)` };
     },
   },
-  created() {
+  async created() {
     this.loadUserPresets();
     this.loadSavedTheme();
+    await this.fetchUiSettingsFromDb();
   },
   beforeUnmount() {
     document.removeEventListener('click', this.closeCustomPicker);
@@ -778,7 +780,36 @@ export default {
         this.selectedRadius = '8px';
       }
     },
-    saveTheme() {
+    async fetchUiSettingsFromDb() {
+      try {
+        const data = await adminUiSettingsService.getSettings();
+        if (data) {
+          this.sidebarStyle = data.sidebar_style || 'one-level';
+          this.selectedRadius = data.radius || '8px';
+          
+          if (data.presets && data.presets.length > 0) {
+            this.defaultPresets = data.presets;
+          }
+          if (data.custom_themes) {
+            this.userPresets = data.custom_themes;
+          }
+
+          // Find and set active preset
+          const activePreset = this.allPresets.find(p => p.id === data.active_theme_id);
+          if (activePreset) {
+            this.selectedPresetId = activePreset.id;
+            this.theme.light = { ...activePreset.light };
+            this.theme.dark = { ...activePreset.dark };
+            this.newThemeName = activePreset.name;
+          } else {
+            this.selectedPresetId = data.active_theme_id || 'emerald';
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch UI settings from DB', e);
+      }
+    },
+    async saveTheme() {
       const payload = {
         light: this.theme.light,
         dark: this.theme.dark,
@@ -786,10 +817,24 @@ export default {
       };
       localStorage.setItem('admin-custom-theme', JSON.stringify(payload));
       localStorage.setItem('admin-sidebar-style', this.sidebarStyle);
+      localStorage.setItem('admin-user-presets', JSON.stringify(this.userPresets));
       applyCustomThemeStyles();
       
       // Dispatch style change event to let AdminShell re-render immediately
       window.dispatchEvent(new Event('sidebar-style-changed'));
+
+      try {
+        const payloadDb = {
+          active_theme_id: this.selectedPresetId,
+          sidebar_style: this.sidebarStyle,
+          radius: this.selectedRadius,
+          presets: this.defaultPresets,
+          custom_themes: this.userPresets,
+        };
+        await adminUiSettingsService.updateSettings(payloadDb);
+      } catch (e) {
+        console.error('Failed to save UI settings to DB', e);
+      }
       
       this.successMessage = 'Cấu hình giao diện đã lưu và áp dụng thành công!';
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1371,7 +1416,7 @@ export default {
 .preview-card-text {
   font-size: 11px;
   margin: 0;
-  color: var(--preview-muted);
+  color: var(--preview-muted) !important;
   line-height: 1.4;
 }
 

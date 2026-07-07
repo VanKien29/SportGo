@@ -217,20 +217,7 @@ export default {
     box-sizing: border-box;
 }
 
-.card {
-    background: transparent;
-    border-radius: 0;
-    border: none;
-    padding: 12px 0;
-    box-shadow: none;
-}
 
-:deep(.saas-table-container) {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
 
 /* State */
 .state-box {
@@ -587,7 +574,7 @@ export default {
 
 .cluster-address-text {
     font-size: 11.5px;
-    color: var(--admin-faint, #64748b);
+    color: var(--admin-muted, #475569);
     max-width: 250px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -602,7 +589,7 @@ export default {
 
 .owner-email-text {
     font-size: 11px;
-    color: var(--admin-faint, #64748b);
+    color: var(--admin-muted, #475569);
 }
 
 .courts-badge-count {

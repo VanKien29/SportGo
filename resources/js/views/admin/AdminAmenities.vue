@@ -15,7 +15,7 @@
 
         <template v-else>
             <!-- Controls Bar -->
-            <div class="avc-filters card animate-fade-in" v-if="amenities.length > 0 || searchQuery || statusFilter !== 'all'">
+            <div class="avc-filters animate-fade-in" v-if="amenities.length > 0 || searchQuery || statusFilter !== 'all'">
                 <div class="filter-row">
                     <div class="filter-tabs">
                         <button
@@ -485,20 +485,6 @@ export default {
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
-
-/* Filters */
-.avc-filters {
-    padding: 12px 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-}
-:deep(.saas-table-container) {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
 }
 .filter-row {
     display: flex;

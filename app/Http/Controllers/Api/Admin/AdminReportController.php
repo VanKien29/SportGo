@@ -4,15 +4,14 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
-use App\Models\CommunityPost;
-use App\Models\CommunityPostComment;
+use App\Models\VenuePost;
+use App\Models\VenuePostComment;
 use App\Models\Notification;
 use App\Models\PartnerContract;
 use App\Models\PlayerPost;
 use App\Models\Report;
 use App\Models\User;
 use App\Models\VenueCluster;
-use App\Models\VenuePost;
 use App\Models\ViolationRecord;
 use App\Services\Admin\AdminAuditService;
 use App\Services\Moderation\PenaltyEscalationService;
@@ -31,8 +30,8 @@ use Illuminate\Validation\ValidationException;
 class AdminReportController extends Controller
 {
     private const TARGET_TYPES = [
-        'post' => CommunityPost::class,
-        'comment' => CommunityPostComment::class,
+        'post' => VenuePost::class,
+        'comment' => VenuePostComment::class,
         'venue_post' => VenuePost::class,
         'player_post' => PlayerPost::class,
         'user' => User::class,

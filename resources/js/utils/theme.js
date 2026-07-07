@@ -37,7 +37,7 @@ export function applyCustomThemeStyles() {
       const l = themeData.light;
       const primaryText = getContrastColor(l.primary);
       cssContent += `
-:root {
+:root:not([data-theme="dark"]) {
   ${l.primary ? `--admin-primary: ${l.primary} !important;` : ''}
   --admin-primary-text: ${primaryText} !important;
   ${l.secondary ? `--admin-blue: ${l.secondary} !important;` : ''}

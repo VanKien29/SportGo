@@ -1,5 +1,44 @@
 <template>
   <div class="partner-page">
+<<<<<<< HEAD
+=======
+    <header class="page-header">
+      <div>
+        <h2>Quản lý hồ sơ đối tác</h2>
+        <p>Theo dõi hồ sơ, hợp đồng, chữ ký điện tử và chấm dứt hợp tác của chủ sân.</p>
+      </div>
+      <button class="icon-btn" type="button" title="Làm mới" @click="refresh">
+        <AppIcon name="refresh" size="16" />
+      </button>
+    </header>
+
+    <div class="tabs">
+      <button
+        v-for="tab in listTabs"
+        :key="tab.value"
+        class="tab-btn"
+        :class="{ active: filters.tab === tab.value }"
+        type="button"
+        @click="selectListTab(tab.value)"
+      >
+        {{ tab.label }}
+      </button>
+    </div>
+
+    <div class="toolbar card">
+      <label class="field">
+        <span>Tìm kiếm</span>
+        <input v-model.trim="filters.search" type="search" placeholder="Mã đối tác, họ tên, điện thoại, email, cụm sân" @input="onFilterChange" />
+      </label>
+      <label class="field">
+        <span>Trạng thái</span>
+        <select v-model="filters.status" @change="loadApplications(1)">
+          <option value="">Tất cả</option>
+          <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+      </label>
+    </div>
+>>>>>>> f80c2f7decbba324005bf9688c4222f7d391f960
 
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>

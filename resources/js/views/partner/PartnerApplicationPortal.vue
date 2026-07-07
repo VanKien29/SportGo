@@ -1399,9 +1399,7 @@ function money(value) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(n);
 }
 </script>
-<style>
-@import "../../../css/partner/partner.css";
-
+<style scoped>
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

@@ -1,18 +1,10 @@
 <template>
   <div class="posts-page">
-    <div class="page-header sg-page-header">
-      <div class="header-left sg-page-heading">
-        <nav class="sg-breadcrumbs" aria-label="Breadcrumb">
-          <router-link to="/owner/dashboard">Dashboard</router-link>
-          <span>/</span>
-          <span>Quản lý bài viết</span>
-        </nav>
-        <h2>Quản lý bài viết</h2>
-        <p class="muted">Đăng tin tức, hướng dẫn sử dụng, quảng bá sân bãi và giải đấu.</p>
-      </div>
-      <button class="btn btn-create primary sg-primary-action" type="button" @click="openForm()">
-        <i class="fas fa-plus mr-2"></i>
-        <span>Tạo bài viết mới</span>
+    <!-- Floating Add Button -->
+    <div class="floating-add-container">
+      <button class="btn-float-add" type="button" @click="openForm()" title="Tạo bài viết mới">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Tạo bài viết</span>
       </button>
     </div>
 
@@ -84,7 +76,7 @@
 
     <!-- Posts Grid -->
     <transition-group v-else name="list" tag="div" class="posts-list grid-view" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
-      <div v-for="post in posts" :key="post.id" class="post-card card premium-card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+      <div v-for="post in posts" :key="post.id" class="post-card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08); transition: all 0.3s;">
         
         <!-- Image Cover -->
         <div class="cover-image" style="height: 200px; position: relative; background: #f8fafc; cursor: pointer; border-bottom: 1px solid #f1f5f9; overflow: hidden;">
@@ -97,7 +89,7 @@
           />
           <div v-else style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8; background: #f1f5f9;"><AppIcon name="image" size="36" /></div>
           
-          <span class="status-badge" :class="post.status || 'draft'" style="position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.95); padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); backdrop-filter: blur(4px);">
+          <span :style="statusBadgeStyle(post.status)">
             {{ statusLabel(post) }}
           </span>
           <span style="position: absolute; top: 12px; left: 12px; font-size: 11px; font-weight: 800; background: rgba(15,23,42,0.85); padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); color: #fff; backdrop-filter: blur(4px);">
@@ -822,6 +814,18 @@ const statusLabel = (post) => {
     'hidden': 'Đã ẩn'
   };
   return map[post.status] || post.status;
+};
+
+const statusBadgeStyle = (status) => {
+  const styles = {
+    'published': { bg: 'rgba(16, 185, 129, 0.95)', color: 'white' },
+    'pending_review': { bg: 'rgba(59, 130, 246, 0.95)', color: 'white' },
+    'draft': { bg: 'rgba(241, 245, 249, 0.95)', color: '#475569' },
+    'rejected': { bg: 'rgba(249, 115, 22, 0.95)', color: 'white' },
+    'hidden': { bg: 'rgba(239, 68, 68, 0.95)', color: 'white' }
+  };
+  const s = styles[status] || { bg: 'rgba(100, 116, 139, 0.95)', color: 'white' };
+  return `position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 800; padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); backdrop-filter: blur(4px); background: ${s.bg}; color: ${s.color}; z-index: 10;`;
 };
 
 const formatCategory = (type) => {
@@ -1631,4 +1635,5 @@ const formatDate = (dateString) => {
   border-color: #ef4444 !important;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
 }
+
 </style>
