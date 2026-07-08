@@ -54,6 +54,13 @@ export const authService = {
     return api('/api/auth/me');
   },
 
+  googleExchange(code) {
+    return api('/api/auth/google/exchange', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+
   setPassword(password, password_confirmation) {
     return api('/api/auth/set-password', {
       method: 'POST',

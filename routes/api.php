@@ -79,6 +79,7 @@ Route::prefix('auth')->group(function (): void {
     Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'reset']);
     Route::get('/google/redirect', [GoogleAuthController::class, 'redirect']);
     Route::get('/google/callback', [GoogleAuthController::class, 'callback']);
+    Route::post('/google/exchange', [GoogleAuthController::class, 'exchange']);
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -474,7 +475,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
 Route::middleware('auth:sanctum')
     ->group(function (): void {
         Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
-        Route::get('/user/partner-application/{id}', [UserPartnerApplicationController::class, 'detail'])->whereUuid('id');
+        Route::get('/user/partner-application/{id}', [UserPartnerApplicationController::class, 'detail'])->whereNumber('id');
         Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
         Route::get('/user/partner-application/provinces', [UserPartnerApplicationController::class, 'provinces']);
         Route::get('/user/partner-application/provinces/{provinceCode}/wards', [UserPartnerApplicationController::class, 'wards']);

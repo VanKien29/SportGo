@@ -415,10 +415,10 @@
             </div>
 
             <div class="termination-finance-grid">
-              <div><span class="label">Booking tuong lai</span><strong>{{ request.future_booking_count || 0 }}</strong></div>
-              <div><span class="label">Co the rut</span><strong class="amount positive">{{ money(request.withdrawable_amount) }}</strong></div>
-              <div><span class="label">No booking online</span><strong class="amount negative">{{ money(request.future_online_booking_liability) }}</strong></div>
-              <div><span class="label">Refund/withdraw treo</span><strong>{{ money((Number(request.pending_refund_liability) || 0) + (Number(request.pending_withdrawal_amount) || 0)) }}</strong></div>
+              <div><span class="label">Booking tương lai</span><strong>{{ request.future_booking_count || 0 }}</strong></div>
+              <div><span class="label">Có thể rút</span><strong class="amount positive">{{ money(request.withdrawable_amount) }}</strong></div>
+              <div><span class="label">Nợ booking online</span><strong class="amount negative">{{ money(request.future_online_booking_liability) }}</strong></div>
+              <div><span class="label">Hoàn/rút tiền treo</span><strong>{{ money((Number(request.pending_refund_liability) || 0) + (Number(request.pending_withdrawal_amount) || 0)) }}</strong></div>
             </div>
 
             <div class="termination-actions">
@@ -429,7 +429,7 @@
                 :disabled="saving"
                 @click="handleMarkTerminationReady(request)"
               >
-                <AppIcon name="fileText" size="14" /> Sinh bien ban cuoi
+                <AppIcon name="fileText" size="14" /> Sinh biên bản cuối
               </button>
               <button
                 v-if="request.status === 'waiting_final_document_signature'"
@@ -438,17 +438,36 @@
                 :disabled="saving"
                 @click="handlePreviewFinalDocument(request)"
               >
-                <AppIcon name="fileText" size="14" /> Lam moi bien ban
+                <AppIcon name="fileText" size="14" /> Làm mới biên bản
               </button>
-              <button
-                v-if="request.status === 'waiting_final_document_signature' && !request.final_document_admin_signed_at"
-                class="btn ghost small"
-                type="button"
-                :disabled="saving"
-                @click="handleSendTerminationFinalOtp(request)"
-              >
-                <AppIcon name="fileText" size="14" /> Gui OTP SportGo
-              </button>
+              <div v-if="request.status === 'waiting_final_document_signature' && !request.final_document_admin_signed_at" class="admin-termination-sign-box">
+                <p class="muted">SportGo ký biên bản cuối trước, sau đó chủ sân ký xác nhận.</p>
+                <canvas
+                  ref="terminationFinalCanvas"
+                  class="termination-signature-pad"
+                  width="520"
+                  height="160"
+                  @pointerdown="startTerminationFinalSignature"
+                  @pointermove="drawTerminationFinalSignature"
+                  @pointerup="stopTerminationFinalSignature"
+                  @pointerleave="stopTerminationFinalSignature"
+                ></canvas>
+                <label class="admin-sign-confirm">
+                  <input v-model="terminationFinalSigning.accepted" type="checkbox" />
+                  <span>Tôi xác nhận đại diện SportGo đã kiểm tra biên bản cuối và đồng ý ký.</span>
+                </label>
+                <div class="actions compact">
+                  <button class="btn ghost small" type="button" @click="clearTerminationFinalSignature">Ký lại</button>
+                  <button
+                    class="btn ghost small"
+                    type="button"
+                    :disabled="saving || terminationFinalSignatureEmpty || !terminationFinalSigning.accepted"
+                    @click="handleSendTerminationFinalOtp(request)"
+                  >
+                    <AppIcon name="fileText" size="14" /> Gửi OTP SportGo
+                  </button>
+                </div>
+              </div>
               <template v-if="terminationFinalSigning.requestId && terminationFinalSigning.requestIdFor === request.id">
                 <input v-model.trim="terminationFinalSigning.otp" class="otp-input" inputmode="numeric" maxlength="6" placeholder="OTP SportGo" />
                 <button
@@ -457,13 +476,13 @@
                   :disabled="saving || terminationFinalSigning.otp.length !== 6"
                   @click="handleSignTerminationFinalDocument(request)"
                 >
-                  <AppIcon name="check" size="14" /> Ky bien ban
+                  <AppIcon name="check" size="14" /> Ký biên bản
                 </button>
               </template>
             </div>
 
             <div v-if="request.booking_actions?.length" class="settlement-box">
-              <h4>Booking tuong lai</h4>
+              <h4>Booking tương lai</h4>
               <div v-for="action in request.booking_actions" :key="action.id" class="withdrawal-row">
                 <span>{{ action.booking?.booking_code || action.booking_id }}</span>
                 <span>{{ bookingActionLabel(action.action) }}</span>
@@ -475,7 +494,7 @@
                   :disabled="saving"
                   @click="handleManualResolveBooking(request, action)"
                 >
-                  Xu ly xong
+                  Xử lý xong
                 </button>
               </div>
             </div>
@@ -566,7 +585,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, defineComponent, h, watch } from 'vue';
+import { computed, onMounted, reactive, ref, defineComponent, h, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '../../components/AppIcon.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
@@ -585,7 +604,10 @@ const activeTab = ref('overview');
 const actionMode = ref(route.query.action || '');
 const fieldErrors = reactive({});
 const terminationModal = reactive({ open: false, reason: '' });
-const terminationFinalSigning = reactive({ requestIdFor: null, requestId: null, hashShort: '', otp: '' });
+const terminationFinalSigning = reactive({ requestIdFor: null, requestId: null, hashShort: '', otp: '', accepted: false });
+const terminationFinalCanvas = ref(null);
+const terminationFinalDrawing = ref(false);
+const terminationFinalSignatureEmpty = ref(true);
 const TERMINATING_STATUSES = [
   'submitted',
   'reviewing',
@@ -596,8 +618,6 @@ const TERMINATING_STATUSES = [
   'waiting_final_document_signature',
   'terminating',
 ];
-const SIGNATURE_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
-
 const approveForm = reactive({
   initial_court_name: '',
   court_type_id: '',
@@ -654,6 +674,7 @@ const readonlyActionText = computed(() => {
 
 onMounted(async () => {
   await Promise.all([loadApplication(), loadCourtTypes()]);
+  prepareTerminationFinalSignature();
 });
 
 watch(() => route.params.id, () => {
@@ -675,6 +696,8 @@ async function loadApplication() {
     if (!isReviewable(application.value?.status) && ['approve', 'reject', 'supplement'].includes(actionMode.value)) {
       actionMode.value = '';
     }
+    await nextTick();
+    prepareTerminationFinalSignature();
   } catch (err) {
     error.value = err.message || 'Không tải được hồ sơ đối tác.';
   } finally {
@@ -850,17 +873,17 @@ function canPrepareFinalDocument(request) {
 }
 
 async function handleMarkTerminationReady(request) {
-  if (!confirm('Xac nhan ho so da du dieu kien sinh bien ban cham dut cuoi?')) return;
+  if (!confirm('Xác nhận hồ sơ đã đủ điều kiện sinh biên bản chấm dứt cuối?')) return;
   clearAlerts();
   saving.value = true;
   try {
     const response = await adminPartnerApplicationService.markTerminationReady(request.id, {
-      note: 'Admin xac nhan du dieu kien sinh bien ban cham dut cuoi.',
+      note: 'Admin xác nhận đủ điều kiện sinh biên bản chấm dứt cuối.',
     });
-    message.value = response.message || 'Da sinh bien ban cham dut cuoi.';
+    message.value = response.message || 'Đã sinh biên bản chấm dứt cuối.';
     await loadApplication();
   } catch (err) {
-    error.value = err.message || 'Khong the sinh bien ban cham dut cuoi.';
+    error.value = err.message || 'Không thể sinh biên bản chấm dứt cuối.';
   } finally {
     saving.value = false;
   }
@@ -871,13 +894,79 @@ async function handlePreviewFinalDocument(request) {
   saving.value = true;
   try {
     const response = await adminPartnerApplicationService.previewTerminationFinalDocument(request.id);
-    message.value = response.message || 'Da lam moi bien ban cham dut cuoi.';
+    message.value = response.message || 'Đã làm mới biên bản chấm dứt cuối.';
     await loadApplication();
   } catch (err) {
-    error.value = err.message || 'Khong the lam moi bien ban cham dut cuoi.';
+    error.value = err.message || 'Không thể làm mới biên bản chấm dứt cuối.';
   } finally {
     saving.value = false;
   }
+}
+
+function prepareTerminationFinalSignature() {
+  const canvas = terminationFinalCanvas.value;
+  if (!canvas) return;
+
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.strokeStyle = '#0f172a';
+  context.lineWidth = 2.4;
+  context.lineCap = 'round';
+  terminationFinalSignatureEmpty.value = true;
+}
+
+function terminationSignaturePoint(event) {
+  const canvas = terminationFinalCanvas.value;
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+    y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+  };
+}
+
+function startTerminationFinalSignature(event) {
+  const canvas = terminationFinalCanvas.value;
+  if (!canvas) return;
+
+  terminationFinalDrawing.value = true;
+  terminationFinalSignatureEmpty.value = false;
+  terminationFinalSigning.requestIdFor = null;
+  terminationFinalSigning.requestId = null;
+  terminationFinalSigning.hashShort = '';
+  terminationFinalSigning.otp = '';
+
+  const context = canvas.getContext('2d');
+  const current = terminationSignaturePoint(event);
+  context.beginPath();
+  context.moveTo(current.x, current.y);
+}
+
+function drawTerminationFinalSignature(event) {
+  const canvas = terminationFinalCanvas.value;
+  if (!terminationFinalDrawing.value || !canvas) return;
+
+  const context = canvas.getContext('2d');
+  const current = terminationSignaturePoint(event);
+  context.lineTo(current.x, current.y);
+  context.stroke();
+}
+
+function stopTerminationFinalSignature() {
+  terminationFinalDrawing.value = false;
+}
+
+function clearTerminationFinalSignature() {
+  prepareTerminationFinalSignature();
+  terminationFinalSigning.accepted = false;
+  terminationFinalSigning.requestIdFor = null;
+  terminationFinalSigning.requestId = null;
+  terminationFinalSigning.hashShort = '';
+  terminationFinalSigning.otp = '';
+}
+
+function terminationFinalSignatureImage() {
+  return terminationFinalCanvas.value?.toDataURL('image/png') || '';
 }
 
 async function handleSendTerminationFinalOtp(request) {
@@ -885,15 +974,15 @@ async function handleSendTerminationFinalOtp(request) {
   saving.value = true;
   try {
     const response = await adminPartnerApplicationService.sendTerminationFinalOtp(request.id, {
-      signature_image: SIGNATURE_IMAGE,
+      signature_image: terminationFinalSignatureImage(),
     });
     terminationFinalSigning.requestIdFor = request.id;
     terminationFinalSigning.requestId = response.data.signing_request_id;
     terminationFinalSigning.hashShort = response.data.hash_short;
     terminationFinalSigning.otp = '';
-    message.value = `Da gui OTP SportGo. Ma doi soat: ${terminationFinalSigning.hashShort}`;
+    message.value = `Đã gửi OTP SportGo. Mã đối soát: ${terminationFinalSigning.hashShort}`;
   } catch (err) {
-    error.value = err.message || 'Khong the gui OTP ky bien ban.';
+    error.value = err.message || 'Không thể gửi OTP ký biên bản.';
   } finally {
     saving.value = false;
   }
@@ -907,32 +996,33 @@ async function handleSignTerminationFinalDocument(request) {
       signing_request_id: terminationFinalSigning.requestId,
       otp: terminationFinalSigning.otp,
     });
-    message.value = response.message || 'SportGo da ky bien ban cham dut cuoi.';
+    message.value = response.message || 'SportGo đã ký biên bản chấm dứt cuối.';
     terminationFinalSigning.requestIdFor = null;
     terminationFinalSigning.requestId = null;
     terminationFinalSigning.hashShort = '';
     terminationFinalSigning.otp = '';
+    terminationFinalSigning.accepted = false;
     await loadApplication();
   } catch (err) {
-    error.value = err.message || 'Khong the ky bien ban cham dut cuoi.';
+    error.value = err.message || 'Không thể ký biên bản chấm dứt cuối.';
   } finally {
     saving.value = false;
   }
 }
 
 async function handleManualResolveBooking(request, action) {
-  if (!confirm('Xac nhan booking nay da duoc xu ly thu cong?')) return;
+  if (!confirm('Xác nhận booking này đã được xử lý thủ công?')) return;
   clearAlerts();
   saving.value = true;
   try {
     const response = await adminPartnerApplicationService.manualResolveTerminationBooking(request.id, {
       booking_id: action.booking_id,
-      note: 'Admin xac nhan booking da duoc xu ly thu cong.',
+      note: 'Admin xác nhận booking đã được xử lý thủ công.',
     });
-    message.value = response.message || 'Da ghi nhan booking duoc xu ly.';
+    message.value = response.message || 'Đã ghi nhận booking được xử lý.';
     await loadApplication();
   } catch (err) {
-    error.value = err.message || 'Khong the cap nhat booking.';
+    error.value = err.message || 'Không thể cập nhật booking.';
   } finally {
     saving.value = false;
   }
@@ -987,11 +1077,11 @@ function bankVerificationLabel(status) {
 }
 
 function documentTypeLabel(type) {
-  if (type === 'owner_termination_request') return 'Don owner yeu cau cham dut';
+  if (type === 'owner_termination_request') return 'Đơn chủ sân yêu cầu chấm dứt';
   if (type === 'venue_scale_request') return 'Đơn yêu cầu thay đổi quy mô sân';
   if (type === 'venue_location_change_request') return 'Đơn yêu cầu thay đổi vị trí cụm sân';
-  if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
-  if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+  if (type === 'venue_scale_appendix') return 'Phụ lục thay đổi quy mô sân';
+  if (type === 'venue_location_appendix') return 'Phụ lục thay đổi vị trí cụm sân';
 
   return {
     partner_application_form: 'Đơn đăng ký đối tác',
@@ -1046,7 +1136,7 @@ function generatedDocumentGroupMeta(document) {
     return { key: 'location_request', label: 'Đơn yêu cầu thay đổi vị trí' };
   }
   if (['termination_request', 'owner_termination_request', 'mutual_liquidation_minutes', 'unilateral_termination_notice', 'settlement_minutes'].includes(type)) {
-    return { key: 'termination', label: 'Công văn, hủy yêu cầu đối tác' };
+    return { key: 'termination', label: 'Văn bản chấm dứt hợp tác' };
   }
   return { key: 'other', label: 'Văn bản khác' };
 }
@@ -1086,15 +1176,15 @@ function contractStatusLabel(status) {
 
 function terminationStatusLabel(status) {
   return {
-    draft_preview: 'Cho owner ky gui',
-    cancellation_in_progress: 'Owner da gui yeu cau',
-    future_bookings_processing: 'Dang xu ly booking',
-    waiting_final_settlement: 'Cho quyet toan cuoi',
-    waiting_final_document_signature: 'Cho ky bien ban cuoi',
-    terminating: 'Dang trong thoi gian xem ho so',
-    terminated: 'Da cham dut',
-    owner_cancelled_request: 'Owner da huy',
-    admin_rejected: 'Admin tu choi',
+    draft_preview: 'Chờ chủ sân ký gửi',
+    cancellation_in_progress: 'Chủ sân đã gửi yêu cầu',
+    future_bookings_processing: 'Đang xử lý booking',
+    waiting_final_settlement: 'Chờ quyết toán cuối',
+    waiting_final_document_signature: 'Chờ ký biên bản cuối',
+    terminating: 'Đang trong thời gian xem hồ sơ',
+    terminated: 'Đã chấm dứt',
+    owner_cancelled_request: 'Chủ sân đã hủy',
+    admin_rejected: 'Admin từ chối',
     submitted: 'Chờ xác nhận',
     reviewing: 'Đang xem xét',
     transition_period: 'Giai đoạn chuyển tiếp',
@@ -1113,9 +1203,9 @@ function terminationTypeLabel(type) {
 
 function bookingActionLabel(action) {
   return {
-    cancel_all_refund_to_user_balance: 'Huy va hoan tien',
-    serve_until_last_booking: 'Phuc vu den booking cuoi',
-    manual_per_booking: 'Xu ly thu cong',
+    cancel_all_refund_to_user_balance: 'Hủy và hoàn tiền',
+    serve_until_last_booking: 'Phục vụ đến booking cuối',
+    manual_per_booking: 'Xử lý thủ công',
   }[action] || action || '-';
 }
 
@@ -1713,6 +1803,40 @@ dd {
   flex-wrap: wrap;
   gap: 8px;
   margin: 12px 0;
+}
+
+.termination-actions .actions.compact {
+  margin: 0;
+}
+
+.admin-termination-sign-box {
+  display: grid;
+  gap: 10px;
+  width: min(560px, 100%);
+  border: 1px dashed var(--admin-border, #cbd5e1);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.termination-signature-pad {
+  width: 100%;
+  max-width: 100%;
+  height: 160px;
+  touch-action: none;
+  border: 1px solid var(--admin-border, #cbd5e1);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-sign-confirm {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--admin-text, #334155);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .otp-input {

@@ -42,7 +42,7 @@ class PartnerTerminationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Da tao ban xem truoc don yeu cau cham dut.',
+            'message' => 'Đã tạo bản xem trước đơn yêu cầu chấm dứt.',
             'data' => $termination,
         ]);
     }
@@ -62,7 +62,7 @@ class PartnerTerminationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Ma OTP ky don da duoc gui qua email.',
+            'message' => 'Mã OTP ký đơn đã được gửi qua email.',
             'data' => [
                 'signing_request_id' => $signingRequest->id,
                 'expires_at' => $signingRequest->expires_at,
@@ -94,7 +94,7 @@ class PartnerTerminationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Da ky va gui yeu cau cham dut hop dong.',
+            'message' => 'Đã ký và gửi yêu cầu chấm dứt hợp đồng.',
             'data' => $termination,
         ], 201);
     }
@@ -143,7 +143,7 @@ class PartnerTerminationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Da cap nhat phuong an xu ly booking tuong lai.',
+            'message' => 'Đã cập nhật phương án xử lý booking tương lai.',
             'data' => $termination,
         ]);
     }
@@ -162,7 +162,7 @@ class PartnerTerminationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Da gui yeu cau rut tien trong ho so cham dut.',
+            'message' => 'Đã gửi yêu cầu rút tiền trong hồ sơ chấm dứt.',
             'data' => $withdrawal,
         ], 201);
     }
@@ -178,7 +178,7 @@ class PartnerTerminationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Ma OTP huy yeu cau da duoc gui.',
+            'message' => 'Mã OTP hủy yêu cầu đã được gửi.',
             'data' => [
                 'signing_request_id' => $signingRequest->id,
                 'expires_at' => $signingRequest->expires_at,
@@ -207,7 +207,7 @@ class PartnerTerminationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Da huy yeu cau cham dut hop dong.',
+            'message' => 'Đã hủy yêu cầu chấm dứt hợp đồng.',
             'data' => $termination,
         ]);
     }
@@ -223,7 +223,7 @@ class PartnerTerminationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Ma OTP ky bien ban cuoi da duoc gui.',
+            'message' => 'Mã OTP ký biên bản cuối đã được gửi.',
             'data' => [
                 'signing_request_id' => $signingRequest->id,
                 'expires_at' => $signingRequest->expires_at,
@@ -251,7 +251,7 @@ class PartnerTerminationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Owner da ky xac nhan bien ban cham dut cuoi.',
+            'message' => 'Chủ sân đã ký xác nhận biên bản chấm dứt cuối.',
             'data' => $termination,
         ]);
     }

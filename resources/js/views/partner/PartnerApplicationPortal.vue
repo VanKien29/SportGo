@@ -112,13 +112,13 @@
                 <AppIcon name="fileText" size="16" />
                 Ký hợp đồng
               </button>
-              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary action-submit" title="Gửi hồ sơ" @click="submitSignedApplication(application)">
+              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary action-submit" title="Gửi hồ sơ" :disabled="actioningApplicationId === application.id" @click="submitSignedApplication(application)">
                 <AppIcon name="send" size="16" />
-                Gửi hồ sơ
+                {{ actioningApplicationId === application.id ? 'Đang gửi...' : 'Gửi hồ sơ' }}
               </button>
-              <button v-if="canCancel(application)" type="button" class="btn btn-outline action-cancel" title="Hủy hồ sơ" @click="cancelApplication(application)">
+              <button v-if="canCancel(application)" type="button" class="btn btn-outline action-cancel" title="Hủy hồ sơ" :disabled="actioningApplicationId === application.id" @click="cancelApplication(application)">
                 <AppIcon name="trash" size="16" />
-                Hủy
+                {{ actioningApplicationId === application.id ? 'Đang hủy...' : 'Hủy' }}
               </button>
             </div>
           </article>
@@ -554,6 +554,7 @@ const existingDocuments = reactive(blankExistingDocuments());
 const uploadResetKey = ref(0);
 const confirmed = ref(false);
 const submitting = ref(false);
+const actioningApplicationId = ref('');
 const mapError = ref('');
 const mapStatus = ref('');
 const mapSuggestion = ref(null);
@@ -1286,6 +1287,8 @@ async function submit() {
 
 // ─── Application actions ──────────────────────────────────────────────────────
 async function cancelApplication(application) {
+  if (!application?.id || actioningApplicationId.value) return;
+
   const ok = window.confirm([
     `Hủy hồ sơ đăng ký cho ${application.venue_name}?`,
     '',
@@ -1293,12 +1296,17 @@ async function cancelApplication(application) {
     'Các file đã nộp vẫn được lưu trong lịch sử để tra cứu khi cần.',
   ].join('\n'));
   if (!ok) return;
+
+  actioningApplicationId.value = application.id;
   try {
     await api(`/api/user/partner-application/${application.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Người dùng hủy hồ sơ từ trang đăng ký đối tác.' }) });
+    actioningApplicationId.value = '';
     alert('Đã hủy hồ sơ thành công.');
     await loadApplications();
   } catch (err) {
     alert(err.message || 'Không thể hủy hồ sơ lúc này.');
+  } finally {
+    actioningApplicationId.value = '';
   }
 }
 
@@ -1317,13 +1325,23 @@ function canSubmitSignedApplication(application) {
 }
 
 async function submitSignedApplication(application) {
-  if (!application?.id) return;
-  await api(`/api/user/partner-application/${application.id}/submit`, { method: 'POST' });
-  await loadApplications();
+  if (!application?.id || actioningApplicationId.value) return;
+
+  actioningApplicationId.value = application.id;
+  try {
+    await api(`/api/user/partner-application/${application.id}/submit`, { method: 'POST' });
+    actioningApplicationId.value = '';
+    await loadApplications();
+  } catch (err) {
+    alert(err.message || 'Không thể gửi hồ sơ lúc này.');
+  } finally {
+    actioningApplicationId.value = '';
+  }
 }
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 function needsApplicationSignature(application) {
+  if (application?.status !== 'draft') return false;
   const doc = applicationWord(application);
   if (!doc || doc.status === 'completed') return false;
   return !doc.signatures?.some(s => s.signer_side === 'owner' && s.status === 'signed');

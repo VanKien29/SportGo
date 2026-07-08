@@ -10,16 +10,25 @@
       </button>
     </header>
 
+    <section class="partner-kpis">
+      <article v-for="card in summaryCards" :key="card.key" class="partner-kpi-card">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+        <small>{{ card.hint }}</small>
+      </article>
+    </section>
+
     <div class="tabs">
       <button
-        v-for="tab in listTabs"
+        v-for="tab in listTabsUi"
         :key="tab.value"
         class="tab-btn"
         :class="{ active: filters.tab === tab.value }"
         type="button"
         @click="selectListTab(tab.value)"
       >
-        {{ tab.label }}
+        <span>{{ tab.label }}</span>
+        <strong>{{ listTabCount(tab.value) }}</strong>
       </button>
     </div>
 
@@ -150,6 +159,31 @@ export default {
       ],
     };
   },
+  computed: {
+    listTabsUi() {
+      return [
+        { value: 'all', label: 'Tất cả' },
+        { value: 'pending_review', label: 'Chờ duyệt' },
+        { value: 'pending_signature', label: 'Chờ ký hợp đồng' },
+        { value: 'active', label: 'Đang hoạt động' },
+        { value: 'terminating', label: 'Đang chấm dứt' },
+        { value: 'terminated', label: 'Đã chấm dứt' },
+        { value: 'rejected', label: 'Từ chối' },
+      ];
+    },
+    summaryCards() {
+      const review = this.listTabCount('pending_review');
+      const signature = this.listTabCount('pending_signature');
+      const terminating = this.listTabCount('terminating');
+
+      return [
+        { key: 'total', label: 'Hồ sơ đang hiển thị', value: this.pagination.total || this.applications.length, hint: 'Theo bộ lọc hiện tại' },
+        { key: 'review', label: 'Cần duyệt', value: review, hint: 'Hồ sơ chờ admin xử lý' },
+        { key: 'signature', label: 'Chờ ký', value: signature, hint: 'Hợp đồng hoặc văn bản đang chờ ký' },
+        { key: 'terminating', label: 'Chấm dứt', value: terminating, hint: 'Hồ sơ đang thanh lý/chấm dứt' },
+      ];
+    },
+  },
   mounted() {
     this.loadApplications();
   },
@@ -194,6 +228,21 @@ export default {
     },
     isReviewable(status) {
       return status === 'pending_review';
+    },
+    listTabCount(tab) {
+      if (tab === 'all') return this.pagination.total || this.applications.length;
+
+      return this.applications.filter((application) => {
+        const status = application.partner_status || application.status;
+        const contractStatus = application.contract_status || '';
+        if (tab === 'pending_signature') {
+          return status === 'pending_signature' || ['pending_owner_signature', 'pending_sportgo_signature'].includes(contractStatus);
+        }
+        if (tab === 'active') {
+          return status === 'active' || status === 'completed' || contractStatus === 'signed_active';
+        }
+        return status === tab;
+      }).length;
     },
     statusLabel(status) {
       return {
@@ -244,6 +293,40 @@ export default {
   border-radius: 8px;
 }
 
+.partner-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.partner-kpi-card {
+  display: grid;
+  gap: 4px;
+  min-height: 104px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  padding: 14px;
+}
+
+.partner-kpi-card span {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.partner-kpi-card strong {
+  color: var(--admin-text);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.partner-kpi-card small {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
 .tabs,
 .actions,
 .pagination {
@@ -253,6 +336,9 @@ export default {
 }
 
 .tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   min-height: 36px;
   padding: 0 14px;
   border: 1px solid var(--admin-border);
@@ -263,10 +349,24 @@ export default {
   cursor: pointer;
 }
 
+.tab-btn strong {
+  min-width: 20px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: inherit;
+  font-size: 11px;
+  line-height: 20px;
+  text-align: center;
+}
+
 .tab-btn.active {
   background: #0f172a;
   border-color: #0f172a;
   color: #fff;
+}
+
+.tab-btn.active strong {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .toolbar {
@@ -451,12 +551,22 @@ th {
 }
 
 @media (max-width: 900px) {
+  .partner-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .toolbar {
     grid-template-columns: 1fr;
   }
 
   .field.full {
     grid-column: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .partner-kpis {
+    grid-template-columns: 1fr;
   }
 }
 </style>

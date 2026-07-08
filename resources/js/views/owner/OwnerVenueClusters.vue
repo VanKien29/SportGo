@@ -1,6 +1,16 @@
 <template>
     <div class="venue-clusters-container">
 
+        <header class="owner-page-header">
+            <div>
+                <p class="eyebrow">Chu san</p>
+                <h1>Quan ly cum san</h1>
+                <p>Theo doi van hanh, san con, yeu cau thay doi va ho so doi tac trong mot man hinh.</p>
+            </div>
+            <button type="button" class="btn btn-outline" @click="$router.push({ name: 'owner-partner-profile' })">
+                Ho so doi tac
+            </button>
+        </header>
 
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -23,6 +33,14 @@
 
         <!-- Main Grid -->
         <div v-else class="clusters-grid">
+            <section class="owner-command-center card">
+                <article v-for="card in ownerDashboardCards" :key="card.key" class="owner-stat-card">
+                    <span>{{ card.label }}</span>
+                    <strong>{{ card.value }}</strong>
+                    <small>{{ card.hint }}</small>
+                </article>
+            </section>
+
             <!-- Cluster List Sidebar -->
             <div class="clusters-list card">
                 <div
@@ -37,12 +55,51 @@
                         <p class="cluster-address">
                             {{ formatFullAddress(cluster) }}
                         </p>
+                        <div class="cluster-meta-line">
+                            <span class="cluster-status-pill" :class="`cluster-status-${cluster.status}`">{{ clusterStatusLabel(cluster.status) }}</span>
+                            <span>{{ clusterCourtCount(cluster) }} san</span>
+                        </div>
                     </div>
+                    <span v-if="clusterSignalCount(cluster)" class="cluster-alert-count">{{ clusterSignalCount(cluster) }}</span>
                 </div>
             </div>
 
             <!-- Cluster Detail with Tabs -->
             <div v-if="selectedCluster" class="cluster-detail">
+                <section class="selected-cluster-hero card">
+                    <div class="selected-cluster-main">
+                        <p class="eyebrow">Cum san dang quan ly</p>
+                        <h2>{{ selectedCluster.name }}</h2>
+                        <p>{{ formatFullAddress(selectedCluster) }}</p>
+                        <span class="cluster-status-pill" :class="`cluster-status-${selectedCluster.status}`">{{ clusterStatusLabel(selectedCluster.status) }}</span>
+                    </div>
+                    <div class="selected-cluster-facts">
+                        <div>
+                            <span>San con</span>
+                            <strong>{{ selectedClusterCourtCount }}</strong>
+                        </div>
+                        <div>
+                            <span>Viec cho xu ly</span>
+                            <strong>{{ selectedTodoCount }}</strong>
+                        </div>
+                        <div>
+                            <span>Trang thai</span>
+                            <strong>{{ clusterStatusLabel(selectedCluster.status) }}</strong>
+                        </div>
+                    </div>
+                    <div class="selected-cluster-actions">
+                        <button type="button" class="btn btn-primary btn-sm" @click="activeTab = 'courts'">
+                            Quan ly san con
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" @click="activeTab = 'approvals'">
+                            Yeu cau quy mo
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" @click="$router.push({ name: 'owner-partner-termination', params: { id: selectedCluster.id } })">
+                            Cham dut hop dong
+                        </button>
+                    </div>
+                </section>
+
                 <div class="owner-flow-bridge card">
                     <div class="owner-flow-block">
                         <span class="owner-flow-kicker">Quản lý cụm sân</span>
@@ -3118,8 +3175,27 @@ export default {
         isClusterLocked() {
             return this.selectedCluster && this.selectedCluster.status === 'locked';
         },
+        ownerDashboardCards() {
+            const active = this.clusters.filter((cluster) => cluster.status === "active").length;
+            const locked = this.clusters.filter((cluster) => cluster.status === "locked").length;
+            const terminating = this.clusters.filter((cluster) => ["termination_locked", "termination_processing"].includes(cluster.status)).length;
+
+            return [
+                { key: "total", label: "Tong cum san", value: this.clusters.length, hint: "Dang gan voi tai khoan owner" },
+                { key: "active", label: "Dang hoat dong", value: active, hint: "Co the nhan booking" },
+                { key: "attention", label: "Can xu ly", value: locked + terminating + this.selectedTodoCount, hint: "Khoa, cham dut hoac yeu cau treo" },
+                { key: "terminated", label: "Da cham dut", value: this.clusters.filter((cluster) => cluster.status === "partner_terminated").length, hint: "Da tat van hanh doi tac" },
+            ];
+        },
+        selectedTodoCount() {
+            return this.pendingApprovalCount + this.pendingLocationCount + this.pendingInfoCount + this.pendingUnlockCount;
+        },
+        selectedClusterCourtCount() {
+            return this.clusterCourtCount(this.selectedCluster);
+        },
         tabs() {
             const list = [
+                { key: "courts", label: "San con" },
                 { key: "info", label: "Thông tin chung" },
                 { key: "info_requests", label: "Yêu cầu thông tin" },
                 { key: "approvals", label: "Yêu cầu quy mô" },
@@ -3477,6 +3553,30 @@ export default {
                 (c) => String(c.id) === String(clusterId),
             );
             if (cluster) this.selectCluster(cluster);
+        },
+
+        clusterStatusLabel(status) {
+            return {
+                pending: "Cho duyet",
+                active: "Dang hoat dong",
+                locked: "Da khoa",
+                termination_locked: "Khoa cham dut",
+                termination_processing: "Dang cham dut",
+                partner_terminated: "Da cham dut",
+            }[status] || status || "-";
+        },
+
+        clusterCourtCount(cluster) {
+            if (!cluster) return 0;
+            return cluster.court_count ?? cluster.courts_count ?? (this.selectedCluster?.id === cluster.id ? this.courts.length : 0);
+        },
+
+        clusterSignalCount(cluster) {
+            if (!cluster) return 0;
+            let count = 0;
+            if (["locked", "termination_locked", "termination_processing"].includes(cluster.status)) count += 1;
+            if (this.selectedCluster?.id === cluster.id) count += this.selectedTodoCount;
+            return count;
         },
 
         formatFullAddress(cluster) {
@@ -6020,6 +6120,35 @@ export default {
     margin: 0 auto;
 }
 
+.owner-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.owner-page-header h1 {
+    margin: 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 26px;
+    line-height: 1.2;
+}
+
+.owner-page-header p:last-child {
+    margin: 6px 0 0;
+    color: var(--admin-muted, #64748b);
+    font-size: 14px;
+}
+
+.eyebrow {
+    margin: 0 0 4px;
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
 .card {
     background: var(--admin-surface, #ffffff);
     border-radius: 12px;
@@ -6036,12 +6165,53 @@ export default {
     align-items: start;
 }
 
+.owner-command-center {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    padding: 14px;
+}
+
+.owner-stat-card {
+    display: grid;
+    gap: 4px;
+    border: 1px solid var(--admin-border, #e2e8f0);
+    border-radius: 8px;
+    padding: 14px;
+}
+
+.owner-stat-card span {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.owner-stat-card strong {
+    color: var(--admin-text, #0f172a);
+    font-size: 26px;
+    line-height: 1;
+}
+
+.owner-stat-card small {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+}
+
 @media (max-width: 900px) {
     .clusters-grid {
         grid-template-columns: 1fr;
     }
 
+    .owner-page-header,
     .owner-flow-bridge {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .owner-command-center,
+    .selected-cluster-hero {
         grid-template-columns: 1fr;
     }
 }
@@ -6058,11 +6228,16 @@ export default {
 .cluster-item {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     padding: 14px 16px;
     border-radius: 8px;
     cursor: pointer;
     border: 1px solid transparent;
     transition: all 0.2s ease;
+}
+.cluster-info {
+    min-width: 0;
 }
 .cluster-item:hover {
     background: var(--admin-hover, var(--sg-surface));
@@ -6086,10 +6261,116 @@ export default {
     text-overflow: ellipsis;
 }
 
+.cluster-meta-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.cluster-status-pill {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 900;
+    padding: 4px 8px;
+}
+
+.cluster-status-active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.cluster-status-locked,
+.cluster-status-termination_locked,
+.cluster-status-termination_processing {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.cluster-status-partner_terminated {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.cluster-alert-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    flex: 0 0 auto;
+}
+
 .cluster-detail {
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+.selected-cluster-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.9fr) auto;
+    align-items: center;
+    gap: 16px;
+}
+
+.selected-cluster-main h2 {
+    margin: 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 22px;
+}
+
+.selected-cluster-main p {
+    margin: 6px 0 10px;
+    color: var(--admin-muted, #64748b);
+    font-size: 13px;
+}
+
+.selected-cluster-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.selected-cluster-facts div {
+    border: 1px solid var(--admin-border, #e2e8f0);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.selected-cluster-facts span {
+    display: block;
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.selected-cluster-facts strong {
+    display: block;
+    margin-top: 4px;
+    color: var(--admin-text, #0f172a);
+    font-size: 16px;
+}
+
+.selected-cluster-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .owner-flow-bridge {
@@ -6232,6 +6513,15 @@ export default {
     gap: 16px;
 }
 @media (max-width: 576px) {
+    .owner-command-center,
+    .selected-cluster-facts {
+        grid-template-columns: 1fr;
+    }
+
+    .selected-cluster-actions {
+        width: 100%;
+    }
+
     .form-row {
         grid-template-columns: 1fr;
     }

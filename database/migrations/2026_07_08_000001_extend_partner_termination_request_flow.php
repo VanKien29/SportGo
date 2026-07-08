@@ -11,7 +11,7 @@ return new class extends Migration
     {
         if (DB::getDriverName() === 'mysql') {
             if (Schema::hasTable('partner_termination_requests')) {
-                DB::statement("ALTER TABLE partner_termination_requests MODIFY status ENUM('draft','submitted','reviewing','approved','pending_signature','settlement_processing','settlement_completed','transition_period','completed','rejected','cancelled','draft_preview','cancellation_in_progress','future_bookings_processing','waiting_final_settlement','waiting_final_document_signature','terminating','terminated','owner_cancelled_request','admin_rejected') NOT NULL DEFAULT 'draft'");
+                DB::statement("ALTER TABLE partner_termination_requests MODIFY status VARCHAR(80) NOT NULL DEFAULT 'draft'");
             }
 
             if (Schema::hasTable('venue_clusters')) {

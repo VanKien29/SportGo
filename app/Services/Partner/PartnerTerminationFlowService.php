@@ -114,7 +114,7 @@ class PartnerTerminationFlowService
             'active_request' => $activeRequest?->load(['documents.generatedDocument', 'bookingActions.booking']),
             'summary' => $summary,
             'policies' => $this->futureBookingPolicies(),
-            'warning' => 'Khi gui yeu cau cham dut, cum san se bi khoa thao tac quan ly binh thuong. Chu san chi con quyen xu ly booking, hoan tien, yeu cau rut tien va theo doi ho so cham dut.',
+            'warning' => 'Khi gửi yêu cầu chấm dứt, cụm sân sẽ bị khóa thao tác quản lý bình thường. Chủ sân chỉ còn quyền xử lý booking, hoàn tiền, yêu cầu rút tiền và theo dõi hồ sơ chấm dứt.',
         ];
     }
 
@@ -126,27 +126,27 @@ class PartnerTerminationFlowService
 
             if (! $contract) {
                 throw ValidationException::withMessages([
-                    'contract' => 'Cum san chua co hop dong dang hieu luc de gui yeu cau cham dut.',
+                    'contract' => 'Cụm sân chưa có hợp đồng đang hiệu lực để gửi yêu cầu chấm dứt.',
                 ]);
             }
 
             if ($cluster->status !== 'active') {
                 throw ValidationException::withMessages([
-                    'venue_cluster_id' => 'Chi cum san dang hoat dong moi duoc gui yeu cau cham dut.',
+                    'venue_cluster_id' => 'Chỉ cụm sân đang hoạt động mới được gửi yêu cầu chấm dứt.',
                 ]);
             }
 
             $active = $this->activeRequestForCluster($cluster->id, true);
             if ($active && $active->status !== self::STATUS_DRAFT_PREVIEW) {
                 throw ValidationException::withMessages([
-                    'termination' => 'Cum san nay dang co yeu cau cham dut chua hoan tat.',
+                    'termination' => 'Cụm sân này đang có yêu cầu chấm dứt chưa hoàn tất.',
                 ]);
             }
 
             $summary = $this->financialSummary($cluster);
             if ((int) $summary['future_booking_count'] > 0 && empty($data['future_booking_policy'])) {
                 throw ValidationException::withMessages([
-                    'future_booking_policy' => 'Vui long chon phuong an xu ly booking tuong lai.',
+                    'future_booking_policy' => 'Vui lòng chọn phương án xử lý booking tương lai.',
                 ]);
             }
 
@@ -195,7 +195,7 @@ class PartnerTerminationFlowService
                 'generated_at' => now(),
             ]);
 
-            $this->history($termination, $active?->status, self::STATUS_DRAFT_PREVIEW, $owner, 'owner', 'Owner preview don yeu cau cham dut hop dong.');
+            $this->history($termination, $active?->status, self::STATUS_DRAFT_PREVIEW, $owner, 'owner', 'Chủ sân xem trước đơn yêu cầu chấm dứt hợp đồng.');
 
             return $termination->fresh([
                 'contract.application.user',
@@ -211,7 +211,7 @@ class PartnerTerminationFlowService
         $this->assertOwner($termination, $owner);
         if ($termination->status !== self::STATUS_DRAFT_PREVIEW) {
             throw ValidationException::withMessages([
-                'status' => 'Don yeu cau khong o trang thai cho owner ky.',
+                'status' => 'Đơn yêu cầu không ở trạng thái chờ chủ sân ký.',
             ]);
         }
 
@@ -220,7 +220,7 @@ class PartnerTerminationFlowService
             $owner,
             'owner',
             'owner_sign_partner_termination_request',
-            'Toi xac nhan da doc canh bao va dong y ky gui yeu cau cham dut hop dong doi tac SportGo.',
+            'Tôi xác nhận đã đọc cảnh báo và đồng ý ký gửi yêu cầu chấm dứt hợp đồng đối tác SportGo.',
             $signatureImage,
             $request
         );
@@ -238,7 +238,7 @@ class PartnerTerminationFlowService
 
             if ($termination->status !== self::STATUS_DRAFT_PREVIEW) {
                 throw ValidationException::withMessages([
-                    'status' => 'Don yeu cau khong con o trang thai cho ky gui.',
+                    'status' => 'Đơn yêu cầu không còn ở trạng thái chờ ký gửi.',
                 ]);
             }
 
@@ -253,7 +253,7 @@ class PartnerTerminationFlowService
             $verified = $this->signing->verifyOtp($signingRequest, $owner, $otp);
             $signature = $this->documents->signDocument($document, $owner, 'owner', $verified->signature_image, $request, [
                 'signer_full_name' => $this->ownerSignerName($termination),
-                'signer_title' => $termination->contract?->application?->representative_position ?: 'Chu san',
+                'signer_title' => $termination->contract?->application?->representative_position ?: 'Chủ sân',
                 'signer_organization' => $termination->contract?->application?->business_name,
             ]);
             $this->signing->markSigned($verified, $signature);
@@ -282,7 +282,7 @@ class PartnerTerminationFlowService
 
             $this->syncFutureBookingActions($termination, $summary['future_bookings']);
             $this->lockClusterForTermination($termination, $owner);
-            $this->history($termination, $oldStatus, self::STATUS_IN_PROGRESS, $owner, 'owner', 'Owner da ky va gui yeu cau cham dut hop dong.');
+            $this->history($termination, $oldStatus, self::STATUS_IN_PROGRESS, $owner, 'owner', 'Chủ sân đã ký và gửi yêu cầu chấm dứt hợp đồng.');
             $this->notifyAfterOwnerSubmit($termination);
 
             return $termination->fresh($this->requestRelations());
@@ -318,7 +318,7 @@ class PartnerTerminationFlowService
 
             if (! in_array($termination->status, [self::STATUS_IN_PROGRESS, self::STATUS_FUTURE_BOOKINGS, self::STATUS_WAITING_SETTLEMENT], true)) {
                 throw ValidationException::withMessages([
-                    'status' => 'Yeu cau khong con cho phep xu ly booking tuong lai.',
+                    'status' => 'Yêu cầu không còn cho phép xử lý booking tương lai.',
                 ]);
             }
 
@@ -328,7 +328,7 @@ class PartnerTerminationFlowService
                 self::POLICY_MANUAL,
             ];
             if (! in_array($action, $validActions, true)) {
-                throw ValidationException::withMessages(['action' => 'Phuong an xu ly booking khong hop le.']);
+                throw ValidationException::withMessages(['action' => 'Phương án xử lý booking không hợp lệ.']);
             }
 
             $bookings = $this->futureBookingsQuery($termination->venue_cluster_id)
@@ -358,7 +358,7 @@ class PartnerTerminationFlowService
                     $result = $this->bookingCancellation->cancelBooking(
                         $booking,
                         $owner,
-                        $reason ?: 'Chu san cham dut hop dong, huy booking tuong lai va hoan ve so du/khoan hoan tien user.',
+                        $reason ?: 'Chủ sân chấm dứt hợp đồng, hủy booking tương lai và hoàn về số dư/khoản hoàn tiền user.',
                     );
 
                     $refundId = collect($result['refunds'] ?? [])->pluck('id')->filter()->first();
@@ -411,7 +411,7 @@ class PartnerTerminationFlowService
             $allowed = min((float) $wallet->available_balance, (float) $termination->withdrawable_amount);
             if ($amount <= 0 || $amount > $allowed + 0.01) {
                 throw ValidationException::withMessages([
-                    'amount' => 'So tien rut vuot qua phan duoc phep rut khi dang cham dut hop dong.',
+                    'amount' => 'Số tiền rút vượt quá phần được phép rút khi đang chấm dứt hợp đồng.',
                 ]);
             }
 
@@ -455,7 +455,7 @@ class PartnerTerminationFlowService
             $owner,
             'owner',
             'owner_cancel_partner_termination_request',
-            'Toi xac nhan huy yeu cau cham dut hop dong va chap nhan cac xu ly da phat sinh se khong tu dong rollback.',
+            'Tôi xác nhận hủy yêu cầu chấm dứt hợp đồng và chấp nhận các xử lý đã phát sinh sẽ không tự động rollback.',
             $signatureImage,
             $request
         );
@@ -537,7 +537,7 @@ class PartnerTerminationFlowService
             ])->save();
 
             $this->generateFinalDocumentIfReady($termination, $admin, false);
-            $this->history($termination, $oldStatus, $termination->fresh()->status, $admin, 'admin', $note ?: 'Admin xac nhan du dieu kien sinh van ban cham dut cuoi.');
+            $this->history($termination, $oldStatus, $termination->fresh()->status, $admin, 'admin', $note ?: 'Admin xác nhận đủ điều kiện sinh văn bản chấm dứt cuối.');
 
             return $termination->fresh($this->requestRelations());
         });
@@ -561,8 +561,8 @@ class PartnerTerminationFlowService
             $signerSide,
             $signerSide === 'sportgo' ? 'admin_sign_partner_final_termination_document' : 'owner_sign_partner_final_termination_document',
             $signerSide === 'sportgo'
-                ? 'Toi xac nhan dai dien SportGo ky bien ban cham dut hop dong cuoi cung.'
-                : 'Toi xac nhan da doi soat va ky xac nhan bien ban cham dut hop dong cuoi cung.',
+                ? 'Tôi xác nhận đại diện SportGo ký biên bản chấm dứt hợp đồng cuối cùng.'
+                : 'Tôi xác nhận đã đối soát và ký xác nhận biên bản chấm dứt hợp đồng cuối cùng.',
             $signatureImage,
             $request
         );
@@ -583,7 +583,7 @@ class PartnerTerminationFlowService
             $signature = $this->documents->signDocument($document, $signer, $signerSide, $verified->signature_image, $request, [
                 'signer_full_name' => $signerSide === 'owner' ? $this->ownerSignerName($termination) : ($signer->full_name ?: $signer->username),
                 'signer_title' => $signerSide === 'owner'
-                    ? ($termination->contract?->application?->representative_position ?: 'Chu san')
+                    ? ($termination->contract?->application?->representative_position ?: 'Chủ sân')
                     : 'Dai dien SportGo',
                 'signer_organization' => $signerSide === 'owner'
                     ? $termination->contract?->application?->business_name
@@ -617,7 +617,7 @@ class PartnerTerminationFlowService
                     ->update(['status' => 'signed']);
             }
 
-            $this->history($termination, $oldStatus, $termination->fresh()->status, $signer, $signerSide === 'owner' ? 'owner' : 'admin', 'Ky bien ban cham dut hop dong cuoi cung.');
+            $this->history($termination, $oldStatus, $termination->fresh()->status, $signer, $signerSide === 'owner' ? 'owner' : 'admin', 'Ký biên bản chấm dứt hợp đồng cuối cùng.');
 
             return $termination->fresh($this->requestRelations());
         });
@@ -627,7 +627,7 @@ class PartnerTerminationFlowService
     {
         return DB::transaction(function () use ($termination, $booking, $admin, $note): PartnerTerminationBookingAction {
             if ((string) $booking->venue_cluster_id !== (string) $termination->venue_cluster_id) {
-                throw ValidationException::withMessages(['booking_id' => 'Booking khong thuoc cum san cua yeu cau cham dut.']);
+                throw ValidationException::withMessages(['booking_id' => 'Booking không thuộc cụm sân của yêu cầu chấm dứt.']);
             }
 
             $action = PartnerTerminationBookingAction::query()->updateOrCreate(
@@ -665,7 +665,7 @@ class PartnerTerminationFlowService
             [
                 'value' => (string) max(0, $graceDays),
                 'value_type' => 'integer',
-                'description' => 'So ngay chu san con duoc xem ho so sau khi bien ban cham dut cuoi da ky.',
+                'description' => 'Số ngày chủ sân còn được xem hồ sơ sau khi biên bản chấm dứt cuối đã ký.',
                 'updated_at' => now(),
                 'created_at' => now(),
             ]
@@ -703,12 +703,12 @@ class PartnerTerminationFlowService
             }
 
             if (! $this->allFutureBookingsResolved($termination)) {
-                $this->setStatusIfChanged($termination, self::STATUS_FUTURE_BOOKINGS, null, 'system', 'Dang xu ly booking tuong lai.');
+                $this->setStatusIfChanged($termination, self::STATUS_FUTURE_BOOKINGS, null, 'system', 'Đang xử lý booking tương lai.');
                 return $termination->fresh();
             }
 
             if (! $this->readyForFinalDocument($termination)) {
-                $this->setStatusIfChanged($termination, self::STATUS_WAITING_SETTLEMENT, null, 'system', 'Da xu ly booking, dang cho quyet toan/rut tien cuoi.');
+                $this->setStatusIfChanged($termination, self::STATUS_WAITING_SETTLEMENT, null, 'system', 'Đã xử lý booking, đang chờ quyết toán/rút tiền cuối.');
                 return $termination->fresh();
             }
 
@@ -760,7 +760,7 @@ class PartnerTerminationFlowService
                 ->whereKey($termination->venue_cluster_id)
                 ->update([
                     'status' => 'partner_terminated',
-                    'status_reason' => 'Hop dong doi tac da cham dut hoan tat theo ho so ' . $termination->termination_code,
+                    'status_reason' => 'Hợp đồng đối tác đã chấm dứt hoàn tất theo hồ sơ ' . $termination->termination_code,
                     'locked_at' => now(),
                 ]);
 
@@ -872,13 +872,13 @@ class PartnerTerminationFlowService
     private function eligibilityReason(VenueCluster $cluster, ?PartnerContract $contract, ?PartnerTerminationRequest $activeRequest): ?string
     {
         if ($cluster->status !== 'active') {
-            return 'Cum san khong o trang thai active.';
+            return 'Cụm sân không ở trạng thái đang hoạt động.';
         }
         if (! $contract) {
-            return 'Khong co hop dong active cho cum san.';
+            return 'Không có hợp đồng đang hiệu lực cho cụm sân.';
         }
         if ($activeRequest && $activeRequest->status !== self::STATUS_DRAFT_PREVIEW) {
-            return 'Da co yeu cau cham dut dang xu ly cho cum san nay.';
+            return 'Đã có yêu cầu chấm dứt đang xử lý cho cụm sân này.';
         }
 
         return null;
@@ -887,9 +887,9 @@ class PartnerTerminationFlowService
     private function futureBookingPolicies(): array
     {
         return [
-            ['value' => self::POLICY_CANCEL_ALL, 'label' => 'Huy toan bo booking tuong lai va hoan ve so du/khoan hoan tien user'],
-            ['value' => self::POLICY_SERVE_UNTIL_LAST, 'label' => 'Khong huy, tiep tuc phuc vu den booking cuoi cung'],
-            ['value' => self::POLICY_MANUAL, 'label' => 'Xu ly thu cong tung booking'],
+            ['value' => self::POLICY_CANCEL_ALL, 'label' => 'Hủy toàn bộ booking tương lai và hoàn về số dư/khoản hoàn tiền user'],
+            ['value' => self::POLICY_SERVE_UNTIL_LAST, 'label' => 'Không hủy, tiếp tục phục vụ đến booking cuối cùng'],
+            ['value' => self::POLICY_MANUAL, 'label' => 'Xử lý thủ công từng booking'],
         ];
     }
 
@@ -909,7 +909,7 @@ class PartnerTerminationFlowService
             'contract_code' => $termination->contract?->contract_code,
             'venue_name' => $termination->venueCluster?->name,
             'venue_address' => $termination->venueCluster?->address,
-            'termination_type' => 'Chu san de nghi cham dut hop dong',
+            'termination_type' => 'Chủ sân đề nghị chấm dứt hợp đồng',
             'termination_reason' => $termination->reason,
             'reason' => $termination->reason,
             'detail_reason' => $termination->detail_reason,
@@ -931,7 +931,7 @@ class PartnerTerminationFlowService
             'partner_termination_request_id' => $termination->id,
             'owner_id' => $termination->owner_id,
             'venue_cluster_id' => $termination->venue_cluster_id,
-            'title' => 'Don de nghi cham dut hop dong hop tac doi tac SportGo ' . ($termination->venueCluster?->name ?? ''),
+            'title' => 'Đơn đề nghị chấm dứt hợp đồng hợp tác đối tác SportGo ' . ($termination->venueCluster?->name ?? ''),
         ]);
     }
 
@@ -940,7 +940,7 @@ class PartnerTerminationFlowService
         $termination = $termination->fresh(['contract.application.user', 'venueCluster']);
         if (! $adminOverride && ! $this->readyForFinalDocument($termination)) {
             throw ValidationException::withMessages([
-                'termination' => 'Chua du dieu kien sinh bien ban cham dut cuoi.',
+                'termination' => 'Chưa đủ điều kiện sinh biên bản chấm dứt cuối.',
             ]);
         }
 
@@ -953,7 +953,7 @@ class PartnerTerminationFlowService
 
         if ($existing?->generatedDocument) {
             if ($termination->status !== self::STATUS_WAITING_FINAL_SIGNATURE) {
-                $this->setStatusIfChanged($termination, self::STATUS_WAITING_FINAL_SIGNATURE, $actor, $actor ? 'admin' : 'system', 'Van ban cham dut cuoi da san sang ky.');
+                $this->setStatusIfChanged($termination, self::STATUS_WAITING_FINAL_SIGNATURE, $actor, $actor ? 'admin' : 'system', 'Văn bản chấm dứt cuối đã sẵn sàng ký.');
             }
 
             return $existing->generatedDocument;
@@ -966,7 +966,7 @@ class PartnerTerminationFlowService
             'partner_termination_request_id' => $termination->id,
             'owner_id' => $termination->owner_id,
             'venue_cluster_id' => $termination->venue_cluster_id,
-            'title' => 'Bien ban cham dut hop dong hop tac doi tac SportGo ' . ($termination->termination_code ?? ''),
+            'title' => 'Biên bản chấm dứt hợp đồng hợp tác đối tác SportGo ' . ($termination->termination_code ?? ''),
         ]);
 
         PartnerTerminationDocument::query()->create([
@@ -985,7 +985,7 @@ class PartnerTerminationFlowService
             'final_document_generated_at' => now(),
             'final_document_ready_at' => now(),
         ])->save();
-        $this->history($termination, $oldStatus, self::STATUS_WAITING_FINAL_SIGNATURE, $actor, $actor ? 'admin' : 'system', 'Sinh bien ban cham dut hop dong cuoi.');
+        $this->history($termination, $oldStatus, self::STATUS_WAITING_FINAL_SIGNATURE, $actor, $actor ? 'admin' : 'system', 'Sinh biên bản chấm dứt hợp đồng cuối.');
 
         return $document;
     }
@@ -1014,9 +1014,9 @@ class PartnerTerminationFlowService
             'venue_address' => $termination->venueCluster?->address,
             'total_paid' => $this->money($summary['owner_balance_total']),
             'future_booking_count' => (string) $summary['future_booking_count'],
-            'booking_resolution_result' => $bookingResult ?: 'Khong con booking tuong lai bat buoc xu ly.',
-            'refund_result' => 'Refund dang treo: ' . $this->money($summary['pending_refund_liability']),
-            'withdrawal_result' => 'Withdrawal dang treo: ' . $this->money($summary['pending_withdrawal_amount']),
+            'booking_resolution_result' => $bookingResult ?: 'Không còn booking tương lai bắt buộc xử lý.',
+            'refund_result' => 'Refund đang treo: ' . $this->money($summary['pending_refund_liability']),
+            'withdrawal_result' => 'Withdrawal đang treo: ' . $this->money($summary['pending_withdrawal_amount']),
             'owner_wallet_available_amount' => $this->money($summary['owner_balance_total']),
             'future_online_booking_liability' => $this->money($summary['future_online_booking_liability']),
             'pending_refund_liability' => $this->money($summary['pending_refund_liability']),
@@ -1166,7 +1166,7 @@ class PartnerTerminationFlowService
             ->first()?->generatedDocument;
 
         if (! $document) {
-            throw ValidationException::withMessages(['document' => 'Khong tim thay don yeu cau cham dut de ky.']);
+            throw ValidationException::withMessages(['document' => 'Không tìm thấy đơn yêu cầu chấm dứt để ký.']);
         }
 
         return $document;
@@ -1181,7 +1181,7 @@ class PartnerTerminationFlowService
             ->first()?->generatedDocument;
 
         if (! $document) {
-            throw ValidationException::withMessages(['document' => 'Chua co bien ban cham dut cuoi de ky.']);
+            throw ValidationException::withMessages(['document' => 'Chưa có biên bản chấm dứt cuối để ký.']);
         }
 
         return $document;
@@ -1193,7 +1193,7 @@ class PartnerTerminationFlowService
             ->whereKey($termination->venue_cluster_id)
             ->update([
                 'status' => 'termination_processing',
-                'status_reason' => 'Chu san da ky gui yeu cau cham dut hop dong doi tac. Cum san tam ngung nhan booking moi.',
+                'status_reason' => 'Chủ sân đã ký gửi yêu cầu chấm dứt hợp đồng đối tác. Cụm sân tạm ngưng nhận booking mới.',
                 'locked_at' => now(),
                 'locked_by' => $owner->id,
             ]);
@@ -1219,7 +1219,7 @@ class PartnerTerminationFlowService
     private function assertOwner(PartnerTerminationRequest $termination, User $owner): void
     {
         if ((string) $termination->owner_id !== (string) $owner->id) {
-            abort(403, 'Ban khong co quyen thao tac ho so cham dut nay.');
+            abort(403, 'Bạn không có quyền thao tác hồ sơ chấm dứt này.');
         }
     }
 
@@ -1229,8 +1229,25 @@ class PartnerTerminationFlowService
             abort(403);
         }
 
+        if ($termination->status !== self::STATUS_WAITING_FINAL_SIGNATURE) {
+            throw ValidationException::withMessages([
+                'status' => 'Hồ sơ chưa ở trạng thái chờ ký biên bản chấm dứt cuối.',
+            ]);
+        }
+
         if ($signerSide === 'owner') {
             $this->assertOwner($termination, $signer);
+            if (! $termination->final_document_admin_signed_at) {
+                throw ValidationException::withMessages([
+                    'status' => 'SportGo cần ký biên bản chấm dứt cuối trước chủ sân.',
+                ]);
+            }
+        }
+
+        if ($signerSide === 'sportgo' && $termination->final_document_admin_signed_at) {
+            throw ValidationException::withMessages([
+                'status' => 'SportGo đã ký biên bản chấm dứt cuối.',
+            ]);
         }
     }
 
@@ -1238,21 +1255,21 @@ class PartnerTerminationFlowService
     {
         $termination->loadMissing('bookingActions');
         if ($termination->admin_locked_owner_cancel) {
-            throw ValidationException::withMessages(['status' => 'Admin da khoa quyen huy yeu cau nay.']);
+            throw ValidationException::withMessages(['status' => 'Admin đã khóa quyền hủy yêu cầu này.']);
         }
 
         if ($termination->final_document_ready_at || $termination->final_document_admin_signed_at || $termination->final_document_owner_signed_at) {
-            throw ValidationException::withMessages(['status' => 'Yeu cau da vao buoc ky bien ban cham dut cuoi, khong the huy.']);
+            throw ValidationException::withMessages(['status' => 'Yêu cầu đã vào bước ký biên bản chấm dứt cuối, không thể hủy.']);
         }
 
         if (! in_array($termination->status, [self::STATUS_IN_PROGRESS, self::STATUS_FUTURE_BOOKINGS, self::STATUS_WAITING_SETTLEMENT], true)) {
-            throw ValidationException::withMessages(['status' => 'Trang thai hien tai khong cho phep owner huy yeu cau.']);
+            throw ValidationException::withMessages(['status' => 'Trạng thái hiện tại không cho phép chủ sân hủy yêu cầu.']);
         }
 
         $hasIrreversible = $termination->bookingActions
             ->contains(fn (PartnerTerminationBookingAction $action): bool => $action->action === self::POLICY_CANCEL_ALL && $action->status === 'resolved');
         if ($hasIrreversible) {
-            throw ValidationException::withMessages(['booking' => 'Da co booking bi huy/hoan tien, can admin xu ly thu cong neu muon dung quy trinh.']);
+            throw ValidationException::withMessages(['booking' => 'Đã có booking bị hủy/hoàn tiền, cần admin xử lý thủ công nếu muốn dừng quy trình.']);
         }
     }
 
@@ -1300,8 +1317,8 @@ class PartnerTerminationFlowService
                 Notification::query()->create([
                     'user_id' => $adminId,
                     'type' => 'partner_termination_requested',
-                    'title' => 'Co yeu cau cham dut hop dong doi tac',
-                    'body' => ($termination->venueCluster?->name ?: $termination->termination_code) . ' vua gui yeu cau cham dut hop dong.',
+                    'title' => 'Có yêu cầu chấm dứt hợp đồng đối tác',
+                    'body' => ($termination->venueCluster?->name ?: $termination->termination_code) . ' vừa gửi yêu cầu chấm dứt hợp đồng.',
                     'reference_type' => 'partner_termination_request',
                     'reference_id' => $termination->id,
                     'data' => [
@@ -1342,7 +1359,7 @@ class PartnerTerminationFlowService
             ?: $termination->owner?->full_name
             ?: $termination->owner?->username
             ?: $termination->owner?->email
-            ?: 'Chu san';
+            ?: 'Chủ sân';
     }
 
     private function bankSnapshot(PartnerTerminationRequest $termination): string
@@ -1360,9 +1377,9 @@ class PartnerTerminationFlowService
     private function bookingActionLabel(?string $action): string
     {
         return match ($action) {
-            self::POLICY_CANCEL_ALL => 'Huy va hoan ve so du/khoan hoan tien user',
-            self::POLICY_SERVE_UNTIL_LAST => 'Giu lai phuc vu den booking cuoi',
-            self::POLICY_MANUAL => 'Admin/owner xu ly thu cong',
+            self::POLICY_CANCEL_ALL => 'Hủy và hoàn về số dư/khoản hoàn tiền user',
+            self::POLICY_SERVE_UNTIL_LAST => 'Giữ lại phục vụ đến booking cuối',
+            self::POLICY_MANUAL => 'Admin/chủ sân xử lý thủ công',
             default => $action ?: '-',
         };
     }

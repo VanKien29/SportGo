@@ -15,18 +15,37 @@
         </div>
 
         <template v-else>
+            <section class="avc-header card animate-fade-in">
+                <div class="avc-title">
+                    <p class="eyebrow">Quan ly cum san</p>
+                    <h1>Toan canh van hanh cum san</h1>
+                    <p>Theo doi trang thai, chu san, phi nen tang va cac cum san dang can xu ly.</p>
+                </div>
+                <button class="btn btn-outline" type="button" @click="loadClusters">
+                    Lam moi
+                </button>
+            </section>
+
+            <section v-if="clusters.length > 0" class="avc-kpis animate-fade-in">
+                <article v-for="card in summaryCards" :key="card.key" class="kpi-card">
+                    <span>{{ card.label }}</span>
+                    <strong>{{ card.value }}</strong>
+                    <small>{{ card.hint }}</small>
+                </article>
+            </section>
             <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
             <div class="avc-filters card animate-fade-in" v-if="clusters.length > 0">
                 <div class="filter-row">
                     <div class="filter-tabs">
                         <button
-                            v-for="tab in statusTabs"
+                            v-for="tab in statusTabsUi"
                             :key="tab.value"
                             class="tab-btn"
                             :class="{ active: filterStatus === tab.value }"
                             @click="filterStatus = tab.value"
                         >
-                            {{ tab.label }}
+                            <span>{{ tab.label }}</span>
+                            <strong>{{ statusTabCount(tab.value) }}</strong>
                         </button>
                     </div>
                     <div class="filter-search">
@@ -152,10 +171,36 @@ export default {
         };
     },
     computed: {
+        statusTabsUi() {
+            return [
+                { value: "", label: "Tat ca" },
+                { value: "pending", label: "Cho duyet" },
+                { value: "active", label: "Dang hoat dong" },
+                { value: "locked", label: "Da khoa" },
+                { value: "termination_processing", label: "Dang cham dut" },
+                { value: "partner_terminated", label: "Da cham dut" },
+            ];
+        },
+        summaryCards() {
+            const locked = this.statusTabCount("locked");
+            const terminating = this.statusTabCount("termination_processing");
+            const feeAttention = this.clusters.filter((cluster) => ["pending", "overdue"].includes(cluster.fee_status)).length;
+
+            return [
+                { key: "total", label: "Tong cum san", value: this.clusters.length, hint: "Tat ca ho so san dang quan ly" },
+                { key: "active", label: "Dang hoat dong", value: this.statusTabCount("active"), hint: "Co the nhan booking" },
+                { key: "attention", label: "Can chu y", value: locked + terminating + feeAttention, hint: "Khoa, cham dut hoac phi treo" },
+                { key: "terminated", label: "Da cham dut", value: this.statusTabCount("partner_terminated"), hint: "Da tat van hanh doi tac" },
+            ];
+        },
         filteredClusters() {
             let list = this.clusters;
             if (this.filterStatus) {
-                list = list.filter((c) => c.status === this.filterStatus);
+                if (this.filterStatus === "termination_processing") {
+                    list = list.filter((c) => ["termination_locked", "termination_processing"].includes(c.status));
+                } else {
+                    list = list.filter((c) => c.status === this.filterStatus);
+                }
             }
             if (this.searchText.trim()) {
                 const q = this.searchText.trim().toLowerCase();
@@ -187,12 +232,24 @@ export default {
         },
 
         statusLabel(status) {
+            if (status === "termination_locked") return "Khoa cham dut";
+            if (status === "termination_processing") return "Dang cham dut";
+            if (status === "partner_terminated") return "Da cham dut";
+
             const map = {
                 pending: "Chờ duyệt",
                 active: "Hoạt động",
                 locked: "Đã khóa",
             };
             return map[status] || status;
+        },
+
+        statusTabCount(status) {
+            if (!status) return this.clusters.length;
+            if (status === "termination_processing") {
+                return this.clusters.filter((cluster) => ["termination_locked", "termination_processing"].includes(cluster.status)).length;
+            }
+            return this.clusters.filter((cluster) => cluster.status === status).length;
         },
 
         feeStatusLabel(status) {
@@ -229,10 +286,78 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-width: 1000px;
+    max-width: 1180px;
     width: 100%;
     margin: 0 auto;
     box-sizing: border-box;
+}
+
+.avc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 0 12px;
+}
+
+.avc-title {
+    min-width: 0;
+}
+
+.eyebrow {
+    margin: 0 0 4px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.avc-title h1 {
+    margin: 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 24px;
+    line-height: 1.2;
+}
+
+.avc-title p:last-child {
+    margin: 6px 0 0;
+    color: var(--admin-muted, #64748b);
+    font-size: 14px;
+}
+
+.avc-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.kpi-card {
+    display: grid;
+    gap: 4px;
+    min-height: 106px;
+    border: 1px solid var(--admin-border, #e2e8f0);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+    padding: 16px;
+}
+
+.kpi-card span {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.kpi-card strong {
+    color: var(--admin-text, #0f172a);
+    font-size: 28px;
+    line-height: 1;
+}
+
+.kpi-card small {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
 }
 
 .card {
@@ -271,6 +396,7 @@ export default {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    gap: 8px !important;
     padding: 0 16px !important;
     border-radius: 8px !important;
     border: 1px solid #cbd5e1 !important;
@@ -281,6 +407,20 @@ export default {
     cursor: pointer !important;
     transition: all 0.18s !important;
     box-sizing: border-box !important;
+}
+
+.avc-filters .filter-tabs button.tab-btn strong {
+    min-width: 20px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.08);
+    color: inherit;
+    font-size: 11px;
+    line-height: 20px;
+    text-align: center;
+}
+
+.avc-filters .filter-tabs button.tab-btn.active strong {
+    background: rgba(255, 255, 255, 0.22);
 }
 .avc-filters .filter-tabs button.tab-btn.active {
     background: var(--admin-primary) !important;
@@ -317,6 +457,23 @@ export default {
 }
 [data-theme="dark"] .filter-search :deep(.search-box svg) {
     color: var(--admin-faint) !important;
+}
+
+@media (max-width: 900px) {
+    .avc-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .avc-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .avc-kpis {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* State */

@@ -1,4 +1,4 @@
-import { api } from './api.js';
+import { api, apiDownload } from './api.js';
 
 export const ownerPartnerTerminationService = {
   eligibility(clusterId) {
@@ -28,6 +28,10 @@ export const ownerPartnerTerminationService = {
 
   show(id) {
     return api(`/api/owner/termination-requests/${id}`);
+  },
+
+  downloadDocument(id) {
+    return apiDownload(`/api/files/documents/${id}/download`);
   },
 
   futureBookings(id) {

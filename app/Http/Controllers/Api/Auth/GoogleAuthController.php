@@ -8,6 +8,7 @@ use App\Services\Auth\RoleRedirectService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
@@ -86,12 +87,33 @@ class GoogleAuthController extends Controller
             return response()->json($payload);
         }
 
-        return redirect('/auth/google/callback?' . http_build_query([
+        $handoffCode = 'google_login_' . Str::random(48);
+        Cache::put($handoffCode, [
             'token' => $token,
             'role_group' => $payload['role_group'],
             'redirect_to' => $payload['redirect_to'],
             'needs_password_setup' => $isNewUser ? '1' : '0',
+        ], now()->addMinute());
+
+        return redirect('/auth/google/callback?' . http_build_query([
+            'code' => $handoffCode,
         ]));
+    }
+
+    public function exchange(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:80'],
+        ]);
+
+        $payload = Cache::pull($data['code']);
+        if (! is_array($payload) || empty($payload['token'])) {
+            return response()->json([
+                'message' => 'Phien dang nhap Google da het han. Vui long thu lai.',
+            ], 422);
+        }
+
+        return response()->json($payload);
     }
 
     private function findGoogleUser(string $googleId, ?string $email): ?User
