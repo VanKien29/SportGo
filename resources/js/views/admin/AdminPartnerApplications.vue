@@ -1,5 +1,7 @@
 <template>
   <div class="partner-page">
+<<<<<<< HEAD
+=======
     <header class="page-header">
       <div>
         <h2>Quản lý hồ sơ đối tác</h2>
