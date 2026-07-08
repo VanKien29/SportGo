@@ -28,6 +28,7 @@ use Illuminate\Validation\ValidationException;
 class BookingService
 {
     private const BLOCKING_BOOKING_STATUSES = ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'];
+    private const BLOCKED_CLUSTER_STATUSES = ['pending', 'locked', 'termination_locked', 'termination_processing', 'partner_terminated'];
 
     public function __construct(
         private readonly WalkInCustomerService $walkInCustomers,
@@ -41,8 +42,12 @@ class BookingService
      */
     public function checkAvailability(string $venueCourtId, string $bookingDate, string $startTime, string $endTime, ?string $ignoreBookingId = null): bool
     {
-        $court = VenueCourt::findOrFail($venueCourtId);
+        $court = VenueCourt::query()->with('venueCluster')->findOrFail($venueCourtId);
         $venueClusterId = $court->venue_cluster_id;
+
+        if ($court->status !== 'active' || $this->clusterBlocksNewBooking($court)) {
+            return false;
+        }
 
         if (! $this->isWithinOperatingHours($venueClusterId, $bookingDate, $startTime, $endTime)) {
             return false;
@@ -122,11 +127,15 @@ class BookingService
             $endTime = $data['end_time'];
             $paymentOption = $data['payment_option'];
 
-            $court = VenueCourt::query()->whereKey($venueCourtId)->lockForUpdate()->firstOrFail();
+            $court = VenueCourt::query()->with('venueCluster')->whereKey($venueCourtId)->lockForUpdate()->firstOrFail();
             $venueClusterId = $court->venue_cluster_id;
 
             if ($court->status !== 'active') {
                 throw new Exception('Sân này hiện không hoạt động.');
+            }
+
+            if ($this->clusterBlocksNewBooking($court)) {
+                throw new Exception($this->clusterBlockedMessage($court));
             }
 
             $this->assertWithinOperatingHours($venueClusterId, $bookingDate, $startTime, $endTime);
@@ -538,7 +547,7 @@ class BookingService
             ]);
         }
 
-        if ($court->venueCluster?->status === 'locked') {
+        if ($this->clusterBlocksNewBooking($court)) {
             throw ValidationException::withMessages([
                 'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
             ]);
@@ -1303,7 +1312,7 @@ class BookingService
             ]);
         }
 
-        if ($court->venueCluster?->status === 'locked') {
+        if ($this->clusterBlocksNewBooking($court)) {
             throw ValidationException::withMessages([
                 'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
             ]);
@@ -2356,7 +2365,7 @@ class BookingService
                 ]);
             }
 
-            if ($court->venueCluster?->status === 'locked') {
+            if ($this->clusterBlocksNewBooking($court)) {
                 throw ValidationException::withMessages([
                     'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
                 ]);
@@ -2364,6 +2373,18 @@ class BookingService
         }
 
         return $courts;
+    }
+
+    private function clusterBlocksNewBooking(VenueCourt $court): bool
+    {
+        return in_array($court->venueCluster?->status, self::BLOCKED_CLUSTER_STATUSES, true);
+    }
+
+    private function clusterBlockedMessage(VenueCourt $court): string
+    {
+        return in_array($court->venueCluster?->status, ['termination_locked', 'termination_processing', 'partner_terminated'], true)
+            ? 'Cum san dang trong quy trinh cham dut hop dong va khong nhan booking moi.'
+            : 'Cum san hien khong nhan booking moi.';
     }
 
     private function normalizeTimeRanges(array $data, ?string $defaultCourtId = null): array

@@ -86,4 +86,57 @@ export const adminPartnerApplicationService = {
   courtTypes() {
     return api('/api/admin/court-types');
   },
+
+  terminationRequests(params = {}) {
+    return api(`/api/admin/partner-termination-requests${query(params)}`);
+  },
+
+  terminationRequest(id) {
+    return api(`/api/admin/partner-termination-requests/${id}`);
+  },
+
+  markTerminationReady(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/mark-ready-final-document`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  previewTerminationFinalDocument(id) {
+    return api(`/api/admin/partner-termination-requests/${id}/final-document/preview`, {
+      method: 'POST',
+    });
+  },
+
+  sendTerminationFinalOtp(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/final-document/sign/send-otp`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  signTerminationFinalDocument(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/final-document/sign`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  manualResolveTerminationBooking(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/manual-resolve-booking`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  terminationSettings() {
+    return api('/api/admin/partner-termination-requests/settings');
+  },
+
+  updateTerminationSettings(payload = {}) {
+    return api('/api/admin/termination-settings', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
 };

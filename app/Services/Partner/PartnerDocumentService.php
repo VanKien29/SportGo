@@ -218,7 +218,7 @@ class PartnerDocumentService
             ->pluck('signer_side')
             ->all();
 
-        if (in_array($document->document_type, ['partner_application_form', 'venue_scale_request', 'venue_location_change_request'], true)) {
+        if (in_array($document->document_type, ['partner_application_form', 'venue_scale_request', 'venue_location_change_request', 'termination_request', 'owner_termination_request'], true)) {
             return in_array('owner', $signedSides, true);
         }
 
@@ -240,6 +240,10 @@ class PartnerDocumentService
         }
 
         if (in_array($document->document_type, ['venue_scale_request', 'venue_location_change_request'], true) && $signerSide === 'owner') {
+            return 'completed';
+        }
+
+        if (in_array($document->document_type, ['termination_request', 'owner_termination_request'], true) && $signerSide === 'owner') {
             return 'completed';
         }
 

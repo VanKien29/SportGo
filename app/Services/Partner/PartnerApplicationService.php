@@ -822,7 +822,12 @@ class PartnerApplicationService
             'contracts.generatedDocument.signatures.signer:id,full_name,email',
             'contracts.terminations.documents.generatedDocument',
             'contracts.terminations.settlement.items',
-            'terminationRequests.documents.generatedDocument',
+            'terminationRequests.documents.generatedDocument.signatures.signer:id,full_name,email',
+            'terminationRequests.documents.generatedDocument.signingRequests',
+            'terminationRequests.bookingActions.booking.customer:id,full_name,username,email,phone',
+            'terminationRequests.bookingActions.booking.payments',
+            'terminationRequests.bookingActions.processedBy:id,full_name,username,email',
+            'terminationRequests.statusHistories.changedBy:id,full_name,username,email',
             'terminationRequests.settlement.items',
             'terminationRequests.settlement.withdrawalRequests',
         ];

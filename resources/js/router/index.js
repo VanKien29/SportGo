@@ -328,6 +328,20 @@ const routes = [
                     import("../views/owner/OwnerVenueClusters.vue"),
             },
             {
+                path: "venue-clusters/:id/termination",
+                name: "owner-partner-termination",
+                component: () =>
+                    import("../views/owner/OwnerPartnerTermination.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
+                path: "termination-requests/:id",
+                name: "owner-partner-termination-request",
+                component: () =>
+                    import("../views/owner/OwnerPartnerTermination.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
                 path: "affiliate",
                 name: "owner-affiliate",
                 component: () =>

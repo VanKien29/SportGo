@@ -414,6 +414,72 @@
               <div class="full"><span class="label">Lý do</span><span>{{ request.reason || '-' }}</span></div>
             </div>
 
+            <div class="termination-finance-grid">
+              <div><span class="label">Booking tuong lai</span><strong>{{ request.future_booking_count || 0 }}</strong></div>
+              <div><span class="label">Co the rut</span><strong class="amount positive">{{ money(request.withdrawable_amount) }}</strong></div>
+              <div><span class="label">No booking online</span><strong class="amount negative">{{ money(request.future_online_booking_liability) }}</strong></div>
+              <div><span class="label">Refund/withdraw treo</span><strong>{{ money((Number(request.pending_refund_liability) || 0) + (Number(request.pending_withdrawal_amount) || 0)) }}</strong></div>
+            </div>
+
+            <div class="termination-actions">
+              <button
+                v-if="canPrepareFinalDocument(request)"
+                class="btn primary small"
+                type="button"
+                :disabled="saving"
+                @click="handleMarkTerminationReady(request)"
+              >
+                <AppIcon name="fileText" size="14" /> Sinh bien ban cuoi
+              </button>
+              <button
+                v-if="request.status === 'waiting_final_document_signature'"
+                class="btn ghost small"
+                type="button"
+                :disabled="saving"
+                @click="handlePreviewFinalDocument(request)"
+              >
+                <AppIcon name="fileText" size="14" /> Lam moi bien ban
+              </button>
+              <button
+                v-if="request.status === 'waiting_final_document_signature' && !request.final_document_admin_signed_at"
+                class="btn ghost small"
+                type="button"
+                :disabled="saving"
+                @click="handleSendTerminationFinalOtp(request)"
+              >
+                <AppIcon name="fileText" size="14" /> Gui OTP SportGo
+              </button>
+              <template v-if="terminationFinalSigning.requestId && terminationFinalSigning.requestIdFor === request.id">
+                <input v-model.trim="terminationFinalSigning.otp" class="otp-input" inputmode="numeric" maxlength="6" placeholder="OTP SportGo" />
+                <button
+                  class="btn primary small"
+                  type="button"
+                  :disabled="saving || terminationFinalSigning.otp.length !== 6"
+                  @click="handleSignTerminationFinalDocument(request)"
+                >
+                  <AppIcon name="check" size="14" /> Ky bien ban
+                </button>
+              </template>
+            </div>
+
+            <div v-if="request.booking_actions?.length" class="settlement-box">
+              <h4>Booking tuong lai</h4>
+              <div v-for="action in request.booking_actions" :key="action.id" class="withdrawal-row">
+                <span>{{ action.booking?.booking_code || action.booking_id }}</span>
+                <span>{{ bookingActionLabel(action.action) }}</span>
+                <span class="badge" :class="`badge-${action.status}`">{{ action.status }}</span>
+                <button
+                  v-if="action.status !== 'resolved'"
+                  class="btn ghost small"
+                  type="button"
+                  :disabled="saving"
+                  @click="handleManualResolveBooking(request, action)"
+                >
+                  Xu ly xong
+                </button>
+              </div>
+            </div>
+
             <!-- Settlement Details -->
             <div v-if="request.settlement" class="settlement-box">
               <h4>Quyết toán</h4>
@@ -519,6 +585,18 @@ const activeTab = ref('overview');
 const actionMode = ref(route.query.action || '');
 const fieldErrors = reactive({});
 const terminationModal = reactive({ open: false, reason: '' });
+const terminationFinalSigning = reactive({ requestIdFor: null, requestId: null, hashShort: '', otp: '' });
+const TERMINATING_STATUSES = [
+  'submitted',
+  'reviewing',
+  'transition_period',
+  'cancellation_in_progress',
+  'future_bookings_processing',
+  'waiting_final_settlement',
+  'waiting_final_document_signature',
+  'terminating',
+];
+const SIGNATURE_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
 const approveForm = reactive({
   initial_court_name: '',
@@ -558,7 +636,7 @@ const pendingSportgoDocument = computed(() => generatedDocuments.value.find((doc
 )) || null);
 const canReviewApplication = computed(() => isReviewable(application.value?.status));
 const activeContract = computed(() => (application.value?.contracts || []).find(c => c.status === 'signed_active') || null);
-const pendingTerminationRequest = computed(() => (application.value?.termination_requests || []).find(r => ['submitted', 'reviewing', 'transition_period'].includes(r.status)) || null);
+const pendingTerminationRequest = computed(() => (application.value?.termination_requests || []).find(r => TERMINATING_STATUSES.includes(r.status)) || null);
 const readonlyActionTitle = computed(() => {
   if (application.value?.status === 'need_supplement') return 'Đang chờ người dùng bổ sung';
   if (application.value?.status === 'rejected') return 'Hồ sơ đã bị từ chối';
@@ -767,6 +845,99 @@ async function handleConfirmTermination(request) {
   }
 }
 
+function canPrepareFinalDocument(request) {
+  return request.status === 'waiting_final_settlement';
+}
+
+async function handleMarkTerminationReady(request) {
+  if (!confirm('Xac nhan ho so da du dieu kien sinh bien ban cham dut cuoi?')) return;
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.markTerminationReady(request.id, {
+      note: 'Admin xac nhan du dieu kien sinh bien ban cham dut cuoi.',
+    });
+    message.value = response.message || 'Da sinh bien ban cham dut cuoi.';
+    await loadApplication();
+  } catch (err) {
+    error.value = err.message || 'Khong the sinh bien ban cham dut cuoi.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function handlePreviewFinalDocument(request) {
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.previewTerminationFinalDocument(request.id);
+    message.value = response.message || 'Da lam moi bien ban cham dut cuoi.';
+    await loadApplication();
+  } catch (err) {
+    error.value = err.message || 'Khong the lam moi bien ban cham dut cuoi.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function handleSendTerminationFinalOtp(request) {
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.sendTerminationFinalOtp(request.id, {
+      signature_image: SIGNATURE_IMAGE,
+    });
+    terminationFinalSigning.requestIdFor = request.id;
+    terminationFinalSigning.requestId = response.data.signing_request_id;
+    terminationFinalSigning.hashShort = response.data.hash_short;
+    terminationFinalSigning.otp = '';
+    message.value = `Da gui OTP SportGo. Ma doi soat: ${terminationFinalSigning.hashShort}`;
+  } catch (err) {
+    error.value = err.message || 'Khong the gui OTP ky bien ban.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function handleSignTerminationFinalDocument(request) {
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.signTerminationFinalDocument(request.id, {
+      signing_request_id: terminationFinalSigning.requestId,
+      otp: terminationFinalSigning.otp,
+    });
+    message.value = response.message || 'SportGo da ky bien ban cham dut cuoi.';
+    terminationFinalSigning.requestIdFor = null;
+    terminationFinalSigning.requestId = null;
+    terminationFinalSigning.hashShort = '';
+    terminationFinalSigning.otp = '';
+    await loadApplication();
+  } catch (err) {
+    error.value = err.message || 'Khong the ky bien ban cham dut cuoi.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function handleManualResolveBooking(request, action) {
+  if (!confirm('Xac nhan booking nay da duoc xu ly thu cong?')) return;
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.manualResolveTerminationBooking(request.id, {
+      booking_id: action.booking_id,
+      note: 'Admin xac nhan booking da duoc xu ly thu cong.',
+    });
+    message.value = response.message || 'Da ghi nhan booking duoc xu ly.';
+    await loadApplication();
+  } catch (err) {
+    error.value = err.message || 'Khong the cap nhat booking.';
+  } finally {
+    saving.value = false;
+  }
+}
+
 const InfoPanel = defineComponent({
   props: { title: String, items: Array },
   setup(props) {
@@ -816,6 +987,7 @@ function bankVerificationLabel(status) {
 }
 
 function documentTypeLabel(type) {
+  if (type === 'owner_termination_request') return 'Don owner yeu cau cham dut';
   if (type === 'venue_scale_request') return 'Đơn yêu cầu thay đổi quy mô sân';
   if (type === 'venue_location_change_request') return 'Đơn yêu cầu thay đổi vị trí cụm sân';
   if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
@@ -873,7 +1045,7 @@ function generatedDocumentGroupMeta(document) {
   if (type === 'venue_location_change_request') {
     return { key: 'location_request', label: 'Đơn yêu cầu thay đổi vị trí' };
   }
-  if (['termination_request', 'mutual_liquidation_minutes', 'unilateral_termination_notice', 'settlement_minutes'].includes(type)) {
+  if (['termination_request', 'owner_termination_request', 'mutual_liquidation_minutes', 'unilateral_termination_notice', 'settlement_minutes'].includes(type)) {
     return { key: 'termination', label: 'Công văn, hủy yêu cầu đối tác' };
   }
   return { key: 'other', label: 'Văn bản khác' };
@@ -914,6 +1086,15 @@ function contractStatusLabel(status) {
 
 function terminationStatusLabel(status) {
   return {
+    draft_preview: 'Cho owner ky gui',
+    cancellation_in_progress: 'Owner da gui yeu cau',
+    future_bookings_processing: 'Dang xu ly booking',
+    waiting_final_settlement: 'Cho quyet toan cuoi',
+    waiting_final_document_signature: 'Cho ky bien ban cuoi',
+    terminating: 'Dang trong thoi gian xem ho so',
+    terminated: 'Da cham dut',
+    owner_cancelled_request: 'Owner da huy',
+    admin_rejected: 'Admin tu choi',
     submitted: 'Chờ xác nhận',
     reviewing: 'Đang xem xét',
     transition_period: 'Giai đoạn chuyển tiếp',
@@ -928,6 +1109,14 @@ function terminationTypeLabel(type) {
     unilateral_by_owner: 'Đơn phương từ chủ sân',
     unilateral_by_sportgo: 'Đơn phương từ SportGo',
   }[type] || type || '-';
+}
+
+function bookingActionLabel(action) {
+  return {
+    cancel_all_refund_to_user_balance: 'Huy va hoan tien',
+    serve_until_last_booking: 'Phuc vu den booking cuoi',
+    manual_per_booking: 'Xu ly thu cong',
+  }[action] || action || '-';
 }
 
 function settlementStatusLabel(status) {
@@ -1503,6 +1692,44 @@ dd {
   }
 
   dl {
+    grid-template-columns: 1fr;
+  }
+}
+.termination-finance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.termination-finance-grid > div {
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.termination-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.otp-input {
+  max-width: 140px;
+  border: 1px solid var(--admin-border, #cbd5e1);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+@media (max-width: 980px) {
+  .termination-finance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .termination-finance-grid {
     grid-template-columns: 1fr;
   }
 }

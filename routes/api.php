@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Admin\PlatformFeeLedgerController as AdminPlatformF
 use App\Http\Controllers\Api\Admin\PlatformFeeTierController as AdminPlatformFeeTierController;
 use App\Http\Controllers\Api\Admin\PartnerApplicationController as AdminPartnerApplicationController;
 use App\Http\Controllers\Api\Admin\PartnerContractController as AdminPartnerContractController;
+use App\Http\Controllers\Api\Admin\PartnerTerminationRequestController as AdminPartnerTerminationRequestController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\Admin\VoucherController as AdminVoucherController;
 use App\Http\Controllers\Api\Admin\MembershipPackageController as AdminMembershipPackageController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\Api\Owner\BookingManagementController as OwnerBookingMa
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
 use App\Http\Controllers\Api\Owner\PartnerApplicationController as OwnerPartnerApplicationController;
 use App\Http\Controllers\Api\Owner\PartnerContractController as OwnerPartnerContractController;
+use App\Http\Controllers\Api\Owner\PartnerTerminationController as OwnerPartnerTerminationController;
 use App\Http\Controllers\Api\Owner\BookingConfigController as OwnerBookingConfigController;
 use App\Http\Controllers\Api\Payment\SepayPaymentController;
 use App\Http\Controllers\Api\Common\PolicyAcceptanceController;
@@ -179,6 +181,16 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/partner-profiles/{id}/terminate', [AdminPartnerApplicationController::class, 'terminate']);
         Route::post('/partner-profiles/{id}/confirm-termination', [AdminPartnerApplicationController::class, 'confirmTermination']);
 
+        Route::get('/partner-termination-requests', [AdminPartnerTerminationRequestController::class, 'index']);
+        Route::get('/partner-termination-requests/settings', [AdminPartnerTerminationRequestController::class, 'settings']);
+        Route::put('/termination-settings', [AdminPartnerTerminationRequestController::class, 'updateSettings']);
+        Route::get('/partner-termination-requests/{id}', [AdminPartnerTerminationRequestController::class, 'show']);
+        Route::post('/partner-termination-requests/{id}/mark-ready-final-document', [AdminPartnerTerminationRequestController::class, 'markReadyFinalDocument']);
+        Route::post('/partner-termination-requests/{id}/final-document/preview', [AdminPartnerTerminationRequestController::class, 'previewFinalDocument']);
+        Route::post('/partner-termination-requests/{id}/final-document/sign/send-otp', [AdminPartnerTerminationRequestController::class, 'finalDocumentSignSendOtp']);
+        Route::post('/partner-termination-requests/{id}/final-document/sign', [AdminPartnerTerminationRequestController::class, 'finalDocumentSign']);
+        Route::post('/partner-termination-requests/{id}/manual-resolve-booking', [AdminPartnerTerminationRequestController::class, 'manualResolveBooking']);
+
         // Partner Contracts
         Route::post('/contracts/{id}/send-email', [AdminPartnerContractController::class, 'sendEmail']);
         Route::post('/contracts/{id}/approve-signature/request-otp', [AdminPartnerContractController::class, 'requestApproveSignatureOtp']);
@@ -322,6 +334,19 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/partner-applications/new-cluster', [OwnerPartnerApplicationController::class, 'storeNewCluster']);
         Route::post('/contracts/{id}/sign', [OwnerPartnerContractController::class, 'sign']);
         Route::post('/contracts/{id}/request-termination', [OwnerPartnerContractController::class, 'requestTermination']);
+
+        Route::get('/venue-clusters/{id}/termination/eligibility', [OwnerPartnerTerminationController::class, 'eligibility']);
+        Route::post('/venue-clusters/{id}/termination/preview', [OwnerPartnerTerminationController::class, 'preview']);
+        Route::post('/venue-clusters/{id}/termination/send-otp', [OwnerPartnerTerminationController::class, 'sendOtp']);
+        Route::post('/venue-clusters/{id}/termination/submit', [OwnerPartnerTerminationController::class, 'submit']);
+        Route::get('/termination-requests/{id}', [OwnerPartnerTerminationController::class, 'show']);
+        Route::get('/termination-requests/{id}/future-bookings', [OwnerPartnerTerminationController::class, 'futureBookings']);
+        Route::post('/termination-requests/{id}/future-bookings/bulk-action', [OwnerPartnerTerminationController::class, 'bulkAction']);
+        Route::post('/termination-requests/{id}/withdrawals', [OwnerPartnerTerminationController::class, 'storeWithdrawal']);
+        Route::post('/termination-requests/{id}/cancel/send-otp', [OwnerPartnerTerminationController::class, 'cancelSendOtp']);
+        Route::post('/termination-requests/{id}/cancel', [OwnerPartnerTerminationController::class, 'cancel']);
+        Route::post('/termination-requests/{id}/final-document/sign/send-otp', [OwnerPartnerTerminationController::class, 'finalDocumentSignSendOtp']);
+        Route::post('/termination-requests/{id}/final-document/sign', [OwnerPartnerTerminationController::class, 'finalDocumentSign']);
 
         // Venue Clusters & Venue Courts
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);

@@ -21,6 +21,17 @@ use Illuminate\Validation\ValidationException;
 
 class PartnerApplicationController extends Controller
 {
+    private const TERMINATING_STATUSES = [
+        'submitted',
+        'reviewing',
+        'transition_period',
+        'cancellation_in_progress',
+        'future_bookings_processing',
+        'waiting_final_settlement',
+        'waiting_final_document_signature',
+        'terminating',
+    ];
+
     public function __construct(
         private readonly PartnerApplicationService $partners,
         private readonly PartnerDocumentService $documents,
@@ -46,7 +57,7 @@ class PartnerApplicationController extends Controller
                 'pending_review' => $query->whereIn('status', ['pending', 'reviewing', 'submitted', 'need_supplement']),
                 'pending_signature' => $query->whereIn('status', ['contract_pending_owner_signature', 'contract_pending_sportgo_signature']),
                 'active' => $query->where('status', 'completed'),
-                'terminating' => $query->whereHas('terminationRequests', fn ($q) => $q->whereIn('status', ['submitted', 'reviewing', 'transition_period'])),
+                'terminating' => $query->whereHas('terminationRequests', fn ($q) => $q->whereIn('status', self::TERMINATING_STATUSES)),
                 'terminated' => $query->whereNotNull('terminated_at'),
                 'rejected' => $query->whereIn('status', ['rejected', 'cancelled']),
                 default => null,
@@ -165,7 +176,7 @@ class PartnerApplicationController extends Controller
     {
         $statuses = collect($applications)->pluck('status');
 
-        if ($termination && in_array($termination->status, ['submitted', 'reviewing', 'transition_period'], true)) {
+        if ($termination && in_array($termination->status, self::TERMINATING_STATUSES, true)) {
             return 'terminating';
         }
 

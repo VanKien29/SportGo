@@ -71,6 +71,12 @@
                     </div>
                 </div>
 
+                <div class="termination-shortcut card">
+                    <button type="button" class="btn btn-primary btn-sm" @click="$router.push({ name: 'owner-partner-termination', params: { id: selectedCluster.id } })">
+                        Yeu cau cham dut hop dong
+                    </button>
+                </div>
+
                 <!-- Tabs -->
                 <div class="detail-tabs card" style="display: flex; justify-content: space-between; align-items: center; padding-right: 16px; position: relative;">
                     <div style="display: flex; gap: 8px;">
@@ -8595,5 +8601,10 @@ export default {
 .req-parent-select .custom-options-container {
     max-height: 200px;
     overflow-y: auto;
+}
+.termination-shortcut {
+    display: flex;
+    justify-content: flex-end;
+    margin: 12px 0;
 }
 </style>
