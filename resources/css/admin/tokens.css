@@ -16,6 +16,12 @@
   --admin-primary-dark: #15733a;
   --admin-primary-soft: #e2f6e8;
   --admin-primary-ring: rgba(34, 166, 83, 0.22);
+  --admin-floating-bg: #1f2937;
+  --admin-floating-fg: #ffffff;
+  --admin-floating-border: rgba(255, 255, 255, 0.16);
+  --admin-floating-hover: #111827;
+  --admin-floating-active: #0f172a;
+  --admin-floating-panel-bg: #18181b;
   --admin-success: #22a653;
   --admin-success-soft: #e2f6e8;
   --admin-success-text: #15733a;
@@ -63,6 +69,12 @@
   --admin-primary-dark: #27272a;
   --admin-primary-soft: rgba(255, 255, 255, 0.08);
   --admin-primary-ring: rgba(255, 255, 255, 0.1);
+  --admin-floating-bg: #27272a;
+  --admin-floating-fg: #ffffff;
+  --admin-floating-border: rgba(255, 255, 255, 0.14);
+  --admin-floating-hover: #3f3f46;
+  --admin-floating-active: #52525b;
+  --admin-floating-panel-bg: #18181b;
   --admin-success: #34d399;
   --admin-success-soft: rgba(52, 211, 153, 0.14);
   --admin-success-text: #34d399;

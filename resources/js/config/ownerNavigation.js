@@ -14,6 +14,12 @@ export const ownerNavigationSections = [
         to: '/owner/partner-profile',
         activeNames: ['owner-partner-profile'],
       },
+      {
+        label: 'Tin nhắn',
+        icon: 'messageSquare',
+        to: '/owner/chat',
+        activeNames: ['owner-chat'],
+      },
     ],
   },
   {
@@ -54,6 +60,12 @@ export const ownerNavigationSections = [
         icon: 'calendar',
         to: '/owner/booking-settings',
         activeNames: ['owner-booking-settings'],
+      },
+      {
+        label: 'Cấu hình giao diện',
+        icon: 'palette',
+        to: '/owner/settings',
+        activeNames: ['owner-settings'],
       },
       {
         label: 'Giao lưu tại sân',
@@ -133,6 +145,7 @@ export const ownerNavigationSections = [
 export const ownerRouteTitles = {
   'owner-dashboard': 'Bảng điều hành',
   'owner-partner-profile': 'Hồ sơ đối tác',
+  'owner-chat': 'Tin nhắn',
   'owner-profile': 'Thông tin cá nhân',
   'owner-venue-clusters': 'Quản lý cụm sân',
   'owner-venue-courts': 'Quản lý sân con',
@@ -140,6 +153,7 @@ export const ownerRouteTitles = {
   'owner-counter-booking': 'Booking tại quầy',
   'owner-pricing': 'Cấu hình giá',
   'owner-booking-settings': 'Cấu hình đặt sân',
+  'owner-settings': 'Cấu hình giao diện',
   'owner-schedule-locks': 'Khóa lịch theo khung giờ',
   'owner-platform-fees': 'Phí nền tảng',
   'owner-finance': 'Ví tài chính',

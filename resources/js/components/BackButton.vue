@@ -54,33 +54,42 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--sg-text, #0f172a);
-  color: #fff;
-  border: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background-color: var(--admin-floating-bg, #1f2937);
+  color: var(--admin-floating-fg, #ffffff);
+  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: background-color 120ms ease-out, transform 80ms ease-out, box-shadow 120ms ease-out;
 }
 
 .action-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  background-color: #1e293b;
+  background-color: var(--admin-floating-hover, #111827);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+}
+
+.action-btn:active {
+  transform: translateY(0) scale(0.97);
+  background-color: var(--admin-floating-active, #0f172a);
+}
+
+.action-btn:focus-visible {
+  outline: 2px solid var(--admin-primary, #22c55e);
+  outline-offset: 3px;
 }
 
 .back-btn {
-  background-color: #fff;
-  color: var(--sg-text, #0f172a);
-  border: 1px solid var(--sg-border, #e2e8f0);
+  background-color: var(--admin-floating-bg, #1f2937);
+  color: var(--admin-floating-fg, #ffffff);
 }
 
 .back-btn:hover {
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--admin-floating-hover, #111827);
+  color: var(--admin-floating-fg, #ffffff);
 }
 
 .is-floating {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 
 @media (max-width: 768px) {

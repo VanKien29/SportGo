@@ -218,12 +218,12 @@
               <button
                 class="btn-outline btn-full flex items-center justify-center gap-2"
                 style="margin-top: 10px; display: inline-flex; width: 100%; align-items: center; justify-content: center; gap: 8px; font-weight: 500;"
-                @click="chatWithOwner"
+                @click="chatWithVenue"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
-                Nhắn tin hỏi chủ sân
+                Nhắn tin với cụm sân
               </button>
 
               <p class="panel-note">Chọn ngày để xem khung giờ còn trống</p>
@@ -395,7 +395,7 @@ export default {
       this.$router.push({ name: 'booking-create', query });
     },
 
-    chatWithOwner() {
+    chatWithVenue() {
       if (!this.venue) return;
       this.$router.push({
         path: '/chat',

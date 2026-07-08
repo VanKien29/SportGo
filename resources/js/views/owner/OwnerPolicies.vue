@@ -503,10 +503,10 @@ export default {
 .section-head h3, .policy-card h3, .modal h3 { margin: 0 0 6px; }
 .section-head p, .summary-block p, .notice-card p, .modal-head p, small { margin: 0; color: var(--admin-muted); }
 .cluster-picker, .cluster-badge { display: grid; gap: 6px; min-width: 260px; font-weight: 800; }
-.cluster-badge { background: var(--admin-surface-muted); border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; }
+.cluster-badge { background: var(--admin-surface-muted); border: 1px solid var(--admin-border); border-radius: 10px; padding: 10px 12px; }
 .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-.tabs button { border: 1px solid #dbe3ef; background: var(--admin-surface); border-radius: 8px; padding: 10px 14px; font-weight: 800; cursor: pointer; }
-.tabs .active { background: #dcfce7; border-color: #22c55e; color: #166534; }
+.tabs button { border: 1px solid var(--admin-border); background: var(--admin-surface); border-radius: 8px; padding: 10px 14px; font-weight: 500; cursor: pointer; }
+.tabs .active { background: var(--admin-primary); border-color: var(--admin-primary); color: var(--admin-primary-text); }
 .policy-section { display: grid; gap: 14px; }
 .inheritance-flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .inheritance-flow article { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; align-items: start; background: var(--admin-surface); border: 1px solid #dbeafe; border-radius: 12px; padding: 14px; }

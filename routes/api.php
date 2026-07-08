@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyCont
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
 use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
+use App\Http\Controllers\Api\Owner\UiSettingsController as OwnerUiSettingsController;
 use App\Http\Controllers\Api\Partner\PartnerApplicationDocumentDownloadController;
 use App\Http\Controllers\Api\Partner\PartnerDocumentDownloadController;
 use App\Http\Controllers\Api\User\PartnerApplicationController as UserPartnerApplicationController;
@@ -311,6 +312,8 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
+        Route::get('/ui-settings', [OwnerUiSettingsController::class, 'getSettings']);
+        Route::post('/ui-settings', [OwnerUiSettingsController::class, 'updateSettings']);
         Route::get('/booking-configs', [OwnerBookingConfigController::class, 'index']);
         Route::put('/booking-configs/{venueClusterId}', [OwnerBookingConfigController::class, 'update']);
 
@@ -522,6 +525,10 @@ Route::middleware('auth:sanctum')
             Route::post('/conversations', [ChatController::class, 'startConversation']);
             Route::get('/conversations/{id}/messages', [ChatController::class, 'getMessages']);
             Route::post('/conversations/{id}/messages', [ChatController::class, 'sendMessage']);
+            Route::post('/messages/{id}/react', [ChatController::class, 'reactToMessage']);
+            Route::post('/messages/{id}/pin', [ChatController::class, 'togglePinMessage']);
+            Route::get('/conversations/{id}/bookings', [ChatController::class, 'getEligibleBookings']);
+            Route::post('/conversations/{id}/bookings', [ChatController::class, 'sendBooking']);
             Route::post('/conversations/{id}/read', [ChatController::class, 'markAsRead']);
             Route::delete('/conversations/{id}', [ChatController::class, 'deleteConversation']);
             Route::post('/conversations/{id}/clear', [ChatController::class, 'clearMessages']);

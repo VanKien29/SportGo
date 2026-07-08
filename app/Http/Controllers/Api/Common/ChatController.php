@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Events\ConversationUpdated;
 use App\Events\MessageSent;
 use App\Models\Conversation;
+use App\Models\Booking;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
 use App\Models\User;
@@ -27,7 +28,7 @@ class ChatController extends Controller
             $query->where('user_id', $userId);
         })
         ->with([
-            'participants.user:id,full_name,username,avatar_url',
+            'participants.user:id,full_name,username,avatar_url,email,phone',
         ])
         ->get();
 
@@ -85,6 +86,9 @@ class ChatController extends Controller
                     'id' => $otherUser->id,
                     'full_name' => $otherUser->full_name,
                     'username' => $otherUser->username,
+                    'avatar_url' => $otherUser->avatar_url,
+                    'email' => $otherUser->email,
+                    'phone' => $otherUser->phone,
                 ] : null,
                 'last_message' => $lastMessage ? [
                     'content' => $lastMessage->content,
@@ -116,20 +120,30 @@ class ChatController extends Controller
         }
 
         $messages = Message::where('conversation_id', $conversationId)
-            ->with('sender:id,full_name,username,avatar_url')
+            ->with('sender:id,full_name,username,avatar_url,email,phone')
             ->orderBy('created_at', 'asc')
             ->limit(100)
             ->get();
 
         // Check if other participant has read these messages
-        $participants = ConversationParticipant::where('conversation_id', $conversationId)->get();
+        $participants = ConversationParticipant::where('conversation_id', $conversationId)
+            ->with('user:id,full_name,username,avatar_url,email,phone')
+            ->get();
 
         return response()->json([
-            'messages' => $messages,
+            'messages' => $messages->map(fn (Message $message) => $this->messagePayload($message))->values(),
             'participants' => $participants->map(function ($p) {
                 return [
                     'user_id' => $p->user_id,
                     'last_read_at' => $p->last_read_at ? $p->last_read_at->toIso8601String() : null,
+                    'user' => $p->user ? [
+                        'id' => $p->user->id,
+                        'full_name' => $p->user->full_name,
+                        'username' => $p->user->username,
+                        'avatar_url' => $p->user->avatar_url,
+                        'email' => $p->user->email,
+                        'phone' => $p->user->phone,
+                    ] : null,
                 ];
             }),
         ]);
@@ -153,6 +167,7 @@ class ChatController extends Controller
         $request->validate([
             'content' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240', // tối đa 10MB
+            'reply_to_id' => 'nullable|uuid|exists:messages,id',
         ]);
 
         if (!$request->filled('content') && !$request->hasFile('image')) {
@@ -170,6 +185,7 @@ class ChatController extends Controller
             $msg = Message::create([
                 'id' => (string) Str::uuid(),
                 'conversation_id' => $conversationId,
+                'reply_to_id' => $request->input('reply_to_id'),
                 'sender_id' => $userId,
                 'content' => $request->input('content') ?: '[Hình ảnh]',
                 'is_system' => false,
@@ -194,7 +210,92 @@ class ChatController extends Controller
         // Broadcast real-time update to all other participants
         $this->broadcastMessage($message, $conversationId, $userId);
 
-        return response()->json($message->load('sender:id,full_name,username,avatar_url'));
+        return response()->json($this->messagePayload($message));
+    }
+
+    /**
+     * React to a message with an emoji
+     */
+    public function reactToMessage(Request $request, $messageId)
+    {
+        $request->validate([
+            'emoji' => 'required|string|max:50',
+        ]);
+
+        $emoji = $request->input('emoji');
+        $user = $request->user();
+
+        $message = Message::findOrFail($messageId);
+
+        $isParticipant = ConversationParticipant::where('conversation_id', $message->conversation_id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (!$isParticipant) {
+            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+        }
+
+        $reactions = $message->reactions ?: [];
+        $existingIndex = -1;
+
+        foreach ($reactions as $index => $react) {
+            if ($react['user_id'] === $user->id) {
+                $existingIndex = $index;
+                break;
+            }
+        }
+
+        if ($existingIndex !== -1) {
+            $existingReaction = $reactions[$existingIndex];
+            if ($existingReaction['emoji'] === $emoji) {
+                array_splice($reactions, $existingIndex, 1);
+            } else {
+                $reactions[$existingIndex]['emoji'] = $emoji;
+            }
+        } else {
+            $reactions[] = [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'full_name' => $user->full_name,
+                'emoji' => $emoji,
+            ];
+        }
+
+        $message->update(['reactions' => $reactions]);
+
+        broadcast(new \App\Events\MessageReacted($message->conversation_id, $message->id, $reactions))->toOthers();
+
+        return response()->json([
+            'message_id' => $message->id,
+            'reactions' => $reactions,
+        ]);
+    }
+
+    /**
+     * Toggle message pin state
+     */
+    public function togglePinMessage(Request $request, $messageId)
+    {
+        $user = $request->user();
+        $message = Message::findOrFail($messageId);
+
+        $isParticipant = ConversationParticipant::where('conversation_id', $message->conversation_id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (!$isParticipant) {
+            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+        }
+
+        $isPinned = !$message->is_pinned;
+        $message->update(['is_pinned' => $isPinned]);
+
+        broadcast(new \App\Events\MessagePinned($message->conversation_id, $message->id, $isPinned))->toOthers();
+
+        return response()->json([
+            'message_id' => $message->id,
+            'is_pinned' => $isPinned,
+        ]);
     }
 
     /**
@@ -202,7 +303,7 @@ class ChatController extends Controller
      */
     private function broadcastMessage(Message $message, string $conversationId, int|string $senderId): void
     {
-        $messageData = $message->load('sender:id,full_name,username,avatar_url')->toArray();
+        $messageData = $this->messagePayload($message);
 
         // Broadcast to the conversation channel (all participants listening)
         broadcast(new MessageSent($conversationId, $messageData))->toOthers();
@@ -225,6 +326,92 @@ class ChatController extends Controller
         foreach ($participants as $participantId) {
             broadcast(new ConversationUpdated($participantId, $conversationData));
         }
+    }
+
+    public function getEligibleBookings(Request $request, $conversationId)
+    {
+        $conversation = $this->participantConversation($conversationId, $request->user()->id);
+        $clusterIds = $this->conversationManagedClusterIds($conversation, $request->user()->id);
+
+        if (empty($clusterIds)) {
+            return response()->json([]);
+        }
+
+        $bookings = Booking::query()
+            ->with([
+                'venueCourt.venueCluster',
+                'venueCourt.courtType',
+                'venueCluster',
+                'payments' => fn ($query) => $query->latest('created_at'),
+            ])
+            ->where('customer_id', $request->user()->id)
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->orderByDesc('booking_date')
+            ->orderByDesc('start_time')
+            ->limit(20)
+            ->get()
+            ->map(fn (Booking $booking) => $this->bookingMessagePayload($booking))
+            ->values();
+
+        return response()->json($bookings);
+    }
+
+    public function sendBooking(Request $request, $conversationId)
+    {
+        $validated = $request->validate([
+            'booking_id' => 'required|uuid|exists:bookings,id',
+        ]);
+
+        $conversation = $this->participantConversation($conversationId, $request->user()->id);
+        $clusterIds = $this->conversationManagedClusterIds($conversation, $request->user()->id);
+
+        $booking = Booking::query()
+            ->with([
+                'venueCourt.venueCluster',
+                'venueCourt.courtType',
+                'venueCluster',
+                'payments' => fn ($query) => $query->latest('created_at'),
+            ])
+            ->where('id', $validated['booking_id'])
+            ->where('customer_id', $request->user()->id)
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->first();
+
+        if (! $booking) {
+            return response()->json([
+                'message' => 'Booking này không thuộc cụm sân của hội thoại hoặc không phải booking của bạn.',
+            ], 403);
+        }
+
+        $message = DB::transaction(function () use ($conversationId, $request, $booking) {
+            $now = now();
+            $msg = Message::create([
+                'id' => (string) Str::uuid(),
+                'conversation_id' => $conversationId,
+                'sender_id' => $request->user()->id,
+                'content' => 'Đã gửi booking #'.$booking->booking_code,
+                'is_system' => false,
+                'reference_type' => 'booking',
+                'reference_id' => $booking->id,
+                'created_at' => $now,
+            ]);
+
+            Conversation::where('id', $conversationId)->update([
+                'last_message_at' => $now,
+            ]);
+
+            ConversationParticipant::where('conversation_id', $conversationId)
+                ->where('user_id', $request->user()->id)
+                ->update([
+                    'last_read_at' => $now,
+                ]);
+
+            return $msg;
+        });
+
+        $this->broadcastMessage($message, $conversationId, $request->user()->id);
+
+        return response()->json($this->messagePayload($message));
     }
 
     /**
@@ -276,6 +463,7 @@ class ChatController extends Controller
                 'username' => $u->username,
                 'avatar_url' => $u->avatar_url,
                 'email' => $u->email,
+                'phone' => $u->phone,
             ];
         }));
     }
@@ -377,11 +565,15 @@ class ChatController extends Controller
                 ->first();
 
             if ($existing) {
+                $this->syncVenueConversationParticipants($existing, $venue, $userId);
+
                 return response()->json(['id' => $existing->id]);
             }
 
+            $participantIds = $this->venueContactParticipantIds($venue, $userId);
+
             // Create new venue contact conversation
-            $conversation = DB::transaction(function () use ($userId, $ownerId, $venueId) {
+            $conversation = DB::transaction(function () use ($userId, $venueId, $participantIds) {
                 $now = now();
                 $conv = Conversation::create([
                     'id' => (string) Str::uuid(),
@@ -392,17 +584,13 @@ class ChatController extends Controller
                     'last_message_at' => $now,
                 ]);
 
-                ConversationParticipant::create([
-                    'conversation_id' => $conv->id,
-                    'user_id' => $userId,
-                    'last_read_at' => $now,
-                ]);
-
-                ConversationParticipant::create([
-                    'conversation_id' => $conv->id,
-                    'user_id' => $ownerId,
-                    'last_read_at' => null,
-                ]);
+                foreach ($participantIds as $participantId) {
+                    ConversationParticipant::create([
+                        'conversation_id' => $conv->id,
+                        'user_id' => $participantId,
+                        'last_read_at' => $participantId === $userId ? $now : null,
+                    ]);
+                }
 
                 return $conv;
             });
@@ -450,6 +638,133 @@ class ChatController extends Controller
         return response()->json(['message' => 'Loại cuộc trò chuyện không hợp lệ.'], 400);
     }
 
+    private function venueContactParticipantIds(VenueCluster $venue, string $customerId): array
+    {
+        $staffIds = DB::table('venue_staff_assignments')
+            ->where('venue_cluster_id', $venue->id)
+            ->where('status', 'active')
+            ->pluck('user_id')
+            ->all();
+
+        return collect([$customerId, $venue->owner_id])
+            ->merge($staffIds)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function syncVenueConversationParticipants(Conversation $conversation, VenueCluster $venue, string $customerId): void
+    {
+        $participantIds = $this->venueContactParticipantIds($venue, $customerId);
+        $existingIds = ConversationParticipant::where('conversation_id', $conversation->id)
+            ->pluck('user_id')
+            ->all();
+
+        $missingIds = array_values(array_diff($participantIds, $existingIds));
+        foreach ($missingIds as $participantId) {
+            ConversationParticipant::create([
+                'conversation_id' => $conversation->id,
+                'user_id' => $participantId,
+                'last_read_at' => null,
+            ]);
+        }
+    }
+
+    private function participantConversation(string $conversationId, string $userId): Conversation
+    {
+        $conversation = Conversation::query()->findOrFail($conversationId);
+
+        $isParticipant = ConversationParticipant::where('conversation_id', $conversationId)
+            ->where('user_id', $userId)
+            ->exists();
+
+        abort_unless($isParticipant, 403, 'B?n kh?ng thu?c cu?c tr? chuy?n n?y.');
+
+        return $conversation;
+    }
+
+    private function conversationManagedClusterIds(Conversation $conversation, string $currentUserId): array
+    {
+        $clusterIds = collect();
+
+        if ($conversation->type === 'venue_contact' && $conversation->reference_type === 'venue_cluster' && $conversation->reference_id) {
+            $clusterIds->push($conversation->reference_id);
+        }
+
+        $otherParticipantIds = ConversationParticipant::where('conversation_id', $conversation->id)
+            ->where('user_id', '!=', $currentUserId)
+            ->pluck('user_id');
+
+        if ($otherParticipantIds->isNotEmpty()) {
+            $ownerClusterIds = VenueCluster::query()
+                ->whereIn('owner_id', $otherParticipantIds)
+                ->pluck('id');
+
+            $staffClusterIds = DB::table('venue_staff_assignments')
+                ->whereIn('user_id', $otherParticipantIds)
+                ->where('status', 'active')
+                ->pluck('venue_cluster_id');
+
+            $clusterIds = $clusterIds->merge($ownerClusterIds)->merge($staffClusterIds);
+        }
+
+        return $clusterIds->filter()->unique()->values()->all();
+    }
+
+    private function messagePayload(Message $message): array
+    {
+        $message->loadMissing([
+            'sender:id,full_name,username,avatar_url,email,phone',
+            'replyTo:id,content,sender_id,reference_type,reference_id',
+            'replyTo.sender:id,full_name,username',
+        ]);
+        $payload = $message->toArray();
+
+        if ($message->reference_type === 'booking' && $message->reference_id) {
+            $booking = Booking::query()
+                ->with(['venueCourt.venueCluster', 'venueCourt.courtType', 'venueCluster', 'payments' => fn ($query) => $query->latest('created_at')])
+                ->find($message->reference_id);
+
+            if ($booking) {
+                $payload['booking'] = $this->bookingMessagePayload($booking);
+            }
+        }
+
+        return $payload;
+    }
+
+    private function bookingMessagePayload(Booking $booking): array
+    {
+        $payments = $booking->payments ?? collect();
+        $latestPayment = $payments->first();
+        $paidAmount = (float) $payments->where('status', 'paid')->sum('amount');
+        $isRefunded = $payments->contains(fn ($payment) => $payment->status === 'refunded');
+        $bookingDate = $booking->booking_date instanceof \Carbon\Carbon
+            ? $booking->booking_date->toDateString()
+            : (string) $booking->booking_date;
+
+        return [
+            'id' => $booking->id,
+            'booking_code' => $booking->booking_code,
+            'booking_date' => $bookingDate,
+            'start_time' => $booking->start_time,
+            'end_time' => $booking->end_time,
+            'duration_minutes' => (int) $booking->duration_minutes,
+            'total_price' => (float) $booking->total_price,
+            'required_payment_amount' => (float) $booking->required_payment_amount,
+            'paid_amount' => $paidAmount,
+            'payment_option' => $booking->payment_option,
+            'payment_status' => $isRefunded
+                ? 'refunded'
+                : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),
+            'status' => $booking->status,
+            'status_reason' => $booking->status_reason,
+            'venue_cluster' => $booking->venueCluster ?: $booking->venueCourt?->venueCluster,
+            'venue_court' => $booking->venueCourt,
+        ];
+    }
+
     /**
      * Check if two users are allowed to message each other based on their roles
      */
@@ -494,6 +809,10 @@ class ChatController extends Controller
         $isBUser = in_array('user', $rolesB);
         $isAOwner = in_array('venue_owner', $rolesA);
         $isBOwner = in_array('venue_owner', $rolesB);
+
+        if ($isAUser && $isBUser) {
+            return true;
+        }
 
         if (($isAUser && $isBOwner) || ($isBUser && $isAOwner)) {
             return true;

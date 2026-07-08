@@ -7,13 +7,16 @@ export const chatService = {
   getMessages(conversationId) {
     return api(`/api/chat/conversations/${conversationId}/messages`);
   },
-  sendMessage(conversationId, content, imageFile = null) {
+  sendMessage(conversationId, content, imageFile = null, replyToId = null) {
     if (imageFile) {
       const formData = new FormData();
       if (content) {
         formData.append('content', content);
       }
       formData.append('image', imageFile);
+      if (replyToId) {
+        formData.append('reply_to_id', replyToId);
+      }
       return api(`/api/chat/conversations/${conversationId}/messages`, {
         method: 'POST',
         body: formData
@@ -21,7 +24,18 @@ export const chatService = {
     }
     return api(`/api/chat/conversations/${conversationId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content })
+      body: JSON.stringify({ content, reply_to_id: replyToId })
+    });
+  },
+  reactToMessage(messageId, emoji) {
+    return api(`/api/chat/messages/${messageId}/react`, {
+      method: 'POST',
+      body: JSON.stringify({ emoji })
+    });
+  },
+  togglePinMessage(messageId) {
+    return api(`/api/chat/messages/${messageId}/pin`, {
+      method: 'POST'
     });
   },
   markAsRead(conversationId) {
@@ -46,6 +60,15 @@ export const chatService = {
     return api('/api/chat/conversations', {
       method: 'POST',
       body: JSON.stringify(payload)
+    });
+  },
+  getEligibleBookings(conversationId) {
+    return api(`/api/chat/conversations/${conversationId}/bookings`);
+  },
+  sendBooking(conversationId, bookingId) {
+    return api(`/api/chat/conversations/${conversationId}/bookings`, {
+      method: 'POST',
+      body: JSON.stringify({ booking_id: bookingId })
     });
   }
 };

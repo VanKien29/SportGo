@@ -18,11 +18,14 @@ class Message extends Model
 
     protected $fillable = [
         'conversation_id',
+        'reply_to_id',
         'sender_id',
         'content',
         'is_system',
         'reference_type',
         'reference_id',
+        'reactions',
+        'is_pinned',
     ];
 
     protected $appends = [
@@ -41,6 +44,8 @@ class Message extends Model
     {
         return [
             'is_system' => 'boolean',
+            'is_pinned' => 'boolean',
+            'reactions' => 'array',
         ];
     }
 
@@ -52,5 +57,15 @@ class Message extends Model
     public function sender()
     {
         return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    public function replyTo()
+    {
+        return $this->belongsTo(self::class, 'reply_to_id');
+    }
+
+    public function replies()
+    {
+        return $this->hasMany(self::class, 'reply_to_id');
     }
 }

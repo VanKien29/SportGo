@@ -84,7 +84,7 @@ const routes = [
     {
         path: "/chat",
         name: "chat",
-        component: () => import("../views/Chat.vue"),
+        component: () => import("../views/clients/ClientChat.vue"),
         meta: { requiresAuth: true },
     },
     {
@@ -362,6 +362,11 @@ const routes = [
                 component: () => import("../views/owner/OwnerBookingSettings.vue"),
             },
             {
+                path: "settings",
+                name: "owner-settings",
+                component: () => import("../views/owner/OwnerSettings.vue"),
+            },
+            {
                 path: "platform-fees",
                 name: "owner-platform-fees",
                 component: () => import("../views/owner/OwnerPlatformFees.vue"),
@@ -400,6 +405,11 @@ const routes = [
                 path: "partner-profile",
                 name: "owner-partner-profile",
                 component: () => import("../views/owner/OwnerPartnerProfile.vue"),
+            },
+            {
+                path: "chat",
+                name: "owner-chat",
+                component: () => import("../views/owner/OwnerChat.vue"),
             },
             {
                 path: "partner-documents/:id/:documentId",

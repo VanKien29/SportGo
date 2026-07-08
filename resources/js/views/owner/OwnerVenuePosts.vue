@@ -1009,24 +1009,25 @@ const formatDate = (dateString) => {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  border: 1px solid transparent;
-  background: #f8fafc;
-  color: #64748b;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-muted);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   border-radius: 99px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tab-btn.pill:hover {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--admin-hover);
+  color: var(--admin-primary-dark);
 }
 
 .tab-btn.pill.active {
-  background: #10b981;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+  background: var(--admin-primary);
+  border-color: var(--admin-primary);
+  color: var(--admin-primary-text);
+  box-shadow: 0 2px 8px var(--admin-primary-ring);
 }
 
 .filters {

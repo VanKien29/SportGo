@@ -96,7 +96,7 @@
                         <!-- Tên sân con (hiển thị sort_order + tên) -->
                         <template #name="{ row }">
                             <div class="name-col-cell" style="display: flex; align-items: center; gap: 8px;">
-                                <span class="court-order-text" style="font-family: monospace; font-size: 12px; color: rgba(15, 23, 42, 0.4);">#{{ row.sort_order }}</span>
+                                <span class="court-order-text" style="font-family: monospace; font-size: 12px; color: var(--admin-faint);">#{{ row.sort_order }}</span>
                                 <span class="court-name-text" style="font-weight: 600; color: var(--sg-text);">{{ row.name }}</span>
                             </div>
                         </template>

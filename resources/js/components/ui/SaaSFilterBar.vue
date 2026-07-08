@@ -87,9 +87,9 @@ export default {
     justify-content: center !important;
     padding: 0 16px !important;
     border-radius: 8px !important;
-    border: 1px solid #cbd5e1 !important;
+    border: 1px solid var(--admin-border) !important;
     background: var(--admin-surface) !important;
-    color: #475569 !important;
+    color: var(--admin-muted) !important;
     font-size: 13px !important;
     font-weight: 600 !important;
     cursor: pointer !important;
@@ -105,31 +105,18 @@ export default {
     background: var(--admin-hover) !important;
     color: var(--admin-primary-dark) !important;
 }
-[data-theme="dark"] .avc-filters .filter-tabs button.tab-btn {
-    border: 1px solid var(--admin-border) !important;
-    color: var(--admin-muted) !important;
-}
 .filter-search {
     flex: 1;
     min-width: 250px;
 }
 /* Search box border styling to increase contrast on light theme */
 .filter-search .search-box {
-    border-color: #cbd5e1 !important;
-}
-.filter-search .search-box input::placeholder {
-    color: #64748b !important;
-}
-.filter-search .search-box svg {
-    color: #64748b !important;
-}
-[data-theme="dark"] .filter-search .search-box {
     border-color: var(--admin-border) !important;
 }
-[data-theme="dark"] .filter-search .search-box input::placeholder {
+.filter-search .search-box input::placeholder {
     color: var(--admin-faint) !important;
 }
-[data-theme="dark"] .filter-search .search-box svg {
+.filter-search .search-box svg {
     color: var(--admin-faint) !important;
 }
 .filter-actions {
