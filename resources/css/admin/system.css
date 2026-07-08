@@ -527,11 +527,7 @@
 
 .sg-shell-admin .content-area :is(.status.active, .status-badge.active, .status-badge.status-active, .status-badge.status-approved, .status-badge.status-paid, .status-chip.confirmed, .status-chip.completed, .status-chip.checked_in, .badge.active, .badge.resolved, .badge.paid, .status-pill.completed, .status-pill.paid, .status-pill.credit, .status-pill.approved, .status-dot-wrapper.active, .fee-status-paid, .fee-paid, .status-active) {
   background: transparent !important;
-  color: var(--admin-primary-dark, #15733a) !important;
-}
-
-[data-theme="dark"] .sg-shell-admin .content-area :is(.status.active, .status-badge.active, .status-badge.status-active, .status-badge.status-approved, .status-badge.status-paid, .status-chip.confirmed, .status-chip.completed, .status-chip.checked_in, .badge.active, .badge.resolved, .badge.paid, .status-pill.completed, .status-pill.paid, .status-pill.credit, .status-pill.approved, .status-dot-wrapper.active, .fee-status-paid, .fee-paid, .status-active) {
-  color: #34d399 !important;
+  color: var(--admin-success-text) !important;
 }
 
 .sg-shell-admin .content-area :is(.status.pending, .status.open, .status-badge.pending, .status-badge.open, .status-badge.status-pending, .status-chip.pending_payment, .status-chip.pending_approval, .badge.pending, .badge.open, .status-pill.pending, .status-pill.pending_confirmation, .status-pill.reviewing, .status-pill.processing, .fee-status-unpaid, .fee-status-partial, .fee-pending, .status-pending) {

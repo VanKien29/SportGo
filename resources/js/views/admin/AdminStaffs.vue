@@ -707,7 +707,7 @@ export default {
 }
 
 .muted {
-  color: var(--sg-text-muted);
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -783,10 +783,10 @@ export default {
 /* Bảng */
 .table-wrap {
   overflow: auto;
-  border: 1px solid var(--sg-border);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-card);
 }
 
 table {
@@ -797,16 +797,16 @@ table {
 
 th, td {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--sg-border);
+  border-bottom: 1px solid var(--admin-border-soft);
   text-align: left;
   font-size: 14px;
   vertical-align: middle;
 }
 
 th {
-  background: #f9fafb;
+  background: var(--admin-surface);
   font-weight: 700;
-  color: #374151;
+  color: var(--admin-muted);
 }
 
 tr:last-child td {
@@ -815,7 +815,7 @@ tr:last-child td {
 
 .empty {
   text-align: center;
-  color: var(--sg-text-muted);
+  color: var(--admin-muted);
   padding: 40px;
   font-style: italic;
 }
@@ -828,7 +828,7 @@ tr:last-child td {
 
 .user-name {
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .phone-muted {
@@ -843,8 +843,8 @@ tr:last-child td {
 }
 
 .badge.self {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: var(--admin-blue-soft);
+  color: var(--admin-blue);
 }
 
 .roles-tags {
@@ -859,28 +859,28 @@ tr:last-child td {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
 }
 
 .role-tag.super_admin {
-  background: #fef3c7;
-  color: #d97706;
+  background: var(--admin-warning-soft);
+  color: var(--admin-warning);
 }
 
 .role-tag.admin {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger);
 }
 
 .role-tag.system_staff, .role-tag.complaint_handler {
-  background: #e0e7ff;
-  color: #4f46e5;
+  background: var(--admin-blue-soft);
+  color: var(--admin-blue);
 }
 
 .role-tag.venue_owner {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--admin-success-soft);
+  color: var(--admin-success-text);
 }
 
 .status-cell {
@@ -894,24 +894,25 @@ tr:last-child td {
   width: fit-content;
   padding: 3px 8px;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
   font-size: 12px;
   font-weight: 700;
 }
 
 .status.active {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--admin-success-soft);
+  color: var(--admin-success-text);
 }
 
 .status.locked {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger-text);
 }
 
 .lock-until-text {
   font-size: 11px;
-  color: #ef4444;
+  color: var(--admin-danger);
 }
 
 .actions-cell {

@@ -16,6 +16,9 @@
   --admin-primary-dark: #15733a;
   --admin-primary-soft: #e2f6e8;
   --admin-primary-ring: rgba(34, 166, 83, 0.22);
+  --admin-success: #22a653;
+  --admin-success-soft: #e2f6e8;
+  --admin-success-text: #15733a;
   --admin-blue: #2563eb;
   --admin-blue-soft: #eff6ff;
   --admin-warning: #d97706;
@@ -60,6 +63,9 @@
   --admin-primary-dark: #27272a;
   --admin-primary-soft: rgba(255, 255, 255, 0.08);
   --admin-primary-ring: rgba(255, 255, 255, 0.1);
+  --admin-success: #34d399;
+  --admin-success-soft: rgba(52, 211, 153, 0.14);
+  --admin-success-text: #34d399;
   --admin-blue: #3b82f6;
   --admin-blue-soft: #1e293b;
   --admin-warning: #f59e0b;

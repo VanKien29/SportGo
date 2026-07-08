@@ -30,7 +30,7 @@
               <strong>{{ user.full_name || '-' }}</strong>
               <small>{{ user.warning_summary?.message }}</small>
               <span v-if="(user.reports_count_recent || 0) >= 3" class="badge-report">
-                <AppIcon name="alert" size="12" style="margin-right: 4px;" /> {{ user.reports_count_recent }} báo cáo
+                <AppIcon name="alert" size="12" class="badge-report-icon" /> {{ user.reports_count_recent }} báo cáo
               </span>
               <span v-if="user.status === 'locked'" class="badge-locked">Đang khóa</span>
             </td>
@@ -123,71 +123,71 @@
 
     <!-- Modal Cấu hình khóa tự động -->
     <div v-if="showPolicyModal" class="modal-backdrop" @click.self="closePolicyModal">
-      <div class="modal" style="max-width: 500px;">
+      <div class="modal policy-modal">
         <h3>Cấu hình khóa tự động</h3>
-        <p class="muted" style="margin-top: 4px;">Cấu hình tự động khóa tài khoản khi bị nhiều người báo cáo.</p>
+        <p class="muted policy-modal-subtitle">Cấu hình tự động khóa tài khoản khi bị nhiều người báo cáo.</p>
         
         <div v-if="policyLoading" class="state">Đang tải cấu hình...</div>
         <template v-else-if="policyConfig">
           <!-- Thông tin chính sách (chỉ đọc) -->
-          <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-top: 16px;">
-            <div style="font-weight: 700; color: #334155; margin-bottom: 10px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.3px;">Ngưỡng từ chính sách</div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng cảnh báo:</span>
-              <strong style="color: #d97706;">{{ policyConfig.warning_threshold }}</strong>
+          <div class="policy-panel">
+            <div class="policy-panel-title">Ngưỡng từ chính sách</div>
+            <div class="policy-row">
+              <span class="policy-label">Ngưỡng cảnh báo:</span>
+              <strong class="policy-value tone-warning">{{ policyConfig.warning_threshold }}</strong>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
-              <strong style="color: #dc2626;">{{ policyConfig.lock_threshold }}</strong>
+            <div class="policy-row">
+              <span class="policy-label">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
+              <strong class="policy-value tone-danger">{{ policyConfig.lock_threshold }}</strong>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo khác nhau:</span>
-              <strong style="color: #2563eb;">{{ policyConfig.unique_reporters_threshold }} người</strong>
+            <div class="policy-row">
+              <span class="policy-label">Số người báo cáo khác nhau:</span>
+              <strong class="policy-value tone-info">{{ policyConfig.unique_reporters_threshold }} người</strong>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: #64748b; font-size: 0.9rem;">Thời gian theo dõi (Ngày):</span>
-              <strong style="color: #334155;">{{ policyConfig.window_days }} ngày</strong>
+            <div class="policy-row">
+              <span class="policy-label">Thời gian theo dõi (Ngày):</span>
+              <strong class="policy-value tone-neutral">{{ policyConfig.window_days }} ngày</strong>
             </div>
           </div>
 
           <!-- Cấu hình chỉnh sửa -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-top: 12px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center;">
-              <span style="color: #334155; font-size: 0.9rem; font-weight: 600;">Tự động khóa:</span>
+          <div class="policy-panel policy-edit-panel">
+            <div class="policy-row policy-toggle-row">
+              <span class="policy-toggle-label">Tự động khóa:</span>
               <div class="toggle-slider" :class="{ on: policyConfig.is_auto_lock_enabled }" @click="policyConfig.is_auto_lock_enabled = !policyConfig.is_auto_lock_enabled"></div>
             </div>
-            <div v-if="policyConfig.is_auto_lock_enabled" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
-              <label style="display: flex; flex-direction: column; gap: 6px;">
-                <span style="color: #64748b; font-size: 0.9rem;">Lý do khóa tự động:</span>
-                <input type="text" v-model="policyConfig.reason" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" placeholder="Ví dụ: Vi phạm tiêu chuẩn cộng đồng nhiều lần" />
+            <div v-if="policyConfig.is_auto_lock_enabled" class="policy-auto-fields">
+              <label class="policy-field">
+                <span class="policy-label">Lý do khóa tự động:</span>
+                <input type="text" v-model="policyConfig.reason" class="policy-input" placeholder="Ví dụ: Vi phạm tiêu chuẩn cộng đồng nhiều lần" />
               </label>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: #64748b; font-size: 0.9rem;">Thời hạn khóa:</span>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <input type="number" v-model.number="policyConfig.duration_days" style="width: 80px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px;" min="1" />
+              <div class="policy-row">
+                <span class="policy-label">Thời hạn khóa:</span>
+                <div class="policy-duration-control">
+                  <input type="number" v-model.number="policyConfig.duration_days" class="policy-number-input" min="1" />
                   <span class="muted">ngày</span>
                 </div>
               </div>
             </div>
           </div>
           
-          <div style="margin-top: 12px; padding: 10px 12px; background: #eff6ff; border-radius: 8px; font-size: 0.85rem; color: #1e40af; display: flex; align-items: flex-start; gap: 8px;">
-            <AppIcon name="info" size="16" style="flex-shrink: 0; margin-top: 2px;" />
+          <div class="policy-info">
+            <AppIcon name="info" size="16" class="policy-info-icon" />
             <div>
               Khi số người báo cáo khác nhau đạt <strong>ngưỡng cảnh báo</strong>, tài khoản sẽ hiển thị cảnh báo vàng. Khi đạt <strong>ngưỡng khóa</strong> và tự động khóa đang bật, hệ thống sẽ tự động khóa tài khoản.
             </div>
           </div>
           
-          <div style="margin-top: 12px; text-align: center;">
-            <router-link v-if="policyConfig.policy_id" :to="`/admin/policies/${policyConfig.policy_id}`" class="btn secondary" style="text-decoration: none; display: inline-block; font-size: 0.85rem;">
+          <div class="policy-link-wrap">
+            <router-link v-if="policyConfig.policy_id" :to="`/admin/policies/${policyConfig.policy_id}`" class="btn secondary policy-link-button">
               Chỉnh ngưỡng tại Chính sách hệ thống →
             </router-link>
           </div>
         </template>
 
-        <footer style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+        <footer class="policy-footer">
           <button type="button" class="btn secondary" @click="closePolicyModal">Hủy</button>
-          <button type="button" class="btn primary" style="background: #10b981; color: white;" @click="savePolicyConfig" :disabled="policySaving">Lưu cấu hình</button>
+          <button type="button" class="btn primary" @click="savePolicyConfig" :disabled="policySaving">Lưu cấu hình</button>
         </footer>
       </div>
     </div>
@@ -398,15 +398,20 @@ export default {
   gap: 16px;
 }
 
-.action-bar-layout {
+.action-bar-layout,
+.pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
-.head-actions {
+
+.head-actions,
+.pagination div,
+.policy-footer {
   display: flex;
+  align-items: center;
   gap: 10px;
 }
 
@@ -419,9 +424,11 @@ export default {
 
 .tabs button,
 .segmented button {
-  border: 1px solid #dbe3ef;
-  background: #fff;
-  border-radius: 8px;
+  min-height: 38px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  border-radius: var(--admin-radius);
   padding: 10px 14px;
   font-weight: 800;
   cursor: pointer;
@@ -429,17 +436,17 @@ export default {
 
 .tabs button.active,
 .segmented button.active {
-  background: #dcfce7;
-  border-color: #22c55e;
-  color: #166534;
+  background: var(--admin-primary);
+  border-color: var(--admin-primary);
+  color: var(--admin-primary-text);
 }
 
 .filters {
   justify-content: flex-start;
   flex-wrap: wrap;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
   padding: 14px;
 }
 
@@ -447,7 +454,7 @@ label {
   display: grid;
   gap: 6px;
   font-weight: 800;
-  color: #334155;
+  color: var(--admin-text);
 }
 
 label span {
@@ -457,12 +464,21 @@ label span {
 input,
 select,
 textarea {
-  border: 1px solid #dbe3ef;
-  border-radius: 8px;
-  padding: 10px;
-  font: inherit;
   min-width: 220px;
-  background: #fff;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  padding: 10px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--admin-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
 }
 
 textarea {
@@ -472,9 +488,10 @@ textarea {
 
 .table-card,
 .modal {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--admin-shadow-card);
 }
 
 .table-card {
@@ -483,16 +500,22 @@ textarea {
 
 table {
   width: 100%;
-  border-collapse: collapse;
   min-width: 1120px;
+  border-collapse: collapse;
 }
 
 th,
 td {
   padding: 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--admin-border-soft);
   text-align: left;
   vertical-align: top;
+}
+
+th {
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  font-weight: 700;
 }
 
 td:first-child {
@@ -503,20 +526,21 @@ td:first-child {
 .actions-col {
   position: sticky;
   right: 0;
-  background: #fff;
+  background: var(--admin-surface);
+  box-shadow: -1px 0 0 var(--admin-border-soft);
   white-space: nowrap;
 }
 
 .state {
   padding: 20px;
-  color: #64748b;
+  color: var(--admin-muted);
   text-align: center;
 }
 
 .btn,
 .icon-btn {
-  border: 0;
-  border-radius: 8px;
+  border-radius: var(--admin-radius);
+  border: 1px solid transparent;
   font-weight: 800;
   cursor: pointer;
   text-decoration: none;
@@ -533,86 +557,89 @@ td:first-child {
   min-height: 34px;
   padding: 7px 10px;
   margin-right: 6px;
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
+}
+
+.primary {
+  background: var(--admin-primary);
+  color: var(--admin-primary-text);
+  border-color: var(--admin-primary);
 }
 
 .secondary {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
+  border-color: var(--admin-border);
 }
 
 .danger,
 .icon-btn.danger {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger-text);
+  border-color: color-mix(in srgb, var(--admin-danger) 22%, transparent);
 }
 
 .status,
 .warning {
   display: inline-flex;
-  border-radius: 999px;
-  padding: 5px 9px;
-  font-size: 12px;
-  font-weight: 800;
-  background: #e2e8f0;
+  align-items: center;
+  width: fit-content;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
 .status.active,
 .warning.normal {
-  background: #dcfce7;
-  color: #166534;
+  color: var(--admin-success-text);
 }
 
 .status.locked,
 .status.deactivated,
 .warning.lock_suggested {
-  background: #fee2e2;
-  color: #b91c1c;
+  color: var(--admin-danger-text);
 }
 
 .status.pending_verify,
 .warning.watch,
 .warning.near_lock {
-  background: #fef3c7;
-  color: #92400e;
+  color: var(--admin-warning);
 }
 
 .alert {
   padding: 12px;
-  border-radius: 10px;
+  border-radius: var(--admin-radius);
   font-weight: 700;
 }
 
 .error {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger-text);
 }
 
 .success {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--admin-success-soft);
+  color: var(--admin-success-text);
 }
 
 .pagination {
-  align-items: center;
-  color: #64748b;
-}
-
-.pagination div {
-  display: flex;
-  gap: 10px;
-  align-items: center;
+  color: var(--admin-muted);
 }
 
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.56);
   display: grid;
   place-items: center;
   z-index: 500;
   padding: 20px;
+  background: color-mix(in srgb, var(--admin-bg) 72%, transparent);
 }
 
 .modal {
@@ -622,45 +649,210 @@ td:first-child {
   gap: 16px;
 }
 
+.policy-modal {
+  max-width: 500px;
+}
+
 .modal h3 {
   margin: 0;
+  color: var(--admin-text);
 }
 
 .modal footer {
-  display: flex;
   justify-content: flex-end;
-  gap: 10px;
+}
+
+.muted,
+.policy-label {
+  color: var(--admin-muted);
+}
+
+.policy-modal-subtitle,
+.policy-link-wrap,
+.policy-footer {
+  margin-top: 12px;
+}
+
+.policy-panel {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface-muted);
+}
+
+.policy-edit-panel {
+  margin-top: 12px;
+  padding: 16px;
+}
+
+.policy-panel-title {
+  margin-bottom: 10px;
+  color: var(--admin-text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.policy-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.policy-row:last-child {
+  margin-bottom: 0;
+}
+
+.policy-toggle-row {
+  margin-bottom: 12px;
+}
+
+.policy-label,
+.policy-toggle-label {
+  font-size: 0.9rem;
+}
+
+.policy-toggle-label {
+  color: var(--admin-text);
+  font-weight: 600;
+}
+
+.policy-value.tone-warning {
+  color: var(--admin-warning);
+}
+
+.policy-value.tone-danger {
+  color: var(--admin-danger);
+}
+
+.policy-value.tone-info {
+  color: var(--admin-blue);
+}
+
+.policy-value.tone-neutral {
+  color: var(--admin-text);
+}
+
+.policy-auto-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--admin-border);
+}
+
+.policy-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.policy-input {
+  padding: 8px;
+}
+
+.policy-duration-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.policy-number-input {
+  width: 80px;
+  min-width: 80px;
+  padding: 6px;
+}
+
+.policy-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--admin-radius);
+  background: var(--admin-blue-soft);
+  color: var(--admin-blue);
+  font-size: 0.85rem;
+}
+
+.policy-info-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.policy-link-wrap {
+  text-align: center;
+}
+
+.policy-link-button {
+  display: inline-block;
+  font-size: 0.85rem;
+  text-decoration: none;
 }
 
 .toggle-slider {
+  position: relative;
   width: 48px;
   height: 26px;
   border-radius: 13px;
-  background: #e2e8f0;
+  background: var(--admin-surface-muted);
+  border: 1px solid var(--admin-border);
   cursor: pointer;
-  transition: background 0.2s;
-  position: relative;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .toggle-slider::after {
   content: '';
   position: absolute;
-  top: 3px;
-  left: 3px;
+  top: 2px;
+  left: 2px;
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-sm);
   transition: transform 0.2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .toggle-slider.on {
-  background: #16a34a;
+  background: var(--admin-success);
+  border-color: var(--admin-success);
 }
 
 .toggle-slider.on::after {
   transform: translateX(22px);
+}
+
+.badge-report,
+.badge-locked,
+.lock-until {
+  display: inline-flex;
+  color: var(--admin-danger-text);
+}
+
+.badge-report,
+.badge-locked {
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: var(--admin-danger-soft);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.badge-report-icon {
+  flex-shrink: 0;
+}
+
+.lock-until {
+  display: block;
+  font-size: 11px;
 }
 
 @media (max-width: 720px) {
@@ -677,31 +869,5 @@ td:first-child {
     min-width: 0;
     width: 100%;
   }
-}
-
-.badge-report {
-  display: inline-flex;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.badge-locked {
-  display: inline-flex;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  background: #fecaca;
-  color: #991b1b;
-}
-
-.lock-until {
-  display: block;
-  color: #b91c1c;
-  font-size: 11px;
 }
 </style>

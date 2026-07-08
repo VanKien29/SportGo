@@ -10,32 +10,26 @@
       </button>
     </header>
 
-    <div class="tabs">
-      <button
-        v-for="tab in listTabs"
-        :key="tab.value"
-        class="tab-btn"
-        :class="{ active: filters.tab === tab.value }"
-        type="button"
-        @click="selectListTab(tab.value)"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
-
-    <div class="toolbar card">
-      <label class="field">
-        <span>Tìm kiếm</span>
-        <input v-model.trim="filters.search" type="search" placeholder="Mã đối tác, họ tên, điện thoại, email, cụm sân" @input="onFilterChange" />
-      </label>
-      <label class="field">
-        <span>Trạng thái</span>
-        <select v-model="filters.status" @change="loadApplications(1)">
-          <option value="">Tất cả</option>
+    <SaaSFilterBar
+      v-model="selectedTab"
+      v-model:search="searchQuery"
+      :tabs="listTabs"
+      class="partner-filter-bar"
+      search-id="search-partner-application"
+      search-placeholder="Mã đối tác, họ tên, điện thoại, email, cụm sân"
+    >
+      <template #actions>
+        <select
+          v-model="filters.status"
+          class="partner-status-filter"
+          aria-label="Trạng thái hồ sơ"
+          @change="loadApplications(1)"
+        >
+          <option value="">Tất cả trạng thái</option>
           <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
-      </label>
-    </div>
+      </template>
+    </SaaSFilterBar>
 
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
@@ -117,11 +111,12 @@
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
 
 export default {
   name: 'AdminPartnerApplications',
-  components: { AppIcon },
+  components: { AppIcon, SaaSFilterBar },
   data() {
     return {
       applications: [],
@@ -149,6 +144,25 @@ export default {
         { value: 'rejected', label: 'Từ chối' },
       ],
     };
+  },
+  computed: {
+    selectedTab: {
+      get() {
+        return this.filters.tab;
+      },
+      set(tab) {
+        this.selectListTab(tab);
+      },
+    },
+    searchQuery: {
+      get() {
+        return this.filters.search;
+      },
+      set(value) {
+        this.filters.search = value.trim();
+        this.onFilterChange();
+      },
+    },
   },
   mounted() {
     this.loadApplications();
@@ -244,7 +258,6 @@ export default {
   border-radius: 8px;
 }
 
-.tabs,
 .actions,
 .pagination {
   display: flex;
@@ -252,62 +265,30 @@ export default {
   gap: 8px;
 }
 
-.tab-btn {
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  background: var(--admin-surface);
-  color: var(--admin-muted);
-  font-weight: 800;
-  cursor: pointer;
+.partner-filter-bar :deep(.filter-tabs) {
+  flex-wrap: wrap;
 }
 
-.tab-btn.active {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #fff;
-}
-
-.toolbar {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(180px, 260px);
-  gap: 12px;
-  padding: 14px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.field.full {
-  grid-column: 1 / -1;
-}
-
-.field input,
-.field select,
-.field textarea {
-  width: 100%;
-  border: 1px solid var(--admin-border);
+.partner-status-filter {
+  width: 220px;
+  height: 38px;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 0 12px;
   color: var(--admin-text);
   background: var(--admin-surface);
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.field input,
-.field select {
-  height: 40px;
+.partner-status-filter:focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 2px;
+  border-color: var(--admin-primary);
 }
 
-.field textarea {
-  min-height: 110px;
-  padding-top: 10px;
-  resize: vertical;
+[data-theme="dark"] .partner-status-filter {
+  border-color: var(--admin-border);
 }
 
 .notice {
@@ -451,12 +432,8 @@ th {
 }
 
 @media (max-width: 900px) {
-  .toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .field.full {
-    grid-column: auto;
+  .partner-status-filter {
+    width: 100%;
   }
 }
 </style>
