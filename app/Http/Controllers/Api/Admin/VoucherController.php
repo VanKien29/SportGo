@@ -62,11 +62,9 @@ class VoucherController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $this->voucherData($request);
-        $voucherId = (string) Str::uuid();
 
-        DB::transaction(function () use ($request, $data, $voucherId): void {
-            DB::table('vouchers')->insert([
-                'id' => $voucherId,
+        $voucherId = DB::transaction(function () use ($request, $data): string {
+            $voucherId = DB::table('vouchers')->insertGetId([
                 'code' => Str::upper($data['code']),
                 'name' => $data['name'],
                 'description' => $data['description'] ?? null,
@@ -90,6 +88,8 @@ class VoucherController extends Controller
             ]);
 
             $this->syncScopes($voucherId, $data['scopes'] ?? [['scope_type' => 'all', 'scope_id' => null]]);
+
+            return (string) $voucherId;
         });
 
         $voucher = DB::table('vouchers')->where('id', $voucherId)->first();
@@ -406,7 +406,6 @@ class VoucherController extends Controller
             }
 
             DB::table('voucher_scopes')->insert([
-                'id' => (string) Str::uuid(),
                 'voucher_id' => $voucherId,
                 'scope_type' => $scopeType,
                 'scope_id' => $scopeId,

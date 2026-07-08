@@ -10,12 +10,12 @@ return new class extends Migration
     {
         if (! Schema::hasTable('vouchers')) {
             Schema::create('vouchers', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
+                $table->id();
                 $table->string('code', 50)->unique()->comment('Mã voucher user nhập.');
                 $table->string('name', 255)->comment('Tên voucher hiển thị.');
                 $table->text('description')->nullable()->comment('Mô tả voucher.');
                 $table->enum('owner_type', ['system', 'venue'])->comment('Voucher hệ thống hay voucher sân.');
-                $table->char('owner_id', 36)->nullable()->comment('ID owner/cụm sân sở hữu voucher nếu owner_type=venue.');
+                $table->unsignedBigInteger('owner_id')->nullable()->comment('ID owner/cụm sân sở hữu voucher nếu owner_type=venue.');
                 $table->enum('funded_by', ['system', 'venue'])->comment('Bên chịu tiền giảm.');
                 $table->enum('stacking_rule', ['exclusive', 'allow_with_system', 'allow_with_venue'])->default('exclusive')
                     ->comment('Quy tắc dùng chung với voucher khác.');
@@ -30,7 +30,7 @@ return new class extends Migration
                 $table->dateTime('valid_to')->nullable()->comment('Thời điểm hết hiệu lực.');
                 $table->enum('status', ['draft', 'active', 'inactive', 'expired'])->default('draft')
                     ->comment('Trạng thái voucher.');
-                $table->char('created_by', 36)->nullable()->comment('Admin/owner tạo voucher.');
+                $table->unsignedBigInteger('created_by')->nullable()->comment('Admin/owner tạo voucher.');
                 $table->timestamps();
 
                 $table->index(['owner_type', 'owner_id'], 'vouchers_owner_index');
@@ -43,8 +43,8 @@ return new class extends Migration
 
         if (! Schema::hasTable('voucher_scopes')) {
             Schema::create('voucher_scopes', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('voucher_id', 36)->comment('Voucher được giới hạn phạm vi.');
+                $table->id();
+                $table->unsignedBigInteger('voucher_id')->comment('Voucher được giới hạn phạm vi.');
                 $table->enum('scope_type', ['all', 'venue_cluster', 'court_type', 'booking_type'])
                     ->comment('Loại phạm vi áp dụng.');
                 $table->string('scope_id', 100)->nullable()->comment('ID/mã phạm vi; nullable khi scope_type=all.');
@@ -61,11 +61,11 @@ return new class extends Migration
 
         if (! Schema::hasTable('voucher_usages')) {
             Schema::create('voucher_usages', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('voucher_id', 36)->comment('Voucher đã dùng.');
-                $table->char('user_id', 36)->comment('User dùng voucher.');
-                $table->char('booking_id', 36)->comment('Booking áp dụng voucher.');
-                $table->char('payment_id', 36)->nullable()->comment('Payment liên quan nếu đã thanh toán.');
+                $table->id();
+                $table->unsignedBigInteger('voucher_id')->comment('Voucher đã dùng.');
+                $table->unsignedBigInteger('user_id')->comment('User dùng voucher.');
+                $table->unsignedBigInteger('booking_id')->comment('Booking áp dụng voucher.');
+                $table->unsignedBigInteger('payment_id')->nullable()->comment('Payment liên quan nếu đã thanh toán.');
                 $table->decimal('discount_amount', 12, 2)->default(0.00)->comment('Số tiền giảm thực tế.');
                 $table->timestamp('used_at')->nullable()->comment('Thời điểm áp dụng voucher.');
                 $table->enum('status', ['applied', 'cancelled', 'refunded'])->default('applied')
@@ -115,7 +115,7 @@ return new class extends Migration
                 }
 
                 if (! Schema::hasColumn('bookings', 'voucher_id')) {
-                    $table->char('voucher_id', 36)->nullable()->after('final_amount')
+                    $table->unsignedBigInteger('voucher_id')->nullable()->after('final_amount')
                         ->comment('Voucher chính áp dụng nếu chỉ cho một voucher/booking.');
                 }
 

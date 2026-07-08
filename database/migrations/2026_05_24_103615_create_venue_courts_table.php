@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('venue_courts', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36)->comment('Cụm sân chứa sân con này.');
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id')->comment('Cụm sân chứa sân con này.');
             $table->unsignedBigInteger('court_type_id')->comment('Loại sân của sân con.');
             $table->string('name', 100)->comment('Tên sân con hiển thị trong lịch đặt sân.');
             $table->enum('status', ['active', 'maintenance', 'inactive'])->default('active')->comment('Trạng thái sân con: active cho đặt, maintenance bảo trì, inactive không hoạt động.');

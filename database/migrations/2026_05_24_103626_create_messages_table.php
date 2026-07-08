@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('messages', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('conversation_id', 36)->comment('Conversation chứa tin nhắn.');
-            $table->char('sender_id', 36)->nullable()->comment('User gửi tin nhắn; nullable cho tin nhắn hệ thống.');
+            $table->id();
+            $table->unsignedBigInteger('conversation_id')->comment('Conversation chứa tin nhắn.');
+            $table->unsignedBigInteger('sender_id')->nullable()->comment('User gửi tin nhắn; nullable cho tin nhắn hệ thống.');
             $table->text('content')->comment('Nội dung tin nhắn.');
             $table->boolean('is_system')->default(false)->comment('Đánh dấu tin nhắn hệ thống.');
             $table->string('reference_type', 100)->nullable()->comment('Loại đối tượng đính kèm; logical reference.');

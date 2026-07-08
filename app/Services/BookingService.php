@@ -1744,7 +1744,6 @@ class BookingService
         }
 
         DB::table('voucher_usages')->insert([
-            'id' => (string) Str::uuid(),
             'voucher_id' => $voucher['id'],
             'user_id' => $usageUserId,
             'booking_id' => $booking->id,

@@ -256,7 +256,7 @@ class PartnerApplicationController extends Controller
     {
         $data = $request->validate([
             'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
-            'document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
+            'document_id' => ['nullable', 'integer', 'exists:generated_documents,id'],
             'signature_image' => ['required', 'string'],
         ]);
 

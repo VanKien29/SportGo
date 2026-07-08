@@ -1364,7 +1364,6 @@ class VenueClusterController extends Controller
                     \Illuminate\Support\Facades\Storage::disk('public')->move($tempPath, $newPath);
 
                     \App\Models\Media::create([
-                        'id' => (string) \Illuminate\Support\Str::uuid(),
                         'mediable_type' => VenueCluster::class,
                         'mediable_id' => $clusterId,
                         'collection' => 'gallery',

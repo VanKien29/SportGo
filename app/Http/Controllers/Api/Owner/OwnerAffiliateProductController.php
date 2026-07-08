@@ -61,7 +61,6 @@ class OwnerAffiliateProductController extends Controller
         }
 
         $product = AffiliateProduct::create([
-            'id' => (string) Str::uuid(),
             'venue_cluster_id' => $clusterId,
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,

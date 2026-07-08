@@ -86,7 +86,7 @@ class OwnerWithdrawalRequestsTableSeeder extends Seeder
                 'request_code' => 'WRADMAPPR1',
                 'amount' => 450000,
                 'status' => 'approved',
-                'owner_note' => 'Yêu cầu đã duyệt, dùng để test QR và export MB bulk.',
+                'owner_note' => 'Yêu cầu đã duyệt, dùng để kiểm tra QR và export MB bulk.',
                 'reviewed_by' => $admin?->id,
                 'reviewed_at' => now()->subHours(2),
                 'review_note' => 'Đã duyệt chuyển khoản cho chủ sân.',

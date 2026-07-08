@@ -5,8 +5,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('price_slots', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36)->comment('Cụm sân áp dụng giá.');
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id')->comment('Cụm sân áp dụng giá.');
             $table->unsignedBigInteger('court_type_id')->comment('Loại sân áp dụng giá.');
             $table->enum('booking_type', ['all', 'single', 'recurring'])->default('all')->comment('Kiểu booking áp dụng giá.');
             $table->time('start_time')->comment('Giờ bắt đầu khung giá.');

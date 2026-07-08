@@ -17,14 +17,14 @@ class PriceSlotsTableSeeder extends Seeder
         }
 
         $clusters = VenueCluster::query()
-            ->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])
+            ->whereIn('slug', ['green-sport-ba-dinh', 'sun-sport-cau-giay'])
             ->get()
             ->keyBy('slug');
         $types = CourtType::query()->whereIn('name', array_keys($this->prices()))->pluck('id', 'name');
 
         $clusterTypes = [
-            'sportgo-cau-giay' => ['Cầu lông (Sân tiêu chuẩn)', 'Pickleball (Sân tiêu chuẩn)'],
-            'sportgo-my-dinh' => ['Bóng Đá (Sân 7)', 'Bóng Đá (Sân 11)'],
+            'green-sport-ba-dinh' => ['Cầu lông (Sân tiêu chuẩn)', 'Pickleball (Sân tiêu chuẩn)'],
+            'sun-sport-cau-giay' => ['Bóng Đá (Sân 7)', 'Bóng Đá (Sân 11)'],
         ];
 
         foreach ($clusterTypes as $clusterSlug => $courtTypeNames) {

@@ -21,7 +21,7 @@ class PlatformFeeController extends Controller
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'venue_cluster_id' => ['required', 'uuid'],
+            'venue_cluster_id' => ['required', 'integer'],
         ]);
 
         $cluster = $this->ownedCluster($request, $data['venue_cluster_id']);
@@ -157,7 +157,7 @@ class PlatformFeeController extends Controller
     public function createAdvancePayment(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'venue_cluster_id' => ['required', 'uuid'],
+            'venue_cluster_id' => ['required', 'integer'],
             'months' => ['required', 'integer', Rule::in([1, 3, 6, 9, 12])],
         ]);
 

@@ -121,7 +121,6 @@ class OwnerPlayerPostController extends Controller
         }
 
         $post = PlayerPost::create([
-            'id' => \Illuminate\Support\Str::uuid(),
             'booking_id' => $booking->id,
             'author_id' => $request->user()->id,
             'title' => $data['title'],

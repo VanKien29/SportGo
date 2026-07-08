@@ -9,15 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('venue_court_approval_requests', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36);
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->unsignedBigInteger('court_type_id');
             $table->string('name', 100);
             $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending');
-            $table->char('requested_by', 36);
-            $table->char('reviewed_by', 36)->nullable();
+            $table->unsignedBigInteger('requested_by');
+            $table->unsignedBigInteger('reviewed_by')->nullable();
             $table->text('status_reason')->nullable();
-            $table->char('approved_venue_court_id', 36)->nullable();
+            $table->unsignedBigInteger('approved_venue_court_id')->nullable();
             $table->timestamp('reviewed_at')->nullable();
             $table->timestamps();
 

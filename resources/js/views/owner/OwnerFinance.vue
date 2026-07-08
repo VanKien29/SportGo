@@ -75,7 +75,7 @@
                                     }}</strong>
                                     <small>{{
                                         wallet.venue_cluster?.address ||
-                                        shortId(wallet.id)
+                                        "Ví theo cụm sân"
                                     }}</small>
                                 </td>
                                 <td
@@ -758,9 +758,6 @@ export default {
         maskedAccount(value) {
             const text = String(value || "");
             return text.length > 4 ? `•••• ${text.slice(-4)}` : text || "-";
-        },
-        shortId(value) {
-            return value ? String(value).slice(0, 8).toUpperCase() : "-";
         },
         handleScroll() {
             this.showScrollTop = window.scrollY > 150;

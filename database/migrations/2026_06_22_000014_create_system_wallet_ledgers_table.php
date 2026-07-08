@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('system_wallet_ledgers', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
-            $table->char('system_bank_account_id', 36)->comment('Tai khoan ngan hang he thong.');
+            $table->id();
+            $table->unsignedBigInteger('system_bank_account_id')->comment('Tai khoan ngan hang he thong.');
             $table->string('transaction_ref', 100)->nullable()->comment('Ma giao dich tu ngan hang.');
             $table->enum('direction', ['in', 'out'])->comment('Chieu tien vao hoac ra.');
             $table->decimal('amount', 18, 2)->comment('So tien giao dich.');

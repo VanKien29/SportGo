@@ -21,7 +21,6 @@ class AmenitiesTableSeeder extends Seeder
         $adminId = $admin?->id;
         $ownerId = $owner?->id;
 
-        // 14 Tiện ích active mặc định
         $activeAmenities = [
             ['Wifi', 'Wifi miễn phí tốc độ cao.'],
             ['Bãi gửi xe', 'Bãi gửi xe rộng rãi, an toàn.'],
@@ -50,7 +49,6 @@ class AmenitiesTableSeeder extends Seeder
             ]);
         }
 
-        // Case pending_review
         $this->saveAmenity('Máy bắn cầu tự động', [
             'description' => 'Chủ sân đề xuất thêm tiện ích máy bắn cầu tự động.',
             'status' => 'pending_review',
@@ -60,24 +58,22 @@ class AmenitiesTableSeeder extends Seeder
             'status_reason' => null,
         ]);
 
-        // Case rejected
-        $this->saveAmenity('Tiện ích demo bị từ chối', [
-            'description' => 'Dữ liệu test trạng thái bị từ chối.',
+        $this->saveAmenity('Dịch vụ huấn luyện cá nhân', [
+            'description' => 'Tiện ích đang bị từ chối vì chủ sân chưa gửi đủ hồ sơ huấn luyện viên.',
             'status' => 'rejected',
             'created_by' => $ownerId,
             'reviewed_by' => $adminId,
             'reviewed_at' => now(),
-            'status_reason' => 'Tiện ích không phù hợp với phạm vi hiển thị của hệ thống.',
+            'status_reason' => 'Chưa có hồ sơ xác minh huấn luyện viên.',
         ]);
 
-        // Case inactive
-        $this->saveAmenity('Tiện ích demo ngưng sử dụng', [
-            'description' => 'Dữ liệu test trạng thái ngưng sử dụng.',
+        $this->saveAmenity('Khu xông hơi', [
+            'description' => 'Tiện ích tạm ngưng sử dụng để rà soát lại vận hành.',
             'status' => 'inactive',
             'created_by' => $adminId,
             'reviewed_by' => $adminId,
             'reviewed_at' => now(),
-            'status_reason' => 'Tiện ích tạm ngưng sử dụng để rà soát lại thông tin.',
+            'status_reason' => 'Tạm ngưng sử dụng để kiểm tra an toàn vận hành.',
         ]);
     }
 
@@ -89,9 +85,11 @@ class AmenitiesTableSeeder extends Seeder
             if ($amenity->trashed()) {
                 $amenity->restore();
             }
+
             $amenity->update(array_merge(['name' => $name], $data));
-        } else {
-            Amenity::create(array_merge(['name' => $name], $data));
+            return;
         }
+
+        Amenity::create(array_merge(['name' => $name], $data));
     }
 }

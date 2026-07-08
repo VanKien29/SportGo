@@ -58,8 +58,8 @@ class FinanceOperationController extends Controller
             'refund_destination' => ['nullable', Rule::in(['bank_account', 'user_wallet', 'original_payment', 'cash'])],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'payment_kind' => ['nullable', Rule::in(['full', 'deposit', 'partial'])],
-            'venue_cluster_id' => ['nullable', 'uuid'],
-            'customer_id' => ['nullable', 'uuid'],
+            'venue_cluster_id' => ['nullable', 'integer'],
+            'customer_id' => ['nullable', 'integer'],
             'owner_confirmed' => ['nullable', Rule::in(['yes', 'no'])],
             'amount_min' => ['nullable', 'numeric', 'min:0'],
             'amount_max' => ['nullable', 'numeric', 'min:0', 'gte:amount_min'],
@@ -135,9 +135,9 @@ class FinanceOperationController extends Controller
         $data = $request->validate([
             'keyword' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in(['pending', 'reviewing', 'approved', 'rejected', 'completed', 'cancelled'])],
-            'owner_id' => ['nullable', 'uuid'],
+            'owner_id' => ['nullable', 'integer'],
             'bank_code' => ['nullable', 'string', 'max:30'],
-            'venue_cluster_id' => ['nullable', 'uuid'],
+            'venue_cluster_id' => ['nullable', 'integer'],
             'amount_min' => ['nullable', 'numeric', 'min:0'],
             'amount_max' => ['nullable', 'numeric', 'min:0', 'gte:amount_min'],
             'date_from' => ['nullable', 'date'],
@@ -394,7 +394,7 @@ class FinanceOperationController extends Controller
         $this->authorizePermission($request, 'withdrawal.manage');
         $data = $request->validate([
             'ids' => ['required', 'array', 'min:1', 'max:500'],
-            'ids.*' => ['required', 'uuid', 'distinct'],
+            'ids.*' => ['required', 'integer', 'distinct'],
         ]);
 
         $withdrawals = OwnerWithdrawalRequest::query()

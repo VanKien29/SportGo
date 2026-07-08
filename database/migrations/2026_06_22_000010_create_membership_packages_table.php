@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('membership_packages', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('name', 100)->comment('Ten goi thanh vien he thong.');
             $table->enum('type', ['free', 'saving', 'pro'])->default('free')->comment('Loai goi.');
             $table->decimal('monthly_price', 12, 2)->nullable()->comment('Gia theo thang, null neu admin chua cau hinh.');

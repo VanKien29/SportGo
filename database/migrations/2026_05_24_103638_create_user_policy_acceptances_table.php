@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('user_policy_acceptances', function (Blueprint $table) {
             $table->id();
-            $table->char('user_id', 36);
-            $table->char('system_policy_id', 36);
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('system_policy_id');
             $table->string('policy_version', 50);
             $table->timestamp('accepted_at')->useCurrent();
 

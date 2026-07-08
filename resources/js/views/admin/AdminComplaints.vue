@@ -87,10 +87,7 @@
                         <strong>{{
                             complaint.customer?.full_name || "Khách hàng"
                         }}</strong>
-                        <span
-                            >{{ typeLabel(complaint.complaint_type) }} ·
-                            {{ shortId(complaint.id) }}</span
-                        >
+                        <span>{{ complaintLabel(complaint) }}</span>
                     </div>
                     <div class="badge-row">
                         <span class="badge">{{
@@ -149,11 +146,7 @@
                     <div>
                         <h3>Chi tiết khiếu nại</h3>
                         <p>
-                            {{
-                                selected
-                                    ? `${typeLabel(selected.complaint_type)} · ${shortId(selected.id)}`
-                                    : "Đang tải..."
-                            }}
+                            {{ selected ? complaintLabel(selected) : "Đang tải..." }}
                         </p>
                     </div>
                     <ActionIconButton
@@ -1007,8 +1000,15 @@ export default {
                 currency: "VND",
             }).format(value || 0);
         },
-        shortId(value) {
-            return value ? `#${value.slice(0, 8)}` : "";
+        complaintLabel(complaint) {
+            if (!complaint) return "";
+            if (complaint.booking?.booking_code) {
+                return complaint.booking.booking_code;
+            }
+            if (complaint.venue_cluster?.name) {
+                return `${this.typeLabel(complaint.complaint_type)} · ${complaint.venue_cluster.name}`;
+            }
+            return this.typeLabel(complaint.complaint_type);
         },
         formatDate(value) {
             return value ? new Date(value).toLocaleDateString("vi-VN") : "-";

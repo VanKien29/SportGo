@@ -34,8 +34,8 @@ return new class extends Migration
 
         if (! Schema::hasTable('policy_action_bindings')) {
             Schema::create('policy_action_bindings', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('system_policy_id', 36)->comment('Chính sách hệ thống được bind với action.');
+                $table->id();
+                $table->unsignedBigInteger('system_policy_id')->comment('Chính sách hệ thống được bind với action.');
                 $table->string('module', 50)->comment('Module nghiệp vụ như booking, refund, report.');
                 $table->string('action_code', 100)->comment('Mã action như booking.cancel, refund.request.');
                 $table->text('description')->nullable()->comment('Mô tả ngắn action/policy binding.');
@@ -52,8 +52,8 @@ return new class extends Migration
 
         if (! Schema::hasTable('policy_rules')) {
             Schema::create('policy_rules', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('system_policy_id', 36)->comment('Chính sách hệ thống sở hữu rule.');
+                $table->id();
+                $table->unsignedBigInteger('system_policy_id')->comment('Chính sách hệ thống sở hữu rule.');
                 $table->string('action_code', 100)->comment('Action mà rule áp dụng.');
                 $table->string('rule_code', 100)->comment('Mã rule duy nhất trong cùng policy.');
                 $table->string('rule_name', 255)->comment('Tên rule dễ đọc.');
@@ -74,9 +74,9 @@ return new class extends Migration
 
         if (! Schema::hasTable('venue_policy_rules')) {
             Schema::create('venue_policy_rules', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('venue_cluster_id', 36)->comment('Cụm sân cấu hình rule riêng.');
-                $table->char('base_policy_rule_id', 36)->nullable()->comment('Rule hệ thống được override nếu được phép.');
+                $table->id();
+                $table->unsignedBigInteger('venue_cluster_id')->comment('Cụm sân cấu hình rule riêng.');
+                $table->unsignedBigInteger('base_policy_rule_id')->nullable()->comment('Rule hệ thống được override nếu được phép.');
                 $table->string('action_code', 100)->comment('Action mà rule sân áp dụng.');
                 $table->string('rule_code', 100)->comment('Mã rule sân.');
                 $table->string('rule_name', 255)->comment('Tên rule sân.');
@@ -85,10 +85,10 @@ return new class extends Migration
                 $table->json('result_json')->nullable()->comment('Kết quả/gợi ý xử lý khi rule sân match.');
                 $table->enum('status', ['draft', 'active', 'inactive', 'rejected'])->default('draft')
                     ->comment('Trạng thái duyệt rule sân.');
-                $table->char('approved_by', 36)->nullable()->comment('Admin duyệt rule sân.');
+                $table->unsignedBigInteger('approved_by')->nullable()->comment('Admin duyệt rule sân.');
                 $table->timestamp('approved_at')->nullable()->comment('Thời điểm duyệt rule sân.');
                 $table->text('rejected_reason')->nullable()->comment('Lý do từ chối rule sân.');
-                $table->char('created_by', 36)->nullable()->comment('Owner/nhân viên tạo rule sân.');
+                $table->unsignedBigInteger('created_by')->nullable()->comment('Owner/nhân viên tạo rule sân.');
                 $table->timestamps();
 
                 $table->index(['venue_cluster_id', 'status'], 'venue_policy_rules_cluster_status_index');
@@ -107,10 +107,10 @@ return new class extends Migration
 
         if (! Schema::hasTable('policy_evaluation_logs')) {
             Schema::create('policy_evaluation_logs', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('system_policy_id', 36)->nullable()->comment('Chính sách hệ thống đã evaluate.');
-                $table->char('policy_rule_id', 36)->nullable()->comment('Rule hệ thống đã evaluate.');
-                $table->char('venue_policy_rule_id', 36)->nullable()->comment('Rule sân đã evaluate nếu có.');
+                $table->id();
+                $table->unsignedBigInteger('system_policy_id')->nullable()->comment('Chính sách hệ thống đã evaluate.');
+                $table->unsignedBigInteger('policy_rule_id')->nullable()->comment('Rule hệ thống đã evaluate.');
+                $table->unsignedBigInteger('venue_policy_rule_id')->nullable()->comment('Rule sân đã evaluate nếu có.');
                 $table->string('action_code', 100)->comment('Action được evaluate.');
                 $table->string('entity_type', 100)->comment('Loại đối tượng nghiệp vụ được evaluate.');
                 $table->string('entity_id', 100)->comment('ID đối tượng nghiệp vụ được evaluate.');
@@ -118,7 +118,7 @@ return new class extends Migration
                 $table->json('result_data')->nullable()->comment('Kết quả evaluate.');
                 $table->enum('evaluated_by_type', ['user', 'owner', 'venue_staff', 'admin', 'super_admin', 'system'])
                     ->default('system')->comment('Loại actor kích hoạt evaluate.');
-                $table->char('evaluated_by_id', 36)->nullable()->comment('User kích hoạt evaluate, nullable nếu system.');
+                $table->unsignedBigInteger('evaluated_by_id')->nullable()->comment('User kích hoạt evaluate, nullable nếu system.');
                 $table->timestamp('created_at')->nullable();
 
                 $table->index(['action_code', 'created_at'], 'policy_eval_logs_action_created_index');

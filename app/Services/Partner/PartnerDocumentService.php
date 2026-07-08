@@ -3286,7 +3286,7 @@ XML;
     private function storeSignatureImage(GeneratedDocumentSignature $signature, string $signatureImage): Media
     {
         $binary = $this->decodeSignatureImage($signatureImage);
-        $filePath = 'partner-signatures/' . now()->format('Y/m') . '/' . Str::uuid() . '.png';
+        $filePath = 'partner-signatures/' . now()->format('Y/m') . '/' . Str::random(40) . '.png';
 
         Storage::disk('public')->put($filePath, $binary);
 

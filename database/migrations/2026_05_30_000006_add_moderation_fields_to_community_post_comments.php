@@ -14,7 +14,7 @@ return new class extends Migration
 
         Schema::table('community_post_comments', function (Blueprint $table) {
             if (! Schema::hasColumn('community_post_comments', 'reviewed_by')) {
-                $table->char('reviewed_by', 36)->nullable()->after('status')->comment('Admin/moderator xử lý bình luận.');
+                $table->unsignedBigInteger('reviewed_by')->nullable()->after('status')->comment('Admin/moderator xử lý bình luận.');
                 $table->timestamp('reviewed_at')->nullable()->after('reviewed_by')->comment('Thời điểm xử lý bình luận.');
                 $table->text('status_reason')->nullable()->after('reviewed_at')->comment('Lý do ẩn/khôi phục bình luận.');
                 $table->index('reviewed_by', 'community_post_comments_reviewed_by_index');

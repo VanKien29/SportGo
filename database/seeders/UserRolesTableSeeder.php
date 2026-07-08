@@ -10,8 +10,6 @@ use Illuminate\Support\Facades\Schema;
 
 class UserRolesTableSeeder extends Seeder
 {
-    private const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
-
     public function run(): void
     {
         if (! Schema::hasTable('users') || ! Schema::hasTable('roles') || ! Schema::hasTable('user_roles')) {
@@ -31,6 +29,7 @@ class UserRolesTableSeeder extends Seeder
             'policy_manager' => 'policy_manager',
             'staff_manager' => 'staff_manager',
             'owner' => 'venue_owner',
+            'owner_sun' => 'venue_owner',
             'venuestaff' => 'venue_staff',
             'user' => 'user',
         ];
@@ -48,7 +47,6 @@ class UserRolesTableSeeder extends Seeder
                     ->where('user_id', $user->id)
                     ->where('role_id', $defaultUserRoleId)
                     ->where('scope_type', 'system')
-                    ->where('scope_id', self::ZERO_UUID)
                     ->delete();
             }
 
@@ -57,7 +55,6 @@ class UserRolesTableSeeder extends Seeder
                     'user_id' => $user->id,
                     'role_id' => $roleId,
                     'scope_type' => 'system',
-                    'scope_id' => self::ZERO_UUID,
                 ],
                 ['granted_by' => null]
             );

@@ -39,7 +39,7 @@ class MediaTableSeeder extends Seeder
                 'mime_type' => $mimeType,
                 'file_size' => 256000,
                 'sort_order' => $sortOrder,
-            ]
+            ],
         );
     }
 
@@ -49,7 +49,7 @@ class MediaTableSeeder extends Seeder
             return;
         }
 
-        foreach (['SportGo Cầu Giấy', 'SportGo Thanh Xuân'] as $venueName) {
+        foreach (['Green Sport Ba Đình', 'Sun Sport Cầu Giấy'] as $venueName) {
             $application = PartnerApplication::query()->where('venue_name', $venueName)->first();
 
             if (! $application) {
@@ -62,7 +62,7 @@ class MediaTableSeeder extends Seeder
                 'partner_application_documents',
                 'giay-phep-kinh-doanh.pdf',
                 'partner-applications/'.$application->id.'/giay-phep-kinh-doanh.pdf',
-                'application/pdf'
+                'application/pdf',
             );
         }
     }
@@ -73,37 +73,29 @@ class MediaTableSeeder extends Seeder
             return;
         }
 
-        $clusters = VenueCluster::query()->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])->get()->keyBy('slug');
-        $targets = [
-            ['sportgo-cau-giay', '2026-04-01', 'bien-lai-phi-thang-04.jpg'],
-            ['sportgo-my-dinh', '2026-02-01', 'bang-chung-phi-bi-tu-choi.jpg'],
-        ];
+        $cluster = VenueCluster::query()->where('slug', 'green-sport-ba-dinh')->first();
+        $ledger = $cluster
+            ? VenuePlatformFeeLedger::query()
+                ->where('venue_cluster_id', $cluster->id)
+                ->where('period_start', '2026-04-01')
+                ->first()
+            : null;
 
-        foreach ($targets as [$slug, $periodStart, $fileName]) {
-            $cluster = $clusters[$slug] ?? null;
-            $ledger = $cluster
-                ? VenuePlatformFeeLedger::query()
-                    ->where('venue_cluster_id', $cluster->id)
-                    ->where('period_start', $periodStart)
-                    ->first()
-                : null;
+        if (! $ledger) {
+            return;
+        }
 
-            if (! $ledger) {
-                continue;
-            }
+        $media = $this->upsertMedia(
+            VenuePlatformFeeLedger::class,
+            $ledger->id,
+            'platform_fee_payment_proof',
+            'bien-lai-phi-green-202604.jpg',
+            'platform-fees/'.$ledger->id.'/bien-lai-phi-green-202604.jpg',
+            'image/jpeg',
+        );
 
-            $media = $this->upsertMedia(
-                VenuePlatformFeeLedger::class,
-                $ledger->id,
-                'platform_fee_payment_proof',
-                $fileName,
-                'platform-fees/'.$ledger->id.'/'.$fileName,
-                'image/jpeg'
-            );
-
-            if (Schema::hasColumn('venue_platform_fee_ledgers', 'payment_proof_media_id')) {
-                $ledger->update(['payment_proof_media_id' => $media->id]);
-            }
+        if (Schema::hasColumn('venue_platform_fee_ledgers', 'payment_proof_media_id')) {
+            $ledger->update(['payment_proof_media_id' => $media->id]);
         }
     }
 
@@ -113,7 +105,7 @@ class MediaTableSeeder extends Seeder
             return;
         }
 
-        $report = Report::query()->where('reason', 'spam')->first();
+        $report = Report::query()->where('reason', 'other')->first();
 
         if (! $report) {
             return;
@@ -123,9 +115,9 @@ class MediaTableSeeder extends Seeder
             Report::class,
             $report->id,
             'report_evidence',
-            'anh-chup-report-spam.jpg',
-            'reports/'.$report->id.'/anh-chup-report-spam.jpg',
-            'image/jpeg'
+            'anh-san-cho-xu-ly.jpg',
+            'reports/'.$report->id.'/anh-san-cho-xu-ly.jpg',
+            'image/jpeg',
         );
     }
 
@@ -135,7 +127,9 @@ class MediaTableSeeder extends Seeder
             return;
         }
 
-        $complaint = Complaint::query()->where('content', 'Khách phản ánh sân mở cửa trễ 10 phút so với giờ đặt.')->first();
+        $complaint = Complaint::query()
+            ->where('content', ComplaintsTableSeeder::VENUE_COMPLAINT_CONTENT)
+            ->first();
 
         if (! $complaint) {
             return;
@@ -145,9 +139,9 @@ class MediaTableSeeder extends Seeder
             Complaint::class,
             $complaint->id,
             'complaint_evidence',
-            'anh-chup-tai-san.jpg',
-            'complaints/'.$complaint->id.'/anh-chup-tai-san.jpg',
-            'image/jpeg'
+            'anh-hoa-don-ho-tro.jpg',
+            'complaints/'.$complaint->id.'/anh-hoa-don-ho-tro.jpg',
+            'image/jpeg',
         );
     }
 }
