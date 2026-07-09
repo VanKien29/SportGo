@@ -522,11 +522,50 @@
                       <span class="booking-message-card__amount">{{ bookingCurrency(msg.booking.total_price) }}</span>
                       <span :class="['booking-message-card__status', statusTextClass(msg.booking.status)]">{{ bookingStatusLabel(msg.booking.status) }}</span>
                     </div>
+                    <div v-if="canCreateSupportRequest" class="booking-message-card__actions">
+                      <button type="button" class="booking-message-card__action" @click="openSupportRequestModal(msg.booking)">
+                        Y&#234;u c&#7847;u h&#7895; tr&#7907;
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Support Request Card Attachment -->
+                  <div v-if="msg.reference_type === 'booking_support_request' && msg.support_request" class="support-request-card rounded-lg mb-1.5 overflow-hidden">
+                    <div class="support-request-card__top">
+                      <span class="support-request-card__eyebrow">Y&#234;u c&#7847;u booking</span>
+                      <span :class="['support-request-card__status', supportRequestStatusClass(msg.support_request.status)]">
+                        {{ supportRequestStatusLabel(msg.support_request.status) }}
+                      </span>
+                    </div>
+                    <div class="support-request-card__title">
+                      {{ supportRequestTypeLabel(msg.support_request.request_type) }}
+                      <span v-if="msg.support_request.booking" class="support-request-card__code">#{{ msg.support_request.booking.booking_code }}</span>
+                    </div>
+                    <div v-if="msg.support_request.booking" class="support-request-card__meta">
+                      <span>{{ bookingCourtText(msg.support_request.booking) }}</span>
+                      <span>{{ bookingDateLabel(msg.support_request.booking.booking_date) }}</span>
+                      <span>{{ bookingTimeRange(msg.support_request.booking) }}</span>
+                    </div>
+                    <div v-if="msg.support_request.note" class="support-request-card__note">
+                      {{ msg.support_request.note }}
+                    </div>
+                    <div v-if="msg.support_request.resolution_note" class="support-request-card__note support-request-card__note--resolution">
+                      {{ msg.support_request.resolution_note }}
+                    </div>
+                    <div v-if="canHandleSupportRequest && msg.support_request.status === 'pending'" class="support-request-card__actions">
+                      <button type="button" class="support-request-card__action" :disabled="updatingSupportRequestId === msg.support_request.id" @click="updateSupportRequestStatus(msg.support_request, 'acknowledged')">Ti&#7871;p nh&#7853;n</button>
+                      <button type="button" class="support-request-card__action" :disabled="updatingSupportRequestId === msg.support_request.id" @click="updateSupportRequestStatus(msg.support_request, 'resolved')">Ho&#224;n t&#7845;t</button>
+                      <button type="button" class="support-request-card__action support-request-card__action--danger" :disabled="updatingSupportRequestId === msg.support_request.id" @click="updateSupportRequestStatus(msg.support_request, 'rejected')">T&#7915; ch&#7889;i</button>
+                    </div>
+                    <div v-else-if="canHandleSupportRequest && msg.support_request.status === 'acknowledged'" class="support-request-card__actions">
+                      <button type="button" class="support-request-card__action" :disabled="updatingSupportRequestId === msg.support_request.id" @click="updateSupportRequestStatus(msg.support_request, 'resolved')">Ho&#224;n t&#7845;t</button>
+                      <button type="button" class="support-request-card__action support-request-card__action--danger" :disabled="updatingSupportRequestId === msg.support_request.id" @click="updateSupportRequestStatus(msg.support_request, 'rejected')">T&#7915; ch&#7889;i</button>
+                    </div>
                   </div>
 
                   <!-- Content text -->
                   <div class="bubble-text">
-                    <span v-if="msg.content !== '[Hình ảnh]' && msg.content !== '[H??nh ???nh]' && msg.reference_type !== 'booking'">{{ msg.content }}</span>
+                    <span v-if="msg.content !== '[Hình ảnh]' && msg.content !== '[H??nh ???nh]' && msg.reference_type !== 'booking' && msg.reference_type !== 'booking_support_request'">{{ msg.content }}</span>
                     <span class="bubble-meta">
                        <span class="bubble-time">{{ formatTimeOnly(msg.created_at) }}</span>
 
@@ -723,13 +762,10 @@
                 <span>Không có lịch đặt sân phù hợp tại cụm sân này.</span>
               </div>
               <div v-else class="booking-picker-list">
-                <button
+                <div
                   v-for="booking in bookingOptions"
                   :key="booking.id"
-                  type="button"
                   class="booking-picker-row"
-                  :disabled="sendingBookingId === booking.id"
-                  @click="sendBookingMessage(booking)"
                 >
                   <div class="booking-picker-row__main">
                     <div class="booking-picker-row__title">
@@ -751,11 +787,81 @@
                       {{ bookingStatusLabel(booking.status) }}
                     </span>
                   </div>
-                </button>
+
+                  <div class="booking-picker-row__actions">
+                    <button
+                      type="button"
+                      class="booking-picker-action-btn booking-picker-action-btn--share"
+                      :disabled="sendingBookingId === booking.id"
+                      @click="sendBookingMessage(booking)"
+                    >
+                      {{ sendingBookingId === booking.id ? 'Đang gửi' : 'Chia sẻ' }}
+                    </button>
+                    <button
+                      v-if="canCreateSupportRequest"
+                      type="button"
+                      class="booking-picker-action-btn booking-picker-action-btn--support"
+                      @click="openSupportRequestFromPicker(booking)"
+                    >
+                      Hỗ trợ
+                    </button>
+                  </div>
+                </div>
               </div>
             </section>
           </div>
 
+          <div v-if="showSupportRequestModal" class="booking-picker-backdrop" @click.self="closeSupportRequestModal">
+            <section class="booking-picker-panel support-request-modal" role="dialog" aria-modal="true" aria-label="Tao yeu cau ho tro booking">
+              <header class="booking-picker-header">
+                <div>
+                  <h3>T&#7841;o y&#234;u c&#7847;u h&#7895; tr&#7907;</h3>
+                  <p v-if="supportRequestBooking">#{{ supportRequestBooking.booking_code }} - {{ bookingCourtText(supportRequestBooking) }}</p>
+                </div>
+                <button type="button" class="booking-picker-close" @click="closeSupportRequestModal" aria-label="Dong">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </header>
+
+              <form class="support-request-form" @submit.prevent="submitSupportRequest">
+                <div class="support-request-field">
+                  <label for="support-request-type">Lo&#7841;i y&#234;u c&#7847;u</label>
+                  <select id="support-request-type" v-model="supportRequestForm.request_type" class="support-request-input">
+                    <option v-for="option in supportRequestTypeOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                  <p>Ch&#7885;n v&#7845;n &#273;&#7873; b&#7841;n mu&#7889;n s&#226;n h&#7895; tr&#7907;.</p>
+                </div>
+
+                <div class="support-request-field">
+                  <label for="support-request-note">Ghi ch&#250;</label>
+                  <textarea
+                    id="support-request-note"
+                    v-model.trim="supportRequestForm.note"
+                    class="support-request-input support-request-textarea"
+                    rows="4"
+                    maxlength="1000"
+                    placeholder="Ví dụ: Mình muốn đổi sang khung 19:00 nếu còn sân."
+                  ></textarea>
+                  <p>M&#244; t&#7843; ng&#7855;n mong mu&#7889;n c&#7911;a b&#7841;n &#273;&#7875; nh&#226;n vi&#234;n x&#7917; l&#253; nhanh h&#417;n.</p>
+                </div>
+
+                <div v-if="supportRequestError" class="support-request-error" role="alert">
+                  {{ supportRequestError }}
+                </div>
+
+                <div class="support-request-actions">
+                  <button type="button" class="support-request-secondary" @click="closeSupportRequestModal">H&#7911;y</button>
+                  <button type="submit" class="support-request-primary" :disabled="!isSupportRequestFormValid || creatingSupportRequest">
+                    {{ creatingSupportRequest ? '&#272;ang g&#7917;i...' : 'G&#7917;i y&#234;u c&#7847;u' }}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
           <!-- Right Sidebar (Profile Info Panel) -->
           <div
             v-if="showProfileSidebar"
@@ -822,6 +928,67 @@
                 </div>
               </div>
 
+              <!-- Related Bookings -->
+              <div v-if="canViewRelatedBookings" class="tg-profile-section pt-5">
+                <div class="tg-related-bookings-head">
+                  <div>
+                    <div class="tg-profile-section-title">Booking c&#7911;a kh&#225;ch</div>
+                    <p class="tg-related-bookings-sub">C&#225;c l&#7883;ch &#273;&#7863;t t&#7841;i c&#7909;m s&#226;n trong h&#7897;i tho&#7841;i n&#224;y.</p>
+                  </div>
+                  <button
+                    type="button"
+                    class="tg-related-bookings-refresh"
+                    :disabled="loadingRelatedBookings"
+                    aria-label="T&#7843;i l&#7841;i booking li&#234;n quan"
+                    title="T&#7843;i l&#7841;i"
+                    @click="loadRelatedBookings"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-15.64 6.13M3 12a9 9 0 0115.64-6.13M21 3v6h-6M3 21v-6h6" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div v-if="loadingRelatedBookings" class="tg-related-bookings-state" role="status">
+                  &#272;ang t&#7843;i booking...
+                </div>
+                <div v-else-if="relatedBookingsError" class="tg-related-bookings-state tg-related-bookings-state--error" role="status">
+                  {{ relatedBookingsError }}
+                </div>
+                <div v-else-if="relatedBookings.length === 0" class="tg-related-bookings-state">
+                  Ch&#432;a c&#243; booking n&#224;o c&#7911;a kh&#225;ch t&#7841;i c&#7909;m s&#226;n n&#224;y.
+                </div>
+                <div v-else class="tg-related-bookings-list">
+                  <article
+                    v-for="booking in relatedBookings"
+                    :key="booking.id"
+                    class="tg-related-booking-row"
+                  >
+                    <div class="tg-related-booking-main">
+                      <div class="tg-related-booking-top">
+                        <span class="tg-related-booking-code">#{{ booking.booking_code }}</span>
+                        <span :class="['tg-related-booking-status', statusTextClass(booking.status)]">
+                          {{ bookingStatusLabel(booking.status) }}
+                        </span>
+                      </div>
+                      <div class="tg-related-booking-venue">{{ bookingCourtText(booking) }}</div>
+                      <div class="tg-related-booking-meta">
+                        <span>{{ bookingDateLabel(booking.booking_date) }}</span>
+                        <span>{{ bookingTimeRange(booking) }}</span>
+                      </div>
+                      <div class="tg-related-booking-price">{{ bookingCurrency(booking.total_price) }}</div>
+                    </div>
+                    <button
+                      type="button"
+                      class="tg-related-booking-send"
+                      :disabled="sendingBookingId === booking.id"
+                      @click="sendBookingMessage(booking)"
+                    >
+                      {{ sendingBookingId === booking.id ? '\u0110ang g\u1eedi' : 'G\u1eedi' }}
+                    </button>
+                  </article>
+                </div>
+              </div>
               <!-- Shared Items -->
               <div class="tg-profile-section pt-5">
                 <button
@@ -831,7 +998,7 @@
                   @click="openSharedImages"
                 >
                   <svg class="tg-profile-item-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2v12a2 2 0 002 2z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <div class="tg-profile-item-content">
                     <span class="tg-profile-value text-sm">{{ sharedImageCount }} ảnh</span>
@@ -1112,6 +1279,15 @@ export default {
       loadingBookingOptions: false,
       bookingPickerError: '',
       sendingBookingId: '',
+      relatedBookings: [],
+      loadingRelatedBookings: false,
+      relatedBookingsError: '',
+      showSupportRequestModal: false,
+      supportRequestBooking: null,
+      supportRequestForm: { request_type: 'reschedule', note: '' },
+      supportRequestError: '',
+      creatingSupportRequest: false,
+      updatingSupportRequestId: '',
       replyTarget: null,
       showContextMenu: false,
       contextMenuX: 0,
@@ -1142,6 +1318,31 @@ export default {
       if (!this.activeConversation || !this.currentUser) return false;
       if (this.currentUser.role_group === 'admin') return false;
       return this.activeConversation.type !== 'direct' || Boolean(this.activeConversation.other_user);
+    },
+    canViewRelatedBookings() {
+      if (!this.activeConversation || !this.currentUser) return false;
+      return this.currentUser.role_group === 'owner' || this.$route.path.startsWith('/owner');
+    },
+    canCreateSupportRequest() {
+      if (!this.activeConversation || !this.currentUser) return false;
+      return this.currentUser.role_group !== 'owner' && this.currentUser.role_group !== 'admin';
+    },
+    canHandleSupportRequest() {
+      return this.canViewRelatedBookings;
+    },
+    supportRequestTypeOptions() {
+      return [
+        { value: 'reschedule', label: 'Đổi giờ' },
+        { value: 'change_court', label: 'Đổi sân' },
+        { value: 'cancel_booking', label: 'Hủy đặt sân' },
+        { value: 'payment', label: 'Hỏi thanh toán/cọc' },
+        { value: 'late_arrival', label: 'Báo đến muộn' },
+        { value: 'refund', label: 'Yêu cầu hoàn tiền' },
+        { value: 'other', label: 'Khác' },
+      ];
+    },
+    isSupportRequestFormValid() {
+      return Boolean(this.supportRequestBooking?.id && this.supportRequestForm.request_type);
     },
     profileUser() {
       if (!this.activeConversation) return null;
@@ -1283,6 +1484,7 @@ export default {
     activeConversation(newVal, oldVal) {
       this.profileSidebarView = 'profile';
       this.closeBookingPicker();
+      this.closeSupportRequestModal();
       this.closeLightbox();
 
       // Unsubscribe from previous conversation channel
@@ -1290,11 +1492,14 @@ export default {
 
       if (newVal) {
         this.fetchMessages(true);
+        this.loadRelatedBookings();
         // Subscribe to real-time messages on this conversation channel
         this.subscribeConversationChannel(newVal.id);
       } else {
         this.messages = [];
         this.activeConversationParticipants = [];
+        this.relatedBookings = [];
+        this.relatedBookingsError = '';
       }
     }
   },
@@ -1305,6 +1510,7 @@ export default {
         .private(`conversation.${conversationId}`)
         .listen('.message.sent', (event) => {
           const msg = event.message;
+          this.applySupportRequestUpdate(msg.support_request);
           // Avoid duplicate if we already have the message (e.g. optimistic insert)
           const exists = this.messages.some(m => m.id === msg.id);
           if (!exists) {
@@ -1575,10 +1781,108 @@ export default {
       this.mobileShowChat = false;
     },
 
+    async loadRelatedBookings() {
+      this.relatedBookings = [];
+      this.relatedBookingsError = '';
+      if (!this.canViewRelatedBookings || !this.activeConversation) return;
+
+      this.loadingRelatedBookings = true;
+      try {
+        this.relatedBookings = await chatService.getRelatedBookings(this.activeConversation.id) || [];
+      } catch (error) {
+        this.relatedBookingsError = error.message || 'Kh\u00f4ng th\u1ec3 t\u1ea3i booking li\u00ean quan.';
+      } finally {
+        this.loadingRelatedBookings = false;
+      }
+    },
+    openSupportRequestModal(booking) {
+      if (!this.canCreateSupportRequest || !booking?.id) return;
+      this.supportRequestBooking = booking;
+      this.supportRequestForm = { request_type: 'reschedule', note: '' };
+      this.supportRequestError = '';
+      this.showSupportRequestModal = true;
+    },
+
+    closeSupportRequestModal() {
+      this.showSupportRequestModal = false;
+      this.supportRequestBooking = null;
+      this.supportRequestForm = { request_type: 'reschedule', note: '' };
+      this.supportRequestError = '';
+      this.creatingSupportRequest = false;
+    },
+
+    async submitSupportRequest() {
+      if (!this.activeConversation || !this.isSupportRequestFormValid || this.creatingSupportRequest) return;
+      this.creatingSupportRequest = true;
+      this.supportRequestError = '';
+      try {
+        const response = await chatService.createBookingSupportRequest(this.activeConversation.id, {
+          booking_id: this.supportRequestBooking.id,
+          request_type: this.supportRequestForm.request_type,
+          note: this.supportRequestForm.note?.trim() || null,
+        });
+        const exists = this.messages.some(m => m.id === response.id);
+        if (!exists) {
+          this.messages.push(response);
+        }
+        this.applySupportRequestUpdate(response.support_request);
+        this.updateConversationLastMessage(response);
+        this.closeSupportRequestModal();
+        this.scrollToBottom();
+      } catch (error) {
+        this.supportRequestError = error.message || 'Không thể gửi yêu cầu hỗ trợ.';
+      } finally {
+        this.creatingSupportRequest = false;
+      }
+    },
+
+    async updateSupportRequestStatus(supportRequest, status) {
+      if (!supportRequest?.id || this.updatingSupportRequestId) return;
+      this.updatingSupportRequestId = supportRequest.id;
+      try {
+        const response = await chatService.updateBookingSupportRequest(supportRequest.id, { status });
+        const exists = this.messages.some(m => m.id === response.id);
+        if (!exists) {
+          this.messages.push(response);
+        }
+        this.applySupportRequestUpdate(response.support_request);
+        this.updateConversationLastMessage(response);
+        this.scrollToBottom();
+      } catch (error) {
+        alert(error.message || 'Không thể cập nhật yêu cầu hỗ trợ.');
+      } finally {
+        this.updatingSupportRequestId = '';
+      }
+    },
+
+    applySupportRequestUpdate(supportRequest) {
+      if (!supportRequest?.id) return;
+      this.messages.forEach((message) => {
+        if (message.support_request?.id === supportRequest.id) {
+          message.support_request = { ...message.support_request, ...supportRequest };
+        }
+      });
+    },
+    updateConversationLastMessage(message) {
+      const conv = this.conversations.find(c => c.id === this.activeConversation?.id);
+      if (!conv || !message) return;
+      conv.last_message = {
+        content: message.content || 'Cap nhat hoi thoai',
+        created_at: message.created_at || new Date().toISOString(),
+        sender_id: message.sender_id || this.currentUser.id,
+      };
+      conv.last_message_at = conv.last_message.created_at;
+      this.conversations.sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+    },
     async openBookingPicker() {
       if (!this.canShareBooking || !this.activeConversation) return;
       this.showBookingPicker = true;
       await this.loadEligibleBookings();
+    },
+
+    openSupportRequestFromPicker(booking) {
+      this.closeBookingPicker();
+      this.openSupportRequestModal(booking);
     },
 
     closeBookingPicker() {
@@ -1594,7 +1898,7 @@ export default {
       try {
         this.bookingOptions = await chatService.getEligibleBookings(this.activeConversation.id) || [];
       } catch (error) {
-        this.bookingPickerError = error.message || 'Kh?ng th? t?i danh s?ch booking.';
+        this.bookingPickerError = error.message || 'Không thể tải danh sách booking.';
         this.bookingOptions = [];
       } finally {
         this.loadingBookingOptions = false;
@@ -2055,6 +2359,28 @@ export default {
       });
     },
 
+    supportRequestTypeLabel(type) {
+      const option = this.supportRequestTypeOptions.find(item => item.value === type);
+      return option?.label || type || '-';
+    },
+
+    supportRequestStatusLabel(status) {
+      return {
+        pending: 'Chờ xử lý',
+        acknowledged: 'Đã tiếp nhận',
+        resolved: 'Đã xử lý',
+        rejected: 'Từ chối',
+      }[status] || status || '-';
+    },
+
+    supportRequestStatusClass(status) {
+      return {
+        pending: 'text-blue-500',
+        acknowledged: 'text-emerald-500',
+        resolved: 'text-green-500',
+        rejected: 'text-red-500',
+      }[status] || 'text-zinc-400';
+    },
     bookingStatusLabel(status) {
       return {
         pending_approval: "Chờ duyệt",
@@ -2904,6 +3230,216 @@ export default {
   font-weight: 500;
 }
 
+.booking-message-card__actions,
+.support-request-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.booking-message-card__action,
+.support-request-card__action {
+  min-height: 30px;
+  border: 1px solid var(--tg-accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tg-accent) 14%, transparent);
+  color: var(--tg-accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 10px;
+}
+
+.booking-message-card__action:hover:not(:disabled),
+.support-request-card__action:hover:not(:disabled),
+.booking-message-card__action:focus-visible,
+.support-request-card__action:focus-visible {
+  background: var(--tg-accent);
+  color: var(--admin-primary-text, #ffffff);
+  outline: none;
+}
+
+.support-request-card__action:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.support-request-card__action--danger {
+  border-color: var(--admin-danger, #dc2626);
+  background: color-mix(in srgb, var(--admin-danger, #dc2626) 12%, transparent);
+  color: var(--admin-danger, #dc2626);
+}
+
+.support-request-card__action--danger:hover:not(:disabled),
+.support-request-card__action--danger:focus-visible {
+  background: var(--admin-danger, #dc2626);
+  color: #ffffff;
+}
+
+.support-request-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: min(300px, 100%);
+  border: 1px solid var(--tg-border);
+  background: color-mix(in srgb, var(--tg-received-bg) 90%, var(--tg-accent));
+  color: var(--tg-received-text);
+  padding: 12px;
+}
+
+.bubble-sent .support-request-card {
+  background: color-mix(in srgb, var(--tg-sent-bg) 82%, var(--tg-received-bg));
+  color: var(--tg-sent-text);
+}
+
+.support-request-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.support-request-card__eyebrow {
+  color: var(--tg-meta);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.support-request-card__status,
+.support-request-card__code {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.support-request-card__code {
+  color: var(--tg-accent);
+  font-family: monospace;
+  margin-left: 6px;
+}
+
+.support-request-card__title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.support-request-card__meta,
+.support-request-card__note {
+  color: var(--tg-meta);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.support-request-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.support-request-card__note {
+  border-left: 2px solid var(--tg-accent);
+  padding-left: 8px;
+}
+
+.support-request-card__note--resolution {
+  border-left-color: var(--admin-success, #16a34a);
+}
+
+.support-request-modal {
+  max-width: 480px;
+}
+
+.support-request-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px 20px;
+}
+
+.support-request-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.support-request-field label {
+  color: var(--tg-received-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.support-request-field p {
+  margin: 0;
+  color: var(--tg-meta);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.support-request-input {
+  width: 100%;
+  border: 1px solid var(--tg-border);
+  border-radius: 8px;
+  background: var(--tg-input-bg);
+  color: var(--tg-input-text);
+  font-size: 13px;
+  outline: none;
+  padding: 10px 12px;
+}
+
+.support-request-input:focus {
+  border-color: var(--tg-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tg-accent) 18%, transparent);
+}
+
+.support-request-textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.support-request-error {
+  border: 1px solid color-mix(in srgb, var(--admin-danger, #dc2626) 42%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--admin-danger, #dc2626) 10%, transparent);
+  color: var(--admin-danger, #dc2626);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 10px 12px;
+}
+
+.support-request-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.support-request-primary,
+.support-request-secondary {
+  min-height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 14px;
+}
+
+.support-request-primary {
+  border: 1px solid var(--tg-accent);
+  background: var(--tg-accent);
+  color: var(--admin-primary-text, #ffffff);
+}
+
+.support-request-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.support-request-secondary {
+  border: 1px solid var(--tg-border);
+  background: transparent;
+  color: var(--tg-received-text);
+}
 /* Premium Booking Picker Styles */
 .booking-picker-backdrop {
   position: absolute;
@@ -2992,7 +3528,7 @@ export default {
   background: transparent;
   padding: 12px 20px;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   transition: background-color 150ms ease;
 }
 
@@ -3000,13 +3536,57 @@ export default {
   border-bottom: 0 !important;
 }
 
-.booking-picker-row:hover:not(:disabled) {
+.booking-picker-row:hover {
   background-color: var(--tg-active-row) !important;
 }
 
-.booking-picker-row:disabled {
-  opacity: 0.5;
-  cursor: wait;
+.booking-picker-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+.booking-picker-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  min-height: 28px;
+  white-space: nowrap;
+}
+
+.booking-picker-action-btn--share {
+  background: var(--tg-accent);
+  color: var(--admin-primary-text, #ffffff);
+  border: 1px solid var(--tg-accent);
+}
+
+.booking-picker-action-btn--share:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.booking-picker-action-btn--share:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.booking-picker-action-btn--support {
+  background: transparent;
+  color: var(--tg-received-text);
+  border: 1px solid var(--tg-border);
+}
+
+.booking-picker-action-btn--support:hover {
+  background-color: var(--tg-active-row);
+  border-color: var(--tg-accent);
+  color: var(--tg-accent);
 }
 
 .booking-picker-row__main {
@@ -3077,6 +3657,155 @@ export default {
   text-align: center;
 }
 
+.tg-related-bookings-head {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+.tg-related-bookings-sub {
+  margin: -4px 0 0 !important;
+  color: var(--tg-meta) !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+
+.tg-related-bookings-refresh {
+  display: inline-flex !important;
+  width: 32px !important;
+  height: 32px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid var(--tg-border) !important;
+  border-radius: 8px !important;
+  background: var(--tg-active-row) !important;
+  color: var(--tg-meta) !important;
+  cursor: pointer !important;
+  flex: 0 0 auto !important;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease !important;
+}
+
+.tg-related-bookings-refresh:hover:not(:disabled),
+.tg-related-bookings-refresh:focus-visible {
+  border-color: var(--tg-accent) !important;
+  color: var(--tg-accent) !important;
+  outline: none !important;
+}
+
+.tg-related-bookings-refresh:disabled {
+  cursor: wait !important;
+  opacity: 0.6 !important;
+}
+
+.tg-related-bookings-refresh svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.tg-related-bookings-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.tg-related-bookings-state {
+  border: 1px solid var(--tg-border) !important;
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--tg-active-row) 72%, transparent) !important;
+  color: var(--tg-meta) !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  padding: 12px !important;
+}
+
+.tg-related-bookings-state--error {
+  color: var(--admin-danger, #dc2626) !important;
+}
+
+.tg-related-booking-row {
+  display: flex !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+  width: 100% !important;
+  border: 1px solid var(--tg-border) !important;
+  border-radius: 8px !important;
+  background: var(--tg-active-row) !important;
+  color: var(--tg-received-text) !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+}
+
+.tg-related-booking-main {
+  display: flex !important;
+  min-width: 0 !important;
+  flex: 1 !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+.tg-related-booking-top {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+.tg-related-booking-code {
+  color: var(--tg-accent) !important;
+  font-family: monospace !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.tg-related-booking-status {
+  flex: 0 0 auto !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+.tg-related-booking-venue,
+.tg-related-booking-price {
+  color: var(--tg-received-text) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.tg-related-booking-meta {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px 10px !important;
+  color: var(--tg-meta) !important;
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.tg-related-booking-send {
+  align-self: center !important;
+  min-width: 48px !important;
+  min-height: 34px !important;
+  border: 1px solid var(--tg-accent) !important;
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--tg-accent) 14%, transparent) !important;
+  color: var(--tg-accent) !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  padding: 0 10px !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+}
+
+.tg-related-booking-send:hover:not(:disabled),
+.tg-related-booking-send:focus-visible {
+  background: var(--tg-accent) !important;
+  color: var(--admin-primary-text, #ffffff) !important;
+  outline: none !important;
+}
+
+.tg-related-booking-send:disabled {
+  cursor: wait !important;
+  opacity: 0.6 !important;
+}
 /* Telegram Dropdown Menu styling */
 .tg-dropdown-menu {
   background-color: var(--tg-header-bg) !important;

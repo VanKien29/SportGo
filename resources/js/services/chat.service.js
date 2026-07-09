@@ -65,6 +65,21 @@ export const chatService = {
   getEligibleBookings(conversationId) {
     return api(`/api/chat/conversations/${conversationId}/bookings`);
   },
+  getRelatedBookings(conversationId) {
+    return api('/api/chat/conversations/' + conversationId + '/related-bookings');
+  },
+  createBookingSupportRequest(conversationId, payload) {
+    return api('/api/chat/conversations/' + conversationId + '/support-requests', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+  updateBookingSupportRequest(requestId, payload) {
+    return api('/api/chat/support-requests/' + requestId, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+  },
   sendBooking(conversationId, bookingId) {
     return api(`/api/chat/conversations/${conversationId}/bookings`, {
       method: 'POST',

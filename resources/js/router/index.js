@@ -253,6 +253,12 @@ const routes = [
                     import("../views/admin/AdminAmenities.vue"),
             },
             {
+                path: "service-categories",
+                name: "admin-service-categories",
+                component: () =>
+                    import("../views/admin/AdminServiceCategories.vue"),
+            },
+            {
                 path: "venue-clusters",
                 name: "admin-venue-clusters",
                 component: () =>
@@ -338,6 +344,12 @@ const routes = [
                 name: "owner-affiliate",
                 component: () =>
                     import("../views/owner/OwnerAffiliate.vue"),
+            },
+            {
+                path: "services",
+                name: "owner-services",
+                component: () =>
+                    import("../views/owner/OwnerServices.vue"),
             },
             {
                 path: "venue-courts",

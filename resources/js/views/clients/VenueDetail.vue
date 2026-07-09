@@ -101,6 +101,30 @@
             </div>
           </section>
 
+          <!-- On-site Services & Products -->
+          <section class="detail-section" v-if="groupedServices.length">
+            <h2 class="section-title">Dịch vụ & Sản phẩm tại sân</h2>
+            <div class="services-by-category-container">
+              <div v-for="group in groupedServices" :key="group.key" class="service-category-block" style="margin-bottom: 20px;">
+                <h3 class="service-category-label" style="font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">
+                  {{ group.label }}
+                </h3>
+                <div class="services-list-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;">
+                  <div v-for="item in group.items" :key="item.id" class="service-product-item" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px;">
+                    <div style="flex: 1; padding-right: 8px;">
+                      <span class="product-name" style="font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,0.8); display: block;">{{ item.name }}</span>
+                      <span v-if="item.description" class="product-desc" style="font-size: 11.5px; color: rgba(255,255,255,0.35); margin-top: 2px; display: block;">{{ item.description }}</span>
+                    </div>
+                    <div style="text-align: right; white-space: nowrap;">
+                      <span class="product-price" style="font-size: 13.5px; font-weight: 700; color: #f59e0b; display: block;">{{ formatPrice(item.price) }}</span>
+                      <span class="product-unit" style="font-size: 11px; color: rgba(255,255,255,0.35); display: block; margin-top: 1px;">/ {{ item.unit }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <!-- Court Types & Courts -->
           <section class="detail-section" v-if="venue.venue_courts?.length">
             <h2 class="section-title">Danh sách sân</h2>
@@ -300,6 +324,26 @@ export default {
         if (!groups[typeId]) groups[typeId] = { typeId, typeName, courts: [] };
         groups[typeId].courts.push(court);
       });
+      return Object.values(groups);
+    },
+
+    groupedServices() {
+      const services = this.venue?.services || [];
+      const groups = {};
+      
+      services.forEach(item => {
+        const catId = item.category_id || 'other';
+        const catName = item.category?.name || 'Dịch vụ khác';
+        if (!groups[catId]) {
+          groups[catId] = {
+            key: catId,
+            label: catName,
+            items: []
+          };
+        }
+        groups[catId].items.push(item);
+      });
+      
       return Object.values(groups);
     },
 

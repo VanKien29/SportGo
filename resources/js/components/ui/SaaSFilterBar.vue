@@ -102,8 +102,9 @@ export default {
     color: var(--admin-primary-text, #fff) !important;
 }
 .avc-filters .filter-tabs button.tab-btn:not(.active):hover {
-    background: var(--admin-hover) !important;
-    color: var(--admin-primary-dark) !important;
+    background: var(--admin-hover, #f8fafc) !important;
+    border-color: var(--admin-border-focus, #cbd5e1) !important;
+    color: var(--admin-text, #1e293b) !important;
 }
 .filter-search {
     flex: 1;

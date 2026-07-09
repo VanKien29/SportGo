@@ -224,6 +224,12 @@
   flex-direction: column;
 }
 
+.sg-shell-admin .content-area {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
 .sg-shell-admin .topbar {
   position: sticky;
   top: 0;

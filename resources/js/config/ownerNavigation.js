@@ -56,6 +56,12 @@ export const ownerNavigationSections = [
         activeNames: ['owner-pricing'],
       },
       {
+        label: 'Dịch vụ tại sân',
+        icon: 'shopping-bag',
+        to: '/owner/services',
+        activeNames: ['owner-services'],
+      },
+      {
         label: 'Cấu hình đặt sân',
         icon: 'calendar',
         to: '/owner/booking-settings',
@@ -168,6 +174,7 @@ export const ownerRouteTitles = {
   'owner-venue-posts': 'Quản lý bài viết',
   'owner-matchmaking': 'Giao lưu tại sân',
   'owner-affiliate': 'Tiếp thị liên kết',
+  'owner-services': 'Quản lý dịch vụ tại sân',
 };
 
 export const ownerRouteSectionLabels = {

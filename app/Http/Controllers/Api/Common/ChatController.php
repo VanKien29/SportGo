@@ -7,6 +7,7 @@ use App\Events\ConversationUpdated;
 use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\Booking;
+use App\Models\BookingSupportRequest;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
 use App\Models\User;
@@ -165,7 +166,7 @@ class ChatController extends Controller
         }
 
         $request->validate([
-            'content' => 'nullable|string',
+            'content' => 'nullable|string|max:5000',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240', // tối đa 10MB
             'reply_to_id' => 'nullable|uuid|exists:messages,id',
         ]);
@@ -177,7 +178,19 @@ class ChatController extends Controller
         $imagePath = null;
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-            $imagePath = $file->store('chats', 'public');
+            
+            // Chuyển mã sang webp để triệt tiêu malware ẩn trong metadata của tệp ảnh gốc
+            $manager = \Intervention\Image\ImageManager::usingDriver(new \Intervention\Image\Drivers\Gd\Driver());
+            $image = $manager->decodePath($file->getPathname());
+            
+            $filename = 'chat_' . uniqid('', true) . '.webp';
+            $imagePath = 'chats/' . $filename;
+            
+            if (!\Illuminate\Support\Facades\Storage::disk('public')->exists('chats')) {
+                \Illuminate\Support\Facades\Storage::disk('public')->makeDirectory('chats');
+            }
+            
+            $image->save(storage_path('app/public/' . $imagePath), 80);
         }
 
         $message = DB::transaction(function () use ($conversationId, $userId, $request, $imagePath) {
@@ -356,6 +369,38 @@ class ChatController extends Controller
         return response()->json($bookings);
     }
 
+    public function getRelatedBookings(Request $request, $conversationId)
+    {
+        $conversation = $this->participantConversation($conversationId, $request->user()->id);
+        $clusterIds = $this->conversationOperatorClusterIds($conversation, $request->user()->id);
+        $customerIds = $this->conversationCustomerIds($conversation, $clusterIds);
+
+        if (empty($clusterIds) || empty($customerIds)) {
+            return response()->json([]);
+        }
+
+        $bookings = Booking::query()
+            ->with([
+                'venueCourt.venueCluster',
+                'venueCourt.courtType',
+                'venueCluster',
+                'payments' => fn ($query) => $query->latest('created_at'),
+            ])
+            ->whereIn('customer_id', $customerIds)
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->orderByRaw("CASE WHEN booking_date >= ? THEN 0 ELSE 1 END", [now()->toDateString()])
+            ->orderByRaw("CASE WHEN booking_date >= ? THEN booking_date END ASC", [now()->toDateString()])
+            ->orderByRaw("CASE WHEN booking_date >= ? THEN start_time END ASC", [now()->toDateString()])
+            ->orderByRaw("CASE WHEN booking_date < ? THEN booking_date END DESC", [now()->toDateString()])
+            ->orderByRaw("CASE WHEN booking_date < ? THEN start_time END DESC", [now()->toDateString()])
+            ->limit(12)
+            ->get()
+            ->map(fn (Booking $booking) => $this->bookingMessagePayload($booking))
+            ->values();
+
+        return response()->json($bookings);
+    }
+
     public function sendBooking(Request $request, $conversationId)
     {
         $validated = $request->validate([
@@ -364,22 +409,39 @@ class ChatController extends Controller
 
         $conversation = $this->participantConversation($conversationId, $request->user()->id);
         $clusterIds = $this->conversationManagedClusterIds($conversation, $request->user()->id);
+        $operatorClusterIds = $this->conversationOperatorClusterIds($conversation, $request->user()->id);
+        $customerIds = $this->conversationCustomerIds($conversation, $operatorClusterIds);
 
-        $booking = Booking::query()
+        $bookingQuery = Booking::query()
             ->with([
                 'venueCourt.venueCluster',
                 'venueCourt.courtType',
                 'venueCluster',
                 'payments' => fn ($query) => $query->latest('created_at'),
             ])
-            ->where('id', $validated['booking_id'])
-            ->where('customer_id', $request->user()->id)
-            ->whereIn('venue_cluster_id', $clusterIds)
-            ->first();
+            ->where('id', $validated['booking_id']);
+
+        if (! empty($operatorClusterIds)) {
+            if (empty($customerIds)) {
+                return response()->json([
+                    'message' => 'Khong tim thay khach hang hop le trong hoi thoai nay.',
+                ], 403);
+            }
+
+            $bookingQuery
+                ->whereIn('venue_cluster_id', $operatorClusterIds)
+                ->whereIn('customer_id', $customerIds);
+        } else {
+            $bookingQuery
+                ->where('customer_id', $request->user()->id)
+                ->whereIn('venue_cluster_id', $clusterIds);
+        }
+
+        $booking = $bookingQuery->first();
 
         if (! $booking) {
             return response()->json([
-                'message' => 'Booking này không thuộc cụm sân của hội thoại hoặc không phải booking của bạn.',
+                'message' => 'Booking nay khong thuoc cum san cua hoi thoai hoac ban khong co quyen gui booking nay.',
             ], 403);
         }
 
@@ -389,7 +451,7 @@ class ChatController extends Controller
                 'id' => (string) Str::uuid(),
                 'conversation_id' => $conversationId,
                 'sender_id' => $request->user()->id,
-                'content' => 'Đã gửi booking #'.$booking->booking_code,
+                'content' => 'Da gui booking #'.$booking->booking_code,
                 'is_system' => false,
                 'reference_type' => 'booking',
                 'reference_id' => $booking->id,
@@ -413,7 +475,119 @@ class ChatController extends Controller
 
         return response()->json($this->messagePayload($message));
     }
+    public function createBookingSupportRequest(Request $request, $conversationId)
+    {
+        $validated = $request->validate([
+            'booking_id' => 'required|uuid|exists:bookings,id',
+            'request_type' => 'required|string|in:reschedule,change_court,cancel_booking,payment,late_arrival,refund,other',
+            'note' => 'nullable|string|max:1000',
+        ]);
 
+        $conversation = $this->participantConversation($conversationId, $request->user()->id);
+        $clusterIds = $this->conversationManagedClusterIds($conversation, $request->user()->id);
+
+        $booking = Booking::query()
+            ->with(['venueCourt.venueCluster', 'venueCourt.courtType', 'venueCluster', 'payments' => fn ($query) => $query->latest('created_at')])
+            ->where('id', $validated['booking_id'])
+            ->where('customer_id', $request->user()->id)
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->first();
+
+        if (! $booking) {
+            return response()->json([
+                'message' => 'Booking nay khong thuoc hoi thoai hoac khong phai booking cua ban.',
+            ], 403);
+        }
+
+        $message = DB::transaction(function () use ($conversationId, $request, $booking, $validated) {
+            $now = now();
+            $supportRequest = BookingSupportRequest::create([
+                'id' => (string) Str::uuid(),
+                'conversation_id' => $conversationId,
+                'booking_id' => $booking->id,
+                'customer_id' => $request->user()->id,
+                'venue_cluster_id' => $booking->venue_cluster_id,
+                'request_type' => $validated['request_type'],
+                'note' => $validated['note'] ?? null,
+                'status' => 'pending',
+            ]);
+
+            $msg = Message::create([
+                'id' => (string) Str::uuid(),
+                'conversation_id' => $conversationId,
+                'sender_id' => $request->user()->id,
+                'content' => 'Yeu cau ho tro booking #'.$booking->booking_code,
+                'is_system' => false,
+                'reference_type' => 'booking_support_request',
+                'reference_id' => $supportRequest->id,
+                'created_at' => $now,
+            ]);
+
+            Conversation::where('id', $conversationId)->update(['last_message_at' => $now]);
+            ConversationParticipant::where('conversation_id', $conversationId)
+                ->where('user_id', $request->user()->id)
+                ->update(['last_read_at' => $now]);
+
+            return $msg;
+        });
+
+        $this->broadcastMessage($message, $conversationId, $request->user()->id);
+
+        return response()->json($this->messagePayload($message));
+    }
+
+    public function updateBookingSupportRequest(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'status' => 'required|string|in:acknowledged,resolved,rejected',
+            'resolution_note' => 'nullable|string|max:1000',
+        ]);
+
+        $supportRequest = BookingSupportRequest::query()
+            ->with(['booking.venueCourt.venueCluster', 'booking.venueCourt.courtType', 'booking.venueCluster', 'booking.payments' => fn ($query) => $query->latest('created_at')])
+            ->findOrFail($id);
+
+        $conversation = $this->participantConversation($supportRequest->conversation_id, $request->user()->id);
+        $operatorClusterIds = $this->conversationOperatorClusterIds($conversation, $request->user()->id);
+
+        if (! in_array($supportRequest->venue_cluster_id, $operatorClusterIds, true)) {
+            return response()->json([
+                'message' => 'Ban khong co quyen xu ly yeu cau nay.',
+            ], 403);
+        }
+
+        $message = DB::transaction(function () use ($supportRequest, $request, $validated) {
+            $now = now();
+            $supportRequest->update([
+                'status' => $validated['status'],
+                'handled_by' => $request->user()->id,
+                'handled_at' => $now,
+                'resolution_note' => $validated['resolution_note'] ?? $supportRequest->resolution_note,
+            ]);
+
+            $msg = Message::create([
+                'id' => (string) Str::uuid(),
+                'conversation_id' => $supportRequest->conversation_id,
+                'sender_id' => $request->user()->id,
+                'content' => 'Cap nhat yeu cau booking #'.$supportRequest->booking?->booking_code,
+                'is_system' => false,
+                'reference_type' => 'booking_support_request',
+                'reference_id' => $supportRequest->id,
+                'created_at' => $now,
+            ]);
+
+            Conversation::where('id', $supportRequest->conversation_id)->update(['last_message_at' => $now]);
+            ConversationParticipant::where('conversation_id', $supportRequest->conversation_id)
+                ->where('user_id', $request->user()->id)
+                ->update(['last_read_at' => $now]);
+
+            return $msg;
+        });
+
+        $this->broadcastMessage($message, $supportRequest->conversation_id, $request->user()->id);
+
+        return response()->json($this->messagePayload($message));
+    }
     /**
      * Mark conversation as read
      */
@@ -671,6 +845,84 @@ class ChatController extends Controller
         }
     }
 
+    private function conversationOperatorClusterIds(Conversation $conversation, string $currentUserId): array
+    {
+        $managedClusterIds = collect($this->managedClusterIdsForUser($currentUserId));
+
+        if ($managedClusterIds->isEmpty()) {
+            return [];
+        }
+
+        if ($conversation->type === 'venue_contact' && $conversation->reference_type === 'venue_cluster' && $conversation->reference_id) {
+            return $managedClusterIds
+                ->intersect([$conversation->reference_id])
+                ->values()
+                ->all();
+        }
+
+        return $managedClusterIds->values()->all();
+    }
+
+    private function managedClusterIdsForUser(string $userId): array
+    {
+        $ownerClusterIds = VenueCluster::query()
+            ->where('owner_id', $userId)
+            ->pluck('id');
+
+        $staffClusterIds = DB::table('venue_staff_assignments')
+            ->where('user_id', $userId)
+            ->where('status', 'active')
+            ->pluck('venue_cluster_id');
+
+        return $ownerClusterIds
+            ->merge($staffClusterIds)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function conversationCustomerIds(Conversation $conversation, array $clusterIds): array
+    {
+        if (empty($clusterIds)) {
+            return [];
+        }
+
+        $participantIds = ConversationParticipant::where('conversation_id', $conversation->id)
+            ->pluck('user_id')
+            ->all();
+
+        if (empty($participantIds)) {
+            return [];
+        }
+
+        $operatorIds = VenueCluster::query()
+            ->whereIn('id', $clusterIds)
+            ->pluck('owner_id')
+            ->filter()
+            ->merge(
+                DB::table('venue_staff_assignments')
+                    ->whereIn('venue_cluster_id', $clusterIds)
+                    ->where('status', 'active')
+                    ->pluck('user_id')
+            )
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($conversation->created_by && ! in_array($conversation->created_by, $operatorIds, true)) {
+            return in_array($conversation->created_by, $participantIds, true)
+                ? [$conversation->created_by]
+                : [];
+        }
+
+        return collect($participantIds)
+            ->diff($operatorIds)
+            ->values()
+            ->all();
+    }
+
     private function participantConversation(string $conversationId, string $userId): Conversation
     {
         $conversation = Conversation::query()->findOrFail($conversationId);
@@ -731,9 +983,66 @@ class ChatController extends Controller
             }
         }
 
+        if ($message->reference_type === 'booking_support_request' && $message->reference_id) {
+            $supportRequest = BookingSupportRequest::query()
+                ->with([
+                    'booking.venueCourt.venueCluster',
+                    'booking.venueCourt.courtType',
+                    'booking.venueCluster',
+                    'booking.payments' => fn ($query) => $query->latest('created_at'),
+                    'customer:id,full_name,username,phone,email',
+                    'handledBy:id,full_name,username',
+                ])
+                ->find($message->reference_id);
+
+            if ($supportRequest) {
+                $payload['support_request'] = $this->bookingSupportRequestPayload($supportRequest);
+            }
+        }
+
         return $payload;
     }
 
+    private function bookingSupportRequestPayload(BookingSupportRequest $supportRequest): array
+    {
+        $supportRequest->loadMissing([
+            'booking.venueCourt.venueCluster',
+            'booking.venueCourt.courtType',
+            'booking.venueCluster',
+            'booking.payments' => fn ($query) => $query->latest('created_at'),
+            'customer:id,full_name,username,phone,email',
+            'handledBy:id,full_name,username',
+        ]);
+
+        return [
+            'id' => $supportRequest->id,
+            'conversation_id' => $supportRequest->conversation_id,
+            'booking_id' => $supportRequest->booking_id,
+            'customer_id' => $supportRequest->customer_id,
+            'venue_cluster_id' => $supportRequest->venue_cluster_id,
+            'request_type' => $supportRequest->request_type,
+            'note' => $supportRequest->note,
+            'status' => $supportRequest->status,
+            'handled_by' => $supportRequest->handled_by,
+            'handled_at' => $supportRequest->handled_at ? $supportRequest->handled_at->toIso8601String() : null,
+            'resolution_note' => $supportRequest->resolution_note,
+            'created_at' => $supportRequest->created_at ? $supportRequest->created_at->toIso8601String() : null,
+            'updated_at' => $supportRequest->updated_at ? $supportRequest->updated_at->toIso8601String() : null,
+            'booking' => $supportRequest->booking ? $this->bookingMessagePayload($supportRequest->booking) : null,
+            'customer' => $supportRequest->customer ? [
+                'id' => $supportRequest->customer->id,
+                'full_name' => $supportRequest->customer->full_name,
+                'username' => $supportRequest->customer->username,
+                'phone' => $supportRequest->customer->phone,
+                'email' => $supportRequest->customer->email,
+            ] : null,
+            'handled_by_user' => $supportRequest->handledBy ? [
+                'id' => $supportRequest->handledBy->id,
+                'full_name' => $supportRequest->handledBy->full_name,
+                'username' => $supportRequest->handledBy->username,
+            ] : null,
+        ];
+    }
     private function bookingMessagePayload(Booking $booking): array
     {
         $payments = $booking->payments ?? collect();
@@ -852,10 +1161,20 @@ class ChatController extends Controller
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        DB::transaction(function () use ($id) {
+        DB::transaction(function () use ($id, $userId) {
             Message::where('conversation_id', $id)->delete();
             ConversationParticipant::where('conversation_id', $id)->delete();
             Conversation::where('id', $id)->delete();
+
+            \App\Models\AuditLog::create([
+                'actor_id' => $userId,
+                'actor_type' => 'user',
+                'action' => 'delete',
+                'module' => 'chat',
+                'entity_type' => 'conversation',
+                'entity_id' => $id,
+                'reason' => 'User deleted conversation',
+            ]);
         });
 
         return response()->json(['success' => true]);
@@ -876,7 +1195,19 @@ class ChatController extends Controller
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        Message::where('conversation_id', $id)->delete();
+        DB::transaction(function () use ($id, $userId) {
+            Message::where('conversation_id', $id)->delete();
+
+            \App\Models\AuditLog::create([
+                'actor_id' => $userId,
+                'actor_type' => 'user',
+                'action' => 'clear_messages',
+                'module' => 'chat',
+                'entity_type' => 'conversation',
+                'entity_id' => $id,
+                'reason' => 'User cleared message history',
+            ]);
+        });
 
         return response()->json(['success' => true]);
     }
