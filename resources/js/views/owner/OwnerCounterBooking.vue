@@ -279,7 +279,11 @@
                     @click="counterDrawerOpen = false"
                 ></button>
 
-                <aside class="booking-side" :class="{ open: counterDrawerOpen }">
+                <aside
+                    ref="counterDrawer"
+                    class="booking-side"
+                    :class="{ open: counterDrawerOpen }"
+                >
                 <button
                     type="button"
                     class="drawer-close-btn"
@@ -3054,6 +3058,15 @@ export default {
         },
         activeTab() {
             this.queueRecurringPreview();
+        },
+        counterDrawerOpen(isOpen) {
+            if (!isOpen) return;
+
+            this.$nextTick(() => {
+                if (this.$refs.counterDrawer) {
+                    this.$refs.counterDrawer.scrollTop = 0;
+                }
+            });
         },
     },
     async created() {
@@ -6715,7 +6728,7 @@ input.invalid {
     z-index: 10001;
     isolation: isolate;
     box-sizing: border-box;
-    width: min(480px, calc(100vw - 24px));
+    width: min(600px, calc(100vw - 24px));
     height: 100dvh;
     display: grid;
     align-content: start;
@@ -6724,9 +6737,9 @@ input.invalid {
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-    background: #fff !important;
-    color: #223127;
-    border-left: 1px solid #d9e8d9;
+    background: var(--admin-surface, #fff) !important;
+    color: var(--admin-text, #101c15);
+    border-left: 1px solid var(--admin-border, #cfded1);
     box-shadow: -16px 0 46px rgba(15, 23, 42, 0.16);
     transform: translateX(106%);
     visibility: hidden;
@@ -6765,10 +6778,96 @@ input.invalid {
     place-items: center;
     width: 38px;
     height: 38px;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border, #cfded1);
     border-radius: 8px;
-    background: #fff;
-    color: #334238;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-muted, #2f3d34);
+    cursor: pointer;
+}
+
+.drawer-close-btn:hover {
+    border-color: var(--admin-primary, #22a653);
+    background: var(--admin-primary-soft, #e2f6e8);
+    color: var(--admin-primary-dark, #15733a);
+}
+
+.booking-side .section-title h2 {
+    color: var(--admin-text, #101c15);
+}
+
+.booking-side .side-section {
+    border-color: var(--admin-border-soft, #e3ece4);
+}
+
+.booking-side .side-section > label > span,
+.booking-side .summary-list dt {
+    color: var(--admin-faint, #45564a);
+}
+
+.booking-side .summary-list dd {
+    color: var(--admin-text, #101c15);
+}
+
+.booking-side input {
+    min-height: 42px;
+    border: 1px solid var(--admin-border, #cfded1);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #101c15);
+    font: inherit;
+}
+
+.booking-side input:focus {
+    border-color: var(--admin-primary, #22a653);
+    box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34, 166, 83, 0.22));
+    outline: none;
+}
+
+.booking-side input::placeholder {
+    color: var(--admin-faint, #64748b);
+}
+
+.booking-side .primary-btn,
+.booking-side .secondary-btn {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-radius: 8px;
+    padding: 9px 14px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.booking-side .primary-btn {
+    border: 1px solid var(--admin-primary, #22a653);
+    background: var(--admin-primary, #22a653);
+    color: var(--admin-primary-text, #fff);
+}
+
+.booking-side .primary-btn:hover {
+    border-color: var(--admin-primary-dark, #15733a);
+    background: var(--admin-primary-dark, #15733a);
+}
+
+.booking-side .secondary-btn {
+    border: 1px solid var(--admin-border, #cfded1);
+    background: var(--admin-surface, #fff);
+    color: var(--admin-muted, #2f3d34);
+}
+
+.booking-side .secondary-btn:hover {
+    border-color: var(--admin-primary, #22a653);
+    background: var(--admin-primary-soft, #e2f6e8);
+    color: var(--admin-primary-dark, #15733a);
+}
+
+.booking-side :is(.primary-btn, .secondary-btn):disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 .counter-bottom-bar {
@@ -6934,15 +7033,14 @@ input.invalid {
 }
 
 .summary-list div {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(100px, 0.36fr) minmax(0, 0.64fr);
     align-items: flex-start;
-    justify-content: space-between;
     gap: 14px;
     min-width: 0;
 }
 
 .summary-list dt {
-    flex: 0 0 34%;
     color: #607267;
     font-size: 12px;
     font-weight: 800;
@@ -6950,7 +7048,7 @@ input.invalid {
 
 .summary-list dd {
     min-width: 0;
-    max-width: 66%;
+    max-width: none;
     margin: 0;
     color: #16231a;
     font-weight: 800;
@@ -7080,9 +7178,10 @@ input.invalid {
     align-items: center;
     gap: 10px;
     padding: 11px;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border, #cfded1);
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #101c15);
 }
 
 .payment-card.active {
@@ -7097,7 +7196,7 @@ input.invalid {
 }
 
 .payment-card strong {
-    color: var(--admin-text, #000000);
+    color: var(--admin-text, #101c15);
 }
 
 .payment-card small {
@@ -7156,10 +7255,11 @@ input.invalid {
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border, #cfded1);
     border-radius: 8px;
     padding: 10px 12px;
-    color: #1f2f25;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #101c15);
     font-weight: 720;
 }
 
@@ -7174,9 +7274,9 @@ input.invalid {
     align-items: center;
     gap: 10px;
     width: 100%;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border, #cfded1);
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
     padding: 10px 11px;
     text-align: left;
     cursor: pointer;
@@ -7184,27 +7284,27 @@ input.invalid {
 }
 
 .voucher-list button.active {
-    border-color: #16a34a;
-    background: #ecfdf3;
+    border-color: var(--admin-primary, #22a653);
+    background: var(--admin-primary-soft, #e2f6e8);
 }
 
 .voucher-list strong {
     display: block;
-    color: #14532d;
+    color: var(--admin-primary-dark, #15733a);
     font-size: 13px;
     font-weight: 900;
 }
 
 .voucher-list small,
 .voucher-empty {
-    color: #607267;
+    color: var(--admin-faint, #45564a);
     font-size: 12px;
     font-weight: 700;
 }
 
 .voucher-list em {
     min-width: 0;
-    color: #15803d;
+    color: var(--admin-primary-dark, #15733a);
     font-style: normal;
     font-weight: 900;
     overflow-wrap: anywhere;
@@ -8004,15 +8104,11 @@ input.invalid {
     }
 
     .summary-list div {
+        grid-template-columns: minmax(88px, 0.3fr) minmax(0, 0.7fr);
         gap: 10px;
     }
 
-    .summary-list dt {
-        flex-basis: 31%;
-    }
-
     .summary-list dd {
-        max-width: 69%;
         font-size: 13px;
     }
 
