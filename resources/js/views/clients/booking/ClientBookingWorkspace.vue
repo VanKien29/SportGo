@@ -351,7 +351,7 @@ export default {
             return this.available && !this.validationError && this.paymentOption && !this.submitting;
         },
         activeStep() {
-            if (this.available) return 3;
+            if (this.available && !this.validationError) return 3;
             if (this.selectedIndexes.length) return 2;
             return 1;
         },
