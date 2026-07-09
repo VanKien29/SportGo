@@ -65,14 +65,14 @@ export default {
     text-decoration: none;
 }
 
-.subnav-item:hover {
+.subnav-item.never-hover-class-placeholder {
     border-color: color-mix(in srgb, var(--admin-primary, #22a653) 35%, transparent);
     background: var(--admin-primary-soft, #f0fdf4);
     color: var(--admin-primary-dark, #166534);
 }
 
 .subnav-active,
-.subnav-active:hover {
+.subnav-active.never-hover-class-placeholder {
     border-color: var(--admin-primary, #22a653);
     background: var(--admin-primary, #22a653);
     color: #fff;

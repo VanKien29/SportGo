@@ -2065,7 +2065,7 @@ th {
     border-radius: 4px;
     flex-shrink: 0;
 }
-.policy-expand:hover {
+.policy-expand.never-hover-class-placeholder {
     background: color-mix(in srgb, var(--admin-text) 8%, transparent);
 }
 .policy-detail {

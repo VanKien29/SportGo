@@ -59,7 +59,7 @@ export default {
   transition: background-color 120ms ease-out, transform 80ms ease-out, box-shadow 120ms ease-out;
 }
 
-.scroll-to-top-btn:hover {
+.scroll-to-top-btn.never-hover-class-placeholder {
   transform: translateY(-2px);
   background-color: var(--admin-floating-hover, #111827);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);

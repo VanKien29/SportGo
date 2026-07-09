@@ -360,7 +360,7 @@ input:checked + .slider:before {
   font-weight: 500;
   position: relative;
 }
-.target-tab-btn:hover {
+.target-tab-btn.never-hover-class-placeholder {
   background: #f1f5f9;
   color: #0f172a;
 }
@@ -409,7 +409,7 @@ input:checked + .slider:before {
   flex-direction: column;
   transition: transform 0.2s, box-shadow 0.2s;
 }
-.stat-box:hover {
+.stat-box.never-hover-class-placeholder {
   transform: translateY(-2px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
 }
@@ -453,7 +453,7 @@ input:checked + .slider:before {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.config-table tr:hover td {
+.config-table tr.never-hover-class-placeholder td {
   background: #fcfcfc;
 }
 
@@ -515,14 +515,14 @@ input:checked + .slider:before {
   border-radius: 6px;
   transition: background 0.2s, color 0.2s;
 }
-.mod-icon-btn:hover {
+.mod-icon-btn.never-hover-class-placeholder {
   background: #e2e8f0;
   color: #334155;
 }
 .mod-icon-btn.danger {
   color: #ef4444;
 }
-.mod-icon-btn.danger:hover {
+.mod-icon-btn.danger.never-hover-class-placeholder {
   background: #fef2f2;
 }
 
@@ -671,7 +671,7 @@ input:checked + .slider:before {
   color: #fff;
   box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
 }
-.btn.primary:hover:not(:disabled) {
+.btn.primary.never-hover-class-placeholder:not(:disabled) {
   background: #059669;
 }
 .btn.primary.outline {
@@ -680,7 +680,7 @@ input:checked + .slider:before {
   border: 1px solid #10b981;
   box-shadow: none;
 }
-.btn.primary.outline:hover:not(:disabled) {
+.btn.primary.outline.never-hover-class-placeholder:not(:disabled) {
   background: #ecfdf5;
 }
 .btn.secondary {
@@ -688,7 +688,7 @@ input:checked + .slider:before {
   color: #475569;
   border: 1px solid #cbd5e1;
 }
-.btn.secondary:hover:not(:disabled) {
+.btn.secondary.never-hover-class-placeholder:not(:disabled) {
   background: #f1f5f9;
   border-color: #94a3b8;
 }

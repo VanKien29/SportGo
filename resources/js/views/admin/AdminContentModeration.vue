@@ -973,7 +973,7 @@ export default {
   transition: all 0.2s;
 }
 
-.tab-btn:hover {
+.tab-btn.never-hover-class-placeholder {
   background: #f8fafc;
   color: #0f172a;
 }
@@ -1048,7 +1048,7 @@ export default {
   color: #fff;
 }
 
-.btn.primary:hover {
+.btn.primary.never-hover-class-placeholder {
   background: #1e293b;
 }
 
@@ -1058,7 +1058,7 @@ export default {
   color: var(--sg-text);
 }
 
-.btn.ghost:hover {
+.btn.ghost.never-hover-class-placeholder {
   background: #f8fafc;
 }
 
@@ -1067,7 +1067,7 @@ export default {
   color: #fff;
 }
 
-.btn.danger:hover {
+.btn.danger.never-hover-class-placeholder {
   background: #b91c1c;
 }
 
@@ -1084,7 +1084,7 @@ export default {
   color: #334155;
 }
 
-.icon-btn:hover {
+.icon-btn.never-hover-class-placeholder {
   background: #f1f5f9;
 }
 
@@ -1092,7 +1092,7 @@ export default {
   color: #15803d;
 }
 
-.icon-btn.approve:hover {
+.icon-btn.approve.never-hover-class-placeholder {
   background: #f0fdf4;
 }
 
@@ -1100,7 +1100,7 @@ export default {
   color: #dc2626;
 }
 
-.icon-btn.danger:hover {
+.icon-btn.danger.never-hover-class-placeholder {
   background: #fef2f2;
 }
 
@@ -1471,7 +1471,7 @@ th {
   transition: transform 0.2s;
 }
 
-.media-item img:hover {
+.media-item img.never-hover-class-placeholder {
   transform: scale(1.05);
 }
 

@@ -18,17 +18,10 @@ class UiSettingsController extends Controller
     private function defaultSettings(): array
     {
         return [
-            'active_theme_id' => 'owner-emerald',
+            'active_theme_id' => 'owner-zinc',
             'sidebar_style' => 'one-level',
             'radius' => '8px',
             'presets' => [
-                [
-                    'id' => 'owner-emerald',
-                    'name' => 'Emerald',
-                    'color' => '#22a653',
-                    'light' => ['primary' => '#22a653', 'secondary' => '#2563eb', 'accent' => '#edf7ed', 'muted' => '#2f3d34', 'destructive' => '#dc2626', 'border' => '#cfded1', 'card' => '#ffffff', 'background' => '#eef6f0'],
-                    'dark' => ['primary' => '#2ebc63', 'secondary' => '#3b82f6', 'accent' => '#263d2e', 'muted' => '#a6c0ae', 'destructive' => '#ef4444', 'border' => '#2c4736', 'card' => '#1a291f', 'background' => '#0d1510'],
-                ],
                 [
                     'id' => 'owner-zinc',
                     'name' => 'Zinc',

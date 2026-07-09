@@ -495,7 +495,7 @@ export default {
   cursor: pointer;
   transition: all 0.2s;
 }
-.btn-primary:hover { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
+.btn-primary.never-hover-class-placeholder { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 .btn-primary.btn-full { width: 100%; justify-content: center; border-radius: 10px; }
 .btn-outline {
@@ -509,7 +509,7 @@ export default {
   cursor: pointer;
   transition: all 0.2s;
 }
-.btn-outline:hover { border-color: rgba(255,255,255,0.4); color: #fff; }
+.btn-outline.never-hover-class-placeholder { border-color: rgba(255,255,255,0.4); color: #fff; }
 
 /* ─── Hero ─── */
 .hero {
@@ -574,7 +574,7 @@ export default {
 }
 .thumb-btn img { width: 100%; height: 100%; object-fit: cover; }
 .thumb-btn.active { border-color: #ffffff; }
-.thumb-btn:hover { border-color: rgba(255,255,255,0.4); }
+.thumb-btn.never-hover-class-placeholder { border-color: rgba(255,255,255,0.4); }
 
 /* Hero Info */
 .back-link {
@@ -587,7 +587,7 @@ export default {
   margin-bottom: 16px;
   transition: color 0.2s;
 }
-.back-link:hover { color: #ffffff; }
+.back-link.never-hover-class-placeholder { color: #ffffff; }
 
 .court-type-badges {
   display: flex;

@@ -149,7 +149,7 @@ export default {
   transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
-.theme-toggle-btn:hover {
+.theme-toggle-btn.never-hover-class-placeholder {
   border-color: rgba(47, 158, 68, 0.32);
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
@@ -191,7 +191,7 @@ export default {
   transition: background-color 150ms ease, color 150ms ease;
 }
 
-.theme-dropdown-item:hover {
+.theme-dropdown-item.never-hover-class-placeholder {
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
 }

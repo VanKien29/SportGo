@@ -1153,7 +1153,7 @@ textarea {
 .check-coverage-btn {
     transition: all 0.2s ease-in-out;
 }
-.check-coverage-btn:hover {
+.check-coverage-btn.never-hover-class-placeholder {
     background: var(--admin-primary-soft, #f0fdf4) !important;
     color: var(--admin-primary, #22a653) !important;
     border-color: color-mix(in srgb, var(--admin-primary, #22a653) 35%, transparent) !important;
@@ -1227,7 +1227,7 @@ td small {
     width: 34px;
     height: 34px;
 }
-.icon-btn:hover:not(:disabled) {
+.icon-btn.never-hover-class-placeholder:not(:disabled) {
     background: #eef2f7;
 }
 .icon-btn.danger {

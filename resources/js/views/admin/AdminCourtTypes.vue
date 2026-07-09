@@ -773,7 +773,7 @@ export default {
     color: #fff;
 }
 
-.btn-primary:hover {
+.btn-primary.never-hover-class-placeholder {
     background: #222222;
     border-color: #222222;
 }
@@ -784,7 +784,7 @@ export default {
     color: var(--sg-text);
 }
 
-.btn-outline:hover {
+.btn-outline.never-hover-class-placeholder {
     background: var(--sg-surface);
 }
 
@@ -930,7 +930,7 @@ export default {
     transition: all 0.2s ease;
 }
 
-.custom-select-trigger:hover {
+.custom-select-trigger.never-hover-class-placeholder {
     border-color: var(--admin-primary);
 }
 
@@ -984,7 +984,7 @@ export default {
     transition: background 0.15s ease;
 }
 
-.custom-select-option:hover {
+.custom-select-option.never-hover-class-placeholder {
     background: var(--admin-hover, rgba(0, 0, 0, 0.03)) !important;
 }
 
@@ -1074,7 +1074,7 @@ export default {
     display: inline-block;
 }
 
-.btn-float-add:hover {
+.btn-float-add.never-hover-class-placeholder {
     width: 145px;
     justify-content: flex-start;
     padding-left: 14px;
@@ -1082,14 +1082,14 @@ export default {
     background-color: #059669;
 }
 
-.btn-float-add:hover .btn-float-text {
+.btn-float-add.never-hover-class-placeholder .btn-float-text {
     max-width: 100px;
     opacity: 1;
     margin-left: 6px;
 }
 
 /* Theme overrides */
-.court-types-container .custom-select-option:hover {
+.court-types-container .custom-select-option.never-hover-class-placeholder {
     background: var(--admin-hover, rgba(232, 247, 236, 0.68)) !important;
 }
 
@@ -1098,7 +1098,7 @@ export default {
     color: var(--admin-primary-dark) !important;
 }
 
-.court-types-container .custom-select-trigger:hover,
+.court-types-container .custom-select-trigger.never-hover-class-placeholder,
 .court-types-container .custom-select-trigger:focus-within {
     border-color: var(--admin-primary) !important;
     box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
@@ -1185,7 +1185,7 @@ export default {
         transform: none;
     }
 
-    .court-type-row-item:hover .row-right {
+    .court-type-row-item.never-hover-class-placeholder .row-right {
         transform: none;
     }
 }
@@ -1233,12 +1233,12 @@ export default {
         padding: 0 10px;
     }
 
-    .btn-float-add:hover {
+    .btn-float-add.never-hover-class-placeholder {
         width: 130px;
         padding-left: 12px;
     }
 
-    .btn-float-add:hover .btn-float-text {
+    .btn-float-add.never-hover-class-placeholder .btn-float-text {
         max-width: 80px;
     }
 }

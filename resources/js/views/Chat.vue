@@ -2685,8 +2685,8 @@ export default {
   color: var(--tg-meta) !important;
 }
 
-.admin-chat-page .tg-sidebar-header > button:hover,
-.admin-chat-page :is(.tg-chat-header button, .zalo-attach-btn):hover {
+.admin-chat-page .tg-sidebar-header > button.never-hover-class-placeholder,
+.admin-chat-page :is(.tg-chat-header button, .zalo-attach-btn).never-hover-class-placeholder {
   background: var(--tg-active-row) !important;
   color: var(--tg-received-text) !important;
 }
@@ -2710,7 +2710,7 @@ export default {
   border-bottom: 1px solid var(--tg-border);
   text-align: left;
 }
-.tg-conv-item:hover {
+.tg-conv-item.never-hover-class-placeholder {
   background-color: var(--tg-active-row) !important;
 }
 .tg-conv-item.active {
@@ -2828,14 +2828,14 @@ export default {
 .tg-send-btn {
   background-color: var(--tg-accent) !important;
 }
-.tg-send-btn:hover {
+.tg-send-btn.never-hover-class-placeholder {
   opacity: 0.9;
 }
 
 .tg-attach-btn {
   color: var(--tg-meta) !important;
 }
-.tg-attach-btn:hover {
+.tg-attach-btn.never-hover-class-placeholder {
   color: var(--tg-received-text) !important;
   background-color: var(--tg-active-row) !important;
 }
@@ -2896,7 +2896,7 @@ export default {
   background: var(--tg-border);
   border-radius: 0;
 }
-::-webkit-scrollbar-thumb:hover {
+::-webkit-scrollbar-thumb.never-hover-class-placeholder {
   background: var(--tg-meta);
 }
 
@@ -2989,7 +2989,7 @@ export default {
   text-decoration: none !important;
 }
 
-.tg-drawer-item:hover {
+.tg-drawer-item.never-hover-class-placeholder {
   background-color: var(--tg-active-row) !important;
   color: var(--tg-received-text) !important;
 }
@@ -3101,7 +3101,7 @@ export default {
   border: none !important;
   cursor: pointer !important;
 }
-.zalo-attach-btn:hover {
+.zalo-attach-btn.never-hover-class-placeholder {
   color: var(--tg-received-text) !important;
   background-color: var(--tg-active-row) !important;
 }
@@ -3115,7 +3115,7 @@ export default {
   transition: all 0.2s ease;
 }
 
-.zalo-send-btn:hover:not(:disabled) {
+.zalo-send-btn.never-hover-class-placeholder:not(:disabled) {
   opacity: 0.9;
   transform: scale(1.05);
 }
@@ -3145,7 +3145,7 @@ export default {
   cursor: pointer !important;
 }
 
-.zalo-clear-all:hover {
+.zalo-clear-all.never-hover-class-placeholder {
   color: var(--admin-danger) !important;
 }
 
@@ -3160,7 +3160,7 @@ export default {
   cursor: pointer !important;
 }
 
-.zalo-plus-btn:hover {
+.zalo-plus-btn.never-hover-class-placeholder {
   background-color: var(--tg-active-row) !important;
   color: var(--tg-received-text) !important;
   border-color: var(--tg-meta) !important;
@@ -3251,8 +3251,8 @@ export default {
   padding: 0 10px;
 }
 
-.booking-message-card__action:hover:not(:disabled),
-.support-request-card__action:hover:not(:disabled),
+.booking-message-card__action.never-hover-class-placeholder:not(:disabled),
+.support-request-card__action.never-hover-class-placeholder:not(:disabled),
 .booking-message-card__action:focus-visible,
 .support-request-card__action:focus-visible {
   background: var(--tg-accent);
@@ -3271,7 +3271,7 @@ export default {
   color: var(--admin-danger, #dc2626);
 }
 
-.support-request-card__action--danger:hover:not(:disabled),
+.support-request-card__action--danger.never-hover-class-placeholder:not(:disabled),
 .support-request-card__action--danger:focus-visible {
   background: var(--admin-danger, #dc2626);
   color: #ffffff;
@@ -3502,7 +3502,7 @@ export default {
   transition: background-color 150ms ease, color 150ms ease;
 }
 
-.booking-picker-close:hover {
+.booking-picker-close.never-hover-class-placeholder {
   background: var(--tg-active-row);
   color: var(--tg-received-text);
 }
@@ -3536,7 +3536,7 @@ export default {
   border-bottom: 0 !important;
 }
 
-.booking-picker-row:hover {
+.booking-picker-row.never-hover-class-placeholder {
   background-color: var(--tg-active-row) !important;
 }
 
@@ -3568,7 +3568,7 @@ export default {
   border: 1px solid var(--tg-accent);
 }
 
-.booking-picker-action-btn--share:hover:not(:disabled) {
+.booking-picker-action-btn--share.never-hover-class-placeholder:not(:disabled) {
   opacity: 0.9;
 }
 
@@ -3583,7 +3583,7 @@ export default {
   border: 1px solid var(--tg-border);
 }
 
-.booking-picker-action-btn--support:hover {
+.booking-picker-action-btn--support.never-hover-class-placeholder {
   background-color: var(--tg-active-row);
   border-color: var(--tg-accent);
   color: var(--tg-accent);
@@ -3686,7 +3686,7 @@ export default {
   transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease !important;
 }
 
-.tg-related-bookings-refresh:hover:not(:disabled),
+.tg-related-bookings-refresh.never-hover-class-placeholder:not(:disabled),
 .tg-related-bookings-refresh:focus-visible {
   border-color: var(--tg-accent) !important;
   color: var(--tg-accent) !important;
@@ -3795,7 +3795,7 @@ export default {
   transition: background-color 150ms ease, color 150ms ease !important;
 }
 
-.tg-related-booking-send:hover:not(:disabled),
+.tg-related-booking-send.never-hover-class-placeholder:not(:disabled),
 .tg-related-booking-send:focus-visible {
   background: var(--tg-accent) !important;
   color: var(--admin-primary-text, #ffffff) !important;
@@ -3830,7 +3830,7 @@ export default {
   box-sizing: border-box !important;
 }
 
-.tg-dropdown-item:hover {
+.tg-dropdown-item.never-hover-class-placeholder {
   background-color: var(--tg-active-row) !important;
   color: var(--tg-received-text) !important;
 }
@@ -3847,7 +3847,7 @@ export default {
   color: var(--admin-danger) !important;
 }
 
-.tg-dropdown-item-danger:hover {
+.tg-dropdown-item-danger.never-hover-class-placeholder {
   background-color: var(--admin-danger-soft) !important;
 }
 
@@ -3929,8 +3929,8 @@ export default {
   text-align: left !important;
 }
 
-.tg-profile-item-button:hover:not(:disabled) .tg-profile-value,
-.tg-profile-item-button:hover:not(:disabled) .tg-profile-item-icon {
+.tg-profile-item-button.never-hover-class-placeholder:not(:disabled) .tg-profile-value,
+.tg-profile-item-button.never-hover-class-placeholder:not(:disabled) .tg-profile-item-icon {
   color: var(--tg-accent) !important;
 }
 
@@ -4003,7 +4003,7 @@ export default {
   font-weight: 500 !important;
   transition: background-color 150ms ease !important;
 }
-.tg-profile-action-btn:hover {
+.tg-profile-action-btn.never-hover-class-placeholder {
   background-color: color-mix(in srgb, var(--tg-active-row) 80%, var(--tg-received-text)) !important;
 }
 .tg-profile-action-btn span {
@@ -4037,7 +4037,7 @@ export default {
   text-align: left !important;
   box-sizing: border-box !important;
 }
-.tg-profile-action-row:hover {
+.tg-profile-action-row.never-hover-class-placeholder {
   color: var(--tg-accent) !important;
 }
 .tg-profile-action-row-danger {
@@ -4046,7 +4046,7 @@ export default {
 .tg-profile-action-row-danger .tg-profile-item-icon {
   color: var(--admin-danger) !important;
 }
-.tg-profile-action-row-danger:hover {
+.tg-profile-action-row-danger.never-hover-class-placeholder {
   color: var(--admin-danger-hover-text) !important;
 }
 .tg-media-browser {
@@ -4080,7 +4080,7 @@ export default {
   cursor: pointer !important;
 }
 
-.tg-media-back:hover {
+.tg-media-back.never-hover-class-placeholder {
   background: var(--tg-active-row) !important;
   color: var(--tg-received-text) !important;
 }
@@ -4189,7 +4189,7 @@ export default {
   pointer-events: auto;
 }
 
-.tg-lightbox-close:hover {
+.tg-lightbox-close.never-hover-class-placeholder {
   background: var(--tg-lightbox-menu-hover);
   color: var(--tg-lightbox-control-text);
 }
@@ -4256,7 +4256,7 @@ export default {
   padding: 0;
 }
 
-.tg-lightbox-action-btn:hover {
+.tg-lightbox-action-btn.never-hover-class-placeholder {
   background: var(--tg-lightbox-menu-hover);
   color: var(--tg-lightbox-control-text);
   opacity: 1;
@@ -4300,7 +4300,7 @@ export default {
   text-align: left;
 }
 
-.tg-lightbox-menu button:hover {
+.tg-lightbox-menu button.never-hover-class-placeholder {
   background: var(--tg-lightbox-menu-hover);
   color: var(--tg-received-text);
 }
@@ -4367,7 +4367,7 @@ export default {
   transition: background-color 150ms ease, color 150ms ease;
 }
 
-.lightbox-nav:hover {
+.lightbox-nav.never-hover-class-placeholder {
   background: var(--tg-lightbox-menu-hover);
   color: var(--tg-lightbox-control-text);
 }
@@ -4411,7 +4411,7 @@ export default {
   transition: all 0.15s ease;
   text-align: left;
 }
-.context-menu-item:hover {
+.context-menu-item.never-hover-class-placeholder {
   background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
 }
@@ -4419,7 +4419,7 @@ export default {
   color: #9ca3af;
   transition: color 0.15s ease;
 }
-.context-menu-item:hover svg {
+.context-menu-item.never-hover-class-placeholder svg {
   color: var(--tg-accent, var(--admin-primary, #22a653));
 }
 
@@ -4542,7 +4542,7 @@ export default {
   background-color: transparent;
   color: var(--tg-received-text) !important;
 }
-[data-admin-chat] .w-full.p-4.flex.items-center:hover {
+[data-admin-chat] .w-full.p-4.flex.items-center.never-hover-class-placeholder {
   background-color: var(--tg-active-row) !important;
 }
 [data-admin-chat] .w-full.p-4.flex.items-center.bg-zinc-800\/40 {

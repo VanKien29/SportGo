@@ -143,6 +143,12 @@ export const ownerNavigationSections = [
         to: '/owner/staff',
         activeNames: ['owner-staff'],
       },
+      {
+        label: 'Ca trực & Chấm công',
+        icon: 'calendar',
+        to: '/owner/staff-shifts',
+        activeNames: ['owner-staff-shifts'],
+      },
     ],
   },
 ];
@@ -165,6 +171,7 @@ export const ownerRouteTitles = {
   'owner-finance': 'Ví tài chính',
   'owner-refunds': 'Yêu cầu hoàn/hủy',
   'owner-staff': 'Nhân viên sân',
+  'owner-staff-shifts': 'Ca trực & Chấm công',
   'owner-vouchers': 'Voucher của sân',
   'owner-complaints': 'Quản lý khiếu nại',
   'owner-complaint-detail': 'Chi tiết khiếu nại',

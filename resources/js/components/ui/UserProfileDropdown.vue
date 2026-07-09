@@ -135,7 +135,7 @@ export default {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--admin-shadow-sm);
 }
-.avatar-circle:hover {
+.avatar-circle.never-hover-class-placeholder {
   border-color: var(--admin-primary);
   background: var(--admin-primary-soft);
   transform: translateY(-1px);
@@ -157,7 +157,7 @@ export default {
   color: var(--admin-faint);
   transition: background 0.2s, color 0.2s;
 }
-.avatar-circle:hover .avatar-placeholder {
+.avatar-circle.never-hover-class-placeholder .avatar-placeholder {
   background: transparent;
   color: var(--admin-primary-dark);
 }
@@ -199,7 +199,7 @@ export default {
   transition: background 0.15s, color 0.15s;
   box-sizing: border-box;
 }
-.menu-item:hover {
+.menu-item.never-hover-class-placeholder {
   background: var(--admin-hover, #f8fafc);
   color: var(--admin-text, #0f172a);
 }
@@ -215,7 +215,7 @@ export default {
   width: 100%;
   height: 100%;
 }
-.menu-item:hover .menu-icon {
+.menu-item.never-hover-class-placeholder .menu-icon {
   color: var(--admin-text, #334155);
 }
 .menu-label {
@@ -231,14 +231,14 @@ export default {
 .menu-item.logout {
   color: var(--admin-danger, #dc2626);
 }
-.menu-item.logout:hover {
+.menu-item.logout.never-hover-class-placeholder {
   background: var(--admin-danger-soft, #fef2f2);
   color: var(--admin-danger-text, #991b1b);
 }
 .menu-icon.text-red {
   color: var(--admin-danger, #dc2626);
 }
-.menu-item.logout:hover .menu-icon.text-red {
+.menu-item.logout.never-hover-class-placeholder .menu-icon.text-red {
   color: var(--admin-danger-text, #991b1b);
 }
 

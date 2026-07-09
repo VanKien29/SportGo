@@ -285,7 +285,7 @@ export default {
     border-bottom: none;
 }
 
-.cluster-row-item:hover {
+.cluster-row-item.never-hover-class-placeholder {
     background: var(--admin-hover, rgba(15, 23, 42, 0.015));
 }
 
@@ -300,7 +300,7 @@ export default {
     transition: opacity 0.15s ease;
 }
 
-.cluster-row-item:hover .accent-line {
+.cluster-row-item.never-hover-class-placeholder .accent-line {
     opacity: 1;
 }
 
@@ -465,7 +465,7 @@ export default {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.cluster-row-item:hover .row-right {
+.cluster-row-item.never-hover-class-placeholder .row-right {
     opacity: 1;
     transform: translateX(0);
 }
@@ -485,7 +485,7 @@ export default {
     border-color: var(--admin-border, var(--sg-border));
     color: var(--admin-text, var(--sg-text));
 }
-.btn-outline:hover {
+.btn-outline.never-hover-class-placeholder {
     background: var(--admin-hover, #f1f5f9);
 }
 

@@ -72,7 +72,7 @@ export default {
   transition: all 0.2s;
 }
 
-.btn-refresh:hover {
+.btn-refresh.never-hover-class-placeholder {
   background: var(--admin-hover, #f4f4f5);
   color: var(--admin-primary, #18181b);
   border-color: var(--admin-primary, #18181b);

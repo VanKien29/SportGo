@@ -175,7 +175,7 @@ export default {
   min-height: 28px;
 }
 
-.dropdown-trigger:hover {
+.dropdown-trigger.never-hover-class-placeholder {
   background: var(--admin-hover, rgba(0, 0, 0, 0.08));
   border-color: var(--admin-primary, #3b82f6);
 }
@@ -226,7 +226,7 @@ export default {
 [data-theme="dark"] .dropdown-trigger {
   background: rgba(255, 255, 255, 0.05);
 }
-[data-theme="dark"] .dropdown-trigger:hover {
+[data-theme="dark"] .dropdown-trigger.never-hover-class-placeholder {
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -248,7 +248,7 @@ export default {
   outline: none;
 }
 
-.dropdown-item:hover {
+.dropdown-item.never-hover-class-placeholder {
   background: var(--admin-bg-soft, rgba(0, 0, 0, 0.04));
 }
 

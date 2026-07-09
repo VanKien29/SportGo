@@ -170,7 +170,7 @@ export default {
   transform-origin: center center;
 }
 
-.has-hover:hover {
+.has-hover.never-hover-class-placeholder {
   cursor: pointer;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }

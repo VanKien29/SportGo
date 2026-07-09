@@ -117,7 +117,7 @@ export default {
   transition: background-color 120ms ease-out, transform 80ms ease-out, box-shadow 120ms ease-out;
 }
 
-.btn-floating:hover,
+.btn-floating.never-hover-class-placeholder,
 .btn-floating.is-open {
   transform: translateY(-2px);
   background-color: var(--admin-floating-hover, #111827);
@@ -165,7 +165,7 @@ export default {
   transition: background-color 120ms ease-out;
 }
 
-.floating-dropdown button:hover {
+.floating-dropdown button.never-hover-class-placeholder {
   background: var(--admin-floating-hover, rgba(255, 255, 255, 0.08));
 }
 

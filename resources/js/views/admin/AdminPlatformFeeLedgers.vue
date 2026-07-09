@@ -941,7 +941,7 @@ textarea {
 .run-reminder-btn {
     transition: all 0.2s ease-in-out;
 }
-.run-reminder-btn:hover {
+.run-reminder-btn.never-hover-class-placeholder {
     background: var(--admin-primary-soft, #f0fdf4) !important;
     color: var(--admin-primary, #22a653) !important;
     border-color: color-mix(in srgb, var(--admin-primary, #22a653) 35%, transparent) !important;
@@ -1128,7 +1128,7 @@ th:nth-child(8) { width: 62px; }
     width: 34px;
     height: 34px;
 }
-.icon-btn:hover:not(:disabled) {
+.icon-btn.never-hover-class-placeholder:not(:disabled) {
     background: #eef2f7;
 }
 .icon-btn.success {
@@ -1180,7 +1180,7 @@ th:nth-child(8) { width: 62px; }
     text-align: left;
     cursor: pointer;
 }
-.ledger-action-menu button:hover:not(:disabled) {
+.ledger-action-menu button.never-hover-class-placeholder:not(:disabled) {
     background: #f1f5f9;
 }
 .ledger-action-menu button.danger {

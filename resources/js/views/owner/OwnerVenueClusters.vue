@@ -6158,7 +6158,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
 
-.cluster-item:hover {
+.cluster-item.never-hover-class-placeholder {
     background: var(--admin-hover, #f3f7f3);
     border-color: var(--admin-border, #d8e4dc);
 }
@@ -6382,7 +6382,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.quick-stat:hover {
+.quick-stat.never-hover-class-placeholder {
     border-color: var(--admin-primary, #16351f);
     transform: translateY(-1px);
 }
@@ -6455,7 +6455,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
 
-.tab-btn:hover {
+.tab-btn.never-hover-class-placeholder {
     background: var(--admin-hover, #f3f7f3);
     color: var(--admin-text, #0f172a);
 }
@@ -6697,7 +6697,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     transition: background-color 0.2s;
     color: #64748b;
 }
-.btn-edit-amenity-desc:hover {
+.btn-edit-amenity-desc.never-hover-class-placeholder {
     background-color: rgba(15, 23, 42, 0.08);
     color: var(--admin-primary, #000000);
 }
@@ -6777,7 +6777,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     font-weight: 500;
     z-index: 10;
 }
-.btn-delete-img:hover {
+.btn-delete-img.never-hover-class-placeholder {
     background: rgb(220, 38, 38);
 }
 .owner-gallery-empty {
@@ -6795,7 +6795,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     border-radius: 8px;
     background: var(--admin-surface, var(--admin-surface, #ffffff));
 }
-.owner-upload-zone:hover {
+.owner-upload-zone.never-hover-class-placeholder {
     border-color: var(--admin-primary, #000);
     background-color: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
 }
@@ -6875,7 +6875,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .court-card:last-child {
     border-bottom: none;
 }
-.court-card:hover {
+.court-card.never-hover-class-placeholder {
     transform: none;
     background-color: var(--admin-hover, #edf7ed);
     box-shadow: none;
@@ -6893,7 +6893,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     box-shadow: none;
     transition: background-color 0.2s;
 }
-.court-card:hover {
+.court-card.never-hover-class-placeholder {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
 }
@@ -7034,7 +7034,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: #64748b;
     transition: all 0.15s;
 }
-.tool-btn:hover {
+.tool-btn.never-hover-class-placeholder {
     background: var(--admin-border, #cbd5e1);
     color: #1e293b;
 }
@@ -7126,7 +7126,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     font-weight: 500;
     transition: all 0.15s;
 }
-.btn-zoom:hover {
+.btn-zoom.never-hover-class-placeholder {
     background: var(--admin-surface-muted, #f8fafc);
     border: 1px solid var(--admin-border, #d8e4dc);
     border-radius: 8px;
@@ -7188,7 +7188,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     box-sizing: border-box;
     transition: box-shadow 0.1s;
 }
-.canvas-court-element:hover {
+.canvas-court-element.never-hover-class-placeholder {
     cursor: pointer;
 }
 .canvas-court-element:active {
@@ -7345,7 +7345,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     cursor: pointer;
     transition: all 0.15s;
 }
-.unplaced-court-item:hover {
+.unplaced-court-item.never-hover-class-placeholder {
     background: var(--admin-surface);
     border-color: #000;
 }
@@ -7406,7 +7406,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: rgba(15, 23, 42, 0.6);
     transition: all 0.15s;
 }
-.tab-sm:hover {
+.tab-sm.never-hover-class-placeholder {
     background: var(--admin-surface);
 }
 .tab-sm.active {
@@ -7431,7 +7431,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     transition: box-shadow 0.15s;
     border-left-width: 3px;
 }
-.approval-card:hover {
+.approval-card.never-hover-class-placeholder {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 .approval-pending {
@@ -7525,7 +7525,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: var(--admin-surface, #ffffff);
     transition: border-color 0.2s;
 }
-.custom-select-trigger:hover,
+.custom-select-trigger.never-hover-class-placeholder,
 .custom-select-trigger.active {
     border-color: #000;
 }
@@ -7580,7 +7580,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     cursor: pointer;
     transition: background 0.1s;
 }
-.custom-option:hover {
+.custom-option.never-hover-class-placeholder {
     background: var(--admin-surface);
 }
 .custom-option.selected {
@@ -7682,7 +7682,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     border-color: #000;
     color: var(--admin-surface, #ffffff);
 }
-.btn-primary:hover {
+.btn-primary.never-hover-class-placeholder {
     background: #222;
     border-color: #222;
 }
@@ -7695,7 +7695,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: transparent;
     color: var(--admin-text);
 }
-.btn-outline:hover {
+.btn-outline.never-hover-class-placeholder {
     background: var(--admin-surface);
 }
 .btn-outline:disabled {
@@ -7707,7 +7707,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: transparent;
     color: rgba(0, 0, 0, 0.7);
 }
-.btn-danger-outline:hover {
+.btn-danger-outline.never-hover-class-placeholder {
     background: rgba(0, 0, 0, 0.05);
 }
 
@@ -7914,7 +7914,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     transition: box-shadow 0.1s;
     z-index: 20;
 }
-.canvas-decor-element:hover {
+.canvas-decor-element.never-hover-class-placeholder {
     cursor: pointer;
 }
 .canvas-decor-element.dragging {
@@ -7948,7 +7948,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     justify-content: center;
     gap: 4px;
 }
-.btn-add-decor:hover {
+.btn-add-decor.never-hover-class-placeholder {
     background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     border-color: #cbd5e1;
     color: #1e293b;
@@ -7997,7 +7997,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     transition: background-color 0.15s, color 0.15s;
     text-align: left;
 }
-.searchable-select-option:hover {
+.searchable-select-option.never-hover-class-placeholder {
     background-color: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     color: #0f172a;
 }
@@ -8028,7 +8028,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     align-items: center;
     justify-content: center;
 }
-.evidence-dropzone:hover {
+.evidence-dropzone.never-hover-class-placeholder {
     border-color: #3b82f6;
     background: #eff6ff;
 }
@@ -8052,7 +8052,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     border: 2px solid var(--admin-border, #cbd5e1);
     transition: border-color 0.2s;
 }
-.evidence-preview-wrapper:hover {
+.evidence-preview-wrapper.never-hover-class-placeholder {
     border-color: #3b82f6;
 }
 .evidence-preview-img {
@@ -8081,7 +8081,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     transition: all 0.2s;
     backdrop-filter: blur(4px);
 }
-.btn-remove-evidence:hover {
+.btn-remove-evidence.never-hover-class-placeholder {
     background: #dc2626;
     transform: scale(1.15);
 }
@@ -8103,7 +8103,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
 }
-.approval-evidence-link:hover {
+.approval-evidence-link.never-hover-class-placeholder {
     transform: scale(1.03);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
@@ -8305,7 +8305,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     cursor: pointer;
 }
 
-.btn-icon-danger:hover {
+.btn-icon-danger.never-hover-class-placeholder {
     background: #fef2f2;
 }
 
@@ -8496,7 +8496,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .affiliate-table tr.product-row {
     transition: background-color 0.2s;
 }
-.affiliate-table tr.product-row:hover {
+.affiliate-table tr.product-row.never-hover-class-placeholder {
     background-color: var(--admin-surface-muted, #f8fafc);
 }
 .affiliate-table th.col-img { width: 80px; }
@@ -8633,7 +8633,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     cursor: pointer;
     transition: all 0.2s;
 }
-.btn-action-icon:hover {
+.btn-action-icon.never-hover-class-placeholder {
     background-color: var(--admin-surface);
 }
 .btn-action-icon.edit {
@@ -8643,7 +8643,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     border-color: #fecaca;
     color: #dc2626;
 }
-.btn-action-icon.delete:hover {
+.btn-action-icon.delete.never-hover-class-placeholder {
     background-color: #fee2e2;
 }
 
@@ -8866,7 +8866,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     border-radius: 4px;
     transition: all 0.2s;
 }
-.btn-edit-amenity-desc-readonly:hover {
+.btn-edit-amenity-desc-readonly.never-hover-class-placeholder {
     color: #0f172a;
     background: rgba(0, 0, 0, 0.05);
 }
@@ -8891,7 +8891,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     transition: all 0.2s ease-in-out;
     user-select: none;
 }
-.amenity-select-tag:hover {
+.amenity-select-tag.never-hover-class-placeholder {
     background: var(--admin-hover, var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc)));
     border-color: var(--admin-faint, #94a3b8);
     color: var(--admin-text, #334155);
@@ -8903,7 +8903,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: var(--admin-bg, var(--admin-surface, #ffffff));
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
-.amenity-select-tag.active:hover {
+.amenity-select-tag.active.never-hover-class-placeholder {
     background: var(--admin-primary-light, #1f1f22);
     border-color: var(--admin-primary-light, #1f1f22);
     color: var(--admin-bg, var(--admin-surface, #ffffff));
@@ -8930,7 +8930,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .amenity-select-tag.active .btn-edit-amenity-desc {
     color: var(--admin-bg, var(--admin-surface, #ffffff));
 }
-.btn-edit-amenity-desc:hover {
+.btn-edit-amenity-desc.never-hover-class-placeholder {
     color: var(--admin-bg, var(--admin-surface, #ffffff));
     background: rgba(128, 128, 128, 0.25);
 }
@@ -9250,7 +9250,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: var(--admin-surface-muted, #f8fafc);
 }
 
-.quick-stat.surface-card:hover {
+.quick-stat.surface-card.never-hover-class-placeholder {
     background: var(--admin-hover, #f3f7f3);
     transform: none;
 }
@@ -9265,7 +9265,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: transparent;
 }
 
-.detail-tabs .tab-btn:hover {
+.detail-tabs .tab-btn.never-hover-class-placeholder {
     background: var(--admin-surface-muted, #f8fafc);
 }
 
@@ -9288,7 +9288,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: transparent;
 }
 
-.court-card.card:hover {
+.court-card.card.never-hover-class-placeholder {
     background: var(--admin-surface-muted, #f8fafc);
     box-shadow: none;
     transform: none;
@@ -9302,7 +9302,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     box-shadow: none;
 }
 
-.approval-card:hover {
+.approval-card.never-hover-class-placeholder {
     box-shadow: none;
 }
 
@@ -9395,7 +9395,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 }
 /* Disable hover effects for owner cluster tabs */
 .cluster-detail .detail-tabs .tab-btn,
-.cluster-detail .detail-tabs .tab-btn:hover,
+.cluster-detail .detail-tabs .tab-btn.never-hover-class-placeholder,
 .cluster-detail .detail-tabs .tab-btn:active {
     transition: none !important;
     transform: none !important;
@@ -9403,7 +9403,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 }
 
 .cluster-detail .detail-tabs .tab-btn:not(.active),
-.cluster-detail .detail-tabs .tab-btn:not(.active):hover,
+.cluster-detail .detail-tabs .tab-btn:not(.active).never-hover-class-placeholder,
 .cluster-detail .detail-tabs .tab-btn:not(.active):active,
 .cluster-detail .detail-tabs .tab-btn:not(.active):focus {
     background: var(--admin-surface-muted, #f8fafc) !important;
@@ -9413,7 +9413,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 }
 
 .cluster-detail .detail-tabs .tab-btn.active,
-.cluster-detail .detail-tabs .tab-btn.active:hover,
+.cluster-detail .detail-tabs .tab-btn.active.never-hover-class-placeholder,
 .cluster-detail .detail-tabs .tab-btn.active:active,
 .cluster-detail .detail-tabs .tab-btn.active:focus {
     background: var(--admin-primary, #16351f) !important;

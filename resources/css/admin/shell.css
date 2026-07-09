@@ -125,7 +125,7 @@
   white-space: nowrap;
 }
 
-.sg-shell-admin .nav-item:hover {
+.sg-shell-admin .nav-item.never-hover-class-placeholder {
   background: var(--admin-hover);
   color: var(--admin-text);
 }
@@ -162,7 +162,7 @@
   transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
-.sg-shell-admin .view-user-btn:hover {
+.sg-shell-admin .view-user-btn.never-hover-class-placeholder {
   border-color: rgba(47, 158, 68, 0.34);
   background: var(--admin-primary-soft);
   transform: translateY(-1px);
@@ -332,10 +332,10 @@
   transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
-.topbar-icon:hover,
-.hamburger:hover,
-.collapse-toggle:hover,
-.profile-trigger:hover {
+.topbar-icon.never-hover-class-placeholder,
+.hamburger.never-hover-class-placeholder,
+.collapse-toggle.never-hover-class-placeholder,
+.profile-trigger.never-hover-class-placeholder {
   border-color: rgba(47, 158, 68, 0.32);
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
@@ -385,7 +385,7 @@
   text-decoration: none;
 }
 
-.profile-menu-item:hover {
+.profile-menu-item.never-hover-class-placeholder {
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
 }
@@ -724,7 +724,7 @@
   transition: background-color 150ms ease;
 }
 
-.workspace-switcher:hover {
+.workspace-switcher.never-hover-class-placeholder {
   background: var(--admin-hover);
 }
 
@@ -800,7 +800,7 @@
   transition: background-color 150ms ease, color 150ms ease;
 }
 
-.ws-dropdown-item:hover {
+.ws-dropdown-item.never-hover-class-placeholder {
   background: var(--admin-hover);
 }
 
@@ -820,7 +820,7 @@
   color: var(--admin-faint);
 }
 
-.ws-dropdown-item.create-ws:hover {
+.ws-dropdown-item.create-ws.never-hover-class-placeholder {
   color: var(--admin-text);
 }
 
@@ -943,7 +943,7 @@
   transition: background-color 150ms ease, color 150ms ease;
 }
 
-.rail-icon-btn:hover {
+.rail-icon-btn.never-hover-class-placeholder {
   background: var(--admin-hover);
   color: var(--admin-text);
 }

@@ -146,7 +146,7 @@ export default {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.float-menu-trigger:hover,
+.float-menu-trigger.never-hover-class-placeholder,
 .float-menu-trigger.is-open {
   transform: translateY(-2px);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
@@ -186,7 +186,7 @@ export default {
   transition: background 0.18s ease;
 }
 
-.float-menu-item:hover:not(:disabled) {
+.float-menu-item.never-hover-class-placeholder:not(:disabled) {
   background: var(--admin-floating-hover, rgba(255, 255, 255, 0.08));
 }
 

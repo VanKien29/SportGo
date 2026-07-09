@@ -196,8 +196,8 @@
   padding: 12px;
 }
 
-.work-row:hover,
-.quick-link:hover {
+.work-row.never-hover-class-placeholder,
+.quick-link.never-hover-class-placeholder {
   border-color: rgba(22, 163, 74, 0.35);
   background: var(--admin-primary-soft);
 }

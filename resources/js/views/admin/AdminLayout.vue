@@ -49,7 +49,7 @@ export default {
       try {
         const data = await adminUiSettingsService.getSettings();
         if (data) {
-          const activeThemeId = data.active_theme_id || 'emerald';
+          const activeThemeId = data.active_theme_id || 'zinc';
           const presets = data.presets || [];
           const customThemes = data.custom_themes || [];
           const allPresets = [...presets, ...customThemes];

@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
 use App\Http\Controllers\Api\Owner\PlatformFeeController as OwnerPlatformFeeController;
 use App\Http\Controllers\Api\Owner\ScheduleLockController as OwnerScheduleLockController;
 use App\Http\Controllers\Api\Owner\StaffController as OwnerStaffController;
+use App\Http\Controllers\Api\Owner\StaffShiftController;
 use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyController;
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
@@ -347,6 +348,20 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/staff', [OwnerStaffController::class, 'store']);
         Route::put('/staff/{id}', [OwnerStaffController::class, 'update']);
         Route::patch('/staff/{id}/deactivate', [OwnerStaffController::class, 'deactivate']);
+
+        // Staff Shifts & Schedules
+        Route::get('/staff-shifts', [StaffShiftController::class, 'listShifts']);
+        Route::post('/staff-shifts', [StaffShiftController::class, 'storeShift']);
+        Route::put('/staff-shifts/{id}', [StaffShiftController::class, 'updateShift']);
+        Route::delete('/staff-shifts/{id}', [StaffShiftController::class, 'destroyShift']);
+        Route::get('/staff-shifts/schedules', [StaffShiftController::class, 'listSchedules']);
+        Route::post('/staff-shifts/schedules', [StaffShiftController::class, 'storeSchedules']);
+        Route::put('/staff-shifts/schedules/{id}', [StaffShiftController::class, 'updateSchedule']);
+        Route::delete('/staff-shifts/schedules/{id}', [StaffShiftController::class, 'destroySchedule']);
+        Route::get('/staff-shifts/attendance-report', [StaffShiftController::class, 'attendanceReport']);
+        Route::get('/staff-shifts/my-schedules', [StaffShiftController::class, 'mySchedules']);
+        Route::post('/staff-shifts/schedules/{id}/check-in', [StaffShiftController::class, 'checkIn']);
+        Route::post('/staff-shifts/schedules/{id}/check-out', [StaffShiftController::class, 'checkOut']);
         Route::get('/vouchers', [OwnerVoucherController::class, 'index']);
         Route::get('/vouchers/{id}', [OwnerVoucherController::class, 'show']);
         Route::post('/vouchers', [OwnerVoucherController::class, 'store']);

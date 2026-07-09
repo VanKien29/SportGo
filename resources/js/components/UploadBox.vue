@@ -204,7 +204,7 @@ const savedFileSize = (file) => {
   cursor: pointer;
 }
 
-.upload-box__button:hover {
+.upload-box__button.never-hover-class-placeholder {
   border-color: #10b981;
   color: #047857;
 }
@@ -287,8 +287,8 @@ const savedFileSize = (file) => {
   cursor: pointer;
 }
 
-.upload-box__saved a:hover,
-.upload-box__saved button:hover {
+.upload-box__saved a.never-hover-class-placeholder,
+.upload-box__saved button.never-hover-class-placeholder {
   text-decoration: underline;
 }
 

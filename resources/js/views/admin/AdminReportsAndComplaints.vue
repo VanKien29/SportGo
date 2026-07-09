@@ -79,7 +79,7 @@ export default {
   transition: all 0.2s;
 }
 
-.tab-btn:hover {
+.tab-btn.never-hover-class-placeholder {
   background: #f8fafc;
   color: #334155;
   border-color: #cbd5e1;

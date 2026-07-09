@@ -244,7 +244,7 @@
   vertical-align: middle !important;
 }
 
-.sg-shell-admin .content-area :is(tbody tr:hover, .data-table tbody tr:hover, .simple-table tbody tr:hover, .avc-table tbody tr:hover) {
+.sg-shell-admin .content-area :is(tbody tr.never-hover-class-placeholder, .data-table tbody tr.never-hover-class-placeholder, .simple-table tbody tr.never-hover-class-placeholder, .avc-table tbody tr.never-hover-class-placeholder) {
   background: var(--admin-hover) !important;
 }
 
@@ -409,7 +409,7 @@
   content: none !important;
 }
 
-.sg-shell-admin .content-area :is(.btn:hover, .mini-btn:hover, .icon-btn:hover, .icon-action:hover, .icon-close:hover, .btn-action:hover, .btn-action-icon:hover, .btn-switch:hover, .tab-btn:hover, .tabs button:hover, .sort-btn:hover, .btn-back:hover, .primary-btn:hover, .secondary-btn:hover, .primary-link:hover, .ghost-btn:hover, .export-btn:hover, .icon-only:hover, .icon-command:hover, .pay-command:hover) {
+.sg-shell-admin .content-area :is(.btn.never-hover-class-placeholder, .mini-btn.never-hover-class-placeholder, .icon-btn.never-hover-class-placeholder, .icon-action.never-hover-class-placeholder, .icon-close.never-hover-class-placeholder, .btn-action.never-hover-class-placeholder, .btn-action-icon.never-hover-class-placeholder, .btn-switch.never-hover-class-placeholder, .tab-btn.never-hover-class-placeholder, .tabs button.never-hover-class-placeholder, .sort-btn.never-hover-class-placeholder, .btn-back.never-hover-class-placeholder, .primary-btn.never-hover-class-placeholder, .secondary-btn.never-hover-class-placeholder, .primary-link.never-hover-class-placeholder, .ghost-btn.never-hover-class-placeholder, .export-btn.never-hover-class-placeholder, .icon-only.never-hover-class-placeholder, .icon-command.never-hover-class-placeholder, .pay-command.never-hover-class-placeholder) {
   transform: translateY(-1px) !important;
 }
 
@@ -431,7 +431,7 @@
   box-shadow: none !important;
 }
 
-.sg-shell-admin .content-area :is(.primary:hover, .btn.primary:hover, .btn-primary:hover, .btn-success:hover, .primary-btn:not(.danger):hover, .primary-link:hover, .pay-command:hover, button.primary:hover, a.primary:hover) {
+.sg-shell-admin .content-area :is(.primary.never-hover-class-placeholder, .btn.primary.never-hover-class-placeholder, .btn-primary.never-hover-class-placeholder, .btn-success.never-hover-class-placeholder, .primary-btn:not(.danger).never-hover-class-placeholder, .primary-link.never-hover-class-placeholder, .pay-command.never-hover-class-placeholder, button.primary.never-hover-class-placeholder, a.primary.never-hover-class-placeholder) {
   border-color: var(--admin-primary-dark) !important;
   background: var(--admin-primary-dark) !important;
   color: var(--admin-primary-text, #ffffff) !important;
@@ -449,8 +449,7 @@
   color: var(--admin-text) !important;
 }
 
-.sg-shell-admin .content-area :is(.secondary:hover, .btn.secondary:hover, .btn-outline:hover, .secondary-btn:hover, .ghost:hover, .ghost-btn:hover, .mini-btn:hover, .icon-btn:hover, .icon-action:hover, .icon-close:hover, .icon-only:hover, .icon-command:hover, .export-btn:hover, .btn-back:hover, .tab-btn:hover, .tabs button:hover, .sort-btn:hover, .btn-action:hover, .btn-action-icon:hover, .btn-map-link:hover, .btn-edit-link:hover) {
-  border-color: rgba(47, 158, 68, 0.32) !important;
+.sg-shell-admin .content-area :is(.secondary.never-hover-class-placeholder, .btn.secondary.never-hover-class-placeholder, .btn-outline.never-hover-class-placeholder, .secondary-btn.never-hover-class-placeholder, .ghost.never-hover-class-placeholder, .ghost-btn.never-hover-class-placeholder, .mini-btn.never-hover-class-placeholder, .icon-btn.never-hover-class-placeholder, .icon-action.never-hover-class-placeholder, .icon-close.never-hover-class-placeholder, .icon-only.never-hover-class-placeholder, .icon-command.never-hover-class-placeholder, .export-btn.never-hover-class-placeholder, .btn-back.never-hover-class-placeholder, .tab-btn.never-hover-class-placeholder, .tabs button.never-hover-class-placeholder, .sort-btn.never-hover-class-placeholder, .btn-action.never-hover-class-placeholder, .btn-action-icon.never-hover-class-placeholder, .btn-map-link.never-hover-class-placeholder, .btn-edit-link.never-hover-class-placeholder) {
   background: var(--admin-primary-soft) !important;
   color: var(--admin-primary-dark) !important;
   box-shadow: none !important;
@@ -468,7 +467,7 @@
   background: #ecfdf5 !important;
   color: #059669 !important;
 }
-.sg-shell-admin .content-area .icon-btn.approve:hover {
+.sg-shell-admin .content-area .icon-btn.approve.never-hover-class-placeholder {
   background: #10b981 !important;
   color: white !important;
 }
@@ -478,12 +477,12 @@
   background: #fef2f2 !important;
   color: #dc2626 !important;
 }
-.sg-shell-admin .content-area .icon-btn.danger:hover {
+.sg-shell-admin .content-area .icon-btn.danger.never-hover-class-placeholder {
   background: #ef4444 !important;
   color: white !important;
 }
 
-.sg-shell-admin .content-area :is(.icon-only.primary:hover, .icon-command.primary:hover, .btn-action.primary:hover, .action-icon-button.variant-primary:hover) {
+.sg-shell-admin .content-area :is(.icon-only.primary.never-hover-class-placeholder, .icon-command.primary.never-hover-class-placeholder, .btn-action.primary.never-hover-class-placeholder, .action-icon-button.variant-primary.never-hover-class-placeholder) {
   border-color: var(--admin-primary-dark) !important;
   background: var(--admin-primary-dark) !important;
   color: var(--admin-primary-text, #ffffff) !important;
@@ -502,7 +501,7 @@
   color: var(--admin-danger-text) !important;
 }
 
-.sg-shell-admin .content-area :is(.danger:hover, .btn.danger:hover, .btn-danger:hover, .btn-danger-outline:hover, .btn-delete:hover, .btn-delete-mini:hover, .btn-action.danger:hover, .btn-action.btn-delete:hover, .btn-action-mini.btn-delete-mini:hover, .primary-btn.danger:hover, button.danger:hover, a.danger:hover) {
+.sg-shell-admin .content-area :is(.danger.never-hover-class-placeholder, .btn.danger.never-hover-class-placeholder, .btn-danger.never-hover-class-placeholder, .btn-danger-outline.never-hover-class-placeholder, .btn-delete.never-hover-class-placeholder, .btn-delete-mini.never-hover-class-placeholder, .btn-action.danger.never-hover-class-placeholder, .btn-action.btn-delete.never-hover-class-placeholder, .btn-action-mini.btn-delete-mini.never-hover-class-placeholder, .primary-btn.danger.never-hover-class-placeholder, button.danger.never-hover-class-placeholder, a.danger.never-hover-class-placeholder) {
   border-color: rgba(220, 38, 38, 0.32) !important;
   background: var(--admin-danger-hover) !important;
   color: var(--admin-danger-hover-text) !important;
@@ -559,7 +558,7 @@
 
 .sg-shell-admin .content-area :is(.modal-backdrop, .detail-backdrop, .drawer-backdrop) {
   z-index: 420 !important;
-  background: rgba(7, 17, 13, 0.56) !important;
+  background: rgba(9, 9, 11, 0.56) !important;
   backdrop-filter: blur(8px);
 }
 
@@ -665,14 +664,14 @@
   display: inline-block;
   color: var(--admin-primary-text, #fff) !important;
 }
-.btn-float-add:hover {
+.btn-float-add.never-hover-class-placeholder {
   width: 145px !important;
   justify-content: flex-start !important;
   padding-left: 14px !important;
   box-shadow: 0 6px 16px var(--admin-primary-ring, rgba(16, 185, 129, 0.4)) !important;
   background-color: var(--admin-primary-dark, #059669) !important;
 }
-.btn-float-add:hover .btn-float-text {
+.btn-float-add.never-hover-class-placeholder .btn-float-text {
   max-width: 100px;
   opacity: 1;
   margin-left: 6px;
@@ -691,13 +690,238 @@
     border-radius: 20px;
     padding: 0 10px !important;
   }
-  .btn-float-add:hover {
+  .btn-float-add.never-hover-class-placeholder {
     width: 130px !important;
     padding-left: 12px !important;
   }
-  .btn-float-add:hover .btn-float-text {
+  .btn-float-add.never-hover-class-placeholder .btn-float-text {
     max-width: 80px;
   }
 }
 
 
+/* ===============================================
+   Exception: Custom Schedule Modal Picker Components
+   Prevent global button/input !important overrides
+   from affecting hand-crafted calendar, time picker,
+   and dropdown inside .schedule-modal
+   =============================================== */
+
+/* Allow dropdown-menu (position:absolute) to overflow the modal box */
+.sg-shell-admin .content-area .schedule-modal {
+  overflow: visible !important;
+}
+
+/* Transparent backdrop to close the dropdown when clicking outside */
+.sg-shell-admin .content-area .schedule-modal .dropdown-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 49 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area .schedule-modal .dropdown-menu {
+  z-index: 55 !important;
+  position: absolute !important;
+}
+
+.sg-shell-admin .content-area .schedule-modal .cal-day,
+.sg-shell-admin .content-area .schedule-modal .cal-nav-btn,
+.sg-shell-admin .content-area .schedule-modal .time-step,
+.sg-shell-admin .content-area .schedule-modal .cal-toggle-btn,
+.sg-shell-admin .content-area .schedule-modal .dropdown-trigger,
+.sg-shell-admin .content-area .schedule-modal .dropdown-item,
+.sg-shell-admin .content-area .schedule-modal .staff-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font: inherit !important;
+  cursor: pointer !important;
+  min-height: unset !important;
+  white-space: normal !important;
+  transition: background-color 0.12s, color 0.12s, border-color 0.12s !important;
+}
+
+/* cal-day: base */
+.sg-shell-admin .content-area .schedule-modal .cal-day {
+  aspect-ratio: 1 !important;
+  border: none !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: var(--admin-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 0 !important;
+  width: 100% !important;
+}
+.sg-shell-admin .content-area .schedule-modal .cal-day.other-month {
+  opacity: 0.35 !important;
+}
+.sg-shell-admin .content-area .schedule-modal .cal-day.is-past,
+.sg-shell-admin .content-area .schedule-modal .cal-day:disabled {
+  opacity: 0.3 !important;
+  cursor: not-allowed !important;
+}
+.sg-shell-admin .content-area .schedule-modal .cal-day.is-today {
+  border: 2px solid var(--admin-primary) !important;
+  color: var(--admin-primary-dark) !important;
+  font-weight: 700 !important;
+}
+.sg-shell-admin .content-area .schedule-modal .cal-day.is-selected {
+  background: var(--admin-primary) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border: none !important;
+}
+.sg-shell-admin .content-area .schedule-modal .cal-day:not(:disabled):not(.is-past):hover {
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+}
+
+/* cal-nav-btn */
+.sg-shell-admin .content-area .schedule-modal .cal-nav-btn {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 6px !important;
+  background: var(--admin-surface-muted) !important;
+  color: var(--admin-text) !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+.sg-shell-admin .content-area .schedule-modal .cal-nav-btn:hover {
+  background: var(--admin-hover) !important;
+  border-color: var(--admin-primary) !important;
+}
+
+/* time-step */
+.sg-shell-admin .content-area .schedule-modal .time-step {
+  width: 36px !important;
+  height: 28px !important;
+  min-width: 36px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  border: 1.5px solid var(--admin-border) !important;
+  border-radius: 8px !important;
+  background: var(--admin-surface-muted) !important;
+  color: var(--admin-faint) !important;
+  font-size: 13px !important;
+}
+.sg-shell-admin .content-area .schedule-modal .time-step:hover {
+  background: var(--admin-primary-soft) !important;
+  border-color: var(--admin-primary) !important;
+  color: var(--admin-primary-dark) !important;
+  transform: scale(1.08) !important;
+}
+.sg-shell-admin .content-area .schedule-modal .time-step:active {
+  transform: scale(0.95) !important;
+}
+
+/* time-val, time-colon, time-ampm — non-button elements, no override needed but ensure */
+.sg-shell-admin .content-area .schedule-modal .time-val {
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  color: var(--admin-text) !important;
+  background: var(--admin-bg-soft) !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 6px 0 !important;
+  min-height: unset !important;
+  border-radius: 8px !important;
+}
+.sg-shell-admin .content-area .schedule-modal .time-ampm {
+  color: var(--admin-primary-dark) !important;
+  background: var(--admin-primary-soft) !important;
+  border: 1px solid color-mix(in srgb, var(--admin-primary) 25%, transparent) !important;
+  min-height: unset !important;
+  padding: 4px 8px !important;
+}
+
+/* cal-toggle-btn */
+.sg-shell-admin .content-area .schedule-modal .cal-toggle-btn {
+  padding: 5px 12px !important;
+  border: 1.5px solid var(--admin-primary) !important;
+  border-radius: 8px !important;
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  gap: 6px !important;
+  justify-content: flex-start !important;
+}
+.sg-shell-admin .content-area .schedule-modal .cal-toggle-btn:hover {
+  background: color-mix(in srgb, var(--admin-primary) 22%, transparent) !important;
+}
+
+/* dropdown-trigger */
+.sg-shell-admin .content-area .schedule-modal .dropdown-trigger {
+  width: 100% !important;
+  padding: 10px 14px !important;
+  border: 1.5px solid var(--admin-border) !important;
+  border-radius: 10px !important;
+  background: var(--admin-surface) !important;
+  color: var(--admin-text) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  justify-content: space-between !important;
+  text-align: left !important;
+}
+.sg-shell-admin .content-area .schedule-modal .dropdown-trigger:hover,
+.sg-shell-admin .content-area .schedule-modal .custom-dropdown.open .dropdown-trigger {
+  border-color: var(--admin-primary) !important;
+  box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
+}
+
+/* dropdown-item */
+.sg-shell-admin .content-area .schedule-modal .dropdown-item {
+  width: 100% !important;
+  padding: 10px 14px !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--admin-border-soft) !important;
+  border-radius: 0 !important;
+  color: var(--admin-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  justify-content: space-between !important;
+  text-align: left !important;
+}
+.sg-shell-admin .content-area .schedule-modal .dropdown-item:last-child {
+  border-bottom: none !important;
+}
+.sg-shell-admin .content-area .schedule-modal .dropdown-item:hover {
+  background: var(--admin-hover) !important;
+}
+.sg-shell-admin .content-area .schedule-modal .dropdown-item.active {
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+}
+
+/* staff-chip */
+.sg-shell-admin .content-area .schedule-modal .staff-chip {
+  padding: 7px 12px 7px 8px !important;
+  border: 1.5px solid var(--admin-border) !important;
+  border-radius: 999px !important;
+  background: var(--admin-surface-muted) !important;
+  color: var(--admin-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  gap: 7px !important;
+  justify-content: flex-start !important;
+  white-space: nowrap !important;
+}
+.sg-shell-admin .content-area .schedule-modal .staff-chip:hover,
+.sg-shell-admin .content-area .schedule-modal .staff-chip.active {
+  border-color: var(--admin-primary) !important;
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+}
+.sg-shell-admin .content-area .schedule-modal .staff-chip.active {
+  font-weight: 600 !important;
+}

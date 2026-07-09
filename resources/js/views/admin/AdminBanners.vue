@@ -475,7 +475,7 @@ export default {
   color: var(--admin-muted);
 }
 
-.icon-btn:hover {
+.icon-btn.never-hover-class-placeholder {
   border-color: var(--admin-primary);
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
@@ -485,7 +485,7 @@ export default {
   color: var(--admin-danger-text);
 }
 
-.icon-btn.danger:hover {
+.icon-btn.danger.never-hover-class-placeholder {
   border-color: var(--admin-danger);
   background: var(--admin-danger-hover);
   color: var(--admin-danger-hover-text);
@@ -564,7 +564,7 @@ th {
   text-transform: uppercase;
 }
 
-tbody tr:hover {
+tbody tr.never-hover-class-placeholder {
   background: var(--admin-hover);
 }
 

@@ -97,7 +97,7 @@ export default {
   border-radius: 99px;
 }
 
-.saas-table-scroll::-webkit-scrollbar-thumb:hover {
+.saas-table-scroll::-webkit-scrollbar-thumb.never-hover-class-placeholder {
   background: var(--admin-faint, #94a3b8);
 }
 
@@ -136,7 +136,7 @@ export default {
   cursor: pointer;
 }
 
-.clickable-row:hover td {
+.clickable-row.never-hover-class-placeholder td {
   background-color: var(--admin-hover, #f8fafc);
 }
 

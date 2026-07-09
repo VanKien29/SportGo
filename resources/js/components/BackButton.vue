@@ -62,7 +62,7 @@ export default {
   transition: background-color 120ms ease-out, transform 80ms ease-out, box-shadow 120ms ease-out;
 }
 
-.action-btn:hover {
+.action-btn.never-hover-class-placeholder {
   transform: translateY(-2px);
   background-color: var(--admin-floating-hover, #111827);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
@@ -83,7 +83,7 @@ export default {
   color: var(--admin-floating-fg, #ffffff);
 }
 
-.back-btn:hover {
+.back-btn.never-hover-class-placeholder {
   background-color: var(--admin-floating-hover, #111827);
   color: var(--admin-floating-fg, #ffffff);
 }

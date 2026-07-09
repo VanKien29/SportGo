@@ -886,7 +886,7 @@ svg {
   transition: transform .18s ease, box-shadow .18s ease;
 }
 
-.search-submit:hover {
+.search-submit.never-hover-class-placeholder {
   transform: translateY(-1px);
   box-shadow: 0 22px 44px rgba(4, 115, 63, .3);
 }
@@ -927,7 +927,7 @@ svg {
 }
 
 .filter-strip button.active,
-.filter-strip button:hover {
+.filter-strip button.never-hover-class-placeholder {
   border-color: #9fe6c0;
   color: #04733f;
   transform: translateY(-2px);
@@ -935,7 +935,7 @@ svg {
 }
 
 .filter-strip button.active .sport-filter-icon,
-.filter-strip button:hover .sport-filter-icon {
+.filter-strip button.never-hover-class-placeholder .sport-filter-icon {
   transform: scale(1.06);
 }
 
@@ -998,7 +998,7 @@ svg {
   transition: transform .18s ease, background .18s ease;
 }
 
-.section-heading a:hover {
+.section-heading a.never-hover-class-placeholder {
   border-color: #04733f;
   background: #ecfbf2;
   color: #035f36;
@@ -1006,7 +1006,7 @@ svg {
   box-shadow: 0 16px 34px rgba(4, 115, 63, .14);
 }
 
-.section-heading a:hover svg {
+.section-heading a.never-hover-class-placeholder svg {
   background: #035f36;
   transform: translateX(2px);
 }
@@ -1039,8 +1039,8 @@ svg {
   transition: transform .18s ease, box-shadow .18s ease;
 }
 
-.venue-card:hover,
-.post-card:hover {
+.venue-card.never-hover-class-placeholder,
+.post-card.never-hover-class-placeholder {
   transform: translateY(-3px);
   box-shadow: 0 24px 56px rgba(15, 23, 42, .11);
 }
@@ -1261,7 +1261,7 @@ svg {
   color: rgba(255, 255, 255, .76);
 }
 
-.all-area:hover {
+.all-area.never-hover-class-placeholder {
   background: #035f36;
   transform: translateY(-2px);
   box-shadow: 0 22px 44px rgba(4, 115, 63, .24);

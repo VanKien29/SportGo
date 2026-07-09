@@ -306,31 +306,6 @@ import { adminUiSettingsService } from '../../services/adminUiSettings.js';
 
 const PRESETS = [
   {
-    id: 'emerald',
-    name: 'Emerald',
-    color: '#22a653',
-    light: {
-      primary: '#22a653',
-      secondary: '#2563eb',
-      accent: '#edf7ed',
-      muted: '#2f3d34',
-      destructive: '#dc2626',
-      border: '#cfded1',
-      card: '#ffffff',
-      background: '#eef6f0',
-    },
-    dark: {
-      primary: '#2ebc63',
-      secondary: '#3b82f6',
-      accent: '#263d2e',
-      muted: '#a6c0ae',
-      destructive: '#ef4444',
-      border: '#2c4736',
-      card: '#1a291f',
-      background: '#0d1510',
-    }
-  },
-  {
     id: 'zinc',
     name: 'Zinc',
     color: '#18181b',
@@ -464,7 +439,7 @@ export default {
     return {
       sidebarStyle: localStorage.getItem('admin-sidebar-style') || 'one-level',
       successMessage: '',
-      selectedPresetId: 'emerald',
+      selectedPresetId: 'zinc',
       selectedRadius: '8px',
       newThemeName: '',
       activeModeTab: 'light',
@@ -769,14 +744,14 @@ export default {
       } else {
         this.theme.dark = { ...defaultPreset.dark };
       }
-      this.selectedPresetId = 'emerald';
+      this.selectedPresetId = 'zinc';
     },
     resetAll() {
       if (confirm('Bạn có chắc chắn muốn khôi phục tất cả cài đặt và độ bo góc về mặc định?')) {
         const defaultPreset = PRESETS[0];
         this.theme.light = { ...defaultPreset.light };
         this.theme.dark = { ...defaultPreset.dark };
-        this.selectedPresetId = 'emerald';
+        this.selectedPresetId = 'zinc';
         this.selectedRadius = '8px';
       }
     },
@@ -802,7 +777,7 @@ export default {
             this.theme.dark = { ...activePreset.dark };
             this.newThemeName = activePreset.name;
           } else {
-            this.selectedPresetId = data.active_theme_id || 'emerald';
+            this.selectedPresetId = data.active_theme_id || 'zinc';
           }
         }
       } catch (e) {
@@ -912,7 +887,7 @@ export default {
   box-sizing: border-box;
 }
 
-.preset-card:hover {
+.preset-card.never-hover-class-placeholder {
   border-color: var(--admin-primary);
   transform: scale(1.04);
 }
@@ -963,7 +938,7 @@ export default {
   padding: 0;
 }
 
-.preset-card:hover .delete-preset-btn {
+.preset-card.never-hover-class-placeholder .delete-preset-btn {
   display: flex;
 }
 
@@ -992,7 +967,7 @@ export default {
   transition: all 120ms ease;
 }
 
-.radius-btn:hover {
+.radius-btn.never-hover-class-placeholder {
   background: var(--admin-hover);
   border-color: var(--admin-primary);
 }
@@ -1032,7 +1007,7 @@ export default {
   user-select: none !important;
 }
 
-.toggle-tab-btn:hover {
+.toggle-tab-btn.never-hover-class-placeholder {
   color: var(--admin-text);
 }
 
@@ -1073,7 +1048,7 @@ export default {
   transition: all 120ms ease;
 }
 
-.figma-color-row:hover {
+.figma-color-row.never-hover-class-placeholder {
   opacity: 0.8;
 }
 
@@ -1125,7 +1100,7 @@ export default {
   min-height: auto !important;
 }
 
-.figma-hex-text-input:hover {
+.figma-hex-text-input.never-hover-class-placeholder {
   border-color: var(--admin-muted);
 }
 

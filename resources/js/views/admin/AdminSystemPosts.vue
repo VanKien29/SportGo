@@ -497,7 +497,7 @@ th {
   text-transform: uppercase;
 }
 
-tbody tr:hover {
+tbody tr.never-hover-class-placeholder {
   background: var(--admin-hover);
 }
 
@@ -594,7 +594,7 @@ tbody tr:hover {
   transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
-.icon-btn:hover {
+.icon-btn.never-hover-class-placeholder {
   border-color: var(--admin-primary);
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
@@ -605,7 +605,7 @@ tbody tr:hover {
   color: var(--admin-danger-text);
 }
 
-.icon-btn.danger:hover {
+.icon-btn.danger.never-hover-class-placeholder {
   border-color: var(--admin-danger);
   background: var(--admin-danger-hover);
   color: var(--admin-danger-hover-text);
@@ -823,7 +823,7 @@ tbody tr:hover {
   color: var(--admin-text);
 }
 
-.btn.ghost:hover {
+.btn.ghost.never-hover-class-placeholder {
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
 }
@@ -834,7 +834,7 @@ tbody tr:hover {
   color: var(--admin-primary-text);
 }
 
-.btn.primary:hover {
+.btn.primary.never-hover-class-placeholder {
   background: var(--admin-primary-dark);
 }
 
@@ -879,7 +879,7 @@ tbody tr:hover {
   transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
 
-.btn-float-add:hover {
+.btn-float-add.never-hover-class-placeholder {
   background: var(--admin-primary-dark);
   box-shadow: 0 6px 16px var(--admin-primary-ring);
   transform: translateY(-2px);

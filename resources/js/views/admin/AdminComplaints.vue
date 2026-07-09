@@ -1006,7 +1006,7 @@ export default {
     display: inline-block;
 }
 
-.floating-config-btn:hover {
+.floating-config-btn.never-hover-class-placeholder {
     width: 215px;
     justify-content: flex-start;
     padding-left: 14px;
@@ -1014,7 +1014,7 @@ export default {
     background-color: #f8fafc;
 }
 
-.floating-config-btn:hover .floating-config-text {
+.floating-config-btn.never-hover-class-placeholder .floating-config-text {
     max-width: 170px;
     opacity: 1;
     margin-left: 6px;

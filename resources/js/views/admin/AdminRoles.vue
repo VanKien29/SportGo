@@ -410,7 +410,7 @@ small {
   color: var(--admin-primary);
 }
 
-.view-tabs button:hover:not(.active) {
+.view-tabs button.never-hover-class-placeholder:not(.active) {
   color: var(--admin-text);
 }
 
@@ -530,7 +530,7 @@ th {
   text-transform: uppercase;
 }
 
-tbody tr:hover {
+tbody tr.never-hover-class-placeholder {
   background: var(--admin-hover);
 }
 

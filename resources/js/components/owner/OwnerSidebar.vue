@@ -303,7 +303,7 @@ export default {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.custom-select-trigger:hover {
+.custom-select-trigger.never-hover-class-placeholder {
   border-color: var(--admin-primary);
 }
 
@@ -347,7 +347,7 @@ export default {
   text-align: left;
 }
 
-.custom-option:hover {
+.custom-option.never-hover-class-placeholder {
   background: var(--admin-bg-soft);
 }
 

@@ -477,7 +477,7 @@ th {
   text-transform: uppercase;
 }
 
-tbody tr:hover {
+tbody tr.never-hover-class-placeholder {
   background: var(--admin-hover);
 }
 
@@ -621,7 +621,7 @@ tbody tr:hover {
   transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 100ms ease;
 }
 
-.icon-action:hover {
+.icon-action.never-hover-class-placeholder {
   border-color: var(--admin-primary);
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
@@ -634,7 +634,7 @@ tbody tr:hover {
   color: var(--admin-success-text);
 }
 
-.icon-action.success:hover {
+.icon-action.success.never-hover-class-placeholder {
   border-color: var(--admin-success);
   background: var(--admin-primary-soft);
 }
@@ -645,7 +645,7 @@ tbody tr:hover {
   color: var(--admin-danger-text);
 }
 
-.icon-action.danger:hover {
+.icon-action.danger.never-hover-class-placeholder {
   border-color: var(--admin-danger);
   background: var(--admin-danger-hover);
   color: var(--admin-danger-hover-text);
