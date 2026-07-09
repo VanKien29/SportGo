@@ -3,13 +3,60 @@
         <PublicNavbar />
 
         <main class="booking-main">
+            <header class="booking-hero" v-if="!loadingInit">
+                <div>
+                    <router-link to="/venues" class="booking-breadcrumb">
+                        Danh sách sân
+                    </router-link>
+                    <span>/</span>
+                    <strong>Đặt sân</strong>
+                </div>
+                <h1>{{ currentCluster?.name || "Đặt sân trực tuyến" }}</h1>
+                <p>
+                    Chọn ngày, sân và khung giờ phù hợp. Giá được cập nhật ngay
+                    theo từng khung đã chọn.
+                </p>
+            </header>
+
+            <nav
+                v-if="!loadingInit"
+                class="booking-stepper"
+                aria-label="Các bước đặt sân"
+            >
+                <button
+                    v-for="step in bookingSteps"
+                    :key="step.number"
+                    type="button"
+                    :class="{
+                        active: currentStep === step.number,
+                        complete: currentStep > step.number,
+                    }"
+                    @click="scrollToStep(step.number)"
+                >
+                    <span>{{ currentStep > step.number ? "✓" : step.number }}</span>
+                    <div>
+                        <strong>{{ step.title }}</strong>
+                        <small>{{ step.description }}</small>
+                    </div>
+                </button>
+            </nav>
+
             <div class="booking-grid" v-if="!loadingInit">
                 <div class="form-section">
-                    <div class="card schedule-card" v-if="selectedClusterId">
+                    <div
+                        ref="scheduleStep"
+                        class="card schedule-card"
+                        v-if="selectedClusterId"
+                    >
                         <div class="card-header schedule-header">
                             <div>
-                                <span class="card-icon">L</span>
-                                <h2>Lịch & Đặt sân</h2>
+                                <span class="card-icon">1</span>
+                                <div>
+                                    <h2>Chọn ngày và lịch sân</h2>
+                                    <p>
+                                        Chọn các ô liên tiếp trên cùng một sân.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
@@ -73,13 +120,19 @@
 
                         <div class="schedule-legend">
                             <span><i class="legend-free"></i> Trống</span>
-                            <span
-                                ><i class="legend-busy"></i> Không thể đặt</span
-                            >
+                            <span><i class="legend-booked"></i> Đã đặt</span>
+                            <span><i class="legend-locked"></i> Khóa sân</span>
+                            <span><i class="legend-past"></i> Đã qua giờ</span>
                             <span
                                 ><i class="legend-selected"></i> Đang chọn</span
                             >
-                            <em>* Chọn 1 hoặc nhiều ô trống liên tiếp.</em>
+                        </div>
+
+                        <div
+                            v-if="dateValidationError"
+                            class="booking-inline-alert error"
+                        >
+                            {{ dateValidationError }}
                         </div>
 
                         <div v-if="scheduleLoading" class="schedule-state">
@@ -130,28 +183,81 @@
                                         class="schedule-cell"
                                         :class="{
                                             busy: isSlotBusy(court.id, slot),
+                                            booked:
+                                                slotVisualState(court.id, slot) ===
+                                                'booked',
+                                            locked:
+                                                slotVisualState(court.id, slot) ===
+                                                'locked',
                                             past: isSlotPast(slot),
+                                            'too-soon': isSlotTooSoon(slot),
                                             selected: isSlotSelected(
                                                 court.id,
                                                 index,
                                             ),
                                         }"
+                                        :data-tooltip="
+                                            slotTitle(court, slot, index)
+                                        "
                                         :title="slotTitle(court, slot, index)"
-                                        :disabled="isSlotBusy(court.id, slot)"
+                                        :disabled="
+                                            isSlotDisabled(court.id, slot)
+                                        "
                                         @click="
                                             selectScheduleSlot(court, index)
                                         "
-                                    ></button>
+                                    >
+                                        <span
+                                            v-if="
+                                                !isSlotDisabled(court.id, slot)
+                                            "
+                                            class="slot-price"
+                                        >
+                                            {{
+                                                formatCompactCurrency(
+                                                    slotStatus(court.id, slot)
+                                                        ?.price,
+                                                )
+                                            }}
+                                        </span>
+                                    </button>
                                 </template>
                             </div>
+                        </div>
+
+                        <div
+                            v-if="selectionValidationMessage"
+                            class="duration-notice"
+                            :class="{
+                                error: Boolean(selectionValidationError),
+                            }"
+                        >
+                            <strong>
+                                {{
+                                    selectionValidationError
+                                        ? "Cần điều chỉnh lựa chọn"
+                                        : "Khung giờ hợp lệ"
+                                }}
+                            </strong>
+                            <span>{{ selectionValidationMessage }}</span>
                         </div>
                     </div>
 
                     <!-- Card 3: Chọn phương thức thanh toán -->
-                    <div class="card" v-if="selectedCourtId && isAvailable">
+                    <div
+                        ref="paymentStep"
+                        class="card payment-card-section"
+                        v-if="selectedCourtId && isAvailable"
+                    >
                         <div class="card-header">
                             <span class="card-icon">3</span>
-                            <h2>Chọn hình thức thanh toán</h2>
+                            <div>
+                                <h2>Thanh toán và giữ sân</h2>
+                                <p>
+                                    Chọn số tiền cần thanh toán để hoàn tất đặt
+                                    sân.
+                                </p>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="payment-options">
@@ -239,9 +345,15 @@
 
                 <!-- Cột phải: Tổng quan đơn đặt -->
                 <div class="summary-section">
-                    <div class="sticky-card">
+                    <div ref="summaryStep" class="sticky-card">
                         <div class="card summary-card">
-                            <h2>Thông tin đặt sân</h2>
+                            <div class="summary-heading">
+                                <span class="card-icon">2</span>
+                                <div>
+                                    <h2>Tóm tắt booking</h2>
+                                    <small>Cập nhật theo lựa chọn của bạn</small>
+                                </div>
+                            </div>
                             <div class="divider"></div>
 
                             <div class="summary-details">
@@ -284,6 +396,25 @@
                             <div class="divider"></div>
 
                             <div class="price-details" v-if="durationMinutes">
+                                <div class="slot-breakdown">
+                                    <div class="slot-breakdown-head">
+                                        <strong>Chi tiết khung giờ</strong>
+                                        <span>{{ selectedSlotDetails.length }} ô</span>
+                                    </div>
+                                    <div
+                                        v-for="slot in selectedSlotDetails"
+                                        :key="slot.start_time"
+                                        class="slot-breakdown-row"
+                                    >
+                                        <span>
+                                            {{ shortTime(slot.start_time) }} -
+                                            {{ shortTime(slot.end_time) }}
+                                        </span>
+                                        <strong>{{
+                                            formatCurrency(slot.price)
+                                        }}</strong>
+                                    </div>
+                                </div>
                                 <div class="summary-row">
                                     <span class="label">Đơn giá:</span>
                                     <span class="val font-semibold"
@@ -384,6 +515,13 @@
 
                             <div class="error-msg" v-if="submitError">
                                 {{ submitError }}
+                            </div>
+
+                            <div
+                                class="error-msg"
+                                v-else-if="selectionValidationError"
+                            >
+                                {{ selectionValidationError }}
                             </div>
 
                             <button
@@ -630,6 +768,7 @@ export default {
             scheduleCourts: [],
             scheduleBusyIntervals: [],
             scheduleSlotStatuses: [],
+            scheduleOperatingHours: null,
             selectedGridCourtId: "",
             selectedSlotIndexes: [],
             routeSelectionApplied: false,
@@ -679,8 +818,39 @@ export default {
         };
     },
     computed: {
+        bookingSteps() {
+            return [
+                {
+                    number: 1,
+                    title: "Ngày và sân",
+                    description: "Chọn lịch còn trống",
+                },
+                {
+                    number: 2,
+                    title: "Kiểm tra giá",
+                    description: "Xem chi tiết booking",
+                },
+                {
+                    number: 3,
+                    title: "Xác nhận",
+                    description: "Voucher và thanh toán",
+                },
+            ];
+        },
+        currentStep() {
+            if (this.isAvailable && this.selectedSlotIndexes.length) return 3;
+            if (this.selectedSlotIndexes.length) return 2;
+            return 1;
+        },
         minDate() {
             return new Date().toLocaleDateString("en-CA");
+        },
+        dateValidationError() {
+            if (!this.bookingDate) return "Vui lòng chọn ngày chơi.";
+            if (this.bookingDate < this.minDate) {
+                return "Ngày đặt không được trong quá khứ.";
+            }
+            return "";
         },
         currentCluster() {
             return this.clusters.find((c) => c.id === this.selectedClusterId);
@@ -719,7 +889,7 @@ export default {
         },
         scheduleGridStyle() {
             return {
-                gridTemplateColumns: `132px repeat(${this.scheduleSlots.length}, 36px)`,
+                gridTemplateColumns: `160px repeat(${this.scheduleSlots.length}, 52px)`,
             };
         },
         config() {
@@ -743,6 +913,52 @@ export default {
                 endParts[1] -
                 (startParts[0] * 60 + startParts[1]);
             return diff > 0 ? diff : 0;
+        },
+        minimumDurationMinutes() {
+            return Number(this.config.min_duration_minutes || 30);
+        },
+        maximumDurationMinutes() {
+            const value = Number(this.config.max_duration_minutes || 0);
+            return value > 0 ? value : null;
+        },
+        minimumAdvanceMinutes() {
+            return Number(this.config.min_advance_booking_minutes || 0);
+        },
+        selectionValidationError() {
+            if (!this.selectedSlotIndexes.length) return "";
+            if (this.durationMinutes < this.minimumDurationMinutes) {
+                return `Thời lượng tối thiểu là ${this.minimumDurationMinutes} phút.`;
+            }
+            if (
+                this.maximumDurationMinutes &&
+                this.durationMinutes > this.maximumDurationMinutes
+            ) {
+                return `Thời lượng tối đa là ${this.maximumDurationMinutes} phút.`;
+            }
+            if (
+                this.selectedSlotIndexes.some((index) =>
+                    this.isSlotTooSoon(this.scheduleSlots[index]),
+                )
+            ) {
+                return `Cần đặt trước ít nhất ${this.minimumAdvanceMinutes} phút.`;
+            }
+            if (this.availabilityChecked && !this.isAvailable) {
+                return "Khung giờ này vừa được đặt hoặc không còn khả dụng.";
+            }
+            return "";
+        },
+        selectionValidationMessage() {
+            if (this.selectionValidationError) {
+                return this.selectionValidationError;
+            }
+            if (!this.selectedSlotIndexes.length) {
+                return `Chọn tối thiểu ${this.minimumDurationMinutes} phút trên cùng một sân.`;
+            }
+
+            const maximum = this.maximumDurationMinutes
+                ? `, tối đa ${this.maximumDurationMinutes} phút`
+                : "";
+            return `${this.durationMinutes} phút đã chọn${maximum}.`;
         },
         selectedSlotDetails() {
             if (
@@ -883,6 +1099,8 @@ export default {
                 this.startTime &&
                 this.endTime &&
                 this.durationMinutes > 0 &&
+                !this.dateValidationError &&
+                !this.selectionValidationError &&
                 this.isAvailable &&
                 !this.checkingAvailability
             );
@@ -965,18 +1183,15 @@ export default {
             this.isAvailable = false;
             this.availabilityChecked = false;
             this.clearGridSelection();
-            if (this.availableCourts.length > 0) {
-                const preferredCourt = this.availableCourts.find(
-                    (court) => String(court.id) === String(preferredCourtId),
-                );
-                this.selectedCourtId = preferredCourt?.id || this.availableCourts[0].id;
-                this.checkAvailability();
-            }
             this.loadSchedule();
         },
         onDateChange() {
             this.clearGridSelection();
-            this.checkAvailability();
+            this.isAvailable = false;
+            this.availabilityChecked = false;
+            this.pricePreview = null;
+            this.clearVoucherSelection();
+            if (this.dateValidationError) return;
             this.loadSchedule();
         },
         onScheduleCourtTypeChange() {
@@ -1008,6 +1223,7 @@ export default {
                 this.scheduleCourts = res.courts || [];
                 this.scheduleBusyIntervals = res.busy_intervals || [];
                 this.scheduleSlotStatuses = res.slot_statuses || [];
+                this.scheduleOperatingHours = res.operating_hours || null;
                 this.applyRouteSelection();
             } catch (err) {
                 this.scheduleError = err.message || "Không thể tải lịch trống.";
@@ -1023,8 +1239,6 @@ export default {
             );
         },
         isSlotBusy(courtId, slot) {
-            if (this.isSlotPast(slot)) return true;
-
             const status = this.slotStatus(courtId, slot);
             if (status) return !status.is_available;
 
@@ -1039,6 +1253,49 @@ export default {
                 return busyStart < slotEnd && busyEnd > slotStart;
             });
         },
+        isSlotTooSoon(slot) {
+            if (
+                !slot ||
+                this.bookingDate !== this.minDate ||
+                this.minimumAdvanceMinutes <= 0
+            ) {
+                return false;
+            }
+
+            const now = new Date();
+            const requiredMinutes =
+                now.getHours() * 60 +
+                now.getMinutes() +
+                this.minimumAdvanceMinutes;
+
+            return this.timeToMinutes(slot.start_time) < requiredMinutes;
+        },
+        isSlotDisabled(courtId, slot) {
+            return (
+                this.isSlotBusy(courtId, slot) ||
+                this.isSlotPast(slot) ||
+                this.isSlotTooSoon(slot)
+            );
+        },
+        slotVisualState(courtId, slot) {
+            const status = this.slotStatus(courtId, slot);
+            if (status?.busy_source === "slot_lock") return "locked";
+            if (status && !status.is_available) return "booked";
+            if (status?.is_available) return "free";
+
+            const interval = this.scheduleBusyIntervals.find((item) => {
+                if (item.venue_court_id !== courtId) return false;
+                return (
+                    this.timeToMinutes(item.start_time) <
+                        this.timeToMinutes(slot.end_time) &&
+                    this.timeToMinutes(item.end_time) >
+                        this.timeToMinutes(slot.start_time)
+                );
+            });
+
+            if (!interval) return "free";
+            return interval.source === "slot_lock" ? "locked" : "booked";
+        },
         isSlotSelected(courtId, index) {
             return (
                 this.selectedGridCourtId === courtId &&
@@ -1047,7 +1304,7 @@ export default {
         },
         async selectScheduleSlot(court, index) {
             const slot = this.scheduleSlots[index];
-            if (!slot || this.isSlotBusy(court.id, slot)) return;
+            if (!slot || this.isSlotDisabled(court.id, slot)) return;
 
             let nextIndexes = [index];
             if (
@@ -1082,7 +1339,7 @@ export default {
         isRangeFree(courtId, indexes) {
             return indexes.every((index) => {
                 const slot = this.scheduleSlots[index];
-                return slot && !this.isSlotBusy(courtId, slot);
+                return slot && !this.isSlotDisabled(courtId, slot);
             });
         },
         range(start, end) {
@@ -1093,16 +1350,41 @@ export default {
         },
         slotTitle(court, slot, index) {
             if (this.isSlotPast(slot))
-                return `${court.name}: ${slot.label} đã qua giờ đặt`;
-            if (this.isSlotBusy(court.id, slot))
-                return `${court.name}: ${slot.label} đã bận`;
+                return `${court.name} · ${slot.label}: đã quá thời gian đặt`;
+            if (this.isSlotTooSoon(slot)) {
+                return `${court.name} · ${slot.label}: cần đặt trước ít nhất ${this.minimumAdvanceMinutes} phút`;
+            }
+            if (this.isSlotBusy(court.id, slot)) {
+                const status = this.slotStatus(court.id, slot);
+                if (this.slotVisualState(court.id, slot) === "locked") {
+                    return `${court.name} · ${slot.label}: ${
+                        status?.lock_reason || "sân đang tạm khóa"
+                    }`;
+                }
+                return `${court.name} · ${slot.label}: đã có booking`;
+            }
             if (this.isSlotSelected(court.id, index))
-                return `${court.name}: ${slot.label} đang chọn`;
-            return `${court.name}: ${slot.label} còn trống`;
+                return `${court.name} · ${slot.label}: đang chọn`;
+            return `${court.name} · ${slot.label}: còn trống · ${this.formatCurrency(
+                this.slotStatus(court.id, slot)?.price || 0,
+            )}`;
+        },
+        scrollToStep(step) {
+            const target =
+                step === 1
+                    ? this.$refs.scheduleStep
+                    : step === 2
+                      ? this.$refs.summaryStep
+                      : this.$refs.paymentStep || this.$refs.summaryStep;
+            target?.scrollIntoView({ behavior: "smooth", block: "start" });
         },
         clearGridSelection() {
             this.selectedGridCourtId = "";
             this.selectedSlotIndexes = [];
+            this.selectedCourtId = "";
+            this.isAvailable = false;
+            this.availabilityChecked = false;
+            this.pricePreview = null;
         },
         applyRouteSelection() {
             if (this.routeSelectionApplied || !this.routeSelection.venueCourtId) {
@@ -1359,6 +1641,23 @@ export default {
             if (!dateStr) return "";
             const [year, month, day] = dateStr.split("-");
             return `${day}/${month}/${year}`;
+        },
+        shortTime(time) {
+            return String(time || "").slice(0, 5);
+        },
+        formatCompactCurrency(value) {
+            const amount = Number(value || 0);
+            if (amount >= 1000000) {
+                return `${(amount / 1000000).toLocaleString("vi-VN", {
+                    maximumFractionDigits: 1,
+                })}tr`;
+            }
+            if (amount >= 1000) {
+                return `${(amount / 1000).toLocaleString("vi-VN", {
+                    maximumFractionDigits: 0,
+                })}k`;
+            }
+            return amount > 0 ? String(amount) : "";
         },
         formatCurrency(val) {
             return new Intl.NumberFormat("vi-VN", {
@@ -2264,6 +2563,621 @@ export default {
     }
     .voucher-table {
         min-width: 620px;
+    }
+}
+
+/* Booking flow redesign */
+.booking-container {
+    --booking-bg: #090d0b;
+    --booking-card: #111713;
+    --booking-card-soft: #151d18;
+    --booking-border: rgba(255, 255, 255, 0.1);
+    --booking-muted: rgba(237, 247, 240, 0.62);
+    --booking-text: #f5fbf6;
+    --booking-accent: #22c55e;
+    --booking-accent-dark: #16a34a;
+    background:
+        radial-gradient(circle at 12% 0%, rgba(34, 197, 94, 0.09), transparent 30%),
+        var(--booking-bg);
+    color: var(--booking-text);
+}
+
+.booking-main {
+    width: min(100%, 1480px);
+    padding: 94px 24px 48px;
+}
+
+.booking-hero {
+    max-width: 820px;
+    margin-bottom: 22px;
+}
+
+.booking-hero > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--booking-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.booking-breadcrumb {
+    color: #86efac;
+    text-decoration: none;
+}
+
+.booking-hero h1 {
+    margin: 10px 0 7px;
+    color: var(--booking-text);
+    font-size: clamp(26px, 3vw, 38px);
+    font-weight: 850;
+    letter-spacing: 0;
+}
+
+.booking-hero p {
+    max-width: 68ch;
+    margin: 0;
+    color: var(--booking-muted);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.booking-stepper {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    border: 1px solid var(--booking-border);
+    border-radius: 8px;
+    background: var(--booking-border);
+}
+
+.booking-stepper button {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 13px 15px;
+    border: 0;
+    background: var(--booking-card);
+    color: var(--booking-muted);
+    text-align: left;
+    cursor: pointer;
+}
+
+.booking-stepper button > span {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.booking-stepper button div {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.booking-stepper strong,
+.booking-stepper small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.booking-stepper strong {
+    color: var(--booking-text);
+    font-size: 13px;
+}
+
+.booking-stepper small {
+    color: var(--booking-muted);
+    font-size: 11px;
+}
+
+.booking-stepper button.active {
+    background: #17271c;
+}
+
+.booking-stepper button.active > span,
+.booking-stepper button.complete > span {
+    border-color: var(--booking-accent);
+    background: var(--booking-accent);
+    color: #052e16;
+}
+
+.booking-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
+    gap: 20px;
+}
+
+.card {
+    border: 1px solid var(--booking-border);
+    border-radius: 8px;
+    background: var(--booking-card);
+}
+
+.card-header {
+    align-items: flex-start;
+}
+
+.card-header > div {
+    min-width: 0;
+}
+
+.card-header h2 {
+    margin: 0;
+    color: var(--booking-text);
+    font-size: 18px;
+}
+
+.card-header p {
+    margin: 4px 0 0;
+    color: var(--booking-muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.card-icon {
+    flex: 0 0 auto;
+    border-radius: 7px;
+    background: var(--booking-accent);
+    color: #052e16;
+}
+
+.schedule-controls {
+    grid-template-columns: minmax(220px, 1fr) minmax(160px, 0.65fr) minmax(180px, 0.8fr);
+    padding: 14px;
+    border: 1px solid var(--booking-border);
+    background: var(--booking-card-soft);
+}
+
+.schedule-controls .form-group {
+    min-width: 0;
+    margin: 0;
+}
+
+.form-group label {
+    color: var(--booking-muted);
+}
+
+.form-control {
+    box-sizing: border-box;
+    border-color: var(--booking-border);
+    background: #0d120f;
+    color: var(--booking-text);
+}
+
+.form-control:focus {
+    border-color: var(--booking-accent);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+.form-control:disabled {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--booking-muted);
+}
+
+.schedule-legend {
+    gap: 8px 16px;
+    color: var(--booking-muted);
+}
+
+.schedule-legend i {
+    width: 13px;
+    height: 13px;
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.legend-free {
+    background: rgba(34, 197, 94, 0.15);
+    box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.55);
+}
+
+.legend-booked {
+    background: rgba(239, 68, 68, 0.25);
+}
+
+.legend-locked {
+    background: repeating-linear-gradient(
+        -45deg,
+        #4b5563,
+        #4b5563 3px,
+        #1f2937 3px,
+        #1f2937 6px
+    );
+}
+
+.legend-past {
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(255, 255, 255, 0.12),
+        rgba(255, 255, 255, 0.12) 3px,
+        transparent 3px,
+        transparent 6px
+    );
+}
+
+.legend-selected {
+    background: var(--booking-accent);
+}
+
+.booking-inline-alert,
+.duration-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0;
+    padding: 10px 12px;
+    border: 1px solid rgba(34, 197, 94, 0.24);
+    border-radius: 7px;
+    background: rgba(34, 197, 94, 0.08);
+    color: #bbf7d0;
+    font-size: 12px;
+}
+
+.duration-notice {
+    justify-content: space-between;
+}
+
+.booking-inline-alert.error,
+.duration-notice.error {
+    border-color: rgba(248, 113, 113, 0.28);
+    background: rgba(239, 68, 68, 0.08);
+    color: #fecaca;
+}
+
+.schedule-wrap {
+    border-color: var(--booking-border);
+    border-radius: 8px;
+    background: #0c110e;
+    scrollbar-color: rgba(134, 239, 172, 0.46) transparent;
+}
+
+.schedule-head,
+.schedule-court,
+.schedule-cell {
+    min-height: 48px;
+    border-color: var(--booking-border);
+}
+
+.schedule-head {
+    background: #151d18;
+    color: var(--booking-muted);
+    font-size: 11px;
+}
+
+.time-head {
+    min-width: 52px;
+}
+
+.schedule-court {
+    padding: 8px 10px;
+    background: #111713;
+}
+
+.schedule-court strong {
+    color: var(--booking-text);
+    font-size: 12px;
+}
+
+.schedule-court span {
+    color: var(--booking-muted);
+    font-size: 10px;
+}
+
+.schedule-cell {
+    position: relative;
+    width: 52px;
+    min-width: 52px;
+    min-height: 48px;
+    background: rgba(34, 197, 94, 0.08);
+    border-color: var(--booking-border);
+}
+
+.schedule-cell:hover:not(:disabled) {
+    background: rgba(34, 197, 94, 0.2);
+    box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.62);
+}
+
+.schedule-cell.booked {
+    background: rgba(239, 68, 68, 0.17);
+}
+
+.schedule-cell.locked {
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(100, 116, 139, 0.38),
+        rgba(100, 116, 139, 0.38) 6px,
+        rgba(30, 41, 59, 0.72) 6px,
+        rgba(30, 41, 59, 0.72) 12px
+    );
+}
+
+.schedule-cell.past,
+.schedule-cell.too-soon {
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(255, 255, 255, 0.055),
+        rgba(255, 255, 255, 0.055) 6px,
+        transparent 6px,
+        transparent 12px
+    );
+}
+
+.schedule-cell.selected {
+    background: var(--booking-accent);
+    box-shadow: inset 0 0 0 2px #86efac;
+}
+
+.slot-price {
+    display: block;
+    color: #bbf7d0;
+    font-size: 9px;
+    font-weight: 850;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.schedule-cell:hover .slot-price,
+.schedule-cell.selected .slot-price {
+    opacity: 1;
+}
+
+.schedule-cell.selected .slot-price {
+    color: #052e16;
+}
+
+.schedule-cell[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    z-index: 8;
+    width: max-content;
+    max-width: 260px;
+    padding: 7px 9px;
+    border: 1px solid var(--booking-border);
+    border-radius: 6px;
+    background: #020604;
+    color: #f0fdf4;
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1.4;
+    text-align: left;
+    white-space: normal;
+    transform: translateX(-50%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.schedule-cell[data-tooltip]:hover::after {
+    opacity: 1;
+}
+
+.payment-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.payment-option-card {
+    min-width: 0;
+    min-height: 108px;
+    border-color: var(--booking-border);
+    background: var(--booking-card-soft);
+}
+
+.payment-option-card.active {
+    border-color: var(--booking-accent);
+    background: rgba(34, 197, 94, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.18);
+}
+
+.option-title {
+    color: var(--booking-text);
+}
+
+.option-desc {
+    color: var(--booking-muted);
+    line-height: 1.45;
+}
+
+.sticky-card {
+    top: 88px;
+}
+
+.summary-card {
+    padding: 18px;
+}
+
+.summary-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.summary-heading h2 {
+    margin: 0;
+    color: var(--booking-text);
+    font-size: 17px;
+}
+
+.summary-heading small {
+    display: block;
+    margin-top: 3px;
+    color: var(--booking-muted);
+    font-size: 11px;
+}
+
+.summary-row {
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.summary-row .label {
+    flex: 0 0 42%;
+    color: var(--booking-muted);
+}
+
+.summary-row .val {
+    min-width: 0;
+    color: var(--booking-text);
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.slot-breakdown {
+    display: grid;
+    gap: 7px;
+    margin-bottom: 14px;
+    padding: 11px 12px;
+    border: 1px solid var(--booking-border);
+    border-radius: 7px;
+    background: var(--booking-card-soft);
+}
+
+.slot-breakdown-head,
+.slot-breakdown-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.slot-breakdown-head {
+    padding-bottom: 7px;
+    border-bottom: 1px solid var(--booking-border);
+    color: var(--booking-muted);
+    font-size: 11px;
+}
+
+.slot-breakdown-row {
+    color: var(--booking-muted);
+    font-size: 11px;
+}
+
+.slot-breakdown-row strong {
+    color: var(--booking-text);
+}
+
+.divider {
+    background: var(--booking-border);
+}
+
+.btn-voucher-summary {
+    border-color: rgba(34, 197, 94, 0.34);
+    background: rgba(34, 197, 94, 0.08);
+    color: var(--booking-text);
+}
+
+.btn-voucher-summary small {
+    color: var(--booking-muted);
+}
+
+.btn-submit {
+    border: 1px solid var(--booking-accent);
+    background: var(--booking-accent);
+    color: #052e16;
+}
+
+.btn-submit:hover:not(:disabled) {
+    background: #4ade80;
+}
+
+.btn-submit:disabled {
+    border-color: var(--booking-border);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.hold-notice {
+    color: var(--booking-muted);
+}
+
+@media (max-width: 1080px) {
+    .booking-grid {
+        grid-template-columns: minmax(0, 1fr) 310px;
+    }
+
+    .payment-options {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .booking-main {
+        padding-inline: 14px;
+    }
+
+    .booking-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-section {
+        order: 2;
+    }
+
+    .summary-card {
+        border-radius: 12px 12px 0 0;
+    }
+}
+
+@media (max-width: 680px) {
+    .booking-main {
+        padding-top: 82px;
+    }
+
+    .booking-hero h1 {
+        font-size: 26px;
+    }
+
+    .booking-stepper {
+        grid-template-columns: 1fr;
+    }
+
+    .booking-stepper button {
+        padding: 10px 12px;
+    }
+
+    .booking-stepper small {
+        white-space: normal;
+    }
+
+    .card {
+        padding: 14px;
+    }
+
+    .schedule-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .duration-notice {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .payment-options {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-option-card {
+        min-height: auto;
+    }
+
+    .voucher-modal-backdrop {
+        padding: 0;
+    }
+
+    .voucher-modal {
+        max-height: 92dvh;
+        border-radius: 12px 12px 0 0;
     }
 }
 </style>
