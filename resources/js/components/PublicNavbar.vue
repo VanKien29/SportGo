@@ -117,6 +117,19 @@
                 Trò chuyện
               </router-link>
 
+              <button
+                v-if="user.role === 'user'"
+                class="dd-item"
+                @click="openComplaintModal"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Gửi khiếu nại
+              </button>
+
               <router-link
                 v-if="user.role === 'user'"
                 to="/partner-application"
@@ -178,14 +191,24 @@
       </div>
     </div>
   </nav>
+
+  <ComplaintModal 
+    :is-open="showComplaintModal" 
+    @close="showComplaintModal = false" 
+    @success="onComplaintSuccess" 
+  />
 </template>
 
 <script>
 import { getAuth, logout } from "../stores/auth.js";
 import { notificationService } from "../services/notification.service.js";
+import ComplaintModal from "./ComplaintModal.vue";
 
 export default {
   name: "PublicNavbar",
+  components: {
+    ComplaintModal
+  },
   data() {
     return {
       user: getAuth(),
@@ -196,6 +219,7 @@ export default {
       notifications: [],
       unreadCount: 0,
       notifPollTimer: null,
+      showComplaintModal: false,
     };
   },
   mounted() {
@@ -245,6 +269,15 @@ export default {
         this.$router.push("/owner/dashboard");
       }
     },
+    openComplaintModal() {
+      this.showDropdown = false;
+      this.showComplaintModal = true;
+    },
+    onComplaintSuccess() {
+      // Could show a toast notification here
+      this.showComplaintModal = false;
+      alert("Cảm ơn bạn đã gửi khiếu nại. Chúng tôi sẽ xem xét trong thời gian sớm nhất.");
+    },
     async handleLogout() {
       await logout();
       this.user = null;
@@ -278,6 +311,15 @@ export default {
         } catch (e) {
           console.error(e);
         }
+      }
+      
+      // Navigation handling
+      if (notif.type === 'matchmaking_join_request') {
+        this.$router.push(`/matchmaking-posts/${notif.reference_id}/manage`);
+        this.showNotifDropdown = false;
+      } else if (notif.type === 'matchmaking_join_approved' || notif.type === 'matchmaking_join_rejected') {
+        this.$router.push('/community');
+        this.showNotifDropdown = false;
       }
     },
     async markAllAsRead() {

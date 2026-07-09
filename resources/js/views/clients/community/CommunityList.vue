@@ -40,6 +40,71 @@
         </div>
       </div>
 
+      <!-- Matchmaking Posts Section -->
+      <div v-if="matchmakingPosts.length > 0" class="matchmaking-section">
+        <h2 class="section-title">Tìm người ghép kèo</h2>
+        <div class="matchmaking-scroll">
+          <div class="matchmaking-card" v-for="mPost in matchmakingPosts" :key="mPost.id">
+            <div class="m-card-header">
+              <div class="m-author">
+                <div class="m-avatar" v-if="mPost.author.avatar">
+                  <img :src="getPostImage({image_path: mPost.author.avatar})" alt="avatar">
+                </div>
+                <div class="m-avatar placeholder" v-else>
+                  {{ mPost.author.name.charAt(0).toUpperCase() }}
+                </div>
+                <span class="m-name">{{ mPost.author.name }}</span>
+              </div>
+              <span class="m-time">{{ formatTimeAgo(mPost.created_at) }}</span>
+            </div>
+            <div class="m-card-body">
+              <div class="m-info-row">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>{{ mPost.booking.venue_name }}</span>
+              </div>
+              <div class="m-info-row">
+                <i class="far fa-clock"></i>
+                <span>{{ mPost.booking.time }} - {{ formatDate(mPost.booking.date) }}</span>
+              </div>
+              <div class="m-needed">
+                <span>Cần thêm:</span>
+                <strong>{{ mPost.needed_players }} người</strong>
+              </div>
+              <p class="m-desc" v-if="mPost.description">{{ mPost.description }}</p>
+            </div>
+            <div class="m-card-footer">
+              <button 
+                class="btn-join" 
+                v-if="!user || user.id !== mPost.author.id"
+                :disabled="joiningPostId === mPost.id || mPost.user_status"
+                :class="{
+                  'btn-joined': mPost.user_status === 'pending',
+                  'btn-approved': mPost.user_status === 'approved',
+                  'btn-rejected': mPost.user_status === 'rejected'
+                }"
+                @click="joinMatchmaking(mPost)"
+              >
+                {{ 
+                  joiningPostId === mPost.id ? 'Đang gửi...' : 
+                  (mPost.user_status === 'pending' ? 'Đã gửi yêu cầu' :
+                  (mPost.user_status === 'approved' ? 'Đã tham gia' :
+                  (mPost.user_status === 'rejected' ? 'Bị từ chối' : 'Tham gia ngay'))) 
+                }}
+              </button>
+              <button 
+                class="btn-manage" 
+                v-else
+                @click="$router.push(`/matchmaking-posts/${mPost.id}/manage`)"
+              >
+                Quản lý yêu cầu
+              </button>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+
       <!-- Loading State -->
       <div v-if="loading" class="loading-state">
         <div class="spinner"></div>
@@ -90,17 +155,22 @@
     
     <!-- Floating Action Button for Create Post -->
     <div v-if="isLoggedIn" class="floating-add-container">
-      <FloatAddButton 
-        label="Tạo bài viết" 
-        icon="plus" 
-        title="Tạo bài viết mới"
-        @click="showModal = true" 
+      <FloatMenuButton 
+        :actions="floatMenuActions"
+        @action="handleFloatMenuAction"
       />
     </div>
     
+    <!-- Modal -->
     <CommunityPostModal 
-      :isOpen="showModal" 
-      @close="showModal = false" 
+      :isOpen="showCommunityModal" 
+      @close="showCommunityModal = false" 
+      @success="handlePostCreated" 
+    />
+    
+    <MeetupPostModal 
+      :isOpen="showMeetupModal" 
+      @close="showMeetupModal = false" 
       @success="handlePostCreated" 
     />
   </div>
@@ -112,11 +182,14 @@ import { useRouter } from 'vue-router';
 import PublicNavbar from '@/components/PublicNavbar.vue';
 import PaginationBar from '@/components/PaginationBar.vue';
 import CommunityPostModal from '@/components/CommunityPostModal.vue';
-import FloatAddButton from '@/components/FloatAddButton.vue';
+import MeetupPostModal from '@/components/MeetupPostModal.vue';
+import FloatMenuButton from '@/components/FloatMenuButton.vue';
 import { api } from '@/services/api.js';
 import { getAuth } from '@/stores/auth.js';
+import { useToast } from 'vue-toastification';
 
 const router = useRouter();
+const toast = useToast();
 
 const user = getAuth();
 const isLoggedIn = computed(() => !!user);
@@ -126,7 +199,22 @@ const userFirstName = computed(() => {
   const parts = user.fullName.split(' ');
   return parts[parts.length - 1];
 });
-const showModal = ref(false);
+
+const showCommunityModal = ref(false);
+const showMeetupModal = ref(false);
+
+const floatMenuActions = [
+  { key: 'community', label: 'Tạo bài viết cộng đồng', icon: 'edit' },
+  { key: 'meetup', label: 'Tạo bài giao lưu tại sân', icon: 'users' },
+];
+
+const handleFloatMenuAction = (actionKey) => {
+  if (actionKey === 'community') {
+    showCommunityModal.value = true;
+  } else if (actionKey === 'meetup') {
+    showMeetupModal.value = true;
+  }
+};
 
 const posts = ref([]);
 const loading = ref(true);
@@ -139,6 +227,39 @@ const pagination = ref({
   current_page: 1,
   last_page: 1
 });
+
+const matchmakingPosts = ref([]);
+const joiningPostId = ref(null);
+
+const fetchMatchmakingPosts = async () => {
+  try {
+    const data = await api('/api/matchmaking-posts');
+    matchmakingPosts.value = data.data; // Server already maps user_status
+  } catch (err) {
+    console.error('Failed to load matchmaking posts', err);
+  }
+};
+
+const joinMatchmaking = async (post) => {
+  if (!isLoggedIn.value) {
+    toast.info('Vui lòng đăng nhập để tham gia ghép kèo!');
+    router.push('/login');
+    return;
+  }
+
+  joiningPostId.value = post.id;
+  try {
+    await api(`/api/matchmaking-posts/${post.id}/join`, {
+      method: 'POST'
+    });
+    post.user_status = 'pending';
+    toast.success('Đã gửi yêu cầu ghép kèo thành công! Chủ bài viết sẽ liên hệ với bạn nếu đồng ý.');
+  } catch (err) {
+    toast.error(err.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.');
+  } finally {
+    joiningPostId.value = null;
+  }
+};
 
 const fetchPosts = async (page = 1) => {
   loading.value = true;
@@ -189,6 +310,19 @@ const goToDetail = (slug) => {
 
 const handlePostCreated = () => {
   fetchPosts(1);
+  fetchMatchmakingPosts();
+};
+
+const formatTimeAgo = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - date) / 1000);
+  
+  if (diffInSeconds < 60) return 'Vừa xong';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút trước`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ trước`;
+  return formatDate(dateString);
 };
 
 const formatDate = (dateString) => {
@@ -215,6 +349,7 @@ const getPostImage = (post) => {
 
 onMounted(() => {
   fetchPosts();
+  fetchMatchmakingPosts();
 });
 </script>
 
@@ -228,8 +363,227 @@ onMounted(() => {
 .news-content {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 24px;
+  padding: 40px 20px;
 }
+
+/* Matchmaking Section */
+.matchmaking-section {
+  margin-bottom: 40px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 20px;
+}
+
+.matchmaking-scroll {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scrollbar-width: thin;
+}
+
+.matchmaking-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.matchmaking-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.matchmaking-card {
+  min-width: 320px;
+  flex-shrink: 0;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.matchmaking-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+  border-color: #cbd5e1;
+}
+
+.m-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.m-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.m-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.m-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.m-avatar.placeholder {
+  background: #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.m-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.m-time {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.m-card-body {
+  margin-bottom: 16px;
+}
+
+.m-info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.m-info-row i {
+  color: #3b82f6;
+  width: 16px;
+  text-align: center;
+}
+
+.m-needed {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.m-desc {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.m-card-footer {
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-join {
+  width: 100%;
+  padding: 10px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-join:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.btn-join:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-join.btn-joined {
+  background: #10b981; /* Green */
+}
+
+.btn-join.btn-approved {
+  background: #3b82f6; /* Blue but disabled */
+  opacity: 0.8;
+}
+
+.btn-join.btn-rejected {
+  background: #ef4444; /* Red */
+  opacity: 0.7;
+}
+
+.btn-manage {
+  width: 100%;
+  padding: 10px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-manage:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.approved-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 12px;
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
 
 .news-header {
   margin-bottom: 40px;

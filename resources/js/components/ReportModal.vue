@@ -11,6 +11,10 @@
       <div class="modal-body">
         <p class="report-desc">Vui lòng chọn lý do báo cáo để chúng tôi xem xét nội dung này. Báo cáo của bạn được ẩn danh.</p>
         
+        <div v-if="targetName" class="target-name-box">
+          <strong>Đối tượng báo cáo:</strong> {{ targetName }}
+        </div>
+
         <form @submit.prevent="submit" class="report-form">
           <div class="radio-group">
             <label v-for="option in reasonOptions" :key="option.value" class="radio-label">
@@ -32,6 +36,16 @@
             ></textarea>
           </div>
 
+          <div class="input-area" v-if="form.reason" style="margin-top: 12px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">Ảnh minh chứng (nếu có):</label>
+            <input type="file" accept="image/jpeg,image/png,image/jpg,image/webp" @change="onImageSelected" class="content-input" style="padding: 8px;" />
+            
+            <div v-if="imagePreview" class="image-preview" style="margin-top: 8px; position: relative; max-width: 200px;">
+              <img :src="imagePreview" style="width: 100%; border-radius: 6px; border: 1px solid #ced0d4;" />
+              <button type="button" @click="removeImage" style="position: absolute; top: -8px; right: -8px; background: white; border: 1px solid #ced0d4; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
+            </div>
+          </div>
+
           <div v-if="errorMsg" class="error-alert">
             {{ errorMsg }}
           </div>
@@ -51,23 +65,26 @@
 
 <script setup>
 import { ref } from 'vue';
-import { api } from '@/services/api';
+import { api, apiFormData } from '@/services/api';
 
 const props = defineProps({
   isOpen: Boolean,
   targetType: String,
   targetId: String,
+  targetName: String,
 });
 
 const emit = defineEmits(['close', 'success']);
 
 const form = ref({
   reason: '',
-  description: ''
+  description: '',
+  imageFile: null
 });
 
 const isSubmitting = ref(false);
 const errorMsg = ref('');
+const imagePreview = ref(null);
 
 const reasonOptions = [
   { value: 'spam', label: 'Spam', desc: 'Nội dung quảng cáo, lừa đảo, hoặc đăng lặp lại nhiều lần.' },
@@ -77,9 +94,31 @@ const reasonOptions = [
   { value: 'other', label: 'Lý do khác', desc: 'Vi phạm các chính sách khác của hệ thống.' }
 ];
 
+const onImageSelected = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    if (file.size > 5 * 1024 * 1024) {
+      errorMsg.value = 'Vui lòng chọn ảnh nhỏ hơn 5MB.';
+      return;
+    }
+    form.value.imageFile = file;
+    imagePreview.value = URL.createObjectURL(file);
+    errorMsg.value = '';
+  }
+};
+
+const removeImage = () => {
+  form.value.imageFile = null;
+  if (imagePreview.value) {
+    URL.revokeObjectURL(imagePreview.value);
+    imagePreview.value = null;
+  }
+};
+
 const close = () => {
   form.value.reason = '';
   form.value.description = '';
+  removeImage();
   errorMsg.value = '';
   emit('close');
 };
@@ -91,15 +130,26 @@ const submit = async () => {
   errorMsg.value = '';
 
   try {
-    await api('/api/reports', {
-      method: 'POST',
-      body: JSON.stringify({
-        target_type: props.targetType,
-        target_id: props.targetId,
-        reason: form.value.reason,
-        description: form.value.description
-      })
-    });
+    if (form.value.imageFile) {
+      const formData = new FormData();
+      formData.append('target_type', props.targetType);
+      formData.append('target_id', props.targetId);
+      formData.append('reason', form.value.reason);
+      if (form.value.description) formData.append('description', form.value.description);
+      formData.append('evidence_image', form.value.imageFile);
+
+      await apiFormData('/api/reports', formData);
+    } else {
+      await api('/api/reports', {
+        method: 'POST',
+        body: JSON.stringify({
+          target_type: props.targetType,
+          target_id: props.targetId,
+          reason: form.value.reason,
+          description: form.value.description
+        })
+      });
+    }
     
     emit('success');
     close();

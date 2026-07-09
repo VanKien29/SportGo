@@ -67,6 +67,7 @@ Route::get('/venues/{id}', [VenueController::class, 'show']);
 Route::get('/venues/{id}/schedule', [VenueController::class, 'schedule']);
 Route::get('/venues/{clusterId}/affiliate-products', [PublicAffiliateProductController::class, 'index']);
 Route::post('/affiliate-products/{id}/click', [PublicAffiliateProductController::class, 'trackClick']);
+Route::get('/matchmaking-posts', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'index']);
 
 Route::prefix('auth')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register']);
@@ -484,6 +485,16 @@ Route::middleware('auth:sanctum')
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
 
+        // Player Matchmaking Posts
+        Route::get('/matchmaking-posts/eligible-bookings', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'eligibleBookings']);
+        Route::post('/matchmaking-posts', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'store']);
+        Route::post('/matchmaking-posts/{id}/join', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'join']);
+        
+        // Matchmaking Management
+        Route::get('/matchmaking-posts/{id}/participants', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'participants']);
+        Route::post('/matchmaking-posts/{id}/participants/{userId}/approve', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'approveParticipant']);
+        Route::post('/matchmaking-posts/{id}/participants/{userId}/reject', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'rejectParticipant']);
+
         // Player/Client Venue Posts (Community Posts)
         Route::post('/venue-posts', [PlayerVenuePostController::class, 'store']);
         Route::post('/venue-posts/{id}', [PlayerVenuePostController::class, 'update']); // use POST with _method=PUT/PATCH for file uploads
@@ -499,6 +510,9 @@ Route::middleware('auth:sanctum')
         
         // Reports
         Route::post('/reports', [PublicReportController::class, 'store']);
+
+        // Complaints (Player)
+        Route::post('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'store']);
 
         // Chat routes
         Route::prefix('chat')->group(function (): void {

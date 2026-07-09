@@ -81,6 +81,12 @@ const routes = [
         meta: { requiresAuth: false, title: "Chi tiết tin tức" },
     },
     {
+        path: "/matchmaking-posts/:id/manage",
+        name: "ClientMatchmakingManage",
+        component: () => import("@/views/clients/community/MatchmakingManage.vue"),
+        meta: { requiresAuth: true, title: "Quản lý bài giao lưu" },
+    },
+    {
         path: "/chat",
         name: "chat",
         component: () => import("../views/Chat.vue"),
