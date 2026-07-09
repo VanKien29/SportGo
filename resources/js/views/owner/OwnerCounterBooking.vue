@@ -270,15 +270,16 @@
                 </button>
             </div>
 
-            <button
-                v-if="counterDrawerOpen"
-                type="button"
-                class="counter-drawer-backdrop"
-                aria-label="Đóng thông tin booking"
-                @click="counterDrawerOpen = false"
-            ></button>
+            <Teleport to="body">
+                <button
+                    v-if="counterDrawerOpen"
+                    type="button"
+                    class="counter-drawer-backdrop"
+                    aria-label="Đóng thông tin booking"
+                    @click="counterDrawerOpen = false"
+                ></button>
 
-            <aside class="booking-side" :class="{ open: counterDrawerOpen }">
+                <aside class="booking-side" :class="{ open: counterDrawerOpen }">
                 <button
                     type="button"
                     class="drawer-close-btn"
@@ -600,7 +601,8 @@
                         }}</span>
                     </button>
                 </template>
-            </aside>
+                </aside>
+            </Teleport>
         </section>
 
         <section v-else-if="activeTab === 'recurring'" class="recurring-panel">
@@ -6710,28 +6712,45 @@ input.invalid {
     top: 0;
     right: 0;
     bottom: 0;
-    z-index: 1002;
-    width: min(430px, calc(100vw - 36px));
+    z-index: 10001;
+    isolation: isolate;
+    box-sizing: border-box;
+    width: min(480px, calc(100vw - 24px));
+    height: 100dvh;
     display: grid;
     align-content: start;
     gap: 12px;
-    padding: 24px;
+    padding: 18px 20px 24px;
+    overflow-x: hidden;
     overflow-y: auto;
-    background: #fff;
+    overscroll-behavior: contain;
+    background: #fff !important;
+    color: #223127;
     border-left: 1px solid #d9e8d9;
     box-shadow: -16px 0 46px rgba(15, 23, 42, 0.16);
     transform: translateX(106%);
-    transition: transform 0.22s ease;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+        transform 0.22s ease,
+        visibility 0s linear 0.22s;
 }
 
 .booking-side.open {
     transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
 }
 
 .counter-drawer-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 1001;
+    z-index: 10000;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
     border: 0;
     background: rgba(15, 23, 42, 0.34);
     cursor: default;
@@ -6741,7 +6760,7 @@ input.invalid {
     position: sticky;
     top: 0;
     justify-self: end;
-    z-index: 2;
+    z-index: 3;
     display: grid;
     place-items: center;
     width: 38px;
@@ -6813,10 +6832,29 @@ input.invalid {
 }
 
 .side-section {
+    min-width: 0;
     display: grid;
     gap: 10px;
     padding-bottom: 12px;
     border-bottom: 1px solid #e4eee4;
+}
+
+.side-section > label {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.side-section > label > span {
+    color: #526458;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.side-section > label > input {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
 }
 
 .side-section.disabled {
@@ -6897,15 +6935,27 @@ input.invalid {
 
 .summary-list div {
     display: flex;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 14px;
+    min-width: 0;
+}
+
+.summary-list dt {
+    flex: 0 0 34%;
+    color: #607267;
+    font-size: 12px;
+    font-weight: 800;
 }
 
 .summary-list dd {
+    min-width: 0;
+    max-width: 66%;
     margin: 0;
     color: #16231a;
     font-weight: 800;
     text-align: right;
+    overflow-wrap: anywhere;
 }
 
 .booking-status-strip {
@@ -7103,6 +7153,8 @@ input.invalid {
 }
 
 .voucher-code-row input {
+    box-sizing: border-box;
+    width: 100%;
     min-width: 0;
     border: 1px solid #d9e8d9;
     border-radius: 8px;
@@ -7128,6 +7180,7 @@ input.invalid {
     padding: 10px 11px;
     text-align: left;
     cursor: pointer;
+    overflow: hidden;
 }
 
 .voucher-list button.active {
@@ -7150,9 +7203,11 @@ input.invalid {
 }
 
 .voucher-list em {
+    min-width: 0;
     color: #15803d;
     font-style: normal;
     font-weight: 900;
+    overflow-wrap: anywhere;
 }
 
 .recurring-collect-actions {
@@ -7932,6 +7987,46 @@ input.invalid {
 
     .legend {
         justify-content: flex-start;
+    }
+}
+
+@media (max-width: 560px) {
+    .booking-side {
+        width: 100vw;
+        max-width: none;
+        padding: 14px 14px 22px;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .drawer-close-btn {
+        top: 0;
+    }
+
+    .summary-list div {
+        gap: 10px;
+    }
+
+    .summary-list dt {
+        flex-basis: 31%;
+    }
+
+    .summary-list dd {
+        max-width: 69%;
+        font-size: 13px;
+    }
+
+    .voucher-code-row {
+        grid-template-columns: minmax(0, 1fr) 88px;
+    }
+
+    .payment-card {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .payment-card strong {
+        grid-column: 2;
+        justify-self: start;
     }
 }
 </style>
