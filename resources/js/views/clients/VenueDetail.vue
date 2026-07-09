@@ -206,13 +206,57 @@
                 </select>
               </div>
 
+              <section class="mini-schedule" aria-label="Lịch trống nhanh">
+                <div class="mini-schedule-head">
+                  <div>
+                    <strong>Lịch trống nhanh</strong>
+                    <span v-if="!previewLoading && !previewError">
+                      {{ previewAvailableCourtCount }} sân còn lịch
+                    </span>
+                  </div>
+                  <button type="button" title="Tải lại lịch" @click="loadMiniSchedule">
+                    ↻
+                  </button>
+                </div>
+
+                <div v-if="previewLoading" class="mini-schedule-state">
+                  Đang kiểm tra lịch...
+                </div>
+                <div v-else-if="previewError" class="mini-schedule-state error">
+                  {{ previewError }}
+                </div>
+                <div v-else-if="miniScheduleSlots.length" class="mini-slot-list">
+                  <button
+                    v-for="slot in miniScheduleSlots"
+                    :key="slot.start_time"
+                    type="button"
+                    :disabled="slot.available_count === 0 || slot.is_past"
+                    :class="{
+                      full: slot.available_count === 0,
+                      past: slot.is_past,
+                    }"
+                    @click="goToBooking(slot)"
+                  >
+                    <strong>{{ shortTime(slot.start_time) }}</strong>
+                    <span v-if="slot.is_past">Đã qua</span>
+                    <span v-else-if="slot.available_count > 0">
+                      {{ slot.available_count }}/{{ slot.total_count }} sân trống
+                    </span>
+                    <span v-else>Đã kín</span>
+                  </button>
+                </div>
+                <div v-else class="mini-schedule-state">
+                  Cụm sân không mở cửa trong ngày này.
+                </div>
+              </section>
+
               <button
                 id="btn-view-schedule"
                 class="btn-primary btn-full"
                 :disabled="!bookDate"
-                @click="goToBooking"
+                @click="goToBooking()"
               >
-                Xem lịch trống &amp; Đặt sân
+                Xem toàn bộ lịch &amp; Đặt sân
               </button>
 
               <button
@@ -279,6 +323,13 @@ export default {
 
       bookDate: this.todayStr(),
       bookCourtType: '',
+      previewLoading: false,
+      previewError: '',
+      previewSchedule: {
+        time_slots: [],
+        courts: [],
+        slot_statuses: [],
+      },
     };
   },
 
@@ -330,10 +381,50 @@ export default {
     minDate() {
       return this.todayStr();
     },
+
+    miniScheduleSlots() {
+      const slots = this.previewSchedule.time_slots || [];
+      const courts = this.previewSchedule.courts || [];
+      const statuses = this.previewSchedule.slot_statuses || [];
+
+      return slots.slice(0, 10).map(slot => {
+        const slotStatuses = statuses.filter(
+          status => status.start_time === slot.start_time
+            && courts.some(court => court.id === status.venue_court_id),
+        );
+        const available = slotStatuses.filter(status => status.is_available);
+
+        return {
+          ...slot,
+          available_count: available.length,
+          total_count: courts.length,
+          venue_court_id: available[0]?.venue_court_id || '',
+          is_past: this.isPreviewSlotPast(slot),
+        };
+      });
+    },
+
+    previewAvailableCourtCount() {
+      const availableCourtIds = new Set(
+        (this.previewSchedule.slot_statuses || [])
+          .filter(status => status.is_available)
+          .map(status => status.venue_court_id),
+      );
+      return availableCourtIds.size;
+    },
   },
 
   mounted() {
     this.fetchVenue();
+  },
+
+  watch: {
+    bookDate() {
+      if (this.venue) this.loadMiniSchedule();
+    },
+    bookCourtType() {
+      if (this.venue) this.loadMiniSchedule();
+    },
   },
 
   methods: {
@@ -349,6 +440,7 @@ export default {
         const g = this.venue.gallery || [];
         this.gallery = g.map(path => this.imageUrl(path)).filter(Boolean);
         this.activeImage = this.gallery[0] || null;
+        await this.loadMiniSchedule();
       } catch (err) {
         this.error = err.message || 'Không thể tải thông tin sân.';
       } finally {
@@ -385,13 +477,52 @@ export default {
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
 
-    goToBooking() {
+    async loadMiniSchedule() {
+      if (!this.venue?.id || !this.bookDate) return;
+
+      this.previewLoading = true;
+      this.previewError = '';
+      try {
+        const params = { booking_date: this.bookDate };
+        if (this.bookCourtType) params.court_type_id = this.bookCourtType;
+        const response = await venueService.schedule(this.venue.id, params);
+        this.previewSchedule = {
+          time_slots: response.time_slots || [],
+          courts: response.courts || [],
+          slot_statuses: response.slot_statuses || [],
+        };
+      } catch (error) {
+        this.previewError = error.message || 'Không thể kiểm tra lịch trống.';
+        this.previewSchedule = { time_slots: [], courts: [], slot_statuses: [] };
+      } finally {
+        this.previewLoading = false;
+      }
+    },
+
+    isPreviewSlotPast(slot) {
+      if (!slot || this.bookDate !== this.todayStr()) return false;
+      const [hour, minute] = String(slot.start_time || '00:00')
+        .slice(0, 5)
+        .split(':')
+        .map(Number);
+      const now = new Date();
+      return hour * 60 + minute <= now.getHours() * 60 + now.getMinutes();
+    },
+
+    shortTime(time) {
+      return String(time || '').slice(0, 5);
+    },
+
+    goToBooking(slot = null) {
       if (!this.bookDate) return;
       const query = {
         cluster: this.venue.id,
         date: this.bookDate,
       };
       if (this.bookCourtType) query.court_type = this.bookCourtType;
+      if (slot?.venue_court_id) query.venue_court_id = slot.venue_court_id;
+      if (slot?.start_time) query.start_time = slot.start_time;
+      if (slot?.end_time) query.end_time = slot.end_time;
       this.$router.push({ name: 'booking-create', query });
     },
 
@@ -760,6 +891,103 @@ export default {
 .bform-input:focus { border-color: rgba(255,255,255,0.25); }
 .bform-input option { background: #1c1c1e; color: #ffffff; }
 .panel-note { font-size: 12px; color: rgba(255,255,255,0.3); text-align: center; margin: 0; }
+
+.mini-schedule {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.025);
+}
+.mini-schedule-head,
+.mini-schedule-head > div {
+  display: flex;
+  align-items: center;
+}
+.mini-schedule-head {
+  justify-content: space-between;
+  gap: 10px;
+}
+.mini-schedule-head > div {
+  min-width: 0;
+  gap: 8px;
+}
+.mini-schedule-head strong {
+  color: #fff;
+  font-size: 13px;
+}
+.mini-schedule-head span {
+  color: #86efac;
+  font-size: 11px;
+  font-weight: 700;
+}
+.mini-schedule-head button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px;
+  color: rgba(255,255,255,0.65);
+  cursor: pointer;
+}
+.mini-slot-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  max-height: 174px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.mini-slot-list button {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border: 1px solid rgba(34,197,94,0.28);
+  border-radius: 7px;
+  background: rgba(34,197,94,0.08);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.mini-slot-list button:hover:not(:disabled) {
+  border-color: #22c55e;
+  background: rgba(34,197,94,0.16);
+}
+.mini-slot-list button strong {
+  font-size: 12px;
+}
+.mini-slot-list button span {
+  overflow: hidden;
+  color: #86efac;
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-slot-list button.full,
+.mini-slot-list button.past {
+  border-color: rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.035);
+  color: rgba(255,255,255,0.42);
+  cursor: not-allowed;
+}
+.mini-slot-list button.full span,
+.mini-slot-list button.past span {
+  color: rgba(255,255,255,0.3);
+}
+.mini-schedule-state {
+  padding: 14px 10px;
+  color: rgba(255,255,255,0.42);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+.mini-schedule-state.error {
+  color: #fca5a5;
+}
 
 .panel-info-list {
   padding: 16px 22px 20px;
