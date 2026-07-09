@@ -9,10 +9,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('venue_unlock_requests', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->uuid('venue_cluster_id');
-            $table->uuid('requested_by');
-            $table->uuid('reviewed_by')->nullable();
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id');
+            $table->unsignedBigInteger('requested_by');
+            $table->unsignedBigInteger('reviewed_by')->nullable();
             $table->string('status', 20)->default('pending')->comment('pending, approved, rejected');
             $table->text('reason')->comment('Lý do giải trình của chủ sân.');
             $table->text('admin_note')->nullable()->comment('Phản hồi của admin.');

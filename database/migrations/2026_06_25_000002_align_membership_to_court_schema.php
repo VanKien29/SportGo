@@ -5,7 +5,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 return new class extends Migration
 {
@@ -13,10 +12,10 @@ return new class extends Migration
     {
         if (! Schema::hasTable('user_court_membership_histories')) {
             Schema::create('user_court_membership_histories', function (Blueprint $table): void {
-                $table->char('id', 36)->primary();
-                $table->char('membership_id', 36)->nullable();
-                $table->char('user_id', 36);
-                $table->char('venue_cluster_id', 36);
+                $table->id();
+                $table->unsignedBigInteger('membership_id')->nullable();
+                $table->unsignedBigInteger('user_id');
+                $table->unsignedBigInteger('venue_cluster_id');
                 $table->enum('from_tier', ['standard', 'silver', 'gold', 'diamond'])->nullable();
                 $table->enum('to_tier', ['standard', 'silver', 'gold', 'diamond']);
                 $table->string('change_type', 30);
@@ -90,7 +89,6 @@ return new class extends Migration
                         'tier' => $this->normalizeTier($tier->tier_key),
                     ],
                     [
-                        'id' => (string) Str::uuid(),
                         'discount_percent' => $tier->discount_percent,
                         'min_bookings' => $tier->min_completed_bookings,
                         'min_spent_amount' => $tier->min_spend_amount,
@@ -120,7 +118,6 @@ return new class extends Migration
                         'venue_cluster_id' => $membership->venue_cluster_id,
                     ],
                     [
-                        'id' => (string) Str::uuid(),
                         'tier' => $this->normalizeTier($membership->tier_key),
                         'total_bookings' => $membership->completed_bookings,
                         'total_spent' => $membership->total_spend_amount,
@@ -145,7 +142,6 @@ return new class extends Migration
             ->get()
             ->each(function (object $history): void {
                 DB::table('user_court_membership_histories')->insert([
-                    'id' => (string) Str::uuid(),
                     'membership_id' => null,
                     'user_id' => $history->user_id,
                     'venue_cluster_id' => $history->venue_cluster_id,

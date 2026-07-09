@@ -9,10 +9,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('bookings', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('booking_code', 30)->unique()->comment('Mã booking dễ đọc để user/chủ sân tra cứu.');
-            $table->char('customer_id', 36)->nullable()->comment('User đặt online; nullable vì booking tại quầy không bắt buộc tài khoản.');
-            $table->char('venue_cluster_id', 36)->comment('Cụm sân denormalized từ venue_courts để lọc booking/dashboard nhanh.');
+            $table->unsignedBigInteger('customer_id')->nullable()->comment('User đặt online; nullable vì booking tại quầy không bắt buộc tài khoản.');
+            $table->unsignedBigInteger('venue_cluster_id')->comment('Cụm sân denormalized từ venue_courts để lọc booking/dashboard nhanh.');
             $table->date('booking_date')->comment('Ngày chơi.');
             $table->decimal('total_price', 12, 2)->default(0.00)->comment('Tổng tiền = SUM(booking_items.subtotal).');
             $table->enum('payment_option', ['full_payment', 'deposit', 'no_prepay'])->default('no_prepay')->comment('Kiểu thanh toán user chọn.');
@@ -30,9 +30,9 @@ return new class extends Migration
             $table->string('walk_in_name', 255)->nullable()->comment('Tên khách tại quầy khi customer_id null.');
             $table->string('walk_in_phone', 20)->nullable()->comment('Số điện thoại khách tại quầy.');
             $table->text('status_reason')->nullable()->comment('Lý do hủy/từ chối/hết hiệu lực booking.');
-            $table->char('cancelled_by', 36)->nullable()->comment('User/admin/chủ sân thực hiện hủy booking.');
+            $table->unsignedBigInteger('cancelled_by')->nullable()->comment('User/admin/chủ sân thực hiện hủy booking.');
             $table->timestamp('cancelled_at')->nullable()->comment('Thời điểm booking bị hủy.');
-            $table->char('created_by', 36)->nullable()->comment('Người tạo booking.');
+            $table->unsignedBigInteger('created_by')->nullable()->comment('Người tạo booking.');
             $table->timestamp('reminder_sent_at')->nullable()->comment('Thời điểm hệ thống đã gửi nhắc lịch.');
             $table->timestamps();
             $table->index(['customer_id', 'created_at'], 'bookings_customer_id_created_at_index');

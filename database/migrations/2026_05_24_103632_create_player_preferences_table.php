@@ -8,8 +8,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('player_preferences', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('user_id', 36)->unique()->comment('User sở hữu hồ sơ người chơi.');
+            $table->id();
+            $table->unsignedBigInteger('user_id')->unique()->comment('User sở hữu hồ sơ người chơi.');
             $table->decimal('player_rating_avg', 3, 2)->default(0.00)->comment('Điểm trung bình.');
             $table->unsignedInteger('player_rating_count')->default(0)->comment('Số lượt đánh giá.');
             $table->timestamps();

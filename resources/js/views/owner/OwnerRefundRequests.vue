@@ -55,7 +55,7 @@
             <tr v-for="refund in refunds" :key="refund.id">
               <td data-label="Booking / Khách">
                 <button class="code-link" type="button" @click="openDetail(refund)">
-                  {{ refund.booking?.booking_code || shortId(refund.id) }}
+                  {{ refund.booking?.booking_code || refund.payment?.payment_code || statusLabel(refund.status) }}
                 </button>
                 <small>{{ customerName(refund) }} · {{ refund.customer?.phone || refund.customer?.email || '-' }}</small>
               </td>
@@ -366,9 +366,6 @@ export default {
     },
     formatTime(value) {
       return value ? String(value).slice(0, 5) : '--:--';
-    },
-    shortId(value) {
-      return value ? String(value).slice(0, 8).toUpperCase() : '-';
     },
   },
 };

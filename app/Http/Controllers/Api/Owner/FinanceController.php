@@ -51,8 +51,8 @@ class FinanceController extends Controller
     public function ledgers(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'wallet_id' => ['nullable', 'uuid'],
-            'venue_cluster_id' => ['nullable', 'uuid'],
+            'wallet_id' => ['nullable', 'integer'],
+            'venue_cluster_id' => ['nullable', 'integer'],
             'page' => ['nullable', 'integer', 'min:1'],
         ]);
 
@@ -74,7 +74,7 @@ class FinanceController extends Controller
     public function withdrawals(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'wallet_id' => ['nullable', 'uuid'],
+            'wallet_id' => ['nullable', 'integer'],
             'status' => ['nullable', Rule::in(['pending', 'reviewing', 'approved', 'rejected', 'completed', 'cancelled'])],
             'page' => ['nullable', 'integer', 'min:1'],
         ]);
@@ -105,8 +105,8 @@ class FinanceController extends Controller
     public function storeWithdrawal(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'owner_wallet_id' => ['required', 'uuid'],
-            'owner_bank_account_id' => ['required', 'uuid'],
+            'owner_wallet_id' => ['required', 'integer'],
+            'owner_bank_account_id' => ['required', 'integer'],
             'amount' => ['required', 'numeric', 'min:50000'],
             'owner_note' => ['nullable', 'string', 'max:1000'],
         ]);

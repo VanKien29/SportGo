@@ -17,7 +17,7 @@
           <div>
             <h1 class="page-title">Chi tiết khiếu nại</h1>
             <p class="subtitle">
-              Mã khiếu nại: <strong>{{ complaint.id.split('-')[0] }}</strong> ·
+              Tham chiếu: <strong>{{ complaintReferenceLabel }}</strong> ·
               Tạo lúc: {{ formatDate(complaint.created_at) }}
             </p>
           </div>
@@ -258,7 +258,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, apiFormData } from '../../services/api.js';
 import AppIcon from '../../components/AppIcon.vue';
@@ -287,6 +287,14 @@ const zoomState = ref({
     isDragging: false,
     startX: 0,
     startY: 0
+});
+
+const complaintReferenceLabel = computed(() => {
+    const data = complaint.value;
+    if (!data) return '-';
+    return data.booking_detail?.booking_code
+        || data.venue_cluster?.name
+        || getComplaintTypeLabel(data.complaint_type);
 });
 
 const loadData = async () => {

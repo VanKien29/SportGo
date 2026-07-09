@@ -17,7 +17,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->unsignedInteger('player_count')->default(2);
             $table->unsignedBigInteger('parent_id')->nullable();
-            $table->char('requested_by', 36);
+            $table->unsignedBigInteger('requested_by');
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->text('status_reason')->nullable();
             $table->timestamps();

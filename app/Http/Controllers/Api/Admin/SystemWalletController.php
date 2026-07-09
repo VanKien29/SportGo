@@ -7,6 +7,7 @@ use App\Models\SystemWalletLedger;
 use App\Services\Wallets\SystemWalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class SystemWalletController extends Controller
@@ -33,6 +34,11 @@ class SystemWalletController extends Controller
             ->when($data['entry_kind'] ?? null, fn ($query, string $value) => $query->where('entry_kind', $value))
             ->latest('transacted_at')
             ->paginate((int) ($data['per_page'] ?? 20));
+        $ledgers->getCollection()->transform(function (SystemWalletLedger $ledger): SystemWalletLedger {
+            $ledger->setAttribute('reference_label', $this->referenceLabel($ledger));
+
+            return $ledger;
+        });
 
         return response()->json([
             'account' => $account,
@@ -108,5 +114,51 @@ class SystemWalletController extends Controller
             'usage_percent' => $budget && $budget > 0 ? (int) round(($spent / $budget) * 100) : null,
             'is_over_budget' => $budget !== null && $spent > $budget,
         ];
+    }
+
+    private function referenceLabel(SystemWalletLedger $ledger): ?string
+    {
+        $metadata = is_array($ledger->metadata) ? $ledger->metadata : [];
+        if (! empty($metadata['booking_code'])) {
+            return 'Booking '.$metadata['booking_code'];
+        }
+
+        if (! $ledger->reference_type || ! $ledger->reference_id) {
+            return null;
+        }
+
+        return match ($ledger->reference_type) {
+            'booking', 'bookings' => $this->codeLabel('bookings', $ledger->reference_id, 'booking_code', 'Booking'),
+            'payment', 'payments' => $this->codeLabel('payments', $ledger->reference_id, 'payment_code', 'Thanh toán'),
+            'refund', 'refunds' => $this->refundLabel($ledger->reference_id),
+            'withdrawal', 'owner_withdrawal', 'owner_withdrawal_request' => $this->codeLabel('owner_withdrawal_requests', $ledger->reference_id, 'request_code', 'Rút tiền chủ sân'),
+            default => null,
+        };
+    }
+
+    private function codeLabel(string $table, string $id, string $codeColumn, string $prefix): ?string
+    {
+        $code = DB::table($table)->where('id', $id)->value($codeColumn);
+
+        return $code ? $prefix.' '.$code : null;
+    }
+
+    private function refundLabel(string $id): ?string
+    {
+        $refund = DB::table('refunds')
+            ->leftJoin('bookings', 'bookings.id', '=', 'refunds.booking_id')
+            ->where('refunds.id', $id)
+            ->select('bookings.booking_code', 'refunds.payout_transfer_code')
+            ->first();
+
+        if (! $refund) {
+            return null;
+        }
+
+        if ($refund->payout_transfer_code) {
+            return 'Hoàn tiền '.$refund->payout_transfer_code;
+        }
+
+        return $refund->booking_code ? 'Hoàn tiền booking '.$refund->booking_code : null;
     }
 }

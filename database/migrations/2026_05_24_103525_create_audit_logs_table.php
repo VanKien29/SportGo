@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('audit_logs', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('actor_id', 36)->nullable()->comment('User thực hiện hành động nhạy cảm; nullable nếu do hệ thống tự động.');
+            $table->id();
+            $table->unsignedBigInteger('actor_id')->nullable()->comment('User thực hiện hành động nhạy cảm; nullable nếu do hệ thống tự động.');
             $table->string('action', 100)->comment('Mã hành động như user.locked, venue.locked, report.resolved.');
             $table->string('entity_type', 100)->comment('Loại đối tượng bị tác động; logical reference.');
             $table->string('entity_id', 100)->comment('ID đối tượng bị tác động; logical reference.');

@@ -13,9 +13,9 @@ return new class extends Migration
         }
 
         Schema::create('violation_records', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('target_type', 50);
-            $table->char('target_id', 36);
+            $table->unsignedBigInteger('target_id');
             $table->unsignedTinyInteger('violation_count')->default(1);
             $table->timestamp('last_violation_at')->nullable();
             $table->string('last_action_type', 50)->nullable();

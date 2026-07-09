@@ -35,7 +35,7 @@ class StoreVenuePostCommentRequest extends FormRequest
                     }
                 },
             ],
-            'parent_id' => ['nullable', 'uuid', 'exists:venue_post_comments,id']
+            'parent_id' => ['nullable', 'integer', 'exists:venue_post_comments,id']
         ];
     }
 

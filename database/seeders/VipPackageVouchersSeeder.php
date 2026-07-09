@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class VipPackageVouchersSeeder extends Seeder
 {
@@ -195,11 +194,8 @@ class VipPackageVouchersSeeder extends Seeder
             return $existingId;
         }
 
-        $payload['id'] = (string) Str::uuid();
         $payload['created_at'] = now();
-        DB::table('vouchers')->insert($payload);
-
-        return $payload['id'];
+        return (string) DB::table('vouchers')->insertGetId($payload);
     }
 
     private function syncVipPackageScope(string $voucherId, string $packageType): void
@@ -207,7 +203,6 @@ class VipPackageVouchersSeeder extends Seeder
         DB::table('voucher_scopes')->where('voucher_id', $voucherId)->delete();
 
         DB::table('voucher_scopes')->insert([
-            'id' => (string) Str::uuid(),
             'voucher_id' => $voucherId,
             'scope_type' => 'vip_package',
             'scope_id' => $packageType,

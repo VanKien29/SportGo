@@ -45,7 +45,7 @@ class VenueManagementTest extends TestCase
             'user_id' => $this->admin->id,
             'role_id' => $adminRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         $this->owner1 = User::create([
@@ -60,7 +60,7 @@ class VenueManagementTest extends TestCase
             'user_id' => $this->owner1->id,
             'role_id' => $ownerRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         $this->owner2 = User::create([
@@ -75,7 +75,7 @@ class VenueManagementTest extends TestCase
             'user_id' => $this->owner2->id,
             'role_id' => $ownerRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         // 3. Tạo Loại Sân mẫu
@@ -344,7 +344,6 @@ class VenueManagementTest extends TestCase
     {
         // Tạo hóa đơn phí mẫu cho cluster1
         \App\Models\VenuePlatformFeeLedger::create([
-            'id' => \Illuminate\Support\Str::uuid(),
             'venue_cluster_id' => $this->cluster1->id,
             'court_count' => 5,
             'billing_cycle' => 'monthly',
@@ -356,7 +355,6 @@ class VenueManagementTest extends TestCase
 
         // Tạo media mẫu
         \App\Models\Media::create([
-            'id' => \Illuminate\Support\Str::uuid(),
             'mediable_type' => \App\Models\VenueCluster::class,
             'mediable_id' => $this->cluster1->id,
             'collection' => 'gallery',
@@ -379,7 +377,6 @@ class VenueManagementTest extends TestCase
     {
         // Tạo media mẫu
         \App\Models\Media::create([
-            'id' => \Illuminate\Support\Str::uuid(),
             'mediable_type' => \App\Models\VenueCluster::class,
             'mediable_id' => $this->cluster1->id,
             'collection' => 'gallery',
@@ -493,7 +490,6 @@ class VenueManagementTest extends TestCase
 
         // Tạo media mẫu của owner1
         $media = \App\Models\Media::create([
-            'id' => \Illuminate\Support\Str::uuid(),
             'mediable_type' => \App\Models\VenueCluster::class,
             'mediable_id' => $this->cluster1->id,
             'collection' => 'gallery',

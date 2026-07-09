@@ -322,7 +322,7 @@ class PartnerApplicationController extends Controller
     {
         $data = $request->validate([
             'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
-            'document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
+            'document_id' => ['nullable', 'integer', 'exists:generated_documents,id'],
             'signature_image' => ['required', 'string'],
             'confirmed' => ['accepted'],
             'confirmation_text' => ['required', 'string', 'max:1000'],
@@ -390,7 +390,7 @@ class PartnerApplicationController extends Controller
     public function verifyContractSignatureOtp(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'signing_request_id' => ['required', 'uuid', 'exists:document_signing_requests,id'],
+            'signing_request_id' => ['required', 'integer', 'exists:document_signing_requests,id'],
             'otp' => ['required', 'digits:6'],
         ], $this->messages(), $this->attributes());
 
@@ -494,7 +494,7 @@ class PartnerApplicationController extends Controller
     public function requestDocumentSignatureOtp(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
+            'document_id' => ['nullable', 'integer', 'exists:generated_documents,id'],
             'signature_image' => ['required', 'string'],
             'confirmed' => ['accepted'],
             'confirmation_text' => ['required', 'string', 'max:1000'],
@@ -572,7 +572,7 @@ class PartnerApplicationController extends Controller
     public function verifyDocumentSignatureOtp(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'signing_request_id' => ['required', 'uuid', 'exists:document_signing_requests,id'],
+            'signing_request_id' => ['required', 'integer', 'exists:document_signing_requests,id'],
             'otp' => ['required', 'digits:6'],
         ], $this->messages(), $this->attributes());
 
@@ -1116,7 +1116,7 @@ class PartnerApplicationController extends Controller
             'file' => ':attribute phải là file hợp lệ.',
             'exists' => ':attribute không tồn tại trong danh mục.',
             'in' => ':attribute không hợp lệ.',
-            'uuid' => ':attribute không đúng định dạng.',
+            'integer' => ':attribute không đúng định dạng.',
             'digits' => ':attribute phải gồm đúng :digits chữ số.',
         ];
     }

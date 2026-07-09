@@ -9,7 +9,6 @@ use App\Services\Customers\WalkInCustomerService;
 use App\Services\Policies\RefundPolicyEvaluator;
 use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 class AdminRefundService
@@ -193,8 +192,6 @@ class AdminRefundService
         $amount = (float) $refund->amount;
         $balanceBefore = (float) $wallet->balance;
         $balanceAfter = $balanceBefore + $amount;
-        $ledgerId = (string) Str::uuid();
-
         DB::table('user_wallets')
             ->where('id', $wallet->id)
             ->update([
@@ -202,8 +199,7 @@ class AdminRefundService
                 'updated_at' => now(),
             ]);
 
-        DB::table('user_wallet_ledgers')->insert([
-            'id' => $ledgerId,
+        $ledgerId = DB::table('user_wallet_ledgers')->insertGetId([
             'user_wallet_id' => $wallet->id,
             'transaction_code' => 'UWR-'.substr(hash('sha256', $refund->id), 0, 32),
             'type' => 'refund',

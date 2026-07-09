@@ -205,11 +205,11 @@ class BookingController extends Controller
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => 'required|in:full_payment,deposit,no_prepay',
-            'voucher_id' => 'nullable|uuid|exists:vouchers,id',
+            'voucher_id' => 'nullable|integer|exists:vouchers,id',
             'voucher_code' => 'nullable|string|max:50',
-            'venue_voucher_id' => 'nullable|uuid|exists:vouchers,id',
+            'venue_voucher_id' => 'nullable|integer|exists:vouchers,id',
             'venue_voucher_code' => 'nullable|string|max:50',
-            'vip_voucher_id' => 'nullable|uuid|exists:vouchers,id',
+            'vip_voucher_id' => 'nullable|integer|exists:vouchers,id',
             'vip_voucher_code' => 'nullable|string|max:50',
         ]);
         $this->ensureValidTimeRange($validated['start_time'], $validated['end_time']);

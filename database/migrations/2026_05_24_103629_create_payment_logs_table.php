@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('payment_logs', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('payment_id', 36)->comment('Payment mà log này thuộc về.');
+            $table->id();
+            $table->unsignedBigInteger('payment_id')->comment('Payment mà log này thuộc về.');
             $table->string('event_type', 50)->comment('Loại sự kiện.');
             $table->json('request_payload')->nullable()->comment('JSON payload gửi đi.');
             $table->json('response_payload')->nullable()->comment('JSON phản hồi từ gateway.');

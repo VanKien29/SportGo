@@ -338,9 +338,7 @@ class SystemVipService
                 ->first();
 
             if (!$wallet) {
-                $walletId = (string) Str::uuid();
-                DB::table('user_wallets')->insert([
-                    'id' => $walletId,
+                $walletId = DB::table('user_wallets')->insertGetId([
                     'user_id' => $customerId,
                     'balance' => 0,
                     'locked_balance' => 0,
@@ -364,7 +362,6 @@ class SystemVipService
             ]);
 
             DB::table('user_wallet_ledgers')->insert([
-                'id' => (string) Str::uuid(),
                 'user_wallet_id' => $wallet->id,
                 'transaction_code' => $this->uniqueWalletTransactionCode(),
                 'type' => 'adjustment',
@@ -450,9 +447,7 @@ class SystemVipService
         }
 
         for ($i = 0; $i < $remaining; $i++) {
-            $voucherId = (string) Str::uuid();
-            DB::table('vouchers')->insert([
-                'id' => $voucherId,
+            $voucherId = DB::table('vouchers')->insertGetId([
                 'code' => $this->uniqueVipVoucherCode($package),
                 'name' => 'Voucher VIP ' . $this->packageLabel($package->type, $package->name),
                 'description' => 'Voucher phat tu goi VIP he thong, chi dung cho dung tai khoan nhan voucher.',
@@ -479,7 +474,6 @@ class SystemVipService
             ]);
 
             DB::table('voucher_scopes')->insert([
-                'id' => (string) Str::uuid(),
                 'voucher_id' => $voucherId,
                 'scope_type' => 'all',
                 'scope_id' => null,

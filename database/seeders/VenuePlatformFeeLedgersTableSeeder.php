@@ -19,16 +19,15 @@ class VenuePlatformFeeLedgersTableSeeder extends Seeder
 
         $admin = User::query()->where('username', 'admin')->first();
         $clusters = VenueCluster::query()
-            ->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])
+            ->whereIn('slug', ['green-sport-ba-dinh', 'sun-sport-cau-giay'])
             ->withCount('venueCourts')
             ->get()
             ->keyBy('slug');
 
         $rows = [
-            ['sportgo-cau-giay', 1, '2026-04-01', '2026-04-30', '2026-05-05', 'paid', 'approved', 1],
-            ['sportgo-cau-giay', 1, '2026-05-01', '2026-05-31', now()->addDays(14)->toDateString(), 'pending', 'none', 0],
-            ['sportgo-my-dinh', 3, '2026-02-01', '2026-04-30', '2026-05-05', 'paid', 'approved', 1],
-            ['sportgo-my-dinh', 12, '2026-01-01', '2026-12-31', '2026-01-10', 'paid', 'approved', 1],
+            ['green-sport-ba-dinh', 1, '2026-04-01', '2026-04-30', '2026-05-05', 'paid', 'approved', 1],
+            ['green-sport-ba-dinh', 1, '2026-05-01', '2026-05-31', '2026-06-05', 'pending', 'none', 0],
+            ['sun-sport-cau-giay', 1, '2026-05-01', '2026-05-31', '2026-06-05', 'pending', 'none', 0],
         ];
 
         foreach ($rows as [$slug, $periodMonths, $start, $end, $dueDate, $status, $proofStatus, $paidRatio]) {
@@ -65,7 +64,7 @@ class VenuePlatformFeeLedgersTableSeeder extends Seeder
                     'tier_min_courts_snapshot' => $tier->min_courts,
                     'tier_max_courts_snapshot' => $tier->max_courts,
                     'court_count' => $courtCount,
-                    'billing_cycle' => $periodMonths === 12 ? 'yearly' : 'monthly',
+                    'billing_cycle' => 'monthly',
                     'period_months' => $periodMonths,
                     'due_date' => $dueDate,
                     'price_per_court_month' => $tier->price_per_court_month,
@@ -75,15 +74,15 @@ class VenuePlatformFeeLedgersTableSeeder extends Seeder
                     'amount_paid' => $paidRatio ? $amountDue : 0,
                     'payment_proof_media_id' => null,
                     'payment_proof_status' => $proofStatus,
-                    'payment_proof_note' => $proofStatus === 'rejected' ? 'Ảnh chuyển khoản không đọc được nội dung giao dịch.' : null,
+                    'payment_proof_note' => null,
                     'status' => $status,
                     'paid_at' => $status === 'paid' ? now()->subDays(8) : null,
                     'payment_confirmed_by' => $status === 'paid' ? $admin?->id : null,
                     'payment_confirmed_at' => $status === 'paid' ? now()->subDays(8) : null,
-                    'payment_rejected_by' => $proofStatus === 'rejected' ? $admin?->id : null,
-                    'payment_rejected_at' => $proofStatus === 'rejected' ? now()->subDays(12) : null,
-                    'payment_reject_reason' => $proofStatus === 'rejected' ? 'Ảnh chuyển khoản không đọc được nội dung giao dịch.' : null,
-                    'locked_venue_at' => $status === 'overdue' ? now()->subDays(2) : null,
+                    'payment_rejected_by' => null,
+                    'payment_rejected_at' => null,
+                    'payment_reject_reason' => null,
+                    'locked_venue_at' => null,
                     'internal_receipt_id' => null,
                 ],
             );

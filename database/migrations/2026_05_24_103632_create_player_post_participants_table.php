@@ -9,8 +9,8 @@ return new class extends Migration
     {
         Schema::create('player_post_participants', function (Blueprint $table) {
             $table->id();
-            $table->char('post_id', 36)->comment('Bài tuyển mà user muốn tham gia.');
-            $table->char('user_id', 36)->comment('User quan tâm hoặc tham gia.');
+            $table->unsignedBigInteger('post_id')->comment('Bài tuyển mà user muốn tham gia.');
+            $table->unsignedBigInteger('user_id')->comment('User quan tâm hoặc tham gia.');
             $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending')->comment('Trạng thái tham gia.');
             $table->text('message')->nullable()->comment('Tin nhắn/ghi chú.');
             $table->timestamp('responded_at')->nullable()->comment('Thời điểm người tạo bài phản hồi.');

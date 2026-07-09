@@ -17,59 +17,22 @@ class PlayerPostParticipantsTableSeeder extends Seeder
         }
 
         $users = User::query()
-            ->whereIn('username', ['user', 'user1', 'user2', 'user3', 'user4'])
+            ->whereIn('username', ['user1', 'user2', 'user3'])
             ->get()
             ->keyBy('username');
-
-        if ($users->isEmpty()) {
-            return;
-        }
 
         $posts = PlayerPost::query()
             ->whereIn('title', [
                 'Tìm 2 bạn giao lưu cầu lông tối nay',
                 'Pickleball cần thêm 1 bạn đánh đôi',
-                'Giao lưu cầu lông sau giờ làm',
             ])
             ->get()
             ->keyBy('title');
 
         $participants = [
-            [
-                'Tìm 2 bạn giao lưu cầu lông tối nay',
-                'user1',
-                'pending',
-                'Mình đánh được tối nay, trình trung bình khá.',
-                null,
-            ],
-            [
-                'Tìm 2 bạn giao lưu cầu lông tối nay',
-                'user2',
-                'approved',
-                'Mình tham gia 1 slot nhé.',
-                now()->subHours(2),
-            ],
-            [
-                'Pickleball cần thêm 1 bạn đánh đôi',
-                'user3',
-                'pending',
-                'Mình mới chơi được vài tháng, nếu phù hợp thì cho mình tham gia.',
-                null,
-            ],
-            [
-                'Giao lưu cầu lông sau giờ làm',
-                'user4',
-                'approved',
-                'Đã xác nhận tham gia.',
-                now()->subHours(5),
-            ],
-            [
-                'Giao lưu cầu lông sau giờ làm',
-                'user1',
-                'rejected',
-                'Hôm đó mình bận, xin hủy.',
-                now()->subHours(4),
-            ],
+            ['Tìm 2 bạn giao lưu cầu lông tối nay', 'user1', 'pending', 'Mình đánh được tối nay, trình trung bình khá.', null],
+            ['Tìm 2 bạn giao lưu cầu lông tối nay', 'user2', 'approved', 'Mình tham gia 1 slot nhé.', now()->subHours(2)],
+            ['Pickleball cần thêm 1 bạn đánh đôi', 'user3', 'pending', 'Mình mới chơi được vài tháng, nếu phù hợp thì cho mình tham gia.', null],
         ];
 
         foreach ($participants as [$postTitle, $username, $status, $message, $respondedAt]) {

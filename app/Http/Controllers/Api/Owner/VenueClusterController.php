@@ -202,7 +202,6 @@ class VenueClusterController extends Controller
         $path = $request->file('image')->store('clusters', 'public');
 
         $media = \App\Models\Media::create([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
             'mediable_type' => VenueCluster::class,
             'mediable_id' => $cluster->id,
             'collection' => 'gallery',

@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class UserWalletsTableSeeder extends Seeder
 {
@@ -48,11 +47,8 @@ class UserWalletsTableSeeder extends Seeder
             return $existingId;
         }
 
-        $payload['id'] = (string) Str::uuid();
         $payload['created_at'] = now();
-        DB::table('user_wallets')->insert($payload);
-
-        return $payload['id'];
+        return (string) DB::table('user_wallets')->insertGetId($payload);
     }
 
     private function upsertPayoutAccount(string $userId): void
@@ -78,7 +74,6 @@ class UserWalletsTableSeeder extends Seeder
             return;
         }
 
-        $payload['id'] = (string) Str::uuid();
         $payload['created_at'] = now();
         DB::table('user_payout_accounts')->insert($payload);
     }
@@ -111,7 +106,6 @@ class UserWalletsTableSeeder extends Seeder
             return;
         }
 
-        $payload['id'] = (string) Str::uuid();
         $payload['created_at'] = now();
         DB::table('user_wallet_ledgers')->insert($payload);
     }

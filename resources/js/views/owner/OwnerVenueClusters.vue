@@ -1756,7 +1756,7 @@
                             <table class="unlock-history-table">
                                 <thead>
                                     <tr>
-                                        <th class="col-code">Mã yêu cầu</th>
+                                        <th class="col-code">Yêu cầu</th>
                                         <th class="col-time">Thời gian gửi</th>
                                         <th class="col-reason">Lý do giải trình</th>
                                         <th class="col-status">Trạng thái</th>
@@ -1765,7 +1765,7 @@
                                 </thead>
                                 <tbody>
                                     <tr v-for="req in unlockRequests" :key="req.id" class="history-row">
-                                        <td class="cell-code">{{ shortId(req.id) }}</td>
+                                        <td class="cell-code">Mở khóa cụm sân</td>
                                         <td class="cell-time">{{ formatDateTime(req.created_at) }}</td>
                                         <td class="cell-reason">{{ req.reason }}</td>
                                         <td class="cell-status">
@@ -3672,10 +3672,6 @@ export default {
             } finally {
                 this.unlockSubmitting = false;
             }
-        },
-
-        shortId(value) {
-            return value ? String(value).slice(0, 8).toUpperCase() : "-";
         },
 
         formatDateTime(value) {

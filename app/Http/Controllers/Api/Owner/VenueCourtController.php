@@ -16,7 +16,7 @@ class VenueCourtController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
+            'venue_cluster_id' => ['required', 'integer', 'exists:venue_clusters,id'],
             'status' => ['nullable', Rule::in(['active', 'inactive', 'maintenance'])],
         ]);
 
@@ -40,7 +40,7 @@ class VenueCourtController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
+            'venue_cluster_id' => ['required', 'integer', 'exists:venue_clusters,id'],
             'court_type_id' => ['required', 'integer', 'exists:court_types,id'],
             'name' => ['required', 'string', 'max:100'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
@@ -125,9 +125,9 @@ class VenueCourtController extends Controller
     public function updateLayoutBulk(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
+            'venue_cluster_id' => ['required', 'integer', 'exists:venue_clusters,id'],
             'courts' => ['required', 'array'],
-            'courts.*.id' => ['required', 'uuid', 'exists:venue_courts,id'],
+            'courts.*.id' => ['required', 'integer', 'exists:venue_courts,id'],
             'courts.*.layout_x' => ['nullable', 'numeric'],
             'courts.*.layout_y' => ['nullable', 'numeric'],
             'courts.*.layout_w' => ['nullable', 'numeric', 'min:10'],
