@@ -42,6 +42,8 @@ use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
 use App\Http\Controllers\Api\Admin\VenuePostController as AdminVenuePostController;
+use App\Http\Controllers\Api\Public\SystemPostController as PublicSystemPostController;
+use App\Http\Controllers\Api\Public\UserProfileController as PublicUserProfileController;
 use App\Http\Controllers\Api\Admin\SystemPostController as AdminSystemPostController;
 use App\Http\Controllers\Api\Owner\VenuePostController as OwnerVenuePostController;
 use App\Http\Controllers\Api\Player\VenuePostController as PlayerVenuePostController;
@@ -534,5 +536,7 @@ Route::get('/venue-posts/{slug}', [PlayerVenuePostController::class, 'show']);
 // Public System News
 Route::get('/system-news', [\App\Http\Controllers\Api\Public\SystemPostController::class, 'index']);
 Route::get('/system-news/{slug}', [\App\Http\Controllers\Api\Public\SystemPostController::class, 'show']);
+
+Route::get('/users/{id}/profile', [PublicUserProfileController::class, 'show']);
 
 Route::post('/sepay/ipn', [SepayPaymentController::class, 'ipn']);

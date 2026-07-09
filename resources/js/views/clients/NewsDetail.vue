@@ -23,12 +23,12 @@
             <div class="fb-post">
               <!-- Author Header -->
               <div class="fb-post-header">
-                <div class="fb-post-avatar">
+                <div class="fb-post-avatar cursor-pointer hover:opacity-80 transition-opacity" @click.stop="post.author && post.author.id ? $router.push('/user/' + post.author.id) : null" :title="post.author && post.author.id ? 'Xem trang cá nhân' : ''">
                   <img v-if="post.author?.avatar_url" :src="post.author.avatar_url" />
                   <div v-else class="fb-avatar-text">{{ initials(post.author?.full_name || post.author?.username || '?') }}</div>
                 </div>
                 <div class="fb-post-meta">
-                  <strong>{{ post.author?.full_name || post.author?.username || 'Ban biên tập SportGo' }}</strong>
+                  <strong class="cursor-pointer hover:underline" @click.stop="post.author && post.author.id ? $router.push('/user/' + post.author.id) : null" :title="post.author && post.author.id ? 'Xem trang cá nhân' : ''">{{ post.author?.full_name || post.author?.username || 'Ban biên tập SportGo' }}</strong>
                   <div class="meta-sub">
                     <span>{{ formatDate(post.created_at) }}</span>
                     <span v-if="post.venueCluster?.name" class="meta-dot">·</span>

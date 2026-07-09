@@ -18,6 +18,7 @@ class SystemPostController extends Controller
             ->where('status', 'published')
             ->when($request->keyword, fn ($query) => $query->where('title', 'like', "%{$request->keyword}%"))
             ->when($request->category, fn ($query) => $query->where('category', $request->category))
+            ->when($request->user_id, fn ($query) => $query->where('author_id', $request->user_id))
             ->orderByDesc('published_at')
             ->paginate($request->integer('per_page', 15));
 

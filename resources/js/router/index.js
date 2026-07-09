@@ -35,6 +35,8 @@ import BookingDetail from "../views/clients/booking/BookingDetail.vue";
 import BookingHistory from "../views/clients/booking/BookingHistory.vue";
 import PartnerRegistration from "../views/partner/PartnerRegistration.vue";
 import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
+import NewsList from '../views/clients/news/NewsList.vue';
+import UserProfile from '../views/clients/users/UserProfile.vue';
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
 import CommunityPostDetail from "../views/clients/NewsDetail.vue";
@@ -73,6 +75,11 @@ const routes = [
         name: "ClientCommunityList",
         component: () => import("@/views/clients/community/CommunityList.vue"),
         meta: { requiresAuth: false, title: "Cộng đồng" },
+    },
+    {
+      path: '/user/:id',
+      name: 'user.profile',
+      component: UserProfile
     },
     {
         path: "/news/:slug",

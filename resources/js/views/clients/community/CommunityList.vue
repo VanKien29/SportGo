@@ -46,7 +46,7 @@
         <div class="matchmaking-scroll">
           <div class="matchmaking-card" v-for="mPost in matchmakingPosts" :key="mPost.id">
             <div class="m-card-header">
-              <div class="m-author">
+              <div class="m-author cursor-pointer hover:opacity-80 transition-opacity" @click.stop="mPost.author && mPost.author.id ? $router.push('/user/' + mPost.author.id) : null" :title="mPost.author && mPost.author.id ? 'Xem trang cá nhân' : ''">
                 <div class="m-avatar" v-if="mPost.author.avatar">
                   <img :src="getPostImage({image_path: mPost.author.avatar})" alt="avatar">
                 </div>

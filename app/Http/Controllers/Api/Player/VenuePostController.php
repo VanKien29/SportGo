@@ -22,6 +22,7 @@ class VenuePostController extends Controller
     {
         $posts = VenuePost::with(['media', 'author:id,full_name,username', 'venueCluster:id,name', 'hashtags'])
             ->where('status', 'published')
+            ->when($request->author_id, fn ($q) => $q->where('author_id', $request->author_id))
             ->when($request->venue_cluster_id, fn ($q) => $q->where('venue_cluster_id', $request->venue_cluster_id))
             ->when($request->post_type, fn ($q) => $q->where('post_type', $request->post_type))
             ->when($request->category, function ($q) use ($request) {

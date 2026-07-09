@@ -19,6 +19,16 @@ class PlayerPostController extends Controller
     {
         $posts = PlayerPost::with(['author', 'booking.venueCluster'])
             ->where('status', 'open')
+            ->whereHas('booking', function ($q) {
+                $q->where(function ($query) {
+                    $query->where('booking_date', '>', now()->toDateString())
+                          ->orWhere(function ($sub) {
+                              $sub->where('booking_date', '=', now()->toDateString())
+                                  ->where('end_time', '>', now()->toTimeString());
+                          });
+                });
+            })
+            ->when($request->author_id, fn ($query) => $query->where('author_id', $request->author_id))
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
