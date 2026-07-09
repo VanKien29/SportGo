@@ -246,7 +246,7 @@
                   </button>
                 </div>
                 <div v-else class="mini-schedule-state">
-                  Cụm sân không mở cửa trong ngày này.
+                  {{ miniScheduleEmptyMessage }}
                 </div>
               </section>
 
@@ -387,7 +387,7 @@ export default {
       const courts = this.previewSchedule.courts || [];
       const statuses = this.previewSchedule.slot_statuses || [];
 
-      return slots.slice(0, 10).map(slot => {
+      return slots.map(slot => {
         const slotStatuses = statuses.filter(
           status => status.start_time === slot.start_time
             && courts.some(court => court.id === status.venue_court_id),
@@ -401,16 +401,29 @@ export default {
           venue_court_id: available[0]?.venue_court_id || '',
           is_past: this.isPreviewSlotPast(slot),
         };
-      });
+      }).filter(slot => !slot.is_past).slice(0, 10);
     },
 
     previewAvailableCourtCount() {
+      const visibleStartTimes = new Set(
+        this.miniScheduleSlots.map(slot => slot.start_time),
+      );
       const availableCourtIds = new Set(
         (this.previewSchedule.slot_statuses || [])
-          .filter(status => status.is_available)
+          .filter(
+            status =>
+              status.is_available && visibleStartTimes.has(status.start_time),
+          )
           .map(status => status.venue_court_id),
       );
       return availableCourtIds.size;
+    },
+
+    miniScheduleEmptyMessage() {
+      if (!(this.previewSchedule.time_slots || []).length) {
+        return 'Cụm sân không mở cửa trong ngày này.';
+      }
+      return 'Không còn khung giờ nào trong ngày hôm nay.';
     },
   },
 

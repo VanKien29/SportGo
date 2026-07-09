@@ -58,6 +58,12 @@
                                     </p>
                                 </div>
                             </div>
+                            <div class="schedule-context">
+                                <span>{{ operatingHoursLabel }}</span>
+                                <span>
+                                    {{ minimumDurationMinutes }} phút tối thiểu
+                                </span>
+                            </div>
                         </div>
 
                         <div class="schedule-controls">
@@ -772,6 +778,7 @@ export default {
             selectedGridCourtId: "",
             selectedSlotIndexes: [],
             routeSelectionApplied: false,
+            selectionInteractionError: "",
             routeSelection: {
                 venueCourtId: "",
                 startTime: "",
@@ -924,7 +931,17 @@ export default {
         minimumAdvanceMinutes() {
             return Number(this.config.min_advance_booking_minutes || 0);
         },
+        operatingHoursLabel() {
+            const hours = this.scheduleOperatingHours;
+            if (!hours?.is_open) return "Sân đóng cửa";
+            return `${this.shortTime(hours.open_time)} - ${this.shortTime(
+                hours.close_time,
+            )}`;
+        },
         selectionValidationError() {
+            if (this.selectionInteractionError) {
+                return this.selectionInteractionError;
+            }
             if (!this.selectedSlotIndexes.length) return "";
             if (this.durationMinutes < this.minimumDurationMinutes) {
                 return `Thời lượng tối thiểu là ${this.minimumDurationMinutes} phút.`;
@@ -1307,6 +1324,7 @@ export default {
             if (!slot || this.isSlotDisabled(court.id, slot)) return;
 
             let nextIndexes = [index];
+            this.selectionInteractionError = "";
             if (
                 this.selectedGridCourtId === court.id &&
                 this.selectedSlotIndexes.length > 0
@@ -1318,11 +1336,26 @@ export default {
                     nextIndexes = this.range(min, index);
                 } else if (index === min - 1) {
                     nextIndexes = this.range(index, max);
+                } else if (!this.selectedSlotIndexes.includes(index)) {
+                    this.selectionInteractionError =
+                        "Chỉ được chọn các khung giờ liên tiếp trên cùng một sân.";
+                    return;
                 }
 
                 if (!this.isRangeFree(court.id, nextIndexes)) {
-                    nextIndexes = [index];
+                    this.selectionInteractionError =
+                        "Khoảng giờ vừa chọn có ô không còn khả dụng.";
+                    return;
                 }
+            }
+
+            const nextDuration = nextIndexes.length * 30;
+            if (
+                this.maximumDurationMinutes &&
+                nextDuration > this.maximumDurationMinutes
+            ) {
+                this.selectionInteractionError = `Thời lượng tối đa là ${this.maximumDurationMinutes} phút.`;
+                return;
             }
 
             this.selectedGridCourtId = court.id;
@@ -1385,16 +1418,19 @@ export default {
             this.isAvailable = false;
             this.availabilityChecked = false;
             this.pricePreview = null;
+            this.selectionInteractionError = "";
         },
         applyRouteSelection() {
             if (this.routeSelectionApplied || !this.routeSelection.venueCourtId) {
                 return;
             }
 
-            const courtExists = this.scheduleCourts.some(
-                (court) => court.id === this.routeSelection.venueCourtId,
+            const matchedCourt = this.scheduleCourts.find(
+                (court) =>
+                    String(court.id) ===
+                    String(this.routeSelection.venueCourtId),
             );
-            if (!courtExists) {
+            if (!matchedCourt) {
                 this.routeSelectionApplied = true;
                 return;
             }
@@ -1412,13 +1448,13 @@ export default {
             }
 
             const indexes = this.range(firstIndex, lastIndex);
-            if (!this.isRangeFree(this.routeSelection.venueCourtId, indexes)) {
+            if (!this.isRangeFree(matchedCourt.id, indexes)) {
                 this.routeSelectionApplied = true;
                 return;
             }
 
-            this.selectedGridCourtId = this.routeSelection.venueCourtId;
-            this.selectedCourtId = this.routeSelection.venueCourtId;
+            this.selectedGridCourtId = matchedCourt.id;
+            this.selectedCourtId = matchedCourt.id;
             this.selectedSlotIndexes = indexes;
             this.startTime = this.routeSelection.startTime;
             this.endTime = this.routeSelection.endTime;
@@ -2724,6 +2760,24 @@ export default {
     line-height: 1.45;
 }
 
+.schedule-context {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.schedule-context span {
+    padding: 5px 8px;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.07);
+    color: #bbf7d0;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
 .card-icon {
     flex: 0 0 auto;
     border-radius: 7px;
@@ -3151,6 +3205,15 @@ export default {
 
     .card {
         padding: 14px;
+    }
+
+    .schedule-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .schedule-context {
+        justify-content: flex-start;
     }
 
     .schedule-controls {
