@@ -30,18 +30,12 @@ class PartnerApplicationController extends Controller
         'settlement_completed',
         'pending_signature',
         'transition_period',
-        'completed',
-        'cancelled',
-        'rejected',
         'draft_preview',
         'cancellation_in_progress',
         'future_bookings_processing',
         'waiting_final_settlement',
         'waiting_final_document_signature',
         'terminating',
-        'terminated',
-        'owner_cancelled_request',
-        'admin_rejected',
     ];
 
     public function __construct(
@@ -532,7 +526,14 @@ class PartnerApplicationController extends Controller
             ]);
         $payload['contracts'] = $application->contracts;
         $payload['status_histories'] = $application->statusHistories;
-        $payload['termination_requests'] = $application->terminationRequests;
+        $payload['termination_requests'] = $application->terminationRequests->map(function (PartnerTerminationRequest $termination): PartnerTerminationRequest {
+            $termination->loadMissing('venueCluster');
+            if ($termination->venueCluster) {
+                $termination->setAttribute('financial_summary', $this->terminations->financialSummary($termination->venueCluster));
+            }
+
+            return $termination;
+        });
 
         $payload['partner_summary'] = [
             'partner_code' => 'PTN-' . strtoupper(substr(str_replace('-', '', (string) $application->user_id), 0, 8)),

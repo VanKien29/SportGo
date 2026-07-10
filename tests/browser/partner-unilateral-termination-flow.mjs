@@ -30,8 +30,9 @@ async function waitForText(page, text) {
 
 async function login(page, email) {
   const isAdmin = email === 'admin@sportgo.vn';
-  await page.goto(`${baseUrl}${isAdmin ? '/admin/login' : '/login'}`, { waitUntil: 'networkidle0' });
+  await page.goto(`${baseUrl}${isAdmin ? '/admin/login' : '/login'}`, { waitUntil: 'domcontentloaded' });
   const loginSelector = isAdmin ? '#admin-login' : '#login';
+  await page.waitForSelector(loginSelector, { visible: true });
   await page.evaluate((selector, loginValue, passwordValue) => {
     const loginInput = document.querySelector(selector);
     const passwordInput = document.querySelector('input[type="password"]');
@@ -108,13 +109,17 @@ try {
   });
 
   await login(adminPage, 'admin@sportgo.vn');
-  await adminPage.goto(`${baseUrl}/admin/partner-applications/1?tab=settlement`, { waitUntil: 'networkidle0' });
+  await adminPage.goto(`${baseUrl}/admin/partner-applications/1?tab=settlement`, { waitUntil: 'domcontentloaded' });
   await waitForText(adminPage, 'Quyết toán và chấm dứt');
   await clickButton(adminPage, 'Đơn phương chấm dứt');
   const modal = await adminPage.waitForSelector('.modal-panel', { visible: true });
-  const textareas = await modal.$$('textarea');
-  await textareas[0].type('Kiểm thử công văn chấm dứt qua Chrome 20260710');
-  await textareas[1].type('Kiểm tra quy trình tạo file, ký OTP, khóa sân, xác nhận tiếp nhận, xem xét lại và thu hồi công văn.');
+  await modal.evaluate((form) => {
+    const [reason, detail] = form.querySelectorAll('textarea');
+    reason.value = 'Kiểm thử công văn chấm dứt qua Chrome 20260710';
+    reason.dispatchEvent(new Event('input', { bubbles: true }));
+    detail.value = 'Kiểm tra quy trình tạo file, ký OTP, khóa sân, xác nhận tiếp nhận, xem xét lại và thu hồi công văn.';
+    detail.dispatchEvent(new Event('input', { bubbles: true }));
+  });
 
   const createResponsePromise = adminPage.waitForResponse((response) => (
     response.url().endsWith('/api/admin/partner-profiles/1/terminate')
@@ -160,7 +165,7 @@ try {
   });
 
   await login(ownerPage, 'owner@sportgo.vn');
-  await ownerPage.goto(`${baseUrl}/owner/termination-requests/${terminationId}`, { waitUntil: 'networkidle0' });
+  await ownerPage.goto(`${baseUrl}/owner/termination-requests/${terminationId}`, { waitUntil: 'domcontentloaded' });
   await waitForText(ownerPage, 'Đọc và xác nhận đã nhận công văn');
   await ownerPage.screenshot({ path: path.join(screenshotDir, 'unilateral-owner-ack-desktop.png'), fullPage: true });
   await clickButton(ownerPage, 'Mở công văn');
@@ -187,7 +192,7 @@ try {
   await waitForText(ownerPage, 'SportGo đang xem xét phản hồi');
   logStep('PASS owner requests reconsideration');
 
-  await adminPage.reload({ waitUntil: 'networkidle0' });
+  await adminPage.reload({ waitUntil: 'domcontentloaded' });
   await waitForText(adminPage, 'Chủ sân yêu cầu xem xét lại');
   const keepResponsePromise = adminPage.waitForResponse((response) => response.url().includes('/reconsideration/resolve'));
   await fillInlineAction(adminPage, 'Giữ nguyên sau xem xét', 'SportGo đã kiểm tra dữ liệu và giữ nguyên công văn để tiếp tục xử lý nghĩa vụ.', 'Gửi phản hồi');
@@ -195,7 +200,7 @@ try {
   if (!keepResponse.ok()) throw new Error(`Keep notice failed: ${await keepResponse.text()}`);
   logStep('PASS admin resolves reconsideration');
 
-  await ownerPage.reload({ waitUntil: 'networkidle0' });
+  await ownerPage.reload({ waitUntil: 'domcontentloaded' });
   await clickButton(ownerPage, 'Yêu cầu SportGo xem xét lại');
   await ownerPage.type('.reconsideration-band textarea', 'Đề nghị thu hồi công văn kiểm thử sau khi đã xác nhận toàn bộ luồng ký và tiếp nhận hoạt động đúng.');
   const reconsiderAgainPromise = ownerPage.waitForResponse((response) => response.url().endsWith(`/termination-requests/${terminationId}/unilateral-notice/reconsideration`));
@@ -203,18 +208,25 @@ try {
   const reconsiderAgain = await reconsiderAgainPromise;
   if (!reconsiderAgain.ok()) throw new Error(`Second reconsideration failed: ${await reconsiderAgain.text()}`);
 
-  await adminPage.reload({ waitUntil: 'networkidle0' });
+  await adminPage.reload({ waitUntil: 'domcontentloaded' });
   await waitForText(adminPage, 'Đề nghị thu hồi công văn kiểm thử');
   const withdrawResponsePromise = adminPage.waitForResponse((response) => response.url().endsWith(`/partner-termination-requests/${terminationId}/unilateral-notice/withdraw`));
   await fillInlineAction(adminPage, 'Thu hồi công văn', 'Thu hồi công văn sau khi hoàn thành bài kiểm thử trình duyệt; giữ nguyên file và nhật ký ký.', 'Xác nhận thu hồi');
   const withdrawResponse = await withdrawResponsePromise;
   const withdrawPayload = await withdrawResponse.json();
   if (!withdrawResponse.ok()) throw new Error(`Withdraw failed: ${JSON.stringify(withdrawPayload)}`);
+  await waitForText(adminPage, 'Không có hồ sơ chấm dứt đang xử lý');
+  await adminPage.evaluate(() => {
+    const button = [...document.querySelectorAll('.head-actions button')]
+      .find((item) => item.textContent.includes('Lịch sử ('));
+    button?.click();
+  });
   await waitForText(adminPage, 'SportGo đã thu hồi công văn');
   logStep('PASS admin withdraws notice', { status: withdrawPayload.data.status });
 
   await ownerPage.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
-  await ownerPage.reload({ waitUntil: 'networkidle0' });
+  await ownerPage.reload({ waitUntil: 'domcontentloaded' });
+  await waitForText(ownerPage, 'SportGo đã thu hồi công văn');
   const mobileMetrics = await ownerPage.evaluate(() => ({
     innerWidth: window.innerWidth,
     scrollWidth: document.documentElement.scrollWidth,

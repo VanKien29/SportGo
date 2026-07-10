@@ -5,6 +5,7 @@ namespace App\Services\Partner;
 use App\Mail\Partner\PartnerTerminationReceivedMail;
 use App\Mail\Partner\PartnerUnilateralTerminationMail;
 use App\Models\Booking;
+use App\Models\Complaint;
 use App\Models\DocumentSigningRequest;
 use App\Models\GeneratedDocument;
 use App\Models\Notification;
@@ -298,7 +299,7 @@ class PartnerTerminationFlowService
         $this->assertOwner($termination, $owner);
         $this->refreshAmounts($termination);
 
-        return $termination->fresh($this->requestRelations());
+        return $this->withFinancialSummary($termination->fresh($this->requestRelations()));
     }
 
     public function futureBookings(PartnerTerminationRequest $termination, User $owner): array
@@ -533,7 +534,7 @@ class PartnerTerminationFlowService
     {
         $this->refreshAmounts($termination);
 
-        return $termination->fresh($this->requestRelations());
+        return $this->withFinancialSummary($termination->fresh($this->requestRelations()));
     }
 
     public function previewUnilateralNotice(PartnerContract $contract, User $admin, array $data, Request $request): PartnerTerminationRequest
@@ -589,11 +590,11 @@ class PartnerTerminationFlowService
                 ],
             ])->save();
 
-            $document = $this->generateUnilateralNoticeDocument($termination, $contract, $admin, $summary);
+            $document = $this->generateUnilateralNoticeDocument($termination, $contract, $admin, $summary, $data);
             PartnerTerminationDocument::query()->create([
                 'partner_termination_request_id' => $termination->id,
                 'generated_document_id' => $document->id,
-                'document_type' => 'unilateral_termination_notice',
+                'document_type' => 'unilateral_notice',
                 'file_path' => $document->generated_file_path,
                 'status' => 'pending_signature',
                 'generated_by' => $admin->id,
@@ -937,7 +938,10 @@ class PartnerTerminationFlowService
                 ])->save();
                 PartnerContract::query()
                     ->whereKey($termination->partner_contract_id)
-                    ->update(['status' => 'terminating']);
+                    ->update([
+                        'status' => 'terminated',
+                        'terminated_at' => now(),
+                    ]);
                 PartnerTerminationDocument::query()
                     ->where('partner_termination_request_id', $termination->id)
                     ->where('generated_document_id', $document->id)
@@ -1186,6 +1190,16 @@ class PartnerTerminationFlowService
         return $termination->forceFill($this->existingTerminationAttributes($attributes));
     }
 
+    private function withFinancialSummary(PartnerTerminationRequest $termination): PartnerTerminationRequest
+    {
+        $termination->loadMissing('venueCluster');
+        if ($termination->venueCluster) {
+            $termination->setAttribute('financial_summary', $this->financialSummary($termination->venueCluster));
+        }
+
+        return $termination;
+    }
+
     private function existingTerminationAttributes(array $attributes): array
     {
         $columns = $this->terminationColumns();
@@ -1325,7 +1339,7 @@ class PartnerTerminationFlowService
             'venue_address' => $termination->venueCluster?->address,
             'venue_status_label' => 'Đang hoạt động; hệ thống khóa nhận booking mới sau khi đơn được ký gửi',
             'termination_type' => 'Chủ sân đề nghị chấm dứt hợp đồng',
-            'termination_reason' => $termination->reason,
+            'termination_reason' => trim($termination->reason . ($termination->detail_reason ? "\nChi tiết: " . $termination->detail_reason : '')),
             'reason' => $termination->reason,
             'detail_reason' => $previewData['detail_reason'] ?? $termination->detail_reason,
             'requested_effective_date' => $effectiveDate,
@@ -1369,7 +1383,7 @@ class PartnerTerminationFlowService
     private function generateFinalDocumentIfReady(PartnerTerminationRequest $termination, ?User $actor, bool $adminOverride = false): GeneratedDocument
     {
         $termination = $termination->fresh(['contract.application.user', 'venueCluster']);
-        if (! $adminOverride && ! $this->readyForFinalDocument($termination)) {
+        if (! $this->readyForFinalDocument($termination, $adminOverride)) {
             throw ValidationException::withMessages([
                 'termination' => 'Chưa đủ điều kiện sinh biên bản chấm dứt cuối.',
             ]);
@@ -1431,6 +1445,10 @@ class PartnerTerminationFlowService
         $termination->loadMissing($relations);
         $summary = $this->financialSummary($termination->venueCluster);
         $ownerName = $this->ownerSignerName($termination);
+        $openComplaintCount = Complaint::query()
+            ->where('venue_cluster_id', $termination->venue_cluster_id)
+            ->whereIn('status', ['pending', 'reviewing'])
+            ->count();
         $bookingResult = $this->hasTerminationBookingActionsTable()
             ? $termination->bookingActions
                 ->map(fn (PartnerTerminationBookingAction $action) => ($action->booking?->booking_code ?? '-') . ': ' . $this->bookingActionLabel($action->action) . ' / ' . $action->status)
@@ -1452,6 +1470,19 @@ class PartnerTerminationFlowService
             'venue_address' => $termination->venueCluster?->address,
             'total_paid' => $this->money($summary['owner_balance_total']),
             'future_booking_count' => (string) $summary['future_booking_count'],
+            'booking_status_summary' => $summary['future_booking_count'] > 0
+                ? $summary['future_booking_count'] . ' booking còn hiệu lực đang được xử lý.'
+                : 'Không có booking còn hiệu lực.',
+            'completed_booking_reconciliation_summary' => 'Không còn booking chờ xử lý trong điều kiện sinh biên bản cuối.',
+            'refund_status_summary' => $summary['pending_refund_liability'] > 0
+                ? 'Đang xử lý refund: ' . $this->money($summary['pending_refund_liability'])
+                : 'Không có yêu cầu hoàn/hủy đang xử lý.',
+            'complaint_status_summary' => $openComplaintCount > 0
+                ? $openComplaintCount . ' khiếu nại đang mở trên hệ thống.'
+                : 'Không có khiếu nại đang mở.',
+            'withdrawal_status_summary' => $summary['pending_withdrawal_amount'] > 0
+                ? 'Đang xử lý withdrawal: ' . $this->money($summary['pending_withdrawal_amount'])
+                : 'Không có yêu cầu rút tiền đang chờ.',
             'booking_resolution_result' => $bookingResult ?: 'Không còn booking tương lai bắt buộc xử lý.',
             'refund_result' => 'Refund đang treo: ' . $this->money($summary['pending_refund_liability']),
             'withdrawal_result' => 'Withdrawal đang treo: ' . $this->money($summary['pending_withdrawal_amount']),
@@ -1461,6 +1492,22 @@ class PartnerTerminationFlowService
             'pending_withdrawal_amount' => $this->money($summary['pending_withdrawal_amount']),
             'final_payable_to_owner' => $this->money($summary['withdrawable_amount']),
             'final_receivable_from_owner' => $this->money(0),
+            'platform_fee_remaining_refund_amount' => $this->money(0),
+            'unpaid_platform_fee_amount' => $this->money(0),
+            'adjustment_amount' => $this->money(0),
+            'voucher_adjustment_amount' => $this->money(0),
+            'compensation_amount' => $this->money(0),
+            'settlement_amount_in_words' => (float) $summary['withdrawable_amount'] > 0
+                ? 'Theo số tiền bằng số: ' . $this->money($summary['withdrawable_amount'])
+                : 'Không đồng',
+            'settlement_obligor' => (float) $summary['withdrawable_amount'] > 0 ? 'SportGo' : 'Không phát sinh',
+            'settlement_receiver' => (float) $summary['withdrawable_amount'] > 0
+                ? ($termination->contract?->application?->business_name ?: $ownerName)
+                : 'Không phát sinh',
+            'settlement_payment_method' => (float) $summary['withdrawable_amount'] > 0 ? 'Chuyển khoản' : 'Không phát sinh',
+            'settlement_deadline' => $this->timestamp(now()->addDays($this->gracePeriodDays())),
+            'document_copy_count' => '02',
+            'each_party_copy_count' => '01',
             'settlement_items' => $bookingResult,
             'effective_termination_date' => $this->timestamp(now()),
             'owner_access_revocation_date' => $this->timestamp(now()->addDays($this->gracePeriodDays())),
@@ -1588,19 +1635,20 @@ class PartnerTerminationFlowService
         });
     }
 
-    private function readyForFinalDocument(PartnerTerminationRequest $termination): bool
+    private function readyForFinalDocument(PartnerTerminationRequest $termination, bool $allowManualBalanceResolution = false): bool
     {
-        $termination = $this->refreshAmounts($termination);
+        $termination->loadMissing('venueCluster');
+        $summary = $this->financialSummary($termination->venueCluster);
 
         if (! $this->allFutureBookingsResolved($termination)) {
             return false;
         }
 
-        if ((float) $termination->pending_refund_liability > 0 || (float) $termination->pending_withdrawal_amount > 0) {
+        if ((float) $summary['pending_refund_liability'] > 0 || (float) $summary['pending_withdrawal_amount'] > 0) {
             return false;
         }
 
-        return (float) $termination->owner_balance_total <= 0.01 || $termination->manual_debt_resolved_at !== null;
+        return (float) $summary['owner_balance_total'] <= 0.01 || $allowManualBalanceResolution || $termination->manual_debt_resolved_at !== null;
     }
 
     private function latestOwnerRequestGeneratedDocument(PartnerTerminationRequest $termination): GeneratedDocument
@@ -1708,18 +1756,29 @@ class PartnerTerminationFlowService
 
         if ($signerSide === 'owner') {
             $this->assertOwner($termination, $signer);
-            if (! $termination->final_document_admin_signed_at) {
+            if (! $this->finalDocumentHasSignature($termination, 'sportgo')) {
                 throw ValidationException::withMessages([
                     'status' => 'SportGo cần ký biên bản chấm dứt cuối trước chủ sân.',
                 ]);
             }
         }
 
-        if ($signerSide === 'sportgo' && $termination->final_document_admin_signed_at) {
+        if ($signerSide === 'sportgo' && $this->finalDocumentHasSignature($termination, 'sportgo')) {
             throw ValidationException::withMessages([
                 'status' => 'SportGo đã ký biên bản chấm dứt cuối.',
             ]);
         }
+    }
+
+    private function finalDocumentHasSignature(PartnerTerminationRequest $termination, string $signerSide): bool
+    {
+        return PartnerTerminationDocument::query()
+            ->where('partner_termination_request_id', $termination->id)
+            ->whereIn('document_type', ['settlement_minutes', 'final_termination_file'])
+            ->whereHas('generatedDocument.signatures', fn ($query) => $query
+                ->where('signer_side', $signerSide)
+                ->where('status', 'signed'))
+            ->exists();
     }
 
     private function assertCanOwnerCancel(PartnerTerminationRequest $termination): void
@@ -1884,7 +1943,8 @@ class PartnerTerminationFlowService
         PartnerTerminationRequest $termination,
         PartnerContract $contract,
         User $admin,
-        array $summary
+        array $summary,
+        array $noticeData = []
     ): GeneratedDocument {
         $contract->loadMissing(['application.user', 'venueCluster']);
         $application = $contract->application;
@@ -1892,6 +1952,8 @@ class PartnerTerminationFlowService
         $ownerName = $this->ownerSignerName($termination->loadMissing(['owner', 'contract.application.user']));
         $businessName = $application?->business_name ?: $ownerName;
         $effectiveDate = $this->timestamp($termination->requested_effective_date);
+        $detailReason = $noticeData['detail_reason'] ?? $termination->detail_reason;
+        $futureBookingPolicy = $noticeData['future_booking_policy'] ?? $termination->future_booking_policy ?? self::POLICY_MANUAL;
         $futureBookingSummary = collect($summary['future_bookings'] ?? [])
             ->map(fn ($booking) => ($booking['booking_code'] ?? '-') . ' - ' . ($booking['booking_date'] ?? '-') . ' - ' . $this->money($booking['paid_online_amount'] ?? 0))
             ->implode("\n");
@@ -1918,13 +1980,15 @@ class PartnerTerminationFlowService
             'venue_code' => $cluster?->slug ?: $termination->termination_code,
             'venue_address' => $cluster?->address ?: $application?->venue_address,
             'legal_basis_text' => 'Theo điều khoản chấm dứt hợp tác trong hợp đồng đã ký và dữ liệu vận hành được lưu trên SportGo.',
-            'termination_reason' => $termination->reason,
-            'detail_reason' => $termination->detail_reason,
+            'termination_reason' => trim($termination->reason . ($detailReason ? "\nChi tiết: " . $detailReason : '')),
+            'detail_reason' => $detailReason,
+            'future_booking_policy' => $futureBookingPolicy,
             'effective_date' => $effectiveDate,
             'effective_termination_date' => $effectiveDate,
             'transition_end_at' => $effectiveDate,
-            'required_actions' => 'Xác nhận đã nhận công văn; ' . $this->policyLabel($termination->future_booking_policy) . '; hoàn tất refund, withdrawal và đối soát trước khi lập biên bản cuối.',
+            'required_actions' => 'Xác nhận đã nhận công văn; ' . $this->policyLabel($futureBookingPolicy) . '; hoàn tất refund, withdrawal và đối soát trước khi lập biên bản cuối.',
             'settlement_deadline' => $effectiveDate,
+            'contract_signed_at' => $this->timestamp($contract->owner_signed_at ?: $contract->sportgo_signed_at ?: $contract->effective_from),
             'issuer_representative_name' => $admin->full_name ?: $admin->username,
             'future_booking_count' => (string) ($summary['future_booking_count'] ?? 0),
             'future_bookings_summary' => $futureBookingSummary ?: 'Không có booking tương lai tại thời điểm tạo công văn.',

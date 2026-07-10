@@ -519,7 +519,7 @@ export default {
 
 .work-center-toast {
   position: fixed;
-  z-index: 1250;
+  z-index: 550;
   right: 22px;
   bottom: 22px;
   display: grid;

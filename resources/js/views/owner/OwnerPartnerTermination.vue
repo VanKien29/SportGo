@@ -18,8 +18,8 @@
       <section class="panel summary-panel">
         <div>
           <p class="eyebrow">{{ cluster?.name || termination?.venue_cluster?.name || 'Cụm sân' }}</p>
-          <h2>{{ statusLabel(termination?.status || 'eligible') }}</h2>
-          <p class="hint">{{ eligibility?.reason || eligibility?.warning || 'Chủ sân có thể tạo đơn, ký OTP và theo dõi quy trình chấm dứt hợp tác.' }}</p>
+          <h2>{{ summaryStatusTitle }}</h2>
+          <p class="hint">{{ summaryStatusDescription }}</p>
         </div>
         <div class="money-grid">
           <div>
@@ -41,7 +41,7 @@
         </div>
       </section>
 
-      <nav v-if="termination" class="workflow-strip" aria-label="Tiến độ chấm dứt hợp tác">
+      <nav v-if="termination && !isOwnerCancelledStatus(termination.status)" class="workflow-strip" aria-label="Tiến độ chấm dứt hợp tác">
         <div v-for="(step, index) in ownerSteps" :key="step.key" class="workflow-step" :class="step.state">
           <span class="workflow-marker">{{ step.state === 'done' ? '✓' : index + 1 }}</span>
           <strong>{{ step.label }}</strong>
@@ -243,7 +243,7 @@
           <p v-if="!isFinalSignatureStatus(termination.status)" class="hint">
             Biên bản cuối chỉ ký sau khi booking và công nợ đã xử lý xong.
           </p>
-          <p v-else-if="!termination.final_document_admin_signed_at" class="hint">
+          <p v-else-if="!finalAdminSigned" class="hint">
             Đang chờ SportGo ký trước khi chủ sân ký xác nhận.
           </p>
           <button v-if="canOwnerSignFinal" class="btn btn-primary" type="button" @click="openFinalPreview">
@@ -477,7 +477,7 @@ const cluster = computed(() => eligibility.value?.data?.cluster || termination.v
 const currentClusterId = computed(() => route.name === 'owner-partner-termination-request'
   ? (termination.value?.venue_cluster_id || termination.value?.venue_cluster?.id)
   : route.params.id);
-const summary = computed(() => eligibility.value?.data?.summary || {
+const summary = computed(() => eligibility.value?.data?.summary || termination.value?.financial_summary || {
   owner_balance_total: termination.value?.owner_balance_total || 0,
   future_online_booking_liability: termination.value?.future_online_booking_liability || 0,
   pending_refund_liability: termination.value?.pending_refund_liability || 0,
@@ -505,6 +505,12 @@ const latestRequestDocument = computed(() => displayDocuments.value.find((docume
 const latestFinalDocument = computed(() => displayDocuments.value.find((document) => (
   ['settlement_minutes', 'final_termination_file'].includes(document.document_type)
 )) || null);
+const finalAdminSigned = computed(() => Boolean(termination.value?.final_document_admin_signed_at)
+  || (latestFinalDocument.value?.generated_document?.signatures || [])
+    .some((signature) => signature.signer_side === 'sportgo' && signature.status === 'signed'));
+const finalOwnerSigned = computed(() => Boolean(termination.value?.final_document_owner_signed_at)
+  || (latestFinalDocument.value?.generated_document?.signatures || [])
+    .some((signature) => signature.signer_side === 'owner' && signature.status === 'signed'));
 const selectedPreviewRow = ref(null);
 const previewDocument = computed(() => {
   const row = selectedPreviewRow.value
@@ -521,6 +527,21 @@ const previewDocument = computed(() => {
 const effectiveFutureBookingCount = computed(() => Number(termination.value?.future_booking_count ?? summary.value.future_booking_count) || 0);
 const selectedPolicyLabel = computed(() => policyLabel(termination.value?.future_booking_policy || form.future_booking_policy));
 const isUnilateralNotice = computed(() => termination.value?.termination_type === 'unilateral_by_sportgo');
+const summaryStatusTitle = computed(() => {
+  if (!termination.value) return statusLabel('eligible');
+  if (isUnilateralNotice.value && isSubmittedRequest(termination.value.status)) return 'Công văn chờ chủ sân xác nhận';
+  if (isUnilateralNotice.value && isOwnerCancelledStatus(termination.value.status)) return 'SportGo đã thu hồi công văn';
+  return statusLabel(termination.value.status);
+});
+const summaryStatusDescription = computed(() => {
+  if (isUnilateralNotice.value && isSubmittedRequest(termination.value?.status)) {
+    return 'SportGo đã ký và gửi công văn. Chủ sân cần đọc file, xác nhận đã nhận rồi xử lý booking/công nợ.';
+  }
+  if (isUnilateralNotice.value && isOwnerCancelledStatus(termination.value?.status)) {
+    return 'Cụm sân được mở lại nếu không có khóa khác. File đã ký và lịch sử thu hồi vẫn được lưu để đối soát.';
+  }
+  return eligibility.value?.reason || eligibility.value?.warning || 'Theo dõi văn bản, chữ ký, booking và nghĩa vụ tài chính trong một luồng.';
+});
 function statusIn(status, values) {
   return values.includes(status);
 }
@@ -557,11 +578,11 @@ function isOwnerCancelledStatus(status) {
   return statusIn(status, ['owner_cancelled_request', 'cancelled']);
 }
 
-const canOwnerSignFinal = computed(() => isFinalSignatureStatus(termination.value?.status) && Boolean(termination.value?.final_document_admin_signed_at));
+const canOwnerSignFinal = computed(() => isFinalSignatureStatus(termination.value?.status) && finalAdminSigned.value && !finalOwnerSigned.value);
 const canOwnerCancelRequest = computed(() => {
   if (!termination.value?.id) return false;
   if (isUnilateralNotice.value) return false;
-  if (termination.value.final_document_ready_at || termination.value.final_document_admin_signed_at || termination.value.final_document_owner_signed_at) return false;
+  if (latestFinalDocument.value || termination.value.final_document_ready_at || finalAdminSigned.value || finalOwnerSigned.value) return false;
   return isSubmittedRequest(termination.value.status) || isFutureBookingStatus(termination.value.status) || isSettlementStatus(termination.value.status);
 });
 const canRequestReconsideration = computed(() => Boolean(
@@ -600,6 +621,9 @@ const ownerNextAction = computed(() => {
     if (isSettlementStatus(status)) {
       return { title: 'Hoàn tất công nợ và đối soát', description: 'Booking đã được xử lý; tiếp tục xử lý refund, withdrawal và số dư trước khi lập biên bản cuối.' };
     }
+    if (isOwnerCancelledStatus(status)) {
+      return { title: 'SportGo đã thu hồi công văn', description: 'Quy trình đã dừng. Văn bản, chữ ký và lịch sử xử lý được giữ nguyên để đối soát.' };
+    }
   }
   if (isDraftRequest(status)) {
     return { title: 'Chủ sân ký đơn', description: 'Kiểm tra file đơn yêu cầu, ký vào khung chữ ký và nhập OTP để gửi chính thức.' };
@@ -613,7 +637,7 @@ const ownerNextAction = computed(() => {
   if (isSettlementStatus(status)) {
     return { title: 'Chờ quyết toán cuối', description: 'Booking đã xử lý. Chủ sân xử lý rút tiền/công nợ, hoặc chờ admin xác nhận xử lý thủ công.' };
   }
-  if (isFinalSignatureStatus(status) && !termination.value.final_document_admin_signed_at) {
+  if (isFinalSignatureStatus(status) && !finalAdminSigned.value) {
     return { title: 'Chờ SportGo ký biên bản', description: 'Admin cần ký biên bản chấm dứt cuối trước, sau đó chủ sân mới ký xác nhận.' };
   }
   if (canOwnerSignFinal.value) {
@@ -689,8 +713,8 @@ function hydrateForm(request) {
 
 function buildOwnerSteps() {
   const status = termination.value?.status;
-  const finalAdminSigned = Boolean(termination.value?.final_document_admin_signed_at);
-  const finalOwnerSigned = Boolean(termination.value?.final_document_owner_signed_at);
+  const adminSigned = finalAdminSigned.value;
+  const ownerSigned = finalOwnerSigned.value;
 
   if (isUnilateralNotice.value) {
     return [
@@ -744,14 +768,14 @@ function buildOwnerSteps() {
     {
       key: 'sportgo-sign',
       label: 'SportGo ký biên bản',
-      hint: finalAdminSigned ? 'SportGo đã ký' : 'Chờ admin ký',
-      state: finalAdminSigned ? 'done' : (isFinalSignatureStatus(status) ? 'current' : 'pending'),
+      hint: adminSigned ? 'SportGo đã ký' : 'Chờ admin ký',
+      state: adminSigned ? 'done' : (isFinalSignatureStatus(status) ? 'current' : 'pending'),
     },
     {
       key: 'owner-sign',
       label: 'Chủ sân ký biên bản',
-      hint: finalOwnerSigned ? 'Chủ sân đã ký' : 'Ký sau SportGo',
-      state: finalOwnerSigned ? 'done' : (canOwnerSignFinal.value ? 'current' : 'pending'),
+      hint: ownerSigned ? 'Chủ sân đã ký' : 'Ký sau SportGo',
+      state: ownerSigned ? 'done' : (canOwnerSignFinal.value ? 'current' : 'pending'),
     },
   ];
 }
@@ -917,6 +941,7 @@ async function signFinal() {
       otp: finalSigning.otp,
     });
     termination.value = response.data;
+    closePreviewModal();
   });
 }
 

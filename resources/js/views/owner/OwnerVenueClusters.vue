@@ -2375,19 +2375,6 @@
                                     type="button"
                                     class="btn btn-outline btn-extract"
                                     :disabled="resolvingLocationMap"
-                                    @click="handleExtractLocationCoords"
-                                >
-                                    <AppIcon name="search" size="15" />
-                                    {{
-                                        resolvingLocationMap
-                                            ? "Đang trích xuất..."
-                                            : "Trích xuất tọa độ"
-                                    }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="btn btn-outline btn-extract"
-                                    :disabled="resolvingLocationMap"
                                     @click="useCurrentLocationForChange"
                                 >
                                     <AppIcon name="mapPin" size="15" />
