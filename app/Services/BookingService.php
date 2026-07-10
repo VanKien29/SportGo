@@ -28,6 +28,7 @@ use Illuminate\Validation\ValidationException;
 class BookingService
 {
     private const BLOCKING_BOOKING_STATUSES = ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'];
+    private const OWNER_APPROVAL_HOLD_MINUTES = 15;
 
     public function __construct(
         private readonly WalkInCustomerService $walkInCustomers,
@@ -250,22 +251,7 @@ class BookingService
                 $this->recordVoucherUsage($voucher, $booking, $customerId);
             }
 
-            // 9. Nếu cần thanh toán trước, tự động giữ slot theo cấu hình cụm sân.
-            if ($status === 'pending_payment') {
-                $slotHoldMinutes = $config ? $config->slot_hold_minutes : 20;
-                SlotLock::create([
-                    'venue_cluster_id' => $venueClusterId,
-                    'venue_court_id' => $venueCourtId,
-                    'lock_scope' => 'court',
-                    'booking_date' => $bookingDate,
-                    'start_time' => $startTime,
-                    'end_time' => $endTime,
-                    'locked_by' => $customerId,
-                    'booking_id' => $booking->id,
-                    'lock_type' => 'auto',
-                    'expires_at' => Carbon::now()->addMinutes($slotHoldMinutes),
-                ]);
-            }
+            $this->ensurePendingPaymentLocks($booking, $customerId);
 
             return $booking;
         });
@@ -823,7 +809,11 @@ class BookingService
 
     public function ensurePendingPaymentLocks(Booking $booking, string $lockedBy): Collection
     {
-        if ($booking->status !== 'pending_payment') {
+        if (! in_array($booking->status, ['pending_payment', 'pending_approval'], true)) {
+            return collect();
+        }
+
+        if ($booking->status === 'pending_approval' && $booking->payment_option !== 'no_prepay') {
             return collect();
         }
 
@@ -833,8 +823,9 @@ class BookingService
         }
 
         $booking->loadMissing('items');
-        $slotHoldMinutes = (int) ($this->bookingConfigForCluster($booking->venue_cluster_id)?->slot_hold_minutes ?? 20);
+        $slotHoldMinutes = $this->temporaryHoldMinutes($booking);
         $expiresAt = Carbon::now()->addMinutes($slotHoldMinutes);
+        $reason = $this->temporaryHoldReason($booking, $slotHoldMinutes);
         $items = $booking->items->isNotEmpty()
             ? $booking->items
             : collect([(object) [
@@ -855,9 +846,27 @@ class BookingService
             'booking_id' => $booking->id,
             'booking_item_id' => $item->id,
             'lock_type' => 'auto',
-            'reason' => "Giữ chỗ chờ thanh toán trong {$slotHoldMinutes} phút.",
+            'reason' => $reason,
             'expires_at' => $expiresAt,
         ]));
+    }
+
+    private function temporaryHoldMinutes(Booking $booking): int
+    {
+        if ($booking->status === 'pending_approval' && $booking->payment_option === 'no_prepay') {
+            return self::OWNER_APPROVAL_HOLD_MINUTES;
+        }
+
+        return (int) ($this->bookingConfigForCluster($booking->venue_cluster_id)?->slot_hold_minutes ?? 20);
+    }
+
+    private function temporaryHoldReason(Booking $booking, int $minutes): string
+    {
+        if ($booking->status === 'pending_approval' && $booking->payment_option === 'no_prepay') {
+            return "Giữ chỗ chờ chủ sân duyệt trong {$minutes} phút.";
+        }
+
+        return "Giữ chỗ chờ thanh toán trong {$minutes} phút.";
     }
 
     public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single', bool $includeBusyDetails = false): array

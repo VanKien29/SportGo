@@ -555,9 +555,24 @@ export default {
             this.$router.push("/login");
             return;
         }
+        window.addEventListener("pageshow", this.handlePageShow);
+        window.addEventListener("focus", this.handleWindowFocus);
         await this.initialize();
     },
+    beforeUnmount() {
+        window.removeEventListener("pageshow", this.handlePageShow);
+        window.removeEventListener("focus", this.handleWindowFocus);
+    },
+    activated() {
+        this.loadSchedule();
+    },
     methods: {
+        handlePageShow(event) {
+            if (event.persisted) this.loadSchedule();
+        },
+        handleWindowFocus() {
+            if (!this.initialLoading) this.loadSchedule();
+        },
         async initialize() {
             try {
                 const query = this.$route.query || {};
@@ -649,8 +664,12 @@ export default {
             this.bookingDate = value;
             this.changeDate();
         },
+        timeKey(value) {
+            return String(value || "").slice(0, 5);
+        },
         slotStatus(courtId, slot) {
-            return this.statuses.find(item => String(item.venue_court_id) === String(courtId) && item.start_time === slot?.start_time);
+            const start = this.timeKey(slot?.start_time);
+            return this.statuses.find(item => String(item.venue_court_id) === String(courtId) && this.timeKey(item.start_time) === start);
         },
         slotPast(slot) {
             if (this.bookingDate !== this.today) return false;
