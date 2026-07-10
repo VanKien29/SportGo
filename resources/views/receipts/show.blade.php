@@ -39,13 +39,27 @@
         'platform_fee' => 'Phí nền tảng',
         'payment' => 'Thanh toán',
     ][$receipt->receipt_type] ?? $receipt->receipt_type;
+
+    $systemProfile = \App\Models\SystemSetting::profilePayload();
+    $systemName = $systemProfile['system_name'] ?: 'SportGo';
+    $systemFavicon = $systemProfile['favicon_url'] ?: $systemProfile['logo_url'];
+    $systemFaviconUrl = $systemFavicon
+        ? (\Illuminate\Support\Str::startsWith($systemFavicon, ['http://', 'https://', '//', 'data:'])
+            ? $systemFavicon
+            : asset(ltrim($systemFavicon, '/')))
+        : null;
 @endphp
 <!doctype html>
 <html lang="vi">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $receipt->receipt_code }}</title>
+    <title>{{ $receipt->receipt_code }} - {{ $systemName }}</title>
+    @if($systemFaviconUrl)
+        <link rel="icon" href="{{ $systemFaviconUrl }}">
+        <link rel="shortcut icon" href="{{ $systemFaviconUrl }}">
+        <link rel="apple-touch-icon" href="{{ $systemFaviconUrl }}">
+    @endif
     <style>
         :root {
             color: #102019;
@@ -231,7 +245,7 @@
         <section class="receipt">
             <header class="header">
                 <div>
-                    <div class="brand">SportGo</div>
+                    <div class="brand">{{ $systemName }}</div>
                     <div class="muted">Hóa đơn nội bộ</div>
                 </div>
                 <div class="code">
@@ -263,8 +277,8 @@
                 <div class="parties">
                     <section class="party">
                         <h3>Bên phát hành</h3>
-                        <div><span class="label">Đơn vị</span><span class="value">SportGo</span></div>
-                        <div><span class="label">Hệ thống</span><span class="value">Nền tảng đặt sân SportGo</span></div>
+                        <div><span class="label">Đơn vị</span><span class="value">{{ $systemProfile['company_name'] ?: $systemName }}</span></div>
+                        <div><span class="label">Hệ thống</span><span class="value">Nền tảng đặt sân {{ $systemName }}</span></div>
                     </section>
                     <section class="party">
                         <h3>Bên nhận</h3>
@@ -311,7 +325,7 @@
                     </tbody>
                 </table>
 
-                <p class="footer">Hóa đơn được phát hành tự động bởi hệ thống SportGo để người dùng, chủ sân và quản trị viên đối soát giao dịch. Tài liệu này không thay thế hóa đơn điện tử có mã cơ quan thuế.</p>
+                <p class="footer">Hóa đơn được phát hành tự động bởi hệ thống {{ $systemName }} để người dùng, chủ sân và quản trị viên đối soát giao dịch. Tài liệu này không thay thế hóa đơn điện tử có mã cơ quan thuế.</p>
             </div>
         </section>
     </main>

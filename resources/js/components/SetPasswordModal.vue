@@ -3,7 +3,7 @@
     <div v-if="show" class="modal-overlay" @click.self="handleSkip">
       <div class="modal-card">
         <div class="modal-header">
-          <div class="modal-brand">Sport<span>Go</span></div>
+          <div class="modal-brand">{{ brandMain }}<span v-if="brandAccent">{{ brandAccent }}</span></div>
           <div class="modal-badge">Đăng nhập Google thành công</div>
           <h2>Thiết lập mật khẩu</h2>
           <p>Đặt mật khẩu để có thể đăng nhập bằng email, số điện thoại hoặc username sau này.</p>
@@ -68,6 +68,7 @@
 
 <script>
 import { setPassword, clearPasswordSetupFlag } from '../stores/auth.js';
+import { systemName } from '../stores/systemProfile.js';
 
 export default {
   name: 'SetPasswordModal',
@@ -85,6 +86,17 @@ export default {
     };
   },
   computed: {
+    brandName() {
+      return systemName() || 'SportGo';
+    },
+    brandMain() {
+      const match = this.brandName.match(/^(.*?)(go)$/i);
+      return match ? match[1] : this.brandName;
+    },
+    brandAccent() {
+      const match = this.brandName.match(/^(.*?)(go)$/i);
+      return match ? match[2] : '';
+    },
     checks() {
       const password = this.password;
       return {
