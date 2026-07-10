@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\BannerController as AdminBannerController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FinanceOperationController as AdminFinanceOperationController;
 use App\Http\Controllers\Api\Admin\SystemWalletController as AdminSystemWalletController;
+use App\Http\Controllers\Api\Admin\SystemSettingController as AdminSystemSettingController;
 use App\Http\Controllers\Api\Admin\PlatformFeeLedgerController as AdminPlatformFeeLedgerController;
 use App\Http\Controllers\Api\Admin\PlatformFeeTierController as AdminPlatformFeeTierController;
 use App\Http\Controllers\Api\Admin\PartnerApplicationController as AdminPartnerApplicationController;
@@ -101,6 +102,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
     ->prefix('admin')
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+        Route::get('/system-profile', [AdminSystemSettingController::class, 'show']);
+        Route::post('/system-profile', [AdminSystemSettingController::class, 'update']);
         Route::get('/users', [AdminUserController::class, 'index']);
         Route::get('/users/auto-lock-config', [\App\Http\Controllers\Api\Admin\UserController::class, 'autoLockConfig']);
         Route::get('/users/{id}', [AdminUserController::class, 'show']);

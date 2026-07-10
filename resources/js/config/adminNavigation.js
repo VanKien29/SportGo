@@ -116,6 +116,12 @@ export const adminNavigationSections = [
         activeNames: ['admin-policies', 'admin-policy-detail'],
       },
       {
+        label: 'Thông tin hệ thống',
+        icon: 'building',
+        to: '/admin/system-profile',
+        activeNames: ['admin-system-profile'],
+      },
+      {
         label: 'Loại sân',
         icon: 'layers',
         to: '/admin/court-types',
@@ -190,6 +196,7 @@ export const adminRouteTitles = {
   'admin-platform-fee-ledger-detail': 'Chi tiết kỳ phí duy trì',
   'admin-venue-platform-fees': 'Phí duy trì cụm sân',
   'admin-platform-fee-settings': 'Cài đặt nhắc phí',
+  'admin-system-profile': 'Thông tin hệ thống',
   'admin-settings': 'Cấu hình giao diện',
 };
 

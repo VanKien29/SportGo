@@ -291,6 +291,12 @@ const routes = [
                     import("../views/admin/AdminPlatformFeeSettings.vue"),
             },
             {
+                path: "system-profile",
+                name: "admin-system-profile",
+                component: () =>
+                    import("../views/admin/AdminSystemProfile.vue"),
+            },
+            {
                 path: "settings",
                 name: "admin-settings",
                 component: () =>
