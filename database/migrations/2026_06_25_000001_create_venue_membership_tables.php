@@ -10,8 +10,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('venue_membership_tier_settings', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->char('venue_cluster_id', 36);
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->string('tier_key', 30);
             $table->string('tier_label', 60);
             $table->unsignedTinyInteger('tier_order');
@@ -30,9 +30,9 @@ return new class extends Migration
         });
 
         Schema::create('user_venue_memberships', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->char('user_id', 36);
-            $table->char('venue_cluster_id', 36);
+            $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->string('tier_key', 30)->default('regular');
             $table->unsignedInteger('completed_bookings')->default(0);
             $table->decimal('total_spend_amount', 12, 2)->default(0);
@@ -49,10 +49,10 @@ return new class extends Migration
         });
 
         Schema::create('user_venue_membership_histories', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->char('membership_id', 36)->nullable();
-            $table->char('user_id', 36);
-            $table->char('venue_cluster_id', 36);
+            $table->id();
+            $table->unsignedBigInteger('membership_id')->nullable();
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->string('from_tier_key', 30)->nullable();
             $table->string('to_tier_key', 30);
             $table->string('change_type', 30);

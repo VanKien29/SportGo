@@ -49,7 +49,7 @@ use Illuminate\Validation\ValidationException;
 
 class PartnerApplicationService
 {
-    private const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
+    private const SYSTEM_SCOPE_ID = 0;
     private const REVIEWABLE_STATUSES = ['pending', 'reviewing', 'submitted'];
 
     public function __construct(
@@ -770,7 +770,7 @@ class PartnerApplicationService
                     ->where('user_id', $termination->owner_id)
                     ->where('role_id', $roleId)
                     ->where('scope_type', 'venue')
-                    ->where('scope_id', $termination->venue_cluster_id ?: self::ZERO_UUID)
+                    ->where('scope_id', $termination->venue_cluster_id ?: self::SYSTEM_SCOPE_ID)
                     ->delete();
             }
 
@@ -1713,7 +1713,7 @@ class PartnerApplicationService
                 'user_id' => $userId,
                 'role_id' => $role->id,
                 'scope_type' => $venueClusterId ? 'venue' : 'system',
-                'scope_id' => $venueClusterId ?: self::ZERO_UUID,
+                'scope_id' => $venueClusterId ?: self::SYSTEM_SCOPE_ID,
             ],
             [
                 'granted_by' => $actorId,

@@ -22,7 +22,7 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('booking_items', 'cancelled_by')) {
-                $table->char('cancelled_by', 36)->nullable()->after('status_reason');
+                $table->unsignedBigInteger('cancelled_by')->nullable()->after('status_reason');
             }
 
             if (! Schema::hasColumn('booking_items', 'cancelled_at')) {
@@ -30,7 +30,7 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('booking_items', 'maintenance_lock_id')) {
-                $table->char('maintenance_lock_id', 36)->nullable()->after('cancelled_at');
+                $table->unsignedBigInteger('maintenance_lock_id')->nullable()->after('cancelled_at');
             }
         });
 

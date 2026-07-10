@@ -13,9 +13,9 @@ return new class extends Migration
         }
 
         Schema::create('platform_fee_email_logs', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->char('ledger_id', 36);
-            $table->char('venue_cluster_id', 36);
+            $table->id();
+            $table->unsignedBigInteger('ledger_id');
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->string('type', 50);
             $table->string('email')->nullable();
             $table->string('subject');
@@ -24,7 +24,7 @@ return new class extends Migration
             $table->timestamp('queued_at')->nullable();
             $table->timestamp('sent_at')->nullable();
             $table->text('error_reason')->nullable();
-            $table->char('triggered_by', 36)->nullable();
+            $table->unsignedBigInteger('triggered_by')->nullable();
             $table->json('metadata')->nullable();
             $table->timestamps();
 

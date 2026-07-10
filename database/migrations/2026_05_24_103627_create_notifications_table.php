@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('notifications', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('user_id', 36)->comment('Người nhận thông báo.');
+            $table->id();
+            $table->unsignedBigInteger('user_id')->comment('Người nhận thông báo.');
             $table->string('type', 50)->comment('Loại thông báo.');
             $table->string('title', 255)->comment('Tiêu đề thông báo.');
             $table->text('body')->nullable()->comment('Nội dung ngắn.');

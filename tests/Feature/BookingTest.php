@@ -16,7 +16,6 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class BookingTest extends TestCase
@@ -56,7 +55,7 @@ class BookingTest extends TestCase
             'user_id' => $this->player->id,
             'role_id' => $role->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         // 3. Tạo loại sân
@@ -523,10 +522,7 @@ class BookingTest extends TestCase
 
     private function createVoucher(string $code, string $ownerType, float $discountAmount): string
     {
-        $voucherId = (string) Str::uuid();
-
-        DB::table('vouchers')->insert([
-            'id' => $voucherId,
+        $voucherId = DB::table('vouchers')->insertGetId([
             'code' => $code,
             'name' => $code,
             'description' => null,
@@ -550,7 +546,6 @@ class BookingTest extends TestCase
         ]);
 
         DB::table('voucher_scopes')->insert([
-            'id' => (string) Str::uuid(),
             'voucher_id' => $voucherId,
             'scope_type' => 'all',
             'scope_id' => null,
@@ -559,7 +554,7 @@ class BookingTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        return $voucherId;
+        return (string) $voucherId;
     }
 
 }

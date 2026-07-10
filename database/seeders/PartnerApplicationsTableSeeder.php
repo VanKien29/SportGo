@@ -20,23 +20,17 @@ class PartnerApplicationsTableSeeder extends Seeder
         $admin = User::query()->where('username', 'admin')->first();
         $staff = User::query()->where('username', 'systemstaff')->first();
         $owner = User::query()->where('username', 'owner')->first();
-        $user = User::query()->where('username', 'user')->first();
+        $ownerSun = User::query()->where('username', 'owner_sun')->first();
         $clusters = VenueCluster::query()->pluck('id', 'slug');
 
-        if (! $owner || ! $user) {
+        if (! $owner || ! $ownerSun) {
             return;
         }
 
         $applications = [
-            ['user' => $owner, 'venue_name' => 'SportGo Cầu Giấy', 'business_name' => 'Hộ kinh doanh SportGo Cầu Giấy', 'status' => 'completed', 'contract_code' => 'HD-SG-CG-001', 'reviewed_by' => $admin?->id, 'reviewed_at' => now()->subDays(12), 'approved_venue_cluster_id' => $clusters['sportgo-cau-giay'] ?? null, 'status_reason' => 'Hồ sơ đã hoàn tất ký hợp đồng và được kích hoạt.'],
-            ['user' => $user, 'venue_name' => 'SportGo Thanh Xuân', 'business_name' => 'CLB Thể thao Thanh Xuân', 'status' => 'submitted', 'contract_code' => null, 'reviewed_by' => null, 'reviewed_at' => null, 'approved_venue_cluster_id' => null, 'status_reason' => null],
-            ['user' => $user, 'venue_name' => 'SportGo Mỹ Đình', 'business_name' => 'Công ty TNHH Sân Mỹ Đình', 'status' => 'reviewing', 'contract_code' => null, 'reviewed_by' => $staff?->id, 'reviewed_at' => now()->subDays(2), 'approved_venue_cluster_id' => $clusters['sportgo-my-dinh'] ?? null, 'status_reason' => 'Nhân viên hệ thống đang kiểm tra hồ sơ pháp lý.'],
-            ['user' => $user, 'venue_name' => 'SportGo Hồ Tây', 'business_name' => 'Hộ kinh doanh Sân Hồ Tây', 'status' => 'need_supplement', 'contract_code' => null, 'reviewed_by' => $staff?->id, 'reviewed_at' => now()->subDay(), 'approved_venue_cluster_id' => null, 'status_reason' => 'Cần bổ sung giấy tờ chứng minh quyền sử dụng mặt bằng.'],
-            ['user' => $user, 'venue_name' => 'SportGo Long Biên', 'business_name' => 'Công ty TNHH Thể thao Long Biên', 'status' => 'rejected', 'contract_code' => null, 'reviewed_by' => $admin?->id, 'reviewed_at' => now()->subDays(8), 'approved_venue_cluster_id' => null, 'status_reason' => 'Thông tin pháp lý và tài khoản nhận tiền không khớp.'],
-            ['user' => $owner, 'venue_name' => 'SportGo Đống Đa', 'business_name' => 'Hộ kinh doanh SportGo Đống Đa', 'status' => 'contract_pending_owner_signature', 'contract_code' => 'HD-SG-DD-001', 'reviewed_by' => $admin?->id, 'reviewed_at' => now()->subDays(5), 'approved_venue_cluster_id' => null, 'status_reason' => 'Hợp đồng đã sinh, đang chờ chủ sân ký.'],
-            ['user' => $owner, 'venue_name' => 'SportGo Hà Đông', 'business_name' => 'Hộ kinh doanh SportGo Hà Đông', 'status' => 'approved_pending_contract', 'contract_code' => null, 'reviewed_by' => $admin?->id, 'reviewed_at' => now()->subDays(4), 'approved_venue_cluster_id' => $clusters['sportgo-ha-dong'] ?? null, 'status_reason' => 'Hồ sơ đã được duyệt, đang chờ sinh hợp đồng.'],
-            ['user' => $owner, 'venue_name' => 'SportGo Ba Đình', 'business_name' => 'Hộ kinh doanh SportGo Ba Đình', 'status' => 'contract_pending_sportgo_signature', 'contract_code' => 'HD-SG-BD-001', 'reviewed_by' => $admin?->id, 'reviewed_at' => now()->subDays(3), 'approved_venue_cluster_id' => $clusters['sportgo-ba-dinh'] ?? null, 'status_reason' => 'Chủ sân đã ký, đang chờ SportGo ký xác nhận.'],
-            ['user' => $user, 'venue_name' => 'SportGo Tây Hồ', 'business_name' => 'Công ty TNHH SportGo Tây Hồ', 'status' => 'cancelled', 'contract_code' => null, 'reviewed_by' => null, 'reviewed_at' => null, 'approved_venue_cluster_id' => null, 'status_reason' => 'Người đăng ký đã hủy hồ sơ trước khi admin duyệt.'],
+            ['user' => $owner, 'venue_name' => 'Green Sport Ba Đình', 'business_name' => 'Hộ kinh doanh Green Sport Ba Đình', 'status' => 'completed', 'contract_code' => 'CONTRACT_GREEN_0001', 'reviewed_by' => $admin?->id, 'reviewed_at' => now()->subDays(12), 'approved_venue_cluster_id' => $clusters['green-sport-ba-dinh'] ?? null, 'status_reason' => 'Hồ sơ đã hoàn tất ký hợp đồng và được kích hoạt.'],
+            ['user' => $ownerSun, 'venue_name' => 'Sun Sport Cầu Giấy', 'business_name' => 'Hộ kinh doanh Sun Sport Cầu Giấy', 'status' => 'submitted', 'contract_code' => null, 'reviewed_by' => null, 'reviewed_at' => null, 'approved_venue_cluster_id' => $clusters['sun-sport-cau-giay'] ?? null, 'status_reason' => 'Hồ sơ đang chờ SportGo tiếp nhận, cụm sân chưa được kích hoạt.'],
+            ['user' => $owner, 'venue_name' => 'Victory Sport Hà Đông', 'business_name' => 'Hộ kinh doanh Victory Sport Hà Đông', 'status' => 'submitted', 'contract_code' => null, 'reviewed_by' => null, 'reviewed_at' => null, 'approved_venue_cluster_id' => $clusters['victory-sport-ha-dong'] ?? null, 'status_reason' => 'Hồ sơ tham chiếu cho cụm sân mẫu, chưa có hợp đồng active.'],
         ];
 
         foreach ($applications as $index => $item) {

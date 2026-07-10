@@ -17,16 +17,17 @@ class HolidayPricesTableSeeder extends Seeder
         }
 
         $clusters = VenueCluster::query()
-            ->whereIn('slug', ['sportgo-cau-giay', 'sportgo-my-dinh'])
+            ->whereIn('slug', ['green-sport-ba-dinh', 'sun-sport-cau-giay'])
             ->get()
             ->keyBy('slug');
+
         $types = CourtType::query()
             ->whereIn('name', ['Cầu lông (Sân tiêu chuẩn)', 'Bóng Đá (Sân 7)'])
             ->pluck('id', 'name');
 
         $prices = [
-            ['sportgo-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', '2026-01-01', 144000],
-            ['sportgo-my-dinh', 'Bóng Đá (Sân 7)', '2026-01-01', 600000],
+            ['green-sport-ba-dinh', 'Cầu lông (Sân tiêu chuẩn)', '2026-01-01', 144000],
+            ['sun-sport-cau-giay', 'Bóng Đá (Sân 7)', '2026-01-01', 600000],
         ];
 
         foreach ($prices as [$clusterSlug, $courtTypeName, $date, $price]) {

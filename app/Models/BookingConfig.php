@@ -13,7 +13,7 @@ class BookingConfig extends Model
 
     public $incrementing = false;
 
-    protected $keyType = 'string';
+    protected $keyType = 'int';
 
     protected $fillable = [
         'venue_cluster_id',

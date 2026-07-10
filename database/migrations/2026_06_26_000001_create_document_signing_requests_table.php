@@ -20,10 +20,10 @@ return new class extends Migration
         }
 
         Schema::create('document_signing_requests', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
-            $table->char('generated_document_id', 36);
+            $table->id();
+            $table->unsignedBigInteger('generated_document_id');
             $table->unsignedBigInteger('verification_code_id')->nullable();
-            $table->char('user_id', 36);
+            $table->unsignedBigInteger('user_id');
             $table->string('signer_side', 50);
             $table->string('action', 100);
             $table->string('document_type', 100);
@@ -41,7 +41,7 @@ return new class extends Migration
             $table->string('status', 50)->default('otp_sent');
             $table->text('checkbox_text')->nullable();
             $table->longText('signature_image')->nullable();
-            $table->char('signed_signature_id', 36)->nullable();
+            $table->unsignedBigInteger('signed_signature_id')->nullable();
             $table->string('ip_address', 45)->nullable();
             $table->string('user_agent', 500)->nullable();
             $table->json('metadata')->nullable();

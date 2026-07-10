@@ -5,8 +5,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('system_posts', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('author_id', 36)->nullable()->comment('Admin/nhân viên tạo bài viết.');
+            $table->id();
+            $table->unsignedBigInteger('author_id')->nullable()->comment('Admin/nhân viên tạo bài viết.');
             $table->string('title', 255)->comment('Tiêu đề bài viết.');
             $table->string('slug', 255)->unique()->comment('Slug duy nhất.');
             $table->longText('content')->comment('Nội dung bài viết.');

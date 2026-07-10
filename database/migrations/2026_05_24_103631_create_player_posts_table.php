@@ -8,9 +8,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('player_posts', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('booking_id', 36)->comment('Booking bắt buộc gắn với bài tuyển.');
-            $table->char('author_id', 36)->comment('Người tạo bài tuyển.');
+            $table->id();
+            $table->unsignedBigInteger('booking_id')->comment('Booking bắt buộc gắn với bài tuyển.');
+            $table->unsignedBigInteger('author_id')->comment('Người tạo bài tuyển.');
             $table->string('title', 255)->comment('Tiêu đề bài tuyển.');
             $table->text('description')->nullable()->comment('Nội dung mô tả buổi giao lưu.');
             $table->unsignedSmallInteger('needed_players')->default(1)->comment('Số người cần tuyển thêm.');

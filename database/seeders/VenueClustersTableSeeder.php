@@ -16,6 +16,7 @@ class VenueClustersTableSeeder extends Seeder
         }
 
         $owner = User::query()->where('username', 'owner')->first();
+        $sunOwner = User::query()->where('username', 'owner_sun')->first();
 
         if (! $owner) {
             return;
@@ -25,52 +26,41 @@ class VenueClustersTableSeeder extends Seeder
 
         $clusters = [
             [
-                'name' => 'SportGo Cầu Giấy',
-                'slug' => 'sportgo-cau-giay',
-                'description' => 'Cụm sân demo tại Cầu Giấy để test chức năng quản lý sân.',
+                'name' => 'Green Sport Ba Đình',
+                'slug' => 'green-sport-ba-dinh',
+                'description' => 'Cụm sân đang hoạt động, đã hoàn tất hồ sơ đối tác và hợp đồng đang hiệu lực.',
                 'phone_contact' => '0902000001',
                 'province' => 'Hà Nội',
-                'ward' => 'Dịch Vọng',
-                'address' => 'Số 1 Dịch Vọng',
+                'ward' => 'Kim Mã',
+                'address' => 'Số 12 Kim Mã, Ba Đình',
                 'latitude' => 21.0362360,
                 'longitude' => 105.7905830,
                 'status' => 'active',
             ],
             [
-                'name' => 'SportGo Mỹ Đình',
-                'slug' => 'sportgo-my-dinh',
-                'description' => 'Cụm sân demo tại Mỹ Đình để test lịch và bảng giá.',
+                'name' => 'Sun Sport Cầu Giấy',
+                'slug' => 'sun-sport-cau-giay',
+                'owner_username' => 'owner_sun',
+                'description' => 'Cụm sân đang chờ duyệt hồ sơ đối tác, chưa mở booking active.',
                 'phone_contact' => '0902000002',
                 'province' => 'Hà Nội',
-                'ward' => 'Mỹ Đình 1',
-                'address' => 'Đường Lê Đức Thọ',
-                'latitude' => 21.0285110,
-                'longitude' => 105.7783390,
-                'status' => 'active',
+                'ward' => 'Dịch Vọng',
+                'address' => 'Số 8 phố Trần Thái Tông, Cầu Giấy',
+                'latitude' => 21.0365200,
+                'longitude' => 105.7897200,
+                'status' => 'pending',
             ],
             [
-                'name' => 'SportGo Hà Đông',
-                'slug' => 'sportgo-ha-dong',
-                'description' => 'Cụm sân demo dùng để test quyền owner trong thời gian chuyển tiếp.',
+                'name' => 'Victory Sport Hà Đông',
+                'slug' => 'victory-sport-ha-dong',
+                'description' => 'Cụm sân mẫu phục vụ dữ liệu tham chiếu, chưa có booking active trong seed chính.',
                 'phone_contact' => '0902000003',
                 'province' => 'Hà Nội',
                 'ward' => 'Văn Quán',
                 'address' => 'Đường Trần Phú',
                 'latitude' => 20.9685190,
                 'longitude' => 105.7853120,
-                'status' => 'active',
-            ],
-            [
-                'name' => 'SportGo Ba Đình',
-                'slug' => 'sportgo-ba-dinh',
-                'description' => 'Cụm sân demo dùng để test trạng thái owner bị chặn quyền.',
-                'phone_contact' => '0902000004',
-                'province' => 'Hà Nội',
-                'ward' => 'Kim Mã',
-                'address' => 'Phố Kim Mã',
-                'latitude' => 21.0328640,
-                'longitude' => 105.8131040,
-                'status' => 'active',
+                'status' => 'pending',
             ],
         ];
 
@@ -78,7 +68,7 @@ class VenueClustersTableSeeder extends Seeder
             VenueCluster::query()->updateOrCreate(
                 ['slug' => $cluster['slug']],
                 [
-                    'owner_id' => $owner->id,
+                    'owner_id' => ($cluster['owner_username'] ?? null) === 'owner_sun' && $sunOwner ? $sunOwner->id : $owner->id,
                     'name' => $cluster['name'],
                     'description' => $cluster['description'],
                     'phone_contact' => $cluster['phone_contact'],

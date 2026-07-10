@@ -5,10 +5,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('player_ratings', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('rater_id', 36)->comment('Người đánh giá.');
-            $table->char('rated_user_id', 36)->comment('Người được đánh giá.');
-            $table->char('post_id', 36)->nullable()->comment('Bài tuyển làm ngữ cảnh đánh giá.');
+            $table->id();
+            $table->unsignedBigInteger('rater_id')->comment('Người đánh giá.');
+            $table->unsignedBigInteger('rated_user_id')->comment('Người được đánh giá.');
+            $table->unsignedBigInteger('post_id')->nullable()->comment('Bài tuyển làm ngữ cảnh đánh giá.');
             $table->unsignedTinyInteger('rating')->comment('Điểm đánh giá.');
             $table->text('comment')->nullable()->comment('Nhận xét.');
             $table->json('tags')->nullable()->comment('JSON nhãn đánh giá.');

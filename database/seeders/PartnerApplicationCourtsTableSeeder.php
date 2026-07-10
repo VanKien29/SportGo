@@ -17,35 +17,19 @@ class PartnerApplicationCourtsTableSeeder extends Seeder
         }
 
         $typeIds = CourtType::query()
-            ->whereIn('name', ['Cầu lông (Sân tiêu chuẩn)', 'Pickleball (Sân tiêu chuẩn)', 'Bóng đá (Sân 7)'])
+            ->whereIn('name', ['Cầu lông (Sân tiêu chuẩn)', 'Pickleball (Sân tiêu chuẩn)', 'Bóng Đá (Sân 7)'])
             ->pluck('id', 'name');
 
         $rows = [
-            'SportGo Cầu Giấy' => [
-                ['Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A1', 4, 1],
+            'Green Sport Ba Đình' => [
+                ['Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A1', 2, 1],
                 ['Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P1', 2, 2],
             ],
-            'SportGo Thanh Xuân' => [
-                ['Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông TX1', 3, 1],
-                ['Pickleball (Sân tiêu chuẩn)', 'Sân pickleball TX1', 2, 2],
+            'Sun Sport Cầu Giấy' => [
+                ['Bóng Đá (Sân 7)', 'Sân bóng đá F1', 1, 1],
             ],
-            'SportGo Mỹ Đình' => [
-                ['Bóng đá (Sân 7)', 'Sân bóng đá MD1', 2, 1],
-            ],
-            'SportGo Hồ Tây' => [
-                ['Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông HT1', 2, 1],
-            ],
-            'SportGo Long Biên' => [
-                ['Bóng đá (Sân 7)', 'Sân bóng đá LB1', 1, 1],
-            ],
-            'SportGo Đống Đa' => [
-                ['Pickleball (Sân tiêu chuẩn)', 'Sân pickleball DD1', 2, 1],
-            ],
-            'SportGo Hà Đông' => [
-                ['Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông HD1', 3, 1],
-            ],
-            'SportGo Ba Đình' => [
-                ['Bóng đá (Sân 7)', 'Sân bóng đá BD1', 1, 1],
+            'Victory Sport Hà Đông' => [
+                ['Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông V1', 1, 1],
             ],
         ];
 

@@ -13,13 +13,13 @@ return new class extends Migration
         }
 
         Schema::create('internal_receipts', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('receipt_code', 40)->unique()->comment('Mã phiếu/hóa đơn nội bộ.');
             $table->enum('receipt_type', ['platform_fee', 'withdrawal', 'refund', 'payment'])->comment('Nghiệp vụ phát sinh phiếu.');
             $table->string('receiptable_type', 100)->comment('Loại đối tượng phát sinh phiếu.');
             $table->string('receiptable_id', 100)->comment('ID đối tượng phát sinh phiếu.');
-            $table->char('issued_to_user_id', 36)->nullable()->comment('User nhận phiếu, nếu có.');
-            $table->char('issued_by', 36)->nullable()->comment('Admin/người tạo phiếu.');
+            $table->unsignedBigInteger('issued_to_user_id')->nullable()->comment('User nhận phiếu, nếu có.');
+            $table->unsignedBigInteger('issued_by')->nullable()->comment('Admin/người tạo phiếu.');
             $table->string('title', 255)->comment('Tiêu đề phiếu.');
             $table->decimal('amount', 14, 2)->default(0.00)->comment('Số tiền ghi nhận trên phiếu.');
             $table->string('currency', 10)->default('VND')->comment('Đơn vị tiền tệ.');

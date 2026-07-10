@@ -95,7 +95,7 @@ class PartnerContractController extends Controller
     public function verifyApproveSignatureOtp(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'signing_request_id' => ['required', 'uuid', 'exists:document_signing_requests,id'],
+            'signing_request_id' => ['required', 'integer', 'exists:document_signing_requests,id'],
             'otp' => ['required', 'digits:6'],
         ], $this->messages(), $this->attributes());
 
@@ -179,7 +179,7 @@ class PartnerContractController extends Controller
             'max' => ':attribute vượt quá giới hạn cho phép.',
             'accepted' => 'Bạn cần xác nhận đã đọc và chịu trách nhiệm về nội dung văn bản.',
             'exists' => ':attribute không tồn tại.',
-            'uuid' => ':attribute không đúng định dạng.',
+            'integer' => ':attribute không đúng định dạng.',
             'digits' => ':attribute phải gồm đúng :digits chữ số.',
         ];
     }

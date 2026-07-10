@@ -6,7 +6,6 @@ use App\Models\User;
 use App\Models\UserWallet;
 use App\Models\UserWithdrawalRequest;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 class UserWithdrawalPaymentService
@@ -122,7 +121,6 @@ class UserWithdrawalPaymentService
         ])->save();
 
         DB::table('user_wallet_ledgers')->insert([
-            'id' => (string) Str::uuid(),
             'user_wallet_id' => $wallet->id,
             'transaction_code' => 'UWD-'.strtoupper(substr(hash('sha256', $withdrawal->id.'|paid'), 0, 32)),
             'type' => 'withdrawal',

@@ -45,7 +45,7 @@ class PartnerDocumentSigningService
 
         $this->cancelOpenRequests($document, $signer, $signerSide);
 
-        $nonce = (string) Str::uuid();
+        $nonce = Str::random(40);
         $otpType = 'partner_document_signature:' . $nonce;
         $verificationType = 'email_verify';
         $otp = $this->otpService->generate();

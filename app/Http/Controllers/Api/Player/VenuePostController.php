@@ -51,9 +51,7 @@ class VenuePostController extends Controller
     {
         $post = VenuePost::where('status', 'published')->findOrFail($id);
         
-        $commentId = (string) \Illuminate\Support\Str::uuid();
-        DB::table('venue_post_comments')->insert([
-            'id' => $commentId,
+        $commentId = DB::table('venue_post_comments')->insertGetId([
             'venue_post_id' => $post->id,
             'user_id' => $request->user()->id,
             'content' => strip_tags($request->content),
@@ -80,7 +78,6 @@ class VenuePostController extends Controller
             return response()->json(['message' => 'Đã bỏ thích.']);
         } else {
             DB::table('venue_post_likes')->insert([
-                'id' => (string) \Illuminate\Support\Str::uuid(),
                 'post_id' => $post->id,
                 'user_id' => $userId,
                 'created_at' => now(),

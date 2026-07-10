@@ -14,12 +14,12 @@ return new class extends Migration
 
         Schema::table('bookings', function (Blueprint $table) {
             if (! Schema::hasColumn('bookings', 'venue_court_id')) {
-                $table->char('venue_court_id', 36)->nullable()->after('customer_id')->comment('Sân con thực tế được gán cho buổi chơi.');
+                $table->unsignedBigInteger('venue_court_id')->nullable()->after('customer_id')->comment('Sân con thực tế được gán cho buổi chơi.');
                 $table->foreign('venue_court_id', 'bookings_venue_court_id_foreign')->references('id')->on('venue_courts')->onDelete('restrict');
             }
 
             if (! Schema::hasColumn('bookings', 'requested_venue_court_id')) {
-                $table->char('requested_venue_court_id', 36)->nullable()->after('venue_court_id')->comment('Sân con khách yêu cầu ban đầu.');
+                $table->unsignedBigInteger('requested_venue_court_id')->nullable()->after('venue_court_id')->comment('Sân con khách yêu cầu ban đầu.');
                 $table->foreign('requested_venue_court_id', 'bookings_requested_venue_court_id_foreign')->references('id')->on('venue_courts')->onDelete('set null');
             }
 
@@ -36,7 +36,7 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('bookings', 'court_changed_by')) {
-                $table->char('court_changed_by', 36)->nullable()->after('created_by')->comment('Chủ sân/nhân viên đổi sân.');
+                $table->unsignedBigInteger('court_changed_by')->nullable()->after('created_by')->comment('Chủ sân/nhân viên đổi sân.');
                 $table->timestamp('court_changed_at')->nullable()->after('court_changed_by')->comment('Thời điểm đổi sân con.');
                 $table->text('court_changed_reason')->nullable()->after('court_changed_at')->comment('Lý do đổi sân.');
                 $table->foreign('court_changed_by', 'bookings_court_changed_by_foreign')->references('id')->on('users')->onDelete('set null');

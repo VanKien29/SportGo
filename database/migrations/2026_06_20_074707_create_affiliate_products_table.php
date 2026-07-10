@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('affiliate_products', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36)->comment('ID của cụm sân chứa sản phẩm này.');
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id')->comment('ID của cụm sân chứa sản phẩm này.');
             $table->string('name', 255)->comment('Tên sản phẩm tiếp thị liên kết.');
             $table->text('description')->nullable()->comment('Mô tả sản phẩm.');
             $table->string('image_path', 255)->nullable()->comment('Đường dẫn ảnh sản phẩm.');

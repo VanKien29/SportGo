@@ -3,7 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\CourtType;
+use App\Models\Role;
 use App\Models\User;
+use App\Models\UserRole;
 use App\Models\VenueCluster;
 use App\Models\VenueStaffAssignment;
 use Illuminate\Database\Seeder;
@@ -24,7 +26,7 @@ class VenueStaffAssignmentsTableSeeder extends Seeder
 
         $owner = User::query()->where('username', 'owner')->first();
         $staff = User::query()->where('username', 'venuestaff')->first();
-        $cluster = VenueCluster::query()->where('slug', 'sportgo-cau-giay')->first();
+        $cluster = VenueCluster::query()->where('slug', 'green-sport-ba-dinh')->first();
         $badminton = CourtType::query()->where('name', 'Cầu lông (Sân tiêu chuẩn)')->first();
 
         if (! $owner || ! $staff || ! $cluster) {
@@ -44,6 +46,33 @@ class VenueStaffAssignmentsTableSeeder extends Seeder
                 'status' => 'active',
             ],
         );
+
+        $venueOwnerRole = Role::query()->where('name', 'venue_owner')->first();
+        $venueStaffRole = Role::query()->where('name', 'venue_staff')->first();
+
+        if ($venueOwnerRole) {
+            UserRole::query()->updateOrCreate(
+                [
+                    'user_id' => $owner->id,
+                    'role_id' => $venueOwnerRole->id,
+                    'scope_type' => 'venue',
+                    'scope_id' => $cluster->id,
+                ],
+                ['granted_by' => null],
+            );
+        }
+
+        if ($venueStaffRole) {
+            UserRole::query()->updateOrCreate(
+                [
+                    'user_id' => $staff->id,
+                    'role_id' => $venueStaffRole->id,
+                    'scope_type' => 'venue',
+                    'scope_id' => $cluster->id,
+                ],
+                ['granted_by' => $owner->id],
+            );
+        }
 
         if (! $badminton) {
             return;

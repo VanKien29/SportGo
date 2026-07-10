@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('user_subscriptions', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
-            $table->char('user_id', 36)->comment('User mua goi VIP.');
-            $table->char('package_id', 36)->comment('Goi thanh vien da mua.');
+            $table->id();
+            $table->unsignedBigInteger('user_id')->comment('User mua goi VIP.');
+            $table->unsignedBigInteger('package_id')->comment('Goi thanh vien da mua.');
             $table->enum('billing_cycle', ['monthly', 'quarterly', 'yearly'])->default('monthly')
                 ->comment('Chu ky da mua.');
             $table->timestamp('started_at')->comment('Thoi diem kich hoat.');

@@ -14,7 +14,7 @@ return new class extends Migration
             $table->dropUnique(['owner_id']);
             
             if (!Schema::hasColumn('owner_wallets', 'venue_cluster_id')) {
-                $table->char('venue_cluster_id', 36)->nullable()->after('owner_id')->comment('Cụm sân sở hữu ví này.');
+                $table->unsignedBigInteger('venue_cluster_id')->nullable()->after('owner_id')->comment('Cụm sân sở hữu ví này.');
             }
             
             $table->foreign('venue_cluster_id')->references('id')->on('venue_clusters')->onDelete('cascade');

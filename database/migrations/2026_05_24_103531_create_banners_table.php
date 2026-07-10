@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('banners', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('title', 255)->comment('Tiêu đề banner để admin quản lý và FE có thể hiển thị.');
             $table->string('image_path', 1000)->comment('Đường dẫn ảnh banner đã upload; không lưu binary.');
             $table->string('link_url', 1000)->nullable()->comment('URL hoặc deep link khi user bấm banner.');
@@ -18,8 +18,8 @@ return new class extends Migration
             $table->boolean('is_active')->default(true)->comment('Banner có đang bật hay không.');
             $table->timestamp('starts_at')->nullable()->comment('Thời điểm bắt đầu hiển thị banner.');
             $table->timestamp('ends_at')->nullable()->comment('Thời điểm kết thúc hiển thị banner.');
-            $table->char('created_by', 36)->nullable()->comment('Admin tạo banner.');
-            $table->char('updated_by', 36)->nullable()->comment('Admin cập nhật banner.');
+            $table->unsignedBigInteger('created_by')->nullable()->comment('Admin tạo banner.');
+            $table->unsignedBigInteger('updated_by')->nullable()->comment('Admin cập nhật banner.');
             $table->timestamps();
             $table->index('position', 'banners_position_index');
             $table->index('is_active', 'banners_is_active_index');
