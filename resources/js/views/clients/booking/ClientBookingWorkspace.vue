@@ -1589,7 +1589,12 @@ export default {
 }
 
 .payment-section input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
     margin: 0;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .payment-section label.active {
@@ -1621,8 +1626,15 @@ export default {
     min-width: 0;
 }
 
+.payment-section label strong {
+    font-size: 14px;
+    line-height: 1.25;
+}
+
 .payment-section label small {
     color: #6b7a70;
+    font-size: 12px;
+    line-height: 1.25;
 }
 
 .booking-summary footer {
