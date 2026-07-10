@@ -40,7 +40,7 @@
               <select v-model="form.booking_id" class="content-input" @change="onBookingChange">
                 <option value="">-- Chọn lịch đặt sân gần đây (Tuỳ chọn) --</option>
                 <option v-for="bk in recentBookings" :key="bk.id" :value="bk.id">
-                  {{ formatDate(bk.booking_date) }} - {{ bk.venueCluster?.name }} (Mã: {{ bk.booking_code }})
+                  {{ formatDate(bk.booking_date) }} - {{ bk.venue_cluster?.name || bk.venueCluster?.name || 'Sân không xác định' }} (Mã: {{ bk.booking_code }})
                 </option>
               </select>
             </div>
@@ -121,8 +121,9 @@ const recentBookings = ref([]);
 const uniqueVenueClusters = computed(() => {
   const map = new Map();
   recentBookings.value.forEach(bk => {
-    if (bk.venueCluster) {
-      map.set(bk.venueCluster.id, bk.venueCluster);
+    const vc = bk.venue_cluster || bk.venueCluster;
+    if (vc) {
+      map.set(vc.id, vc);
     }
   });
   return Array.from(map.values());
@@ -161,7 +162,10 @@ watch(() => form.value.complaint_type, (newVal) => {
 const onBookingChange = () => {
   const selectedBooking = recentBookings.value.find(b => b.id === form.value.booking_id);
   if (selectedBooking) {
-    form.value.venue_cluster_id = selectedBooking.venue_cluster_id;
+    const vc = selectedBooking.venue_cluster || selectedBooking.venueCluster;
+    form.value.venue_cluster_id = selectedBooking.venue_cluster_id || (vc ? vc.id : '');
+  } else {
+    form.value.venue_cluster_id = '';
   }
 };
 
@@ -212,10 +216,21 @@ const submit = async () => {
     formData.append('complaint_type', form.value.complaint_type);
     formData.append('content', form.value.content);
     if (form.value.complaint_type === 'venue') {
-      if (form.value.venue_cluster_id) formData.append('venue_cluster_id', form.value.venue_cluster_id);
-      if (form.value.booking_id) formData.append('booking_id', form.value.booking_id);
+      let clusterId = form.value.venue_cluster_id;
+      
+      if (form.value.booking_id) {
+        formData.append('booking_id', form.value.booking_id);
+        const selectedBooking = recentBookings.value.find(b => b.id === form.value.booking_id);
+        if (selectedBooking) {
+          const vc = selectedBooking.venue_cluster || selectedBooking.venueCluster;
+          clusterId = selectedBooking.venue_cluster_id || (vc ? vc.id : '') || clusterId;
+        }
+      }
+      
+      if (clusterId) {
+        formData.append('venue_cluster_id', clusterId);
+      }
     }
-    
     if (form.value.imageFile) {
       formData.append('evidence_image', form.value.imageFile);
     }
@@ -349,6 +364,12 @@ const submit = async () => {
   font-family: inherit;
   font-size: 14px;
   resize: vertical;
+  color: #050505;
+  background-color: #ffffff;
+}
+select.content-input option {
+  color: #050505;
+  background-color: #ffffff;
 }
 .content-input:focus {
   outline: none;

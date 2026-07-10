@@ -129,5 +129,11 @@ export const adminComplaintService = {
       body: JSON.stringify(payload),
     });
   },
+  notify(id, data) {
+    return api(`/api/admin/complaints/${id}/notify`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 

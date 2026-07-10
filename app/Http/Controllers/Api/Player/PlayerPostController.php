@@ -115,9 +115,16 @@ class PlayerPostController extends Controller
     {
         $userId = $request->user()->id;
 
+        // Strip HTML tags to prevent XSS
+        if ($request->has('content')) {
+            $request->merge([
+                'content' => trim(strip_tags($request->content))
+            ]);
+        }
+
         $data = $request->validate([
             'booking_id' => ['required', 'string', 'exists:bookings,id'],
-            'content' => ['nullable', 'string', 'max:2000'],
+            'content' => ['nullable', 'string', 'min:10', 'max:2000'],
             'required_players' => ['required', 'integer', 'min:1'],
         ]);
 
