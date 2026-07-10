@@ -958,8 +958,8 @@
                                                 aria-hidden="true"
                                             ></span>
                                             <span
-                                                >Đang chờ SePay xác nhận giao
-                                                dịch tiền ra...</span
+                                                >Đang chờ xác nhận giao dịch
+                                                tiền ra...</span
                                             >
                                         </div>
                                     </div>

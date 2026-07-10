@@ -198,7 +198,7 @@
                                     {{
                                         creatingSepay
                                             ? "Đang tạo QR..."
-                                            : "Tạo QR thanh toán SePay"
+                                            : "Tạo QR thanh toán"
                                     }}
                                 </button>
 
