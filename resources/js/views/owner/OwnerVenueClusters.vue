@@ -1308,7 +1308,12 @@
                                         </div>
                                         <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
                                             <span>Phụ lục hợp đồng:</span>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.appendix_document, req.partner_application_id)">
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm"
+                                                :class="req.appendix_document?.status === 'pending_owner_signature' ? 'btn-primary' : 'btn-outline'"
+                                                @click="openRequestDocument(req.appendix_document, req.partner_application_id)"
+                                            >
                                                 <AppIcon name="eye" size="14" />
                                                 {{ requestDocumentActionLabel(req.appendix_document) }}
                                             </button>
@@ -1316,6 +1321,9 @@
                                                 <AppIcon name="download" size="14" />
                                                 Tải
                                             </button>
+                                        </div>
+                                        <div v-if="req.appendix_document?.status === 'pending_owner_signature'" class="request-sign-hint">
+                                            SportGo da ky phu luc. Bam "Ky phu luc" de hoan tat thay doi.
                                         </div>
                                         <div
                                             v-if="
@@ -1674,14 +1682,22 @@
                                         </div>
                                         <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
                                             <span>Phụ lục hợp đồng:</span>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.appendix_document, req.partner_application_id)">
-                                                <AppIcon name="eye" size="14" />
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm"
+                                                :class="req.appendix_document?.status === 'pending_owner_signature' ? 'btn-primary' : 'btn-outline'"
+                                                @click="openRequestDocument(req.appendix_document, req.partner_application_id)"
+                                            >
+                                                <AppIcon :name="req.appendix_document?.status === 'pending_owner_signature' ? 'pencil' : 'eye'" size="14" />
                                                 {{ requestDocumentActionLabel(req.appendix_document) }}
                                             </button>
                                             <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.appendix_document)">
                                                 <AppIcon name="download" size="14" />
                                                 Tải
                                             </button>
+                                        </div>
+                                        <div v-if="req.appendix_document?.status === 'pending_owner_signature'" class="request-sign-hint">
+                                            SportGo da ky phu luc. Bam "Ky phu luc" de hoan tat thay doi.
                                         </div>
                                         <div
                                             v-if="
@@ -1926,7 +1942,7 @@
             class="modal-backdrop"
             @click.self="closeCreateApprovalModal"
         >
-            <div class="modal card">
+            <div class="modal card modal-scale">
                 <div class="modal-header">
                     <h3>Gửi yêu cầu mở rộng quy mô</h3>
                     <button class="btn-close" @click="closeCreateApprovalModal">
@@ -2739,7 +2755,7 @@
             class="modal-backdrop"
             @click.self="closeEditClusterModal"
         >
-            <div class="modal card">
+            <div class="modal card modal-edit-cluster">
                 <div class="modal-header">
                     <h3>Yêu cầu chỉnh sửa thông tin cụm sân</h3>
                     <button class="btn-close" @click="closeEditClusterModal">
@@ -5445,6 +5461,8 @@ export default {
         },
 
         requestDocumentActionLabel(document) {
+            if (document?.status === "pending_owner_signature" && ["venue_scale_appendix", "venue_location_appendix"].includes(document.document_type)) return "Ky phu luc";
+            if (document?.status === "pending_owner_signature" && ["venue_scale_request", "venue_location_change_request"].includes(document.document_type)) return "Ky don";
             return document?.status === "pending_owner_signature" ? "Ký" : "Xem";
         },
 
@@ -7802,10 +7820,13 @@ export default {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    flex: 1;
+    overflow: hidden;
 }
 .modal-scale .modal-body {
     overflow-y: auto;
     overflow-x: hidden;
+    flex: 1;
 }
 .modal-location form {
     display: flex;
@@ -7815,6 +7836,19 @@ export default {
     min-height: 0;
 }
 .modal-location .modal-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+}
+
+.modal-edit-cluster form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+.modal-edit-cluster .modal-body {
     overflow-y: auto;
     overflow-x: hidden;
     flex: 1;
@@ -8089,6 +8123,23 @@ export default {
     border-color: #0f172a;
     color: #0f172a;
     background: #fff;
+}
+
+.request-document-actions .btn.btn-primary {
+    border-color: #16a34a;
+    background: #16a34a;
+    color: #fff;
+}
+
+.request-sign-hint {
+    margin-top: 8px;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    background: #f0fdf4;
+    color: #166534;
+    padding: 8px 10px;
+    font-size: 12.5px;
+    font-weight: 800;
 }
 
 .request-signature-group {

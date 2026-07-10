@@ -9,6 +9,8 @@ class PartnerTerminationRequest extends Model
 {
     use HasFactory;
 
+    protected $appends = ['workflow_state'];
+
     protected $fillable = [
         'termination_code',
         'partner_contract_id',
@@ -134,5 +136,42 @@ class PartnerTerminationRequest extends Model
     public function statusHistories()
     {
         return $this->hasMany(PartnerTerminationStatusHistory::class, 'partner_termination_request_id');
+    }
+
+    public function getWorkflowStateAttribute(): array
+    {
+        $histories = $this->relationLoaded('statusHistories')
+            ? $this->statusHistories
+            : $this->statusHistories()->orderBy('created_at')->get();
+        $acknowledged = $histories
+            ->filter(fn ($item) => str_starts_with((string) $item->reason, 'Chủ sân xác nhận đã nhận'))
+            ->sortByDesc('created_at')
+            ->first();
+        $reconsideration = $histories
+            ->filter(fn ($item) => str_starts_with((string) $item->reason, 'Chủ sân yêu cầu xem xét lại công văn:'))
+            ->sortByDesc('created_at')
+            ->first();
+        $resolution = $histories
+            ->filter(fn ($item) => str_starts_with((string) $item->reason, 'Admin giữ nguyên công văn sau khi xem xét:')
+                || str_starts_with((string) $item->reason, 'SportGo thu hồi công văn:'))
+            ->sortByDesc('created_at')
+            ->first();
+        $noticeIssued = $histories
+            ->filter(fn ($item) => str_starts_with((string) $item->reason, 'SportGo ký và gửi công văn'))
+            ->sortByDesc('created_at')
+            ->first();
+        $pendingReconsideration = $reconsideration
+            && (! $resolution || $reconsideration->created_at?->gt($resolution->created_at));
+
+        return [
+            'notice_issued_at' => $noticeIssued?->created_at,
+            'owner_acknowledged_at' => $acknowledged?->created_at,
+            'reconsideration_pending' => (bool) $pendingReconsideration,
+            'latest_reconsideration_reason' => $reconsideration
+                ? trim(str_replace('Chủ sân yêu cầu xem xét lại công văn:', '', (string) $reconsideration->reason))
+                : null,
+            'reconsideration_resolved_at' => $resolution?->created_at,
+            'reconsideration_resolution' => $resolution?->reason,
+        ];
     }
 }

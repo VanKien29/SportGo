@@ -135,11 +135,11 @@ class Booking extends Model
 
     public function requestedVenueCourt()
     {
-        return $this->belongsTo(VenueCourt::class, 'requested_venue_court_id');
+        return $this->belongsTo(VenueCourt::class, 'requested_venue_court_id')->withTrashed();
     }
 
     public function venueCourt()
     {
-        return $this->belongsTo(VenueCourt::class, 'venue_court_id');
+        return $this->belongsTo(VenueCourt::class, 'venue_court_id')->withTrashed();
     }
 }

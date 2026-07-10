@@ -129,6 +129,34 @@ export const adminPartnerApplicationService = {
     });
   },
 
+  sendUnilateralNoticeOtp(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/unilateral-notice/sign/send-otp`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  signUnilateralNotice(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/unilateral-notice/sign`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  withdrawUnilateralNotice(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/unilateral-notice/withdraw`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  resolveUnilateralReconsideration(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/unilateral-notice/reconsideration/resolve`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   terminationSettings() {
     return api('/api/admin/partner-termination-requests/settings');
   },

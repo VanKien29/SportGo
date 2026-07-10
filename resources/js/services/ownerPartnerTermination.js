@@ -79,4 +79,18 @@ export const ownerPartnerTerminationService = {
       body: JSON.stringify(payload),
     });
   },
+
+  acknowledgeUnilateralNotice(id) {
+    return api(`/api/owner/termination-requests/${id}/unilateral-notice/acknowledge`, {
+      method: 'POST',
+      body: JSON.stringify({ accepted: true }),
+    });
+  },
+
+  requestUnilateralReconsideration(id, payload) {
+    return api(`/api/owner/termination-requests/${id}/unilateral-notice/reconsideration`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };

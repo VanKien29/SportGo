@@ -129,6 +129,77 @@ class PartnerTerminationRequestController extends Controller
         ]);
     }
 
+    public function unilateralNoticeSignSendOtp(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'signature_image' => ['required', 'string'],
+        ]);
+        $termination = PartnerTerminationRequest::query()->findOrFail($id);
+        $signingRequest = $this->terminations->sendUnilateralNoticeOtp($termination, $request->user(), $data['signature_image'], $request);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Mã OTP ký công văn đã được gửi cho admin.',
+            'data' => [
+                'signing_request_id' => $signingRequest->id,
+                'expires_at' => $signingRequest->expires_at,
+                'hash_short' => substr($signingRequest->file_hash, 0, 12),
+            ],
+        ]);
+    }
+
+    public function unilateralNoticeSign(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'signing_request_id' => ['required', 'integer', 'exists:document_signing_requests,id'],
+            'otp' => ['required', 'digits:6'],
+        ]);
+        $termination = PartnerTerminationRequest::query()->findOrFail($id);
+        $termination = $this->terminations->signAndIssueUnilateralNotice(
+            $termination,
+            $request->user(),
+            (int) $data['signing_request_id'],
+            $data['otp'],
+            $request
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'SportGo đã ký và gửi công văn. Cụm sân đã khóa nhận booking mới, chờ chủ sân xác nhận đã nhận.',
+            'data' => $termination,
+        ]);
+    }
+
+    public function withdrawUnilateralNotice(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+        $termination = PartnerTerminationRequest::query()->findOrFail($id);
+        $termination = $this->terminations->withdrawUnilateralNotice($termination, $request->user(), $data['reason']);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã thu hồi công văn. Văn bản và lịch sử ký vẫn được lưu để đối soát.',
+            'data' => $termination,
+        ]);
+    }
+
+    public function resolveUnilateralReconsideration(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'note' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+        $termination = PartnerTerminationRequest::query()->findOrFail($id);
+        $termination = $this->terminations->resolveUnilateralReconsideration($termination, $request->user(), $data['note']);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã phản hồi yêu cầu xem xét lại và giữ nguyên công văn.',
+            'data' => $termination,
+        ]);
+    }
+
     public function settings(): JsonResponse
     {
         return response()->json([

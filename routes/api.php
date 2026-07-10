@@ -104,6 +104,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
     ->prefix('admin')
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+        Route::get('/pending-counts', [\App\Http\Controllers\Api\Admin\AdminPendingCountsController::class, 'index']);
+        Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'admin']);
+        Route::patch('/work-center/notifications/{notificationId}/read', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'markNotificationRead']);
         Route::get('/users', [AdminUserController::class, 'index']);
         Route::get('/users/auto-lock-config', [\App\Http\Controllers\Api\Admin\UserController::class, 'autoLockConfig']);
         Route::get('/users/{id}', [AdminUserController::class, 'show']);
@@ -191,6 +194,10 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/partner-termination-requests/{id}/final-document/sign/send-otp', [AdminPartnerTerminationRequestController::class, 'finalDocumentSignSendOtp']);
         Route::post('/partner-termination-requests/{id}/final-document/sign', [AdminPartnerTerminationRequestController::class, 'finalDocumentSign']);
         Route::post('/partner-termination-requests/{id}/manual-resolve-booking', [AdminPartnerTerminationRequestController::class, 'manualResolveBooking']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/sign/send-otp', [AdminPartnerTerminationRequestController::class, 'unilateralNoticeSignSendOtp']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/sign', [AdminPartnerTerminationRequestController::class, 'unilateralNoticeSign']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/withdraw', [AdminPartnerTerminationRequestController::class, 'withdrawUnilateralNotice']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/reconsideration/resolve', [AdminPartnerTerminationRequestController::class, 'resolveUnilateralReconsideration']);
 
         // Partner Contracts
         Route::post('/contracts/{id}/send-email', [AdminPartnerContractController::class, 'sendEmail']);
@@ -348,6 +355,8 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/termination-requests/{id}/cancel', [OwnerPartnerTerminationController::class, 'cancel']);
         Route::post('/termination-requests/{id}/final-document/sign/send-otp', [OwnerPartnerTerminationController::class, 'finalDocumentSignSendOtp']);
         Route::post('/termination-requests/{id}/final-document/sign', [OwnerPartnerTerminationController::class, 'finalDocumentSign']);
+        Route::post('/termination-requests/{id}/unilateral-notice/acknowledge', [OwnerPartnerTerminationController::class, 'acknowledgeUnilateralNotice']);
+        Route::post('/termination-requests/{id}/unilateral-notice/reconsideration', [OwnerPartnerTerminationController::class, 'requestUnilateralReconsideration']);
 
         // Venue Clusters & Venue Courts
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);
@@ -467,6 +476,8 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
 Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
     ->prefix('owner')
     ->group(function (): void {
+        Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'owner']);
+        Route::patch('/work-center/notifications/{notificationId}/read', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'markNotificationRead']);
         Route::get('/venue-clusters/{clusterId}/unlock-requests', [VenueUnlockRequestController::class, 'index']);
         Route::post('/venue-clusters/{clusterId}/unlock-requests', [VenueUnlockRequestController::class, 'store']);
         Route::patch('/venue-clusters/{clusterId}/unlock-requests/{requestId}/cancel', [VenueUnlockRequestController::class, 'cancel']);

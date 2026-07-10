@@ -255,4 +255,34 @@ class PartnerTerminationController extends Controller
             'data' => $termination,
         ]);
     }
+
+    public function acknowledgeUnilateralNotice(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'accepted' => ['accepted'],
+        ]);
+        $termination = PartnerTerminationRequest::query()->findOrFail($id);
+        $termination = $this->terminations->acknowledgeUnilateralNotice($termination, $request->user(), $request);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã xác nhận nhận công văn. Hãy tiếp tục xử lý booking và các nghĩa vụ tài chính còn lại.',
+            'data' => $termination,
+        ]);
+    }
+
+    public function requestUnilateralReconsideration(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:20', 'max:2000'],
+        ]);
+        $termination = PartnerTerminationRequest::query()->findOrFail($id);
+        $termination = $this->terminations->requestUnilateralReconsideration($termination, $request->user(), $data['reason']);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã gửi yêu cầu xem xét lại cho SportGo. Công văn vẫn có hiệu lực cho đến khi admin thu hồi.',
+            'data' => $termination,
+        ]);
+    }
 }

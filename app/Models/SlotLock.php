@@ -94,7 +94,7 @@ class SlotLock extends Model
 
     public function venueCourt()
     {
-        return $this->belongsTo(VenueCourt::class, 'venue_court_id');
+        return $this->belongsTo(VenueCourt::class, 'venue_court_id')->withTrashed();
     }
 
     public function venueCluster()

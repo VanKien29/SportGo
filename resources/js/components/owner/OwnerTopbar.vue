@@ -15,6 +15,7 @@
     </div>
 
     <div class="topbar-actions">
+      <WorkCenter audience="owner" />
       <ThemeToggle />
 
       <UserProfileDropdown
@@ -32,11 +33,12 @@
 import AppIcon from '../AppIcon.vue';
 import ThemeToggle from '../ui/ThemeToggle.vue';
 import UserProfileDropdown from '../ui/UserProfileDropdown.vue';
+import WorkCenter from '../ui/WorkCenter.vue';
 import { logout, getAuth } from '../../stores/auth.js';
 
 export default {
   name: 'OwnerTopbar',
-  components: { AppIcon, ThemeToggle, UserProfileDropdown },
+  components: { AppIcon, ThemeToggle, UserProfileDropdown, WorkCenter },
   props: {
     title: { type: String, required: true },
     sectionLabel: { type: String, default: '' },

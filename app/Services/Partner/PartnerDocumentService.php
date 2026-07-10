@@ -126,24 +126,20 @@ class PartnerDocumentService
         Request $request,
         array $context = []
     ): GeneratedDocumentSignature {
-        $signature = GeneratedDocumentSignature::updateOrCreate(
-            [
-                'generated_document_id' => $document->id,
-                'signer_side' => $signerSide,
-            ],
-            [
-                'signer_user_id' => $signer->id,
-                'signer_full_name' => $context['signer_full_name'] ?? $signer->full_name ?? $signer->username ?? $signer->email,
-                'signer_title' => $context['signer_title'] ?? ($signerSide === 'owner' ? 'Chủ sân' : 'Đại diện SportGo'),
-                'signer_organization' => $context['signer_organization'] ?? ($signerSide === 'owner' ? null : 'SportGo'),
-                'signature_method' => $context['signature_method'] ?? ($signatureImage ? 'drawn' : 'typed_confirm'),
-                'signed_at' => now(),
-                'ip_address' => $request->ip(),
-                'user_agent' => (string) $request->userAgent(),
-                'status' => 'signed',
-                'reject_reason' => null,
-            ]
-        );
+        $signature = GeneratedDocumentSignature::query()->create([
+            'generated_document_id' => $document->id,
+            'signer_side' => $signerSide,
+            'signer_user_id' => $signer->id,
+            'signer_full_name' => $context['signer_full_name'] ?? $signer->full_name ?? $signer->username ?? $signer->email,
+            'signer_title' => $context['signer_title'] ?? ($signerSide === 'owner' ? 'Chủ sân' : 'Đại diện SportGo'),
+            'signer_organization' => $context['signer_organization'] ?? ($signerSide === 'owner' ? null : 'SportGo'),
+            'signature_method' => $context['signature_method'] ?? ($signatureImage ? 'drawn' : 'typed_confirm'),
+            'signed_at' => now(),
+            'ip_address' => $request->ip(),
+            'user_agent' => (string) $request->userAgent(),
+            'status' => 'signed',
+            'reject_reason' => null,
+        ]);
 
         if ($signatureImage) {
             $media = $this->storeSignatureImage($signature, $signatureImage);
@@ -222,6 +218,10 @@ class PartnerDocumentService
             return in_array('owner', $signedSides, true);
         }
 
+        if ($document->document_type === 'unilateral_termination_notice') {
+            return in_array('sportgo', $signedSides, true);
+        }
+
         if (in_array($document->document_type, ['venue_scale_appendix', 'venue_location_appendix'], true)) {
             return in_array('owner', $signedSides, true) && in_array('sportgo', $signedSides, true);
         }
@@ -244,6 +244,10 @@ class PartnerDocumentService
         }
 
         if (in_array($document->document_type, ['termination_request', 'owner_termination_request'], true) && $signerSide === 'owner') {
+            return 'completed';
+        }
+
+        if ($document->document_type === 'unilateral_termination_notice' && $signerSide === 'sportgo') {
             return 'completed';
         }
 
@@ -316,10 +320,11 @@ class PartnerDocumentService
                 ->all();
 
             if ($removedCourtIds !== []) {
+                // Soft delete keeps signed-contract history while hiding removed courts from booking/configuration.
                 VenueCourt::query()
                     ->where('venue_cluster_id', $request->venue_cluster_id)
                     ->whereIn('id', $removedCourtIds)
-                    ->update(['status' => 'inactive']);
+                    ->delete();
             }
 
             if ($createdCourtId && ! $request->approved_venue_court_id) {
@@ -1095,8 +1100,15 @@ XML;
             }
         }
 
+        $serialized = $dom->saveXML();
+        if (in_array($documentType, ['venue_scale_appendix', 'venue_location_appendix'], true)
+            && (! str_contains($serialized, '{{signature_sportgo}}') || ! str_contains($serialized, '{{signature_owner}}'))) {
+            $serialized = str_replace('</w:body>', $this->docxTwoPartySignatureTableXml() . '</w:body>', $serialized);
+            $changed = true;
+        }
+
         if ($changed) {
-            $zip->addFromString($entry, $dom->saveXML());
+            $zip->addFromString($entry, $serialized);
         }
 
         $zip->close();
@@ -2388,6 +2400,12 @@ XML;
         $normalized = $this->normalizeDocxLabel($text);
         $ascii = Str::ascii($normalized);
 
+        if (in_array($documentType, ['venue_scale_appendix', 'venue_location_appendix'], true)
+            && preg_match('/^phuluc(?:\s+[ivxlcdm0-9]+)?$/i', $ascii)) {
+            $appendixNumber = $this->firstFilled($data, ['appendix_number']) ?: 'I';
+            return 'Phụ lục ' . $appendixNumber;
+        }
+
         if (str_contains($ascii, 'kinhgui')) {
             return 'Kính gửi: Công ty/Đơn vị vận hành nền tảng SportGo';
         }
@@ -2539,10 +2557,21 @@ XML;
             'termination_request' => [
                 ...$commonOwner,
                 'Lý do chấm dứt' => $terminationReason,
+                'Lý do chính' => $terminationReason,
+                'Mô tả chi tiết lý do' => $this->firstFilled($data, ['detail_reason']) ?: $terminationReason,
+                'Tình trạng hoạt động hiện tại' => $this->firstFilled($data, ['venue_status_label']) ?: 'Đang hoạt động',
+                'Thời điểm đề nghị ngừng nhận booking mới' => $this->firstFilled($data, ['requested_stop_booking_at', 'requested_at']) ?: $fallback,
+                'Thời điểm đề nghị chấm dứt hoàn toàn' => $effectiveDate,
+                'Người phụ trách phối hợp trong giai đoạn chuyển tiếp' => $this->firstFilled($data, ['termination_coordinator', 'owner_full_name']) ?: $fallback,
                 'Yêu cầu về thời điểm chấm dứt' => $effectiveDate,
                 'Yêu cầu quyết toán' => $bankAccount,
                 'Số hợp đồng hợp tác' => $contractCode,
                 'Ngày ký hợp đồng' => $this->firstFilled($data, ['contract_signed_at', 'signed_date']) ?: $fallback,
+                'Booking còn hiệu lực' => $this->firstFilled($data, ['booking_status_summary']) ?: $fallback,
+                'Yêu cầu hoàn/hủy đang xử lý' => $this->firstFilled($data, ['refund_status_summary']) ?: $fallback,
+                'Khiếu nại đang mở' => $this->firstFilled($data, ['complaint_status_summary']) ?: $fallback,
+                'Yêu cầu rút tiền đang chờ' => $this->firstFilled($data, ['withdrawal_status_summary']) ?: $fallback,
+                'Tài khoản nhận tiền hoàn/trả sau quyết toán' => $bankAccount,
             ],
             'mutual_liquidation_minutes' => [
                 'Tên đơn vị' => $sportgoName,
@@ -3285,6 +3314,28 @@ XML;
         $safeText = htmlspecialchars($text, ENT_XML1 | ENT_COMPAT, 'UTF-8');
 
         return '<w:p><w:r>' . $boldXml . '<w:t xml:space="preserve">' . $safeText . '</w:t></w:r></w:p>';
+    }
+
+    private function docxTwoPartySignatureTableXml(): string
+    {
+        return '<w:tbl>'
+            . '<w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>'
+            . '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>'
+            . '<w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>'
+            . '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>'
+            . '<w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>'
+            . '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>'
+            . '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>'
+            . '</w:tblBorders></w:tblPr>'
+            . '<w:tr><w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>ĐẠI DIỆN BÊN A - SPORTGO</w:t></w:r></w:p></w:tc>'
+            . '<w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>ĐẠI DIỆN BÊN B - ĐỐI TÁC/CHỦ SÂN</w:t></w:r></w:p></w:tc></w:tr>'
+            . '<w:tr><w:tc><w:p><w:r><w:t>Ký, ghi rõ họ tên</w:t></w:r></w:p></w:tc>'
+            . '<w:tc><w:p><w:r><w:t>Ký, ghi rõ họ tên</w:t></w:r></w:p></w:tc></w:tr>'
+            . '<w:tr><w:tc><w:p><w:r><w:t>{{signature_sportgo}}</w:t></w:r></w:p></w:tc>'
+            . '<w:tc><w:p><w:r><w:t>{{signature_owner}}</w:t></w:r></w:p></w:tc></w:tr>'
+            . '<w:tr><w:tc><w:p><w:r><w:t>{{sportgo_signer_name}}</w:t></w:r></w:p></w:tc>'
+            . '<w:tc><w:p><w:r><w:t>{{owner_signer_name}}</w:t></w:r></w:p></w:tc></w:tr>'
+            . '</w:tbl>';
     }
 
     private function storeSignatureImage(GeneratedDocumentSignature $signature, string $signatureImage): Media

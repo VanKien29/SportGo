@@ -3,6 +3,7 @@
 namespace App\Services\Partner;
 
 use App\Mail\Partner\PartnerTerminationReceivedMail;
+use App\Mail\Partner\PartnerUnilateralTerminationMail;
 use App\Models\Booking;
 use App\Models\DocumentSigningRequest;
 use App\Models\GeneratedDocument;
@@ -28,20 +29,21 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class PartnerTerminationFlowService
 {
-    public const STATUS_DRAFT_PREVIEW = 'draft_preview';
-    public const STATUS_IN_PROGRESS = 'cancellation_in_progress';
-    public const STATUS_FUTURE_BOOKINGS = 'future_bookings_processing';
-    public const STATUS_WAITING_SETTLEMENT = 'waiting_final_settlement';
-    public const STATUS_WAITING_FINAL_SIGNATURE = 'waiting_final_document_signature';
-    public const STATUS_TERMINATING = 'terminating';
-    public const STATUS_TERMINATED = 'terminated';
-    public const STATUS_OWNER_CANCELLED = 'owner_cancelled_request';
-    public const STATUS_ADMIN_REJECTED = 'admin_rejected';
+    public const STATUS_DRAFT_PREVIEW = 'draft';
+    public const STATUS_IN_PROGRESS = 'submitted';
+    public const STATUS_FUTURE_BOOKINGS = 'reviewing';
+    public const STATUS_WAITING_SETTLEMENT = 'settlement_processing';
+    public const STATUS_WAITING_FINAL_SIGNATURE = 'pending_signature';
+    public const STATUS_TERMINATING = 'transition_period';
+    public const STATUS_TERMINATED = 'completed';
+    public const STATUS_OWNER_CANCELLED = 'cancelled';
+    public const STATUS_ADMIN_REJECTED = 'rejected';
 
     public const POLICY_CANCEL_ALL = 'cancel_all_refund_to_user_balance';
     public const POLICY_SERVE_UNTIL_LAST = 'serve_until_last_booking';
@@ -104,6 +106,7 @@ class PartnerTerminationFlowService
         $cluster = $this->ownedCluster($owner, $clusterId);
         $contract = $this->activeContractForCluster($cluster, $owner);
         $activeRequest = $this->activeRequestForCluster($cluster->id, true);
+        $activeRequestPayload = $activeRequest?->load($this->requestRelations());
         $summary = $this->financialSummary($cluster);
 
         return [
@@ -111,7 +114,7 @@ class PartnerTerminationFlowService
             'reason' => $this->eligibilityReason($cluster, $contract, $activeRequest),
             'cluster' => $cluster,
             'contract' => $contract,
-            'active_request' => $activeRequest?->load(['documents.generatedDocument', 'bookingActions.booking']),
+            'active_request' => $activeRequestPayload,
             'summary' => $summary,
             'policies' => $this->futureBookingPolicies(),
             'warning' => 'Khi gửi yêu cầu chấm dứt, cụm sân sẽ bị khóa thao tác quản lý bình thường. Chủ sân chỉ còn quyền xử lý booking, hoàn tiền, yêu cầu rút tiền và theo dõi hồ sơ chấm dứt.',
@@ -151,7 +154,7 @@ class PartnerTerminationFlowService
             }
 
             $termination = $active ?: new PartnerTerminationRequest();
-            $termination->fill([
+            $this->fillTermination($termination, [
                 'termination_code' => $termination->termination_code ?: $this->uniqueTerminationCode('OWNER'),
                 'partner_contract_id' => $contract->id,
                 'partner_application_id' => $contract->partner_application_id,
@@ -184,7 +187,13 @@ class PartnerTerminationFlowService
             ]);
             $termination->save();
 
-            $document = $this->generateOwnerRequestDocument($termination->fresh(['contract.application.user', 'venueCluster']), $owner, 'pending_owner_signature');
+            $document = $this->generateOwnerRequestDocument(
+                $termination->fresh(['contract.application.user', 'venueCluster']),
+                $owner,
+                'pending_owner_signature',
+                $data,
+                $summary
+            );
             PartnerTerminationDocument::query()->create([
                 'partner_termination_request_id' => $termination->id,
                 'generated_document_id' => $document->id,
@@ -197,12 +206,7 @@ class PartnerTerminationFlowService
 
             $this->history($termination, $active?->status, self::STATUS_DRAFT_PREVIEW, $owner, 'owner', 'Chủ sân xem trước đơn yêu cầu chấm dứt hợp đồng.');
 
-            return $termination->fresh([
-                'contract.application.user',
-                'venueCluster',
-                'documents.generatedDocument.signatures',
-                'bookingActions.booking.customer',
-            ]);
+            return $termination->fresh($this->requestRelations());
         });
     }
 
@@ -265,7 +269,7 @@ class PartnerTerminationFlowService
 
             $summary = $this->financialSummary($termination->venueCluster);
             $oldStatus = $termination->status;
-            $termination->forceFill([
+            $this->fillTermination($termination, [
                 'status' => self::STATUS_IN_PROGRESS,
                 'future_booking_count' => $summary['future_booking_count'],
                 'owner_balance_total' => $summary['owner_balance_total'],
@@ -310,6 +314,12 @@ class PartnerTerminationFlowService
     {
         return DB::transaction(function () use ($termination, $owner, $bookingIds, $action, $reason): PartnerTerminationRequest {
             $this->assertOwner($termination, $owner);
+            if (! $this->hasTerminationBookingActionsTable()) {
+                throw ValidationException::withMessages([
+                    'booking' => 'Chua co bang luu thao tac booking cham dut. Vui long chay migration truoc khi xu ly booking tuong lai.',
+                ]);
+            }
+
             $termination = PartnerTerminationRequest::query()
                 ->with('venueCluster')
                 ->whereKey($termination->id)
@@ -483,7 +493,7 @@ class PartnerTerminationFlowService
             $this->signing->markSigned($verified, $signature);
 
             $oldStatus = $termination->status;
-            $termination->forceFill([
+            $this->fillTermination($termination, [
                 'status' => self::STATUS_OWNER_CANCELLED,
                 'owner_cancel_reason' => $reason,
                 'owner_cancelled_at' => now(),
@@ -526,17 +536,334 @@ class PartnerTerminationFlowService
         return $termination->fresh($this->requestRelations());
     }
 
+    public function previewUnilateralNotice(PartnerContract $contract, User $admin, array $data, Request $request): PartnerTerminationRequest
+    {
+        return DB::transaction(function () use ($contract, $admin, $data, $request): PartnerTerminationRequest {
+            $contract = PartnerContract::query()
+                ->with(['application.user', 'venueCluster'])
+                ->whereKey($contract->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($contract->status !== 'signed_active') {
+                throw ValidationException::withMessages([
+                    'status' => 'Chỉ có thể tạo công văn cho hợp đồng đang hiệu lực.',
+                ]);
+            }
+
+            if ($this->activeRequestForCluster($contract->venue_cluster_id, true)) {
+                throw ValidationException::withMessages([
+                    'termination' => 'Cụm sân đang có hồ sơ chấm dứt chưa hoàn tất.',
+                ]);
+            }
+
+            $cluster = $contract->venueCluster ?: VenueCluster::query()->findOrFail($contract->venue_cluster_id);
+            $summary = $this->financialSummary($cluster);
+            $effectiveDate = Carbon::parse($data['requested_effective_date'] ?? now()->addDays(30))->toDateString();
+            $termination = new PartnerTerminationRequest();
+            $this->fillTermination($termination, [
+                'termination_code' => $this->uniqueTerminationCode('SPORTGO'),
+                'partner_contract_id' => $contract->id,
+                'partner_application_id' => $contract->partner_application_id,
+                'owner_id' => $contract->owner_id,
+                'venue_cluster_id' => $contract->venue_cluster_id,
+                'termination_type' => 'unilateral_by_sportgo',
+                'requested_by' => $admin->id,
+                'requested_at' => now(),
+                'reason' => $data['reason'],
+                'detail_reason' => $data['detail_reason'] ?? null,
+                'requested_effective_date' => $effectiveDate,
+                'future_booking_policy' => $data['future_booking_policy'] ?? self::POLICY_MANUAL,
+                'future_booking_count' => $summary['future_booking_count'],
+                'owner_balance_total' => $summary['owner_balance_total'],
+                'future_online_booking_liability' => $summary['future_online_booking_liability'],
+                'pending_refund_liability' => $summary['pending_refund_liability'],
+                'pending_withdrawal_amount' => $summary['pending_withdrawal_amount'],
+                'withdrawable_amount' => $summary['withdrawable_amount'],
+                'future_booking_summary' => $summary['future_bookings'],
+                'status' => self::STATUS_DRAFT_PREVIEW,
+                'metadata' => [
+                    'notice_preview_created_at' => now()->toIso8601String(),
+                    'notice_preview_created_by' => $admin->id,
+                    'notice_preview_ip' => $request->ip(),
+                ],
+            ])->save();
+
+            $document = $this->generateUnilateralNoticeDocument($termination, $contract, $admin, $summary);
+            PartnerTerminationDocument::query()->create([
+                'partner_termination_request_id' => $termination->id,
+                'generated_document_id' => $document->id,
+                'document_type' => 'unilateral_termination_notice',
+                'file_path' => $document->generated_file_path,
+                'status' => 'pending_signature',
+                'generated_by' => $admin->id,
+                'generated_at' => now(),
+            ]);
+
+            $this->history($termination, null, self::STATUS_DRAFT_PREVIEW, $admin, 'admin', 'Tạo bản xem trước công văn chấm dứt. Công văn chưa được gửi cho chủ sân.');
+
+            return $termination->fresh($this->requestRelations());
+        });
+    }
+
+    public function sendUnilateralNoticeOtp(PartnerTerminationRequest $termination, User $admin, string $signatureImage, Request $request): DocumentSigningRequest
+    {
+        $this->assertUnilateralNoticeDraft($termination);
+        $document = $this->latestUnilateralNoticeGeneratedDocument($termination);
+
+        return $this->signing->requestOtp(
+            $document,
+            $admin,
+            'sportgo',
+            'admin_sign_unilateral_termination_notice',
+            'Tôi xác nhận đã kiểm tra toàn bộ công văn và ký với vai trò đại diện SportGo được ủy quyền.',
+            $signatureImage,
+            $request
+        );
+    }
+
+    public function signAndIssueUnilateralNotice(
+        PartnerTerminationRequest $termination,
+        User $admin,
+        int $signingRequestId,
+        string $otp,
+        Request $request
+    ): PartnerTerminationRequest {
+        return DB::transaction(function () use ($termination, $admin, $signingRequestId, $otp, $request): PartnerTerminationRequest {
+            $termination = PartnerTerminationRequest::query()
+                ->with(['contract.application.user', 'venueCluster', 'owner'])
+                ->whereKey($termination->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $this->assertUnilateralNoticeDraft($termination);
+
+            $document = $this->latestUnilateralNoticeGeneratedDocument($termination);
+            $signingRequest = DocumentSigningRequest::query()
+                ->whereKey($signingRequestId)
+                ->where('generated_document_id', $document->id)
+                ->where('signer_side', 'sportgo')
+                ->where('action', 'admin_sign_unilateral_termination_notice')
+                ->firstOrFail();
+            $verified = $this->signing->verifyOtp($signingRequest, $admin, $otp);
+            $signature = $this->documents->signDocument($document, $admin, 'sportgo', $verified->signature_image, $request, [
+                'signer_full_name' => $admin->full_name ?: $admin->username,
+                'signer_title' => 'Đại diện SportGo',
+                'signer_organization' => 'SportGo',
+            ]);
+            $this->signing->markSigned($verified, $signature);
+
+            $oldStatus = $termination->status;
+            $this->fillTermination($termination, [
+                'status' => self::STATUS_IN_PROGRESS,
+                'approved_by' => $admin->id,
+                'approved_at' => now(),
+                'metadata' => array_merge($termination->metadata ?: [], [
+                    'notice_issued_at' => now()->toIso8601String(),
+                    'notice_issued_by' => $admin->id,
+                    'notice_issued_ip' => $request->ip(),
+                    'owner_acknowledged_at' => null,
+                ]),
+            ])->save();
+
+            VenueCluster::query()->whereKey($termination->venue_cluster_id)->update([
+                'status' => 'locked',
+                'status_reason' => 'SportGo đã gửi công văn chấm dứt hợp tác. Cụm sân tạm ngưng nhận booking mới trong khi xử lý booking và công nợ.',
+                'locked_at' => now(),
+                'locked_by' => $admin->id,
+            ]);
+            PartnerTerminationDocument::query()
+                ->where('partner_termination_request_id', $termination->id)
+                ->where('generated_document_id', $document->id)
+                ->update(['status' => 'signed']);
+            $this->history($termination, $oldStatus, self::STATUS_IN_PROGRESS, $admin, 'admin', 'SportGo ký và gửi công văn chấm dứt cho chủ sân.');
+            $this->notifyOwnerAboutUnilateralNotice($termination);
+
+            return $termination->fresh($this->requestRelations());
+        });
+    }
+
+    public function acknowledgeUnilateralNotice(PartnerTerminationRequest $termination, User $owner, Request $request): PartnerTerminationRequest
+    {
+        $updated = DB::transaction(function () use ($termination, $owner, $request): PartnerTerminationRequest {
+            $termination = PartnerTerminationRequest::query()->whereKey($termination->id)->lockForUpdate()->firstOrFail();
+            $this->assertOwner($termination, $owner);
+            if ($termination->termination_type !== 'unilateral_by_sportgo' || $termination->status !== self::STATUS_IN_PROGRESS) {
+                throw ValidationException::withMessages(['status' => 'Công văn không ở trạng thái chờ chủ sân xác nhận đã nhận.']);
+            }
+
+            $oldStatus = $termination->status;
+            $this->fillTermination($termination, [
+                'status' => self::STATUS_FUTURE_BOOKINGS,
+                'metadata' => array_merge($termination->metadata ?: [], [
+                    'owner_acknowledged_at' => now()->toIso8601String(),
+                    'owner_acknowledged_by' => $owner->id,
+                    'owner_acknowledged_ip' => $request->ip(),
+                    'owner_acknowledged_user_agent' => (string) $request->userAgent(),
+                ]),
+            ])->save();
+            $this->history($termination, $oldStatus, self::STATUS_FUTURE_BOOKINGS, $owner, 'owner', 'Chủ sân xác nhận đã nhận và đọc công văn chấm dứt.');
+            $this->notifyAdminsAboutUnilateral($termination, 'Chủ sân đã nhận công văn', 'Chủ sân đã xác nhận nhận công văn và bắt đầu xử lý booking/công nợ.');
+
+            return $termination;
+        });
+
+        return $this->refreshProgress($updated)->fresh($this->requestRelations());
+    }
+
+    public function requestUnilateralReconsideration(PartnerTerminationRequest $termination, User $owner, string $reason): PartnerTerminationRequest
+    {
+        return DB::transaction(function () use ($termination, $owner, $reason): PartnerTerminationRequest {
+            $termination = PartnerTerminationRequest::query()->whereKey($termination->id)->lockForUpdate()->firstOrFail();
+            $this->assertOwner($termination, $owner);
+            if ($termination->termination_type !== 'unilateral_by_sportgo' || ! in_array($termination->status, [self::STATUS_IN_PROGRESS, self::STATUS_FUTURE_BOOKINGS, self::STATUS_WAITING_SETTLEMENT], true)) {
+                throw ValidationException::withMessages(['status' => 'Trạng thái hiện tại không cho phép gửi yêu cầu xem xét lại công văn.']);
+            }
+
+            $metadata = $termination->metadata ?: [];
+            $reconsiderations = collect($metadata['reconsiderations'] ?? [])->push([
+                'reason' => $reason,
+                'requested_at' => now()->toIso8601String(),
+                'requested_by' => $owner->id,
+                'status' => 'pending',
+            ])->values()->all();
+            $this->fillTermination($termination, [
+                'metadata' => array_merge($metadata, [
+                    'reconsideration_pending' => true,
+                    'latest_reconsideration_reason' => $reason,
+                    'reconsiderations' => $reconsiderations,
+                ]),
+            ])->save();
+            $this->history($termination, $termination->status, $termination->status, $owner, 'owner', 'Chủ sân yêu cầu xem xét lại công văn: ' . $reason);
+            $this->notifyAdminsAboutUnilateral($termination, 'Chủ sân yêu cầu xem xét lại công văn', $reason);
+
+            return $termination->fresh($this->requestRelations());
+        });
+    }
+
+    public function resolveUnilateralReconsideration(PartnerTerminationRequest $termination, User $admin, string $note): PartnerTerminationRequest
+    {
+        return DB::transaction(function () use ($termination, $admin, $note): PartnerTerminationRequest {
+            $termination = PartnerTerminationRequest::query()->whereKey($termination->id)->lockForUpdate()->firstOrFail();
+            $metadata = $termination->metadata ?: [];
+            if ($termination->termination_type !== 'unilateral_by_sportgo' || empty($termination->workflow_state['reconsideration_pending'])) {
+                throw ValidationException::withMessages(['status' => 'Không có yêu cầu xem xét lại đang chờ xử lý.']);
+            }
+
+            $reconsiderations = collect($metadata['reconsiderations'] ?? [])->map(function ($item) use ($admin, $note) {
+                if (($item['status'] ?? null) === 'pending') {
+                    return array_merge($item, [
+                        'status' => 'notice_kept',
+                        'resolved_at' => now()->toIso8601String(),
+                        'resolved_by' => $admin->id,
+                        'resolution_note' => $note,
+                    ]);
+                }
+
+                return $item;
+            })->values()->all();
+            $this->fillTermination($termination, [
+                'metadata' => array_merge($metadata, [
+                    'reconsideration_pending' => false,
+                    'reconsideration_resolution_note' => $note,
+                    'reconsiderations' => $reconsiderations,
+                ]),
+            ])->save();
+            $this->history($termination, $termination->status, $termination->status, $admin, 'admin', 'Admin giữ nguyên công văn sau khi xem xét: ' . $note);
+            $this->notifyOwnerAboutUnilateralResolution($termination, 'SportGo đã xem xét phản hồi', 'Công văn được giữ nguyên. ' . $note);
+
+            return $termination->fresh($this->requestRelations());
+        });
+    }
+
+    public function withdrawUnilateralNotice(PartnerTerminationRequest $termination, User $admin, string $reason): PartnerTerminationRequest
+    {
+        return DB::transaction(function () use ($termination, $admin, $reason): PartnerTerminationRequest {
+            $termination = PartnerTerminationRequest::query()->with('contract')->whereKey($termination->id)->lockForUpdate()->firstOrFail();
+            if ($termination->termination_type !== 'unilateral_by_sportgo' || ! in_array($termination->status, [self::STATUS_DRAFT_PREVIEW, self::STATUS_IN_PROGRESS, self::STATUS_FUTURE_BOOKINGS, self::STATUS_WAITING_SETTLEMENT], true)) {
+                throw ValidationException::withMessages(['status' => 'Công văn không còn ở trạng thái cho phép thu hồi.']);
+            }
+            if ($termination->final_document_ready_at || $termination->final_document_admin_signed_at || $termination->final_document_owner_signed_at) {
+                throw ValidationException::withMessages(['status' => 'Đã sinh hoặc ký biên bản cuối nên không thể thu hồi công văn.']);
+            }
+
+            $oldStatus = $termination->status;
+            $this->fillTermination($termination, [
+                'status' => self::STATUS_OWNER_CANCELLED,
+                'metadata' => array_merge($termination->metadata ?: [], [
+                    'notice_withdrawn_at' => now()->toIso8601String(),
+                    'notice_withdrawn_by' => $admin->id,
+                    'notice_withdraw_reason' => $reason,
+                    'reconsideration_pending' => false,
+                ]),
+            ])->save();
+            VenueCluster::query()
+                ->whereKey($termination->venue_cluster_id)
+                ->where('status', 'locked')
+                ->where('status_reason', 'like', '%công văn chấm dứt%')
+                ->update([
+                    'status' => 'active',
+                    'status_reason' => null,
+                    'locked_at' => null,
+                    'locked_by' => null,
+                ]);
+            $termination->contract?->forceFill(['status' => 'signed_active'])->save();
+            $this->history($termination, $oldStatus, self::STATUS_OWNER_CANCELLED, $admin, 'admin', 'SportGo thu hồi công văn: ' . $reason);
+            $this->notifyOwnerAboutUnilateralResolution($termination, 'SportGo đã thu hồi công văn chấm dứt', $reason);
+
+            return $termination->fresh($this->requestRelations());
+        });
+    }
+
+    public function confirmOwnerRequest(PartnerTerminationRequest $termination, User $admin, Request $request): PartnerTerminationRequest
+    {
+        return DB::transaction(function () use ($termination, $admin, $request): PartnerTerminationRequest {
+            $termination = PartnerTerminationRequest::query()
+                ->with(['venueCluster', 'contract.application.user'])
+                ->whereKey($termination->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! in_array($termination->status, [self::STATUS_IN_PROGRESS, self::STATUS_FUTURE_BOOKINGS], true)) {
+                throw ValidationException::withMessages([
+                    'status' => 'Yêu cầu chấm dứt không ở trạng thái chờ admin xác nhận.',
+                ]);
+            }
+
+            $oldStatus = $termination->status;
+            $this->fillTermination($termination, [
+                'approved_by' => $admin->id,
+                'approved_at' => now(),
+                'metadata' => array_merge($termination->metadata ?: [], [
+                    'admin_confirmed_at' => now()->toIso8601String(),
+                    'admin_confirmed_by' => $admin->id,
+                    'admin_confirmed_ip' => $request->ip(),
+                ]),
+            ])->save();
+
+            $this->history(
+                $termination,
+                $oldStatus,
+                $termination->status,
+                $admin,
+                'admin',
+                'Admin xác nhận yêu cầu chấm dứt đã được chủ sân ký.'
+            );
+
+            return $this->refreshProgress($termination)->fresh($this->requestRelations());
+        });
+    }
+
     public function markReadyForFinalDocument(PartnerTerminationRequest $termination, User $admin, ?string $note = null): PartnerTerminationRequest
     {
         return DB::transaction(function () use ($termination, $admin, $note): PartnerTerminationRequest {
             $termination = PartnerTerminationRequest::query()->whereKey($termination->id)->lockForUpdate()->firstOrFail();
             $oldStatus = $termination->status;
-            $termination->forceFill([
+            $this->fillTermination($termination, [
                 'manual_debt_resolved_at' => now(),
                 'manual_debt_resolved_by' => $admin->id,
             ])->save();
 
-            $this->generateFinalDocumentIfReady($termination, $admin, false);
+            $this->generateFinalDocumentIfReady($termination, $admin, true);
             $this->history($termination, $oldStatus, $termination->fresh()->status, $admin, 'admin', $note ?: 'Admin xác nhận đủ điều kiện sinh văn bản chấm dứt cuối.');
 
             return $termination->fresh($this->requestRelations());
@@ -595,12 +922,12 @@ class PartnerTerminationFlowService
             $updates = $signerSide === 'sportgo'
                 ? ['final_document_admin_signed_at' => now()]
                 : ['final_document_owner_signed_at' => now()];
-            $termination->forceFill($updates)->save();
+            $this->fillTermination($termination, $updates)->save();
 
             $document = $document->fresh('signatures');
             if ($document->status === 'completed' || $document->signatures()->where('status', 'signed')->whereIn('signer_side', ['owner', 'sportgo'])->distinct('signer_side')->count('signer_side') >= 2) {
                 $graceDays = $this->gracePeriodDays();
-                $termination->forceFill([
+                $this->fillTermination($termination, [
                     'status' => self::STATUS_TERMINATING,
                     'effective_termination_date' => now(),
                     'final_document_completed_at' => now(),
@@ -626,6 +953,12 @@ class PartnerTerminationFlowService
     public function manualResolveBooking(PartnerTerminationRequest $termination, Booking $booking, User $admin, ?string $note = null): PartnerTerminationBookingAction
     {
         return DB::transaction(function () use ($termination, $booking, $admin, $note): PartnerTerminationBookingAction {
+            if (! $this->hasTerminationBookingActionsTable()) {
+                throw ValidationException::withMessages([
+                    'booking' => 'Chua co bang luu thao tac booking cham dut. Vui long chay migration truoc khi xu ly booking tuong lai.',
+                ]);
+            }
+
             if ((string) $booking->venue_cluster_id !== (string) $termination->venue_cluster_id) {
                 throw ValidationException::withMessages(['booking_id' => 'Booking không thuộc cụm sân của yêu cầu chấm dứt.']);
             }
@@ -660,6 +993,10 @@ class PartnerTerminationFlowService
 
     public function updateSettings(int $graceDays): void
     {
+        if (! Schema::hasTable('system_settings')) {
+            return;
+        }
+
         DB::table('system_settings')->updateOrInsert(
             ['key' => 'partner_termination_view_grace_days'],
             [
@@ -742,7 +1079,7 @@ class PartnerTerminationFlowService
             }
 
             $oldStatus = $termination->status;
-            $termination->forceFill([
+            $this->fillTermination($termination, [
                 'status' => self::STATUS_TERMINATED,
                 'owner_access_revoked_at' => now(),
             ])->save();
@@ -759,7 +1096,7 @@ class PartnerTerminationFlowService
             VenueCluster::query()
                 ->whereKey($termination->venue_cluster_id)
                 ->update([
-                    'status' => 'partner_terminated',
+                    'status' => 'locked',
                     'status_reason' => 'Hợp đồng đối tác đã chấm dứt hoàn tất theo hồ sơ ' . $termination->termination_code,
                     'locked_at' => now(),
                 ]);
@@ -780,7 +1117,7 @@ class PartnerTerminationFlowService
         }
 
         $summary = $this->financialSummary($termination->venueCluster);
-        $termination->forceFill([
+        $this->fillTermination($termination, [
             'future_booking_count' => $summary['future_booking_count'],
             'owner_balance_total' => $summary['owner_balance_total'],
             'future_online_booking_liability' => $summary['future_online_booking_liability'],
@@ -826,17 +1163,62 @@ class PartnerTerminationFlowService
 
     public function requestRelations(): array
     {
-        return [
+        $relations = [
             'owner:id,full_name,username,email,phone',
             'venueCluster:id,owner_id,name,status,address,status_reason,locked_at',
             'contract.application.user',
             'documents.generatedDocument.signatures.signer',
             'documents.generatedDocument.signingRequests',
-            'bookingActions.booking.customer',
-            'bookingActions.booking.payments',
-            'bookingActions.processedBy:id,full_name,username,email',
             'statusHistories.changedBy:id,full_name,username,email',
         ];
+
+        if ($this->hasTerminationBookingActionsTable()) {
+            $relations[] = 'bookingActions.booking.customer';
+            $relations[] = 'bookingActions.booking.payments';
+            $relations[] = 'bookingActions.processedBy:id,full_name,username,email';
+        }
+
+        return $relations;
+    }
+
+    private function fillTermination(PartnerTerminationRequest $termination, array $attributes): PartnerTerminationRequest
+    {
+        return $termination->forceFill($this->existingTerminationAttributes($attributes));
+    }
+
+    private function existingTerminationAttributes(array $attributes): array
+    {
+        $columns = $this->terminationColumns();
+
+        return array_filter(
+            $attributes,
+            fn (string $column): bool => isset($columns[$column]),
+            ARRAY_FILTER_USE_KEY
+        );
+    }
+
+    private function terminationColumns(): array
+    {
+        static $columns = null;
+
+        if ($columns === null) {
+            $columns = Schema::hasTable('partner_termination_requests')
+                ? array_flip(Schema::getColumnListing('partner_termination_requests'))
+                : [];
+        }
+
+        return $columns;
+    }
+
+    private function hasTerminationBookingActionsTable(): bool
+    {
+        static $exists = null;
+
+        if ($exists === null) {
+            $exists = Schema::hasTable('partner_termination_booking_actions');
+        }
+
+        return $exists;
     }
 
     private function ownedCluster(User $owner, string|int $clusterId): VenueCluster
@@ -893,37 +1275,86 @@ class PartnerTerminationFlowService
         ];
     }
 
-    private function generateOwnerRequestDocument(PartnerTerminationRequest $termination, User $owner, string $status = 'generated'): GeneratedDocument
+    private function generateOwnerRequestDocument(
+        PartnerTerminationRequest $termination,
+        User $owner,
+        string $status = 'generated',
+        array $previewData = [],
+        ?array $previewSummary = null
+    ): GeneratedDocument
     {
         $termination->loadMissing(['contract.application.user', 'venueCluster']);
-        $summary = $termination->future_booking_summary ?: [];
+        $financial = $previewSummary ?: [
+            'future_booking_count' => $termination->future_booking_count,
+            'future_online_booking_liability' => $termination->future_online_booking_liability,
+            'owner_balance_total' => $termination->owner_balance_total,
+            'pending_refund_liability' => $termination->pending_refund_liability,
+            'pending_withdrawal_amount' => $termination->pending_withdrawal_amount,
+            'withdrawable_amount' => $termination->withdrawable_amount,
+            'future_bookings' => $termination->future_booking_summary ?: [],
+        ];
+        $futureBookings = $financial['future_bookings'] ?? [];
+        $policy = $previewData['future_booking_policy'] ?? $termination->future_booking_policy;
+        $effectiveDate = $previewData['requested_effective_date'] ?? $termination->requested_effective_date;
+        $effectiveDate = $effectiveDate ? Carbon::parse($effectiveDate)->format('d/m/Y') : null;
+        $futureBookingCount = (int) ($financial['future_booking_count'] ?? 0);
+        $pendingRefund = (float) ($financial['pending_refund_liability'] ?? 0);
+        $pendingWithdrawal = (float) ($financial['pending_withdrawal_amount'] ?? 0);
+        $openComplaints = Schema::hasTable('complaints')
+            ? DB::table('complaints')
+                ->where('venue_cluster_id', $termination->venue_cluster_id)
+                ->whereNotIn('status', ['resolved', 'closed', 'rejected', 'cancelled'])
+                ->count()
+            : 0;
+        $ownerName = $this->ownerSignerName($termination);
+        $ownerPhone = $termination->contract?->application?->applicant_phone ?: $owner->phone;
 
         return $this->documents->generateDocument('termination_request', $termination, [
             'termination_code' => $termination->termination_code,
             'requested_at' => $this->timestamp($termination->requested_at),
-            'requested_by' => $this->ownerSignerName($termination),
-            'owner_full_name' => $this->ownerSignerName($termination),
-            'owner_signer_full_name' => $this->ownerSignerName($termination),
-            'owner_phone' => $termination->contract?->application?->applicant_phone ?: $owner->phone,
+            'requested_by' => $ownerName,
+            'owner_full_name' => $ownerName,
+            'owner_signer_full_name' => $ownerName,
+            'owner_phone' => $ownerPhone,
             'owner_email' => $termination->contract?->application?->applicant_email ?: $owner->email,
             'contract_code' => $termination->contract?->contract_code,
+            'contract_signed_at' => $termination->contract?->sportgo_signed_at?->format('d/m/Y')
+                ?: $termination->contract?->owner_signed_at?->format('d/m/Y'),
             'venue_name' => $termination->venueCluster?->name,
+            'venue_cluster_code' => $termination->venueCluster?->venue_code ?: $termination->venueCluster?->code,
             'venue_address' => $termination->venueCluster?->address,
+            'venue_status_label' => 'Đang hoạt động; hệ thống khóa nhận booking mới sau khi đơn được ký gửi',
             'termination_type' => 'Chủ sân đề nghị chấm dứt hợp đồng',
             'termination_reason' => $termination->reason,
             'reason' => $termination->reason,
-            'detail_reason' => $termination->detail_reason,
-            'requested_effective_date' => $termination->requested_effective_date?->format('d/m/Y'),
-            'future_booking_policy' => $this->policyLabel($termination->future_booking_policy),
-            'future_booking_count' => (string) $termination->future_booking_count,
-            'future_online_booking_liability' => $this->money($termination->future_online_booking_liability),
-            'owner_balance_total' => $this->money($termination->owner_balance_total),
-            'withdrawable_amount' => $this->money($termination->withdrawable_amount),
-            'temporary_hold_amount' => $this->money($termination->future_online_booking_liability),
-            'future_bookings_summary' => collect($summary)->map(fn ($booking) => ($booking['booking_code'] ?? '-') . ' - ' . ($booking['booking_date'] ?? '-') . ' - ' . $this->money($booking['paid_online_amount'] ?? 0))->implode("\n"),
-            'attachments' => collect($termination->owner_attachments ?: [])->map(fn ($item) => is_array($item) ? ($item['name'] ?? json_encode($item)) : (string) $item)->implode(', '),
+            'detail_reason' => $previewData['detail_reason'] ?? $termination->detail_reason,
+            'requested_effective_date' => $effectiveDate,
+            'requested_stop_booking_at' => 'Ngay sau khi chủ sân ký gửi đơn',
+            'termination_coordinator' => $ownerName . ($ownerPhone ? ' - ' . $ownerPhone : ''),
+            'future_booking_policy' => $this->policyLabel($policy),
+            'future_booking_count' => (string) $futureBookingCount,
+            'booking_status_summary' => $futureBookingCount > 0
+                ? $futureBookingCount . ' booking tương lai; phương án: ' . $this->policyLabel($policy)
+                : 'Không có booking tương lai cần xử lý',
+            'refund_status_summary' => $pendingRefund > 0
+                ? 'Đang xử lý ' . $this->money($pendingRefund)
+                : 'Không có khoản hoàn tiền đang chờ',
+            'withdrawal_status_summary' => $pendingWithdrawal > 0
+                ? 'Đang xử lý ' . $this->money($pendingWithdrawal)
+                : 'Không có yêu cầu rút tiền đang chờ',
+            'complaint_status_summary' => $openComplaints > 0
+                ? $openComplaints . ' khiếu nại đang mở'
+                : 'Không có khiếu nại đang mở',
+            'future_online_booking_liability' => $this->money($financial['future_online_booking_liability'] ?? 0),
+            'owner_balance_total' => $this->money($financial['owner_balance_total'] ?? 0),
+            'pending_refund_liability' => $this->money($pendingRefund),
+            'pending_withdrawal_amount' => $this->money($pendingWithdrawal),
+            'withdrawable_amount' => $this->money($financial['withdrawable_amount'] ?? 0),
+            'temporary_hold_amount' => $this->money($financial['future_online_booking_liability'] ?? 0),
+            'future_bookings_summary' => collect($futureBookings)->map(fn ($booking) => ($booking['booking_code'] ?? '-') . ' - ' . ($booking['booking_date'] ?? '-') . ' - ' . $this->money($booking['paid_online_amount'] ?? 0))->implode("\n"),
+            'attachments' => collect($previewData['attachments'] ?? $termination->owner_attachments ?: [])->map(fn ($item) => is_array($item) ? ($item['name'] ?? json_encode($item)) : (string) $item)->implode(', '),
             'owner_bank_account_snapshot' => $this->bankSnapshot($termination),
-            'owner_signed_at' => $this->timestamp(now()),
+            'owner_signed_at' => null,
         ], $owner, [
             'status' => $status,
             'partner_application_id' => $termination->partner_application_id,
@@ -980,7 +1411,7 @@ class PartnerTerminationFlowService
         ]);
 
         $oldStatus = $termination->status;
-        $termination->forceFill([
+        $this->fillTermination($termination, [
             'status' => self::STATUS_WAITING_FINAL_SIGNATURE,
             'final_document_generated_at' => now(),
             'final_document_ready_at' => now(),
@@ -992,12 +1423,19 @@ class PartnerTerminationFlowService
 
     private function finalDocumentRenderData(PartnerTerminationRequest $termination): array
     {
-        $termination->loadMissing(['contract.application.user', 'venueCluster', 'bookingActions.booking']);
+        $relations = ['contract.application.user', 'venueCluster'];
+        if ($this->hasTerminationBookingActionsTable()) {
+            $relations[] = 'bookingActions.booking';
+        }
+
+        $termination->loadMissing($relations);
         $summary = $this->financialSummary($termination->venueCluster);
         $ownerName = $this->ownerSignerName($termination);
-        $bookingResult = $termination->bookingActions
-            ->map(fn (PartnerTerminationBookingAction $action) => ($action->booking?->booking_code ?? '-') . ': ' . $this->bookingActionLabel($action->action) . ' / ' . $action->status)
-            ->implode("\n");
+        $bookingResult = $this->hasTerminationBookingActionsTable()
+            ? $termination->bookingActions
+                ->map(fn (PartnerTerminationBookingAction $action) => ($action->booking?->booking_code ?? '-') . ': ' . $this->bookingActionLabel($action->action) . ' / ' . $action->status)
+                ->implode("\n")
+            : '';
 
         return [
             'settlement_code' => 'BB-CD-' . $termination->termination_code,
@@ -1033,6 +1471,10 @@ class PartnerTerminationFlowService
 
     private function syncFutureBookingActions(PartnerTerminationRequest $termination, array $futureBookings): void
     {
+        if (! $this->hasTerminationBookingActionsTable()) {
+            return;
+        }
+
         foreach ($futureBookings as $booking) {
             PartnerTerminationBookingAction::query()->firstOrCreate(
                 [
@@ -1070,7 +1512,7 @@ class PartnerTerminationFlowService
 
     private function futureBookingsPayload(string|int $clusterId, ?PartnerTerminationRequest $termination = null): array
     {
-        $actions = $termination
+        $actions = $termination && $this->hasTerminationBookingActionsTable()
             ? $termination->bookingActions()->get()->keyBy('booking_id')
             : collect();
 
@@ -1120,6 +1562,10 @@ class PartnerTerminationFlowService
 
         if ($futureBookings->isEmpty()) {
             return true;
+        }
+
+        if (! $this->hasTerminationBookingActionsTable()) {
+            return false;
         }
 
         $actions = $termination->bookingActions()->get()->keyBy('booking_id');
@@ -1172,6 +1618,21 @@ class PartnerTerminationFlowService
         return $document;
     }
 
+    private function latestUnilateralNoticeGeneratedDocument(PartnerTerminationRequest $termination): GeneratedDocument
+    {
+        $document = $termination->documents()
+            ->with('generatedDocument.signatures')
+            ->whereIn('document_type', ['unilateral_notice', 'unilateral_termination_notice'])
+            ->latest()
+            ->first()?->generatedDocument;
+
+        if (! $document) {
+            throw ValidationException::withMessages(['document' => 'Không tìm thấy công văn chấm dứt để ký.']);
+        }
+
+        return $document;
+    }
+
     private function latestFinalGeneratedDocument(PartnerTerminationRequest $termination): GeneratedDocument
     {
         $document = $termination->documents()
@@ -1192,20 +1653,19 @@ class PartnerTerminationFlowService
         VenueCluster::query()
             ->whereKey($termination->venue_cluster_id)
             ->update([
-                'status' => 'termination_processing',
+                'status' => 'locked',
                 'status_reason' => 'Chủ sân đã ký gửi yêu cầu chấm dứt hợp đồng đối tác. Cụm sân tạm ngưng nhận booking mới.',
                 'locked_at' => now(),
                 'locked_by' => $owner->id,
             ]);
-
-        $termination->contract?->forceFill(['status' => 'termination_requested'])->save();
     }
 
     private function unlockClusterAfterOwnerCancel(PartnerTerminationRequest $termination): void
     {
         VenueCluster::query()
             ->whereKey($termination->venue_cluster_id)
-            ->whereIn('status', ['termination_processing', 'termination_locked'])
+            ->where('status', 'locked')
+            ->where('status_reason', 'like', '%chấm dứt%')
             ->update([
                 'status' => 'active',
                 'status_reason' => null,
@@ -1220,6 +1680,17 @@ class PartnerTerminationFlowService
     {
         if ((string) $termination->owner_id !== (string) $owner->id) {
             abort(403, 'Bạn không có quyền thao tác hồ sơ chấm dứt này.');
+        }
+    }
+
+    private function assertUnilateralNoticeDraft(PartnerTerminationRequest $termination): void
+    {
+        if ($termination->termination_type !== 'unilateral_by_sportgo') {
+            throw ValidationException::withMessages(['termination' => 'Hồ sơ này không phải công văn chấm dứt từ SportGo.']);
+        }
+
+        if ($termination->status !== self::STATUS_DRAFT_PREVIEW) {
+            throw ValidationException::withMessages(['status' => 'Công văn không còn ở trạng thái chờ SportGo ký.']);
         }
     }
 
@@ -1253,7 +1724,6 @@ class PartnerTerminationFlowService
 
     private function assertCanOwnerCancel(PartnerTerminationRequest $termination): void
     {
-        $termination->loadMissing('bookingActions');
         if ($termination->admin_locked_owner_cancel) {
             throw ValidationException::withMessages(['status' => 'Admin đã khóa quyền hủy yêu cầu này.']);
         }
@@ -1266,10 +1736,13 @@ class PartnerTerminationFlowService
             throw ValidationException::withMessages(['status' => 'Trạng thái hiện tại không cho phép chủ sân hủy yêu cầu.']);
         }
 
-        $hasIrreversible = $termination->bookingActions
-            ->contains(fn (PartnerTerminationBookingAction $action): bool => $action->action === self::POLICY_CANCEL_ALL && $action->status === 'resolved');
-        if ($hasIrreversible) {
-            throw ValidationException::withMessages(['booking' => 'Đã có booking bị hủy/hoàn tiền, cần admin xử lý thủ công nếu muốn dừng quy trình.']);
+        if ($this->hasTerminationBookingActionsTable()) {
+            $termination->loadMissing('bookingActions');
+            $hasIrreversible = $termination->bookingActions
+                ->contains(fn (PartnerTerminationBookingAction $action): bool => $action->action === self::POLICY_CANCEL_ALL && $action->status === 'resolved');
+            if ($hasIrreversible) {
+                throw ValidationException::withMessages(['booking' => 'Đã có booking bị hủy/hoàn tiền, cần admin xử lý thủ công nếu muốn dừng quy trình.']);
+            }
         }
     }
 
@@ -1280,7 +1753,7 @@ class PartnerTerminationFlowService
         }
 
         $old = $termination->status;
-        $termination->forceFill(['status' => $status])->save();
+        $this->fillTermination($termination, ['status' => $status])->save();
         $this->history($termination, $old, $status, $actor, $actorType, $reason);
     }
 
@@ -1327,6 +1800,148 @@ class PartnerTerminationFlowService
                     ],
                 ]);
             });
+    }
+
+    private function notifyOwnerAboutUnilateralNotice(PartnerTerminationRequest $termination): void
+    {
+        $termination->loadMissing(['owner', 'contract.application.user', 'venueCluster']);
+        $owner = $termination->owner ?: $termination->contract?->application?->user;
+        if (! $owner) {
+            return;
+        }
+
+        Notification::query()->create([
+            'user_id' => $owner->id,
+            'type' => 'partner_unilateral_termination_notice',
+            'title' => 'Cần xác nhận công văn chấm dứt hợp tác',
+            'body' => 'SportGo đã gửi công văn cho ' . ($termination->venueCluster?->name ?: 'cụm sân') . '. Vui lòng đọc file và xác nhận đã nhận.',
+            'reference_type' => 'partner_termination_request',
+            'reference_id' => $termination->id,
+            'data' => [
+                'termination_code' => $termination->termination_code,
+                'action_url' => '/owner/termination-requests/' . $termination->id,
+                'action_label' => 'Xem và xác nhận công văn',
+            ],
+        ]);
+
+        $this->mail->queue($owner, new PartnerUnilateralTerminationMail([
+            'owner_name' => $this->ownerSignerName($termination),
+            'contract_code' => $termination->contract?->contract_code,
+            'issued_at' => $this->timestamp(now()),
+            'reason' => $termination->reason,
+            'revocation_date' => $this->timestamp($termination->requested_effective_date),
+            'refund_amount' => $this->money($termination->withdrawable_amount),
+            'status_url' => url('/owner/termination-requests/' . $termination->id),
+        ]));
+    }
+
+    private function notifyOwnerAboutUnilateralResolution(PartnerTerminationRequest $termination, string $title, string $body): void
+    {
+        $ownerId = $termination->owner_id;
+        if (! $ownerId) {
+            return;
+        }
+
+        Notification::query()->create([
+            'user_id' => $ownerId,
+            'type' => 'partner_unilateral_termination_resolution',
+            'title' => $title,
+            'body' => $body,
+            'reference_type' => 'partner_termination_request',
+            'reference_id' => $termination->id,
+            'data' => [
+                'termination_code' => $termination->termination_code,
+                'action_url' => '/owner/termination-requests/' . $termination->id,
+                'action_label' => 'Xem hồ sơ',
+            ],
+        ]);
+    }
+
+    private function notifyAdminsAboutUnilateral(PartnerTerminationRequest $termination, string $title, string $body): void
+    {
+        User::query()
+            ->whereHas('roles', fn ($query) => $query->whereIn('roles.name', ['super_admin', 'admin', 'system_staff', 'partner_manager']))
+            ->pluck('id')
+            ->each(function (string|int $adminId) use ($termination, $title, $body): void {
+                Notification::query()->create([
+                    'user_id' => $adminId,
+                    'type' => 'partner_unilateral_termination_action',
+                    'title' => $title,
+                    'body' => $body,
+                    'reference_type' => 'partner_termination_request',
+                    'reference_id' => $termination->id,
+                    'data' => [
+                        'termination_code' => $termination->termination_code,
+                        'partner_application_id' => $termination->partner_application_id,
+                        'action_url' => '/admin/partners/' . $termination->partner_application_id . '?tab=settlement',
+                        'action_label' => 'Mở hồ sơ chấm dứt',
+                    ],
+                ]);
+            });
+    }
+
+    private function generateUnilateralNoticeDocument(
+        PartnerTerminationRequest $termination,
+        PartnerContract $contract,
+        User $admin,
+        array $summary
+    ): GeneratedDocument {
+        $contract->loadMissing(['application.user', 'venueCluster']);
+        $application = $contract->application;
+        $cluster = $contract->venueCluster;
+        $ownerName = $this->ownerSignerName($termination->loadMissing(['owner', 'contract.application.user']));
+        $businessName = $application?->business_name ?: $ownerName;
+        $effectiveDate = $this->timestamp($termination->requested_effective_date);
+        $futureBookingSummary = collect($summary['future_bookings'] ?? [])
+            ->map(fn ($booking) => ($booking['booking_code'] ?? '-') . ' - ' . ($booking['booking_date'] ?? '-') . ' - ' . $this->money($booking['paid_online_amount'] ?? 0))
+            ->implode("\n");
+
+        return $this->documents->generateDocument('unilateral_termination_notice', $termination, [
+            'document_number' => 'CV-' . $termination->termination_code,
+            'notice_code' => 'CV-' . $termination->termination_code,
+            'issue_date' => $this->timestamp(now()),
+            'issued_at' => $this->timestamp(now()),
+            'issuer_side' => 'SportGo',
+            'receiver_name' => $businessName,
+            'venue_owner_name' => $ownerName,
+            'business_name' => $application?->business_name,
+            'representative_name' => $ownerName,
+            'owner_full_name' => $ownerName,
+            'owner_signer_full_name' => $ownerName,
+            'party_b_name' => $businessName,
+            'party_b_id' => $application?->tax_code ?: $application?->representative_identity_number,
+            'party_b_address' => $application?->business_address ?: $application?->venue_address,
+            'owner_phone' => $application?->applicant_phone ?: $application?->venue_phone ?: $application?->user?->phone,
+            'owner_email' => $application?->applicant_email ?: $application?->venue_email ?: $application?->user?->email,
+            'contract_code' => $contract->contract_code,
+            'venue_name' => $cluster?->name ?: $application?->venue_name,
+            'venue_code' => $cluster?->slug ?: $termination->termination_code,
+            'venue_address' => $cluster?->address ?: $application?->venue_address,
+            'legal_basis_text' => 'Theo điều khoản chấm dứt hợp tác trong hợp đồng đã ký và dữ liệu vận hành được lưu trên SportGo.',
+            'termination_reason' => $termination->reason,
+            'detail_reason' => $termination->detail_reason,
+            'effective_date' => $effectiveDate,
+            'effective_termination_date' => $effectiveDate,
+            'transition_end_at' => $effectiveDate,
+            'required_actions' => 'Xác nhận đã nhận công văn; ' . $this->policyLabel($termination->future_booking_policy) . '; hoàn tất refund, withdrawal và đối soát trước khi lập biên bản cuối.',
+            'settlement_deadline' => $effectiveDate,
+            'issuer_representative_name' => $admin->full_name ?: $admin->username,
+            'future_booking_count' => (string) ($summary['future_booking_count'] ?? 0),
+            'future_bookings_summary' => $futureBookingSummary ?: 'Không có booking tương lai tại thời điểm tạo công văn.',
+            'owner_balance_total' => $this->money($summary['owner_balance_total'] ?? 0),
+            'future_online_booking_liability' => $this->money($summary['future_online_booking_liability'] ?? 0),
+            'pending_refund_liability' => $this->money($summary['pending_refund_liability'] ?? 0),
+            'pending_withdrawal_amount' => $this->money($summary['pending_withdrawal_amount'] ?? 0),
+            'withdrawable_amount' => $this->money($summary['withdrawable_amount'] ?? 0),
+        ], $admin, [
+            'status' => 'pending_sportgo_signature',
+            'partner_application_id' => $contract->partner_application_id,
+            'partner_contract_id' => $contract->id,
+            'partner_termination_request_id' => $termination->id,
+            'owner_id' => $contract->owner_id,
+            'venue_cluster_id' => $contract->venue_cluster_id,
+            'title' => 'Công văn chấm dứt hợp tác ' . ($cluster?->name ?: $termination->termination_code),
+        ]);
     }
 
     private function gracePeriodDays(): int

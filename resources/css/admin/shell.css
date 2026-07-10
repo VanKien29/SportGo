@@ -552,10 +552,20 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 99px;
-  background: var(--admin-primary-soft);
-  color: var(--admin-primary-dark);
+  background: #ef4444;
+  color: #fff;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--admin-surface, #fff);
+  animation: badge-pop 0.3s ease;
+}
+
+@keyframes badge-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .nav-chevron {
@@ -924,6 +934,7 @@
 }
 
 .rail-icon-btn {
+  position: relative;
   width: 40px;
   height: 40px;
   border-radius: 8px;
@@ -935,6 +946,17 @@
   justify-content: center;
   cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease;
+}
+
+.rail-badge-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  border: 2px solid var(--admin-surface, #fff);
 }
 
 .rail-icon-btn:hover {

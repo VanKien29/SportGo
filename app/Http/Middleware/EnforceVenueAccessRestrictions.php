@@ -27,7 +27,10 @@ class EnforceVenueAccessRestrictions
             return $next($request);
         }
 
-        if (in_array($cluster->status, ['termination_processing', 'termination_locked', 'partner_terminated'], true)) {
+        $terminationLocked = $cluster->status === 'locked'
+            && Str::contains(Str::lower((string) $cluster->status_reason), ['cham dut', 'chấm dứt']);
+
+        if ($terminationLocked || in_array($cluster->status, ['termination_processing', 'termination_locked', 'partner_terminated'], true)) {
             if ($this->isAllowedDuringTermination($request)) {
                 return $next($request);
             }

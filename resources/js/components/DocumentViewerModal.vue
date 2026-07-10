@@ -96,7 +96,7 @@
           </div>
         </div>
         
-        <div v-if="$slots.actions" class="p-4 border-t border-[var(--admin-border)] bg-[var(--admin-surface-muted)] mt-auto shrink-0">
+        <div v-if="$slots.actions" class="max-h-[55vh] overflow-y-auto p-4 border-t border-[var(--admin-border)] bg-[var(--admin-surface-muted)] mt-auto shrink-0">
           <slot name="actions"></slot>
         </div>
       </div>

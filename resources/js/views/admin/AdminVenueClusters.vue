@@ -87,7 +87,12 @@
                     <!-- Tên cụm sân & Address -->
                     <template #name="{ row }">
                         <div class="name-col-cell">
-                            <span class="cluster-name-text">{{ row.name }}</span>
+                            <div class="cluster-name-wrapper" style="display: flex; align-items: center; gap: 6px;">
+                                <span class="cluster-name-text">{{ row.name }}</span>
+                                <div v-if="row.has_pending_requests" class="pending-indicator" title="Có yêu cầu đang chờ duyệt" style="display: flex; align-items: center; color: #ef4444;">
+                                    <AppIcon name="alertCircle" size="14" />
+                                </div>
+                            </div>
                             <span class="cluster-address-text">{{ formatFullAddress(row) }}</span>
                         </div>
                     </template>
@@ -173,12 +178,13 @@ export default {
     computed: {
         statusTabsUi() {
             return [
-                { value: "", label: "Tat ca" },
-                { value: "pending", label: "Cho duyet" },
-                { value: "active", label: "Dang hoat dong" },
-                { value: "locked", label: "Da khoa" },
-                { value: "termination_processing", label: "Dang cham dut" },
-                { value: "partner_terminated", label: "Da cham dut" },
+                { value: "", label: "Tất cả" },
+                { value: "has_pending_requests", label: "Có thay đổi chờ duyệt" },
+                { value: "pending", label: "Chờ duyệt mới" },
+                { value: "active", label: "Hoạt động" },
+                { value: "locked", label: "Đã khóa" },
+                { value: "termination_processing", label: "Đang chấm dứt" },
+                { value: "partner_terminated", label: "Đã chấm dứt" },
             ];
         },
         summaryCards() {
@@ -196,7 +202,9 @@ export default {
         filteredClusters() {
             let list = this.clusters;
             if (this.filterStatus) {
-                if (this.filterStatus === "termination_processing") {
+                if (this.filterStatus === "has_pending_requests") {
+                    list = list.filter((c) => c.has_pending_requests);
+                } else if (this.filterStatus === "termination_processing") {
                     list = list.filter((c) => ["termination_locked", "termination_processing"].includes(c.status));
                 } else {
                     list = list.filter((c) => c.status === this.filterStatus);
@@ -245,7 +253,10 @@ export default {
         },
 
         statusTabCount(status) {
-            if (!status) return this.clusters.length;
+            if (status === "") return this.clusters.length;
+            if (status === "has_pending_requests") {
+                return this.clusters.filter((c) => c.has_pending_requests).length;
+            }
             if (status === "termination_processing") {
                 return this.clusters.filter((cluster) => ["termination_locked", "termination_processing"].includes(cluster.status)).length;
             }
