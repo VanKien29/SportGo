@@ -55,7 +55,7 @@ class SystemSettingController extends Controller
             'logo_url' => ['nullable', 'string', 'max:1000'],
             'favicon_url' => ['nullable', 'string', 'max:1000'],
             'logo_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,svg', 'max:2048'],
-            'favicon_file' => ['nullable', 'file', 'mimes:ico,png,svg', 'max:512'],
+            'favicon_file' => ['nullable', 'file', 'mimes:ico,jpg,jpeg,png,webp,svg', 'max:512'],
         ], [
             'system_name.required' => 'Vui lòng nhập tên hệ thống.',
             'company_name.required' => 'Vui lòng nhập tên công ty.',
@@ -63,7 +63,7 @@ class SystemSettingController extends Controller
             'company_address.required' => 'Vui lòng nhập địa chỉ công ty.',
             'support_email.email' => 'Email hỗ trợ không hợp lệ.',
             'logo_file.mimes' => 'Logo chỉ hỗ trợ JPG, PNG, WEBP hoặc SVG.',
-            'favicon_file.mimes' => 'Favicon chỉ hỗ trợ ICO, PNG hoặc SVG.',
+            'favicon_file.mimes' => 'Favicon chỉ hỗ trợ ICO, JPG, PNG, WEBP hoặc SVG.',
         ]);
 
         if ($request->hasFile('logo_file')) {

@@ -60,7 +60,7 @@
                     </label>
                     <label class="field file-field">
                         <span>Upload favicon</span>
-                        <input type="file" accept=".ico,.png,.svg" @change="onFileChange($event, 'favicon')" />
+                        <input type="file" accept=".ico,.jpg,.jpeg,.png,.webp,.svg,image/*" @change="onFileChange($event, 'favicon')" />
                     </label>
                     <label class="field">
                         <span>Favicon URL</span>
